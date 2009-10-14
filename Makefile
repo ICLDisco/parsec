@@ -4,10 +4,10 @@ LEX=flex -d
 CFLAGS=-Wall -pedantic -ansi -g
 LDFLAGS=
 
-all: test-expr
+all: parse
 
-test-expr: test-expr.o expr.o lex.yy.o y.tab.o
-	$(CC) -o test-expr test-expr.o expr.o $(LDFLAGS)
+parse: expr.o lex.yy.o y.tab.o
+	$(CC) -o parse expr.o lex.yy.o y.tab.o $(LDFLAGS)
 
 test-expr.o: test-expr.c $(wildcard *.h)
 	$(CC) -o test-expr.o $(CFLAGS) -c test-expr.c
