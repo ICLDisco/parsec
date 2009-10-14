@@ -1,5 +1,6 @@
-//Globals
-GRIDrows, GRIDcols, NB, SIZE
+/* Globals
+ * GRIDrows, GRIDcols, NB, SIZE
+ */
 
 // Name
 POTRF(k)
@@ -8,18 +9,18 @@ POTRF(k)
 k = 0..SIZE
 
 // Parallel partitioning
-k % GRIDrows == rowRANK
-k % GRIDcols == colRANK
+: k % GRIDrows == rowRANK
+: k % GRIDcols == colRANK
 
 // Parameters
 INOUT T <- (k == 0) ? IN(k, k) : T SYRK(k, k-1)
         -> T TRSM(k, k+1..SIZE)
         -> OUT(k, k)
 
-// Body
+BODY
 lapack_spotrf(lapack_lower, NB, T, NB, &info);
 
-END POTRF
+END
 
 // Name
 SYRK(k, n)
@@ -29,28 +30,28 @@ k = 0..SIZE
 n = 0..k-1
 
 // Parallel partitioning
-k % GRIDrows == rowRANK
-k % GRIDcols == colRANK
+: k % GRIDrows == rowRANK
+: k % GRIDcols == colRANK
 
 //Parameters
 IN    A <- C TRSM(n, k)
 INOUT T <- (n == 0) ? IN(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
-// Body
+BODY
 cblas_ssyrk(CblasColMajor,
             CblasLower, CblasNoTrans,
             NB, NB, 1.0, A, NB, 1.0, T, NB );
 
-END SYRK
+END
 
 // Name
 GEMM(k, m, n)
 
 /Execution space
-k = 0..SIZE
-m = k+1..SIZE
-n = 0..k-1
+: k = 0..SIZE
+: m = k+1..SIZE
+: n = 0..k-1
 
 // Parallel partitioning
 m % GRIDrows == rowRANK
@@ -62,19 +63,19 @@ IN    B <- C TRSM(n, m)
 INOUT C <- (n == 0) ? IN(m, n) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
-// Body
+BODY
 cblas_sgemm( CblasColMajor,
              CblasNoTrans, CblasTrans,
              1.0, B, NB, A, NB, 1.0, C, NB );
 
-END GEMM
+END
 
 // Name
 TRSM(k, m)
 
 // Execution space
-k = 0..SIZE
-m = k+1..SIZE
+: k = 0..SIZE
+: m = k+1..SIZE
 
 // Parallel partitioning
 m % GRIDrows == rowRANK
@@ -88,11 +89,11 @@ INOUT C <- (k == 0) ? IN(m, k) : C GEMM(k, m, k-1)
         -> A SYRK(m, k)
         -> OUT(k, m)
 
-// Body
+BODY
 cblas_strsm( CblasColMajor,
              CblasRight, CblasLower,
              CblasTrans, CblasNonUnit,
              NB, NB, 1.0, T, NB, C, NB );
 
-END TRSM
+END
 
