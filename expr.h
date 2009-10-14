@@ -68,4 +68,11 @@ int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignment
  */
 char *expr_error(void);
 
+/**
+ * Dumps an expression to the standard output (debugging purpose)
+ *
+ * @param [IN]  e the expression to dump
+ */
+void expr_dump(expr_t *e);
+
 #endif

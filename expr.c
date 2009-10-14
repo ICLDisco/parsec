@@ -97,3 +97,8 @@ char *expr_error(void)
 {
     return expr_eval_error;
 }
+
+void expr_dump(expr_t *e)
+{
+    printf("should dump the expression here\n");
+}
