@@ -1,3 +1,7 @@
-expr.o
-test-expr.o
+.*\.o
 test-expr
+\..*\.swp
+.*\.output
+y\.tab\.c
+y\.tab\.h
+lex\.yy\.c
