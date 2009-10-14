@@ -1,12 +1,14 @@
 #ifndef _symbol_h
 #define _symbol_h
 
+typedef struct symbol symbol_t;
+
 #include "expr.h"
 
-typedef struct symbol {
+struct symbol {
     char   *name;
     expr_t *min;
     expr_t *max;
-} symbol_t;
+};
 
 #endif
