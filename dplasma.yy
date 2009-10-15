@@ -93,7 +93,7 @@ execution_space: assignment execution_space
          | assignment
 ;
 
-assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr DPLASMA_RANGE expr
+assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr
 ;
 
 partitioning: DPLASMA_COLON expr partitioning
@@ -128,6 +128,7 @@ expr: DPLASMA_VAR                                    { $$ = NULL; }
         | expr DPLASMA_OP expr                       { $$ = NULL; }
         | DPLASMA_OPEN_PAR expr DPLASMA_CLOSE_PAR    { $$ = NULL; }
         | expr DPLASMA_EQUAL expr                    { $$ = NULL; }
+        | expr DPLASMA_RANGE expr                    { $$ = NULL; }
 ;
 
 %%
