@@ -16,9 +16,9 @@ extern int dplasma_lineno;
 extern int yyparse(void);
 extern int yylex(void);
 
-void yyerror(const char *str)
+static void yyerror(const char *str)
 {
-	fprintf(stderr, "error: %s at line %d\n", str, dplasma_lineno);
+    fprintf(stderr, "parse error at line %d: %s\n", dplasma_lineno, str);
 }
 
 int yywrap()
@@ -86,8 +86,34 @@ dplasma:
                 }
 ;
 
-varlist: DPLASMA_VAR DPLASMA_COMMA varlist
-         | DPLASMA_VAR
+varlist:   DPLASMA_VAR DPLASMA_COMMA {
+                                        if( global_varlist_index == MAX_LOCAL_COUNT ) {
+                                            fprintf(stderr,
+                                                    "Internal Error while parsing at line %d:\n"
+                                                    "  Maximal variable list count reached: %d (I told you guys this will happen)\n",
+                                                    dplasma_lineno,
+                                                    global_varlist_index);
+                                            YYERROR;
+                                        } else {
+                                            global_dplasma->locals[global_varlist_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
+                                            global_dplasma->locals[global_varlist_index]->name = $1;
+                                            global_varlist_index++;
+                                        }
+                                     } varlist
+         | DPLASMA_VAR {
+                          if( global_varlist_index == MAX_LOCAL_COUNT ) {
+                               fprintf(stderr,
+                                       "Internal Error while parsing at line %d:\n"
+                                       "  Maximal variable list count reached: %d (I told you guys this will happen)\n",
+                                       dplasma_lineno,
+                                       global_varlist_index);
+                               YYERROR;
+                          } else {
+                              global_dplasma->locals[global_varlist_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
+                              global_dplasma->locals[global_varlist_index]->name = $1;
+                              global_varlist_index++;
+                          }
+                       }
          |
 ;
 
