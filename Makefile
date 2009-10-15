@@ -18,14 +18,14 @@ expr.o: expr.c $(wildcard *.h)
 y.tab.o: y.tab.c $(wildcard *.h)
 	$(CC) -o y.tab.o $(CFLAGS) -c y.tab.c
 
-y.tab.h y.tab.c: dplasma.yy
-	$(YACC) dplasma.yy
+y.tab.h y.tab.c: dplasma.y
+	$(YACC) dplasma.y
 
 lex.yy.o: lex.yy.c y.tab.h $(wildcard *.h)
 	$(CC) -o lex.yy.o $(CFLAGS) -c lex.yy.c
 
-lex.yy.c: dplasma.ll
-	$(LEX) dplasma.ll
+lex.yy.c: dplasma.l
+	$(LEX) dplasma.l
 
 clean:
 	rm -f *.o test-expr lex.yy.c y.tab.c y.tab.h
