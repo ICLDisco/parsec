@@ -10,20 +10,18 @@ OBJECTS=dplasma.o \
 	params.o \
 	dep.o
 
-.SUFFIXES: .y .l
-
 all: parse
 
-parse: lex.yy.o y.tab.o $(OBJECTS)
-	$(CC) -o parse lex.yy.o y.tab.o $(OBJECTS) $(LDFLAGS)
+%.tab.h %.tab.c: %.y
+	$(YACC) $< -o dplasma.tab.c
+
+parse: lex.yy.o dplasma.tab.o $(OBJECTS)
+	$(CC) -o parse $^ $(LDFLAGS)
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<
 
-y.tab.h y.tab.c: dplasma.y
-	$(YACC) dplasma.y
-
-lex.yy.o: lex.yy.c y.tab.h $(wildcard *.h)
+lex.yy.o: lex.yy.c dplasma.tab.h $(wildcard *.h)
 	$(CC) -o lex.yy.o $(CFLAGS) -c lex.yy.c
 
 lex.yy.c: dplasma.l

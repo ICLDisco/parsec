@@ -6,7 +6,7 @@
  */
 #include <string.h>
 #include "dplasma.h"
-#include "y.tab.h"
+#include "dplasma.tab.h"
 
 int dplasma_lineno = 1;
 
