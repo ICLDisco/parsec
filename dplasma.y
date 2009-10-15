@@ -17,7 +17,7 @@ typedef struct symbol_stack_elt {
 static symbol_stack_elt_t *dplasma_symbol_stack = NULL;
 
 static dplasma_t* global_dplasma = NULL;
-static int global_varlist_index = 0;
+static int global_lists_index = 0;
 extern int dplasma_lineno;
 
 extern int yyparse(void);
@@ -80,58 +80,60 @@ dplasma:
      DPLASMA_VAR {
                      global_dplasma = (dplasma_t*)calloc(1, sizeof(dplasma_t));
                      global_dplasma->name = $1;
-                     global_varlist_index = 0;
+                     global_lists_index = 0;
                  }
      DPLASMA_OPEN_PAR varlist DPLASMA_CLOSE_PAR
-     execution_space
+     execution_space  {
+                          global_lists_index = 0;
+                      }
      partitioning
      params
      DPLASMA_BODY
                 {
-                    global_dplasma->body = $9;
+                    global_dplasma->body = $10;
                 }
 ;
 
 varlist:   DPLASMA_VAR DPLASMA_COMMA {
                                         symbol_stack_elt_t *s;
-                                        if( global_varlist_index == MAX_LOCAL_COUNT ) {
+                                        if( global_lists_index == MAX_LOCAL_COUNT ) {
                                             fprintf(stderr,
                                                     "Internal Error while parsing at line %d:\n"
                                                     "  Maximal variable list count reached: %d (I told you guys this will happen)\n",
                                                     dplasma_lineno,
-                                                    global_varlist_index);
+                                                    global_lists_index);
                                             YYERROR;
                                         } else {
-                                            global_dplasma->locals[global_varlist_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
-                                            global_dplasma->locals[global_varlist_index]->name = $1;
+                                            global_dplasma->locals[global_lists_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
+                                            global_dplasma->locals[global_lists_index]->name = $1;
                                             
                                             s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                                            s->sym = global_dplasma->locals[global_varlist_index];
+                                            s->sym = global_dplasma->locals[global_lists_index];
                                             s->next = dplasma_symbol_stack;
                                             dplasma_symbol_stack = s;
 
-                                            global_varlist_index++;
+                                            global_lists_index++;
                                         }
                                      } varlist
          | DPLASMA_VAR {
                           symbol_stack_elt_t *s;
-                          if( global_varlist_index == MAX_LOCAL_COUNT ) {
+                          if( global_lists_index == MAX_LOCAL_COUNT ) {
                                fprintf(stderr,
                                        "Internal Error while parsing at line %d:\n"
                                        "  Maximal variable list count reached: %d (I told you guys this will happen)\n",
                                        dplasma_lineno,
-                                       global_varlist_index);
+                                       global_lists_index);
                                YYERROR;
                           } else {
-                              global_dplasma->locals[global_varlist_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
-                              global_dplasma->locals[global_varlist_index]->name = $1;
+                              global_dplasma->locals[global_lists_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
+                              global_dplasma->locals[global_lists_index]->name = $1;
 
                               s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                              s->sym = global_dplasma->locals[global_varlist_index];
+                              s->sym = global_dplasma->locals[global_lists_index];
                               s->next = dplasma_symbol_stack;
                               dplasma_symbol_stack = s;
 
-                              global_varlist_index++;
+                              global_lists_index++;
                           }
                        }
          |
@@ -168,7 +170,20 @@ assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
                                                 }
 ;
 
-partitioning: DPLASMA_COLON expr partitioning
+partitioning: DPLASMA_COLON expr  {
+                                                   if( global_lists_index == MAX_PRED_COUNT ) {
+                                                       fprintf(stderr,
+                                                               "Internal Error while parsing at line %d:\n"
+                                                               "  Maximal predicat list count reached: %d (I told you guys this will happen)\n",
+                                                               dplasma_lineno,
+                                                               global_lists_index);
+                                                       YYERROR;
+                                                   } else {
+                                                       global_dplasma->preds[global_lists_index] = $2;                             
+                                                       global_lists_index++;
+                                                   }
+                                             }
+              partitioning
          | 
 ;
 

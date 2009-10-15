@@ -17,5 +17,15 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
         symbol_dump(d->locals[i], pref2);
     }
 
+    printf("%s Predicates:\n", prefix);
+    for(i = 0; NULL != d->preds[i] && i < MAX_PRED_COUNT; i++) {
+        printf("%s", pref2);
+        expr_dump(d->preds[i]);
+        printf("\n");
+    }
+
+    printf("%s Body:\n", prefix);
+    printf("%s  %s\n", prefix, d->body);
+
     free(pref2);
 }
