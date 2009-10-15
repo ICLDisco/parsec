@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
- 
+
 #include "dplasma.h"
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)

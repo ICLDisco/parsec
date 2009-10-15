@@ -138,7 +138,7 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
 ;
 
 execution_space: assignment execution_space
-         | assignment
+         | 
 ;
 
 assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
@@ -169,18 +169,18 @@ assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
 ;
 
 partitioning: DPLASMA_COLON expr partitioning
-         | DPLASMA_COLON expr
+         | 
 ;
 
 params: param params
-         | param
+         |
 ;
 
 param: DPLASMA_DEPENDENCY_TYPE DPLASMA_VAR dependencies
 ;
 
 dependencies: DPLASMA_ARROW dependency dependencies
-        | DPLASMA_ARROW dependency
+        | 
 ;
 
 dependency: call
