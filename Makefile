@@ -10,10 +10,13 @@ OBJECTS=dplasma.o \
 	params.o \
 	dep.o
 
+.SUFFIXES:
+.SUFFIXES: .c .o .h
+
 all: parse
 
 %.tab.h %.tab.c: %.y
-	$(YACC) $< -o dplasma.tab.c
+	$(YACC) $< -o $(*F).tab.c
 
 parse: lex.yy.o dplasma.tab.o $(OBJECTS)
 	$(CC) -o parse $^ $(LDFLAGS)
