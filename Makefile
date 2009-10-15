@@ -6,7 +6,9 @@ LDFLAGS=
 
 OBJECTS=dplasma.o \
 	symbol.o \
-	expr.o
+	expr.o \
+	params.o \
+	dep.o
 
 all: parse
 

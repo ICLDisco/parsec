@@ -24,6 +24,11 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
         printf("\n");
     }
 
+    printf("%s Parameters and Dependencies:\n", prefix);
+    for(i = 0; NULL != d->params[i] && i < MAX_PARAM_COUNT; i++) {
+        param_dump(d->params[i], pref2);
+    }
+
     printf("%s Body:\n", prefix);
     printf("%s  %s\n", prefix, d->body);
 
