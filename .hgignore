@@ -1,5 +1,5 @@
 .*\.o
-test-expr
+parse
 \..*\.swp
 .*\.output
 y\.tab\.c

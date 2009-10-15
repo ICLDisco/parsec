@@ -10,6 +10,8 @@ OBJECTS=dplasma.o \
 	params.o \
 	dep.o
 
+.SUFFIXES: .y .l
+
 all: parse
 
 parse: lex.yy.o y.tab.o $(OBJECTS)
