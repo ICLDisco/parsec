@@ -28,6 +28,7 @@ int yywrap()
 
 int main(int argc, char *argv[])
 {
+    dplasma_lineno = 1;
 	yyparse();
 
 	return 0;
@@ -55,16 +56,17 @@ int main(int argc, char *argv[])
 %type  <expr>    expr
 
 %nonassoc DPLASMA_ASSIGNMENT
+%nonassoc DPLASMA_RANGE
 %left DPLASMA_EQUAL
 %left DPLASMA_OP
 
 %%
 
 prog:
-    dplasma prog {
-                     printf( "Parse %s\n%s\n", global_dplasma->name,
-                             global_dplasma->body );
-                 }
+    dplasma {
+                printf( "Parse %s\n%s\n", global_dplasma->name,
+                        global_dplasma->body );
+            } prog
     |
 ;
 

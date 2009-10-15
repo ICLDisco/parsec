@@ -8,7 +8,7 @@
 #include "dplasma.h"
 #include "y.tab.h"
 
-int dplasma_lineno = 0;
+int dplasma_lineno = 1;
 
 %}
 
