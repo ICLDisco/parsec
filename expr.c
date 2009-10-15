@@ -176,39 +176,30 @@ static void expr_dump_unary(unsigned char op, const expr_t *op1)
 
 static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *op2)
 {
-    if( NULL == op1 ) {
-        printf("NULL");
-    } else {
-        expr_dump(op1);
-    }
+    expr_dump(op1);
 
     switch( op ) {
     case EXPR_OP_BINARY_PLUS:
-        printf("+");
+        printf(" + ");
         break;
     case EXPR_OP_BINARY_MINUS:
-        printf("-");
+        printf(" - ");
         break;
     case EXPR_OP_BINARY_TIMES:
-        printf("*");
+        printf(" * ");
         break;
     case EXPR_OP_BINARY_MOD:
-        printf("%%");
+        printf(" %% ");
         break;
     case EXPR_OP_BINARY_EQUAL:
-        printf("==");
+        printf(" == ");
         break;
     case EXPR_OP_BINARY_RANGE:
-        printf("..");
+        printf(" .. ");
         break;
     }
 
-    if( NULL == op2 ) {
-        printf("NULL");
-    } else {
-        expr_dump(op2);
-    }
-
+    expr_dump(op2);
 }
 
 void expr_dump(const expr_t *e)
