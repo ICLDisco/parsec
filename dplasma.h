@@ -19,4 +19,6 @@ struct dplasma {
     char      *body;
 };
 
+void dplasma_dump(const dplasma_t *d, const char *prefix);
+
 #endif

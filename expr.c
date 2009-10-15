@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "expr.h"
 
@@ -53,6 +54,16 @@ static int expr_eval_binary(unsigned char op, expr_t *op1, expr_t *op2, assignme
         break;
     case EXPR_OP_BINARY_PLUS:
         *v = (v1 + v2);
+        break;
+    case EXPR_OP_BINARY_MINUS:
+        *v = (v1 - v2);
+        break;
+    case EXPR_OP_BINARY_TIMES:
+        *v = (v1 * v2);
+        break;
+    case EXPR_OP_BINARY_RANGE:
+        snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Cannot evaluate range");
+        return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
     }
 
     return EXPR_SUCCESS;
@@ -93,12 +104,128 @@ int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignment
     }
 }
 
+expr_t *expr_new_var(symbol_t *symb)
+{
+    expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
+    r->op = EXPR_OP_SYMB;
+    r->var = symb;
+    return r;
+}
+
+expr_t *expr_new_int(int v)
+{
+    expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
+    r->op = EXPR_OP_CONST_INT;
+    r->const_int = v;
+    return r;
+}
+
+expr_t *expr_new_binary(expr_t *op1, char op, expr_t *op2)
+{
+    expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
+
+    r->bop1 = op1;
+    r->bop2 = op2;
+    
+    switch( op ) {
+    case '+':
+        r->op = EXPR_OP_BINARY_PLUS;
+        return r;
+    case '-':
+        r->op = EXPR_OP_BINARY_MINUS;
+        return r;
+    case '*':
+        r->op = EXPR_OP_BINARY_TIMES;
+        return r;
+    case '%':
+        r->op = EXPR_OP_BINARY_MOD;
+        return r;
+    case '=':
+        r->op = EXPR_OP_BINARY_EQUAL;
+        return r;
+    case '.':
+        r->op = EXPR_OP_BINARY_RANGE;
+        return r;
+    default:
+        free(r);
+        return NULL;
+    }
+
+    return r;
+}
+
 char *expr_error(void)
 {
     return expr_eval_error;
 }
 
-void expr_dump(expr_t *e)
+static void expr_dump_unary(unsigned char op, const expr_t *op1)
 {
-    printf("should dump the expression here\n");
+    switch(op) {
+    case EXPR_OP_UNARY_NOT:
+        printf("!");
+        break;
+    }
+
+    if( NULL == op1 ) {
+        printf("NULL");
+    } else {
+        expr_dump(op1);
+    }
+}
+
+static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *op2)
+{
+    if( NULL == op1 ) {
+        printf("NULL");
+    } else {
+        expr_dump(op1);
+    }
+
+    switch( op ) {
+    case EXPR_OP_BINARY_PLUS:
+        printf("+");
+        break;
+    case EXPR_OP_BINARY_MINUS:
+        printf("-");
+        break;
+    case EXPR_OP_BINARY_TIMES:
+        printf("*");
+        break;
+    case EXPR_OP_BINARY_MOD:
+        printf("%%");
+        break;
+    case EXPR_OP_BINARY_EQUAL:
+        printf("==");
+        break;
+    case EXPR_OP_BINARY_RANGE:
+        printf("..");
+        break;
+    }
+
+    if( NULL == op2 ) {
+        printf("NULL");
+    } else {
+        expr_dump(op2);
+    }
+
+}
+
+void expr_dump(const expr_t *e)
+{
+    if(NULL == e) {
+        printf("NULL");
+    }
+
+    if( EXPR_OP_SYMB == e->op ) {
+        printf("%s", e->var->name);
+    } else if ( EXPR_OP_CONST_INT == e->op ) {
+        printf("%d", e->const_int);
+    } else if ( EXPR_IS_UNARY(e->op) ) {
+        expr_dump_unary(e->op, e->uop1);
+    } else if ( EXPR_IS_BINARY(e->op) ) {
+        expr_dump_binary(e->op, e->bop1, e->bop2);
+    } else {
+        fprintf(stderr, "Unkown operand %d in expression", e->op);
+    }    
 }

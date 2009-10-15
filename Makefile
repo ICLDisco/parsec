@@ -1,22 +1,20 @@
 CC=gcc
 YACC=yacc -d -y --verbose
-LEX=flex -d
+LEX=flex # -d
 CFLAGS=-Wall -pedantic -ansi -g
 LDFLAGS=
 
+OBJECTS=dplasma.o \
+	symbol.o \
+	expr.o
+
 all: parse
 
-parse: expr.o lex.yy.o y.tab.o
-	$(CC) -o parse expr.o lex.yy.o y.tab.o $(LDFLAGS)
+parse: lex.yy.o y.tab.o $(OBJECTS)
+	$(CC) -o parse lex.yy.o y.tab.o $(OBJECTS) $(LDFLAGS)
 
-test-expr.o: test-expr.c $(wildcard *.h)
-	$(CC) -o test-expr.o $(CFLAGS) -c test-expr.c
-
-expr.o: expr.c $(wildcard *.h)
-	$(CC) -o expr.o $(CFLAGS) -c expr.c
-
-y.tab.o: y.tab.c $(wildcard *.h)
-	$(CC) -o y.tab.o $(CFLAGS) -c y.tab.c
+%.o: %.c $(wildcard *.h)
+	$(CC) -o $@ $(CFLAGS) -c $<
 
 y.tab.h y.tab.c: dplasma.y
 	$(YACC) dplasma.y

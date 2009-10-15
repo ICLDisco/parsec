@@ -19,7 +19,10 @@ typedef struct expr expr_t;
 #define EXPR_OP_BINARY_MOD    20
 #define EXPR_OP_BINARY_EQUAL  21
 #define EXPR_OP_BINARY_PLUS   22
-#define EXPR_OP_MAX_BINARY    22
+#define EXPR_OP_BINARY_RANGE  23
+#define EXPR_OP_BINARY_MINUS  24
+#define EXPR_OP_BINARY_TIMES  25
+#define EXPR_OP_MAX_BINARY    25
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )
 
@@ -44,9 +47,10 @@ struct expr {
 #define var         u.var
 #define const_int   u.const_int
 
-#define EXPR_SUCCESS 0
-#define EXPR_FAILURE_SYMBOL_NOT_FOUND   1
-#define EXPR_FAILURE_UNKNOWN_OP         2
+#define EXPR_SUCCESS                       0
+#define EXPR_FAILURE_SYMBOL_NOT_FOUND      1
+#define EXPR_FAILURE_UNKNOWN_OP            2
+#define EXPR_FAILURE_CANNOT_EVALUATE_RANGE 3
 
 /**
  * Evaluates an expression in the current assignment context.
@@ -73,6 +77,34 @@ char *expr_error(void);
  *
  * @param [IN]  e the expression to dump
  */
-void expr_dump(expr_t *e);
+void expr_dump(const expr_t *e);
+
+/**
+ * Creates a new expression from a variable name
+ *
+ * @param  name [IN]  the name of the variable
+ * @return the new expression
+ */
+expr_t *expr_new_var(symbol_t *name);
+
+/**
+ * Creates a new expression from a constant intenger
+ *
+ * @param  v [IN] value of the integer
+ * @return the new expression
+ */
+expr_t *expr_new_int(int v);
+
+/**
+ * Creates a new binary expression from two others and an operand
+ *
+ * @param  op1 [IN]  first operand
+ * @param  op  [IN] a character defining the operand in the alphabet
+ *         [+-*%=.] where 
+ *              = is the == comparison 
+ *              . is the range operand.
+ * @return the new expression
+ */
+expr_t *expr_new_binary(expr_t *op1, char op, expr_t *op2);
 
 #endif

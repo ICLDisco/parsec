@@ -9,6 +9,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+typedef struct symbol_stack_elt {
+    symbol_t                *sym;
+    struct symbol_stack_elt *next;
+} symbol_stack_elt_t;
+
+static symbol_stack_elt_t *dplasma_symbol_stack = NULL;
+
 static dplasma_t* global_dplasma = NULL;
 static int global_varlist_index = 0;
 extern int dplasma_lineno;
@@ -64,8 +71,7 @@ int main(int argc, char *argv[])
 
 prog:
     dplasma {
-                printf( "Parse %s\n%s\n", global_dplasma->name,
-                        global_dplasma->body );
+               dplasma_dump(global_dplasma, "");
             } prog
     |
 ;
@@ -87,6 +93,7 @@ dplasma:
 ;
 
 varlist:   DPLASMA_VAR DPLASMA_COMMA {
+                                        symbol_stack_elt_t *s;
                                         if( global_varlist_index == MAX_LOCAL_COUNT ) {
                                             fprintf(stderr,
                                                     "Internal Error while parsing at line %d:\n"
@@ -97,10 +104,17 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
                                         } else {
                                             global_dplasma->locals[global_varlist_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
                                             global_dplasma->locals[global_varlist_index]->name = $1;
+                                            
+                                            s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
+                                            s->sym = global_dplasma->locals[global_varlist_index];
+                                            s->next = dplasma_symbol_stack;
+                                            dplasma_symbol_stack = s;
+
                                             global_varlist_index++;
                                         }
                                      } varlist
          | DPLASMA_VAR {
+                          symbol_stack_elt_t *s;
                           if( global_varlist_index == MAX_LOCAL_COUNT ) {
                                fprintf(stderr,
                                        "Internal Error while parsing at line %d:\n"
@@ -111,6 +125,12 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
                           } else {
                               global_dplasma->locals[global_varlist_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
                               global_dplasma->locals[global_varlist_index]->name = $1;
+
+                              s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
+                              s->sym = global_dplasma->locals[global_varlist_index];
+                              s->next = dplasma_symbol_stack;
+                              dplasma_symbol_stack = s;
+
                               global_varlist_index++;
                           }
                        }
@@ -121,7 +141,31 @@ execution_space: assignment execution_space
          | assignment
 ;
 
-assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr
+assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
+                                                    int i;
+                                                    for(i = 0; NULL != global_dplasma->locals[i] && i < MAX_LOCAL_COUNT; i++) {
+                                                        if( strcmp(global_dplasma->locals[i]->name, $1) ) {
+                                                            continue;
+                                                        }
+                                                        break;
+                                                    }
+                                                    if( i == MAX_LOCAL_COUNT ) {
+                                                        fprintf(stderr,
+                                                                "Parse Error at line %d:\n"
+                                                                "  '%s' is an unbound variable\n",
+                                                                dplasma_lineno,
+                                                                $1);
+                                                        YYERROR;
+                                                    }
+                                                    if( EXPR_OP_BINARY_RANGE == $3->op ) {
+                                                        global_dplasma->locals[i]->min = $3->bop1;
+                                                        global_dplasma->locals[i]->max = $3->bop2;
+                                                        free($3);
+                                                    } else {
+                                                        global_dplasma->locals[i]->min = $3;
+                                                        global_dplasma->locals[i]->max = $3;
+                                                    }
+                                                }
 ;
 
 partitioning: DPLASMA_COLON expr partitioning
@@ -151,12 +195,29 @@ expr_list: expr DPLASMA_COMMA expr_list
         | expr
 ;
 
-expr: DPLASMA_VAR                                    { $$ = NULL; }
-        | DPLASMA_INT                                { $$ = NULL; }
-        | expr DPLASMA_OP expr                       { $$ = NULL; }
-        | DPLASMA_OPEN_PAR expr DPLASMA_CLOSE_PAR    { $$ = NULL; }
-        | expr DPLASMA_EQUAL expr                    { $$ = NULL; }
-        | expr DPLASMA_RANGE expr                    { $$ = NULL; }
+expr:     DPLASMA_VAR                                { 
+                                                         symbol_stack_elt_t *s = dplasma_symbol_stack;
+                                                         symbol_t           *unknown;
+                                                         
+                                                         while( NULL != s && strcmp(s->sym->name, $1) ) {
+                                                             s = s->next;
+                                                         }
+                                                         if( NULL == s ) {
+                                                             unknown = (symbol_t*)calloc(1, sizeof(symbol_t));
+                                                             unknown->name = strdup($1);
+                                                             s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
+                                                             s->sym = unknown;
+                                                             s->next = dplasma_symbol_stack;
+                                                             dplasma_symbol_stack = s;
+                                                         }
+                                                         $$ = expr_new_var(s->sym);
+                                                         free($1);
+                                                     }
+        | DPLASMA_INT                                { $$ = expr_new_int($1); }
+        | expr DPLASMA_OP expr                       { $$ = expr_new_binary($1, $2, $3); }
+        | DPLASMA_OPEN_PAR expr DPLASMA_CLOSE_PAR    { $$ = $2; }
+        | expr DPLASMA_EQUAL expr                    { $$ = expr_new_binary($1, '=', $3); }
+        | expr DPLASMA_RANGE expr                    { $$ = expr_new_binary($1, '.', $3);; }
 ;
 
 %%

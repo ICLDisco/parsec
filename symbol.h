@@ -11,4 +11,6 @@ struct symbol {
     expr_t *max;
 };
 
+void symbol_dump(const symbol_t *s, const char *prefix);
+
 #endif
