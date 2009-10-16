@@ -41,4 +41,9 @@ int dplasma_push( const dplasma_t* d );
  */
 const dplasma_t* dplasma_find( const char* name );
 
+/**
+ * Unroll a dplasma_t object.
+ */
+int dplasma_unroll( const dplasma_t* object );
+
 #endif

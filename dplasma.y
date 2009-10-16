@@ -47,6 +47,9 @@ int main(int argc, char *argv[])
     dplasma_lineno = 1;
 	yyparse();
 
+    symbol_dump_all("");
+    dplasma_dump_all();
+
 	return 0;
 }
 %}
@@ -81,7 +84,11 @@ int main(int argc, char *argv[])
 prog:
     dplasma {
                dplasma_push(global_dplasma);
-               dplasma_dump(global_dplasma, "");
+               /*dplasma_dump(global_dplasma, "");*/
+            } prog
+    | DPLASMA_VAR DPLASMA_ASSIGNMENT expr
+            {
+                dplasma_add_global_symbol( $1, $3 );
             } prog
     |
 ;
@@ -159,7 +166,8 @@ execution_space: assignment execution_space
 
 assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
                                                     int i;
-                                                    for(i = 0; NULL != global_dplasma->locals[i] && i < MAX_LOCAL_COUNT; i++) {
+                                                    for(i = 0; (NULL != global_dplasma->locals[i]) && 
+                                                               (i < MAX_LOCAL_COUNT); i++) {
                                                         if( strcmp(global_dplasma->locals[i]->name, $1) ) {
                                                             continue;
                                                         }
@@ -325,7 +333,6 @@ dependency: call {
 
 call: DPLASMA_VAR DPLASMA_VAR  {
                                    dep_t *curr_dep;
-                                   dep_t **dep_array;
                                    char sym_type = global_dplasma->params[global_lists_index]->sym_type;
 
                                    if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {

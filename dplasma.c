@@ -56,7 +56,7 @@ int dplasma_push( const dplasma_t* d )
         } else {
             dplasma_array_size *= 2;
         }
-        dplasma_array = (const dplasma_t**)realloc( dplasma_array, dplasma_array_size );
+        dplasma_array = (const dplasma_t**)realloc( dplasma_array, dplasma_array_size * sizeof(dplasma_t*) );
         if( NULL == dplasma_array ) {
             return -1;  /* No more available memory */
         }
@@ -78,4 +78,9 @@ const dplasma_t* dplasma_find( const char* name )
         }
     }
     return NULL;
+}
+
+int dplasma_unroll( const dplasma_t* object )
+{
+    return 0;
 }
