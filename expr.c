@@ -8,6 +8,12 @@
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
+/* This function should negate an expression  */
+expr_t *negate_expr(expr_t *e){
+    return e;
+}
+
+
 static int expr_eval_unary(unsigned char op, expr_t *op1, assignment_t *assignments, unsigned int nbassignments, int *v)
 {
     int rc;

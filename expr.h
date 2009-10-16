@@ -53,6 +53,13 @@ struct expr {
 #define EXPR_FAILURE_CANNOT_EVALUATE_RANGE 3
 
 /**
+ * Evaluates and returns the negation of an expression
+ *
+ * @param  [IN]  expr the expression to negate
+ */
+expr_t *negate_expr(expr_t *expr);
+
+/**
  * Evaluates an expression in the current assignment context.
  *
  * @param  [IN]  expr the expression to evaluate
