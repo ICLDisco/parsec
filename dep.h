@@ -10,7 +10,8 @@ typedef struct dep dep_t;
 
 struct dep {
     expr_t    *cond;
-    dplasma_t *t;
+    char      *dplasma_name;
+    dplasma_t *dplasma;
     expr_t    *call_params[MAX_CALL_PARAM_COUNT];
     char      *sym_name;
 };

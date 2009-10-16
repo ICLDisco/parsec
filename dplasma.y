@@ -311,10 +311,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                        curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
                                    }
                                    curr_dep->sym_name = $1;
-                                   /* We should probably keep all the dplasmas in a list as we are parsing and then go
-                                    * and change the "t" pointer of each dep_t to point to the matching "dparam" object. */
-                                   curr_dep->t = (dplasma_t *)calloc(1, sizeof(dplasma_t));
-                                   curr_dep->t->name = $2;
+                                   curr_dep->dplasma_name = $2;
                                }
       DPLASMA_OPEN_PAR {
                            global_call_params_index = 0;
@@ -340,7 +337,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                                    dplasma_lineno);
                                            YYERROR;
                                        }
-                                       curr_dep->t = NULL;
+                                       curr_dep->dplasma_name = NULL;
                                   }
           DPLASMA_OPEN_PAR{ 
                               global_call_params_index = 0;
