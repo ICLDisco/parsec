@@ -166,8 +166,8 @@ execution_space: assignment execution_space
 
 assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
                                                     int i;
-                                                    for(i = 0; (NULL != global_dplasma->locals[i]) && 
-                                                               (i < MAX_LOCAL_COUNT); i++) {
+                                                    for(i = 0; (i < MAX_LOCAL_COUNT) &&
+                                                               (NULL != global_dplasma->locals[i]); i++) {
                                                         if( strcmp(global_dplasma->locals[i]->name, $1) ) {
                                                             continue;
                                                         }

@@ -16,19 +16,19 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
     printf("%sDplasma Function: %s\n", prefix, d->name);
 
     printf("%s Parameter Variables:\n", prefix);
-    for(i = 0; NULL != d->locals[i] && i < MAX_LOCAL_COUNT; i++) {
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
         symbol_dump(d->locals[i], pref2);
     }
 
     printf("%s Predicates:\n", prefix);
-    for(i = 0; NULL != d->preds[i] && i < MAX_PRED_COUNT; i++) {
+    for(i = 0; i < MAX_PRED_COUNT && NULL != d->preds[i]; i++) {
         printf("%s", pref2);
         expr_dump(d->preds[i]);
         printf("\n");
     }
 
     printf("%s Parameters and Dependencies:\n", prefix);
-    for(i = 0; NULL != d->params[i] && i < MAX_PARAM_COUNT; i++) {
+    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->params[i]; i++) {
         param_dump(d->params[i], pref2);
     }
 

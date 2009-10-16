@@ -20,7 +20,7 @@ void param_dump(const param_t *p, const char *prefix)
         dep_dump( p->dep_in[i], pref2 );
         sprintf(pref2, "%s       ", prefix);
     }
-    for(i = 0; NULL != p->dep_out[i] && i < MAX_DEP_OUT_COUNT; i++) {
+    for(i = 0; i < MAX_DEP_OUT_COUNT && NULL != p->dep_out[i]; i++) {
         dep_dump( p->dep_out[i], pref2 );
         sprintf(pref2, "%s       ", prefix);
     }
