@@ -10,8 +10,8 @@ typedef struct param param_t;
 #define SYM_OUT   2
 #define SYM_INOUT 3
 
-#define MAX_DEP_IN_COUNT  3
-#define MAX_DEP_OUT_COUNT 3
+#define MAX_DEP_IN_COUNT  5
+#define MAX_DEP_OUT_COUNT 5
 
 struct param {
     char          *sym_name;

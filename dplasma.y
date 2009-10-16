@@ -18,7 +18,8 @@ static symbol_stack_elt_t *dplasma_symbol_stack = NULL;
 
 static dplasma_t* global_dplasma = NULL;
 static int global_lists_index = 0;
-static int global_dep_index = 0;
+static int global_indep_index = 0;
+static int global_outdep_index = 0;
 static int global_call_params_index = 0;
 static char inout_type;
 extern int dplasma_lineno;
@@ -207,7 +208,8 @@ params: param { global_lists_index++; }
 
 param: DPLASMA_DEPENDENCY_TYPE {
                                    /* we can't use global_lists_index for both the params and the deps of each param */
-                                   global_dep_index = 0;
+                                   global_indep_index = 0;
+                                   global_outdep_index = 0;
                                    if( global_lists_index == MAX_PARAM_COUNT ) {
                                        fprintf(stderr,
                                                "Internal Error while parsing at line %d:\n"
@@ -233,9 +235,10 @@ param: DPLASMA_DEPENDENCY_TYPE {
                                        YYERROR;
                                    }
 
-                               } DPLASMA_VAR {
-                                                 global_dplasma->params[global_lists_index]->sym_name = $3;
-                                             }
+                               }
+       DPLASMA_VAR {
+                       global_dplasma->params[global_lists_index]->sym_name = $3;
+                   }
        dependencies
 ;
 
@@ -258,40 +261,50 @@ dependencies: DPLASMA_ARROW {
                                 if( (sym_type == SYM_INOUT) ){
                                     inout_type = ($1 == '>') ? SYM_OUT : SYM_IN;
                                 }
+/*
                                 if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
                                     global_dplasma->params[global_lists_index]->dep_in[global_dep_index] = (dep_t*)calloc(1, sizeof(dep_t));
                                 }
                                 if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
                                     global_dplasma->params[global_lists_index]->dep_out[global_dep_index] = (dep_t*)calloc(1, sizeof(dep_t));
                                 }
+*/
                                 /*                                global_expr_stack_size = 0; */
                             }
               dependency {
-                             global_dep_index++;
+/*
+char sym_type = global_dplasma->params[global_lists_index]->sym_type;
+printf("A DEP with type %d was parsed\n",sym_type);
+fflush(stdout);
+*/
                          }
               dependencies
         | 
 ;
 
 dependency: call {
-                     dep_t *curr_dep;
                      char sym_type = global_dplasma->params[global_lists_index]->sym_type;
                      if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                         curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                         global_dplasma->params[global_lists_index]->dep_in[global_indep_index]->cond = NULL;
+                         global_indep_index++;
                      }
                      if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                         curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                         global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]->cond = NULL;
+                         global_outdep_index++;
                      }
-                     curr_dep->cond = NULL;
+
                  }
         | expr DPLASMA_QUESTION call {
                                          dep_t *curr_dep;
                                          char sym_type = global_dplasma->params[global_lists_index]->sym_type;
+
                                          if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                             curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                                             curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
+                                             global_indep_index++;
                                          }
                                          if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                             curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                                             curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
+                                             global_outdep_index++;
                                          }
                                          curr_dep->cond = $1;
                                      }
@@ -299,10 +312,12 @@ dependency: call {
                                  dep_t *curr_dep;
                                  char sym_type = global_dplasma->params[global_lists_index]->sym_type;
                                  if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                     curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                                     curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
+                                     global_indep_index++;
                                  }
                                  if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                     curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                                     curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
+                                     global_outdep_index++;
                                  }
                                  curr_dep->cond = negate_expr($1);
                              }
@@ -310,12 +325,16 @@ dependency: call {
 
 call: DPLASMA_VAR DPLASMA_VAR  {
                                    dep_t *curr_dep;
+                                   dep_t **dep_array;
                                    char sym_type = global_dplasma->params[global_lists_index]->sym_type;
+
                                    if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                       curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                                       global_dplasma->params[global_lists_index]->dep_in[global_indep_index] = (dep_t*)calloc(1, sizeof(dep_t));
+                                       curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index]; 
                                    }
                                    if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                       curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                                       global_dplasma->params[global_lists_index]->dep_out[global_outdep_index] = (dep_t*)calloc(1, sizeof(dep_t));
+                                       curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]; 
                                    }
                                    curr_dep->sym_name = $1;
                                    curr_dep->dplasma_name = $2;
@@ -325,18 +344,21 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                        }
       expr_list DPLASMA_CLOSE_PAR
         | DPLASMA_DEPENDENCY_TYPE {
-                                       dep_t *curr_dep;
+                                       dep_t *curr_dep; 
                                        char sym_type = global_dplasma->params[global_lists_index]->sym_type;
                                        if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                           curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                                           global_dplasma->params[global_lists_index]->dep_in[global_indep_index] = (dep_t*)calloc(1, sizeof(dep_t));
+                                           curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index]; 
                                        }
                                        if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                           curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                                           global_dplasma->params[global_lists_index]->dep_out[global_outdep_index] = (dep_t*)calloc(1, sizeof(dep_t)); 
+                                           curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]; 
                                        }
+
                                        if( $1 == SYM_IN ) {
-                                           curr_dep->sym_name = "IN";
+                                           curr_dep->sym_name = "IN"; 
                                        }else if( $1 == SYM_OUT ) {
-                                           curr_dep->sym_name = "OUT";
+                                           curr_dep->sym_name = "OUT"; 
                                        }else{
                                            fprintf(stderr,
                                                    "Internal Error while parsing at line %d:\n"
@@ -355,7 +377,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
 expr_list: expr {
                      dep_t *curr_dep;
                      char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                     /*                  expr_t *e = $1;*/
+                     /* expr_t *e = $1; */
 
                      if( global_call_params_index == MAX_CALL_PARAM_COUNT ) {
                          fprintf(stderr,
@@ -368,10 +390,10 @@ expr_list: expr {
                      }
  
                      if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                         curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                         curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
                      }
                      if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                         curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                         curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
                      }
                      curr_dep->call_params[global_call_params_index++] = $1;
                 }
@@ -392,10 +414,10 @@ expr_list: expr {
                   }
 
                   if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                      curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_dep_index];
+                      curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
                   }
                   if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                      curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_dep_index];
+                      curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
                   }
                   curr_dep->call_params[global_call_params_index++] = $1;
               }

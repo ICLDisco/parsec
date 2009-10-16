@@ -14,6 +14,7 @@ void param_dump(const param_t *p, const char *prefix)
            prefix, p->sym_name, 
            (p->sym_type & SYM_IN)  ? "IN"  : "  ",
            (p->sym_type & SYM_OUT) ? "OUT" : "   ");
+    fflush(stdout);
 
     for(i = 0; NULL != p->dep_in[i] && i < MAX_DEP_IN_COUNT; i++) {
         dep_dump( p->dep_in[i], pref2 );
