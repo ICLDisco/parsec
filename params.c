@@ -11,7 +11,7 @@ void param_dump(const param_t *p, const char *prefix)
     pref2[0] = '\0';
 
     printf("%s%s %s%s ", 
-           prefix, p->sym_name, 
+           prefix, p->sym_name==NULL?"":p->sym_name, 
            (p->sym_type & SYM_IN)  ? "IN"  : "  ",
            (p->sym_type & SYM_OUT) ? "OUT" : "   ");
     fflush(stdout);

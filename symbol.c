@@ -11,6 +11,10 @@ static int dplasma_symbol_array_count = 0,
 
 void symbol_dump(const symbol_t *s, const char *prefix)
 {
+    if( NULL == s->name ) {
+        return;
+    }
+
     if( s->min == s->max ) {
         printf("%s%s = ", prefix, s->name);
         expr_dump(s->min);

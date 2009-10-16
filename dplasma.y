@@ -363,9 +363,9 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                        }
 
                                        if( $1 == SYM_IN ) {
-                                           curr_dep->sym_name = "IN"; 
+                                           curr_dep->dplasma_name = strdup("IN"); 
                                        }else if( $1 == SYM_OUT ) {
-                                           curr_dep->sym_name = "OUT"; 
+                                           curr_dep->dplasma_name = strdup("OUT"); 
                                        }else{
                                            fprintf(stderr,
                                                    "Internal Error while parsing at line %d:\n"
@@ -373,7 +373,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                                    dplasma_lineno);
                                            YYERROR;
                                        }
-                                       curr_dep->dplasma_name = NULL;
+                                       curr_dep->sym_name = NULL;
                                   }
           DPLASMA_OPEN_PAR{ 
                               global_call_params_index = 0;
