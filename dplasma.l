@@ -19,7 +19,7 @@ WHITE         [\f\t\v ]
 
 %%
 
-[bB][oO][dD][yY]([^;]|\n)*;\n*[eE][nN][dD] {
+[bB][oO][dD][yY]([^;]|\n)*;(\n|{WHITE})*[eE][nN][dD] {
                  int i;
                  yylval.string = malloc(strlen(yytext)-6);
                  strncpy( yylval.string, yytext + 4, strlen(yytext) - 7);
