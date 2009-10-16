@@ -10,6 +10,7 @@ typedef struct dplasma dplasma_t;
 #include "symbol.h"
 #include "expr.h"
 #include "params.h"
+#include "dep.h"
 
 struct dplasma {
     char      *name;
@@ -19,6 +20,20 @@ struct dplasma {
     char      *body;
 };
 
+/**
+ * Dump the content of a dplams_t object
+ */
 void dplasma_dump(const dplasma_t *d, const char *prefix);
+
+/**
+ * Add the dplasma_t object to a global list.
+ */
+int dplasma_push( const dplasma_t* d );
+
+/**
+ * Find a dplasma_t object by name. If no object with such a name
+ * exist return NULL.
+ */
+const dplasma_t* dplasma_find( const char* name );
 
 #endif
