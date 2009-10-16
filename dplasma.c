@@ -38,6 +38,16 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
     free(pref2);
 }
 
+void dplasma_dump_all( void )
+{
+    int i;
+
+    for( i = 0; i < dplasma_array_count; i++ ) {
+        printf("/**\n * dplasma_t object named %s index %d\n */\n", dplasma_array[i]->name, i );
+        dplasma_dump( dplasma_array[i], "" );
+    }
+}
+
 int dplasma_push( const dplasma_t* d )
 {
     if( dplasma_array_count >= dplasma_array_size ) {

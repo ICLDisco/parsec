@@ -21,9 +21,14 @@ struct dplasma {
 };
 
 /**
- * Dump the content of a dplams_t object
+ * Dump the content of a dplams_t object.
  */
 void dplasma_dump(const dplasma_t *d, const char *prefix);
+
+/**
+ * Dump all defined dplasma_t obejcts.
+ */
+void dplasma_dump_all( void );
 
 /**
  * Add the dplasma_t object to a global list.
