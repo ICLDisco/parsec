@@ -23,6 +23,11 @@ static int global_call_params_index = 0;
 static char inout_type;
 extern int dplasma_lineno;
 
+/*
+static expr_t *global_expr_stack[MAX_EXPR_STACK_COUNT];
+static unsigned int global_expr_stack_size = 0;
+*/
+
 extern int yyparse(void);
 extern int yylex(void);
 
@@ -228,8 +233,8 @@ param: DPLASMA_DEPENDENCY_TYPE {
                                    }
 
                                } DPLASMA_VAR {
-                       global_dplasma->params[global_lists_index]->sym_name = $3;
-                   }
+                                                 global_dplasma->params[global_lists_index]->sym_name = $3;
+                                             }
        dependencies
 ;
 
@@ -258,6 +263,7 @@ dependencies: DPLASMA_ARROW {
                                 if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
                                     global_dplasma->params[global_lists_index]->dep_out[global_dep_index] = (dep_t*)calloc(1, sizeof(dep_t));
                                 }
+                                /*                                global_expr_stack_size = 0; */
                             }
               dependency {
                              global_dep_index++;
@@ -348,7 +354,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
 expr_list: expr {
                      dep_t *curr_dep;
                      char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                  expr_t *e = $1;
+                     /*                  expr_t *e = $1;*/
 
                      if( global_call_params_index == MAX_CALL_PARAM_COUNT ) {
                          fprintf(stderr,
@@ -372,7 +378,7 @@ expr_list: expr {
         | expr{
                   dep_t *curr_dep;
                   char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                  expr_t *e = $1;
+                  /* expr_t *e = $1; */
 
                   if( global_call_params_index == MAX_CALL_PARAM_COUNT ) {
                          fprintf(stderr,

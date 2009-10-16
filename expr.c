@@ -10,7 +10,10 @@ static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
 /* This function should negate an expression  */
 expr_t *negate_expr(expr_t *e){
-    return e;
+    expr_t *n = (expr_t*)calloc(1, sizeof(expr_t));
+    n->uop1 = e;
+    n->op   = EXPR_OP_UNARY_NOT;
+    return n;
 }
 
 
