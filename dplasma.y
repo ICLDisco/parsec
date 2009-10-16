@@ -79,6 +79,7 @@ int main(int argc, char *argv[])
 
 prog:
     dplasma {
+               dplasma_push(global_dplasma);
                dplasma_dump(global_dplasma, "");
             } prog
     |

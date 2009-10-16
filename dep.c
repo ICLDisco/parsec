@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "dep.h"
 
-void dump_dep(const dep_t *d, const char *prefix)
+void dep_dump(const dep_t *d, const char *prefix)
 {
     int i;
 

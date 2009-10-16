@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "params.h"
-#include "dep.h"
 
 void param_dump(const param_t *p, const char *prefix)
 {
@@ -17,11 +16,11 @@ void param_dump(const param_t *p, const char *prefix)
            (p->sym_type & SYM_OUT) ? "OUT" : "   ");
 
     for(i = 0; NULL != p->dep_in[i] && i < MAX_DEP_IN_COUNT; i++) {
-        dump_dep( p->dep_in[i], pref2 );
+        dep_dump( p->dep_in[i], pref2 );
         sprintf(pref2, "%s       ", prefix);
     }
     for(i = 0; NULL != p->dep_out[i] && i < MAX_DEP_OUT_COUNT; i++) {
-        dump_dep( p->dep_out[i], pref2 );
+        dep_dump( p->dep_out[i], pref2 );
         sprintf(pref2, "%s       ", prefix);
     }
 }
