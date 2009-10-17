@@ -91,7 +91,7 @@ m = k+1..SIZE
 IN    T <- T POTRF(k)
 INOUT C <- (k == 0) ? IN(m, k) : C GEMM(k, m, k-1)
         -> A GEMM(m, m+1..SIZE, k)
-        -> B GEMM(K+1..m-1, m, k)
+        -> B GEMM(k+1..m-1, m, k)
         -> A SYRK(m, k)
         -> OUT(k, m)
 
