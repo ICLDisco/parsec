@@ -47,6 +47,8 @@ int main(int argc, char *argv[])
     dplasma_lineno = 1;
 	yyparse();
 
+/*    external_hook(); */
+
     symbol_dump_all("");
     dplasma_dump_all();
 

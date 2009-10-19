@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "expr.h"
+#include "symbol.h"
 
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
@@ -82,6 +83,15 @@ static int expr_eval_symbol(symbol_t *sym, assignment_t *assignments, unsigned i
 {
     unsigned int i;
 
+    /* look at the global symbols first */
+    const symbol_t *gsym = dplasma_search_global_symbol( sym->name );
+    if( gsym != NULL ){
+        int int_res;
+        expr_eval((expr_t *)gsym->min, NULL, 0, &int_res);
+        *res = int_res;
+        return EXPR_SUCCESS;
+    }
+
     for(i = 0; i < nbassignments; i++) {
         if( strcmp( sym->name, assignments[i].sym->name ) ) {
             continue;
@@ -98,7 +108,10 @@ static int expr_eval_symbol(symbol_t *sym, assignment_t *assignments, unsigned i
 int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *res)
 {
     if( EXPR_OP_SYMB == expr->op ) {
-        return expr_eval_symbol(expr->var, assignments, nbassignments, res);
+        int int_res;
+        int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, &int_res);
+        *res = int_res;
+        return ret_val;
     } else if ( EXPR_OP_CONST_INT == expr->op ) {
         *res = expr->const_int;
         snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Success");
@@ -218,7 +231,12 @@ void expr_dump(const expr_t *e)
     }
 
     if( EXPR_OP_SYMB == e->op ) {
-        printf("%s", e->var->name);
+        int res;
+        if( EXPR_SUCCESS == expr_eval_symbol(e->var, NULL, 0, &res)){
+            printf("%d", res);
+        }else{
+            printf("%s", e->var->name);
+        }
     } else if ( EXPR_OP_CONST_INT == e->op ) {
         printf("%d", e->const_int);
     } else if ( EXPR_IS_UNARY(e->op) ) {
