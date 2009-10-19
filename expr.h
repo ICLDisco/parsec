@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _expr_h
 #define _expr_h
 
