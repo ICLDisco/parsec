@@ -48,6 +48,12 @@ int dplasma_push( const dplasma_t* d );
 const dplasma_t* dplasma_find( const char* name );
 
 /**
+ * Return the i'th dplasma_t object. If no such element exists
+ * return NULL.
+ */
+const dplasma_t* dplasma_element_at( int i );
+
+/**
  * Unroll a dplasma_t object.
  */
 int dplasma_unroll( const dplasma_t* object );

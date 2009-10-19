@@ -93,9 +93,10 @@ static int expr_eval_symbol(symbol_t *sym, assignment_t *assignments, unsigned i
     const symbol_t *gsym = dplasma_search_global_symbol( sym->name );
     if( gsym != NULL ){
         int int_res;
-        expr_eval((expr_t *)gsym->min, NULL, 0, &int_res);
-        *res = int_res;
-        return EXPR_SUCCESS;
+        if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, &int_res) ){
+            *res = int_res;
+            return EXPR_SUCCESS;
+        }
     }
 
     for(i = 0; i < nbassignments; i++) {
@@ -130,6 +131,24 @@ int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignment
         snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Unkown operand %d in expression", expr->op);
         return EXPR_FAILURE_UNKNOWN_OP;
     }
+}
+
+int expr_range_to_min_max(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *min, int *max)
+{
+    int rc;
+
+    assert( expr->op == EXPR_OP_BINARY_RANGE );
+
+    rc = expr_eval(expr->bop1, assignments, nbassignments, min);
+    if( EXPR_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = expr_eval(expr->bop2, assignments, nbassignments, max);
+    if( EXPR_SUCCESS != rc ) {
+        return rc;
+    }
+
+    return EXPR_SUCCESS;
 }
 
 expr_t *expr_new_var(symbol_t *symb)
@@ -191,7 +210,7 @@ static void expr_dump_unary(unsigned char op, const expr_t *op1)
 {
     switch(op) {
     case EXPR_OP_UNARY_NOT:
-        printf("!");
+        printf("!(");
         break;
     }
 
@@ -199,6 +218,9 @@ static void expr_dump_unary(unsigned char op, const expr_t *op1)
         printf("NULL");
     } else {
         expr_dump(op1);
+        if( op == EXPR_OP_UNARY_NOT ){
+            printf(")");
+        }
     }
 }
 

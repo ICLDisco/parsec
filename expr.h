@@ -79,6 +79,21 @@ expr_t *negate_expr(expr_t *expr);
 int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *res);
 
 /**
+ * Evaluates the minimum and maximum value of a range expression in the current assignment context.
+ *
+ * @param  [IN]  expr the expression to evaluate
+ * @param  [IN]  assignments the array of pairs (symbol, value) that define the evaluation context
+ * @param  [IN]  nbassignments the size of assignments
+ * @param  [OUT] min the evaluated minimum value
+ * @param  [OUT] max the evaluated maximum value
+ *
+ * @return EXPR_SUCCESS in case of success. *res holds the evaluated value.
+ * @return EXPR_FAILURE_* in case of error.
+ */
+int expr_range_to_min_max(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *min, int *max);
+
+
+/**
  * Gives some comments on the first error encountered during the last call to expr_eval
  *
  * @return static string to the comment. Undefined if expr_eval has not been called previously.

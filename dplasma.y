@@ -24,6 +24,8 @@ static int global_call_params_index = 0;
 static char inout_type;
 extern int dplasma_lineno;
 
+void external_hook(void);
+
 /*
 static expr_t *global_expr_stack[MAX_EXPR_STACK_COUNT];
 static unsigned int global_expr_stack_size = 0;
@@ -47,10 +49,12 @@ int main(int argc, char *argv[])
     dplasma_lineno = 1;
 	yyparse();
 
-/*    external_hook(); */
-
+/*
     symbol_dump_all("");
     dplasma_dump_all();
+*/
+
+    external_hook();
 
 	return 0;
 }

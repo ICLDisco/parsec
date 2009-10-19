@@ -86,6 +86,14 @@ const dplasma_t* dplasma_find( const char* name )
     return NULL;
 }
 
+const dplasma_t* dplasma_element_at( int i )
+{
+    if( i < dplasma_array_count ){
+        return dplasma_array[i];
+    }
+    return NULL;
+}
+
 int dplasma_unroll( const dplasma_t* object )
 {
     return 0;

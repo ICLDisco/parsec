@@ -1,14 +1,15 @@
 CC=gcc
 YACC=yacc -d -y --verbose
 LEX=flex # -d
-CFLAGS=-Wall -pedantic -ansi -g
+CFLAGS=-Wall -pedantic -ansi -g -I.
 LDFLAGS=
 
 OBJECTS=dplasma.o \
 	symbol.o \
 	expr.o \
 	params.o \
-	dep.o
+	dep.o \
+	tools/buildDAG.o
 
 .SUFFIXES:
 .SUFFIXES: .c .o .h
