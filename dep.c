@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "dep.h"

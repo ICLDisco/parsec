@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _params_h
 #define _params_h
 
