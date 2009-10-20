@@ -12,7 +12,7 @@ rowRANK = 0
 POTRF(k)
 
 // Execution space
-k = 0..SIZE
+k = 0..SIZE-1
 
 // Parallel partitioning
 : k % GRIDrows == rowRANK
@@ -32,7 +32,7 @@ END
 SYRK(k, n)
 
 // Execution space
-k = 0..SIZE
+k = 0..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
@@ -55,8 +55,8 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..SIZE
-m = k+1..SIZE
+k = 0..SIZE-1
+m = k+1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
@@ -80,8 +80,8 @@ END
 TRSM(k, m)
 
 // Execution space
-k = 0..SIZE
-m = k+1..SIZE
+k = 0..SIZE-1
+m = k+1..SIZE-1
 
 // Parallel partitioning
 : m % GRIDrows == rowRANK
