@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "symbol.h"
+#include "dplasma.h"
 
 extern int dplasma_lineno;
 
@@ -75,7 +76,7 @@ int dplasma_add_global_symbol( const char* name, const expr_t* expr )
 
     dplasma_symbol_array[dplasma_symbol_array_count] = symbol;
     dplasma_symbol_array_count++;
-    return 0;
+    return EXPR_SUCCESS;
 }
 
 const symbol_t* dplasma_search_global_symbol( const char* name )
@@ -91,3 +92,169 @@ const symbol_t* dplasma_search_global_symbol( const char* name )
     }
     return NULL;
 }
+
+int dplasma_symbol_get_first_value( const symbol_t* symbol,
+                                    const expr_t** predicates,
+                                    assignment_t* local_context,
+                                    int* pvalue )
+{
+    assignment_t* assignment;
+    int rc, min, max, val, old_value, pred_index, pred_val;
+
+    rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the min expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+
+    rc = dplasma_add_assignment( symbol, local_context, MAX_LOCAL_COUNT, &assignment );
+    if( EXPR_SUCCESS != rc ) {
+        /* the symbol cannot be added to the local context. Bail out */
+        return rc;
+    }
+    old_value = assignment->value;
+
+    for( val = min; val <= max; val++ ) {
+        /* Update the variable */
+        assignment->value = val;
+
+        for( pred_index = 0;
+             (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
+             pred_index++ ) {
+            /* If we fail to evaluate the expression, let's suppose we don't have
+             * all the required symbols in the assignment array.
+             */
+            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
+                                          local_context, MAX_LOCAL_COUNT,
+                                          &pred_val) ) {
+                if( 0 == pred_val ) {
+                    /* This particular value doesn't fit. Go to the next one */
+                    break;
+                }
+            } else {
+                /* We're lacking assignments here, there is point to continue. */
+                assignment->value = old_value; /* restore the old value */
+                return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+            }
+        }
+        /* If we're here, then we have the correct value. */
+        *pvalue = val;
+        return EXPR_SUCCESS;
+    }
+
+    assignment->value = old_value; /* restore the old value */
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+}
+
+int dplasma_symbol_get_last_value( const symbol_t* symbol,
+                                   const expr_t** predicates,
+                                   assignment_t* local_context,
+                                   int* pvalue )
+{
+    assignment_t* assignment;
+    int rc, min, max, val, old_value, pred_index, pred_val;
+
+    rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the min expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+
+    rc = dplasma_add_assignment( symbol, local_context, MAX_LOCAL_COUNT, &assignment );
+    if( EXPR_SUCCESS != rc ) {
+        /* the symbol cannot be added to the local context. Bail out */
+        return rc;
+    }
+    old_value = assignment->value;
+
+    for( val = max; val >= min; val-- ) {
+        for( pred_index = 0;
+             (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
+             pred_index++ ) {
+            /* If we fail to evaluate the expression, let's suppose we don't have
+             * all the required symbols in the assignment array.
+             */
+            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
+                                          local_context, MAX_LOCAL_COUNT,
+                                          &pred_val) ) {
+                if( 0 == pred_val ) {
+                    /* This particular value doesn't fit. Go to the next one */
+                    break;
+                }
+            } else {
+                /* We're lacking assignments here, there is point to continue. */
+                assignment->value = old_value; /* restore the old value */
+                return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+            }
+        }
+        /* If we're here, then we have the correct value. */
+        *pvalue = val;
+        return EXPR_SUCCESS;
+    }
+
+    assignment->value = old_value; /* restore the old value */
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+}
+
+int dplasma_symbol_get_next_value( const symbol_t* symbol,
+                                   const expr_t** predicates,
+                                   assignment_t* local_context,
+                                   int* pvalue )
+{
+    assignment_t* assignment;
+    int rc, max, val, old_value, pred_index, pred_val;
+
+    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+
+    rc = dplasma_find_assignment( symbol->name, local_context, MAX_LOCAL_COUNT, &assignment );
+    if( EXPR_SUCCESS != rc ) {
+        /* the symbol is not yet on the assignment list, so there is ABSOLUTELY
+         * no reason to ask for the next value.
+         */
+        return rc;
+    }
+    old_value = assignment->value;
+
+    for( val = *pvalue; val <= max; val++ ) {
+        for( pred_index = 0;
+             (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
+             pred_index++ ) {
+            /* If we fail to evaluate the expression, let's suppose we don't have
+             * all the required symbols in the assignment array.
+             */
+            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
+                                          local_context, MAX_LOCAL_COUNT,
+                                          &pred_val) ) {
+                if( 0 == pred_val ) {
+                    /* This particular value doesn't fit. Go to the next one */
+                    break;
+                }
+            } else {
+                /* We're lacking assignments here, there is point to continue. */
+                assignment->value = old_value; /* restore the old value */
+                return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+            }
+        }
+        /* If we're here, then we have the correct value. */
+        *pvalue = val;
+        return EXPR_SUCCESS;
+    }
+
+    assignment->value = old_value; /* restore the old value */
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+}
+

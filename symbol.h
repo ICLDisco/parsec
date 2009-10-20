@@ -10,6 +10,7 @@
 typedef struct symbol symbol_t;
 
 #include "expr.h"
+#include "assignment.h"
 
 struct symbol {
     const char*   name;
@@ -37,4 +38,68 @@ const symbol_t* dplasma_search_global_symbol( const char* name );
  */
 int dplasma_add_global_symbol( const char* name, const expr_t* expr );
 
+/**
+ * Return the first acceptable value for a specific symbol. As a result the symbol
+ * will be either added or updated on the assignment array.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
+ *              symbol to be analyzed. Can be NULL if no predicated
+ *              are imposed.
+ * @param [IN]  The list of symbols and their current values in the
+ *              current execution context.
+ * @param [OUT] The first acceptable value for this symbol.
+ *
+ * @return  0 if the symbol was correctly resolved and the return value
+ *            has a meaning.
+ * @return -1 if something bad happened and the returned value cannot
+ *            be used.
+ */
+int dplasma_symbol_get_first_value( const symbol_t* symbol,
+                                    const expr_t** predicates,
+                                    assignment_t* local_context,
+                                    int* pvalue );
+/**
+ * Return the last acceptable value for a specific symbol. As a result the symbol
+ * will be either added or updated on the assignment array.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
+ *              symbol to be analyzed. Can be NULL if no predicated
+ *              are imposed.
+ * @param [IN]  The list of symbols and their current values in the
+ *              current execution context.
+ * @param [OUT] The last acceptable value for this symbol.
+ *
+ * @return  0 if the symbol was correctly resolved and the return value
+ *            has a meaning.
+ * @return -1 if something bad happened and the returned value cannot
+ *            be used.
+ */
+int dplasma_symbol_get_last_value( const symbol_t* symbol,
+                                   const expr_t** predicates,
+                                   assignment_t* local_context,
+                                   int* pvalue );
+/**
+ * Return the next acceptable value for a specific symbol. As a result the symbol
+ * will be either added or updated on the assignment array.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
+ *              symbol to be analyzed. Can be NULL if no predicated
+ *              are imposed.
+ * @param [IN]  The list of symbols and their current values in the
+ *              current execution context.
+ * @param [INOUT] On input it contains the current value of the symbol,
+ *                while on output it contains the next acceptable value.
+ *
+ * @return  0 if the symbol was correctly resolved and the return value
+ *            has a meaning.
+ * @return -1 if something bad happened and the returned value cannot
+ *            be used.
+ */
+int dplasma_symbol_get_next_value( const symbol_t* symbol,
+                                   const expr_t** predicates,
+                                   assignment_t* local_context,
+                                   int* pvalue );
 #endif
