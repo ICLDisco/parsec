@@ -15,6 +15,7 @@ void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignmen
 void generateTaskInstances(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
 void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
 void generateEdge(dplasma_t *currTask, char *fromNodeStr, assignment_t *assgn, unsigned int nbassgn, dep_t *dep);
+void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn);
 void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV);
 
 
@@ -94,6 +95,62 @@ void generateEdge(dplasma_t *currTask, char *fromNodeStr, assignment_t *assgn, u
 }
 
 /**************************************************************************/
+void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn){
+    int i, color[3];
+    expr_t *e;
+
+    for(i=0; i<3; ++i){ color[i] = 0; }
+
+    for(i=0; i<MAX_PRED_COUNT; ++i){
+        int res, max;
+        if( currTask->preds[i] == NULL ) break;
+        e = currTask->preds[i];
+        if( !EXPR_IS_BINARY(e->op) || !EXPR_IS_BINARY(e->bop1->op) ){
+            fprintf(stderr,"Predicate %d does not conform to the expected format \"actual %% global1 == global2\": ",i);
+            expr_dump(e);
+            fprintf(stderr,"\n");
+            exit(-1);
+        }
+        e = (expr_t *)currTask->preds[i]->bop1;
+
+        /* Get the value of the LHS of the predicate, i.e. "k % GRIDrows" */
+        if( EXPR_SUCCESS != expr_eval(e, assgn, nbassgn, &res) ){
+            fprintf(stderr,"Cannot evaluate LHS of predicate %d: ",i);
+            expr_dump(e);
+            fprintf(stderr,"\n");
+            exit(-1);
+        }
+
+        /* Get the value of the divisor, i.e. GRIDrows, GRIDcols, etc */
+        if( EXPR_SUCCESS != expr_eval(e->bop2, assgn, nbassgn, &max) ){
+            if( EXPR_OP_SYMB != e->bop2->op ){
+                fprintf(stderr,"Expecting to find symbol instead of expression: ");
+                expr_dump(e->bop2);
+                fprintf(stderr,"\n");
+                exit(-1);
+            }
+            fprintf(stderr,"Cannot evaluate the value of global variable: %s",e->bop2->var->name);
+            expr_dump(e);
+            fprintf(stderr,"\n");
+            exit(-1);
+        }
+        if( i >= 3 ){
+            fprintf(stderr,"Error: parameter spaces have to be limited to 3D\n");
+            break;
+        }
+        /* 255 - (255*res)/max will give us a value in [255,0), so we'll never get fully black */
+        color[i] = 255 - (255*res)/max;
+    }
+    printf("  %s [color=\"#",taskInstanceStr);
+    for(i=0; i<3; ++i){
+        printf("%02x",color[i]);
+    }
+    printf("\"];\n");
+
+    return;
+}
+
+/**************************************************************************/
 void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn){
     int i, j, k, off, len;
     param_t *currParam;
@@ -108,6 +165,8 @@ void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassg
     for(i=0; i<nbassgn; ++i){
         off += sprintf(taskInstanceStr+off,"_%d",assgn[i].value);
     }
+
+    printNodeColor(currTask, taskInstanceStr, assgn, nbassgn);
 
     for(j=0; j<MAX_PARAM_COUNT; ++j){
         if( (currParam=currTask->params[j]) == NULL ) break;
@@ -165,7 +224,7 @@ void external_hook(void){
     int i, j;
 
     printf("digraph DAG {\n");
-    printf("  node [shape = circle];\n");
+    printf("  node [shape = circle, style = filled];\n");
 
     for( i = 0; ;i++ ) {
         const dplasma_t *currTask=dplasma_element_at(i);
