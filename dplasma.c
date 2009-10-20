@@ -94,7 +94,23 @@ const dplasma_t* dplasma_element_at( int i )
     return NULL;
 }
 
+typedef struct dplasma_execution_context_t {
+    const dplasma_t* function;
+    assignment_t locals[MAX_LOCAL_COUNT];
+} dplasma_execution_context_t;
+
 int dplasma_unroll( const dplasma_t* object )
 {
+    dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+    int i, nb_locals;
+
+    exec_context->function = object;
+    printf( "Function %s\n", object->name );
+    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ ) {
+        exec_context->locals[i].sym = object->locals[i];
+        dplasma_symbol_get_first_value(object->locals[i], (const expr_t**)object->preds,
+                                       exec_context->locals, &exec_context->locals[i].value);
+        printf( "Start value for symbol %s is %d\n",  object->locals[i]->name, exec_context->locals[i].value );
+    }
     return 0;
 }

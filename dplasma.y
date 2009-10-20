@@ -46,6 +46,9 @@ int yywrap()
 
 int main(int argc, char *argv[])
 {
+    const dplasma_t* object;
+    int i;
+
     dplasma_lineno = 1;
 	yyparse();
 
@@ -53,8 +56,12 @@ int main(int argc, char *argv[])
     symbol_dump_all("");
     dplasma_dump_all();
 */
-
-    external_hook();
+    object = dplasma_element_at(0);
+    for( i = 1; NULL != object; i++ ) {
+        dplasma_unroll(object);
+        object = dplasma_element_at(i);
+    }
+    /*external_hook();*/
 
 	return 0;
 }
