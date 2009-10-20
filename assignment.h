@@ -16,4 +16,13 @@ struct assignment {
     int        value;
 };
 
+int dplasma_find_assignment( const char* name,
+                             const assignment_t* context,
+                             unsigned int context_size,
+                             assignment_t** where);
+int dplasma_add_assignment( const symbol_t* symbol,
+                            assignment_t* context,
+                            unsigned int context_size,
+                            assignment_t** where );
+
 #endif
