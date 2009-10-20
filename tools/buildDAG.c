@@ -14,8 +14,8 @@ void external_hook(void);
 void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignment_t *assgn, unsigned int nbassgn);
 void generateTaskInstances(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
 void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
-void generateEdge(dplasma_t *currTask, char *fromNode, assignment_t *assgn, unsigned int nbassgn, dep_t *dep);
-void generatePeerNode(dep_t *peerNode, char *fromNode, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV);
+void generateEdge(dplasma_t *currTask, char *fromNodeStr, assignment_t *assgn, unsigned int nbassgn, dep_t *dep);
+void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV);
 
 
 /*
@@ -23,12 +23,12 @@ void generatePeerNode(dep_t *peerNode, char *fromNode, unsigned int whichCallPar
  */
 
 /**************************************************************************/
-void generatePeerNode(dep_t *peerNode, char *fromNode, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
+void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
     int success = 0;
     int i, ret_val, res;
 
     if( whichCallParam == callParamCount ){
-        printf("  %s -> %s",fromNode, peerNode->dplasma_name);
+        printf("  %s -> %s",fromNodeStr, peerNode->dplasma_name);
         for(i=0; i<callParamCount; ++i){
             printf("_%d",callParamsV[i]);
         }
@@ -44,7 +44,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNode, unsigned int whichCallPar
     ret_val = expr_eval((expr_t *)peerNode->call_params[whichCallParam], assgn, nbassgn, &res);
     if( EXPR_SUCCESS == ret_val ){
         callParamsV[whichCallParam] = res;
-        generatePeerNode(peerNode, fromNode, whichCallParam+1, callParamCount, assgn, nbassgn, callParamsV);
+        generatePeerNode(peerNode, fromNodeStr, whichCallParam+1, callParamCount, assgn, nbassgn, callParamsV);
         success = 1;
     }else if( EXPR_FAILURE_CANNOT_EVALUATE_RANGE == ret_val ){
         int j, min, max;
@@ -54,7 +54,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNode, unsigned int whichCallPar
             success = 1;
             for(j=min; j<=max; ++j){
                 callParamsV[whichCallParam] = j;
-                generatePeerNode(peerNode, fromNode, whichCallParam+1, callParamCount, assgn, nbassgn, callParamsV);
+                generatePeerNode(peerNode, fromNodeStr, whichCallParam+1, callParamCount, assgn, nbassgn, callParamsV);
             }
         }
     }
@@ -71,7 +71,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNode, unsigned int whichCallPar
 }
 
 /**************************************************************************/
-void generateEdge(dplasma_t *currTask, char *fromNode, assignment_t *assgn, unsigned int nbassgn, dep_t *dep){
+void generateEdge(dplasma_t *currTask, char *fromNodeStr, assignment_t *assgn, unsigned int nbassgn, dep_t *dep){
     int i, res, ret_val, callParamsV[MAX_CALL_PARAM_COUNT], callParamCount;
 
     if( dep->cond != NULL ){
@@ -88,7 +88,7 @@ void generateEdge(dplasma_t *currTask, char *fromNode, assignment_t *assgn, unsi
     }
     for(i=0;  i < MAX_CALL_PARAM_COUNT && dep->call_params[i] != NULL; ++i );
     callParamCount=i;
-    generatePeerNode(dep, fromNode, 0, callParamCount, assgn, nbassgn, callParamsV);
+    generatePeerNode(dep, fromNodeStr, 0, callParamCount, assgn, nbassgn, callParamsV);
 
     return;
 }
@@ -98,24 +98,26 @@ void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassg
     int i, j, k, off, len;
     param_t *currParam;
     dep_t *currOutDep;
-    char *taskInstance;
+    char *taskInstanceStr;
 
     /* if the locals take values that exceed 2^32 this string might overflow */
     len = strlen(currTask->name) + nbassgn*10;
-    taskInstance = (char *)malloc( len * sizeof(char) );
-    off = sprintf(taskInstance,"%s",currTask->name);
+    taskInstanceStr = (char *)malloc( len * sizeof(char) );
+    off = sprintf(taskInstanceStr,"%s",currTask->name);
 
     for(i=0; i<nbassgn; ++i){
-        off += sprintf(taskInstance+off,"_%d",assgn[i].value);
+        off += sprintf(taskInstanceStr+off,"_%d",assgn[i].value);
     }
 
     for(j=0; j<MAX_PARAM_COUNT; ++j){
         if( (currParam=currTask->params[j]) == NULL ) break;
         for(k=0; k<MAX_DEP_OUT_COUNT; ++k){
             if( (currOutDep=currParam->dep_out[k]) == NULL ) break;
-            generateEdge(currTask, taskInstance, assgn, nbassgn, currOutDep);
+            generateEdge(currTask, taskInstanceStr, assgn, nbassgn, currOutDep);
         }
     }
+
+    free(taskInstanceStr);
 
 }
 
