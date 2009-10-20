@@ -53,10 +53,11 @@ struct expr {
 #define var         u.var
 #define const_int   u.const_int
 
-#define EXPR_SUCCESS                       0
-#define EXPR_FAILURE_SYMBOL_NOT_FOUND      1
-#define EXPR_FAILURE_UNKNOWN_OP            2
-#define EXPR_FAILURE_CANNOT_EVALUATE_RANGE 3
+#define EXPR_SUCCESS                        0
+#define EXPR_FAILURE_SYMBOL_NOT_FOUND      -1
+#define EXPR_FAILURE_UNKNOWN_OP            -2
+#define EXPR_FAILURE_CANNOT_EVALUATE_RANGE -3
+#define EXPR_FAILURE_UNKNOWN               -4
 
 /**
  * Evaluates and returns the negation of an expression
@@ -76,7 +77,10 @@ expr_t *negate_expr(expr_t *expr);
  * @return EXPR_SUCCESS in case of success. *res holds the evaluated value.
  * @return EXPR_FAILURE_* in case of error.
  */
-int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *res);
+int expr_eval( const expr_t *expr,
+               const assignment_t *assignments,
+               unsigned int nbassignments,
+               int *res);
 
 /**
  * Evaluates the minimum and maximum value of a range expression in the current assignment context.
@@ -90,7 +94,11 @@ int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignment
  * @return EXPR_SUCCESS in case of success. *res holds the evaluated value.
  * @return EXPR_FAILURE_* in case of error.
  */
-int expr_range_to_min_max(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *min, int *max);
+int expr_range_to_min_max( const expr_t *expr,
+                           const assignment_t *assignments,
+                           unsigned int nbassignments,
+                           int *min,
+                           int *max);
 
 
 /**

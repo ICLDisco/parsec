@@ -24,7 +24,9 @@ expr_t *negate_expr(expr_t *e){
 }
 
 
-static int expr_eval_unary(unsigned char op, expr_t *op1, assignment_t *assignments, unsigned int nbassignments, int *v)
+static int expr_eval_unary(unsigned char op, const expr_t *op1,
+                           const assignment_t *assignments, unsigned int nbassignments,
+                           int *v)
 {
     int rc;
     int v1;
@@ -45,7 +47,9 @@ static int expr_eval_unary(unsigned char op, expr_t *op1, assignment_t *assignme
     return EXPR_SUCCESS;
 }
 
-static int expr_eval_binary(unsigned char op, expr_t *op1, expr_t *op2, assignment_t *assignments, unsigned int nbassignments, int *v)
+static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *op2,
+                            const assignment_t *assignments, unsigned int nbassignments,
+                            int *v)
 {
     int rc;
     int v1, v2;
@@ -85,9 +89,9 @@ static int expr_eval_binary(unsigned char op, expr_t *op1, expr_t *op2, assignme
     return EXPR_SUCCESS;
 }
 
-static int expr_eval_symbol(symbol_t *sym, assignment_t *assignments, unsigned int nbassignments, int *res)
+static int expr_eval_symbol(const symbol_t *sym, const assignment_t *assignments, unsigned int nbassignments, int *res)
 {
-    unsigned int i;
+    assignment_t* assignment;
 
     /* look at the global symbols first */
     const symbol_t *gsym = dplasma_search_global_symbol( sym->name );
@@ -99,12 +103,8 @@ static int expr_eval_symbol(symbol_t *sym, assignment_t *assignments, unsigned i
         }
     }
 
-    for(i = 0; i < nbassignments; i++) {
-        if( strcmp( sym->name, assignments[i].sym->name ) ) {
-            continue;
-        }
-        *res = assignments[i].value;
-        snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Success");
+    if( EXPR_SUCCESS == dplasma_find_assignment(sym->name, assignments, nbassignments, &assignment) ) {
+        *res = assignment->value;
         return EXPR_SUCCESS;
     }
 
@@ -112,7 +112,9 @@ static int expr_eval_symbol(symbol_t *sym, assignment_t *assignments, unsigned i
     return EXPR_FAILURE_SYMBOL_NOT_FOUND;
 }
 
-int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *res)
+int expr_eval(const expr_t *expr,
+              const assignment_t *assignments, unsigned int nbassignments,
+              int *res)
 {
     if( EXPR_OP_SYMB == expr->op ) {
         int int_res;
@@ -133,7 +135,9 @@ int expr_eval(expr_t *expr, assignment_t *assignments, unsigned int nbassignment
     }
 }
 
-int expr_range_to_min_max(expr_t *expr, assignment_t *assignments, unsigned int nbassignments, int *min, int *max)
+int expr_range_to_min_max(const expr_t *expr,
+                          const assignment_t *assignments, unsigned int nbassignments,
+                          int *min, int *max)
 {
     int rc;
 
