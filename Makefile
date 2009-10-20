@@ -6,6 +6,7 @@ LDFLAGS=
 
 OBJECTS=dplasma.o \
 	symbol.o \
+	assignment.o \
 	expr.o \
 	params.o \
 	dep.o \
