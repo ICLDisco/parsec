@@ -137,7 +137,6 @@ int dplasma_symbol_get_first_value( const symbol_t* symbol,
             /* If we fail to evaluate the expression, let's suppose we don't have
              * all the required symbols in the assignment array.
              */
-            expr_dump(predicates[pred_index]); printf("\n");
             if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
                                           local_context, MAX_LOCAL_COUNT,
                                           &pred_val) ) {
