@@ -99,7 +99,7 @@ int dplasma_symbol_get_first_value( const symbol_t* symbol,
                                     int* pvalue )
 {
     assignment_t* assignment;
-    int rc, min, max, val, old_value, pred_index, pred_val;
+    int rc, min, max, val, old_value, pred_index, pred_val, valid_value;
 
     rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
     if( EXPR_SUCCESS != rc ) {
@@ -113,38 +113,46 @@ int dplasma_symbol_get_first_value( const symbol_t* symbol,
     }
 
     rc = dplasma_add_assignment( symbol, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( EXPR_SUCCESS != rc ) {
+    if( DPLASMA_ASSIGN_ERROR == rc ) {
         /* the symbol cannot be added to the local context. Bail out */
         return rc;
     }
+
+    /* If there are no predicates we're good to go */
+    if( NULL == predicates ) {
+        assignment->value = min;
+        return EXPR_SUCCESS;
+    }
+
     old_value = assignment->value;
 
     for( val = min; val <= max; val++ ) {
         /* Update the variable */
         assignment->value = val;
-
+        valid_value = 1;  /* suppose this is the right value */
+        /* Any valid value have to match all predicats. */
         for( pred_index = 0;
              (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
              pred_index++ ) {
             /* If we fail to evaluate the expression, let's suppose we don't have
              * all the required symbols in the assignment array.
              */
+            expr_dump(predicates[pred_index]); printf("\n");
             if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
                                           local_context, MAX_LOCAL_COUNT,
                                           &pred_val) ) {
                 if( 0 == pred_val ) {
                     /* This particular value doesn't fit. Go to the next one */
+                    valid_value = 0;
                     break;
                 }
-            } else {
-                /* We're lacking assignments here, there is point to continue. */
-                assignment->value = old_value; /* restore the old value */
-                return EXPR_FAILURE_SYMBOL_NOT_FOUND;
             }
         }
-        /* If we're here, then we have the correct value. */
-        *pvalue = val;
-        return EXPR_SUCCESS;
+        if( 1 == valid_value ) {
+            /* If we're here, then we have the correct value. */
+            *pvalue = val;
+            return EXPR_SUCCESS;
+        }
     }
 
     assignment->value = old_value; /* restore the old value */
@@ -157,7 +165,7 @@ int dplasma_symbol_get_last_value( const symbol_t* symbol,
                                    int* pvalue )
 {
     assignment_t* assignment;
-    int rc, min, max, val, old_value, pred_index, pred_val;
+    int rc, min, max, val, old_value, pred_index, pred_val, valid_value;
 
     rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
     if( EXPR_SUCCESS != rc ) {
@@ -171,13 +179,22 @@ int dplasma_symbol_get_last_value( const symbol_t* symbol,
     }
 
     rc = dplasma_add_assignment( symbol, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( EXPR_SUCCESS != rc ) {
+    if( DPLASMA_ASSIGN_ERROR == rc ) {
         /* the symbol cannot be added to the local context. Bail out */
         return rc;
     }
+
+    /* If there are no predicates we're good to go */
+    if( NULL == predicates ) {
+        assignment->value = max;
+        return EXPR_SUCCESS;
+    }
+
     old_value = assignment->value;
 
     for( val = max; val >= min; val-- ) {
+        assignment->value = val;
+        valid_value = 1;  /* suppose this is the right value */
         for( pred_index = 0;
              (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
              pred_index++ ) {
@@ -189,17 +206,16 @@ int dplasma_symbol_get_last_value( const symbol_t* symbol,
                                           &pred_val) ) {
                 if( 0 == pred_val ) {
                     /* This particular value doesn't fit. Go to the next one */
+                    valid_value = 0;
                     break;
                 }
-            } else {
-                /* We're lacking assignments here, there is point to continue. */
-                assignment->value = old_value; /* restore the old value */
-                return EXPR_FAILURE_SYMBOL_NOT_FOUND;
             }
         }
-        /* If we're here, then we have the correct value. */
-        *pvalue = val;
-        return EXPR_SUCCESS;
+        if( 1 == valid_value ) {
+            /* If we're here, then we have the correct value. */
+            *pvalue = val;
+            return EXPR_SUCCESS;
+        }
     }
 
     assignment->value = old_value; /* restore the old value */
@@ -212,7 +228,7 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
                                    int* pvalue )
 {
     assignment_t* assignment;
-    int rc, max, val, old_value, pred_index, pred_val;
+    int rc, max, val, old_value, pred_index, pred_val, valid_value;
 
     rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
     if( EXPR_SUCCESS != rc ) {
@@ -221,15 +237,22 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
     }
 
     rc = dplasma_find_assignment( symbol->name, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( EXPR_SUCCESS != rc ) {
+    if( DPLASMA_ASSIGN_ERROR == rc ) {
         /* the symbol is not yet on the assignment list, so there is ABSOLUTELY
          * no reason to ask for the next value.
          */
         return rc;
     }
+    /* If there are no predicates we're good to go */
+    if( NULL == predicates ) {
+        assignment->value = (*pvalue) + 1;
+        return EXPR_SUCCESS;
+    }
     old_value = assignment->value;
 
-    for( val = *pvalue; val <= max; val++ ) {
+    for( val = (*pvalue) + 1; val <= max; val++ ) {
+        assignment->value = val;
+        valid_value = 1;
         for( pred_index = 0;
              (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
              pred_index++ ) {
@@ -241,17 +264,16 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
                                           &pred_val) ) {
                 if( 0 == pred_val ) {
                     /* This particular value doesn't fit. Go to the next one */
+                    valid_value = 0;
                     break;
                 }
-            } else {
-                /* We're lacking assignments here, there is point to continue. */
-                assignment->value = old_value; /* restore the old value */
-                return EXPR_FAILURE_SYMBOL_NOT_FOUND;
             }
         }
-        /* If we're here, then we have the correct value. */
-        *pvalue = val;
-        return EXPR_SUCCESS;
+        if( 1 == valid_value ) {
+            /* If we're here, then we have the correct value. */
+            *pvalue = val;
+            return EXPR_SUCCESS;
+        }
     }
 
     assignment->value = old_value; /* restore the old value */
