@@ -19,10 +19,10 @@ int dplasma_find_assignment( const char* name,
         assignment = &context[i];
         if( 0 == strcmp(assignment->sym->name, name) ) {
             *where = (assignment_t*)assignment;
-            return EXPR_SUCCESS;
+            return DPLASMA_ASSIGN_FOUND;
         }
     }
-    return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+    return DPLASMA_ASSIGN_ERROR;
 }
 
 int dplasma_add_assignment( const symbol_t* symbol,
@@ -35,13 +35,13 @@ int dplasma_add_assignment( const symbol_t* symbol,
     for( i = 0; (i < context_size) && (NULL != context[i].sym); i++ ) {
         if( 0 == strcmp(context[i].sym->name, symbol->name) ) {
             *where = &context[i];
-            return EXPR_SUCCESS;
+            return DPLASMA_ASSIGN_FOUND;
         }
     }
     if( i < context_size ) {
         context[i].sym = (symbol_t*)symbol;
         *where = &context[i];
-        return EXPR_SUCCESS;
+        return DPLASMA_ASSIGN_ADDED;
     }
-    return EXPR_FAILURE_UNKNOWN;
+    return DPLASMA_ASSIGN_ERROR;
 }
