@@ -1,3 +1,5 @@
+%option nounput
+
 %{
 /*
  * Copyright (c) 2009      The University of Tennessee and The University

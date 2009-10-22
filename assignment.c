@@ -6,6 +6,7 @@
 
 #include "assignment.h"
 #include <stdlib.h>
+#include <string.h>
 
 int dplasma_find_assignment( const char* name,
                              const assignment_t* context,
