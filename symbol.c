@@ -95,6 +95,35 @@ const symbol_t* dplasma_search_global_symbol( const char* name )
     return NULL;
 }
 
+static int dplasma_expr_parse_callback( const symbol_t* symbol, void* data )
+{
+    int* pvalue;
+
+    if( !(DPLASMA_SYMBOL_IS_GLOBAL & symbol->flags) ) {
+        /* Allow us to count the number of local symbols in the expression */
+        (*pvalue)++;
+    }
+    return EXPR_SUCCESS;
+}
+
+int dplasma_symbol_is_standalone( const symbol_t* symbol )
+{
+    int rc, symbols_count = 0;
+
+    rc = expr_parse_symbols( symbol->min, &dplasma_expr_parse_callback, (void*)&symbols_count );
+    if( EXPR_SUCCESS != rc ) {
+        return rc;
+    }
+    if( 0 == symbols_count ) {
+        rc = expr_parse_symbols( symbol->max, &dplasma_expr_parse_callback, (void*)&symbols_count );
+        if( EXPR_SUCCESS != rc ) {
+            return rc;
+        }
+        return (0 == symbols_count ? EXPR_SUCCESS : EXPR_FAILURE_UNKNOWN);
+    }
+    return EXPR_FAILURE_UNKNOWN;
+}
+
 int dplasma_symbol_get_first_value( const symbol_t* symbol,
                                     const expr_t** predicates,
                                     assignment_t* local_context,

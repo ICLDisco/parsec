@@ -47,6 +47,17 @@ const symbol_t* dplasma_search_global_symbol( const char* name );
 int dplasma_add_global_symbol( const char* name, const expr_t* expr );
 
 /**
+ * Return 0 if the symbol is standalone, i.e. it doesn't depend on any
+ * local symbols only on constants or global symbols.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ *
+ * @return  0 if the symbol is standalone.
+ * @return -1 otherwise (no specific error returned).
+ */
+int dplasma_symbol_is_standalone( const symbol_t* symbol );
+
+/**
  * Return the first acceptable value for a specific symbol. As a result the symbol
  * will be either added or updated on the assignment array.
  *
