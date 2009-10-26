@@ -13,6 +13,7 @@ typedef struct dplasma dplasma_t;
 #define MAX_PRED_COUNT   3
 #define MAX_PARAM_COUNT  3
 
+#include <stdint.h>
 #include "symbol.h"
 #include "expr.h"
 #include "params.h"
