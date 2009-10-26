@@ -83,6 +83,36 @@ int expr_eval( const expr_t *expr,
                int *res);
 
 /**
+ * Determine if the specified expression depend on the requested symbol or not.
+ *
+ * @param  [IN]  expr the expression to evaluate
+ * @param  [IN]  the symbol to be looked for
+ *
+ * @return EXPR_SUCCESS if the expression depend on this particular symbol
+ * @return EXPR_FAILURE_SYMBOL_NOT_FOUND if the expression do not depend on this symbol
+ * @return EXPR_FAILURE_* in case of error.
+ */
+int expr_depend_on_symbol( const expr_t* expr,
+                           const symbol_t* symbol );
+
+/**
+ * Determine if the specified expression depend on the requested symbol or not.
+ *
+ * @param  [IN]  expr the expression to evaluate
+ * @param  [IN]  the callback to be called everytime a symbol is found in the expression.
+ *               Cannot be NULL
+ * @param  [IN]  callback data to be passed on the callback
+ *
+ * @return EXPR_SUCCESS if the expression depend on this particular symbol
+ * @return EXPR_FAILURE_SYMBOL_NOT_FOUND if the expression do not depend on this symbol
+ * @return EXPR_FAILURE_* in case of error.
+ */
+typedef int (expr_symbol_check_callback_t)(const symbol_t* symbol, void* data);
+int expr_parse_symbols( const expr_t* expr,
+                        expr_symbol_check_callback_t* callback,
+                        void* data);
+
+/**
  * Evaluates the minimum and maximum value of a range expression in the current assignment context.
  *
  * @param  [IN]  expr the expression to evaluate

@@ -121,18 +121,169 @@ int expr_eval(const expr_t *expr,
         int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, &int_res);
         *res = int_res;
         return ret_val;
-    } else if ( EXPR_OP_CONST_INT == expr->op ) {
+    }
+    if ( EXPR_OP_CONST_INT == expr->op ) {
         *res = expr->const_int;
         snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Success");
         return EXPR_SUCCESS;
-    } else if ( EXPR_IS_UNARY(expr->op) ) {
-        return expr_eval_unary(expr->op, expr->uop1, assignments, nbassignments, res);
-    } else if ( EXPR_IS_BINARY(expr->op) ) {
-        return expr_eval_binary(expr->op, expr->bop1, expr->bop2, assignments, nbassignments, res);
-    } else {
-        snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Unkown operand %d in expression", expr->op);
-        return EXPR_FAILURE_UNKNOWN_OP;
     }
+    if ( EXPR_IS_UNARY(expr->op) ) {
+        return expr_eval_unary(expr->op, expr->uop1, assignments, nbassignments, res);
+    }
+    if ( EXPR_IS_BINARY(expr->op) ) {
+        return expr_eval_binary(expr->op, expr->bop1, expr->bop2, assignments, nbassignments, res);
+    }
+    snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Unkown operand %d in expression", expr->op);
+    return EXPR_FAILURE_UNKNOWN_OP;
+}
+
+int expr_parse_symbols( const expr_t* expr,
+                        expr_symbol_check_callback_t* callback,
+                        void* data )
+{
+    int rc;
+
+    if( EXPR_OP_SYMB == expr->op ) {
+        return callback(expr->var, data);
+    }
+    if( EXPR_OP_CONST_INT == expr->op ) {
+        return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+    }
+    if( EXPR_IS_UNARY(expr->op) ) {
+        return expr_parse_symbols( expr->uop1, callback, data );
+    }
+    rc = expr_parse_symbols( expr->bop1, callback, data );
+    /* if we got an error don't check for the second expression */
+    if( EXPR_SUCCESS == rc ) {
+        return expr_parse_symbols( expr->bop2, callback, data );
+    }
+    return rc;
+}
+
+int expr_depend_on_symbol( const expr_t* expr,
+                           const symbol_t* symbol )
+{
+    int rc;
+
+    if( EXPR_OP_SYMB == expr->op ) {
+        if( expr->var == symbol ) {
+            return EXPR_SUCCESS;
+        }
+        return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+    }
+    if( EXPR_OP_CONST_INT == expr->op ) {
+        return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+    }
+    if( EXPR_IS_UNARY(expr->op) ) {
+        return expr_depend_on_symbol( expr->uop1, symbol );
+    }
+    rc = expr_depend_on_symbol( expr->bop1, symbol );
+    if( EXPR_FAILURE_SYMBOL_NOT_FOUND == rc ) { /* not yet check for the second expression */
+        return expr_depend_on_symbol( expr->bop2, symbol );
+    }
+    return rc;
+}
+
+#define EXPR_ABSOLUTE_RANGE_MIN 1
+#define EXPR_ABSOLUTE_RANGE_MAX 2
+
+int __expr_absolute_range_recursive( const expr_t* expr, int direction,
+                                     int* pmin, int* pmax )
+{
+    int rc, *storage, lmin, lmax, rmin, rmax;
+
+    if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+        storage = pmin;
+    } else {
+        assert( EXPR_ABSOLUTE_RANGE_MAX == direction );
+        storage = pmax;
+    }
+
+    if( EXPR_OP_SYMB == expr->op ) {
+        const symbol_t* symbol = expr->var;
+        const symbol_t* gsym = dplasma_search_global_symbol( symbol->name );
+        if( gsym != NULL ) {
+            if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, storage) ) {
+                return EXPR_SUCCESS;
+            }
+            return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+        }
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            rc = __expr_absolute_range_recursive( symbol->min, direction, pmin, pmax );
+        } else {
+            rc = __expr_absolute_range_recursive( symbol->max, direction, pmin, pmax );
+        }
+        return rc;
+    }
+
+    if( EXPR_OP_CONST_INT == expr->op ) {
+        *storage = expr->const_int;
+        return EXPR_SUCCESS;
+    }
+
+    if( EXPR_IS_UNARY(expr->op) ) {
+        /* there is no range for boolean values */
+        return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+    }
+
+    assert( EXPR_IS_BINARY(expr->op) );
+    switch(expr->op) {
+    case EXPR_OP_BINARY_MOD:
+        printf( "No idea how to compute a min or max of a %%\n" );
+        return EXPR_FAILURE_UNKNOWN;
+    case EXPR_OP_BINARY_EQUAL:
+        return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+    case EXPR_OP_BINARY_PLUS:
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &rmin, &rmax );
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            *pmin = lmin + rmin;
+        } else {
+            *pmax = lmax + rmax;
+        }
+        return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_MINUS:
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &rmin, &rmax );
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            *pmin = lmin + rmin;
+        } else {
+            *pmax = lmax + rmax;
+        }
+        return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_TIMES:
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &rmin, &rmax );
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            *pmin = lmin * rmin;
+        } else {
+            *pmax = lmax * rmax;
+        }
+        return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_RANGE:
+        /* should we continue down the expressions of the range ? */
+        return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+    }
+    return rc;
+}
+
+int expr_absolute_range(const expr_t* expr,
+                        int* pmin, int* pmax)
+{
+    int rc, unused;
+
+    assert( expr->op == EXPR_OP_BINARY_RANGE );
+
+    rc = __expr_absolute_range_recursive( expr->bop1, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
+    if( EXPR_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = __expr_absolute_range_recursive( expr->bop2, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
+    if( EXPR_SUCCESS != rc ) {
+        return rc;
+    }
+
+    return EXPR_SUCCESS;
 }
 
 int expr_range_to_min_max(const expr_t *expr,
