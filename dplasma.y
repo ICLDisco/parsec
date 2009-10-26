@@ -202,6 +202,10 @@ assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
                                                         global_dplasma->locals[i]->min = $3;
                                                         global_dplasma->locals[i]->max = $3;
                                                     }
+                                                    /* Mark it as standalone if it's the case */
+                                                    if( 0 == dplasma_symbol_is_standalone(global_dplasma->locals[i]) ) {
+                                                        global_dplasma->locals[i]->flags |= DPLASMA_SYMBOL_IS_STANDALONE;
+                                                    }
                                                 }
 ;
 
@@ -424,12 +428,12 @@ expr_list: expr {
                   /* expr_t *e = $1; */
 
                   if( global_call_params_index == MAX_CALL_PARAM_COUNT ) {
-                         fprintf(stderr,
-                                 "Internal Error while parsing at line %d:\n"
-                                 "  Found %d parameters when expecting less than %d.\n",
-                                 dplasma_lineno,
-                                 global_call_params_index,
-                                 MAX_CALL_PARAM_COUNT);
+                      fprintf(stderr,
+                              "Internal Error while parsing at line %d:\n"
+                              "  Found %d parameters when expecting less than %d.\n",
+                              dplasma_lineno,
+                              global_call_params_index,
+                              MAX_CALL_PARAM_COUNT);
                       YYERROR;
                   }
 
@@ -446,20 +450,25 @@ expr_list: expr {
 
 expr:     DPLASMA_VAR                                { 
                                                          symbol_stack_elt_t *s = dplasma_symbol_stack;
-                                                         symbol_t           *unknown;
+                                                         const symbol_t     *symbol;
                                                          
+                                                         /* TODO: No need for the stack_elt. Instead use the locals and globals */
                                                          while( NULL != s && strcmp(s->sym->name, $1) ) {
                                                              s = s->next;
                                                          }
                                                          if( NULL == s ) {
-                                                             unknown = (symbol_t*)calloc(1, sizeof(symbol_t));
-                                                             unknown->name = strdup($1);
-                                                             s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                                                             s->sym = unknown;
-                                                             s->next = dplasma_symbol_stack;
-                                                             dplasma_symbol_stack = s;
+                                                             /* The only alternative is to use a global symbol */
+                                                             symbol = dplasma_search_global_symbol($1);
+                                                             if( NULL == symbol ) {
+                                                                 fprintf( stderr,
+                                                                          "Add expression based on unknown symbol %s at line %d\n",
+                                                                          $1, dplasma_lineno );
+                                                                 YYERROR;
+                                                             }
+                                                         } else {
+                                                             symbol = s->sym;
                                                          }
-                                                         $$ = expr_new_var(s->sym);
+                                                         $$ = expr_new_var(symbol);
                                                          free($1);
                                                      }
         | DPLASMA_INT                                { $$ = expr_new_int($1); }
