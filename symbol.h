@@ -11,8 +11,16 @@ typedef struct symbol symbol_t;
 
 #include "expr.h"
 #include "assignment.h"
+#include <stdint.h>
+
+/* This symbol is a global one. */
+#define DPLASMA_SYMBOL_IS_GLOBAL      0x0001
+/* This symbol doesn't depend on any other local symbols. However,
+ * it can depend on global symbols */
+#define DPLASMA_SYMBOL_IS_STANDALONE  0x0002
 
 struct symbol {
+    uint32_t flags;
     const char*   name;
     const expr_t* min;
     const expr_t* max;
@@ -102,4 +110,41 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
                                    const expr_t** predicates,
                                    assignment_t* local_context,
                                    int* pvalue );
+
+/**
+ * Return the absolute minimal acceptable value for a specific symbol.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  A NULL terminated array of symbols from the same dplama_t object, which
+ *              might create dependencies with the analyzed one. In the case this list is NULL,
+ *              we suppose the upper layer already knows there are no dependencies.
+ * @param [OUT] The absolute minimal acceptable value for this symbol.
+ *
+ * @return  0 if the symbol was correctly resolved and the return value
+ *            has a meaning.
+ * @return -1 if something bad happened and the returned value cannot
+ *            be used.
+ */
+int dplasma_symbol_get_minimum_value( const symbol_t* symbol,
+                                      const symbol_t** symbols,
+                                      int* pvalue );
+
+/**
+ * Return the absolute maximal acceptable value for a specific symbol.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  A NULL terminated array of symbols from the same dplama_t object, which
+ *              might create dependencies with the analyzed one. In the case this list is NULL,
+ *              we suppose the upper layer already knows there are no dependencies.
+ * @param [OUT] The absolute maximal acceptable value for this symbol.
+ *
+ * @return  0 if the symbol was correctly resolved and the return value
+ *            has a meaning.
+ * @return -1 if something bad happened and the returned value cannot
+ *            be used.
+ */
+int dplasma_symbol_get_maximal_value( const symbol_t* symbol,
+                                      const symbol_t** symbols,
+                                      int* pvalue );
+
 #endif

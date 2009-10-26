@@ -69,7 +69,9 @@ int dplasma_add_global_symbol( const char* name, const expr_t* expr )
         }
     }
 
+    /* TODO: check that this symbol doesn't depend on anything except others global symbols. */
     symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
+    symbol->flags = DPLASMA_SYMBOL_IS_GLOBAL | DPLASMA_SYMBOL_IS_STANDALONE;
     symbol->name = strdup(name);
     symbol->min = expr;
     symbol->max = expr;
@@ -279,3 +281,34 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
+int dplasma_symbol_get_minimum_value( const symbol_t* symbol,
+                                      const symbol_t** symbols,
+                                      int* pvalue )
+{
+    int rc;
+
+    if( NULL == symbols ) {
+        rc = expr_eval( symbol->min, NULL, 0 , pvalue );
+        if( EXPR_SUCCESS != rc ) {
+            printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+    }
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+}
+
+int dplasma_symbol_get_maximal_value( const symbol_t* symbol,
+                                      const symbol_t** symbols,
+                                      int* pvalue )
+{
+    int rc;
+
+    if( NULL == symbols ) {
+        rc = expr_eval( symbol->max, NULL, 0 , pvalue );
+        if( EXPR_SUCCESS != rc ) {
+            printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+    }
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+}
