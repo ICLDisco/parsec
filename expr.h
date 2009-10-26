@@ -151,7 +151,7 @@ void expr_dump(const expr_t *e);
  * @param  name [IN]  the name of the variable
  * @return the new expression
  */
-expr_t *expr_new_var(symbol_t *name);
+expr_t *expr_new_var(const symbol_t *name);
 
 /**
  * Creates a new expression from a constant intenger
@@ -171,6 +171,6 @@ expr_t *expr_new_int(int v);
  *              . is the range operand.
  * @return the new expression
  */
-expr_t *expr_new_binary(expr_t *op1, char op, expr_t *op2);
+expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2);
 
 #endif

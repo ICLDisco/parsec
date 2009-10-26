@@ -147,7 +147,7 @@ int expr_parse_symbols( const expr_t* expr,
         return callback(expr->var, data);
     }
     if( EXPR_OP_CONST_INT == expr->op ) {
-        return EXPR_FAILURE_SYMBOL_NOT_FOUND;
+        return EXPR_SUCCESS;
     }
     if( EXPR_IS_UNARY(expr->op) ) {
         return expr_parse_symbols( expr->uop1, callback, data );
@@ -306,11 +306,11 @@ int expr_range_to_min_max(const expr_t *expr,
     return EXPR_SUCCESS;
 }
 
-expr_t *expr_new_var(symbol_t *symb)
+expr_t *expr_new_var(const symbol_t *symb)
 {
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
     r->op = EXPR_OP_SYMB;
-    r->var = symb;
+    r->var = (symbol_t*)symb;
     return r;
 }
 
@@ -322,12 +322,12 @@ expr_t *expr_new_int(int v)
     return r;
 }
 
-expr_t *expr_new_binary(expr_t *op1, char op, expr_t *op2)
+expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
 {
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
 
-    r->bop1 = op1;
-    r->bop2 = op2;
+    r->bop1 = (expr_t*)op1;
+    r->bop2 = (expr_t*)op2;
     
     switch( op ) {
     case '+':

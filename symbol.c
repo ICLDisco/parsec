@@ -97,7 +97,7 @@ const symbol_t* dplasma_search_global_symbol( const char* name )
 
 static int dplasma_expr_parse_callback( const symbol_t* symbol, void* data )
 {
-    int* pvalue;
+    int* pvalue = (int*)data;
 
     if( !(DPLASMA_SYMBOL_IS_GLOBAL & symbol->flags) ) {
         /* Allow us to count the number of local symbols in the expression */
