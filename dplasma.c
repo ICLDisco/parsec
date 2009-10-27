@@ -94,23 +94,96 @@ const dplasma_t* dplasma_element_at( int i )
     return NULL;
 }
 
+/* There is another loop after this one. */
+#define DPLASMA_LOOP_NEXT       0x01
+/* This is the final loop */
+#define DPLASMA_LOOP_FINAL      0x02
+/* This loops array is allocated */
+#define DPLASMA_LOOP_ALLOCATED  0x04
+typedef struct dplasma_final_loop_values_t {
+    char array[1];
+} dplasma_final_loop_values_t;
+
+typedef struct dplasma_loop_values_t dplasma_loop_values_t;
+typedef union dplasma_loop_union_t {
+    dplasma_loop_values_t* loops[1];
+    dplasma_final_loop_values_t* array[1];
+} dplasma_loop_union_t;
+
+struct dplasma_loop_values_t {
+    int                   type;
+    symbol_t*             symbol;
+    dplasma_loop_union_t* generic_next;
+    int                   min;
+    int                   max;
+    dplasma_loop_union_t  u;
+};
+
+dplasma_loop_values_t*
+dplasma_dependency_create_loop( int type,
+                                symbol_t* symbol,
+                                int min,
+                                int max )
+{
+    dplasma_loop_values_t* loops = (dplasma_loop_values_t*)malloc(sizeof(dplasma_loop_values_t));
+
+    loops->type = type;
+    loops->symbol = symbol;
+    loops->generic_next = NULL;
+    loops->min = min;
+    loops->max = max;
+
+    return loops;
+}
+
 typedef struct dplasma_execution_context_t {
     const dplasma_t* function;
     assignment_t locals[MAX_LOCAL_COUNT];
+    dplasma_loop_values_t* loops;
 } dplasma_execution_context_t;
+
+int dplasma_dependency_activate( dplasma_execution_context_t* context, int arg_index, ... )
+{
+    return 0;
+}
 
 int dplasma_unroll( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     int i, nb_locals;
+    dplasma_loop_values_t* last_loop = NULL;
 
     exec_context->function = object;
     printf( "Function %s\n", object->name );
-    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ ) {
+
+    /* Compute the number of local values */
+    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
+
+    for( i = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++ ) {
+        dplasma_loop_values_t* loop;
+        int abs_min, min, abs_max, max;
         exec_context->locals[i].sym = object->locals[i];
         dplasma_symbol_get_first_value(object->locals[i], (const expr_t**)object->preds,
-                                       exec_context->locals, &exec_context->locals[i].value);
-        printf( "Start value for symbol %s is %d\n",  object->locals[i]->name, exec_context->locals[i].value );
+                                       exec_context->locals, &min);
+        exec_context->locals[i].value = min;
+        dplasma_symbol_get_last_value(object->locals[i], (const expr_t**)object->preds,
+                                      exec_context->locals, &max);
+
+        dplasma_symbol_get_absolute_minimum_value(object->locals[i], &abs_min);
+        dplasma_symbol_get_absolute_maximum_value(object->locals[i], &abs_max);
+
+        printf( "Range for local symbol %s is [%d..%d] (global range [%d..%d]) %s\n",
+                object->locals[i]->name, min, max, abs_min, abs_max,
+                (0 == dplasma_symbol_is_standalone(object->locals[i]) ? "[standalone]" : "[dependent]") );
+
+        loop = dplasma_dependency_create_loop( DPLASMA_LOOP_FINAL, exec_context->locals[i].sym, min, max );
+        if( NULL != last_loop ) {
+            last_loop->type = DPLASMA_LOOP_NEXT;
+            last_loop->generic_next = loop;
+        } else {
+            exec_context->loops = loop;
+        }
+        last_loop = loop;
     }
     return 0;
 }
