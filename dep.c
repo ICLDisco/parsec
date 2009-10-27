@@ -13,7 +13,7 @@ void dep_dump(const dep_t *d, const char *prefix)
     int i;
     printf("%s", prefix);
     if( NULL != d->cond ) {
-        printf("if ");
+        printf("if");
         expr_dump(d->cond);
         printf(" then ");
     }
