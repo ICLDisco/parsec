@@ -32,8 +32,18 @@ typedef struct expr expr_t;
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )
 
+/**
+ * Flags to be used with the expressions to speed-up their evaluation.
+ */
+#define EXPR_FLAG_CONSTANT   0x01
+
 struct expr {
     unsigned char op;
+    unsigned char flags;
+    int           value;  /* value for the constant expressions or for the
+                           * expressions that can be evaluated to a
+                           * constant.
+                           */
     union {
         struct {
             struct expr *op1;
@@ -43,7 +53,6 @@ struct expr {
             struct expr *op1;
         } unary;
         symbol_t *var;
-        int       const_int;
     } u;
 };
 
@@ -58,13 +67,6 @@ struct expr {
 #define EXPR_FAILURE_UNKNOWN_OP            -2
 #define EXPR_FAILURE_CANNOT_EVALUATE_RANGE -3
 #define EXPR_FAILURE_UNKNOWN               -4
-
-/**
- * Evaluates and returns the negation of an expression
- *
- * @param  [IN]  expr the expression to negate
- */
-expr_t *negate_expr(expr_t *expr);
 
 /**
  * Evaluates an expression in the current assignment context.
@@ -121,7 +123,7 @@ int expr_parse_symbols( const expr_t* expr,
  * @param  [OUT] min the evaluated minimum value
  * @param  [OUT] max the evaluated maximum value
  *
- * @return EXPR_SUCCESS in case of success. *res holds the evaluated value.
+ * @return EXPR_SUCCESS in case of success.
  * @return EXPR_FAILURE_* in case of error.
  */
 int expr_range_to_min_max( const expr_t *expr,
@@ -130,6 +132,18 @@ int expr_range_to_min_max( const expr_t *expr,
                            int *min,
                            int *max);
 
+/**
+ * Evaluates the absolute minimum and maximum value of an expression/
+ *
+ * @param  [IN]  expr the expression to be evaluated
+ * @param  [OUT] pmin pointer to the evaluated minimum value
+ * @param  [OUT] pmax pointer to the evaluated maximum value
+ *
+ * @return EXPR_SUCCESS in case of success.
+ * @return EXPR_FAILURE_* in case of error.
+ */
+int expr_absolute_range(const expr_t* expr,
+                        int* pmin, int* pmax);
 
 /**
  * Gives some comments on the first error encountered during the last call to expr_eval
@@ -160,6 +174,14 @@ expr_t *expr_new_var(const symbol_t *name);
  * @return the new expression
  */
 expr_t *expr_new_int(int v);
+
+/**
+ * Create a new unary expression based on the operand and expression.
+ *
+ * @param  [IN]  op a character defining the operand
+ * @param  [IN]  expr the expression to negate
+ */
+expr_t *expr_new_unary(char op, expr_t *expr);
 
 /**
  * Creates a new binary expression from two others and an operand

@@ -52,10 +52,9 @@ int main(int argc, char *argv[])
     dplasma_lineno = 1;
 	yyparse();
 
-/*
-    symbol_dump_all("");
-    dplasma_dump_all();
-*/
+    /*symbol_dump_all("");*/
+    /*dplasma_dump_all();*/
+
     object = dplasma_element_at(0);
     for( i = 1; NULL != object; i++ ) {
         dplasma_unroll(object);
@@ -344,7 +343,7 @@ dependency: call {
                                      curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
                                      global_outdep_index++;
                                  }
-                                 curr_dep->cond = negate_expr($1);
+                                 curr_dep->cond = expr_new_unary( '!', $1);
                              }
 ;
 
@@ -422,7 +421,7 @@ expr_list: expr {
                      curr_dep->call_params[global_call_params_index++] = $1;
                 }
            DPLASMA_COMMA expr_list
-        | expr{
+        | expr {
                   dep_t *curr_dep;
                   char sym_type = global_dplasma->params[global_lists_index]->sym_type;
                   /* expr_t *e = $1; */
@@ -448,7 +447,7 @@ expr_list: expr {
 
 ;
 
-expr:     DPLASMA_VAR                                { 
+expr:     DPLASMA_VAR                                {
                                                          symbol_stack_elt_t *s = dplasma_symbol_stack;
                                                          const symbol_t     *symbol;
                                                          

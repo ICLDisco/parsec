@@ -15,15 +15,6 @@
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
-/* This function should negate an expression  */
-expr_t *negate_expr(expr_t *e){
-    expr_t *n = (expr_t*)calloc(1, sizeof(expr_t));
-    n->uop1 = e;
-    n->op   = EXPR_OP_UNARY_NOT;
-    return n;
-}
-
-
 static int expr_eval_unary(unsigned char op, const expr_t *op1,
                            const assignment_t *assignments, unsigned int nbassignments,
                            int *v)
@@ -116,16 +107,20 @@ int expr_eval(const expr_t *expr,
               const assignment_t *assignments, unsigned int nbassignments,
               int *res)
 {
+    /* If the expression was already evaluated to a constant, just return the
+     * precalculated value.
+     */
+    if( EXPR_FLAG_CONSTANT & expr->flags ) {
+        *res = expr->value;
+        return EXPR_SUCCESS;
+    }
+    assert( EXPR_OP_CONST_INT != expr->op );
+
     if( EXPR_OP_SYMB == expr->op ) {
         int int_res;
         int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, &int_res);
         *res = int_res;
         return ret_val;
-    }
-    if ( EXPR_OP_CONST_INT == expr->op ) {
-        *res = expr->const_int;
-        snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Success");
-        return EXPR_SUCCESS;
     }
     if ( EXPR_IS_UNARY(expr->op) ) {
         return expr_eval_unary(expr->op, expr->uop1, assignments, nbassignments, res);
@@ -199,6 +194,15 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         storage = pmax;
     }
 
+    /* If the expression was already evaluated to a constant, just return the
+     * precalculated value.
+     */
+    if( EXPR_FLAG_CONSTANT & expr->flags ) {
+        *storage = expr->value;
+        return EXPR_SUCCESS;
+    }
+    assert( EXPR_OP_CONST_INT != expr->op );
+
     if( EXPR_OP_SYMB == expr->op ) {
         const symbol_t* symbol = expr->var;
         const symbol_t* gsym = dplasma_search_global_symbol( symbol->name );
@@ -216,11 +220,6 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         return rc;
     }
 
-    if( EXPR_OP_CONST_INT == expr->op ) {
-        *storage = expr->const_int;
-        return EXPR_SUCCESS;
-    }
-
     if( EXPR_IS_UNARY(expr->op) ) {
         /* there is no range for boolean values */
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
@@ -235,7 +234,7 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
     case EXPR_OP_BINARY_PLUS:
         rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
             *pmin = lmin + rmin;
         } else {
@@ -244,16 +243,16 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         return EXPR_SUCCESS;
     case EXPR_OP_BINARY_MINUS:
         rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
-            *pmin = lmin + rmin;
+            *pmin = lmin - rmin;
         } else {
-            *pmax = lmax + rmax;
+            *pmax = lmax - rmax;
         }
         return EXPR_SUCCESS;
     case EXPR_OP_BINARY_TIMES:
         rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
             *pmin = lmin * rmin;
         } else {
@@ -272,13 +271,11 @@ int expr_absolute_range(const expr_t* expr,
 {
     int rc, unused;
 
-    assert( expr->op == EXPR_OP_BINARY_RANGE );
-
-    rc = __expr_absolute_range_recursive( expr->bop1, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
+    rc = __expr_absolute_range_recursive( expr, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
-    rc = __expr_absolute_range_recursive( expr->bop2, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
+    rc = __expr_absolute_range_recursive( expr, EXPR_ABSOLUTE_RANGE_MAX, &unused, pmax );
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
@@ -311,39 +308,84 @@ expr_t *expr_new_var(const symbol_t *symb)
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
     r->op = EXPR_OP_SYMB;
     r->var = (symbol_t*)symb;
+    if( dplasma_symbol_is_global(symb) ) {
+        r->flags = EXPR_FLAG_CONSTANT;
+        r->value = symb->min->value;
+    } else {
+        r->flags = 0;  /* no flags */
+    }
     return r;
 }
 
 expr_t *expr_new_int(int v)
 {
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
-    r->op = EXPR_OP_CONST_INT;
-    r->const_int = v;
+    r->op    = EXPR_OP_CONST_INT;
+    r->flags = EXPR_FLAG_CONSTANT;
+    r->value = v;
     return r;
+}
+
+/* This function should negate an expression */
+expr_t *expr_new_unary(char op, expr_t *e)
+{
+    expr_t *n = (expr_t*)calloc(1, sizeof(expr_t));
+    n->uop1 = e;
+    n->op   = EXPR_OP_UNARY_NOT;
+    if( e->flags & EXPR_FLAG_CONSTANT ) {
+        n->flags = EXPR_FLAG_CONSTANT;
+        n->value = !(n->value);
+    } else {
+        n->flags = 0;  /* unknown yet */
+    }
+    return n;
 }
 
 expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
 {
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
+    int is_constant;
 
-    r->bop1 = (expr_t*)op1;
-    r->bop2 = (expr_t*)op2;
-    
+    r->bop1  = (expr_t*)op1;
+    r->bop2  = (expr_t*)op2;
+    r->flags = 0;  /* unknown yet */
+    is_constant = op1->flags & op2->flags & EXPR_FLAG_CONSTANT;
+
     switch( op ) {
     case '+':
         r->op = EXPR_OP_BINARY_PLUS;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = op1->value + op2->value;
+        }
         return r;
     case '-':
         r->op = EXPR_OP_BINARY_MINUS;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = op1->value - op2->value;
+        }
         return r;
     case '*':
         r->op = EXPR_OP_BINARY_TIMES;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = op1->value * op2->value;
+        }
         return r;
     case '%':
         r->op = EXPR_OP_BINARY_MOD;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = op1->value % op2->value;
+        }
         return r;
     case '=':
         r->op = EXPR_OP_BINARY_EQUAL;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = op1->value && op2->value;
+        }
         return r;
     case '.':
         r->op = EXPR_OP_BINARY_RANGE;
@@ -381,6 +423,24 @@ static void expr_dump_unary(unsigned char op, const expr_t *op1)
 
 static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *op2)
 {
+    if( EXPR_OP_BINARY_RANGE == op ) {
+        printf( " [" );
+        expr_dump(op1);
+        printf( " .. " );
+        expr_dump(op2);
+        printf( "] " );
+        return;
+    }
+
+    if( EXPR_OP_BINARY_EQUAL == op ) {
+        printf( " (" );
+        expr_dump(op1);
+        printf( " == " );
+        expr_dump(op2);
+        printf( ") " );
+        return;
+    }
+
     expr_dump(op1);
 
     switch( op ) {
@@ -396,12 +456,6 @@ static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *
     case EXPR_OP_BINARY_MOD:
         printf(" %% ");
         break;
-    case EXPR_OP_BINARY_EQUAL:
-        printf(" == ");
-        break;
-    case EXPR_OP_BINARY_RANGE:
-        printf(" .. ");
-        break;
     }
 
     expr_dump(op2);
@@ -409,24 +463,38 @@ static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *
 
 void expr_dump(const expr_t *e)
 {
-    if(NULL == e) {
+    if( NULL == e ) {
         printf("NULL");
+        return;
     }
-
-    if( EXPR_OP_SYMB == e->op ) {
-        int res;
-        if( EXPR_SUCCESS == expr_eval_symbol(e->var, NULL, 0, &res)){
-            printf("%d", res);
-        }else{
-            printf("%s", e->var->name);
+    if( EXPR_FLAG_CONSTANT & e->flags ) {
+        if( EXPR_OP_CONST_INT == e->op ) {
+            printf( "%d", e->value );
+            return;
         }
-    } else if ( EXPR_OP_CONST_INT == e->op ) {
-        printf("%d", e->const_int);
-    } else if ( EXPR_IS_UNARY(e->op) ) {
+        printf( "{%d:", e->value );
+    }
+    if( EXPR_OP_SYMB == e->op ) {
+        if( dplasma_symbol_is_global(e->var) ) {
+            printf("%s", e->var->name);
+        } else {
+            int res;
+            if( EXPR_SUCCESS == expr_eval_symbol(e->var, NULL, 0, &res)){
+                printf("%d", res);
+            }else{
+                printf("%s", e->var->name);
+            }
+        }
+    } else if( EXPR_OP_CONST_INT == e->op ) {
+        printf("%d", e->value);
+    } else if( EXPR_IS_UNARY(e->op) ) {
         expr_dump_unary(e->op, e->uop1);
-    } else if ( EXPR_IS_BINARY(e->op) ) {
+    } else if( EXPR_IS_BINARY(e->op) ) {
         expr_dump_binary(e->op, e->bop1, e->bop2);
     } else {
         fprintf(stderr, "Unkown operand %d in expression", e->op);
-    }    
+    }
+    if( EXPR_FLAG_CONSTANT & e->flags ) {
+        printf( "}" );
+    }
 }
