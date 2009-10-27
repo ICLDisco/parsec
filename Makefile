@@ -1,7 +1,7 @@
 CC=gcc
 YACC=yacc -d -y --verbose
 LEX=flex # -d
-CFLAGS=-Wall -pedantic -ansi -g -I.
+CFLAGS=-Wall -pedantic -g -I.
 LDFLAGS=
 
 OBJECTS=dplasma.o \
