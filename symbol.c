@@ -23,9 +23,15 @@ void symbol_dump(const symbol_t *s, const char *prefix)
     }
 
     if( s->min == s->max ) {
-        printf("%s%s = ", prefix, s->name);
-        expr_dump(s->min);
-        printf("\n" );
+        if( EXPR_FLAG_CONSTANT & s->min->flags ) {
+            printf("%s{%s = ", prefix, s->name);
+            expr_dump(s->min);
+            printf("}\n" );
+        } else {
+            printf("%s%s = ", prefix, s->name);
+            expr_dump(s->min);
+            printf("\n" );
+        }
     } else {
         printf("%s%s = [", prefix, s->name);
         expr_dump(s->min);
@@ -152,6 +158,7 @@ int dplasma_symbol_get_first_value( const symbol_t* symbol,
     /* If there are no predicates we're good to go */
     if( NULL == predicates ) {
         assignment->value = min;
+        *pvalue = min;
         return EXPR_SUCCESS;
     }
 
@@ -217,6 +224,7 @@ int dplasma_symbol_get_last_value( const symbol_t* symbol,
     /* If there are no predicates we're good to go */
     if( NULL == predicates ) {
         assignment->value = max;
+        *pvalue = max;
         return EXPR_SUCCESS;
     }
 
@@ -275,6 +283,7 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
     }
     /* If there are no predicates we're good to go */
     if( NULL == predicates ) {
+        *pvalue = (*pvalue) + 1;
         assignment->value = (*pvalue) + 1;
         return EXPR_SUCCESS;
     }
@@ -310,34 +319,22 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
-int dplasma_symbol_get_minimum_value( const symbol_t* symbol,
-                                      const symbol_t** symbols,
-                                      int* pvalue )
+int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,
+                                               int* pvalue )
 {
-    int rc;
+    int rc, min_min, min_max;
 
-    if( NULL == symbols ) {
-        rc = expr_eval( symbol->min, NULL, 0 , pvalue );
-        if( EXPR_SUCCESS != rc ) {
-            printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-    }
-    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+    rc = expr_absolute_range( symbol->min, &min_min, &min_max );
+    *pvalue = min_min;
+    return rc;
 }
 
-int dplasma_symbol_get_maximal_value( const symbol_t* symbol,
-                                      const symbol_t** symbols,
-                                      int* pvalue )
+int dplasma_symbol_get_absolute_maximum_value( const symbol_t* symbol,
+                                               int* pvalue )
 {
-    int rc;
+    int rc, max_min, max_max;
 
-    if( NULL == symbols ) {
-        rc = expr_eval( symbol->max, NULL, 0 , pvalue );
-        if( EXPR_SUCCESS != rc ) {
-            printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-    }
-    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+    rc = expr_absolute_range( symbol->max, &max_min, &max_max );
+    *pvalue = max_max;
+    return rc;
 }

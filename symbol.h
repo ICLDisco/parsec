@@ -42,6 +42,14 @@ void symbol_dump_all( const char* prefix );
 const symbol_t* dplasma_search_global_symbol( const char* name );
 
 /**
+ * Return 1 if the symbol is global.
+ */
+static inline int dplasma_symbol_is_global( const symbol_t* symbol )
+{
+    return (symbol->flags & DPLASMA_SYMBOL_IS_GLOBAL ? 1 : 0);
+}
+
+/**
  * Add a global symbol.
  */
 int dplasma_add_global_symbol( const char* name, const expr_t* expr );
@@ -123,12 +131,9 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
                                    int* pvalue );
 
 /**
- * Return the absolute minimal acceptable value for a specific symbol.
+ * Return the absolute minimal value for a specific symbol.
  *
  * @param [IN]  The symbol to be analyzed. Cannot be NULL.
- * @param [IN]  A NULL terminated array of symbols from the same dplama_t object, which
- *              might create dependencies with the analyzed one. In the case this list is NULL,
- *              we suppose the upper layer already knows there are no dependencies.
  * @param [OUT] The absolute minimal acceptable value for this symbol.
  *
  * @return  0 if the symbol was correctly resolved and the return value
@@ -136,12 +141,11 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_minimum_value( const symbol_t* symbol,
-                                      const symbol_t** symbols,
-                                      int* pvalue );
+int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,
+                                               int* pvalue );
 
 /**
- * Return the absolute maximal acceptable value for a specific symbol.
+ * Return the absolute maximal value for a specific symbol.
  *
  * @param [IN]  The symbol to be analyzed. Cannot be NULL.
  * @param [IN]  A NULL terminated array of symbols from the same dplama_t object, which
@@ -154,8 +158,7 @@ int dplasma_symbol_get_minimum_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_maximal_value( const symbol_t* symbol,
-                                      const symbol_t** symbols,
-                                      int* pvalue );
+int dplasma_symbol_get_absolute_maximum_value( const symbol_t* symbol,
+                                               int* pvalue );
 
 #endif
