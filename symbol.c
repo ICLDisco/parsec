@@ -289,9 +289,13 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
     }
     /* If there are no predicates we're good to go */
     if( NULL == predicates ) {
-        *pvalue = (*pvalue) + 1;
-        assignment->value = (*pvalue) + 1;
-        return EXPR_SUCCESS;
+        val = assignment->value + 1;
+        if( val <= max ) {
+            *pvalue = val;
+            assignment->value = val;
+            return EXPR_SUCCESS;
+        }
+        return EXPR_FAILURE_UNKNOWN;
     }
     old_value = assignment->value;
 
