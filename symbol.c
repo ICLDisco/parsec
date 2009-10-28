@@ -24,16 +24,22 @@ void symbol_dump(const symbol_t *s, const char *prefix)
 
     if( s->min == s->max ) {
         if( EXPR_FLAG_CONSTANT & s->min->flags ) {
-            printf("%s{%s = ", prefix, s->name);
+            printf("%s%s:%s%s = {%d = ", prefix, s->name,
+                   (DPLASMA_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
+                   (DPLASMA_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"), s->min->value);
             expr_dump(s->min);
             printf("}\n" );
         } else {
-            printf("%s%s = ", prefix, s->name);
+            printf("%s%s:%s%s = ", prefix, s->name,
+                   (DPLASMA_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
+                   (DPLASMA_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
             expr_dump(s->min);
             printf("\n" );
         }
     } else {
-        printf("%s%s = [", prefix, s->name);
+        printf("%s%s:%s%s = [", prefix, s->name,
+               (DPLASMA_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
+               (DPLASMA_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
         expr_dump(s->min);
         printf(" .. ");
         expr_dump(s->max);
