@@ -155,7 +155,7 @@ dplasma_dependency_create_loop( int type,
 }
 
 typedef struct dplasma_execution_context_t {
-    const dplasma_t* function;
+    dplasma_t* function;
     assignment_t locals[MAX_LOCAL_COUNT];
     dplasma_loop_values_t* loops;
 } dplasma_execution_context_t;
@@ -224,7 +224,7 @@ int plasma_show_ranges( const dplasma_t* object )
     const expr_t** predicates;
     int i, nb_locals;
 
-    exec_context->function = object;
+    exec_context->function = (dplasma_t*)object;
 
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
@@ -283,7 +283,7 @@ int dplasma_show_tasks( const dplasma_t* object )
     int i, nb_locals, rc, actual_loop;
     const expr_t** predicates;
 
-    exec_context->function = object;
+    exec_context->function = (dplasma_t*)object;
 
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
@@ -366,13 +366,47 @@ int dplasma_show_tasks( const dplasma_t* object )
     return 0;
 }
 
+int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    param_t* param;
+    dep_t* dep;
+    int i, j, k, rc, value;
+
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+        param = function->params[i];
+
+        if( !(SYM_OUT & param->sym_type) ) {
+            continue;  /* this is only an INPUT dependency */
+        }
+        for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
+            dep = param->dep_out[j];
+            if( NULL != dep->cond ) {
+                /* Check if the condition apply on the current setting */
+                rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                if( 0 == value ) {
+                    continue;
+                }
+            }
+            printf( "-> %s of %s( ", dep->sym_name, dep->dplasma->name );
+            for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
+                rc = expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
+                printf( "%d ", value );
+            }
+            printf( ")\n" );
+        }
+    }
+
+    return 0;
+}
+
 int dplasma_unroll( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     int i, nb_locals, rc, actual_loop;
     const expr_t** predicates;
 
-    exec_context->function = object;
+    exec_context->function = (dplasma_t*)object;
 
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
@@ -411,6 +445,11 @@ int dplasma_unroll( const dplasma_t* object )
                     exec_context->locals[i].value );
         }
         printf( "\n" );
+
+        /* Complete the execution of this service and release the
+         * dependencies.
+         */
+        dplasma_complete_execution( exec_context );
 
         /* Go to the next valid value for this loop context */
         rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
