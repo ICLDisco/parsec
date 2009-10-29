@@ -94,9 +94,7 @@ int main(int argc, char *argv[])
 %%
 
 prog:
-    dplasma {
-               dplasma_push(global_dplasma);
-            } prog
+    dplasma prog
     | DPLASMA_VAR DPLASMA_ASSIGNMENT expr
             {
                 dplasma_add_global_symbol( $1, $3 );
@@ -106,8 +104,7 @@ prog:
 
 dplasma:
      DPLASMA_VAR {
-                     global_dplasma = (dplasma_t*)calloc(1, sizeof(dplasma_t));
-                     global_dplasma->name = $1;
+                     global_dplasma = dplasma_find_or_create($1);
                      global_lists_index = 0;
                  }
      DPLASMA_OPEN_PAR varlist DPLASMA_CLOSE_PAR
@@ -359,7 +356,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                        curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]; 
                                    }
                                    curr_dep->sym_name = $1;
-                                   curr_dep->dplasma_name = $2;
+                                   curr_dep->dplasma = dplasma_find_or_create($2);
                                }
       DPLASMA_OPEN_PAR {
                            global_call_params_index = 0;
@@ -378,10 +375,10 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                        }
 
                                        if( $1 == SYM_IN ) {
-                                           curr_dep->dplasma_name = strdup("IN"); 
-                                       }else if( $1 == SYM_OUT ) {
-                                           curr_dep->dplasma_name = strdup("OUT"); 
-                                       }else{
+                                           curr_dep->dplasma = dplasma_find_or_create("IN");
+                                       } else if( $1 == SYM_OUT ) {
+                                           curr_dep->dplasma = dplasma_find_or_create("OUT");
+                                       } else {
                                            fprintf(stderr,
                                                    "Internal Error while parsing at line %d:\n"
                                                    "  Expecting either IN(...) our OUT(...) dependency.\n",
