@@ -29,7 +29,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
     int i, ret_val, res;
 
     if( whichCallParam == callParamCount ){
-        printf("  %s -> %s",fromNodeStr, peerNode->dplasma_name);
+        printf("  %s -> %s",fromNodeStr, peerNode->dplasma->name);
         for(i=0; i<callParamCount; ++i){
             printf("_%d",callParamsV[i]);
         }
@@ -61,7 +61,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
     }
 
     if( !success ){
-        printf("Can't evaluate expression for dep: %s ",peerNode->dplasma_name);
+        printf("Can't evaluate expression for dep: %s ",peerNode->dplasma->name);
         printf("call_params[%d] ",i);
         expr_dump( peerNode->call_params[whichCallParam] );
         printf("\n");
