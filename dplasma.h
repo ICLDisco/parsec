@@ -20,11 +20,11 @@ typedef struct dplasma dplasma_t;
 #include "dep.h"
 
 struct dplasma {
-    char      *name;
-    symbol_t  *locals[MAX_LOCAL_COUNT];
-    expr_t    *preds[MAX_PRED_COUNT];
-    param_t   *params[MAX_PARAM_COUNT];
-    char      *body;
+    const char  *name;
+    symbol_t    *locals[MAX_LOCAL_COUNT];
+    expr_t      *preds[MAX_PRED_COUNT];
+    param_t     *params[MAX_PARAM_COUNT];
+    char        *body;
 };
 
 /**
@@ -47,6 +47,13 @@ int dplasma_push( const dplasma_t* d );
  * exist return NULL.
  */
 const dplasma_t* dplasma_find( const char* name );
+
+/**
+ * Find a dplasma_t object by name. If no object with such a name
+ * exist one will be created and automatically added to the global
+ * list.
+ */
+dplasma_t* dplasma_find_or_create( const char* name );
 
 /**
  * Return the i'th dplasma_t object. If no such element exists

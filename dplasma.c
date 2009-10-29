@@ -87,6 +87,23 @@ const dplasma_t* dplasma_find( const char* name )
     return NULL;
 }
 
+dplasma_t* dplasma_find_or_create( const char* name )
+{
+    dplasma_t* object;
+
+    object = (dplasma_t*)dplasma_find(name);
+    if( NULL != object ) {
+        return object;
+    }
+    object = (dplasma_t*)calloc(1, sizeof(dplasma_t));
+    object->name = strdup(name);
+    if( 0 == dplasma_push(object) ) {
+        return object;
+    }
+    free(object);
+    return NULL;
+}
+
 const dplasma_t* dplasma_element_at( int i )
 {
     if( i < dplasma_array_count ){
@@ -165,6 +182,10 @@ int dplasma_unroll( const dplasma_t* object )
 
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
+    if( 0 == nb_locals ) {
+        /* special case for the IN/OUT obejcts */
+        return 0;
+    }
     printf( "Function %s (loops %d)\n", object->name, nb_locals );
 
 #if 0
