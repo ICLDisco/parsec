@@ -11,10 +11,10 @@ typedef struct param param_t;
 
 #include "dep.h"
 
-/**< Remark: (sym_type == SYM_INOUT) iff (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
-#define SYM_IN    1
-#define SYM_OUT   2
-#define SYM_INOUT 3
+/**< Remark: (sym_type == SYM_INOUT) if (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
+#define SYM_IN     0x01
+#define SYM_OUT    0x02
+#define SYM_INOUT  (SYM_IN | SYM_OUT)
 
 #define MAX_DEP_IN_COUNT  5
 #define MAX_DEP_OUT_COUNT 5
