@@ -161,6 +161,12 @@ int dplasma_symbol_get_first_value( const symbol_t* symbol,
         return rc;
     }
 
+    /* TODO: as we only accept increasing ranges, we cannot tolerate minimum values
+     * bigger than the maximum ones */
+    if( min > max ) {
+        return EXPR_FAILURE_UNKNOWN;
+    }
+
     /* If there are no predicates we're good to go */
     if( NULL == predicates ) {
         assignment->value = min;
