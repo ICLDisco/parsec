@@ -305,7 +305,7 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
     }
     old_value = assignment->value;
 
-    for( val = (*pvalue) + 1; val <= max; val++ ) {
+    for( val = assignment->value + 1; val <= max; val++ ) {
         assignment->value = val;
         valid_value = 1;
         for( pred_index = 0;
