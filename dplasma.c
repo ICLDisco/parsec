@@ -380,6 +380,8 @@ int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
             continue;  /* this is only an INPUT dependency */
         }
         for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
+            int dont_generate = 0;
+
             dep = param->dep_out[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
@@ -388,10 +390,36 @@ int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
                     continue;
                 }
             }
+            /* Check to see if any of the params are conditionals or ranges and if they are
+             * if they match.
+             */
+            for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
+                if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
+                    int min, max;
+                    rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
+                    if( min > max ) {
+                        dont_generate = 1;
+                    }
+                }
+            }
+            if( dont_generate ) {
+                continue;
+            }
+
             printf( "-> %s of %s( ", dep->sym_name, dep->dplasma->name );
             for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
-                rc = expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
-                printf( "%d ", value );
+                if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
+                    rc = expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
+                    printf( "%d ", value );
+                } else {
+                    int min, max;
+                    rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
+                    if( min == max ) {
+                        printf( "%d ", min );
+                    } else {
+                        printf( "[%d..%d] ", min, max );
+                    }
+                }
             }
             printf( ")\n" );
         }
