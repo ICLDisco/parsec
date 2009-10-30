@@ -24,9 +24,34 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
  */
 
 /**************************************************************************/
+int nameToColor(const char *name){
+    int i, len, tmp, rslt;
+
+    rslt = 1234;
+    len = strlen(name);
+
+    for(i=0; i<len; ++i){
+        tmp = (int)name[i];
+        tmp += (tmp<<16) + (tmp<<8);
+        rslt = rslt + tmp;
+        rslt = rslt*3;
+        tmp |= tmp*11;
+        rslt = rslt ^ tmp;
+        rslt += 0x101010;
+        rslt %= 0xffffff;
+    }
+
+    return rslt;
+}
+
+/**************************************************************************/
 void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
     int success = 0;
     int i, ret_val, res;
+
+    /* Do not generate the OUT nodes, it makes comparison harder */
+    if( !strcmp(peerNode->dplasma->name,"OUT") )
+        return;
 
     if( whichCallParam == callParamCount ){
         printf("  %s -> %s",fromNodeStr, peerNode->dplasma->name);
@@ -96,10 +121,8 @@ void generateEdge(dplasma_t *currTask, char *fromNodeStr, assignment_t *assgn, u
 
 /**************************************************************************/
 void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn){
-    int i, color[3];
+    int i, color, val = 0;
     expr_t *e;
-
-    for(i=0; i<3; ++i){ color[i] = 0; }
 
     for(i=0; i<MAX_PRED_COUNT; ++i){
         int res, max;
@@ -138,14 +161,11 @@ void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *ass
             fprintf(stderr,"Error: parameter spaces have to be limited to 3D\n");
             break;
         }
-        /* 255 - (255*res)/max will give us a value in [255,0), so we'll never get fully black */
-        color[i] = 255 - (255*res)/max;
+        val = val*max + res;
     }
-    printf("  %s [color=\"#",taskInstanceStr);
-    for(i=0; i<3; ++i){
-        printf("%02x",color[i]);
-    }
-    printf("\"];\n");
+    val += 4;
+    color = nameToColor(currTask->name);
+    printf("  %s [shape=\"polygon\" sides=\"%d\" color=\"#000000\" fillcolor=\"#%x\"];\n",taskInstanceStr, val, color);
 
     return;
 }
@@ -224,7 +244,7 @@ void external_hook(void){
     int i, j;
 
     printf("digraph DAG {\n");
-    printf("  node [shape = circle, style = filled];\n");
+    printf("  node [shape = oval, style = filled];\n");
 
     for( i = 0; ;i++ ) {
         const dplasma_t *currTask=dplasma_element_at(i);
@@ -232,6 +252,7 @@ void external_hook(void){
         if( currTask == NULL ) break;
         for(j=0; currTask->locals[j] != NULL && j<MAX_LOCAL_COUNT; j++);
         localsCount = j;
+        if( localsCount == 0 ){ continue; }
         processTask((dplasma_t *)currTask, localsCount, 0, NULL, 0);
     }
     printf("}\n");

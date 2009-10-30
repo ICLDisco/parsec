@@ -4,7 +4,7 @@
 GRIDrows = 2
 GRIDcols = 2
 NB = 10
-SIZE = 10
+SIZE = 3
 colRANK = 0
 rowRANK = 0
 

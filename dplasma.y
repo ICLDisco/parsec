@@ -52,15 +52,13 @@ int main(int argc, char *argv[])
     dplasma_lineno = 1;
 	yyparse();
 
-    /*symbol_dump_all("");*/
-    /*dplasma_dump_all();*/
-
     object = dplasma_element_at(0);
     for( i = 1; NULL != object; i++ ) {
         dplasma_unroll(object);
         object = dplasma_element_at(i);
     }
-    /*external_hook();*/
+
+/*    external_hook(); */
 
 	return 0;
 }
