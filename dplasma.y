@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	yyparse();
 
     /*symbol_dump_all("");*/
-    dplasma_dump_all();
+    /*dplasma_dump_all();*/
 
     object = dplasma_element_at(0);
     for( i = 1; NULL != object; i++ ) {
