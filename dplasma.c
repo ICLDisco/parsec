@@ -12,7 +12,7 @@
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
-static int global_execution = 1;
+static int global_execution = 0;
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
@@ -39,6 +39,7 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
         param_dump(d->params[i], pref2);
     }
 
+    printf("%s Required dependencies mask: 0x%x\n", prefix, (int)d->dependencies_mask);
     printf("%s Body:\n", prefix);
     printf("%s  %s\n", prefix, d->body);
 
@@ -112,59 +113,6 @@ const dplasma_t* dplasma_element_at( int i )
     return NULL;
 }
 
-/* There is another loop after this one. */
-#define DPLASMA_LOOP_NEXT       0x01
-/* This is the final loop */
-#define DPLASMA_LOOP_FINAL      0x02
-/* This loops array is allocated */
-#define DPLASMA_LOOP_ALLOCATED  0x04
-typedef struct dplasma_final_loop_values_t {
-    char array[1];
-} dplasma_final_loop_values_t;
-
-typedef struct dplasma_loop_values_t dplasma_loop_values_t;
-typedef union dplasma_loop_union_t {
-    dplasma_loop_values_t* loops[1];
-    dplasma_final_loop_values_t* array[1];
-} dplasma_loop_union_t;
-
-struct dplasma_loop_values_t {
-    int                   type;
-    symbol_t*             symbol;
-    dplasma_loop_union_t* generic_next;
-    int                   min;
-    int                   max;
-    dplasma_loop_union_t  u;
-};
-
-dplasma_loop_values_t*
-dplasma_dependency_create_loop( int type,
-                                symbol_t* symbol,
-                                int min,
-                                int max )
-{
-    dplasma_loop_values_t* loops = (dplasma_loop_values_t*)malloc(sizeof(dplasma_loop_values_t));
-
-    loops->type = type;
-    loops->symbol = symbol;
-    loops->generic_next = NULL;
-    loops->min = min;
-    loops->max = max;
-
-    return loops;
-}
-
-typedef struct dplasma_execution_context_t {
-    dplasma_t* function;
-    assignment_t locals[MAX_LOCAL_COUNT];
-    dplasma_loop_values_t* loops;
-} dplasma_execution_context_t;
-
-int dplasma_dependency_activate( dplasma_execution_context_t* context, int arg_index, ... )
-{
-    return 0;
-}
-
 #if 0
 #define DEBUG(ARG)  printf ARG
 #else
@@ -180,7 +128,7 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
     if( 0 == nb_locals ) {
-        /* special case for the IN/OUT obejcts */
+        /* special case for the IN/OUT objects */
         return 0;
     }
 
@@ -220,7 +168,6 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
 int plasma_show_ranges( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-    dplasma_loop_values_t* last_loop = NULL;
     const expr_t** predicates;
     int i, nb_locals;
 
@@ -249,7 +196,6 @@ int plasma_show_ranges( const dplasma_t* object )
      * minimum and maximum values for all local variables.
      */
     for( i = 0; i < nb_locals; i++ ) {
-        dplasma_loop_values_t* loop;
         int abs_min, min, abs_max, max;
         exec_context->locals[i].sym = object->locals[i];
         dplasma_symbol_get_first_value(object->locals[i], predicates,
@@ -264,15 +210,6 @@ int plasma_show_ranges( const dplasma_t* object )
         printf( "Range for local symbol %s is [%d..%d] (global range [%d..%d]) %s\n",
                 object->locals[i]->name, min, max, abs_min, abs_max,
                 (0 == dplasma_symbol_is_standalone(object->locals[i]) ? "[standalone]" : "[dependent]") );
-
-        loop = dplasma_dependency_create_loop( DPLASMA_LOOP_FINAL, exec_context->locals[i].sym, min, max );
-        if( NULL != last_loop ) {
-            last_loop->type = DPLASMA_LOOP_NEXT;
-            last_loop->generic_next = (dplasma_loop_union_t*)loop;
-        } else {
-            exec_context->loops = loop;
-        }
-        last_loop = loop;
     }
     return 0;
 }
@@ -366,9 +303,137 @@ int dplasma_show_tasks( const dplasma_t* object )
     return 0;
 }
 
+#define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
+
+int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    dplasma_dependencies_t *deps, **deps_location, *last_deps;
+    int i, rc, nb_locals, actual_loop, mask;
+
+    /* Compute the number of local values */
+    for( i = nb_locals = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
+    if( 0 == nb_locals ) {
+        /* special case for the IN/OUT objects */
+        return 0;
+    }
+
+    DEBUG(("Prepare storage on the function %s stack\n", function->name));
+    deps_location = &(function->deps);
+    last_deps = NULL;
+
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+        if( NULL == (*deps_location) ) {
+            int min, max, number;
+            dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
+            dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
+            number = max - min;
+            DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
+                   number, function->locals[i]->name, min, max));
+            deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
+                                                   number * sizeof(dplasma_dependencies_union_t));
+            deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
+            deps->symbol = function->locals[i];
+            deps->min = min;
+            deps->max = max;
+            deps->prev = last_deps; /* chain them backawrd */
+            *deps_location = deps;  /* store the deps in the right location */
+            if( NULL != last_deps ) {
+                last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
+            }
+        }
+        deps = *deps_location;
+
+        DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
+               exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
+        deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
+        last_deps = deps;
+    }
+
+    /* Compute the dependencies mask for this data */
+    mask = 0x1;
+
+    actual_loop = nb_locals - 1;
+    while(1) {
+
+        /* Mark the dependencies and check if this particular instance can be executed */
+        /* TODO: This is a pretty ugly hack as it doesn't allow us to know which dependency
+         * has been already satisfied, only to tracj the number if satisfied dependencies.
+         */
+        deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
+            (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | mask;
+        if( deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] == function->dependencies_mask ) {
+            /* This is really good as we got a ready to be executed service */
+            printf( "Coolio\n" );
+        }
+
+        /* Go to the next valid value for this loop context */
+        exec_context->locals[actual_loop].value++;
+        if( exec_context->locals[actual_loop].max < exec_context->locals[actual_loop].value ) {
+            /* We're out of the range for this variable */
+            int current_loop = actual_loop;
+        one_loop_up:
+            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
+                   actual_loop, function->locals[actual_loop]->name));
+            if( 0 == actual_loop ) {  /* we're done */
+                goto end_of_all_loops;
+            }
+            actual_loop--;  /* one level up */
+            deps = deps->prev;
+
+            exec_context->locals[actual_loop].value++;
+            if( exec_context->locals[actual_loop].max < exec_context->locals[actual_loop].value ) {
+                goto one_loop_up;
+            }
+            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
+                   function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
+            deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);
+            DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
+                   exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
+            for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
+                exec_context->locals[actual_loop].value = exec_context->locals[i].min;
+                last_deps = deps;  /* save the deps */
+                if( NULL == *deps_location ) {
+                    int min, max, number;
+                    dplasma_symbol_get_absolute_minimum_value( function->locals[actual_loop], &min );
+                    dplasma_symbol_get_absolute_maximum_value( function->locals[actual_loop], &max );
+                    number = max - min;
+                    DEBUG(("Allocate %d spaces for loop %s index %d value %d (min %d max %d)\n",
+                           number, function->locals[actual_loop]->name, CURRENT_DEPS_INDEX(actual_loop-1),
+                           exec_context->locals[actual_loop].value, min, max));
+                    deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
+                                                           number * sizeof(dplasma_dependencies_union_t));
+                    deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
+                    deps->symbol = function->locals[actual_loop];
+                    deps->min = min;
+                    deps->max = max;
+                    deps->prev = last_deps; /* chain them backward */
+                    *deps_location = deps;
+                }
+                deps = *deps_location;
+                deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);
+                DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
+                       exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
+                last_deps = deps;
+
+                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
+                       function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
+            }
+            actual_loop = current_loop;  /* go back to the original loop */
+        } else {
+            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
+                   function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
+        }
+    }
+ end_of_all_loops:
+
+    return 0;
+}
+
 int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
+    dplasma_execution_context_t new_context;
     param_t* param;
     dep_t* dep;
     int i, j, k, rc, value;
@@ -404,6 +469,65 @@ int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
             }
             if( dont_generate ) {
                 continue;
+            }
+
+            new_context.function = dep->dplasma;
+            printf( "-> %s of %s( ", dep->sym_name, dep->dplasma->name );
+            for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
+                new_context.locals[k].sym = dep->dplasma->locals[k];
+                if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
+                    rc = expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
+                    new_context.locals[k].min = new_context.locals[k].max = value;
+                    printf( "%d ", value );
+                } else {
+                    int min, max;
+                    rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
+                    if( min == max ) {
+                        new_context.locals[k].min = new_context.locals[k].max = min;
+                        printf( "%d ", min );
+                    } else {
+                        new_context.locals[k].min = min;
+                        new_context.locals[k].max = max;
+                        printf( "[%d..%d] ", min, max );
+                    }
+                }
+                new_context.locals[k].value = new_context.locals[k].min;
+            }
+            /* Mark the end of the list */
+            if( k < MAX_CALL_PARAM_COUNT ) {
+                new_context.locals[k].sym = NULL;
+            }
+            printf( ")\n" );
+            dplasma_activate_dependencies( &new_context );
+        }
+    }
+
+    return 0;
+}
+
+int dplasma_check_input_dependencies( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    param_t* param;
+    dep_t* dep;
+    int i, j, k, rc, value;
+
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+        param = function->params[i];
+
+        if( !(SYM_IN & param->sym_type) ) {
+            continue;  /* this is only an INPUT dependency */
+        }
+        for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
+            int dont_generate = 0;
+
+            dep = param->dep_out[j];
+            if( NULL != dep->cond ) {
+                /* Check if the condition apply on the current setting */
+                rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                if( 0 == value ) {
+                    continue;
+                }
             }
 
             printf( "-> %s of %s( ", dep->sym_name, dep->dplasma->name );

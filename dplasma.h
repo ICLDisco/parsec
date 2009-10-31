@@ -19,13 +19,43 @@ typedef struct dplasma dplasma_t;
 #include "params.h"
 #include "dep.h"
 
-struct dplasma {
-    const char  *name;
-    symbol_t    *locals[MAX_LOCAL_COUNT];
-    expr_t      *preds[MAX_PRED_COUNT];
-    param_t     *params[MAX_PARAM_COUNT];
-    char        *body;
+/* There is another loop after this one. */
+#define DPLASMA_DEPENDENCIES_FLAG_NEXT       0x01
+/* This is the final loop */
+#define DPLASMA_DEPENDENCIES_FLAG_FINAL      0x02
+/* This loops array is allocated */
+#define DPLASMA_DEPENDENCIES_FLAG_ALLOCATED  0x04
+
+typedef struct dplasma_dependencies_t dplasma_dependencies_t;
+typedef union {
+    char dependencies[1];
+    dplasma_dependencies_t* next[1];
+} dplasma_dependencies_union_t;
+
+struct dplasma_dependencies_t {
+    int                     flags;
+    symbol_t*               symbol;
+    int                     min;
+    int                     max;
+    dplasma_dependencies_t* prev;
+    /* keep this as the last field in the structure */
+    dplasma_dependencies_union_t u; 
 };
+
+struct dplasma {
+    const char*             name;
+    symbol_t*               locals[MAX_LOCAL_COUNT];
+    expr_t*                 preds[MAX_PRED_COUNT];
+    param_t*                params[MAX_PARAM_COUNT];
+    dplasma_dependencies_t* deps;
+    unsigned char           dependencies_mask;
+    char*                   body;
+};
+
+typedef struct dplasma_execution_context_t {
+    dplasma_t* function;
+    assignment_t locals[MAX_LOCAL_COUNT];
+} dplasma_execution_context_t;
 
 /**
  * Dump the content of a dplams_t object.

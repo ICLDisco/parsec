@@ -12,8 +12,10 @@ typedef struct assignment assignment_t;
 #include "symbol.h"
 
 struct assignment {
-    symbol_t  *sym;
+    symbol_t*  sym;
     int        value;
+    int        min;
+    int        max;
 };
 
 #define DPLASMA_ASSIGN_FOUND   0

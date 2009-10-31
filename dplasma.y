@@ -52,6 +52,9 @@ int main(int argc, char *argv[])
     dplasma_lineno = 1;
 	yyparse();
 
+    /*symbol_dump_all("");*/
+    /*dplasma_dump_all();*/
+
     object = dplasma_element_at(0);
     for( i = 1; NULL != object; i++ ) {
         dplasma_unroll(object);
@@ -256,6 +259,7 @@ param: DPLASMA_DEPENDENCY_TYPE {
                                }
        DPLASMA_VAR {
                        global_dplasma->params[global_lists_index]->sym_name = $3;
+                       global_dplasma->dependencies_mask |= (1 << global_lists_index);
                    }
        dependencies
 ;
@@ -347,7 +351,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
 
                                    if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
                                        global_dplasma->params[global_lists_index]->dep_in[global_indep_index] = (dep_t*)calloc(1, sizeof(dep_t));
-                                       curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index]; 
+                                       curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
                                    }
                                    if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
                                        global_dplasma->params[global_lists_index]->dep_out[global_outdep_index] = (dep_t*)calloc(1, sizeof(dep_t));
