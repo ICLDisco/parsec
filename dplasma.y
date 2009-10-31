@@ -46,21 +46,30 @@ int yywrap()
 
 int main(int argc, char *argv[])
 {
-    const dplasma_t* object;
-    int i;
-
     dplasma_lineno = 1;
 	yyparse();
 
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/
+#if 0
+    {
+        const dplasma_t* object;
+        int i;
 
-    object = dplasma_element_at(0);
-    for( i = 1; NULL != object; i++ ) {
-        dplasma_unroll(object);
-        object = dplasma_element_at(i);
+        object = dplasma_element_at(0);
+        for( i = 1; NULL != object; i++ ) {
+            dplasma_unroll(object);
+            object = dplasma_element_at(i);
+        }
     }
-
+#endif
+    {
+        dplasma_execution_context_t exec_context;
+        /* I know what I'm doing ;) */
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+        dplasma_set_initial_execution_context(&exec_context);
+        dplasma_complete_execution(&exec_context);
+    }
 /*    external_hook(); */
 
 	return 0;
