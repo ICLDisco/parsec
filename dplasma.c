@@ -165,6 +165,9 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
             }
         }
     }
+    if( i < MAX_LOCAL_COUNT ) {
+        exec_context->locals[i].sym = NULL;
+    }
     return 0;
 }
 
