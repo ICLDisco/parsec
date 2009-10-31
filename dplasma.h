@@ -9,9 +9,9 @@
 
 typedef struct dplasma dplasma_t;
 
-#define MAX_LOCAL_COUNT  3
-#define MAX_PRED_COUNT   3
-#define MAX_PARAM_COUNT  3
+#define MAX_LOCAL_COUNT  5
+#define MAX_PRED_COUNT   5
+#define MAX_PARAM_COUNT  5
 
 #include <stdint.h>
 #include "symbol.h"
@@ -33,7 +33,7 @@ typedef struct dplasma dplasma_t;
 
 typedef struct dplasma_dependencies_t dplasma_dependencies_t;
 typedef union {
-    char dependencies[1];
+    unsigned char           dependencies[1];
     dplasma_dependencies_t* next[1];
 } dplasma_dependencies_union_t;
 
@@ -104,5 +104,11 @@ const dplasma_t* dplasma_element_at( int i );
  * Unroll a dplasma_t object.
  */
 int dplasma_unroll( const dplasma_t* object );
+
+/**
+ * Some others declarations.
+ */
+int dplasma_complete_execution( dplasma_execution_context_t* exec_context );
+int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
 
 #endif

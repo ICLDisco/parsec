@@ -409,13 +409,9 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
 
         deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
             (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | mask;
-        if( deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] == function->dependencies_mask ) {
-            printf( "Ready to be executed %s( ", function->name );
-            /* This is really good as we got a "ready to be executed" service */
-            for( i = 0; i < nb_locals; i++ ) {
-                printf( "%d ", exec_context->locals[actual_loop].value );
-            }
-            printf( ")\n" );
+        if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
+            == function->dependencies_mask ) {
+            dplasma_complete_execution(exec_context);
         }
 
         /* Go to the next valid value for this loop context */
@@ -489,6 +485,13 @@ int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
     dep_t* dep;
     int i, j, k, rc, value;
 
+    printf( "Execute %s( ", function->name );
+    /* This is really good as we got a "ready to be executed" service */
+    for( i = 0; (i <  MAX_LOCAL_COUNT) && (NULL != exec_context->locals[i].sym); i++ ) {
+        printf( "%d ", exec_context->locals[i].value );
+    }
+    printf( ")\n" );
+
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
         param = function->params[i];
 
@@ -523,23 +526,23 @@ int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
             }
 
             new_context.function = dep->dplasma;
-            printf( "-> %s of %s( ", dep->sym_name, dep->dplasma->name );
+            DEBUG(( "-> %s of %s( ", dep->sym_name, dep->dplasma->name ));
             for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
                 new_context.locals[k].sym = dep->dplasma->locals[k];
                 if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
                     rc = expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
                     new_context.locals[k].min = new_context.locals[k].max = value;
-                    printf( "%d ", value );
+                    DEBUG(( "%d ", value ));
                 } else {
                     int min, max;
                     rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
                     if( min == max ) {
                         new_context.locals[k].min = new_context.locals[k].max = min;
-                        printf( "%d ", min );
+                        DEBUG(( "%d ", min ));
                     } else {
                         new_context.locals[k].min = min;
                         new_context.locals[k].max = max;
-                        printf( "[%d..%d] ", min, max );
+                        DEBUG(( "[%d..%d] ", min, max ));
                     }
                 }
                 new_context.locals[k].value = new_context.locals[k].min;
@@ -548,7 +551,7 @@ int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
-            printf( ")\n" );
+            DEBUG(( ")\n" ));
             dplasma_activate_dependencies( &new_context );
         }
     }
