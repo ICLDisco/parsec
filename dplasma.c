@@ -39,7 +39,10 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
         param_dump(d->params[i], pref2);
     }
 
-    printf("%s Required dependencies mask: 0x%x\n", prefix, (int)d->dependencies_mask);
+    printf("%s Required dependencies mask: 0x%x (%s/%s/%s)\n", prefix,
+           (int)d->dependencies_mask, (d->flags & DPLASMA_HAS_IN_IN_DEPENDENCIES ? "I" : "N"),
+           (d->flags & DPLASMA_HAS_OUT_OUT_DEPENDENCIES ? "O" : "N"),
+           (d->flags & DPLASMA_HAS_IN_STRONG_DEPENDENCIES ? "S" : "N"));
     printf("%s Body:\n", prefix);
     printf("%s  %s\n", prefix, d->body);
 
@@ -303,13 +306,55 @@ int dplasma_show_tasks( const dplasma_t* object )
     return 0;
 }
 
+int dplasma_check_IN_dependencies( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    const dplasma_t* in_function = dplasma_find("IN");
+    int i, j, rc, value, nb_locals, mask = 0;
+    param_t* param;
+    dep_t* dep;
+
+    if( !(function->flags & DPLASMA_HAS_IN_IN_DEPENDENCIES) ) {
+        return 0;
+    }
+
+    /* Compute the number of local values */
+    for( i = nb_locals = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
+    if( 0 == nb_locals ) {
+        /* special case for the IN/OUT objects */
+        return 0;
+    }
+
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+        param = function->params[i];
+
+        if( !(SYM_IN & param->sym_type) ) {
+            continue;  /* this is only an INPUT dependency */
+        }
+        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
+            dep = param->dep_in[j];
+            if( NULL != dep->cond ) {
+                /* Check if the condition apply on the current setting */
+                rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                if( 0 == value ) {
+                    continue;
+                }
+            }
+            if( dep->dplasma == in_function ) {
+                mask = (mask << 1) | 0x1;
+            }
+        }
+    }
+    return mask;
+}
+
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
 int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
-    int i, rc, nb_locals, actual_loop, mask;
+    int i, nb_locals, actual_loop, mask;
 
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
@@ -350,20 +395,29 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
         last_deps = deps;
     }
 
-    /* Compute the dependencies mask for this data */
-    mask = 0x1;
-
     actual_loop = nb_locals - 1;
     while(1) {
 
+        mask = 0x1;
+
         /* Mark the dependencies and check if this particular instance can be executed */
         /* TODO: This is a pretty ugly hack as it doesn't allow us to know which dependency
-         * has been already satisfied, only to tracj the number if satisfied dependencies.
+         * has been already satisfied, only to track the number if satisfied dependencies.
          */
+        if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
+            mask = dplasma_check_IN_dependencies( exec_context );
+            while( mask != 0 ) {
+                deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
+                    (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | 0x1;
+                mask >>= 1;
+            }
+            mask = DPLASMA_DEPENDENCIES_HACK_IN | 0x1;
+        }
+
         deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
             (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | mask;
         if( deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] == function->dependencies_mask ) {
-            /* This is really good as we got a ready to be executed service */
+            /* This is really good as we got a "ready to be executed" service */
             printf( "Coolio\n" );
         }
 
@@ -519,8 +573,6 @@ int dplasma_check_input_dependencies( dplasma_execution_context_t* exec_context 
             continue;  /* this is only an INPUT dependency */
         }
         for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
-            int dont_generate = 0;
-
             dep = param->dep_out[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */

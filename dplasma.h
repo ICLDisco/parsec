@@ -26,6 +26,11 @@ typedef struct dplasma dplasma_t;
 /* This loops array is allocated */
 #define DPLASMA_DEPENDENCIES_FLAG_ALLOCATED  0x04
 
+/* TODO: Another ugly hack. The first time the IN dependencies are
+ *       checked leave a trace in order to avoid doing it again.
+ */
+#define DPLASMA_DEPENDENCIES_HACK_IN         0x80
+
 typedef struct dplasma_dependencies_t dplasma_dependencies_t;
 typedef union {
     char dependencies[1];
@@ -42,13 +47,17 @@ struct dplasma_dependencies_t {
     dplasma_dependencies_union_t u; 
 };
 
+#define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
+#define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
+#define DPLASMA_HAS_IN_STRONG_DEPENDENCIES 0x0004
 struct dplasma {
     const char*             name;
+    int                     flags;
+    unsigned char           dependencies_mask;
     symbol_t*               locals[MAX_LOCAL_COUNT];
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                params[MAX_PARAM_COUNT];
     dplasma_dependencies_t* deps;
-    unsigned char           dependencies_mask;
     char*                   body;
 };
 
