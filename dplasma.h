@@ -47,6 +47,9 @@ struct dplasma_dependencies_t {
     dplasma_dependencies_union_t u; 
 };
 
+typedef struct dplasma_execution_context_t dplasma_execution_context_t;
+typedef int (dplasma_hook_t)(const dplasma_execution_context_t*);
+
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
 #define DPLASMA_HAS_IN_STRONG_DEPENDENCIES 0x0004
@@ -58,13 +61,14 @@ struct dplasma {
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                params[MAX_PARAM_COUNT];
     dplasma_dependencies_t* deps;
+    dplasma_hook_t*         hook;
     char*                   body;
 };
 
-typedef struct dplasma_execution_context_t {
+struct dplasma_execution_context_t {
     dplasma_t* function;
     assignment_t locals[MAX_LOCAL_COUNT];
-} dplasma_execution_context_t;
+};
 
 /**
  * Dump the content of a dplams_t object.

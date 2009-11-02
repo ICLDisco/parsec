@@ -389,6 +389,7 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
 
     DEBUG(("Activate dependencies for %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     deps_location = &(function->deps);
+    deps = *deps_location;
     last_deps = NULL;
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
@@ -524,7 +525,10 @@ int dplasma_complete_execution( const dplasma_execution_context_t* exec_context 
     param_t* param;
     dep_t* dep;
 
-    printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
+    /*printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));*/
+    if( NULL != function->hook ) {
+        function->hook( exec_context );
+    }
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
         param = function->params[i];
