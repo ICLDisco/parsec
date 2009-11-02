@@ -1,7 +1,33 @@
-CC=gcc
+#
+# Required dependencies.
+#
+PLASMA_DIR    = /Users/bosilca/tools/plasma-installer/build/plasma_2.0.0
+LIBBLAS       = -framework veclib
+# Include directory
+INC        = -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src
+
+# Location of the libraries.
+LIBDIR     = -L$(PLASMA_DIR)/lib
+
+# Location and name of the PLASMA library.
+LIBCBLAS      = $(PLASMA_DIR)/lib/libcblas.a
+LIBCORELAPACK = $(PLASMA_DIR)/lib/libcorelapack.a
+LIBCOREBLAS   = $(PLASMA_DIR)/lib/libcoreblas.a
+LIBPLASMA     = $(PLASMA_DIR)/lib/libplasma.a
+
+#  All libraries required by the tester.
+LIB        = $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpthread -lm
+
+
+
+CC=/usr/local/bin/gcc
+LINKER = /usr/local/bin/gfortran
 YACC=yacc -d -y --verbose
 LEX=flex # -d
-CFLAGS=-Wall -pedantic -g -I.
+#
+# Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
+#
+CFLAGS=-Wall -pedantic -O3 -I. $(INC) -std=c99 -DADD_ -DDPLASMA_EXECUTE
 LDFLAGS=
 
 OBJECTS=dplasma.o \
@@ -10,7 +36,9 @@ OBJECTS=dplasma.o \
 	expr.o \
 	params.o \
 	dep.o \
-	tools/buildDAG.o
+	tools/buildDAG.o \
+	cholesky_hook.o \
+	example_dposv.o
 
 .SUFFIXES:
 .SUFFIXES: .c .o .h
@@ -21,7 +49,7 @@ all: parse
 	$(YACC) $< -o $(*F).tab.c
 
 parse: lex.yy.o dplasma.tab.o $(OBJECTS)
-	$(CC) -o parse $^ $(LDFLAGS)
+	$(LINKER) -o parse $^ $(LDFLAGS) $(LIB)
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<
