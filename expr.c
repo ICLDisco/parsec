@@ -117,9 +117,7 @@ int expr_eval(const expr_t *expr,
     assert( EXPR_OP_CONST_INT != expr->op );
 
     if( EXPR_OP_SYMB == expr->op ) {
-        int int_res;
-        int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, &int_res);
-        *res = int_res;
+        int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, res);
         return ret_val;
     }
     if ( EXPR_IS_UNARY(expr->op) ) {
@@ -263,7 +261,7 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         /* should we continue down the expressions of the range ? */
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
     }
-    return rc;
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
 int expr_absolute_range(const expr_t* expr,
