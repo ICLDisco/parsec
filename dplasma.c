@@ -16,8 +16,9 @@ static int global_execution = 0;
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
-    int i;
     char *pref2 = malloc(strlen(prefix)+3);
+    dplasma_execution_context_t dump_context;
+    int i;
 
     sprintf(pref2, "%s  ", prefix);
     printf("%sDplasma Function: %s\n", prefix, d->name);
@@ -45,6 +46,11 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
            (d->flags & DPLASMA_HAS_IN_STRONG_DEPENDENCIES ? "S" : "N"));
     printf("%s Body:\n", prefix);
     printf("%s  %s\n", prefix, d->body);
+
+    if( NULL != d->deps ) {
+        
+        printf( "Current dependencies\n" );
+    }
 
     free(pref2);
 }
@@ -309,9 +315,12 @@ int dplasma_show_tasks( const dplasma_t* object )
     return 0;
 }
 
-int dplasma_check_IN_dependencies( dplasma_execution_context_t* exec_context )
+/**
+ * Resolve all IN() dependencies for this particular instance of execution.
+ */
+int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_context )
 {
-    dplasma_t* function = exec_context->function;
+    const dplasma_t* function = exec_context->function;
     const dplasma_t* in_function = dplasma_find("IN");
     int i, j, rc, value, mask = 0;
     param_t* param;
@@ -344,12 +353,31 @@ int dplasma_check_IN_dependencies( dplasma_execution_context_t* exec_context )
     return mask;
 }
 
+char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context, char* tmp, size_t length )
+{
+    const dplasma_t* function = exec_context->function;
+    int i, index = 0;
+
+    index += snprintf( tmp + index, length - index, "%s( ", function->name );
+    if( index >= length ) return tmp;
+    for( i = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++ ) {
+        index += snprintf( tmp + index, length - index, "%d ",
+                           exec_context->locals[i].value );
+        if( index >= length ) return tmp;
+    }
+    index += snprintf( tmp + index, length - index, ")" );
+    if( index >= length ) return tmp;
+
+    return tmp;
+}
+
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
 int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
+    char tmp[128];
     int i, nb_locals, actual_loop, mask;
 
     /* Compute the number of local values */
@@ -359,7 +387,7 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
         return 0;
     }
 
-    DEBUG(("Prepare storage on the function %s stack\n", function->name));
+    DEBUG(("Activate dependencies for %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     deps_location = &(function->deps);
     last_deps = NULL;
 
@@ -402,10 +430,13 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
          */
         if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
             mask = dplasma_check_IN_dependencies( exec_context );
-            while( mask != 0 ) {
-                deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
-                    (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | 0x1;
-                mask >>= 1;
+            if( mask > 0 ) {
+                DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
+                while( mask > 0 ) {
+                    deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
+                        (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | 0x1;
+                    mask >>= 1;
+                }
             }
             mask = DPLASMA_DEPENDENCIES_HACK_IN | 0x1;
         }
@@ -415,6 +446,10 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
         if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
             == function->dependencies_mask ) {
             dplasma_complete_execution(exec_context);
+        } else {
+            DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x)\n",
+                   dplasma_service_to_string( exec_context, tmp, 128 ), function->dependencies_mask,
+                   (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))));
         }
 
         /* Go to the next valid value for this loop context */
@@ -441,7 +476,7 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
             DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
                    exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
             for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
-                exec_context->locals[actual_loop].value = exec_context->locals[i].min;
+                exec_context->locals[actual_loop].value = exec_context->locals[actual_loop].min;
                 last_deps = deps;  /* save the deps */
                 if( NULL == *deps_location ) {
                     int min, max, number;
@@ -480,20 +515,16 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
     return 0;
 }
 
-int dplasma_complete_execution( dplasma_execution_context_t* exec_context )
+int dplasma_complete_execution( const dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
+    int i, j, k, rc, value;
+    char tmp[128];
     param_t* param;
     dep_t* dep;
-    int i, j, k, rc, value;
 
-    printf( "Execute %s( ", function->name );
-    /* This is really good as we got a "ready to be executed" service */
-    for( i = 0; (i <  MAX_LOCAL_COUNT) && (NULL != exec_context->locals[i].sym); i++ ) {
-        printf( "%d ", exec_context->locals[i].value );
-    }
-    printf( ")\n" );
+    printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
         param = function->params[i];

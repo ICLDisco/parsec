@@ -108,7 +108,7 @@ int dplasma_unroll( const dplasma_t* object );
 /**
  * Some others declarations.
  */
-int dplasma_complete_execution( dplasma_execution_context_t* exec_context );
+int dplasma_complete_execution( const dplasma_execution_context_t* exec_context );
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
 
 #endif
