@@ -44,7 +44,7 @@ int yywrap()
 	return 1;
 }
 
-int main(int argc, char *argv[])
+int main2(int argc, char *argv[])
 {
     dplasma_lineno = 1;
 	yyparse();
