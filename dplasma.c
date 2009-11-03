@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern char *strdup(const char *);
+
 #include "dplasma.h"
 
 static const dplasma_t** dplasma_array = NULL;
@@ -17,7 +19,6 @@ static int global_execution = 0;
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
     char *pref2 = malloc(strlen(prefix)+3);
-    dplasma_execution_context_t dump_context;
     int i;
 
     sprintf(pref2, "%s  ", prefix);
@@ -122,7 +123,7 @@ const dplasma_t* dplasma_element_at( int i )
     return NULL;
 }
 
-#if 0
+#ifdef _DEBUG 
 #define DEBUG(ARG)  printf ARG
 #else
 #define DEBUG(ARG)
@@ -377,7 +378,9 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
+#ifdef _DEBUG
     char tmp[128];
+#endif
     int i, nb_locals, actual_loop, mask;
 
     /* Compute the number of local values */
@@ -521,7 +524,9 @@ int dplasma_complete_execution( const dplasma_execution_context_t* exec_context 
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
     int i, j, k, rc, value;
+#ifdef _DEBUG
     char tmp[128];
+#endif
     param_t* param;
     dep_t* dep;
 

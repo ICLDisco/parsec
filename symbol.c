@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+extern char *strdup(const char *);
+
 #include "symbol.h"
 #include "dplasma.h"
 

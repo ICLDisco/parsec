@@ -7,6 +7,11 @@
  *                         reserved.
  */
 #include <string.h>
+#include <stdio.h>
+
+extern char *strdup(const char *);
+int fileno(FILE *stream);
+
 #include "dplasma.h"
 #include "dplasma.tab.h"
 
