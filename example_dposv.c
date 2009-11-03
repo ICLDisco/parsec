@@ -82,6 +82,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
     NB = PLASMA_NB;
     NT = (N%NB==0) ? (N/NB) : (N/NB+1);
 
+#ifdef DO_SOME_WORK
     /* Allocate memory for matrices in block layout */
     Abdl = (double *)plasma_shared_alloc(plasma, NT*NT*PLASMA_NBNBSIZE, PlasmaRealDouble);
     if (Abdl == NULL) {
@@ -90,17 +91,18 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
     }
 
     /*PLASMA_desc*/ descA = plasma_desc_init(
-        Abdl, PlasmaRealDouble,
-        PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
-        N, N, 0, 0, N, N);
+                                             Abdl, PlasmaRealDouble,
+                                             PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
+                                             N, N, 0, 0, N, N);
 
     plasma_parallel_call_3(plasma_lapack_to_tile,
                            double*, A,
                            int, LDA,
                            PLASMA_desc, descA);
+#endif  /* DO_SOME_WORK */
 
     /* Init DPLASMA */
-#if 1
+#ifndef DO_SOME_WORK
     dplasma_lineno = 1;
 
     time_elapsed = get_cur_time();
@@ -142,6 +144,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
     printf("PLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (2.0*N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
 #endif
 
+#ifdef DO_SOME_WORK
     if (PLASMA_INFO == PLASMA_SUCCESS)
     {
         plasma_parallel_call_3(plasma_tile_to_lapack,
@@ -150,6 +153,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
                                int, LDA);
     }
     plasma_shared_free(plasma, Abdl);
+#endif
     return PLASMA_INFO;
 }
 
@@ -194,7 +198,7 @@ int main (int argc, char **argv)
    /*-------------------------------------------------------------
    *  TESTING DPOTRF + DPOTRS
    */
-
+#ifdef DO_SOME_WORK
    /* Initialize A1 and A2 for Symmetric Positive Matrix */
    dlarnv(&IONE, ISEED, &LDA, D);
    dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
@@ -212,6 +216,7 @@ int main (int argc, char **argv)
    for ( i = 0; i < N; i++)
        for ( j = 0; j < NRHS; j++)
            B2[LDB*j+i] = B1[LDB*j+i];
+#endif
 
    /* Plasma routines */
    uplo=PlasmaLower;
