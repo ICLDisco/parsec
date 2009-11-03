@@ -128,6 +128,11 @@ const dplasma_t* dplasma_element_at( int i )
 #define DEBUG(ARG)
 #endif
 
+/**
+ * Compute the correct initial values for an execution context. These values
+ * are in the range and validate all possible predicates. If such values do
+ * not exist this function returns -1.
+ */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context )
 {
     int i, nb_locals, rc;
@@ -164,6 +169,27 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
         exec_context->locals[i].sym = NULL;
     }
     return 0;
+}
+
+/**
+ * Convert the execution context to a string to be printed out.
+ */
+char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context, char* tmp, size_t length )
+{
+    const dplasma_t* function = exec_context->function;
+    int i, index = 0;
+
+    index += snprintf( tmp + index, length - index, "%s( ", function->name );
+    if( index >= length ) return tmp;
+    for( i = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++ ) {
+        index += snprintf( tmp + index, length - index, "%d ",
+                           exec_context->locals[i].value );
+        if( index >= length ) return tmp;
+    }
+    index += snprintf( tmp + index, length - index, ")" );
+    if( index >= length ) return tmp;
+
+    return tmp;
 }
 
 int plasma_show_ranges( const dplasma_t* object )
@@ -320,24 +346,6 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
         }
     }
     return mask;
-}
-
-char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context, char* tmp, size_t length )
-{
-    const dplasma_t* function = exec_context->function;
-    int i, index = 0;
-
-    index += snprintf( tmp + index, length - index, "%s( ", function->name );
-    if( index >= length ) return tmp;
-    for( i = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++ ) {
-        index += snprintf( tmp + index, length - index, "%d ",
-                           exec_context->locals[i].value );
-        if( index >= length ) return tmp;
-    }
-    index += snprintf( tmp + index, length - index, ")" );
-    if( index >= length ) return tmp;
-
-    return tmp;
 }
 
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
