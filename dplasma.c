@@ -172,9 +172,11 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
 }
 
 /**
- * Convert the execution context to a string to be printed out.
+ * Convert the execution context to a string.
  */
-char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context, char* tmp, size_t length )
+char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context,
+                                 char* tmp,
+                                 size_t length )
 {
     const dplasma_t* function = exec_context->function;
     int i, index = 0;
@@ -189,6 +191,23 @@ char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context
     index += snprintf( tmp + index, length - index, ")" );
     if( index >= length ) return tmp;
 
+    return tmp;
+}
+
+/**
+ * Convert a dependency to a string under the format X(...) -> Y(...).
+ */
+char* dplasma_dependency_to_string( const dplasma_execution_context_t* from,
+                                    const dplasma_execution_context_t* to,
+                                    char* tmp,
+                                    size_t length )
+{
+    int index = 0;
+
+    dplasma_service_to_string( from, tmp, length );
+    index = strlen(tmp);
+    index += snprintf( tmp + index, length - index, "->" );
+    dplasma_service_to_string( to, tmp + index, length - index );
     return tmp;
 }
 
@@ -231,6 +250,10 @@ int plasma_show_ranges( const dplasma_t* object )
     return 0;
 }
 
+/**
+ * This function generate all possible execution context for a given function with
+ * respect to the predicates.
+ */
 int dplasma_show_tasks( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
@@ -260,12 +283,10 @@ int dplasma_show_tasks( const dplasma_t* object )
         int value;
 
         /* Do whatever we have to do for this context */
-        printf( "Execute %s with ", object->name );
-        for( i = 0; i <= actual_loop; i++ ) {
-            printf( "(%s = %d)", object->locals[i]->name,
-                    exec_context->locals[i].value );
+        {
+            char tmp[128];
+            printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128) );
         }
-        printf( "\n" );
 
         /* Go to the next valid value for this loop context */
         rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
