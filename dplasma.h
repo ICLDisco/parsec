@@ -55,8 +55,9 @@ typedef int (dplasma_hook_t)(const dplasma_execution_context_t*);
 #define DPLASMA_HAS_IN_STRONG_DEPENDENCIES 0x0004
 struct dplasma {
     const char*             name;
-    int                     flags;
-    unsigned char           dependencies_mask;
+    uint16_t                flags;
+    uint16_t                dependencies_mask;
+    int                     nb_locals;
     symbol_t*               locals[MAX_LOCAL_COUNT];
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                params[MAX_PARAM_COUNT];
@@ -66,7 +67,7 @@ struct dplasma {
 };
 
 struct dplasma_execution_context_t {
-    dplasma_t* function;
+    dplasma_t*   function;
     assignment_t locals[MAX_LOCAL_COUNT];
 };
 

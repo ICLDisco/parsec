@@ -131,15 +131,17 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
                                                     global_lists_index);
                                             YYERROR;
                                         } else {
-                                            global_dplasma->locals[global_lists_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
-                                            global_dplasma->locals[global_lists_index]->name = $1;
-                                            
+                                            symbol_t* symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
+                                            symbol->name = $1;
+
+                                            /* Store it and move to the next one */
+                                            global_dplasma->locals[global_dplasma->nb_locals] = symbol;
+                                            global_dplasma->nb_locals++;
+
                                             s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                                            s->sym = global_dplasma->locals[global_lists_index];
+                                            s->sym = symbol;
                                             s->next = dplasma_symbol_stack;
                                             dplasma_symbol_stack = s;
-
-                                            global_lists_index++;
                                         }
                                      } varlist
          | DPLASMA_VAR {
@@ -152,15 +154,17 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
                                        global_lists_index);
                                YYERROR;
                           } else {
-                              global_dplasma->locals[global_lists_index] = (symbol_t*)calloc(1, sizeof(symbol_t));
-                              global_dplasma->locals[global_lists_index]->name = $1;
+                              symbol_t* symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
+                              symbol->name = $1;
+
+                              /* Store it and move to the next one */
+                              global_dplasma->locals[global_dplasma->nb_locals] = symbol;
+                              global_dplasma->nb_locals++;
 
                               s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                              s->sym = global_dplasma->locals[global_lists_index];
+                              s->sym = symbol;
                               s->next = dplasma_symbol_stack;
                               dplasma_symbol_stack = s;
-
-                              global_lists_index++;
                           }
                        }
          |

@@ -135,18 +135,17 @@ const dplasma_t* dplasma_element_at( int i )
  */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context )
 {
-    int i, nb_locals, rc;
+    int i, rc;
     const dplasma_t* object = exec_context->function;
     const expr_t** predicates = (const expr_t**)object->preds;
 
     /* Compute the number of local values */
-    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
-    if( 0 == nb_locals ) {
+    if( 0 == object->nb_locals ) {
         /* special case for the IN/OUT objects */
         return 0;
     }
 
-    for( i = 0; i < nb_locals; i++ ) {
+    for( i = 0; i < object->nb_locals; i++ ) {
         int min;
         exec_context->locals[i].sym = object->locals[i];
         rc = dplasma_symbol_get_first_value(object->locals[i], predicates,
@@ -258,18 +257,15 @@ int dplasma_show_tasks( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     const expr_t** predicates = (const expr_t**)object->preds;
-    int i, nb_locals, rc, actual_loop;
+    int rc, actual_loop;
 
     exec_context->function = (dplasma_t*)object;
 
-    /* Compute the number of local values */
-    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
-    if( 0 == nb_locals ) {
+    printf( "Function %s (loops %d)\n", object->name, object->nb_locals );
+    if( 0 == object->nb_locals ) {
         /* special case for the IN/OUT obejcts */
         return 0;
     }
-    printf( "Function %s (loops %d)\n", object->name, nb_locals );
-
 
     if( 0 != dplasma_set_initial_execution_context(exec_context) ) {
         /* if we can't initialize the execution context then there is no reason to
@@ -278,7 +274,7 @@ int dplasma_show_tasks( const dplasma_t* object )
         return -1;
     }
 
-    actual_loop = nb_locals - 1;
+    actual_loop = object->nb_locals - 1;
     while(1) {
         int value;
 
@@ -381,11 +377,9 @@ int dplasma_release_OUT_dependencies( dplasma_execution_context_t* exec_context 
 #ifdef _DEBUG
     char tmp[128];
 #endif
-    int i, nb_locals, actual_loop, mask;
+    int i, actual_loop, mask;
 
-    /* Compute the number of local values */
-    for( i = nb_locals = 0; (NULL != function->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
-    if( 0 == nb_locals ) {
+    if( 0 == function->nb_locals ) {
         /* special case for the IN/OUT objects */
         return 0;
     }
@@ -423,7 +417,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_context_t* exec_context 
         last_deps = deps;
     }
 
-    actual_loop = nb_locals - 1;
+    actual_loop = function->nb_locals - 1;
     while(1) {
 
         mask = 0x1;
