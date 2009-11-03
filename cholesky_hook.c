@@ -14,6 +14,12 @@ int PLASMA_INFO;
 
 #define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 
+#if 0
+#define OUTPUT(ARG)  printf ARG
+#else
+#define OUTPUT(ARG)
+#endif
+
 int POTRF_hook(const dplasma_execution_context_t* exec_context)
 {
     assignment_t* pk;
@@ -38,11 +44,11 @@ int POTRF_hook(const dplasma_execution_context_t* exec_context)
                  A(k, k), NB, /*A.nb,*/
                  &PLASMA_INFO); 
 #else
-    printf( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
-            "PlasmaLower",
-            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-            k, k, NB /*A.nb,*/);
-#endif
+    OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
+             "PlasmaLower",
+             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+             k, k, NB /*A.nb,*/));
+#endif  /* DPLASMA_EXECUTE */
 
     return rc;
 }
@@ -77,13 +83,13 @@ int SYRK_hook(const dplasma_execution_context_t* exec_context)
                 -1.0, A(k, n), NB, /*A.nb,*/
                 1.0, A(k, k), NB /*A.nb*/);
 #else
-    printf("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-           "PlasmaLower", "PlasmaNoTrans",
-           NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-           NB, /*A.nb,*/
-           -1.0, k, n, NB, /*A.nb,*/
-           1.0, k, k, NB /*A.nb*/);
-#endif
+    OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "PlasmaLower", "PlasmaNoTrans",
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, k, n, NB, /*A.nb,*/
+            1.0, k, k, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
 
     return rc;
 }
@@ -125,15 +131,15 @@ int GEMM_hook(const dplasma_execution_context_t* exec_context)
                 A(k, n), NB, /*A.nb,*/
                 1.0, A(m, k), NB /*A.nb*/);
 #else
-    printf("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-           "PlasmaNoTrans", "PlasmaTrans",
-           NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-           NB, /*A.nb,*/
-           NB, /*A.nb,*/
-           -1.0, m, n, NB, /*A.nb,*/
-           k, n, NB, /*A.nb,*/
-           1.0, m, k, NB /*A.nb*/);
-#endif
+    OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "PlasmaNoTrans", "PlasmaTrans",
+            NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, m, n, NB, /*A.nb,*/
+            k, n, NB, /*A.nb,*/
+            1.0, m, k, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
 
     return rc;
 }
@@ -168,13 +174,13 @@ int TRSM_hook(const dplasma_execution_context_t* exec_context)
                 1.0, A(k, k), NB, /*A.nb,*/
                 A(m, k), NB /*A.nb*/);
 #else
-    printf( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-            "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
-            NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-            NB, /*A.nb,*/
-            1.0, k, k, NB, /*A.nb,*/
-            m, k, NB /*A.nb*/);
-#endif
+    OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+             "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+             NB, /*A.nb,*/
+             1.0, k, k, NB, /*A.nb,*/
+             m, k, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
 
     return rc;
  }
