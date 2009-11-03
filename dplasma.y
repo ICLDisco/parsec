@@ -51,24 +51,12 @@ int main2(int argc, char *argv[])
 
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/
-#if 0
-    {
-        const dplasma_t* object;
-        int i;
-
-        object = dplasma_element_at(0);
-        for( i = 1; NULL != object; i++ ) {
-            dplasma_unroll(object);
-            object = dplasma_element_at(i);
-        }
-    }
-#endif
     {
         dplasma_execution_context_t exec_context;
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
-        dplasma_complete_execution(&exec_context);
+        dplasma_execute(&exec_context);
     }
 /*    external_hook(); */
 
@@ -215,18 +203,18 @@ assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
 ;
 
 partitioning: DPLASMA_COLON expr  {
-                                                   if( global_lists_index == MAX_PRED_COUNT ) {
-                                                       fprintf(stderr,
-                                                               "Internal Error while parsing at line %d:\n"
-                                                               "  Maximal predicate list count reached: %d (I told you guys this will happen)\n",
-                                                               dplasma_lineno,
-                                                               global_lists_index);
-                                                       YYERROR;
-                                                   } else {
-                                                       global_dplasma->preds[global_lists_index] = $2;                             
-                                                       global_lists_index++;
-                                                   }
-                                             }
+                                       if( global_lists_index == MAX_PRED_COUNT ) {
+                                           fprintf(stderr,
+                                                   "Internal Error while parsing at line %d:\n"
+                                                   "  Maximal predicate list count reached: %d (I told you guys this will happen)\n",
+                                                   dplasma_lineno,
+                                                   global_lists_index);
+                                           YYERROR;
+                                       } else {
+                                           global_dplasma->preds[global_lists_index] = $2;                             
+                                           global_lists_index++;
+                                       }
+                                   }
               partitioning
          | 
 ;

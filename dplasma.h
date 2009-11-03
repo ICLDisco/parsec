@@ -105,14 +105,9 @@ dplasma_t* dplasma_find_or_create( const char* name );
 const dplasma_t* dplasma_element_at( int i );
 
 /**
- * Unroll a dplasma_t object.
- */
-int dplasma_unroll( const dplasma_t* object );
-
-/**
  * Some others declarations.
  */
-int dplasma_complete_execution( const dplasma_execution_context_t* exec_context );
+int dplasma_execute( const dplasma_execution_context_t* exec_context );
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
 
 #endif

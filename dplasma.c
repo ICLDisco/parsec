@@ -14,7 +14,6 @@ extern char *strdup(const char *);
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
-static int global_execution = 0;
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
@@ -133,24 +132,13 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
 {
     int i, nb_locals, rc;
     const dplasma_t* object = exec_context->function;
-    const expr_t** predicates;
+    const expr_t** predicates = (const expr_t**)object->preds;
 
     /* Compute the number of local values */
     for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
     if( 0 == nb_locals ) {
         /* special case for the IN/OUT objects */
         return 0;
-    }
-
-    /**
-     * This section of the code generate all possible executions for a specific
-     * dplasma object. If the global execution is true (!= 0) then it generate
-     * the instances globally, otherwise it will generate them locally (using
-     * the predicates).
-     */
-    predicates = NULL;
-    if( !global_execution ) {
-        predicates = (const expr_t**)object->preds;
     }
 
     for( i = 0; i < nb_locals; i++ ) {
@@ -181,7 +169,7 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
 int plasma_show_ranges( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-    const expr_t** predicates;
+    const expr_t** predicates = (const expr_t**)object->preds;
     int i, nb_locals;
 
     exec_context->function = (dplasma_t*)object;
@@ -193,16 +181,6 @@ int plasma_show_ranges( const dplasma_t* object )
         return 0;
     }
     printf( "Function %s (loops %d)\n", object->name, nb_locals );
-
-    /**
-     * If the global execution is true (!= 0) then it generate
-     * the values globally, otherwise it will generate them locally (using
-     * the predicates).
-     */
-    predicates = NULL;
-    if( !global_execution ) {
-        predicates = (const expr_t**)object->preds;
-    }
 
     /**
      * This section of code walk through the tree and printout the local and global
@@ -230,8 +208,8 @@ int plasma_show_ranges( const dplasma_t* object )
 int dplasma_show_tasks( const dplasma_t* object )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+    const expr_t** predicates = (const expr_t**)object->preds;
     int i, nb_locals, rc, actual_loop;
-    const expr_t** predicates;
 
     exec_context->function = (dplasma_t*)object;
 
@@ -243,16 +221,6 @@ int dplasma_show_tasks( const dplasma_t* object )
     }
     printf( "Function %s (loops %d)\n", object->name, nb_locals );
 
-    /**
-     * This section of the code generate all possible executions for a specific
-     * dplasma object. If the global execution is true (!= 0) then it generate
-     * the instances globally, otherwise it will generate them locally (using
-     * the predicates).
-     */
-    predicates = NULL;
-    if( !global_execution ) {
-        predicates = (const expr_t**)object->preds;
-    }
 
     if( 0 != dplasma_set_initial_execution_context(exec_context) ) {
         /* if we can't initialize the execution context then there is no reason to
@@ -374,7 +342,10 @@ char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context
 
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
-int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
+/**
+ * Release all OUT dependencies for this particular instance of the service.
+ */
+int dplasma_release_OUT_dependencies( dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
@@ -449,7 +420,10 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
             (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | mask;
         if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
             == function->dependencies_mask ) {
-            dplasma_complete_execution(exec_context);
+            /* This service is ready to be executed as all dependencies are solved. Let the
+             * scheduler knows about this and keep going.
+             */
+            dplasma_execute(exec_context);
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), function->dependencies_mask,
@@ -519,7 +493,13 @@ int dplasma_activate_dependencies( dplasma_execution_context_t* exec_context )
     return 0;
 }
 
-int dplasma_complete_execution( const dplasma_execution_context_t* exec_context )
+/**
+ * Execute the instance of the service based on the values of the
+ * local variables stored in the execution context, by calling the
+ * attached hook if any. At the end of the execution the dependencies
+ * are released.
+ */
+int dplasma_execute( const dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
@@ -530,7 +510,7 @@ int dplasma_complete_execution( const dplasma_execution_context_t* exec_context 
     param_t* param;
     dep_t* dep;
 
-    /*printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));*/
+    DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     if( NULL != function->hook ) {
         function->hook( exec_context );
     }
@@ -552,24 +532,11 @@ int dplasma_complete_execution( const dplasma_execution_context_t* exec_context 
                     continue;
                 }
             }
-            /* Check to see if any of the params are conditionals or ranges and if they are
-             * if they match.
-             */
-            for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
-                if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
-                    int min, max;
-                    rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
-                    if( min > max ) {
-                        dont_generate = 1;
-                    }
-                }
-            }
-            if( dont_generate ) {
-                continue;
-            }
-
             new_context.function = dep->dplasma;
             DEBUG(( "-> %s of %s( ", dep->sym_name, dep->dplasma->name ));
+            /* Check to see if any of the params are conditionals or ranges and if they are
+             * if they match. If yes, then set the correct values.
+             */
             for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
                 new_context.locals[k].sym = dep->dplasma->locals[k];
                 if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
@@ -579,119 +546,32 @@ int dplasma_complete_execution( const dplasma_execution_context_t* exec_context 
                 } else {
                     int min, max;
                     rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
+                    if( min > max ) {
+                        dont_generate = 1;
+                        break;  /* No reason to continue here */
+                    }
+                    new_context.locals[k].min = min;
+                    new_context.locals[k].max = max;
                     if( min == max ) {
-                        new_context.locals[k].min = new_context.locals[k].max = min;
                         DEBUG(( "%d ", min ));
                     } else {
-                        new_context.locals[k].min = min;
-                        new_context.locals[k].max = max;
                         DEBUG(( "[%d..%d] ", min, max ));
                     }
                 }
                 new_context.locals[k].value = new_context.locals[k].min;
             }
+            if( dont_generate ) {
+                continue;
+            }
+
             /* Mark the end of the list */
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
             DEBUG(( ")\n" ));
-            dplasma_activate_dependencies( &new_context );
+            dplasma_release_OUT_dependencies( &new_context );
         }
     }
-
-    return 0;
-}
-
-int dplasma_unroll( const dplasma_t* object )
-{
-    dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-    int i, nb_locals, rc, actual_loop;
-    const expr_t** predicates;
-
-    exec_context->function = (dplasma_t*)object;
-
-    /* Compute the number of local values */
-    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
-    if( 0 == nb_locals ) {
-        /* special case for the IN/OUT obejcts */
-        return 0;
-    }
-    printf( "Function %s (loops %d)\n", object->name, nb_locals );
-
-    /**
-     * This section of the code generate all possible executions for a specific
-     * dplasma object. If the global execution is true (!= 0) then it generate
-     * the instances globally, otherwise it will generate them locally (using
-     * the predicates).
-     */
-    predicates = NULL;
-    if( !global_execution ) {
-        predicates = (const expr_t**)object->preds;
-    }
-
-    if( 0 != dplasma_set_initial_execution_context(exec_context) ) {
-        /* if we can't initialize the execution context then there is no reason to
-         * continue.
-         */
-        return -1;
-    }
-
-    actual_loop = nb_locals - 1;
-    while(1) {
-        int value;
-
-        /* Do whatever we have to do for this context */
-        printf( "Execute %s with ", object->name );
-        for( i = 0; i <= actual_loop; i++ ) {
-            printf( "(%s = %d)", object->locals[i]->name,
-                    exec_context->locals[i].value );
-        }
-        printf( "\n" );
-
-        /* Complete the execution of this service and release the
-         * dependencies.
-         */
-        dplasma_complete_execution( exec_context );
-
-        /* Go to the next valid value for this loop context */
-        rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
-                                            exec_context->locals, &value );
-
-        /* If no more valid values, go to the previous loop,
-         * compute the next valid value and redo and reinitialize all other loops.
-         */
-        if( rc != EXPR_SUCCESS ) {
-            int current_loop = actual_loop;
-        one_loop_up:
-            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
-                   actual_loop, object->locals[actual_loop]->name));
-            if( 0 == actual_loop ) {  /* we're done */
-                goto end_of_all_loops;
-            }
-            actual_loop--;  /* one level up */
-            rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
-                                                exec_context->locals, &value );
-            if( rc != EXPR_SUCCESS ) {
-                goto one_loop_up;
-            }
-            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
-                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
-                rc = dplasma_symbol_get_first_value(object->locals[actual_loop], predicates,
-                                                    exec_context->locals, &value );
-                if( rc != EXPR_SUCCESS ) {  /* no values for this symbol in this context */
-                    goto one_loop_up;
-                }
-                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
-                       object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            }
-            actual_loop = current_loop;  /* go back to the original loop */
-        } else {
-            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
-                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-        }
-    }
- end_of_all_loops:
 
     return 0;
 }
