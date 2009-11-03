@@ -106,8 +106,27 @@ const dplasma_t* dplasma_element_at( int i );
 
 /**
  * Some others declarations.
+ *
+ * @param [IN] The execution context to be executed. This include
+ *             calling the attached hook (if any) as well as marking
+ *             all dependencies as completed.
+ *
+ * @return  0 If the execution was succesful and all output dependencies
+ *            has been correctly marked.
+ * @return -1 If something went wrong.
  */
 int dplasma_execute( const dplasma_execution_context_t* exec_context );
+
+/**
+ * Compute the correct initial values for an execution context. These values
+ * are in the range and validate all possible predicates. If such values do
+ * not exist this function returns -1.
+ *
+ * @param [INOUT] The execution context to be initialized.
+ *
+ * @return  0 If the execution context has been correctly setup
+ * @return -1 If no suitable values for this execution context can be found.
+ */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
 
 #endif
