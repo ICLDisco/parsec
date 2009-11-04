@@ -31,3 +31,29 @@ void param_dump(const param_t *p, const char *prefix)
         sprintf(pref2, "%s       ", prefix);
     }
 }
+
+char *dump_c_param(FILE *out, const param_t *p, const char *prefix)
+{
+    static unsigned int param_idx = 0;
+    static char name[64];
+    char param[4096];
+    int  l = 0;
+    int i;
+
+    if( p == NULL ) {
+        sprintf(name, "NULL");
+    } else {
+        sprintf(name, "&param%d", param_idx);
+        l += snprintf(param + l, 4096-l, "static param_t param%d = { .sym_name = \"%s\", .sym_type = %d,\n     .dep_in  = {", param_idx, p->sym_name, p->sym_type);
+        for(i = 0; i < MAX_DEP_IN_COUNT; i++) {
+            l += snprintf(param + l, 4096-l, "%s%s", dump_c_dep(out, p->dep_in[i], prefix), i < MAX_DEP_IN_COUNT-1 ? ", " : "},\n     .dep_out = {");
+        }
+        for(i = 0; i < MAX_DEP_OUT_COUNT; i++) {
+            l += snprintf(param + l, 4096-l, "%s%s", dump_c_dep(out, p->dep_out[i], prefix), i < MAX_DEP_OUT_COUNT-1 ? ", " : "} };\n");
+        }
+        fprintf(out, "%s", param);
+        param_idx++;
+    }
+
+    return name;
+}

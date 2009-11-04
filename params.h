@@ -28,4 +28,13 @@ struct param {
 
 void param_dump(const param_t *p, const char *prefix);
 
+/**
+ * helper to dump the c structure representing the dplasma object
+ * 
+ * @returns a (static) string representing the (unique) name of 
+ *          the params to use to point to this param.
+ *          the special value "NULL" if p is null
+ */
+char *dump_c_param(FILE *out, const param_t *p, const char *prefix);
+
 #endif

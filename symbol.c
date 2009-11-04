@@ -61,6 +61,17 @@ void symbol_dump_all( const char* prefix )
     }
 }
 
+int symbol_c_index_lookup( const symbol_t *symbol )
+{
+    int i;
+    for(i = 0; i < dplasma_symbol_array_count; i++) {
+        if ( symbol == dplasma_symbol_array[i] ) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int dplasma_add_global_symbol( const char* name, const expr_t* expr )
 {
     symbol_t* symbol;

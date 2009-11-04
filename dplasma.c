@@ -15,6 +15,56 @@ extern char *strdup(const char *);
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
 
+static char *dplasma_dump_c(FILE *out, const dplasma_t *d, const char *prefix)
+{
+    char *pref2 = (char*)malloc(strlen(prefix) + 3);
+    static char dp_txt[4096];
+    int i;
+    int p = 0;
+
+    sprintf(pref2, "%s  ", prefix);
+    
+    p += snprintf(dp_txt+p, 4096-p, "%s{\n", prefix);
+    p += snprintf(dp_txt+p, 4096-p, "%s.name   = \"%s\",\n", pref2, d->name);
+    p += snprintf(dp_txt+p, 4096-p, "%s.flags  = 0x%02x,\n", pref2, d->flags);
+    p += snprintf(dp_txt+p, 4096-p, "%s.dependencies_mask = 0x%02x,\n", pref2, d->dependencies_mask);
+    p += snprintf(dp_txt+p, 4096-p, "%s.nb_locals = %d,\n", pref2, d->nb_locals);
+    
+    p += snprintf(dp_txt+p, 4096-p, "%s.locals = {", pref2);
+    for(i = 0; i < d->nb_locals; i++) {
+        p += snprintf(dp_txt+p, 4096-p, "dplasma_symbol_array[%d]%s", 
+                      symbol_c_index_lookup(d->locals[i]),
+                      i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
+    }
+    for(; i < MAX_LOCAL_COUNT; i++) {
+        p += snprintf(dp_txt+p, 4096-p, "NULL%s",
+                      i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
+    }
+
+    p += snprintf(dp_txt+p, 4096-p, "%s.preds = {", pref2);
+    for(i = 0; i < MAX_PRED_COUNT; i++) {
+        p += snprintf(dp_txt+p, 4096-p, "%s%s",
+                      dump_c_expression(out, d->preds[i], prefix),
+                      i < MAX_PRED_COUNT-1 ? ", " : "},\n");
+    }
+
+    p += snprintf(dp_txt+p, 4096-p, "%s.params = {", pref2);
+    for(i = 0; i < MAX_PARAM_COUNT; i++) {
+        p += snprintf(dp_txt+p, 4096-p, "%s%s",
+                      dump_c_param(out, d->params[i], prefix),
+                      i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
+    }
+
+    p += snprintf(dp_txt+p, 4096-p, "%s.deps = NULL,\n", pref2);
+    p += snprintf(dp_txt+p, 4096-p, "%s.hook = NULL,\n", pref2);
+    p += snprintf(dp_txt+p, 4096-p, "%s.body = \"%s\"\n", pref2, d->body);
+    p += snprintf(dp_txt+p, 4096-p, "%s}", prefix);
+    
+    free(pref2);
+
+    return dp_txt;
+}
+
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
     char *pref2 = malloc(strlen(prefix)+3);
@@ -64,6 +114,24 @@ void dplasma_dump_all( void )
         dplasma_dump( dplasma_array[i], "" );
     }
 }
+
+void dplasma_dump_all_c(FILE *out)
+{
+    int i;
+    char whole[8192];
+    int p = 0;
+    
+    p += snprintf(whole+p, 8192-p, "dplasma_t dplasma_array[%d] = {\n", dplasma_array_count);
+    for(i = 0; i < dplasma_array_count; i++) {
+        p += snprintf(whole+p, 8192-p, "%s", dplasma_dump_c(out, dplasma_array[i], "    " ));
+        if( i < dplasma_array_count-1) {
+            p += snprintf(whole+p, 8192-p, ",\n");
+        }
+    }
+    p += snprintf(whole+p, 8192-p, "};\n");
+    fprintf(out, "%s", whole);
+}
+
 
 int dplasma_push( const dplasma_t* d )
 {

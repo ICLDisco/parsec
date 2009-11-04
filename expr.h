@@ -9,6 +9,8 @@
 
 typedef struct expr expr_t;
 
+#include <stdio.h>
+
 #include "symbol.h"
 #include "assignment.h"
 
@@ -158,6 +160,15 @@ char *expr_error(void);
  * @param [IN]  e the expression to dump
  */
 void expr_dump(const expr_t *e);
+
+/**
+ * helper to dump the c structure representing the dplasma object
+ * 
+ * @returns a (static) string representing the (unique) name of 
+ *          the expression to use to point to this expression.
+ *          the special value "NULL" if e is null
+ */
+char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix);
 
 /**
  * Creates a new expression from a variable name

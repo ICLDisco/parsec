@@ -1,13 +1,13 @@
 #
 # Required dependencies.
 #
-PLASMA_DIR    = /Users/bosilca/tools/plasma-installer/build/plasma_2.0.0
+PLASMA_DIR    = plasma/plasma-installer/build/plasma_2.0.0
 LIBBLAS       = -framework veclib
 # Include directory
 INC        = -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src
 
 # Location of the libraries.
-LIBDIR     = -L$(PLASMA_DIR)/lib
+LIBDIR     = -Lplasma//plasma-installer/lib/
 
 # Location and name of the PLASMA library.
 LIBCBLAS      = $(PLASMA_DIR)/lib/libcblas.a
