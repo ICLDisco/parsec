@@ -225,10 +225,12 @@ param: DPLASMA_DEPENDENCY_TYPE {
 
                                    if( SYM_IN == $1 ){
                                        global_dplasma->params[global_lists_index]->sym_type = $1;
+                                       global_dplasma->dependencies_mask |= (1 << global_lists_index);
                                    }else if( SYM_OUT == $1 ){
                                        global_dplasma->params[global_lists_index]->sym_type = $1;
                                    }else if( SYM_INOUT == $1 ){
                                        global_dplasma->params[global_lists_index]->sym_type = SYM_INOUT;
+                                       global_dplasma->dependencies_mask |= (1 << global_lists_index);
                                    }else{
                                        fprintf(stderr,
                                                "Internal Error while parsing at line %d:\n"
@@ -240,7 +242,6 @@ param: DPLASMA_DEPENDENCY_TYPE {
                                }
        DPLASMA_VAR {
                        global_dplasma->params[global_lists_index]->sym_name = $3;
-                       global_dplasma->dependencies_mask |= (1 << global_lists_index);
                    }
        dependencies
 ;
