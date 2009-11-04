@@ -449,8 +449,8 @@ int dplasma_release_OUT_dependencies( dplasma_execution_context_t* exec_context 
             dplasma_execute(exec_context);
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x)\n",
-                   dplasma_service_to_string( exec_context, tmp, 128 ), function->dependencies_mask,
-                   (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))));
+                   dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
+                   (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))));
         }
 
         /* Go to the next valid value for this loop context */
