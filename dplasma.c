@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 extern char *strdup(const char *);
 
@@ -454,7 +455,7 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
 /**
  * Release all OUT dependencies for this particular instance of the service.
  */
-int dplasma_release_OUT_dependencies( dplasma_execution_context_t* origin,
+int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                                       dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
@@ -479,6 +480,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_context_t* origin,
             int min, max, number;
             dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
             dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
+            assert( (min <= exec_context->locals[i].value) && (max >= exec_context->locals[i].value) );
             number = max - min;
             DEBUG(("%sAllocate %d spaces for loop %s (min %d max %d)\n", spacers,
                    number, function->locals[i]->name, min, max));
