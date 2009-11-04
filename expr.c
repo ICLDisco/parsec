@@ -445,6 +445,7 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
         return r;
     default:
         free(r);
+        fprintf(stderr, "Unknown operand %c. Return NULL expression\n", op );
         return NULL;
     }
 
