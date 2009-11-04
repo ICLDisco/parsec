@@ -9,26 +9,33 @@
 
 typedef struct expr expr_t;
 
+#include <stdio.h>
+
 #include "symbol.h"
 #include "assignment.h"
 
-#define EXPR_OP_SYMB          1
-#define EXPR_OP_CONST_INT     2
+#define EXPR_OP_SYMB               1
+#define EXPR_OP_CONST_INT          2
 
-#define EXPR_OP_MIN_UNARY     10
-#define EXPR_OP_UNARY_NOT     10
-#define EXPR_OP_MAX_UNARY     10
+#define EXPR_OP_MIN_UNARY         10
+#define EXPR_OP_UNARY_NOT         10
+#define EXPR_OP_MAX_UNARY         10
 
 #define EXPR_IS_UNARY(op)  ( ((op) >= EXPR_OP_MIN_UNARY) && ((op) <= EXPR_OP_MAX_UNARY) )
 
-#define EXPR_OP_MIN_BINARY    20
-#define EXPR_OP_BINARY_MOD    20
-#define EXPR_OP_BINARY_EQUAL  21
-#define EXPR_OP_BINARY_PLUS   22
-#define EXPR_OP_BINARY_RANGE  23
-#define EXPR_OP_BINARY_MINUS  24
-#define EXPR_OP_BINARY_TIMES  25
-#define EXPR_OP_MAX_BINARY    25
+#define EXPR_OP_MIN_BINARY        20
+#define EXPR_OP_BINARY_MOD        20
+#define EXPR_OP_BINARY_EQUAL      21
+#define EXPR_OP_BINARY_NOT_EQUAL  22
+#define EXPR_OP_BINARY_PLUS       23
+#define EXPR_OP_BINARY_RANGE      24
+#define EXPR_OP_BINARY_MINUS      25
+#define EXPR_OP_BINARY_TIMES      26
+#define EXPR_OP_BINARY_DIV        27
+#define EXPR_OP_BINARY_OR         28
+#define EXPR_OP_BINARY_AND        29
+#define EXPR_OP_BINARY_XOR        30
+#define EXPR_OP_MAX_BINARY        30
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )
 
@@ -158,6 +165,15 @@ char *expr_error(void);
  * @param [IN]  e the expression to dump
  */
 void expr_dump(const expr_t *e);
+
+/**
+ * helper to dump the c structure representing the dplasma object
+ * 
+ * @returns a (static) string representing the (unique) name of 
+ *          the expression to use to point to this expression.
+ *          the special value "NULL" if e is null
+ */
+char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix);
 
 /**
  * Creates a new expression from a variable name

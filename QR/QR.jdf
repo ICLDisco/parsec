@@ -1,7 +1,7 @@
 GRIDrows = 2
 GRIDcols = 2
-NB = 10
-SIZE = 2
+// NB = 120
+SIZE = 5
 colRANK = 0
 rowRANK = 0
 
@@ -98,8 +98,9 @@ DSSRFB(k,n,m)
   IN C1 <- (m==k+1) ? C1 DLARFB(k,n) : C1 DSSRFB(k,n,m-1)
 
   OUT C2 -> (k==SIZE-1) ? OUT(m,n) : RV1 DGEQRT(k+1)
+  //OUT C2 -> ((m+n)==(2*SIZE-2)) ? RV1 DGEQRT(k+1) : OUT(m,n)
   OUT C2 -> (k==SIZE-2) ? OUT(m,n) : V2 DTSQRT(k+1,m)
-  OUT C2 -> (k==SIZE-2) ? OUT(m,n) : C1 DLARFB(k+1,n)
+  OUT C2 -> ((k==SIZE-2) & !(m==SIZE-1)) ? OUT(m,n) : C1 DLARFB(k+1,m)
   OUT C2 -> (k==SIZE-2) ? OUT(m,n) : C2 DSSRFB(k+1,n,m)
   OUT C1 -> (m==SIZE-1) ? OUT(k,n) : C1 DSSRFB(k,n,m+1)
 

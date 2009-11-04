@@ -62,9 +62,10 @@ OUT            { yylval.operand = (char)SYM_OUT;
 "("            { return DPLASMA_OPEN_PAR; }
 ")"            { return DPLASMA_CLOSE_PAR; }
 "=="           { return DPLASMA_EQUAL; }
+"!="           { return DPLASMA_NOT_EQUAL; }
 "="            { return DPLASMA_ASSIGNMENT; }
-[\+\-\*/%]        { yylval.operand = yytext[0];
-                 return DPLASMA_OP; }
+[\+\-\*/%\\\|\&\^]  { yylval.operand = yytext[0];
+                      return DPLASMA_OP; }
 "?"            { return DPLASMA_QUESTION; }
 ":"            { return DPLASMA_COLON; }
 ","            { return DPLASMA_COMMA; }

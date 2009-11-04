@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <limits.h>
 #include "expr.h"
 #include "symbol.h"
 
@@ -63,6 +63,9 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
     case EXPR_OP_BINARY_EQUAL:
         *v = (v1 == v2);
         break;
+    case EXPR_OP_BINARY_NOT_EQUAL:
+        *v = (v1 != v2);
+        break;
     case EXPR_OP_BINARY_PLUS:
         *v = (v1 + v2);
         break;
@@ -71,6 +74,34 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
         break;
     case EXPR_OP_BINARY_TIMES:
         *v = (v1 * v2);
+        break;
+    case EXPR_OP_BINARY_DIV:
+        if( 0 == v2 ) {
+            *v = INT_MAX;
+        } else {
+            *v = v1 / v2;
+        }
+        break;
+    case EXPR_OP_BINARY_AND:
+        if( (0 != v1) && (0 != v2) ) {
+            *v = 1;
+        } else {
+            *v = 0;
+        }
+        break;
+    case EXPR_OP_BINARY_OR:
+        if( (0 != v1) || (0 != v2) ) {
+            *v = 1;
+        } else {
+            *v = 0;
+        }
+        break;
+    case EXPR_OP_BINARY_XOR:
+        if( ((0 != v1) || (0 != v2)) && !((0 != v1) && (0 != v2)) ) {
+            *v = 1;
+        } else {
+            *v = 0;
+        }
         break;
     case EXPR_OP_BINARY_RANGE:
         snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Cannot evaluate range");
@@ -229,6 +260,7 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         printf( "No idea how to compute a min or max of a %%\n" );
         return EXPR_FAILURE_UNKNOWN;
     case EXPR_OP_BINARY_EQUAL:
+    case EXPR_OP_BINARY_NOT_EQUAL:
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
     case EXPR_OP_BINARY_PLUS:
         rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
@@ -257,6 +289,10 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
             *pmax = lmax * rmax;
         }
         return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_DIV:
+    case EXPR_OP_BINARY_AND:
+    case EXPR_OP_BINARY_OR:
+    case EXPR_OP_BINARY_XOR:
     case EXPR_OP_BINARY_RANGE:
         /* should we continue down the expressions of the range ? */
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
@@ -385,8 +421,27 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
             r->value = op1->value && op2->value;
         }
         return r;
+    case '!':
+        r->op = EXPR_OP_BINARY_NOT_EQUAL;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = !(op1->value && op2->value);
+        }
+        return r;
     case '.':
         r->op = EXPR_OP_BINARY_RANGE;
+        return r;
+    case '/':
+        r->op = EXPR_OP_BINARY_DIV;
+        return r;
+    case '|':
+        r->op = EXPR_OP_BINARY_OR;
+        return r;
+    case '&':
+        r->op = EXPR_OP_BINARY_AND;
+        return r;
+    case '^':
+        r->op = EXPR_OP_BINARY_XOR;
         return r;
     default:
         free(r);
@@ -439,6 +494,15 @@ static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *
         return;
     }
 
+    if( EXPR_OP_BINARY_NOT_EQUAL == op ) {
+        printf( " (" );
+        expr_dump(op1);
+        printf( " != " );
+        expr_dump(op2);
+        printf( ") " );
+        return;
+    }
+
     expr_dump(op1);
 
     switch( op ) {
@@ -453,6 +517,18 @@ static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *
         break;
     case EXPR_OP_BINARY_MOD:
         printf(" %% ");
+        break;
+    case EXPR_OP_BINARY_DIV:
+        printf(" / ");
+        break;
+    case EXPR_OP_BINARY_AND:
+        printf(" & ");
+        break;
+    case EXPR_OP_BINARY_OR:
+        printf(" | ");
+        break;
+    case EXPR_OP_BINARY_XOR:
+        printf(" ^ ");
         break;
     }
 
@@ -495,4 +571,44 @@ void expr_dump(const expr_t *e)
     if( EXPR_FLAG_CONSTANT & e->flags ) {
         printf( "}" );
     }
+}
+
+char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix)
+{
+    static unsigned int expr_idx = 0;
+    static char name[64];
+
+    if( e == NULL ) {
+        sprintf(name, "NULL");
+    } else {
+        int my_id = expr_idx;
+        expr_idx++;
+
+        if( EXPR_OP_CONST_INT == e->op ) {
+            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_CONST_INT, .flags = %d, .value = %d };\n",
+                    my_id, e->flags, e->value);
+        } 
+        else if( EXPR_OP_SYMB == e->op ) {
+            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = &dplasma_symbols[%d] };\n",
+                    my_id, e->flags, symbol_c_index_lookup( e->var ));
+        } else if( EXPR_IS_UNARY(e->op) ) {
+            char sn[64];
+            sprintf(sn, "%s", dump_c_expression(out, e->uop1, prefix));
+            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s };\n", 
+                    my_id, e->op, e->flags, sn);
+        } else if( EXPR_IS_BINARY(e->op) ) {
+            char sn1[64];
+            char sn2[64];
+            sprintf(sn1, "%s", dump_c_expression(out, e->bop1, prefix));
+            sprintf(sn2, "%s", dump_c_expression(out, e->bop2, prefix));
+            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s };\n", 
+                    my_id, e->op, e->flags, sn1, sn2);
+        } else {
+            fprintf(stderr, "Unkown operand %d in expression", e->op);
+        }
+
+        sprintf(name, "&expr%d", my_id);
+    }
+
+    return name;
 }

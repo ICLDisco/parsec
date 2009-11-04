@@ -32,6 +32,11 @@ struct symbol {
 void symbol_dump(const symbol_t *s, const char *prefix);
 
 /**
+ * helper for dumping the c structure representing the dplasma object
+ */
+int symbol_c_index_lookup( const symbol_t *symbol );
+
+/**
  * Dump all globally defined symbols.
  */
 void symbol_dump_all( const char* prefix );
