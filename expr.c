@@ -590,8 +590,10 @@ char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix)
                     my_id, e->flags, e->value);
         } 
         else if( EXPR_OP_SYMB == e->op ) {
-            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = &dplasma_symbols[%d] };\n",
-                    my_id, e->flags, symbol_c_index_lookup( e->var ));
+            char sname[64];
+            sprintf(sname, "%s", dump_c_symbol(out, e->var, prefix));
+            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s };\n",
+                    my_id, e->flags, sname);
         } else if( EXPR_IS_UNARY(e->op) ) {
             char sn[64];
             sprintf(sn, "%s", dump_c_expression(out, e->uop1, prefix));

@@ -30,6 +30,7 @@ struct symbol {
  * Dump the specified symbol.
  */
 void symbol_dump(const symbol_t *s, const char *prefix);
+char *dump_c_symbol(FILE *out, const symbol_t *s, const char *prefix);
 
 /**
  * helper for dumping the c structure representing the dplasma object

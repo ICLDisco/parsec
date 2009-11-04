@@ -34,9 +34,15 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d, const char *prefix)
     
     p += snprintf(dp_txt+p, 4096-p, "%s.locals = {", pref2);
     for(i = 0; i < d->nb_locals; i++) {
-        p += snprintf(dp_txt+p, 4096-p, "dplasma_symbols[%d]%s", 
-                      symbol_c_index_lookup(d->locals[i]),
-                      i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
+        if( symbol_c_index_lookup(d->locals[i]) > -1 ) {
+            p += snprintf(dp_txt+p, 4096-p, "dplasma_symbols[%d]%s", 
+                          symbol_c_index_lookup(d->locals[i]),
+                          i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
+        } else {
+            p += snprintf(dp_txt+p, 4096-p, "%s%s", 
+                          dump_c_symbol(out, d->locals[i], prefix),
+                          i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
+        }
     }
     for(; i < MAX_LOCAL_COUNT; i++) {
         p += snprintf(dp_txt+p, 4096-p, "NULL%s",
@@ -136,7 +142,7 @@ void dplasma_dump_all_c(FILE *out)
     
     fprintf(out, "#include \"dplasma.h\"\n\n");
 
-    fprintf(out, "static symbol_t dplasma_symbols[];\n\n");
+    dump_all_global_symbols_c(out);
 
     p += snprintf(whole+p, 8192-p, "dplasma_t dplasma_array[%d] = {\n", dplasma_array_count);
     for(i = 0; i < dplasma_array_count; i++) {
