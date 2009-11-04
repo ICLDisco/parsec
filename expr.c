@@ -513,19 +513,19 @@ char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix)
                     my_id, e->flags, e->value);
         } 
         else if( EXPR_OP_SYMB == e->op ) {
-            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .u.var = &dplasma_symbols[%d] };\n",
+            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = &dplasma_symbols[%d] };\n",
                     my_id, e->flags, symbol_c_index_lookup( e->var ));
         } else if( EXPR_IS_UNARY(e->op) ) {
             char sn[64];
             sprintf(sn, "%s", dump_c_expression(out, e->uop1, prefix));
-            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .u.unary.op1 = %s };\n", 
+            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s };\n", 
                     my_id, e->op, e->flags, sn);
         } else if( EXPR_IS_BINARY(e->op) ) {
             char sn1[64];
             char sn2[64];
             sprintf(sn1, "%s", dump_c_expression(out, e->bop1, prefix));
             sprintf(sn2, "%s", dump_c_expression(out, e->bop2, prefix));
-            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .u.binary.op1 = %s, .u.binary.op2 = %s };\n", 
+            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s };\n", 
                     my_id, e->op, e->flags, sn1, sn2);
         } else {
             fprintf(stderr, "Unkown operand %d in expression", e->op);
