@@ -443,7 +443,7 @@ expr:     DPLASMA_VAR                                {
         | expr DPLASMA_OP expr                       { $$ = expr_new_binary($1, $2, $3); }
         | DPLASMA_OPEN_PAR expr DPLASMA_CLOSE_PAR    { $$ = $2; }
         | expr DPLASMA_EQUAL expr                    { $$ = expr_new_binary($1, '=', $3); }
-        | expr DPLASMA_NOT_EQUAL expr                { $$ = expr_new_binary($1, "!", $3); }
+        | expr DPLASMA_NOT_EQUAL expr                { $$ = expr_new_binary($1, '!', $3); }
         | expr DPLASMA_RANGE expr                    { $$ = expr_new_binary($1, '.', $3);; }
 ;
 
