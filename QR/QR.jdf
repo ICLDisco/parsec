@@ -19,7 +19,7 @@ DGEQRT(k)
 
   IN RV1 <- (k==0) ? IN(k,k) : C2 DSSRFB(k-1,k,k)
 
-  OUT RV1 -> (k==SIZE-1) ? OUT(k,k) : R DTSQRT(k,k+1..SIZE-1)
+  OUT RV1 -> (k==SIZE-1) ? OUT(k,k) : R DTSQRT(k,k+1)
   OUT T   -> T DLARFB(k, k+1..SIZE-1)
 
 BODY
