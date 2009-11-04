@@ -44,9 +44,10 @@ char *dump_c_dep(FILE *out, const dep_t *d, const char *prefix)
         sprintf(name, "&dep%d", dep_idx);
 
         p += snprintf(whole + p, 4096-p, 
-                      "static dep_t dep%d = { .cond = %s, .dplasma = %s,\n"
+                      "static dep_t dep%d = { .cond = %s, .dplasma = &dplasma_array[%d],\n"
                       "                       .call_params = {",
-                      dep_idx, dump_c_expression(out, d->cond, prefix), "NULL /*TODO*/");
+                      dep_idx, dump_c_expression(out, d->cond, prefix),
+                      dplasma_dplasma_index( d->dplasma ));
         for(i = 0 ; i < MAX_CALL_PARAM_COUNT; i++) {
             p += snprintf(whole + p, 4096-p, "%s%s", dump_c_expression(out, d->call_params[i], prefix), 
                           i < MAX_CALL_PARAM_COUNT-1 ? ", " : "},\n");

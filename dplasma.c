@@ -105,6 +105,17 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
     free(pref2);
 }
 
+int dplasma_dplasma_index( const dplasma_t *d )
+{
+    int i;
+    for(i = 0; i < dplasma_array_count; i++) {
+        if( dplasma_array[i] == d ) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void dplasma_dump_all( void )
 {
     int i;

@@ -20,9 +20,9 @@ int main(int argc, char *argv[])
 
     /*
       Test Thomas
+    */
       dplasma_dump_all_c(stdout);
       exit(0);
-    */
 
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/

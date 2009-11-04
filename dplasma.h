@@ -83,6 +83,16 @@ void dplasma_dump(const dplasma_t *d, const char *prefix);
 void dplasma_dump_all( void );
 
 /**
+ * Dump all defined dplasma_t objetcs in a C-like format in the out file
+ */
+void dplasma_dump_all_c( FILE *out );
+
+/**
+ * helper to get the index of a dplasma object when dumping in the C-like format
+ */
+int dplasma_dplasma_index( const dplasma_t *d );
+
+/**
  * Add the dplasma_t object to a global list.
  */
 int dplasma_push( const dplasma_t* d );
