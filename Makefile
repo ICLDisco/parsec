@@ -27,7 +27,7 @@ LEX=flex # -d
 #
 # Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
 #
-CFLAGS=-Wall -pedantic -O3 -I. $(INC) -std=c99 -DADD_
+CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_
 LDFLAGS=
 
 TARGETS=cholesky/dposv parser tools/buildDAG
@@ -45,17 +45,17 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 
 all: $(TARGETS)
 
-%.tab.h %.tab.c: %.y
-	$(YACC) $< -o $(*F).tab.c
+parser: $(OBJECTS) parser.o
+	$(LINKER) -o $@ $^ $(LDFLAGS)
 
-parser: $(OBJECTS) lex.yy.o dplasma.tab.o parser.o
+tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS)
 
 cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
-	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
+%.tab.h %.tab.c: %.y
+	$(YACC) $< -o $(*F).tab.c
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<
