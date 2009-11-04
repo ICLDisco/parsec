@@ -45,38 +45,47 @@ int nameToColor(const char *name){
     return rslt;
 }
 
-/* work in progress */
-#if 0
-int isLocalValueWithinExecutionSpace(dep_t *peerNode, unsigned int whichCallParam, int value, assignment_t *assgn, unsigned int nbassgn){
+
+/**************************************************************************/
+/*
+ * This function calculates is the values of the call params held in
+ * the argument "callParamsV" satisfy the ranges of the Execution space
+ * for task "task"
+ */
+int isValidTask(dplasma_t *task, int *callParamsV, int callParamCount){
     int i, lb, ub;
-    dplasma_t *peerTask;
+    assignment_t *assgn;
 
-    for(i=0; i<nbassgn; ++i){
-        if( i>0 ) printf(", ");
-        printf("###### %s=%d",assgn[i].sym->name, assgn[i].value);
-    }
-    printf("\n");
-
-    peerTask = peerNode->dplasma;
-    printf("  >>>> Checking dep: %s %s   call param: %d value: %d expr: ",peerNode->sym_name, peerTask->name, whichCallParam, value);
-    expr_dump( peerNode->call_params[whichCallParam] );
-
-    if( EXPR_SUCCESS != expr_eval((expr_t *)peerTask->locals[whichCallParam]->min, assgn, nbassgn, &lb) ){
-        printf("\nError while evaluating min\n");
-        return 0;
-    }
-    if( EXPR_SUCCESS != expr_eval((expr_t *)peerTask->locals[whichCallParam]->max, assgn, nbassgn, &ub) ){
-        printf("\nError while evaluating max\n");
-        return 0;
+    /* Create an execution context based on the values of the call params */
+    assgn = (assignment_t *)malloc( callParamCount * sizeof(assignment_t) );
+    for(i=0; i<callParamCount; ++i){
+        assgn[i].sym = task->locals[i];
+        assgn[i].value = callParamsV[i];
     }
 
-    printf(" (%d:%d)\n",lb,ub);
+    /*
+     * Check if the values of *all* the call parameters are in the range they are
+     * supposed to be based on the equations of the execution space *and* the
+     * *current* values of the other parameters
+     */
+    for(i=0; i<callParamCount; ++i){
+        if( EXPR_SUCCESS != expr_eval((expr_t *)task->locals[i]->min, assgn, callParamCount, &lb) ){
+            printf("\nError while evaluating min\n");
+            return 0;
+        }
+        if( EXPR_SUCCESS != expr_eval((expr_t *)task->locals[i]->max, assgn, callParamCount, &ub) ){
+            printf("\nError while evaluating max\n");
+            return 0;
+        }
+
+        /* If any of the parameters has an illegal value, return false */
+        if( (lb > callParamsV[i]) || (ub < callParamsV[i]) )
+            return 0;
+    }
 
     return 1;
-
-/*    ret_val = expr_range_to_min_max((expr_t *)peerNode->call_params[whichCallParam], assgn, nbassgn, &min, &max); */
 }
-#endif
+
 
 /**************************************************************************/
 void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
@@ -88,6 +97,9 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
         return;
 
     if( whichCallParam == callParamCount ){
+        if( !isValidTask(peerNode->dplasma, callParamsV, callParamCount) ) {
+            return;
+        }
         printf("  %s -> %s",fromNodeStr, peerNode->dplasma->name);
         for(i=0; i<callParamCount; ++i){
             printf("_%d",callParamsV[i]);
@@ -103,11 +115,6 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
 
     ret_val = expr_eval((expr_t *)peerNode->call_params[whichCallParam], assgn, nbassgn, &res);
     if( EXPR_SUCCESS == ret_val ){
-/*
-        if( !isLocalValueWithinExecutionSpace(peerNode, whichCallParam, res, assgn, nbassgn) ) {
-            return;
-        }
-*/
         callParamsV[whichCallParam] = res;
         generatePeerNode(peerNode, fromNodeStr, whichCallParam+1, callParamCount, assgn, nbassgn, callParamsV);
         success = 1;
@@ -126,7 +133,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
 
     if( !success ){
         printf("Can't evaluate expression for dep: %s ",peerNode->dplasma->name);
-        printf("call_params[%d] ",i);
+        printf("call_params[%d] ",whichCallParam);
         expr_dump( peerNode->call_params[whichCallParam] );
         printf("\n");
         exit(-1);
