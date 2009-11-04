@@ -11,7 +11,7 @@ typedef struct dplasma dplasma_t;
 
 #define MAX_LOCAL_COUNT  5
 #define MAX_PRED_COUNT   5
-#define MAX_PARAM_COUNT  5
+#define MAX_PARAM_COUNT  10
 
 #include <stdint.h>
 #include "symbol.h"

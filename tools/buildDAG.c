@@ -32,10 +32,11 @@ int nameToColor(const char *name){
 
     for(i=0; i<len; ++i){
         tmp = (int)name[i];
-        tmp += (tmp<<16) + (tmp<<8);
+        tmp |= (tmp<<16) | (tmp<<8);
+        tmp = tmp/3;
         rslt = rslt + tmp;
         rslt = rslt*3;
-        tmp |= tmp*11;
+        tmp |= tmp*13 | tmp*2;
         rslt = rslt ^ tmp;
         rslt += 0x101010;
         rslt %= 0xffffff;
@@ -43,6 +44,39 @@ int nameToColor(const char *name){
 
     return rslt;
 }
+
+/* work in progress */
+#if 0
+int isLocalValueWithinExecutionSpace(dep_t *peerNode, unsigned int whichCallParam, int value, assignment_t *assgn, unsigned int nbassgn){
+    int i, lb, ub;
+    dplasma_t *peerTask;
+
+    for(i=0; i<nbassgn; ++i){
+        if( i>0 ) printf(", ");
+        printf("###### %s=%d",assgn[i].sym->name, assgn[i].value);
+    }
+    printf("\n");
+
+    peerTask = peerNode->dplasma;
+    printf("  >>>> Checking dep: %s %s   call param: %d value: %d expr: ",peerNode->sym_name, peerTask->name, whichCallParam, value);
+    expr_dump( peerNode->call_params[whichCallParam] );
+
+    if( EXPR_SUCCESS != expr_eval((expr_t *)peerTask->locals[whichCallParam]->min, assgn, nbassgn, &lb) ){
+        printf("\nError while evaluating min\n");
+        return 0;
+    }
+    if( EXPR_SUCCESS != expr_eval((expr_t *)peerTask->locals[whichCallParam]->max, assgn, nbassgn, &ub) ){
+        printf("\nError while evaluating max\n");
+        return 0;
+    }
+
+    printf(" (%d:%d)\n",lb,ub);
+
+    return 1;
+
+/*    ret_val = expr_range_to_min_max((expr_t *)peerNode->call_params[whichCallParam], assgn, nbassgn, &min, &max); */
+}
+#endif
 
 /**************************************************************************/
 void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
@@ -69,6 +103,11 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, unsigned int whichCall
 
     ret_val = expr_eval((expr_t *)peerNode->call_params[whichCallParam], assgn, nbassgn, &res);
     if( EXPR_SUCCESS == ret_val ){
+/*
+        if( !isLocalValueWithinExecutionSpace(peerNode, whichCallParam, res, assgn, nbassgn) ) {
+            return;
+        }
+*/
         callParamsV[whichCallParam] = res;
         generatePeerNode(peerNode, fromNodeStr, whichCallParam+1, callParamCount, assgn, nbassgn, callParamsV);
         success = 1;

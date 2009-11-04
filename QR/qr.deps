@@ -1,0 +1,34 @@
+// petit -b -i -o -s -Rqr.deps qr.t
+
+flow     1: Entry           -->   9: A(k,k)                          [ MV]
+{[In_1,In_1] -> [In_1] : 0 <= In_1 < TILES}
+flow     1: Entry           -->  19: A(m,k)                          [ MV]
+{[In_1,In_2] -> [In_2,In_1] : 0 <= In_2 < In_1 < TILES}
+flow     1: Entry           -->  30: A(k,n)                          [ MV]
+{[In_1,In_2] -> [In_1,In_2] : 0 <= In_1 < In_2 < TILES}
+flow     1: Entry           -->  41: A(m,n)                          [ MV]
+{[In_1,In_2] -> [k,In_2,In_1] : 0 <= k < In_1,In_2 < TILES}
+flow    10: A(k,k)          -->  17: A(k,k)          (0)             [ V]
+{[k] -> [k,k+1] : 0 <= k <= TILES-2}
+may dd: {[0]}
+flow    11: T(k,k)          -->  29: T(k,k)          (0)             [ MV]
+{[k] -> [k,n] : 0 <= k < n < TILES}
+exact dd: {[0]}
+flow    18: A(k,k)          -->  17: A(k,k)          (0,1)           [ Vo]
+{[k,m] -> [k,m+1] : 0 <= k < m <= TILES-2}
+exact dd: {[0,1]}
+flow    18: A(k,k)          -->  28: A(k,k)          (0)             [ V]
+{[k,TILES-1] -> [k,n] : 0 <= k < n < TILES}
+may dd: {[0,In_2]: In_2 <= 0}
+flow    20: A(m,k)          -->  37: A(m,k)          (0)             [ MV]
+{[k,m] -> [k,n,m] : 0 <= k < m,n < TILES}
+may dd: {[0,In_2]}
+flow    21: T(m,k)          -->  38: T(m,k)          (0)             [ MV]
+{[k,m] -> [k,n,m] : 0 <= k < m,n < TILES}
+may dd: {[0,In_2]}
+flow    31: A(k,n)          -->  39: A(k,n)          (0,0)           [ V]
+{[k,n] -> [k,n,k+1] : 0 <= k < n < TILES}
+may dd: {[0,0]}
+flow    40: A(k,n)          -->  39: A(k,n)          (0,0,1)         [ Vo]
+{[k,n,m] -> [k,n,m+1] : 0 <= k < n < TILES && k < m <= TILES-2}
+exact dd: {[0,0,1]}
