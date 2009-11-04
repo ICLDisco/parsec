@@ -306,3 +306,15 @@ void external_hook(void){
     return;
 }
 
+extern int yyparse();
+extern int dplasma_lineno;
+
+int main(int argc, char *argv[])
+{
+    dplasma_lineno = 1;
+	yyparse();
+
+    external_hook();
+
+	return 0;
+}

@@ -27,29 +27,35 @@ LEX=flex # -d
 #
 # Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
 #
-CFLAGS=-Wall -pedantic -O3 -I. $(INC) -std=c99 -DADD_ -DDPLASMA_EXECUTE
+CFLAGS=-Wall -pedantic -O3 -I. $(INC) -std=c99 -DADD_
 LDFLAGS=
 
-OBJECTS=dplasma.o \
-	symbol.o \
-	assignment.o \
-	expr.o \
-	params.o \
-	dep.o \
-	tools/buildDAG.o \
-	cholesky_hook.o \
-	example_dposv.o
+TARGETS=cholesky/dposv parser tools/buildDAG
+
+OBJECTS=dplasma.o symbol.o assignment.o expr.o \
+	params.o dep.o lex.yy.o dplasma.tab.o
+
+CHOLESKY_OBJECTS=cholesky/cholesky_hook.o \
+	cholesky/dposv.o
+
+BUILDDAG_OBJECTS=tools/buildDAG.o
 
 .SUFFIXES:
 .SUFFIXES: .c .o .h
 
-all: parse
+all: $(TARGETS)
 
 %.tab.h %.tab.c: %.y
 	$(YACC) $< -o $(*F).tab.c
 
-parse: lex.yy.o dplasma.tab.o $(OBJECTS)
-	$(LINKER) -o parse $^ $(LDFLAGS) $(LIB)
+parser: $(OBJECTS) lex.yy.o dplasma.tab.o parser.o
+	$(LINKER) -o $@ $^ $(LDFLAGS)
+
+cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS)
+	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
+
+tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
+	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<
@@ -61,4 +67,4 @@ lex.yy.c: dplasma.l
 	$(LEX) dplasma.l
 
 clean:
-	rm -f *.o test-expr lex.yy.c y.tab.c y.tab.h
+	rm -f $(OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) $(TARGETS) test-expr lex.yy.c y.tab.c y.tab.h

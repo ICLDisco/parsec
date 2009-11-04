@@ -14,6 +14,7 @@ typedef struct dplasma dplasma_t;
 #define MAX_PARAM_COUNT  10
 
 #include <stdint.h>
+#include <stdlib.h>
 #include "symbol.h"
 #include "expr.h"
 #include "params.h"
@@ -129,5 +130,29 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context );
  * @return -1 If no suitable values for this execution context can be found.
  */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
+
+/**
+ * Convert the execution context to a string.
+ *
+ * @param [IN]    the context to be printed out
+ * @param [INOUT] the string where the output will be added
+ * @param [IN]    the number of characters available on the string.
+ */
+char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context,
+                                 char* tmp,
+                                 size_t length );
+
+/**
+ * Convert a dependency to a string under the format X(...) -> Y(...).
+ *
+ * @param [IN]    the source of the dependency context
+ * @param [IN]    the destination of the dependency context
+ * @param [INOUT] the string where the output will be added
+ * @param [IN]    the number of characters available on the string.
+ */
+char* dplasma_dependency_to_string( const dplasma_execution_context_t* from,
+                                    const dplasma_execution_context_t* to,
+                                    char* tmp,
+                                    size_t length );
 
 #endif

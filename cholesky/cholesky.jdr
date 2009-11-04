@@ -3,8 +3,8 @@
  */
 GRIDrows = 1
 GRIDcols = 1
-//NB = 12
-//SIZE = 10
+//NB = 120
+SIZE = 10
 colRANK = 0
 rowRANK = 0
 

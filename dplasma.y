@@ -24,8 +24,6 @@ static int global_call_params_index = 0;
 static char inout_type;
 extern int dplasma_lineno;
 
-void external_hook(void);
-
 /*
 static expr_t *global_expr_stack[MAX_EXPR_STACK_COUNT];
 static unsigned int global_expr_stack_size = 0;
@@ -44,24 +42,6 @@ int yywrap()
 	return 1;
 }
 
-int main2(int argc, char *argv[])
-{
-    dplasma_lineno = 1;
-	yyparse();
-
-    /*symbol_dump_all("");*/
-    /*dplasma_dump_all();*/
-    {
-        dplasma_execution_context_t exec_context;
-        /* I know what I'm doing ;) */
-        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-        dplasma_set_initial_execution_context(&exec_context);
-        dplasma_execute(&exec_context);
-    }
-/*    external_hook(); */
-
-	return 0;
-}
 %}
 
 %union

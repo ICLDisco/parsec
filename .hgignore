@@ -1,7 +1,10 @@
 .*\.o
-parse
 \..*\.swp
 .*\.output
 .*\.tab\.c
 .*\.tab\.h
 lex\.yy\.c
+parser
+cholesky/dposv
+tools/buildDAG
+
