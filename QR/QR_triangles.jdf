@@ -1,7 +1,7 @@
 GRIDrows = 2
 GRIDcols = 2
 NB = 10
-SIZE = 2
+SIZE = 3
 colRANK = 0
 rowRANK = 0
 
@@ -20,6 +20,7 @@ DGEQRT(k)
   IN RV1 <- (k==0) ? IN(k,k) : C2 DSSRFB(k-1,k,k)
 
   OUT RV1 -> (k==SIZE-1) ? OUT(k,k) : R DTSQRT(k,k+1)
+  OUT RV1 -> (k==SIZE-1) ? OUT(k,k) : V1 DLARFB(k,k+1..SIZE-1)
   OUT T   -> T DLARFB(k, k+1..SIZE-1)
 
 BODY
@@ -43,7 +44,7 @@ DTSQRT(k,m)
   IN V2 <- (k==0) ? IN(m,k) : C2 DSSRFB(k-1,k,m)
   IN R  <- (m==k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)
 
-  OUT R  -> (m==SIZE-1) ?  V1 DLARFB(k,k+1..SIZE-1) : R DTSQRT(k,m+1)
+  OUT R  -> (m==SIZE-1) ? OUT(k,m) : R DTSQRT(k,m+1)
   OUT V2 -> V2 DSSRFB(k,k+1..SIZE-1,m)
   OUT T  -> T DSSRFB(k,k+1..SIZE-1,m)
 
@@ -68,7 +69,7 @@ DLARFB(k,n)
 
   IN C1 <- (k==0) ? IN(k,n) : C2 DSSRFB(k-1,n,k)
   IN T  <-  T DGEQRT(k)
-  IN V1 <- R DTSQRT(k, SIZE-1)
+  IN V1 <- RV1 DGEQRT(k)
 
   OUT C1 -> C1 DSSRFB(k,n,k+1..SIZE-1)
 
