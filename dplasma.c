@@ -122,7 +122,7 @@ const dplasma_t* dplasma_element_at( int i )
     return NULL;
 }
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
 #define DEBUG(ARG)  printf ARG
 #else
 #define DEBUG(ARG)
@@ -389,7 +389,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_context_t* exec_context 
     deps = *deps_location;
     last_deps = NULL;
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+    for( i = 0; i < function->nb_locals; i++ ) {
         if( NULL == (*deps_location) ) {
             int min, max, number;
             dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
@@ -533,9 +533,10 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
     param_t* param;
     dep_t* dep;
 
-    DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     if( NULL != function->hook ) {
         function->hook( exec_context );
+    } else {
+        DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
