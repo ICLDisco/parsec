@@ -20,16 +20,16 @@ LIB        = $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpth
 
 
 
-CC = /usr/local/bin/gcc
-CLINKER = $(CC)
+CC = gcc
+CLINKER = gcc
 LINKER = /usr/local/bin/gfortran
 YACC=yacc -d -y --verbose
 LEX=flex # -d
 #
 # Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
 #
-CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_
-LDFLAGS=
+CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_ -D_DEBUG
+LDFLAGS=-g
 
 TARGETS=cholesky/dposv parser tools/buildDAG
 
