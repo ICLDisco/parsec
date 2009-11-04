@@ -20,7 +20,8 @@ LIB        = $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpth
 
 
 
-CC=/usr/local/bin/gcc
+CC = /usr/local/bin/gcc
+CLINKER = $(CC)
 LINKER = /usr/local/bin/gfortran
 YACC=yacc -d -y --verbose
 LEX=flex # -d
@@ -46,10 +47,10 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 all: $(TARGETS)
 
 parser: $(OBJECTS) parser.o
-	$(LINKER) -o $@ $^ $(LDFLAGS)
+	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
-	$(LINKER) -o $@ $^ $(LDFLAGS)
+	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
