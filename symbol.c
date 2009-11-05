@@ -41,7 +41,7 @@ char *dump_c_symbol(FILE *out, const symbol_t *s, const char *prefix)
     }
     
     e = (symb_list_t*)calloc(1, sizeof(symb_list_t));
-    e->s = s;
+    e->s = (symbol_t*)s;
     e->c_name = (char*)malloc(64);
     sprintf(e->c_name, "&symb%d", i);
     e->next = already_dumped;
@@ -399,6 +399,65 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
 
     assignment->value = old_value; /* restore the old value */
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
+}
+
+int dplasma_symbol_validate_value( const symbol_t* symbol,
+                                   const expr_t** predicates,
+                                   assignment_t* local_context )
+{
+    assignment_t* assignment;
+    int rc, min, max, pred_index, pred_val, valid_value = 1;
+
+    rc = dplasma_find_assignment( symbol->name, local_context, MAX_LOCAL_COUNT, &assignment );
+    if( DPLASMA_ASSIGN_ERROR == rc ) {
+        /* the symbol is not yet on the assignment list, so there is ABSOLUTELY
+         * no reason to ask for the next value.
+         */
+        return rc;
+    }
+
+    rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the min expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+
+    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    if( EXPR_SUCCESS != rc ) {
+        printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
+        return rc;
+    }
+
+    /* Make sure the current value is in the legal range */
+    if( (assignment->value < min) || (assignment->value > max) || (min > max) ) {
+        return EXPR_FAILURE_UNKNOWN;
+    }
+
+    /* If there are no predicates we're good to go */
+    if( NULL == predicates ) {
+        return EXPR_SUCCESS;
+    }
+
+    for( pred_index = 0;
+         (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
+         pred_index++ ) {
+        /* If we fail to evaluate the expression, let's suppose we don't have
+         * all the required symbols in the assignment array.
+         */
+        if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], symbol) ) {
+            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
+                                          local_context, MAX_LOCAL_COUNT,
+                                          &pred_val) ) {
+                if( 0 == pred_val ) {
+                    /* This particular value doesn't fit. Go to the next one */
+                    valid_value = 0;
+                    break;
+                }
+            }
+        }
+    }
+    
+    return ( 1 == valid_value ? EXPR_SUCCESS : EXPR_FAILURE_CANNOT_EVALUATE_RANGE);
 }
 
 int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,

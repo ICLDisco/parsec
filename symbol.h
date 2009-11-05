@@ -137,6 +137,26 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
                                    int* pvalue );
 
 /**
+ * Return 0 if the current value is an acceptable value for a specific symbol. The symbol
+ * is supposed to be already set in the assignment lists.
+ *
+ * @param [IN]  The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
+ *              symbol to be analyzed. Can be NULL if no predicated
+ *              are imposed.
+ * @param [IN]  The list of symbols and their current values in the
+ *              current execution context.
+ * @param [INOUT] On input it contains the current value of the symbol,
+ *                while on output it contains the next acceptable value.
+ *
+ * @return  0 if the current value of the symbol in the local_context is valid.
+ * @return -1 if something bad happened or the value is out-of-bounds
+ */
+int dplasma_symbol_validate_value( const symbol_t* symbol,
+                                   const expr_t** predicates,
+                                   assignment_t* local_context );
+
+/**
  * Return the absolute minimal value for a specific symbol.
  *
  * @param [IN]  The symbol to be analyzed. Cannot be NULL.
