@@ -25,24 +25,20 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, uns
 
 /**************************************************************************/
 int nameToColor(const char *name){
-    int i, len, tmp, rslt;
+    int i, len;
+    long long int tmp, rslt;
 
-    rslt = 1234;
+    rslt = 135;
     len = strlen(name);
 
     for(i=0; i<len; ++i){
-        tmp = (int)name[i];
-        tmp |= (tmp<<16) | (tmp<<8);
-        tmp = tmp/3;
-        rslt = rslt + tmp;
-        rslt = rslt*3;
-        tmp |= tmp*13 | tmp*2;
-        rslt = rslt ^ tmp;
-        rslt += 0x101010;
-        rslt %= 0xffffff;
+        tmp = (long long int)name[i];
+        rslt *= tmp;
+        rslt += rslt/75;
+        rslt &= 0xFFFFFF;
     }
 
-    return rslt;
+    return (int)rslt;
 }
 
 
