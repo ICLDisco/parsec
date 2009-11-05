@@ -5,7 +5,6 @@
 
 extern int yyparse();
 extern int dplasma_lineno;
-extern char spacers[128];
 
 static int generic_hook(const dplasma_execution_context_t* exec_context)
 {
@@ -26,7 +25,7 @@ static int generic_hook(const dplasma_execution_context_t* exec_context)
     dplasma_service_to_string(exec_context, tmp, 128);
     printf("%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
            tmp, color, tmp);
-    /*printf("%sExecute %s\n", spacers, dplasma_service_to_string(exec_context, tmp, 128));*/
+    /*printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));*/
     return 0;
 }
 

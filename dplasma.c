@@ -15,7 +15,6 @@ extern char *strdup(const char *);
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
-char spacers[128] = "";
 
 static char *dplasma_dump_c(FILE *out, const dplasma_t *d, const char *prefix)
 {
@@ -456,6 +455,39 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
     return mask;
 }
 
+/**
+ * Check if a particular instance of the service can be executed based on the
+ * values of the arguments and the ranges specified.
+ */
+int dplasma_is_valid( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    int i, rc, min, max;
+
+    for( i = 0; i < function->nb_locals; i++ ) {
+        symbol_t* symbol = function->locals[i];
+
+        rc = expr_eval( symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
+        if( EXPR_SUCCESS != rc ) {
+            fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+        rc = expr_eval( symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
+        if( EXPR_SUCCESS != rc ) {
+            fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+        if( (exec_context->locals[i].value < min) ||
+            (exec_context->locals[i].value > max) ) {
+            char tmp[128];
+            fprintf( stderr, "Function %s is not a valid instance.\n",
+                     dplasma_service_to_string(exec_context, tmp, 128) );
+            return -1;
+        }
+    }
+    return 0;
+}
+
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
 /**
@@ -469,26 +501,67 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
 #ifdef _DEBUG
     char tmp[128];
 #endif
-    int i, actual_loop, mask;
+    int i, actual_loop, mask, rc;
 
     if( 0 == function->nb_locals ) {
         /* special case for the IN/OUT objects */
         return 0;
     }
 
-    DEBUG(("%sActivate dependencies for %s\n", spacers, dplasma_service_to_string(exec_context, tmp, 128)));
+    DEBUG(("Activate dependencies for %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     deps_location = &(function->deps);
     deps = *deps_location;
     last_deps = NULL;
 
     for( i = 0; i < function->nb_locals; i++ ) {
+    restart_validation:
+        rc = dplasma_symbol_validate_value( function->locals[i],
+                                            (const expr_t**)function->preds,
+                                            exec_context->locals );
+        if( 0 != rc ) {
+            /* This is not a valid value for this parameter. Try the next one */
+        pick_next_value:
+            exec_context->locals[i].value++;
+            if( exec_context->locals[i].value > exec_context->locals[i].max ) {
+                exec_context->locals[i].value = exec_context->locals[i].min;
+                if( --i < 0 ) {
+                    /* No valid value has been found. Return ! */
+                    return -1;
+                }
+                deps = deps->prev;
+                last_deps = deps;
+                goto pick_next_value;
+            }
+            if( 0 == i ) {
+                deps_location = &(function->deps);
+            } else {
+                deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
+            }
+            goto restart_validation;
+        }
+
         if( NULL == (*deps_location) ) {
             int min, max, number;
+            /* TODO: optimize this section (and the similar one few tens of lines down
+             * the code) to work on local ranges instead of absolute ones.
+             */
             dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
             dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
+            /* Make sure we stay in the expected ranges */
+            if( exec_context->locals[i].min < min ) {
+                DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
+                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, min));
+                exec_context->locals[i].min = min;
+                exec_context->locals[i].value = min;
+            }
+            if( exec_context->locals[i].max > max ) {
+                DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
+                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].max, max));
+                exec_context->locals[i].max = max;
+            }
             assert( (min <= exec_context->locals[i].value) && (max >= exec_context->locals[i].value) );
             number = max - min;
-            DEBUG(("%sAllocate %d spaces for loop %s (min %d max %d)\n", spacers,
+            DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
                    number, function->locals[i]->name, min, max));
             deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                    number * sizeof(dplasma_dependencies_union_t));
@@ -496,15 +569,28 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             deps->symbol = function->locals[i];
             deps->min = min;
             deps->max = max;
-            deps->prev = last_deps; /* chain them backawrd */
+            deps->prev = last_deps; /* chain them backward */
             *deps_location = deps;  /* store the deps in the right location */
             if( NULL != last_deps ) {
                 last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
             }
+        } else {
+            deps = *deps_location;
+            /* Make sure we stay in bounds */
+            if( exec_context->locals[i].min < deps->min ) {
+                DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
+                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, deps->min));
+                exec_context->locals[i].min = deps->min;
+                exec_context->locals[i].value = deps->min;
+            }
+            if( exec_context->locals[i].max > deps->max ) {
+                DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
+                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].max, deps->max));
+                exec_context->locals[i].max = deps->max;
+            }
         }
-        deps = *deps_location;
 
-        DEBUG(("%sPrepare storage for next loop variable (value %d) at %d\n", spacers,
+        DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
                exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
         deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
         last_deps = deps;
@@ -513,6 +599,15 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
     actual_loop = function->nb_locals - 1;
     while(1) {
 
+        if( 0 != dplasma_is_valid(exec_context) ) {
+            char tmp[128], tmp1[128];
+
+            fprintf( stderr, "Output dependencies of %s generate an invalid call to %s\n",
+                     dplasma_service_to_string(origin, tmp, 128),
+                     dplasma_service_to_string(exec_context, tmp1, 128) );
+            goto next_value;
+        }
+
         /* Mark the dependencies and check if this particular instance can be executed */
         /* TODO: This is a pretty ugly hack as it doesn't allow us to know which dependency
          * has been already satisfied, only to track the number if satisfied dependencies.
@@ -520,7 +615,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
         if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
             mask = dplasma_check_IN_dependencies( exec_context );
             if( mask > 0 ) {
-                DEBUG(("%sActivate IN dependencies with mask 0x%02x\n", spacers, mask));
+                DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
                 while( mask > 0 ) {
                     deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
                         (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | 0x1;
@@ -542,27 +637,22 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             /* This service is ready to be executed as all dependencies are solved. Let the
              * scheduler knows about this and keep going.
              */
-            {
-                int length = strlen(spacers);
-                spacers[length] = ' ';
-                spacers[length+1] = '\0';
-                dplasma_execute(exec_context);
-                spacers[length] = '\0';
-            }
+            dplasma_execute(exec_context);
         } else {
-            DEBUG(("%s  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n", spacers,
+            DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)])));
         }
 
+    next_value:
         /* Go to the next valid value for this loop context */
         exec_context->locals[actual_loop].value++;
         if( exec_context->locals[actual_loop].max < exec_context->locals[actual_loop].value ) {
             /* We're out of the range for this variable */
             int current_loop = actual_loop;
         one_loop_up:
-            DEBUG(("%sLoop index %d based on %s failed to get next value. Going up ...\n", spacers,
+            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
                    actual_loop, function->locals[actual_loop]->name));
             if( 0 == actual_loop ) {  /* we're done */
                 goto end_of_all_loops;
@@ -574,10 +664,10 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             if( exec_context->locals[actual_loop].max < exec_context->locals[actual_loop].value ) {
                 goto one_loop_up;
             }
-            DEBUG(("%sKeep going on the loop level %d (symbol %s value %d)\n", spacers, actual_loop,
+            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
                    function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
             deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);
-            DEBUG(("%sPrepare storage for next loop variable (value %d) at %d\n", spacers,
+            DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
                    exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
             for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
                 exec_context->locals[actual_loop].value = exec_context->locals[actual_loop].min;
@@ -587,7 +677,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                     dplasma_symbol_get_absolute_minimum_value( function->locals[actual_loop], &min );
                     dplasma_symbol_get_absolute_maximum_value( function->locals[actual_loop], &max );
                     number = max - min;
-                    DEBUG(("%sAllocate %d spaces for loop %s index %d value %d (min %d max %d)\n", spacers,
+                    DEBUG(("Allocate %d spaces for loop %s index %d value %d (min %d max %d)\n",
                            number, function->locals[actual_loop]->name, CURRENT_DEPS_INDEX(actual_loop-1),
                            exec_context->locals[actual_loop].value, min, max));
                     deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
@@ -601,16 +691,16 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                 }
                 deps = *deps_location;
                 deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);
-                DEBUG(("%sPrepare storage for next loop variable (value %d) at %d\n", spacers,
+                DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
                        exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
                 last_deps = deps;
 
-                DEBUG(("%sLoop index %d based on %s get first value %d\n", spacers, actual_loop,
+                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
                        function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
             }
             actual_loop = current_loop;  /* go back to the original loop */
         } else {
-            DEBUG(("%sLoop index %d based on %s get next value %d\n", spacers, actual_loop,
+            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
                    function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
         }
     }
@@ -639,7 +729,7 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
     if( NULL != function->hook ) {
         function->hook( exec_context );
     } else {
-        DEBUG(( "%sExecute %s\n", spacers, dplasma_service_to_string(exec_context, tmp, 128)));
+        DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
@@ -660,7 +750,7 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
                 }
             }
             new_context.function = dep->dplasma;
-            DEBUG(( "%s-> %s of %s( ", spacers, dep->sym_name, dep->dplasma->name ));
+            DEBUG(( " -> %s of %s( ", dep->sym_name, dep->dplasma->name ));
             /* Check to see if any of the params are conditionals or ranges and if they are
              * if they match. If yes, then set the correct values.
              */
