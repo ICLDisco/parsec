@@ -1,7 +1,7 @@
-GRIDrows = 2
-GRIDcols = 2
+GRIDrows = 1
+GRIDcols = 1
 // NB = 120
-SIZE = 4
+SIZE = 5
 colRANK = 0
 rowRANK = 0
 
