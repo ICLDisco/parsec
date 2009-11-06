@@ -25,7 +25,7 @@ typedef struct symb_list {
     struct symb_list *next;
 } symb_list_t;
 
-char *dump_c_symbol(FILE *out, const symbol_t *s, const char *prefix)
+char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size)
 {
     static symb_list_t *already_dumped = NULL;
     int i;
@@ -47,8 +47,8 @@ char *dump_c_symbol(FILE *out, const symbol_t *s, const char *prefix)
     e->next = already_dumped;
     already_dumped = e;
 
-    sprintf(mn, "%s", dump_c_expression(out, s->min, prefix));
-    sprintf(mm, "%s", dump_c_expression(out, s->max, prefix));
+    sprintf(mn, "%s", dump_c_expression(out, s->min, init_func_body, init_func_body_size));
+    sprintf(mm, "%s", dump_c_expression(out, s->max, init_func_body, init_func_body_size));
     
     fprintf(out, "static symbol_t symb%d = { .flags = 0x%08x, .name = \"%s\", .min = %s, .max = %s };\n",
             i,
@@ -57,14 +57,14 @@ char *dump_c_symbol(FILE *out, const symbol_t *s, const char *prefix)
     return e->c_name;
 }
 
-void dump_all_global_symbols_c(FILE *out)
+void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_func_body_size)
 {
     int i;
     char whole[4096];
     int l = 0;
     l += snprintf(whole+l, 4096-l, "static symbol_t *dplasma_symbols[] = {\n");
     for(i = 0; i < dplasma_symbol_array_count; i++) {
-        l += snprintf(whole+l, 4096-l, "   %s%s", dump_c_symbol(out, dplasma_symbol_array[i], ""),
+        l += snprintf(whole+l, 4096-l, "   %s%s", dump_c_symbol(out, dplasma_symbol_array[i], init_func_body, init_func_body_size),
                       i < dplasma_symbol_array_count-1 ? ",\n" : "};\n");
     }
     fprintf(out, "%s", whole);
@@ -120,7 +120,6 @@ int symbol_c_index_lookup( const symbol_t *symbol )
             return i;
         }
     }
-    fprintf(stderr, "symbol %s not found...\n", symbol->name);
     return -1;
 }
 

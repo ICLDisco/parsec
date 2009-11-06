@@ -574,7 +574,7 @@ void expr_dump(const expr_t *e)
     }
 }
 
-char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix)
+char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body, int init_func_body_size)
 {
     static unsigned int expr_idx = 0;
     static char name[64];
@@ -591,19 +591,19 @@ char *dump_c_expression(FILE *out, const expr_t *e, const char *prefix)
         } 
         else if( EXPR_OP_SYMB == e->op ) {
             char sname[64];
-            sprintf(sname, "%s", dump_c_symbol(out, e->var, prefix));
+            sprintf(sname, "%s", dump_c_symbol(out, e->var, init_func_body, init_func_body_size));
             fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s };\n",
                     my_id, e->flags, sname);
         } else if( EXPR_IS_UNARY(e->op) ) {
             char sn[64];
-            sprintf(sn, "%s", dump_c_expression(out, e->uop1, prefix));
+            sprintf(sn, "%s", dump_c_expression(out, e->uop1, init_func_body, init_func_body_size));
             fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s };\n", 
                     my_id, e->op, e->flags, sn);
         } else if( EXPR_IS_BINARY(e->op) ) {
             char sn1[64];
             char sn2[64];
-            sprintf(sn1, "%s", dump_c_expression(out, e->bop1, prefix));
-            sprintf(sn2, "%s", dump_c_expression(out, e->bop2, prefix));
+            sprintf(sn1, "%s", dump_c_expression(out, e->bop1, init_func_body, init_func_body_size));
+            sprintf(sn2, "%s", dump_c_expression(out, e->bop2, init_func_body, init_func_body_size));
             fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s };\n", 
                     my_id, e->op, e->flags, sn1, sn2);
         } else {
