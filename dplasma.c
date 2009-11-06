@@ -636,11 +636,13 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
 
         if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
             == function->dependencies_mask ) {
+#ifdef DPLASMA_GENERATE_DOT
             {
                 char tmp[128];
                 printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
             }
+#endif  /* DPLASMA_GENERATE_DOT */
             execution_step++;
 
             /* This service is ready to be executed as all dependencies are solved. Let the
@@ -652,11 +654,13 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)])));
+#ifdef DPLASMA_GENERATE_DOT
             {
                 char tmp[128];
                 printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
             }
+#endif  /* DPLASMA_GENERATE_DOT */
         }
 
     next_value:
