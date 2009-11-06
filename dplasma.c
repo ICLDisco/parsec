@@ -514,6 +514,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
     char tmp[128];
 #endif
     int i, actual_loop, rc;
+    static int execution_step = 0;
 
     if( 0 == function->nb_locals ) {
         /* special case for the IN/OUT objects */
@@ -610,6 +611,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
 
     actual_loop = function->nb_locals - 1;
     while(1) {
+        int first_encounter = 0;
 
         if( 0 != dplasma_is_valid(exec_context) ) {
             char tmp[128], tmp1[128];
@@ -621,30 +623,30 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
         }
 
         /* Mark the dependencies and check if this particular instance can be executed */
-        /* TODO: This is a pretty ugly hack as it doesn't allow us to know which dependency
-         * has been already satisfied, only to track the number if satisfied dependencies.
-         */
         if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
             int mask = dplasma_check_IN_dependencies( exec_context );
             deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] |= mask;
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
+            first_encounter = 1;
         }
 
         deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] |= (DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask);
 
         if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
             == function->dependencies_mask ) {
+            {
+                char tmp[128];
+                printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                       origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
+            }
+            execution_step++;
+
             /* This service is ready to be executed as all dependencies are solved. Let the
              * scheduler knows about this and keep going.
              */
             dplasma_execute(exec_context);
-            {
-                char tmp[128];
-                printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
-                       origin_param->name, dest_param->name, "#FF0000", "solid");
-            }
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
@@ -653,7 +655,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             {
                 char tmp[128];
                 printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
-                       origin_param->name, dest_param->name, "#FF0000", "dotted");
+                       origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
             }
         }
 
