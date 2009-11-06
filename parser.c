@@ -9,6 +9,7 @@ extern int dplasma_lineno;
 static int generic_hook(const dplasma_execution_context_t* exec_context)
 {
     char tmp[128];
+#ifdef DPLASMA_GENERATE_DOT
     char* color;
 
     if(0 == strcmp(exec_context->function->name, "DGEQRT") ) {
@@ -33,7 +34,9 @@ static int generic_hook(const dplasma_execution_context_t* exec_context)
     dplasma_service_to_string(exec_context, tmp, 128);
     printf("%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
            tmp, color, tmp);
-    /*printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));*/
+#else
+    printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
+#endif  /* DPLASMA_GENERATE_DOT */
     return 0;
 }
 
