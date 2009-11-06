@@ -494,7 +494,9 @@ int dplasma_is_valid( dplasma_execution_context_t* exec_context )
  * Release all OUT dependencies for this particular instance of the service.
  */
 int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
-                                      dplasma_execution_context_t* exec_context )
+                                      const param_t* origin_param,
+                                      dplasma_execution_context_t* exec_context,
+                                      const dep_t* dest_dep )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
@@ -629,7 +631,8 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | mask;
         {
             char tmp[128];
-            printf("%s\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128));
+            printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                   origin_param->sym_name, dest_dep->sym_name, "#FF0000", "dotted");
         }
 
         if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
@@ -786,7 +789,8 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
                 new_context.locals[k].sym = NULL;
             }
             DEBUG(( ")\n" ));
-            dplasma_release_OUT_dependencies( exec_context, &new_context );
+            dplasma_release_OUT_dependencies( exec_context, param,
+                                              &new_context, dep );
         }
     }
 
