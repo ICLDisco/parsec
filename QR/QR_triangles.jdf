@@ -102,16 +102,6 @@ DSSRFB(k,n,m)
   // OUT C2 -> ((m+n)==(2*SIZE-2)) ? RV1 DGEQRT(k+1) : OUT(m,n)
 
   OUT C2 -> ((m==(k+1)) & (n==(k+1))) ? RV1 DGEQRT(k+1) : C2 DSSRFB(k+1,n,m)
-  // really we need a nested "if" construct because the above line should be:
-  // if( (m==(k+1)) & (n==(k+1)) ) {
-  //     RV1 DGEQRT(k+1)
-  // }else{
-  //     if( k==SIZE-2){
-  //         OUT()
-  //     }else{
-  //         C2 DSSRFB(k+1,n,m)
-  //     }
-  // }
 
   OUT C2 -> (k==SIZE-2) ? OUT(m,n) : V2 DTSQRT(k+1,m)
   OUT C2 -> (k==SIZE-2) ? OUT(m,n) : C1 DLARFB(k+1,n)
