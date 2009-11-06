@@ -34,7 +34,7 @@ LDFLAGS=-g
 
 TARGETS=cholesky/dposv parser tools/buildDAG
 
-OBJECTS=dplasma.o symbol.o assignment.o expr.o \
+OBJECTS=parser.o dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o lex.yy.o dplasma.tab.o
 
 CHOLESKY_OBJECTS=cholesky/cholesky_hook.o \
@@ -47,7 +47,7 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 
 all: $(TARGETS)
 
-parser: $(OBJECTS) parser.o
+parser: $(OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
