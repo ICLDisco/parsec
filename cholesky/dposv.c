@@ -100,7 +100,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
                            PLASMA_desc, descA);
 
     /* Init DPLASMA */
-#ifndef DPLASMA_EXECUTE
+#ifdef DPLASMA_EXECUTE
     dplasma_lineno = 1;
 
     time_elapsed = get_cur_time();
@@ -127,7 +127,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
         time_elapsed = get_cur_time();
         dplasma_execute(&exec_context);
         time_elapsed = get_cur_time() - time_elapsed;
-        printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (2.0*N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
+        printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
     }
 #else
     time_elapsed = get_cur_time();
@@ -135,7 +135,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
                            PLASMA_enum, uplo,
                            PLASMA_desc, descA);
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("PLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (2.0*N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
+    printf("PLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
 #endif
 
     if (PLASMA_INFO == PLASMA_SUCCESS)
@@ -214,8 +214,8 @@ int main (int argc, char **argv)
 #ifdef DPLASMA_EXECUTE
    DPLASMA_dpotrf(uplo, N, A2, LDA);
 #else
-   PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
 #endif
+   PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
    eps = dlamch("Epsilon");
    printf("\n");
    printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
