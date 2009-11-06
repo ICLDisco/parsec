@@ -100,7 +100,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, uns
         for(i=0; i<callParamCount; ++i){
             printf("_%d",callParamsV[i]);
         }
-        printf(" [label=\"%s=>%s\"];\n", localSymbol, peerNode->sym_name);
+        printf(" [label=\"%s=>%s\"];\n", localSymbol, peerNode->param->name);
         return;
     }
 
@@ -234,7 +234,7 @@ void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassg
         if( (currParam=currTask->params[j]) == NULL ) break;
         for(k=0; k<MAX_DEP_OUT_COUNT; ++k){
             if( (currOutDep=currParam->dep_out[k]) == NULL ) break;
-            generateEdge(currTask, taskInstanceStr, currParam->sym_name, assgn, nbassgn, currOutDep);
+            generateEdge(currTask, taskInstanceStr, currParam->name, assgn, nbassgn, currOutDep);
         }
     }
 

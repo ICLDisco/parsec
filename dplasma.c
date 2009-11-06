@@ -458,7 +458,7 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
                 }
             }
             if( dep->dplasma == in_function ) {
-                mask = (mask << 1) | 0x1;
+                mask |= param->param_mask;
             }
         }
     }
@@ -506,14 +506,14 @@ int dplasma_is_valid( dplasma_execution_context_t* exec_context )
 int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                                       const param_t* origin_param,
                                       dplasma_execution_context_t* exec_context,
-                                      const dep_t* dest_dep )
+                                      const param_t* dest_param )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
 #ifdef _DEBUG
     char tmp[128];
 #endif
-    int i, actual_loop, mask, rc;
+    int i, actual_loop, rc;
 
     if( 0 == function->nb_locals ) {
         /* special case for the IN/OUT objects */
@@ -625,25 +625,14 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
          * has been already satisfied, only to track the number if satisfied dependencies.
          */
         if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
-            mask = dplasma_check_IN_dependencies( exec_context );
+            int mask = dplasma_check_IN_dependencies( exec_context );
+            deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] |= mask;
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
-                while( mask > 0 ) {
-                    deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
-                        (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | 0x1;
-                    mask >>= 1;
-                }
             }
         }
-        mask = DPLASMA_DEPENDENCIES_HACK_IN | 0x1;
 
-        deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] = 
-            (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] << 1) | mask;
-        {
-            char tmp[128];
-            printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
-                   origin_param->sym_name, dest_dep->sym_name, "#FF0000", "dotted");
-        }
+        deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] |= (DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask);
 
         if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
             == function->dependencies_mask ) {
@@ -651,11 +640,21 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
              * scheduler knows about this and keep going.
              */
             dplasma_execute(exec_context);
+            {
+                char tmp[128];
+                printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                       origin_param->name, dest_param->name, "#FF0000", "solid");
+            }
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)])));
+            {
+                char tmp[128];
+                printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                       origin_param->name, dest_param->name, "#FF0000", "dotted");
+            }
         }
 
     next_value:
@@ -800,7 +799,7 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
             }
             DEBUG(( ")\n" ));
             dplasma_release_OUT_dependencies( exec_context, param,
-                                              &new_context, dep );
+                                              &new_context, dep->param );
         }
     }
 

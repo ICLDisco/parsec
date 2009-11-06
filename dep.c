@@ -18,9 +18,8 @@ void dep_dump(const dep_t *d, const char *prefix)
         expr_dump(d->cond);
         printf(" then ");
     }
-    printf( "%s%s%s(",
-            (d->sym_name == NULL ? "" : d->sym_name),
-            (d->sym_name != NULL ? " " : ""), d->dplasma->name);
+    printf( "%s %s(",
+            (d->param == NULL ? "" : d->param->name), d->dplasma->name);
     for(i = 0; i < MAX_CALL_PARAM_COUNT && NULL != d->call_params[i]; i++) {
         expr_dump(d->call_params[i]);
         if( i+1 < MAX_CALL_PARAM_COUNT && NULL != d->call_params[i+1] ) {
@@ -58,7 +57,10 @@ char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int init_func_
             p += snprintf(whole + p, 4096-p, "%s%s", dump_c_expression(out, d->call_params[i], init_func_body, init_func_body_size), 
                           i < MAX_CALL_PARAM_COUNT-1 ? ", " : "},\n");
         }
-        p += snprintf(whole + p, 4096-p, "                       .sym_name = \"%s\" };\n", d->sym_name);
+        /* TODO: I set to "" the following field as I don't know the pointer to the
+         * parameter yet. This should be updated later.
+         */
+        p += snprintf(whole + p, 4096-p, "                       .name = \"%s\" };\n", ""/*d->name*/);
         fprintf(out, "%s", whole);
         dep_idx++;
     }

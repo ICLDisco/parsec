@@ -7,7 +7,7 @@
 #ifndef _dplasma_h
 #define _dplasma_h
 
-typedef struct dplasma dplasma_t;
+typedef struct dplasma_t dplasma_t;
 
 #define MAX_LOCAL_COUNT  5
 #define MAX_PRED_COUNT   5
@@ -54,7 +54,7 @@ typedef int (dplasma_hook_t)(const dplasma_execution_context_t*);
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
 #define DPLASMA_HAS_IN_STRONG_DEPENDENCIES 0x0004
-struct dplasma {
+struct dplasma_t {
     const char*             name;
     uint16_t                flags;
     uint16_t                dependencies_mask;

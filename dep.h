@@ -15,10 +15,10 @@ typedef struct dep dep_t;
 #define MAX_CALL_PARAM_COUNT    MAX_PARAM_COUNT
 
 struct dep {
-    expr_t    *cond;
-    dplasma_t *dplasma;
-    expr_t    *call_params[MAX_CALL_PARAM_COUNT];
-    char      *sym_name;
+    expr_t*    cond;
+    dplasma_t* dplasma;
+    expr_t*    call_params[MAX_CALL_PARAM_COUNT];
+    param_t*   param;
 };
 
 void dep_dump(const dep_t *d, const char *prefix);

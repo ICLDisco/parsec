@@ -1,13 +1,13 @@
 #
 # Required dependencies.
 #
-PLASMA_DIR    = plasma/plasma-installer/build/plasma_2.0.0
+PLASMA_DIR    = /Users/bosilca/tools/plasma-installer/build/plasma_2.0.0/
 LIBBLAS       = -framework veclib
 # Include directory
 INC        = -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src
 
 # Location of the libraries.
-LIBDIR     = -Lplasma//plasma-installer/lib/
+LIBDIR     = -L$(PLASMA_DIR)/lib/
 
 # Location and name of the PLASMA library.
 LIBCBLAS      = $(PLASMA_DIR)/lib/libcblas.a
@@ -27,6 +27,7 @@ YACC=yacc -d -y --verbose
 LEX=flex # -d
 #
 # Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
+# Add -D_DEBUG to be verbose
 #
 CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_
 LDFLAGS=-g

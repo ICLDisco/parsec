@@ -8,15 +8,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-typedef struct symbol_stack_elt {
-    symbol_t                *sym;
-    struct symbol_stack_elt *next;
-} symbol_stack_elt_t;
-
-static symbol_stack_elt_t *dplasma_symbol_stack = NULL;
+#include <assert.h>
 
 static dplasma_t* global_dplasma = NULL;
+static param_t* current_param;
 static int global_lists_index = 0;
 static int global_indep_index = 0;
 static int global_outdep_index = 0;
@@ -104,7 +99,6 @@ dplasma:
 ;
 
 varlist:   DPLASMA_VAR DPLASMA_COMMA {
-                                        symbol_stack_elt_t *s;
                                         if( global_lists_index == MAX_LOCAL_COUNT ) {
                                             fprintf(stderr,
                                                     "Internal Error while parsing at line %d:\n"
@@ -119,15 +113,9 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
                                             /* Store it and move to the next one */
                                             global_dplasma->locals[global_dplasma->nb_locals] = symbol;
                                             global_dplasma->nb_locals++;
-
-                                            s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                                            s->sym = symbol;
-                                            s->next = dplasma_symbol_stack;
-                                            dplasma_symbol_stack = s;
                                         }
                                      } varlist
          | DPLASMA_VAR {
-                          symbol_stack_elt_t *s;
                           if( global_lists_index == MAX_LOCAL_COUNT ) {
                                fprintf(stderr,
                                        "Internal Error while parsing at line %d:\n"
@@ -142,11 +130,6 @@ varlist:   DPLASMA_VAR DPLASMA_COMMA {
                               /* Store it and move to the next one */
                               global_dplasma->locals[global_dplasma->nb_locals] = symbol;
                               global_dplasma->nb_locals++;
-
-                              s = (symbol_stack_elt_t*)calloc(1, sizeof(symbol_stack_elt_t));
-                              s->sym = symbol;
-                              s->next = dplasma_symbol_stack;
-                              dplasma_symbol_stack = s;
                           }
                        }
          |
@@ -210,46 +193,49 @@ params: param { global_lists_index++; }
          |
 ;
 
-param: DPLASMA_DEPENDENCY_TYPE {
+param: DPLASMA_DEPENDENCY_TYPE DPLASMA_VAR {
+                                   current_param = dplasma_find_or_create_param(global_dplasma, $2);
                                    /* we can't use global_lists_index for both the params and the deps of each param */
-                                   global_indep_index = 0;
-                                   global_outdep_index = 0;
-                                   if( global_lists_index == MAX_PARAM_COUNT ) {
+                                   for( global_indep_index = 0;
+                                        (global_indep_index < MAX_DEP_IN_COUNT) && (NULL != current_param->dep_in[global_indep_index]);
+                                        global_indep_index++ );
+                                   for( global_outdep_index = 0;
+                                        (global_outdep_index < MAX_DEP_IN_COUNT) && (NULL != current_param->dep_out[global_outdep_index]);
+                                        global_outdep_index++ );
+                                   if( NULL == current_param ) {
                                        fprintf(stderr,
                                                "Internal Error while parsing at line %d:\n"
                                                "  Maximal parameter list count reached: %d (Oh no! Thomas told us this will happen)\n",
                                                dplasma_lineno,
                                                global_lists_index);
                                        YYERROR;
-                                   } else {
-                                         global_dplasma->params[global_lists_index] = (param_t*)calloc(1, sizeof(param_t));
                                    }
-
-                                   if( SYM_IN == $1 ){
-                                       global_dplasma->params[global_lists_index]->sym_type = $1;
-                                       global_dplasma->dependencies_mask |= (1 << global_lists_index);
-                                   }else if( SYM_OUT == $1 ){
-                                       global_dplasma->params[global_lists_index]->sym_type = $1;
-                                   }else if( SYM_INOUT == $1 ){
-                                       global_dplasma->params[global_lists_index]->sym_type = SYM_INOUT;
-                                       global_dplasma->dependencies_mask |= (1 << global_lists_index);
-                                   }else{
+                                   if( global_indep_index >= MAX_DEP_IN_COUNT ) {
                                        fprintf(stderr,
                                                "Internal Error while parsing at line %d:\n"
-                                               "  Unknown type of dependency.\n",
-                                               dplasma_lineno);
+                                               "  Maximal dependencies list count reached: %d\n",
+                                               dplasma_lineno,
+                                               MAX_DEP_IN_COUNT);
                                        YYERROR;
                                    }
-
+                                   if( global_outdep_index >= MAX_DEP_OUT_COUNT ) {
+                                       fprintf(stderr,
+                                               "Internal Error while parsing at line %d:\n"
+                                               "  Maximal output dependencies count reached: %d)\n",
+                                               dplasma_lineno,
+                                               MAX_DEP_OUT_COUNT);
+                                       YYERROR;
+                                   }
+                                   current_param->sym_type |= $1;
+                                   if( SYM_IN & $1 ) {
+                                       global_dplasma->dependencies_mask |= current_param->param_mask;
+                                   }
                                }
-       DPLASMA_VAR {
-                       global_dplasma->params[global_lists_index]->sym_name = $3;
-                   }
        dependencies
 ;
 
 dependencies: DPLASMA_ARROW {
-                                char sym_type = global_dplasma->params[global_lists_index]->sym_type;
+                                char sym_type = current_param->sym_type;
                                 if( (sym_type == SYM_OUT) && ($1 == '<') ){
                                      fprintf(stderr,
                                              "Internal Error while parsing at line %d:\n"
@@ -264,9 +250,8 @@ dependencies: DPLASMA_ARROW {
                                              dplasma_lineno);
                                      YYERROR;
                                 }
-                                if( (sym_type == SYM_INOUT) ){
-                                    inout_type = ($1 == '>') ? SYM_OUT : SYM_IN;
-                                }
+                                inout_type = ($1 == '>') ? SYM_OUT : SYM_IN;
+                                assert( current_param->sym_type & inout_type );
                             }
               dependency {
                          }
@@ -275,39 +260,37 @@ dependencies: DPLASMA_ARROW {
 ;
 
 dependency: call {
-                     char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                     if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                         global_dplasma->params[global_lists_index]->dep_in[global_indep_index]->cond = NULL;
+                     if( inout_type == SYM_IN ) {
+                         current_param->dep_in[global_indep_index]->cond = NULL;
                          global_indep_index++;
-                     }
-                     if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                         global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]->cond = NULL;
+                     } else {
+                         assert( inout_type == SYM_OUT );
+                         current_param->dep_out[global_outdep_index]->cond = NULL;
                          global_outdep_index++;
                      }
                  }
         | expr DPLASMA_QUESTION call {
                                          dep_t *curr_dep = NULL;
-                                         char sym_type = global_dplasma->params[global_lists_index]->sym_type;
 
-                                         if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                             curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
+                                         if( inout_type == SYM_IN ) {
+                                             curr_dep = current_param->dep_in[global_indep_index];
                                              global_indep_index++;
-                                         }
-                                         if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                             curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
+                                         } else {
+                                             assert( inout_type == SYM_OUT );
+                                             curr_dep = current_param->dep_out[global_outdep_index];
                                              global_outdep_index++;
                                          }
                                          curr_dep->cond = $1;
                                      }
           DPLASMA_COLON call {
                                  dep_t *curr_dep = NULL;
-                                 char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                                 if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                     curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
+
+                                 if( inout_type == SYM_IN ) {
+                                     curr_dep = current_param->dep_in[global_indep_index];
                                      global_indep_index++;
-                                 }
-                                 if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                     curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
+                                 } else {
+                                     assert( inout_type == SYM_OUT );
+                                     curr_dep = current_param->dep_out[global_outdep_index];
                                      global_outdep_index++;
                                  }
                                  curr_dep->cond = expr_new_unary( '!', $1);
@@ -316,33 +299,29 @@ dependency: call {
 
 call: DPLASMA_VAR DPLASMA_VAR  {
                                    dep_t *curr_dep = NULL;
-                                   char sym_type = global_dplasma->params[global_lists_index]->sym_type;
 
-                                   if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                       global_dplasma->params[global_lists_index]->dep_in[global_indep_index] = (dep_t*)calloc(1, sizeof(dep_t));
-                                       curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
+                                   curr_dep = (dep_t*)calloc(1, sizeof(dep_t));
+                                   if( inout_type == SYM_IN ) {
+                                       current_param->dep_in[global_indep_index] = curr_dep;
+                                   } else {
+                                       assert(inout_type == SYM_OUT );
+                                       current_param->dep_out[global_outdep_index] = curr_dep;
                                    }
-                                   if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                       global_dplasma->params[global_lists_index]->dep_out[global_outdep_index] = (dep_t*)calloc(1, sizeof(dep_t));
-                                       curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]; 
-                                   }
-                                   curr_dep->sym_name = $1;
                                    curr_dep->dplasma = dplasma_find_or_create($2);
+                                   curr_dep->param = dplasma_find_or_create_param(curr_dep->dplasma, $1);
                                }
       DPLASMA_OPEN_PAR {
                            global_call_params_index = 0;
                        }
       expr_list DPLASMA_CLOSE_PAR
       | DPLASMA_DEPENDENCY_TYPE {  /* Special case for IN() and OUT() */
-                                       dep_t *curr_dep = NULL; 
-                                       char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                                       if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                                           global_dplasma->params[global_lists_index]->dep_in[global_indep_index] = (dep_t*)calloc(1, sizeof(dep_t));
-                                           curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index]; 
-                                       }
-                                       if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                                           global_dplasma->params[global_lists_index]->dep_out[global_outdep_index] = (dep_t*)calloc(1, sizeof(dep_t)); 
-                                           curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index]; 
+                                       dep_t* curr_dep = (dep_t*)calloc(1, sizeof(dep_t));
+
+                                       if( inout_type == SYM_IN ) {
+                                           current_param->dep_in[global_indep_index] = curr_dep;
+                                       } else {
+                                           assert(inout_type == SYM_OUT );
+                                           current_param->dep_out[global_outdep_index] = curr_dep;
                                        }
 
                                        if( $1 == SYM_IN ) {
@@ -358,7 +337,7 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                                                    dplasma_lineno);
                                            YYERROR;
                                        }
-                                       curr_dep->sym_name = NULL;
+                                       curr_dep->param = NULL;
                                   }
           DPLASMA_OPEN_PAR{ 
                               global_call_params_index = 0;
@@ -368,8 +347,6 @@ call: DPLASMA_VAR DPLASMA_VAR  {
 
 expr_list: expr {
                      dep_t *curr_dep = NULL;
-                     char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                     /* expr_t *e = $1; */
 
                      if( global_call_params_index == MAX_CALL_PARAM_COUNT ) {
                          fprintf(stderr,
@@ -381,19 +358,17 @@ expr_list: expr {
                          YYERROR;
                      }
  
-                     if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                         curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
-                     }
-                     if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                         curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
+                     if(inout_type == SYM_IN ) {
+                         curr_dep = current_param->dep_in[global_indep_index];
+                     } else {
+                         assert( inout_type == SYM_OUT );
+                         curr_dep = current_param->dep_out[global_outdep_index];
                      }
                      curr_dep->call_params[global_call_params_index++] = $1;
                 }
            DPLASMA_COMMA expr_list
         | expr {
                   dep_t *curr_dep = NULL;
-                  char sym_type = global_dplasma->params[global_lists_index]->sym_type;
-                  /* expr_t *e = $1; */
 
                   if( global_call_params_index == MAX_CALL_PARAM_COUNT ) {
                       fprintf(stderr,
@@ -405,11 +380,11 @@ expr_list: expr {
                       YYERROR;
                   }
 
-                  if( (sym_type == SYM_IN) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_IN) ) ) {
-                      curr_dep = global_dplasma->params[global_lists_index]->dep_in[global_indep_index];
-                  }
-                  if( (sym_type == SYM_OUT) || ( (sym_type == SYM_INOUT) && (inout_type == SYM_OUT) ) ) {
-                      curr_dep = global_dplasma->params[global_lists_index]->dep_out[global_outdep_index];
+                  if( inout_type == SYM_IN ) {
+                      curr_dep = current_param->dep_in[global_indep_index];
+                  } else {
+                      assert( inout_type == SYM_OUT );
+                      curr_dep = current_param->dep_out[global_outdep_index];
                   }
                   curr_dep->call_params[global_call_params_index++] = $1;
               }
@@ -417,24 +392,25 @@ expr_list: expr {
 ;
 
 expr:     DPLASMA_VAR                                {
-                                                         symbol_stack_elt_t *s = dplasma_symbol_stack;
-                                                         const symbol_t     *symbol;
+                                                         const symbol_t     *symbol = NULL;
+                                                         int i;
                                                          
-                                                         /* TODO: No need for the stack_elt. Instead use the locals and globals */
-                                                         while( NULL != s && strcmp(s->sym->name, $1) ) {
-                                                             s = s->next;
+                                                         for(i = 0; (i < MAX_LOCAL_COUNT) &&
+                                                                 (NULL != global_dplasma->locals[i]); i++) {
+                                                             if( 0 == strcmp(global_dplasma->locals[i]->name, $1) ) {
+                                                                 symbol = global_dplasma->locals[i];
+                                                                 break;
+                                                             }
                                                          }
-                                                         if( NULL == s ) {
+                                                         if( NULL == symbol ) {
                                                              /* The only alternative is to use a global symbol */
                                                              symbol = dplasma_search_global_symbol($1);
-                                                             if( NULL == symbol ) {
-                                                                 fprintf( stderr,
-                                                                          "Add expression based on unknown symbol %s at line %d\n",
-                                                                          $1, dplasma_lineno );
-                                                                 YYERROR;
-                                                             }
-                                                         } else {
-                                                             symbol = s->sym;
+                                                         }
+                                                         if( NULL == symbol ) {
+                                                             fprintf( stderr,
+                                                                      "Add expression based on unknown symbol %s at line %d\n",
+                                                                      $1, dplasma_lineno );
+                                                             YYERROR;
                                                          }
                                                          $$ = expr_new_var(symbol);
                                                          free($1);
