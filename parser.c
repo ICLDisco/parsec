@@ -19,8 +19,16 @@ static int generic_hook(const dplasma_execution_context_t* exec_context)
         color = "#99CCFF";
     } else if(0 == strcmp(exec_context->function->name, "DSSRFB") ) {
         color = "#CCFF00";
+    } else if(0 == strcmp(exec_context->function->name, "POTRF") ) {
+        color = "#4488AA";
+    } else if(0 == strcmp(exec_context->function->name, "SYRK") ) {
+        color = "#CC99EE";
+    } else if(0 == strcmp(exec_context->function->name, "TRSM") ) {
+        color = "#99CCFF";
+    } else if(0 == strcmp(exec_context->function->name, "GEMM") ) {
+        color = "#CCFF00";
     } else {
-        printf( "CONNARD!!!\n" );
+        color = "#FFFFFF";
     }
     dplasma_service_to_string(exec_context, tmp, 128);
     printf("%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
@@ -56,11 +64,13 @@ int main(int argc, char *argv[])
     {
         dplasma_execution_context_t exec_context;
         /* I know what I'm doing ;) */
-        /*exec_context.function = (dplasma_t*)dplasma_find("POTRF");*/
-        exec_context.function = (dplasma_t*)dplasma_find("DGEQRT");
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         if( NULL == exec_context.function ) {
-            printf("Unable to find the expected function. Giving up.\n");
-            exit(-1);
+            exec_context.function = (dplasma_t*)dplasma_find("DGEQRT");
+            if( NULL == exec_context.function ) {
+                printf("Unable to find the expected function. Giving up.\n");
+                exit(-1);
+            }
         }
         dplasma_set_initial_execution_context(&exec_context);
         dplasma_execute(&exec_context);
