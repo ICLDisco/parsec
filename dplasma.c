@@ -514,7 +514,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
     char tmp[128];
 #endif
     int i, actual_loop, rc;
-    static int execution_step = 0;
+    static int execution_step = 2;
 
     if( 0 == function->nb_locals ) {
         /* special case for the IN/OUT objects */
@@ -638,7 +638,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             == function->dependencies_mask ) {
             {
                 char tmp[128];
-                printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
             }
             execution_step++;
@@ -654,7 +654,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                    (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)])));
             {
                 char tmp[128];
-                printf("%s [label=\"%s_%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
             }
         }
