@@ -29,16 +29,18 @@ LEX=flex # -d
 # Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
 # Add -D_DEBUG to be verbose
 #
-CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_
+CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_ -DDPLASMA_EXECUTE
 LDFLAGS=-g
 
 TARGETS=cholesky/dposv parser tools/buildDAG
 
-OBJECTS=parser.o dplasma.o symbol.o assignment.o expr.o \
+OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o lex.yy.o dplasma.tab.o
 
 CHOLESKY_OBJECTS=cholesky/cholesky_hook.o \
 	cholesky/dposv.o
+
+PARSER_OBJECTS=parser.o
 
 BUILDDAG_OBJECTS=tools/buildDAG.o
 
@@ -47,7 +49,7 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 
 all: $(TARGETS)
 
-parser: $(OBJECTS)
+parser: $(PARSER_OBJECTS) $(OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
@@ -69,4 +71,4 @@ lex.yy.c: dplasma.l
 	$(LEX) dplasma.l
 
 clean:
-	rm -f $(OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) $(TARGETS) test-expr lex.yy.c y.tab.c y.tab.h
+	rm -f $(OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) $(TARGETS) test-expr lex.yy.c y.tab.c y.tab.h
