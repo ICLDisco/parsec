@@ -8,3 +8,4 @@ parser
 cholesky/dposv
 tools/buildDAG
 plasma
+make.inc
