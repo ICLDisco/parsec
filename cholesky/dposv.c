@@ -211,10 +211,7 @@ int main (int argc, char **argv)
 
    /* Plasma routines */
    uplo=PlasmaLower;
-#ifdef DPLASMA_EXECUTE
    DPLASMA_dpotrf(uplo, N, A2, LDA);
-#else
-#endif
    PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
    eps = dlamch("Epsilon");
    printf("\n");
