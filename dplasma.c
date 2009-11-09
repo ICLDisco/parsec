@@ -16,6 +16,23 @@ extern char *strdup(const char *);
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
 
+typedef struct preamble_list {
+    char *language;
+    char *code;
+    struct preamble_list *next;
+} preamble_list_t;
+    
+static preamble_list_t *preambles = NULL;
+
+void add_preamble(char *language, char *code)
+{
+    preamble_list_t *n = (preamble_list_t*)calloc(1, sizeof(preamble_list_t));
+    n->language = language;
+    n->code = code;
+    n->next = preambles;
+    preambles = n;
+}
+
 static char *dplasma_dump_c(FILE *out, const dplasma_t *d, char *init_func_body, int init_func_body_size)
 {
     static char dp_txt[4096];
@@ -136,8 +153,13 @@ void dplasma_dump_all_c(FILE *out)
     char whole[8192];
     char body[INIT_FUNC_BODY_SIZE];
     int p = 0;
-    
-    fprintf(out, "#include \"dplasma.h\"\n\n");
+    preamble_list_t *n;
+
+    for(n = preambles; n != NULL; n = n->next) {
+        if( strcasecmp(n->language, "C") == 0 ) {
+            fprintf(out, n->code);
+        }
+    }
 
     body[0] = '\0';
 
@@ -160,8 +182,6 @@ void dplasma_dump_all_c(FILE *out)
             "%s\n"
             "}\n"
             , whole, body);
-
-    p = 0;
 }
 
 

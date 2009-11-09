@@ -26,7 +26,7 @@ WHITE         [\f\t\v ]
 
 %%
 
-[bB][oO][dD][yY]([^;]|\n)*;(\n|{WHITE})*[eE][nN][dD] {
+[bB][oO][dD][yY]([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD] {
                  int i;
                  yylval.string = malloc(strlen(yytext)-6);
                  strncpy( yylval.string, yytext + 4, strlen(yytext) - 7);
@@ -35,6 +35,21 @@ WHITE         [\f\t\v ]
                          dplasma_lineno++;
                  }
                  return DPLASMA_BODY; }
+extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{([^\%]|(\%[^\}]))+\%\}    {
+                   int i, j;
+                   yylval.string = (char *)malloc(strlen(yytext)-13);
+                   /* Put the extern language, then a ", then the body */
+                   /* This assumes that no extern language rightfully has a " in its name, which is also an assumption of the lexer anyway */
+                   for(i = 0; yytext[i] != '"'; i++) /* nothing */;
+                   j = 0;
+                   for(i = i+1; yytext[i] != '"'; i++)
+                       yylval.string[j++] = yytext[i];
+                   yylval.string[j++] = '"';
+                   for(i = i+1; yytext[i] != '{'; i++) /* nothing */;
+                   memcpy(yylval.string+j, yytext + i + 1, strlen(yytext+i+1)-2);
+                   yylval.string[j+strlen(yytext+i+1)-1] = '\0';
+                   return DPLASMA_EXTERN_DECL;
+                 }
 {WHITE}*\n     { dplasma_lineno++; }
 "//".*\n       { dplasma_lineno++; }
 "/*"           { BEGIN(comment); }

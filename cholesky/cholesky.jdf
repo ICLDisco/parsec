@@ -1,9 +1,29 @@
+extern "C" %{
+   /**
+    * PLASMA include for defined and constants.
+    */
+#include <plasma.h>
+#include <core_dblas.h>
+
+#include "dplasma.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+extern PLASMA_desc descA;
+int PLASMA_INFO;
+
+#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
+
+/* Define it to shortcut the lookup for the local variables. */
+#define DPLASMA_HOOK_OPTIMIZED
+%}
+
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
 GRIDrows = 1
 GRIDcols = 1
-//NB = 120
+NB = 120
 SIZE = 4
 colRANK = 0
 rowRANK = 0
@@ -24,8 +44,17 @@ INOUT T <- (k == 0) ? IN(k, k) : T SYRK(k, k-1)
         -> OUT(k, k)
 
 BODY
-lapack_spotrf(lapack_lower, NB, T, NB, &info);
-
+#ifdef DPLASMA_EXECUTE
+    CORE_dpotrf( PlasmaLower,
+                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                 A(k, k), NB, /*A.nb,*/
+                 &PLASMA_INFO); 
+#else
+    OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
+             "PlasmaLower",
+             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+             k, k, NB /*A.nb,*/));
+#endif  /* DPLASMA_EXECUTE */
 END
 
 // Name
@@ -45,10 +74,20 @@ INOUT T <- (n == 0) ? IN(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
 BODY
-cblas_ssyrk(CblasColMajor,
-            CblasLower, CblasNoTrans,
-            NB, NB, 1.0, A, NB, 1.0, T, NB );
-
+#ifdef DPLASMA_EXECUTE
+    CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A(k, n), NB, /*A.nb,*/
+                1.0, A(k, k), NB /*A.nb*/);
+#else
+    OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "PlasmaLower", "PlasmaNoTrans",
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, k, n, NB, /*A.nb,*/
+            1.0, k, k, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
 END
 
 // Name
@@ -70,10 +109,24 @@ INOUT C <- (n == 0) ? IN(m, n) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
 BODY
-cblas_sgemm( CblasColMajor,
-             CblasNoTrans, CblasTrans,
-             1.0, B, NB, A, NB, 1.0, C, NB );
-
+#ifdef DPLASMA_EXECUTE
+    CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A(m, n), NB, /*A.nb,*/
+                A(k, n), NB, /*A.nb,*/
+                1.0, A(m, k), NB /*A.nb*/);
+#else
+    OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "PlasmaNoTrans", "PlasmaTrans",
+            NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, m, n, NB, /*A.nb,*/
+            k, n, NB, /*A.nb,*/
+            1.0, m, k, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
 END
 
 // Name
@@ -96,10 +149,19 @@ INOUT C <- (k == 0) ? IN(m, k) : C GEMM(k, m, k-1)
         -> OUT(k, m)
 
 BODY
-cblas_strsm( CblasColMajor,
-             CblasRight, CblasLower,
-             CblasTrans, CblasNonUnit,
-             NB, NB, 1.0, T, NB, C, NB );
-
+#ifdef DPLASMA_EXECUTE
+    CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, A(k, k), NB, /*A.nb,*/
+                A(m, k), NB /*A.nb*/);
+#else
+    OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+             "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+             NB, /*A.nb,*/
+             1.0, k, k, NB, /*A.nb,*/
+             m, k, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
 END
 

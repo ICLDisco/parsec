@@ -1,6 +1,6 @@
 include make.inc
 
-TARGETS=cholesky/dposv parser tools/buildDAG
+TARGETS=cholesky/dposv parser dpc tools/buildDAG
 
 OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o lex.yy.o dplasma.tab.o
@@ -17,7 +17,10 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 
 all: $(TARGETS)
 
-parser: $(PARSER_OBJECTS) $(OBJECTS)
+dpc: $(OBJECTS) dpc.o
+	$(LINKER) -o $@ $^ $(LDFLAGS)
+
+parser: $(OBJECTS) parser.o
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)

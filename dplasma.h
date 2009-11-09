@@ -87,6 +87,9 @@ void dplasma_dump_all( void );
  */
 void dplasma_dump_all_c( FILE *out );
 
+void add_preamble(char *language, char *code);
+
+
 /**
  * helper to get the index of a dplasma object when dumping in the C-like format
  */

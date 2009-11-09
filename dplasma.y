@@ -50,13 +50,14 @@ int yywrap()
 
 %token DPLASMA_COMMA DPLASMA_OPEN_PAR DPLASMA_CLOSE_PAR DPLASMA_RANGE
 %token DPLASMA_EQUAL DPLASMA_NOT_EQUAL DPLASMA_ASSIGNMENT DPLASMA_QUESTION
-%token DPLASMA_COLON
+%token DPLASMA_COLON 
 %token <number>  DPLASMA_INT
 %token <string>  DPLASMA_VAR
 %token <string>  DPLASMA_BODY
 %token <operand> DPLASMA_OP
 %token <operand> DPLASMA_DEPENDENCY_TYPE
 %token <operand> DPLASMA_ARROW
+%token <string>  DPLASMA_EXTERN_DECL
 
 %type  <expr>    expr
 
@@ -74,6 +75,16 @@ prog:
             {
                 dplasma_add_global_symbol( $1, $3 );
             } prog
+    | DPLASMA_EXTERN_DECL {
+                             char *code;
+                             char *language;
+                             int i;
+                             for(i = 0; $1[i] != '"'; i++)  /* nothing */;
+                             $1[i++] = '\0';
+                             language = $1;
+                             code = $1 + i;
+                             add_preamble(language, code);
+                          } prog
     |
 ;
 
