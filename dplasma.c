@@ -157,7 +157,7 @@ void dplasma_dump_all_c(FILE *out)
 
     for(n = preambles; n != NULL; n = n->next) {
         if( strcasecmp(n->language, "C") == 0 ) {
-            fprintf(out, n->code);
+            fprintf(out, "%s", n->code);
         }
     }
 
