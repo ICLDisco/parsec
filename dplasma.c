@@ -201,6 +201,35 @@ void dplasma_dump_all_c(FILE *out)
             "%s\n"
             "}\n"
             , whole, body);
+
+    fprintf(out, 
+            "int load_dplasma_hooks( void )\n"
+            "{\n"
+            "  dplasma_t* object;\n"
+#if 0
+            "  const symbol_t* pNB;\n"
+            "  int rc;\n"
+#endif
+            "\n");
+    for(i = 0; i < dplasma_array_count; i++) {
+        /* Specials IN and OUT test */
+        if( dplasma_array[i]->body != NULL ) {
+            fprintf(out, "  object = (dplasma_t*)dplasma_find(\"%s\");\n", dplasma_array[i]->name);
+            fprintf(out, "  object->hook = %s_hook;\n\n", dplasma_array[i]->name);
+        }
+    }
+#if 0
+    fprintf(out, 
+            "/* This is a constant, only look for it once. */\n"
+            "  pNB = dplasma_search_global_symbol(\"NB\");\n"
+            "  rc = expr_eval( pNB->min, NULL, 0, &NB );\n"
+            "  if( 0 != rc ) {\n"
+            "    return rc;\n"
+            "  }\n");
+#endif
+    fprintf(out, 
+            "  return 0;\n"
+            "}\n");
 }
 
 
