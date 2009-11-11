@@ -59,8 +59,11 @@ char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int init_func_
         }
         /* TODO: I set to "" the following field as I don't know the pointer to the
          * parameter yet. This should be updated later.
+         * FOLLOW TODO: makes the generated file not compilable, since the .name is currently not a member of the structure...
+         * Removed it for now (Thomas).
          */
-        p += snprintf(whole + p, 4096-p, "                       .name = \"%s\" };\n", ""/*d->name*/);
+        /* p += snprintf(whole + p, 4096-p, "                       .name = \"%s\"", d->name); */
+        p += snprintf(whole + p, 4095-p, " };\n");
         fprintf(out, "%s", whole);
         dep_idx++;
     }

@@ -81,6 +81,25 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d, char *init_func_body,
     //    p += snprintf(dp_txt+p, 4096-p, "      .body = \"%s\"\n", d->body);
     p += snprintf(dp_txt+p, 4096-p, "    }");
     
+    /* d->body == NULL <=> IN or OUT. Is it the good test? */
+    if( NULL != d->body ) {
+        fprintf(out, 
+                "int %s_hook(const dplasma_execution_context_t *exec_context)\n"
+                "{\n",
+                d->name);
+
+        for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+            fprintf(out, "  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
+        }
+            
+        fprintf(out, 
+                "\n"
+                "  %s\n"
+                "  return 0;\n"
+                "}\n"
+                "\n", d->body);
+    }
+
     return dp_txt;
 }
 

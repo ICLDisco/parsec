@@ -68,6 +68,20 @@ void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_func_bo
                       i < dplasma_symbol_array_count-1 ? ",\n" : "};\n");
     }
     fprintf(out, "%s", whole);
+
+    fprintf(out, "\n");
+
+    for(i = 0; i < dplasma_symbol_array_count; i++) {
+        if( (dplasma_symbol_array[i]->min->flags & EXPR_FLAG_CONSTANT) &&
+            (dplasma_symbol_array[i]->max->flags & EXPR_FLAG_CONSTANT) &&
+            (dplasma_symbol_array[i]->min->value == dplasma_symbol_array[i]->max->value) ) {
+            /* strangely enough, this should be always the case... TODO: talk with the others -- Thomas */
+            fprintf(out, "int %s = %d;\n", dplasma_symbol_array[i]->name, dplasma_symbol_array[i]->min->value);
+        } else {
+            fprintf(out, "int %s;\n", dplasma_symbol_array[i]->name);
+        }
+    }
+    fprintf(out, "\n");
 }
 
 void symbol_dump(const symbol_t *s, const char *prefix)
