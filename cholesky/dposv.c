@@ -110,7 +110,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
         constant = expr_new_int( PLASMA_NB );
         dplasma_add_global_symbol( "NB", constant );
 
-        constant = expr_new_int( N / PLASMA_NB );
+        constant = expr_new_int( NT );
         dplasma_add_global_symbol( "SIZE", constant );
     }
 	yyparse();
