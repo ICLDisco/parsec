@@ -213,7 +213,7 @@ int main (int argc, char **argv)
    uplo=PlasmaLower;
    DPLASMA_dpotrf(uplo, N, A2, LDA);
    PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
-   eps = dlamch("Epsilon");
+   eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
    printf("\n");
    printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
    printf("            Size of the Matrix %d by %d\n", N, N);
