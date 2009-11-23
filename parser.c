@@ -60,6 +60,21 @@ int main(int argc, char *argv[])
     printf("digraph G {\n");
     {
         dplasma_execution_context_t exec_context;
+        int i = 0, rc;
+
+        for( i = 0; ; i++ ) {
+            memset(&exec_context, 0, sizeof(dplasma_execution_context_t));
+            exec_context.function = (dplasma_t*)dplasma_element_at(i);
+            if( NULL == exec_context.function ) {
+                break;
+            }
+            dplasma_set_initial_execution_context(&exec_context);
+            rc = dplasma_service_can_be_startup( &exec_context );
+            if( rc == 0 ) {
+                dplasma_schedule(&exec_context);
+            }
+        }
+#if 0
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         if( NULL == exec_context.function ) {
@@ -70,7 +85,8 @@ int main(int argc, char *argv[])
             }
         }
         dplasma_set_initial_execution_context(&exec_context);
-        dplasma_execute(&exec_context);
+        dplasma_schedule(&exec_context);
+#endif
     }
     printf("}\n");
 	return 0;

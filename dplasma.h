@@ -120,7 +120,9 @@ dplasma_t* dplasma_find_or_create( const char* name );
 const dplasma_t* dplasma_element_at( int i );
 
 /**
- * Some others declarations.
+ * Mark a execution context as being ready to be scheduled, i.e. all
+ * input dependencies are resolved. The execution context can be
+ * executed immediately or delayed until resources become available.
  *
  * @param [IN] The execution context to be executed. This include
  *             calling the attached hook (if any) as well as marking
@@ -130,7 +132,7 @@ const dplasma_t* dplasma_element_at( int i );
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int dplasma_execute( const dplasma_execution_context_t* exec_context );
+int dplasma_schedule( const dplasma_execution_context_t* exec_context );
 
 /**
  * Compute the correct initial values for an execution context. These values
@@ -143,6 +145,20 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context );
  * @return -1 If no suitable values for this execution context can be found.
  */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
+
+/**
+ * Check is there is any of the input parameters that do depend on some
+ * other service.
+ *
+ * @param [INOUT] The execution context where the check will be started. On return
+ *                it will contain the updated values for a valid execution context
+ *                where all predicats are valid.
+ *
+ * @return  0 If a execution context that can be used as startup has been found, and
+ *            in this case the parameter contain the right values.
+ * @return -1 If no other execution context that can be used as a startup exists.
+ */
+int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context );
 
 /**
  * Convert the execution context to a string.

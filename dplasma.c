@@ -33,7 +33,9 @@ void add_preamble(char *language, char *code)
     preambles = n;
 }
 
-static char *dplasma_dump_c(FILE *out, const dplasma_t *d, char *init_func_body, int init_func_body_size)
+static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
+                            char *init_func_body,
+                            int init_func_body_size)
 {
     static char dp_txt[4096];
     int i;
@@ -334,6 +336,46 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
     }
     if( i < MAX_LOCAL_COUNT ) {
         exec_context->locals[i].sym = NULL;
+    }
+    return 0;
+}
+
+/**
+ * Check is there is any of the input parameters that do depend on some
+ * other service. 
+ */
+int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
+{
+    const dplasma_t* function = exec_context->function;
+    const dplasma_t* in_function = dplasma_find("IN");
+    param_t* param;
+    dep_t* dep;
+    int i, j, rc, value;
+
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+        param = function->params[i];
+        if( !(SYM_IN & param->sym_type) ) {
+            continue;
+        }
+
+        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
+            dep = param->dep_in[j];
+
+            if( NULL == dep->cond ) {
+                if( dep->dplasma != in_function ) {
+                    /* Strict dependency on another service. No chance to be a starter */
+                    return -1;
+                }
+                continue;
+            }
+            /* TODO: Check to see if the condition can be applied in the current context */
+            rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+            if( value == 1 ) {
+                if( dep->dplasma != in_function ) {
+                    return -1;
+                }
+            }
+        }
     }
     return 0;
 }
@@ -716,7 +758,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             /* This service is ready to be executed as all dependencies are solved. Let the
              * scheduler knows about this and keep going.
              */
-            dplasma_execute(exec_context);
+            dplasma_schedule(exec_context);
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
@@ -801,7 +843,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
  * attached hook if any. At the end of the execution the dependencies
  * are released.
  */
-int dplasma_execute( const dplasma_execution_context_t* exec_context )
+int dplasma_schedule( const dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
@@ -851,6 +893,7 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
                     rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
                     if( min > max ) {
                         dont_generate = 1;
+                        DEBUG(( " -- skipped" ));
                         break;  /* No reason to continue here */
                     }
                     new_context.locals[k].min = min;
@@ -863,6 +906,7 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
                 }
                 new_context.locals[k].value = new_context.locals[k].min;
             }
+            DEBUG(( ")\n" ));
             if( dont_generate ) {
                 continue;
             }
@@ -871,7 +915,6 @@ int dplasma_execute( const dplasma_execution_context_t* exec_context )
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
-            DEBUG(( ")\n" ));
             dplasma_release_OUT_dependencies( exec_context, param,
                                               &new_context, dep->param );
         }
