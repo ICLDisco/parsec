@@ -105,7 +105,7 @@ int main(int argc, char ** argv){
 
     /* checking local data ready */
     is_data_distributed(&main_desc, requests);
-    
+    //    data_dist_verif(&descA, &main_desc);
     /* start execution */
     PLASMA_Finalize();
     MPI_Finalize();

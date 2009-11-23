@@ -100,5 +100,7 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
 /* convert to plasma desc and tiling format */
 int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
 
+/* debugging print of blocks */
+void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );
 
 #endif

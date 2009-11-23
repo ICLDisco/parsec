@@ -126,7 +126,7 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         }
     
     Ddesc->mat = malloc(sizeof(double) * nb_elem_c * nb_elem_r * Ddesc->bsiz);
-    printf("This is process rank %d (%d,%d) in a Process grid %dx%d, will handle %dx%d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->GRIDrows, Ddesc->GRIDcols, nb_elem_c, nb_elem_r);
+    //    printf("This is process rank %d (%d,%d) in a Process grid %dx%d, will handle %dx%d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->GRIDrows, Ddesc->GRIDcols, nb_elem_c, nb_elem_r);
     return 0;
 }
 
@@ -242,8 +242,8 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
     cr = n % Ddesc->GRIDcols;
     /* P(rr, cr) has the tile, compute the mpi rank*/
     res = rr * Ddesc->GRIDcols + cr;
-    printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n",
-           m, n, res, rr, cr, Ddesc->GRIDrows, Ddesc->GRIDcols);
+    /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
+/*            m, n, res, rr, cr, Ddesc->GRIDrows, Ddesc->GRIDcols); */
     return res;
 }
 
@@ -254,6 +254,7 @@ void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n)
     int j;
     if (Ddesc->mpi_rank != dplasma_get_rank_for_tile(Ddesc, m, n))
         {
+            printf("Tile (%d,%d) does not belong to %d\n", m, n ,Ddesc->mpi_rank);
             return NULL;
         }
 
@@ -322,11 +323,9 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
         {
             nb_elem_c++;
         }
-    printf("nb elem by row = %d, nb elem by col = %d\n", nb_elem_r, nb_elem_c);
     if (Ddesc->mpi_rank == 0)
         {
             nb_reqs = ((Pdesc->lmt)*(Pdesc->lnt)) - (nb_elem_c*nb_elem_r);
-            printf("number of expected Isend --> %d\n", nb_reqs);
             *reqs = (MPI_Request *)malloc(nb_reqs * sizeof(MPI_Request));
             for (i = 0 ; i < Pdesc->lmt; i++)
                 for (j = 0 ; j < Pdesc->lnt ; j++)
@@ -334,21 +333,18 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                         rank = dplasma_get_rank_for_tile(Ddesc, i, j);
                         if (rank == 0) /* this tile belongs to me */
                             {
-                                printf("tile (%d, %d) for self, memcpy\n", i, j);
-                                memcpy(&(((double *)Ddesc->mat)[pos]), plasma_A(Pdesc, i, j), Ddesc->bsiz);
+                                /*  printf("tile (%d, %d) for self, memcpy\n", i, j);*/
+                                memcpy(&(((double *)Ddesc->mat)[pos]), plasma_A(Pdesc, i, j), Ddesc->bsiz*(sizeof(double)));
                                 pos = pos + Ddesc->bsiz;
                                 continue;
                             }
-                        printf("tile (%d, %d) for process %d, Isend\n", i, j, rank);
                         MPI_Isend(plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
-                        printf("req %d: Isend %d MPI_DOUBLE \n", k, Ddesc->bsiz);
                         k++;
                         
                     }
         }
     else
         {
-            printf("number of expexted Irecv --> $d\n", nb_elem_c * nb_elem_r );
             *reqs = malloc((nb_elem_c * nb_elem_r) * sizeof(MPI_Request));
 
             if (NULL == *reqs)
@@ -359,13 +355,62 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
             
             for (i = 0; i < (nb_elem_c * nb_elem_r) ; i++)
                 {
-                    printf("Irecv num %d to pos: %d \n", i, i*(Ddesc->bsiz));
                     MPI_Irecv(&(((double*)Ddesc->mat)[i*(Ddesc->bsiz)]), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &((*reqs)[i]));
-                    printf("req %d: Irecv %d MPI_DOUBLE \n", i, Ddesc->bsiz);
                 }
             
         }
     return 0;
+}
+
+static void print_block(char * stri, int m, int n, double * block, int blength, int total_size)
+{
+    int i;
+    printf("block size: %d, total size: %d\n", blength, total_size);
+    printf("%s (%d,%d)\n", stri, m, n);
+    for (i = 0 ; i < min(10, blength) ; i++ )
+        printf("%e ", block[i]);
+    printf("\n");
+    i = total_size - blength;
+    for ( ; i < min((total_size - blength) + 10, total_size) ; i++ )
+        printf("%e ", block[i]);
+    printf("\n\n\n");
+}
+void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+{
+    int m,n, rank;
+    double * buff;
+    
+    if(Ddesc->mpi_rank == 0)
+        {
+            m = Pdesc->lmt/2;
+            n = Pdesc->lnt/2;
+            print_block("orig tile ", 0, 0, plasma_A(Pdesc, 0, 0), Pdesc->nb, Pdesc->bsiz);
+            print_block("orig tile ", m, n, plasma_A(Pdesc, m, n), Pdesc->nb, Pdesc->bsiz);
+            print_block("orig tile ", Pdesc->lmt - 1, Pdesc->lnt -1, plasma_A(Pdesc, Pdesc->lmt - 1, Pdesc->lnt - 1), Pdesc->nb ,Pdesc->bsiz);
+        }
+    rank = dplasma_get_rank_for_tile(Ddesc, 0, 0);
+    if (Ddesc->mpi_rank == rank)
+        {
+            buff = (double *) dplasma_get_tile(Ddesc, 0, 0);
+            print_block("Dist tile", 0, 0, buff, Ddesc->nb , Ddesc->bsiz);
+        }
+    m = Ddesc->lmt/2;
+    n = Ddesc->lnt/2;
+    rank = dplasma_get_rank_for_tile(Ddesc, m, n);
+    if (Ddesc->mpi_rank == rank)
+        {
+            buff = dplasma_get_tile(Ddesc, m, n);
+            printf("Check: %d,%d \n", Ddesc->mpi_rank, rank);
+            print_block("Dist tile", m, n, buff, Ddesc->nb ,Ddesc->bsiz);
+        }
+    rank = dplasma_get_rank_for_tile(Ddesc, Ddesc->lmt - 1, Ddesc->lnt - 1);
+    if (Ddesc->mpi_rank == rank)
+        {
+            buff = dplasma_get_tile(Ddesc, Ddesc->lmt - 1, Ddesc->lnt - 1);
+            printf("check: %d,%d \n", Ddesc->mpi_rank, rank);
+            print_block("dist tile", Ddesc->lmt - 1, Ddesc->lnt - 1, buff , Ddesc->nb ,Ddesc->bsiz);
+        }
+
 }
 
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs)
@@ -391,18 +436,18 @@ int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs)
     if (Ddesc->mpi_rank == 0)
         {
             nb_reqs = ((Ddesc->lmt)*(Ddesc->lnt)) - (nb_elem_c*nb_elem_r);
-            printf("waiting for completion of %d  Isend\n", nb_reqs);
+            //   printf("waiting for completion of %d  Isend\n", nb_reqs);
             stats = malloc(nb_reqs * sizeof(MPI_Status));
             MPI_Waitall(nb_reqs, reqs, stats);
-            printf("completion of Isend done\n");
+            //     printf("completion of Isend done\n");
         }
     else
         {
             nb_reqs = nb_elem_c*nb_elem_r;
-            printf("waiting for completion of %d Irecv\n", nb_reqs);
+            //            printf("waiting for completion of %d Irecv\n", nb_reqs);
             stats = malloc(nb_reqs * sizeof(MPI_Status));
             MPI_Waitall(nb_reqs, reqs, stats);
-            printf("completion of Irecv done\n");
+            //          printf("completion of Irecv done\n");
         }
     return 1;
 }
