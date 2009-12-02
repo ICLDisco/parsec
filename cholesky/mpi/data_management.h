@@ -35,6 +35,8 @@ typedef struct dplasma_desc_t {
     int n;              // number of columns of the submatrix
     int mt;             // number of tile rows of the submatrix - derived parameter
     int nt;             // number of tile columns of the submatrix - derived parameter
+    int nrst;           // max number of tile rows in a super-tile
+    int ncst;           // max number of tile columns in a super tiles
     int mpi_rank;       // well... mpi rank...
     int GRIDrows;       // number of processes rows in the process grid
     int GRIDcols;       // number of processes cols in the process grid
@@ -46,7 +48,7 @@ typedef struct dplasma_desc_t {
  *   mpi ranks distribution in the process grid
  *   -----------------
  *   | 0 | 1 | 2 | 3 |
- *   |----------------
+ *   |---------------|
  *   | 4 | 5 | 6 | 7 |
  *   -----------------
  ************************************************/
@@ -77,13 +79,13 @@ int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
 /* distribute the matrix to the different mpi ranks 
  * matrix -> pointer to matrix data on mpi rank 0 // NULL for other ranks
  */
-int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** reqs);
+int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count);
 
 
 /* test if the matrix data has been distributed
  * return 0 if not
  */
-int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs);
+int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count);
 
 
 /* find which mpi rank handles a particular tile

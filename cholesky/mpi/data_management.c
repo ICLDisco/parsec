@@ -33,12 +33,13 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 
     int * tmp_ints;
     int i, j;
-    int nbt;
     int nb_elem_c;
     int nb_elem_r;
-
+    int nbstile_r;
+    int nbstile_c;
+    
         
-    tmp_ints = malloc(sizeof(int)*16);
+    tmp_ints = malloc(sizeof(int)*18);
     if (tmp_ints == NULL)
         {
             printf("memory allocation failed\n");
@@ -60,15 +61,17 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             Ddesc->n = tmp_ints[11] = Pdesc->n ;
             Ddesc->mt  = tmp_ints[12] = Pdesc->mt ;
             Ddesc->nt  = tmp_ints[13] = Pdesc->nt ;
-            tmp_ints[14] = Ddesc->GRIDrows ;
-            tmp_ints[15] = Ddesc->GRIDcols ;
+            tmp_ints[14] = Ddesc->nrst;
+            tmp_ints[15] = Ddesc->ncst;            
+            tmp_ints[16] = Ddesc->GRIDrows ;
+            tmp_ints[17] = Ddesc->GRIDcols ;
 
-            MPI_Bcast(tmp_ints, 16, MPI_INT, 0, MPI_COMM_WORLD);
+            MPI_Bcast(tmp_ints, 18, MPI_INT, 0, MPI_COMM_WORLD);
 
         }
     else /* rank != 0, receive data */
         {
-            MPI_Bcast(tmp_ints, 16, MPI_INT, 0, MPI_COMM_WORLD);
+            MPI_Bcast(tmp_ints, 18, MPI_INT, 0, MPI_COMM_WORLD);
 
             Ddesc->dtyp= tmp_ints[0];
             Ddesc->mb = tmp_ints[1];
@@ -84,8 +87,10 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             Ddesc->n = tmp_ints[11];
             Ddesc->mt  = tmp_ints[12];
             Ddesc->nt  = tmp_ints[13];
-            Ddesc->GRIDrows  = tmp_ints[14];
-            Ddesc->GRIDcols  = tmp_ints[15];
+            Ddesc->nrst  = tmp_ints[14];
+            Ddesc->ncst  = tmp_ints[15];
+            Ddesc->GRIDrows  = tmp_ints[16];
+            Ddesc->GRIDcols  = tmp_ints[17];
         }
     free(tmp_ints);
 
@@ -104,29 +109,59 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     /* affect colRANK */
     Ddesc->colRANK = i;
 
+    printf("mpi rank %d is map to P(%d,%d)\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK);
+
+    /* computing the number of rows of super-tile */
+    nbstile_r = Ddesc->lmt / Ddesc->nrst;
+    if((Ddesc->lmt % Ddesc->nrst) != 0)
+        nbstile_r++;
+    
+    /* computing the number of colums of super-tile*/
+    nbstile_c = Ddesc->lnt / Ddesc->ncst;
+    if((Ddesc->lnt % Ddesc->ncst) != 0)
+        nbstile_c++;
+    
+    if (Ddesc->mpi_rank == 0) 
+        printf("matrix is super-tiled in (%d, %d)", nbstile_r, nbstile_c);
     /* allocate memory for tiles data */
-    nbt = Ddesc->lmt * Ddesc->lnt; /* total number of tiles */
-    if ( Ddesc->GRIDrows > Ddesc->lmt || Ddesc->GRIDcols > Ddesc->lnt)
+    
+    /*  nbt = Ddesc->lmt * Ddesc->lnt;  total number of tiles */ 
+    if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
         {
-            printf("The process gris choosen is %dx%d, tiling is %d, %d\n", Ddesc->GRIDrows, Ddesc->GRIDcols, Ddesc->lmt, Ddesc->lnt);
+            printf("The process grid chosen is %dx%d, supertiling is %d, %d\n", Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
             exit(2);
         }
     /* find the number of tiles this process will handle */
-    nb_elem_r = Ddesc->lmt / Ddesc->GRIDrows;
-    j = Ddesc->lmt % Ddesc->GRIDrows;
-    if (Ddesc->rowRANK < j)
+    nb_elem_r = 0;
+    j = Ddesc->rowRANK * Ddesc->nrst;
+    while ( j < Ddesc->lmt)
         {
-            nb_elem_r++;
+            if ( (j  + (Ddesc->nrst)) < Ddesc->lmt)
+                {
+                    nb_elem_r += (Ddesc->nrst);
+                    j += (Ddesc->GRIDrows) * (Ddesc->nrst);
+                    continue;
+                }
+            nb_elem_r += ((Ddesc->lmt) - j);
+            break;
         }
-    nb_elem_c = Ddesc->lnt / Ddesc->GRIDcols;
-    j =  Ddesc->lnt % Ddesc->GRIDcols;
-    if (Ddesc->colRANK < j)
+
+    nb_elem_c = 0;
+    j = Ddesc->colRANK * Ddesc->ncst;
+    while ( j < Ddesc->lnt)
         {
-            nb_elem_c++;
+            if ( (j  + (Ddesc->ncst)) < Ddesc->lnt)
+                {
+                    nb_elem_c += (Ddesc->ncst);
+                    j += (Ddesc->GRIDcols) * (Ddesc->ncst);
+                    continue;
+                }
+            nb_elem_c += ((Ddesc->lnt) - j);
+            break;
         }
+    printf("process %d(%d,%d) handles %d x %d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, nb_elem_r, nb_elem_c);
     
     Ddesc->mat = malloc(sizeof(double) * nb_elem_c * nb_elem_r * Ddesc->bsiz);
-    //    printf("This is process rank %d (%d,%d) in a Process grid %dx%d, will handle %dx%d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->GRIDrows, Ddesc->GRIDcols, nb_elem_c, nb_elem_r);
     return 0;
 }
 
@@ -231,15 +266,17 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
 
 int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 {
-    int cr;
-    int rr;
+    int stc, cr;
+    int str, rr;
     int res;
 
     /* for tile (m,n), first find coordinate of process in
        process grid which possess the tile in block cyclic dist */
+    str = m / Ddesc->nrst; /* (m,n) is in super-tile (str, stc)*/
+    stc = n / Ddesc->ncst;
     
-    rr = m % Ddesc->GRIDrows;
-    cr = n % Ddesc->GRIDcols;
+    rr = str % Ddesc->GRIDrows;
+    cr = stc % Ddesc->GRIDcols;
     /* P(rr, cr) has the tile, compute the mpi rank*/
     res = rr * Ddesc->GRIDcols + cr;
     /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
@@ -249,8 +286,8 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 
 void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n)
 {
-    int res;
-    int nb_elem_r;
+    int pos;
+    int nb_elem_r, last_c_size;
     int j;
     if (Ddesc->mpi_rank != dplasma_get_rank_for_tile(Ddesc, m, n))
         {
@@ -258,106 +295,203 @@ void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n)
             return NULL;
         }
 
-
-    /* find the number of tiles this process will handle */
-    nb_elem_r = Ddesc->lmt / Ddesc->GRIDrows;
-    j = Ddesc->lmt % Ddesc->GRIDrows;
-    if (Ddesc->rowRANK < j)
+    /**********************************/
+    nb_elem_r = 0; /* number of row tiles handled per column*/
+    j = Ddesc->rowRANK * Ddesc->nrst;
+    while ( j < Ddesc->lmt)
         {
-            nb_elem_r++;
+            if ( (j  + (Ddesc->nrst)) < Ddesc->lmt)
+                {
+                    nb_elem_r += (Ddesc->nrst);
+                    j += (Ddesc->GRIDrows * Ddesc->nrst);
+                    continue;
+                }
+            nb_elem_r += ((Ddesc->lmt) - j);
+            break;
         }
-    
-    res = ((n / Ddesc->GRIDcols) * nb_elem_r * Ddesc->bsiz) +
-        ((m / Ddesc->GRIDrows) * Ddesc->bsiz) ;
-    return &(((double *) Ddesc->mat)[res]);
-}
+    nb_elem_r = nb_elem_r * Ddesc->ncst; /* number of tiles per column of super-tile */
 
+    pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
 
-
-int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
-{
-    int res;
-    int nb_elem_r;
-    int j;
-    if (Ddesc->mpi_rank != dplasma_get_rank_for_tile(Ddesc, m, n))
+    if ((Ddesc->lnt - n) < Ddesc->ncst) /* tile is in the last column of super-tile */
         {
-            return -1;
-        }
-    
-    
-    /* find the number of tiles this process will handle */
-    nb_elem_r = Ddesc->lmt / Ddesc->GRIDrows;
-    j = Ddesc->lmt % Ddesc->GRIDrows;
-    if (Ddesc->rowRANK < j)
-        {
-            nb_elem_r++;
-        }
-    
-    res = ((n / Ddesc->GRIDcols) * nb_elem_r * Ddesc->bsiz) +
-        ((m / Ddesc->GRIDrows) * Ddesc->bsiz) ;
-    memcpy(&(((double *)Ddesc->mat)[res]), buff, Ddesc->bsiz*sizeof(double));
-    
-    return 0;
-}
-
-
-
-
-int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** reqs)
-{
-    int i, j, k, pos, rank;
-    int nb_reqs;
-    int nb_elem_r, nb_elem_c;
-    pos = 0;
-    k = 0;
-    /* find the number of tiles this process will handle */
-    nb_elem_r = Ddesc->lmt / Ddesc->GRIDrows;
-    j = Ddesc->lmt % Ddesc->GRIDrows;
-    if (Ddesc->rowRANK < j)
-        {
-            nb_elem_r++;
-        }
-    nb_elem_c = Ddesc->lnt / Ddesc->GRIDcols;
-    j =  Ddesc->lnt % Ddesc->GRIDcols;
-    if (Ddesc->colRANK < j)
-        {
-            nb_elem_c++;
-        }
-    if (Ddesc->mpi_rank == 0)
-        {
-            nb_reqs = ((Pdesc->lmt)*(Pdesc->lnt)) - (nb_elem_c*nb_elem_r);
-            *reqs = (MPI_Request *)malloc(nb_reqs * sizeof(MPI_Request));
-            for (i = 0 ; i < Pdesc->lmt; i++)
-                for (j = 0 ; j < Pdesc->lnt ; j++)
-                    {
-                        rank = dplasma_get_rank_for_tile(Ddesc, i, j);
-                        if (rank == 0) /* this tile belongs to me */
-                            {
-                                /*  printf("tile (%d, %d) for self, memcpy\n", i, j);*/
-                                memcpy(&(((double *)Ddesc->mat)[pos]), plasma_A(Pdesc, i, j), Ddesc->bsiz*(sizeof(double)));
-                                pos = pos + Ddesc->bsiz;
-                                continue;
-                            }
-                        MPI_Isend(plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
-                        k++;
-                        
-                    }
+            if (Ddesc->lnt % Ddesc->ncst)
+                last_c_size = (Ddesc->lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
+            else
+                last_c_size = Ddesc->ncst * Ddesc->nrst;
         }
     else
         {
-            *reqs = malloc((nb_elem_c * nb_elem_r) * sizeof(MPI_Request));
+            last_c_size = Ddesc->ncst * Ddesc->nrst;
+        }
+    pos += (last_c_size * ((m / Ddesc->nrst) / Ddesc->GRIDrows ) ); /* pos is at head of supertile (BxA) containing (m,n)  */
 
-            if (NULL == *reqs)
+    /* if tile (m,n) is in the last super tile in the row and this super tile is smaller than others */
+    if (((Ddesc->lmt - m) < Ddesc->nrst) && (Ddesc->lmt % Ddesc->nrst))
+        {           
+            last_c_size = Ddesc->lmt % Ddesc->nrst;
+        }
+    else
+        {
+            last_c_size = Ddesc->nrst;
+        }
+    pos += ((n % Ddesc->ncst) * last_c_size); /* pos is at (B, n)*/
+    pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
+    
+    /************************************/
+    printf("get_tile (%d, %d) position in memory at %d\n", m, n, pos * Ddesc->bsiz);
+    return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
+}
+
+int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
+{
+    double * tile;
+    tile = dplasma_get_tile(Ddesc, m, n);
+    if (tile == NULL)
+        {
+            return 2;
+        }
+    memcpy( tile, buff, Ddesc->bsiz*sizeof(double));
+    return 0;
+}
+
+static int nb_request(DPLASMA_desc * Ddesc, int rank)
+{
+    int nb_req = 0; //number of request
+    int nbr_c;      // number of request per column
+    int str;        // number of super tile per column
+    int i, j, r;
+    int colr, rowr;
+    if (rank == 0)
+        {
+            for( i = 1; i < (Ddesc->GRIDcols * Ddesc->GRIDrows) ; i++)
                 {
-                    printf("memory allocation failed\n");
-                    exit(2);
+                    j = nb_request(Ddesc, i);
+                    nb_req += j;
+                    //                    printf("nb_request adjust for rank 0 to %d (+ %d requests to rank %d)\n", nb_req, j, i);
                 }
-            
-            for (i = 0; i < (nb_elem_c * nb_elem_r) ; i++)
+            return nb_req;
+        }
+    colr = 0;
+    rowr = 0;
+    r = rank;
+    /* find rowRANK for rank */
+    while ( r >= Ddesc->GRIDcols)
+        {
+            rowr++;
+            r = r - Ddesc->GRIDcols;
+        }
+    /* find colRANK */
+    colr = r;
+
+    
+    str = Ddesc->lmt / Ddesc->nrst; // number of super tile in a column
+    if (Ddesc->lmt % Ddesc->nrst)
+        str++;
+
+    str = str - rowr; 
+    nbr_c = str / Ddesc->GRIDrows;
+    if (str % Ddesc->GRIDrows)
+        nbr_c++;
+
+    i = colr * Ddesc->ncst;
+    while(i < Ddesc->lnt)
+        {
+            if (i + Ddesc->ncst > Ddesc->lnt)
                 {
-                    MPI_Irecv(&(((double*)Ddesc->mat)[i*(Ddesc->bsiz)]), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &((*reqs)[i]));
+                    nb_req = nb_req + ( nbr_c * (Ddesc->lnt - i));
+                    return nb_req;
                 }
+            nb_req = nb_req + (nbr_c * Ddesc->ncst);
+            i+=(Ddesc->ncst * Ddesc->GRIDcols); 
+        }
+    return nb_req;
+}
+
+int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count)
+{
+    int i, j, k, nb, pos, rank;
+    int tile_size, str, stc;
+    double * target;
+    pos = 0;
+    k = 0;
+    *req_count = nb_request(Ddesc, Ddesc->mpi_rank);
+    printf("number of request for proc %d: %d\n", Ddesc->mpi_rank, *req_count);
+    *reqs = (MPI_Request *)malloc((*req_count) * sizeof(MPI_Request));
+    if (NULL == *reqs)
+        {
+            printf("memory allocation failed\n");
+            exit(2);
+        }
+    if (Ddesc->mpi_rank == 0)
+        {
+            str = Ddesc->lmt / Ddesc->nrst; // number of super tile in a column
+            if (Ddesc->lmt % Ddesc->nrst)
+                str++;
+            stc = Ddesc->lnt / Ddesc->ncst; // number of super tile in a row
+            if (Ddesc->lnt % Ddesc->ncst)
+                stc++;
+            for (i = 0 ; i < stc; i++) /* for each super tile column */
+                for (j = 0 ; j < str ; j++) /* for each super tile row in that column */
+                    {
+                        rank = dplasma_get_rank_for_tile(Ddesc, j*Ddesc->nrst, i*Ddesc->ncst);
+                        printf("tile (%d,%d) belongs to %d\n", j*Ddesc->nrst, i*Ddesc->ncst, rank);
+                        if (rank == 0) /* this tile belongs to me */
+                            {
+                                tile_size = min(Ddesc->nrst, Ddesc->lmt-(j*Ddesc->nrst));
+                                printf("number of tile to copy at once: %d, ", tile_size);
+                                target = (double *) plasma_A(Pdesc, j*Ddesc->nrst, i*Ddesc->ncst);
+                                printf(" -->tile (%d, %d) for self, memcpy at pos %d\n", j*Ddesc->nrst , i*Ddesc->ncst, pos );
+                                for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
+                                    {
+                                        printf("start nb=%d, end %d, ", nb , min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)));
+                                        printf("target at %e\n", target[0]);
+                                        memcpy(&(((double *)Ddesc->mat)[pos]), target , tile_size * Ddesc->bsiz*(sizeof(double)));
+                                        printf("--->memcpy %d eme tile to %d (%d bytes)\n", nb +1, pos, tile_size * Ddesc->bsiz*(sizeof(double)));
+                                        pos += (Ddesc->bsiz * tile_size);
+                                        target += Ddesc->lmt * Ddesc->bsiz;
+                                    }
+                                
+                                continue;
+                            }
+                        tile_size = min(Ddesc->nrst, Ddesc->lmt-(j*Ddesc->nrst));
+                        target = (double *)plasma_A(Pdesc, j*Ddesc->nrst, i*Ddesc->ncst);
+                        for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
+                            {                                        
+                                MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
+                                k++;
+                                target += Ddesc->lmt * Ddesc->bsiz;
+                            }
+                    }
+        }
+    else /* mpi_rank != 0*/
+        {
+            str = Ddesc->lmt / Ddesc->nrst; // number of super tile in a column
+            if (Ddesc->lmt % Ddesc->nrst)
+                str++;
             
+            
+            str = Ddesc->rowRANK;
+            stc = Ddesc->colRANK;
+            pos = 0;
+            nb = 0;
+            i = 0;
+            while ( i < (*req_count))
+                {
+                    tile_size = min(Ddesc->nrst, Ddesc->lmt - (str * Ddesc->nrst));
+                    for (j = 0 ; j < min(Ddesc->ncst, (Ddesc->lnt - (Ddesc->ncst * stc))) ; j++)
+                        {
+                            MPI_Irecv(&(((double*)Ddesc->mat)[pos]), tile_size * Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &((*reqs)[i]));
+                            pos += tile_size * Ddesc->bsiz;
+                            i++;
+                        }
+                    str += Ddesc->GRIDrows;
+                    if ((str * Ddesc->nrst) > Ddesc->lmt)
+                        {
+                            str = Ddesc->rowRANK;
+                            stc += Ddesc->GRIDcols;
+                        }
+                }
         }
     return 0;
 }
@@ -365,7 +499,6 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
 static void print_block(char * stri, int m, int n, double * block, int blength, int total_size)
 {
     int i;
-    printf("block size: %d, total size: %d\n", blength, total_size);
     printf("%s (%d,%d)\n", stri, m, n);
     for (i = 0 ; i < min(10, blength) ; i++ )
         printf("%e ", block[i]);
@@ -373,81 +506,38 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
     i = total_size - blength;
     for ( ; i < min((total_size - blength) + 10, total_size) ; i++ )
         printf("%e ", block[i]);
-    printf("\n\n\n");
+    printf("\n\n");
 }
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
     int m,n, rank;
     double * buff;
-    
-    if(Ddesc->mpi_rank == 0)
-        {
-            m = Pdesc->lmt/2;
-            n = Pdesc->lnt/2;
-            print_block("orig tile ", 0, 0, plasma_A(Pdesc, 0, 0), Pdesc->nb, Pdesc->bsiz);
-            print_block("orig tile ", m, n, plasma_A(Pdesc, m, n), Pdesc->nb, Pdesc->bsiz);
-            print_block("orig tile ", Pdesc->lmt - 1, Pdesc->lnt -1, plasma_A(Pdesc, Pdesc->lmt - 1, Pdesc->lnt - 1), Pdesc->nb ,Pdesc->bsiz);
-        }
-    rank = dplasma_get_rank_for_tile(Ddesc, 0, 0);
-    if (Ddesc->mpi_rank == rank)
-        {
-            buff = (double *) dplasma_get_tile(Ddesc, 0, 0);
-            print_block("Dist tile", 0, 0, buff, Ddesc->nb , Ddesc->bsiz);
-        }
-    m = Ddesc->lmt/2;
-    n = Ddesc->lnt/2;
-    rank = dplasma_get_rank_for_tile(Ddesc, m, n);
-    if (Ddesc->mpi_rank == rank)
-        {
-            buff = dplasma_get_tile(Ddesc, m, n);
-            printf("Check: %d,%d \n", Ddesc->mpi_rank, rank);
-            print_block("Dist tile", m, n, buff, Ddesc->nb ,Ddesc->bsiz);
-        }
-    rank = dplasma_get_rank_for_tile(Ddesc, Ddesc->lmt - 1, Ddesc->lnt - 1);
-    if (Ddesc->mpi_rank == rank)
-        {
-            buff = dplasma_get_tile(Ddesc, Ddesc->lmt - 1, Ddesc->lnt - 1);
-            printf("check: %d,%d \n", Ddesc->mpi_rank, rank);
-            print_block("dist tile", Ddesc->lmt - 1, Ddesc->lnt - 1, buff , Ddesc->nb ,Ddesc->bsiz);
-        }
+    MPI_Barrier ( MPI_COMM_WORLD);
+    for (m = 0 ; m < Ddesc->lmt ; m++)
+        for ( n = 0 ; n < Ddesc->lnt ; n++)
+            {
+                if(Ddesc->mpi_rank == 0)
+                    print_block("orig tile ", m, n, plasma_A(Pdesc, m, n), Pdesc->nb, Pdesc->bsiz);
+
+                rank = dplasma_get_rank_for_tile(Ddesc, m, n);
+                if (Ddesc->mpi_rank == rank)
+                    {
+                        buff = dplasma_get_tile(Ddesc, m, n);
+                        printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
+                        print_block("Dist tile", m, n, buff, Ddesc->nb, Ddesc->bsiz);
+                    }
+                MPI_Barrier(MPI_COMM_WORLD);   
+            }
 
 }
 
-int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs)
+int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 {
-    int j;
-    int nb_reqs;
-    int nb_elem_r, nb_elem_c;
     MPI_Status * stats;
-    /* find the number of tiles this process will handle */
-    nb_elem_r = Ddesc->lmt / Ddesc->GRIDrows;
-    j = Ddesc->lmt % Ddesc->GRIDrows;
-    if (Ddesc->rowRANK < j)
-        {
-            nb_elem_r++;
-        }
-    nb_elem_c = Ddesc->lnt / Ddesc->GRIDcols;
-    j =  Ddesc->lnt % Ddesc->GRIDcols;
-    if (Ddesc->colRANK < j)
-        {
-            nb_elem_c++;
-        }
-
-    if (Ddesc->mpi_rank == 0)
-        {
-            nb_reqs = ((Ddesc->lmt)*(Ddesc->lnt)) - (nb_elem_c*nb_elem_r);
-            //   printf("waiting for completion of %d  Isend\n", nb_reqs);
-            stats = malloc(nb_reqs * sizeof(MPI_Status));
-            MPI_Waitall(nb_reqs, reqs, stats);
-            //     printf("completion of Isend done\n");
-        }
-    else
-        {
-            nb_reqs = nb_elem_c*nb_elem_r;
-            //            printf("waiting for completion of %d Irecv\n", nb_reqs);
-            stats = malloc(nb_reqs * sizeof(MPI_Status));
-            MPI_Waitall(nb_reqs, reqs, stats);
-            //          printf("completion of Irecv done\n");
-        }
+    
+    //   printf("waiting for completion of %d  Isend\n", nb_reqs);
+    stats = malloc(req_count * sizeof(MPI_Status));
+    MPI_Waitall(req_count, reqs, stats);
+    //     printf("completion of Isend done\n");
     return 1;
 }
