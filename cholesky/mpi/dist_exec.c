@@ -10,8 +10,37 @@
 #include "../../dplasma.h"
 #include "plasma.h"
 #include "data_management.h"
+#include <sys/time.h>
+#include "dplasma.h"
+#include "scheduling.h"
+#include <string.h>
+#include <cblas.h>
+#include <../src/common.h>
+#include <../src/lapack.h>
+#include <../src/context.h>
+#include <../src/allocate.h>
+#include <math.h>
 
 
+extern int yyparse();
+extern int load_dplasma_hooks( void );
+
+
+double time_elapsed, GFLOPS;
+
+double get_cur_time(){
+    double t;
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    t=tv.tv_sec+tv.tv_usec/1e6;
+    return t;
+}
+
+DPLASMA_desc descA;
+
+
+int check_factorization(int, double*, double*, int, int , double);
+int check_solution(int, int, double*, int, double*, double*, int, double);
 
 
 int main(int argc, char ** argv){
@@ -29,7 +58,7 @@ int main(int argc, char ** argv){
     int info_solution, info_factorization;
     int NminusOne; /* = N-1;*/
     int LDBxNRHS; /* = LDB*NRHS;*/
-    
+    PLASMA_desc local_desc;
     double *A1;
     double *A2;
     double *B1;
@@ -37,8 +66,6 @@ int main(int argc, char ** argv){
     double *WORK;
     double *D;
 
-    PLASMA_desc descA;
-    DPLASMA_desc main_desc;
 
     MPI_Request * requests;
     int req_count;
@@ -62,17 +89,17 @@ int main(int argc, char ** argv){
     MPI_Init(&argc, &argv);
 
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &main_desc.mpi_rank); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &descA.mpi_rank); 
 
     /* plasma initialization */
     PLASMA_Init(cores);
     
     /* parse arguments */
-    if (main_desc.mpi_rank == 0)
+    if (descA.mpi_rank == 0)
         {
-            main_desc.GRIDrows = 1;
-            main_desc.nrst = 1;
-            main_desc.ncst = 1;
+            descA.GRIDrows = 1;
+            descA.nrst = 1;
+            descA.ncst = 1;
             printf("parsing arguments\n");
             while (1)
                 {
@@ -106,13 +133,13 @@ int main(int argc, char ** argv){
                             break;
                             
                         case 'g':
-                            main_desc.GRIDrows = atoi(optarg);
-                            printf("%d rows od processes in the process grid\n", main_desc.GRIDrows);
+                            descA.GRIDrows = atoi(optarg);
+                            printf("%d rows od processes in the process grid\n", descA.GRIDrows);
                             break;
                         case 's':
-                            main_desc.nrst = atoi(optarg);
-                            main_desc.ncst = main_desc.nrst;
-                            printf("processes receives tiles by blocks of %dx%d\n", main_desc.nrst, main_desc.ncst);
+                            descA.nrst = atoi(optarg);
+                            descA.ncst = descA.nrst;
+                            printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
                             break;
                             
                         case '?': /* getopt_long already printed an error message. */
@@ -135,19 +162,19 @@ int main(int argc, char ** argv){
             if (LDB <= 0)
                 LDB = N;
             
-            if (main_desc.ncst <= 0)
+            if (descA.ncst <= 0)
                 {
                     printf("select a positive value for super tile size\n");
                     MPI_Abort( MPI_COMM_WORLD, 2 );
                 }
             
-            if ((nodes % main_desc.GRIDrows) != 0 )
+            if ((nodes % descA.GRIDrows) != 0 )
                 {
-                    printf("GRIDrows %d does not devide the total number of nodes %d\n", main_desc.GRIDrows, nodes);
+                    printf("GRIDrows %d does not devide the total number of nodes %d\n", descA.GRIDrows, nodes);
                     MPI_Abort( MPI_COMM_WORLD, 2 );
                 }
             
-            main_desc.GRIDcols = nodes / main_desc.GRIDrows ;
+            descA.GRIDcols = nodes / descA.GRIDrows ;
             
             A1   = (double *)malloc(LDA*N*sizeof(double));
             A2   = (double *)malloc(LDA*N*sizeof(double));
@@ -164,31 +191,205 @@ int main(int argc, char ** argv){
             generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
             
             // printf("tiling matrix\n");
-            tiling(&uplo, N, A2, LDA, &descA);
+            tiling(&uplo, N, A2, LDA, &local_desc);
             //printf("structure initialization\n");
-            dplasma_desc_init(&descA, &main_desc);
+            dplasma_desc_init(&local_desc, &descA);
             printf("Data distribution\n");
-            distribute_data(&descA, &main_desc, &requests, &req_count);
+            distribute_data(&local_desc, &descA, &requests, &req_count);
         }
     else
         { /* prepare data for block reception  */
             /* initialize main tiles description structure (Bcast inside) */
-            dplasma_desc_init(NULL, &main_desc);
-            distribute_data(NULL, &main_desc, &requests, &req_count);
+            dplasma_desc_init(NULL, &descA);
+            distribute_data(NULL, &descA, &requests, &req_count);
         }
-    
-    /* distributing initial matrix */
-
 
     /* parsing jdf */
+   /* dplasma_lineno = 1;*/
+    time_elapsed = get_cur_time();
+    yyparse();
+    {
+        expr_t* constant;
 
+        constant = expr_new_int( descA.nb );
+        dplasma_add_global_symbol( "NB", constant );
+        constant = expr_new_int( descA.nt );
+        dplasma_add_global_symbol( "SIZE", constant );
+        constant = expr_new_int( descA.GRIDrows );
+        dplasma_add_global_symbol( "GRIDrows", constant );
+        constant = expr_new_int( descA.GRIDcols );
+        dplasma_add_global_symbol( "GRIDcols", constant );
+        constant = expr_new_int( descA.rowRANK );
+        dplasma_add_global_symbol( "rowRANK", constant );
+        constant = expr_new_int( descA.colRANK );
+        dplasma_add_global_symbol( "colRANK", constant );
+    }
+    load_dplasma_hooks();
+    time_elapsed = get_cur_time() - time_elapsed;
+    printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
+    
     /* checking local data ready */
-    is_data_distributed(&main_desc, requests, req_count);
-    data_dist_verif(&descA, &main_desc);
-    /* start execution */
+    is_data_distributed(&descA, requests, req_count);
+#ifdef DIST_VERIFICATION
+    data_dist_verif(&local_desc, &descA);
+#endif
+
+    /* lets rock! */
+    {
+        dplasma_execution_context_t exec_context;
+        /* I know what I'm doing ;) */
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+        dplasma_set_initial_execution_context(&exec_context);
+        time_elapsed = get_cur_time();
+        dplasma_schedule(&exec_context);
+        dplasma_progress();
+        time_elapsed = get_cur_time() - time_elapsed;
+#define N descA.n
+#define NB descA.nb
+        printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+    }
+
+    gather_data(&local_desc, &descA);
+    
+    if(descA.mpi_rank == 0) 
+    {
+        untiling(&uplo, N, A2, LDA, &local_desc);
+        PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
+        eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
+        printf("\n");
+        printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
+        printf("            Size of the Matrix %d by %d\n", N, N);
+        printf("\n");
+        printf(" The matrix A is randomly generated for each test.\n");
+        printf("============\n");
+        printf(" The relative machine precision (eps) is to be %e \n", eps);
+        printf(" Computational tests pass if scaled residuals are less than 10.\n");
+        
+        /* Check the factorization and the solution */
+        info_factorization = check_factorization( N, A1, A2, LDA, uplo, eps);
+        info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
+        
+        if ((info_solution == 0)&(info_factorization == 0)){
+            printf("***************************************************\n");
+            printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED !\n");
+            printf("***************************************************\n");
+        }
+        else{
+            printf("****************************************************\n");
+            printf(" - TESTING DPOTRF + DPOTRS ... FAILED !\n");
+            printf("****************************************************\n");
+        }
+        
+        free(A1); free(A2); free(B1); free(B2); free(WORK); free(D);
+    }
+#undef N
+#undef NB
+        
     PLASMA_Finalize();
     MPI_Finalize();
     return 0;
+}
+
+/*------------------------------------------------------------------------
+ * *  Check the factorization of the matrix A2
+ * */
+
+int check_factorization(int N, double *A1, double *A2, int LDA, int uplo, double eps)
+{
+    double Anorm, Rnorm;
+    double alpha;
+    char norm='I';
+    int info_factorization;
+    int i,j;
+    
+    double *Residual = (double *)malloc(N*N*sizeof(double));
+    double *L1       = (double *)malloc(N*N*sizeof(double));
+    double *L2       = (double *)malloc(N*N*sizeof(double));
+    double *work     = (double *)malloc(N*sizeof(double));
+    
+    memset((void*)L1, 0, N*N*sizeof(double));
+    memset((void*)L2, 0, N*N*sizeof(double));
+    
+    alpha= 1.0;
+    
+    dlacpy("ALL", &N, &N, A1, &LDA, Residual, &N);
+    
+    /* Dealing with L'L or U'U  */
+    if (uplo == PlasmaUpper){
+        dlacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L1, &N);
+        dlacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L2, &N);
+        cblas_dtrmm(CblasColMajor, CblasLeft, CblasUpper, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
+    }
+    else{
+        dlacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L1, &N);
+        dlacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L2, &N);
+        cblas_dtrmm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
+    }
+    
+    /* Compute the Residual || A -L'L|| */
+    for (i = 0; i < N; i++)
+        for (j = 0; j < N; j++)
+            Residual[j*N+i] = L2[j*N+i] - Residual[j*N+i];
+    
+    Rnorm = dlange(&norm, &N, &N, Residual, &N, work);
+    Anorm = dlange(&norm, &N, &N, A1, &LDA, work);
+    
+    printf("============\n");
+    printf("Checking the Cholesky Factorization \n");
+    printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n",Rnorm/(Anorm*N*eps));
+    
+    if ( isnan(Rnorm/(Anorm*N*eps)) || (Rnorm/(Anorm*N*eps) > 10.0) ){
+        printf("-- Factorization is suspicious ! \n");
+        info_factorization = 1;
+    }
+    else{
+        printf("-- Factorization is CORRECT ! \n");
+        info_factorization = 0;
+    }
+    
+    free(Residual); free(L1); free(L2); free(work);
+    
+    return info_factorization;
+}
+
+
+/*------------------------------------------------------------------------
+ * *  Check the accuracy of the solution of the linear system
+ * */
+
+int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, double *B2, int LDB, double eps )
+{
+    int info_solution;
+    double Rnorm, Anorm, Xnorm, Bnorm;
+    char norm='I';
+    double alpha, beta;
+    double *work = (double *)malloc(N*sizeof(double));
+    alpha = 1.0;
+    beta  = -1.0;
+    
+    Xnorm = dlange(&norm, &N, &NRHS, B2, &LDB, work);
+    Anorm = dlange(&norm, &N, &N, A1, &LDA, work);
+    Bnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
+    
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
+    Rnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
+    
+    printf("============\n");
+    printf("Checking the Residual of the solution \n");
+    printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));
+    
+    if (Rnorm/((Anorm*Xnorm+Bnorm)*N*eps) > 10.0){
+        printf("-- The solution is suspicious ! \n");
+        info_solution = 1;
+    }
+    else{
+        printf("-- The solution is CORRECT ! \n");
+        info_solution = 0;
+    }
+    
+    free(work);
+    
+    return info_solution;
 }
 
 

@@ -81,6 +81,9 @@ int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
  */
 int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count);
 
+/* regroup the distributed tiles to the rank 0 */
+/* Pdesc is NULL except on rank 0 */
+int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
 /* test if the matrix data has been distributed
  * return 0 if not
@@ -101,6 +104,8 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
 
 /* convert to plasma desc and tiling format */
 int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+
 
 /* debugging print of blocks */
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );

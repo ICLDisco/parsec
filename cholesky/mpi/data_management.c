@@ -263,6 +263,42 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
     
 }
 
+int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
+{
+    plasma_context_t *plasma;
+        
+    plasma = plasma_context_self();
+    if (plasma == NULL) {
+        plasma_fatal_error("PLASMA_dpotrf", "PLASMA not initialized");
+        return PLASMA_ERR_NOT_INITIALIZED;
+    }
+    /* Check input arguments */
+    if (*uplo != PlasmaUpper && *uplo != PlasmaLower) {
+        plasma_error("PLASMA_dpotrf", "illegal value of uplo");
+        return -1;
+    }
+    if (N < 0) {
+        plasma_error("PLASMA_dpotrf", "illegal value of N");
+        return -2;
+    }
+    if (LDA < max(1, N)) {
+        plasma_error("PLASMA_dpotrf", "illegal value of LDA");
+        return -4;
+    }
+    /* Quick return */
+    if (max(N, 0) == 0)
+        return PLASMA_SUCCESS;
+ 
+    plasma_parallel_call_3(plasma_tile_to_lapack,
+                           PLASMA_desc, *descA,
+                           double*, A,
+                           int, LDA);
+    
+    printf("matrix untiled from %dx%d\n", descA->lmt, descA->lnt);
+    return PLASMA_SUCCESS;
+    
+}
+
 
 int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 {
@@ -495,6 +531,43 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
         }
     return 0;
 }
+
+int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc) 
+{
+  int i, j, k, rank;
+  int req_count;
+  MPI_Request * reqs;
+
+  req_count= nb_request(Ddesc, Ddesc->mpi_rank);
+  reqs = malloc(sizeof(MPI_Request)* req_count);
+  k = 0;
+  if ( Ddesc->mpi_rank == 0)
+    {
+      for (i = 0 ; i < Ddesc->lmt ; i++ )
+	for(j = 0; j < Ddesc->lnt ; j++)
+	  {
+	    rank = dplasma_get_rank_for_tile(Ddesc, i, j);
+	    if (rank == 0)
+	      memcpy(plasma_A(Pdesc, i, j ), dplasma_get_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(double)) ;
+	    else
+	      MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &reqs[k++] );
+	      }
+      MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
+    }
+  else
+    {
+      for (i = 0 ; i < Ddesc->lmt ; i++ )
+	for(j = 0; j < Ddesc->lnt ; j++)
+	  {
+	    rank = dplasma_get_rank_for_tile(Ddesc, i, j);
+	    if (rank == Ddesc->mpi_rank)
+	      MPI_Send( dplasma_get_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD );
+	      }
+
+    }
+  return 0;
+}
+
 
 static void print_block(char * stri, int m, int n, double * block, int blength, int total_size)
 {
