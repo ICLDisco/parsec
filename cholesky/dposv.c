@@ -21,6 +21,7 @@
 #include <sys/time.h>
 
 #include "dplasma.h"
+#include "scheduling.h"
 extern int dplasma_lineno;
 extern int yyparse();
 extern int load_dplasma_hooks( void );
@@ -126,6 +127,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
         dplasma_set_initial_execution_context(&exec_context);
         time_elapsed = get_cur_time();
         dplasma_schedule(&exec_context);
+        dplasma_progress();
         time_elapsed = get_cur_time() - time_elapsed;
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
     }

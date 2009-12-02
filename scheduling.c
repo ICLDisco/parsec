@@ -5,6 +5,12 @@
  */
 
 #include "scheduling.h"
+#include <string.h>
+
+static dplasma_execution_context_t* ready_list = NULL;
+static int dplasma_execute( const dplasma_execution_context_t* exec_context );
+
+#define DEPTH_FIRST_SCHEDULE 0
 
 /**
  * Schedule the instance of the service based on the values of the
@@ -13,6 +19,53 @@
  * are released.
  */
 int dplasma_schedule( const dplasma_execution_context_t* exec_context )
+{
+#if DEPTH_FIRST_SCHEDULE
+    dplasma_execution_context_t* new_context;
+
+    new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+    memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+    if( NULL == ready_list ) {
+        new_context->prev = new_context;
+        new_context->next = new_context;
+        ready_list = new_context;
+    } else {
+        new_context->next = ready_list;
+        new_context->prev = ready_list->prev;
+        ready_list->prev = new_context;
+        new_context->prev->next = new_context;
+    }
+    return 0;
+#else
+    return dplasma_execute(exec_context);
+#endif  /* DEPTH_FIRST_SCHEDULE */
+}
+
+int dplasma_progress(void)
+{
+    dplasma_execution_context_t* exec_context;
+
+    while( NULL != ready_list ) {
+        /* extract the first exeuction context from the ready list */
+        exec_context = ready_list;
+        if( exec_context == exec_context->next ) {
+            ready_list = NULL;
+        } else {
+            ready_list = exec_context->next;
+            ready_list->prev = exec_context->prev;
+            exec_context->prev->next = ready_list;
+        }
+
+        /* We're good to go ... */
+        dplasma_execute( exec_context );
+
+        /* Release the execution context */
+        free( exec_context );
+    }
+    return 0;
+}
+
+static int dplasma_execute( const dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
@@ -91,9 +144,3 @@ int dplasma_schedule( const dplasma_execution_context_t* exec_context )
 
     return 0;
 }
-
-int dplasma_progress(void)
-{
-    return 0;
-}
-

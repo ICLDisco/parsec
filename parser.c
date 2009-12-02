@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
             rc = dplasma_service_can_be_startup( &exec_context );
             if( rc == 0 ) {
                 dplasma_schedule(&exec_context);
+                dplasma_progress();
             }
         }
 #if 0
@@ -87,6 +88,7 @@ int main(int argc, char *argv[])
         }
         dplasma_set_initial_execution_context(&exec_context);
         dplasma_schedule(&exec_context);
+        dplasma_progress();
 #endif
     }
     printf("}\n");
