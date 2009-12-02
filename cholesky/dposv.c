@@ -125,7 +125,7 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
         time_elapsed = get_cur_time();
-        dplasma_execute(&exec_context);
+        dplasma_schedule(&exec_context);
         time_elapsed = get_cur_time() - time_elapsed;
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
     }
