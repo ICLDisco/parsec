@@ -447,7 +447,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                                         printf("start nb=%d, end %d, ", nb , min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)));
                                         printf("target at %e\n", target[0]);
                                         memcpy(&(((double *)Ddesc->mat)[pos]), target , tile_size * Ddesc->bsiz*(sizeof(double)));
-                                        printf("--->memcpy %d eme tile to %d (%d bytes)\n", nb +1, pos, tile_size * Ddesc->bsiz*(sizeof(double)));
+                                        printf("--->memcpy %d eme tile to %d (%ld bytes)\n", nb +1, pos, tile_size * Ddesc->bsiz*(sizeof(double)));
                                         pos += (Ddesc->bsiz * tile_size);
                                         target += Ddesc->lmt * Ddesc->bsiz;
                                     }

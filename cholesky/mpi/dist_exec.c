@@ -7,7 +7,7 @@
 
 #include "mpi.h"
 #include <getopt.h>
-#include "../dplasma.h"
+#include "../../dplasma.h"
 #include "plasma.h"
 #include "data_management.h"
 
@@ -112,7 +112,7 @@ int main(int argc, char ** argv){
                         case 's':
                             main_desc.nrst = atoi(optarg);
                             main_desc.ncst = main_desc.nrst;
-                            printf("processes receives tiles by blocks of %dx%d\n", main_desc.nrst);
+                            printf("processes receives tiles by blocks of %dx%d\n", main_desc.nrst, main_desc.ncst);
                             break;
                             
                         case '?': /* getopt_long already printed an error message. */
