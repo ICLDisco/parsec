@@ -3,7 +3,8 @@ include make.inc
 TARGETS=cholesky/dposv parser dpc tools/buildDAG
 
 OBJECTS=dplasma.o symbol.o assignment.o expr.o \
-	params.o dep.o lex.yy.o dplasma.tab.o
+	params.o dep.o lex.yy.o dplasma.tab.o \
+	scheduling.o
 
 CHOLESKY_OBJECTS=cholesky/cholesky_hook.o \
 	cholesky/dposv.o

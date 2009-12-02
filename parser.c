@@ -1,4 +1,5 @@
-#include <dplasma.h>
+#include "dplasma.h"
+#include "scheduling.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

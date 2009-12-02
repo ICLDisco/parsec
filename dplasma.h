@@ -20,6 +20,12 @@ typedef struct dplasma_t dplasma_t;
 #include "params.h"
 #include "dep.h"
 
+#ifdef _DEBUG
+#define DEBUG(ARG)  printf ARG
+#else
+#define DEBUG(ARG)
+#endif
+
 /* There is another loop after this one. */
 #define DPLASMA_DEPENDENCIES_FLAG_NEXT       0x01
 /* This is the final loop */
@@ -120,21 +126,6 @@ dplasma_t* dplasma_find_or_create( const char* name );
 const dplasma_t* dplasma_element_at( int i );
 
 /**
- * Mark a execution context as being ready to be scheduled, i.e. all
- * input dependencies are resolved. The execution context can be
- * executed immediately or delayed until resources become available.
- *
- * @param [IN] The execution context to be executed. This include
- *             calling the attached hook (if any) as well as marking
- *             all dependencies as completed.
- *
- * @return  0 If the execution was succesful and all output dependencies
- *            has been correctly marked.
- * @return -1 If something went wrong.
- */
-int dplasma_schedule( const dplasma_execution_context_t* exec_context );
-
-/**
  * Compute the correct initial values for an execution context. These values
  * are in the range and validate all possible predicates. If such values do
  * not exist this function returns -1.
@@ -145,6 +136,18 @@ int dplasma_schedule( const dplasma_execution_context_t* exec_context );
  * @return -1 If no suitable values for this execution context can be found.
  */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context );
+
+/**
+ * Release all OUT dependencies for this particular instance of the service.
+ * @param [IN] The execution context which just completed
+ * @param [IN] The name of the released parameter at the source
+ * @param [INOUT] The execution context used as destination
+ * @param [IN] The name of the parameter at the destination
+ */
+int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
+                                      const param_t* origin_param,
+                                      dplasma_execution_context_t* exec_context,
+                                      const param_t* dest_param );
 
 /**
  * Check is there is any of the input parameters that do depend on some
