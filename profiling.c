@@ -28,6 +28,9 @@ static inline dplasma_time_t take_time(void)
 }
 #endif
 
+/* Have to love that ... */
+extern char *strdup(const char *);
+
 typedef struct dplasma_profiling_key_t {
     char* name;
     char* attributes;

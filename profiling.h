@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <string.h>
 
 /**
  * Initialize the circular trace with the specified length. If threads are
