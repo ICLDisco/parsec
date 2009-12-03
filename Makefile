@@ -31,7 +31,7 @@ cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.tab.h %.tab.c: %.y
-	$(YACC) $< -o $(*F).tab.c
+	$(YACC) -o $(*F).tab.c $<
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<
