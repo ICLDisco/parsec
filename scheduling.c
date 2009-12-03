@@ -10,7 +10,7 @@
 static dplasma_execution_context_t* ready_list = NULL;
 static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 
-#define DEPTH_FIRST_SCHEDULE 0
+#define DEPTH_FIRST_SCHEDULE 1
 
 /**
  * Schedule the instance of the service based on the values of the

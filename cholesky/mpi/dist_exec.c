@@ -20,8 +20,9 @@
 #include <../src/context.h>
 #include <../src/allocate.h>
 #include <math.h>
+#include <string.h>
 
-
+extern FILE *yyin;
 extern int yyparse();
 extern int load_dplasma_hooks( void );
 
@@ -65,10 +66,9 @@ int main(int argc, char ** argv){
     double *B2;
     double *WORK;
     double *D;
-
-
     MPI_Request * requests;
     int req_count;
+    char *lexfile = "../cholesky.jdf";
 
     struct option long_options[] =
         {
@@ -79,6 +79,7 @@ int main(int argc, char ** argv){
             {"grid-rows",  required_argument, 0, 'g'},
             {"stile-size",  required_argument, 0, 's'},
             {"help",  no_argument, 0, 'h'},
+            {"jdf", required_argument, 0, 'j'},
             {0, 0, 0, 0}
         };
 
@@ -95,114 +96,125 @@ int main(int argc, char ** argv){
     PLASMA_Init(cores);
     
     /* parse arguments */
-    if (descA.mpi_rank == 0)
+    descA.GRIDrows = 1;
+    descA.nrst = 1;
+    descA.ncst = 1;
+    printf("parsing arguments\n");
+    while (1)
+    {
+        c = getopt_long (argc, argv, "a:n:r:b:g:s:j:h",
+                         long_options, &option_index);
+        
+        /* Detect the end of the options. */
+        if (c == -1)
+            break;
+        
+        switch (c)
         {
-            descA.GRIDrows = 1;
-            descA.nrst = 1;
-            descA.ncst = 1;
-            printf("parsing arguments\n");
-            while (1)
-                {
-                    c = getopt_long (argc, argv, "a:n:r:b:g:s:h",
-                                     long_options, &option_index);
-         
-                    /* Detect the end of the options. */
-                    if (c == -1)
-                        break;
-                    
-                    switch (c)
-                        {
-                        case 'a':
-                            LDA = atoi(optarg);
-                            printf("LDA set to %d\n", LDA);
-                            break;
-                            
-                        case 'n':
-                            N = atoi(optarg);
-                            printf("matrix size set to %d\n", N);
-                            break;
-                            
-                        case 'r':
-                            NRHS  = atoi(optarg);
-                            printf("number of RHS set to %d\n", NRHS);
-                            break;
-                            
-                        case 'b':
-                            LDB  = atoi(optarg);
-                            printf("LDB set to %d\n", LDB);
-                            break;
-                            
-                        case 'g':
-                            descA.GRIDrows = atoi(optarg);
-                            printf("%d rows od processes in the process grid\n", descA.GRIDrows);
-                            break;
-                        case 's':
-                            descA.nrst = atoi(optarg);
-                            descA.ncst = descA.nrst;
-                            printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
-                            break;
-                            
-                        case '?': /* getopt_long already printed an error message. */
-                        case 'h':
-                        default:
-                            printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
-                            MPI_Abort( MPI_COMM_WORLD, 2);
-                        }
-                    
-                }
-            
-            if (N == 0)
-                {
-                    printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
-                    MPI_Abort( MPI_COMM_WORLD, 2 );
-
-                }
-            if(LDA <= 0)
-                LDA = N;
-            if (LDB <= 0)
-                LDB = N;
-            
-            if (descA.ncst <= 0)
-                {
-                    printf("select a positive value for super tile size\n");
-                    MPI_Abort( MPI_COMM_WORLD, 2 );
-                }
-            
-            if ((nodes % descA.GRIDrows) != 0 )
-                {
-                    printf("GRIDrows %d does not devide the total number of nodes %d\n", descA.GRIDrows, nodes);
-                    MPI_Abort( MPI_COMM_WORLD, 2 );
-                }
-            
-            descA.GRIDcols = nodes / descA.GRIDrows ;
-            
-            A1   = (double *)malloc(LDA*N*sizeof(double));
-            A2   = (double *)malloc(LDA*N*sizeof(double));
-            B1   = (double *)malloc(LDB*NRHS*sizeof(double));
-            B2   = (double *)malloc(LDB*NRHS*sizeof(double));
-            WORK = (double *)malloc(2*LDA*sizeof(double));
-            D    = (double *)malloc(LDA*sizeof(double));
-            
-            NminusOne = N-1;
-            LDBxNRHS = LDB*NRHS;
-           
-            /* generating a random matrix */
-            //printf("generating matrix on rank 0\n");
-            generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
-            
-            // printf("tiling matrix\n");
-            tiling(&uplo, N, A2, LDA, &local_desc);
-            //printf("structure initialization\n");
-            dplasma_desc_init(&local_desc, &descA);
-            printf("Data distribution\n");
-            distribute_data(&local_desc, &descA, &requests, &req_count);
+            case 'a':
+                LDA = atoi(optarg);
+                printf("LDA set to %d\n", LDA);
+                break;
+                
+            case 'n':
+                N = atoi(optarg);
+                printf("matrix size set to %d\n", N);
+                break;
+                
+            case 'r':
+                NRHS  = atoi(optarg);
+                printf("number of RHS set to %d\n", NRHS);
+                break;
+                
+            case 'b':
+                LDB  = atoi(optarg);
+                printf("LDB set to %d\n", LDB);
+                break;
+                
+            case 'g':
+                descA.GRIDrows = atoi(optarg);
+                printf("%d rows od processes in the process grid\n", descA.GRIDrows);
+                break;
+            case 's':
+                descA.nrst = atoi(optarg);
+                descA.ncst = descA.nrst;
+                printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
+                break;
+            case 'j':
+                lexfile = strdup(optarg);
+                break;
+            case '?': /* getopt_long already printed an error message. */
+            case 'h':
+            default:
+                printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n -j --jdf : path to jackub description format file (default: ../cholesky.jdf)\n");
+                MPI_Abort( MPI_COMM_WORLD, 2);
         }
+        
+    }
+    
+    yyin = fopen(lexfile, "r");
+    if(NULL == yyin)
+    {
+        perror("opening JDF file");
+        MPI_Abort(MPI_COMM_WORLD, 2);
+    }
+    
+    if (N == 0)
+    {
+        printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
+        MPI_Abort( MPI_COMM_WORLD, 2 );
+        
+    }
+    if(LDA <= 0)
+        LDA = N;
+    if (LDB <= 0)
+        LDB = N;
+    
+    if (descA.ncst <= 0)
+    {
+        printf("select a positive value for super tile size\n");
+        MPI_Abort( MPI_COMM_WORLD, 2 );
+    }
+    
+    if ((nodes % descA.GRIDrows) != 0 )
+    {
+        printf("GRIDrows %d does not devide the total number of nodes %d\n", descA.GRIDrows, nodes);
+        MPI_Abort( MPI_COMM_WORLD, 2 );
+    }
+    
+    descA.GRIDcols = nodes / descA.GRIDrows ;
+    
+    /* rank 0 specific init */
+    if (descA.mpi_rank == 0)
+    {
+        A1   = (double *)malloc(LDA*N*sizeof(double));
+        A2   = (double *)malloc(LDA*N*sizeof(double));
+        B1   = (double *)malloc(LDB*NRHS*sizeof(double));
+        B2   = (double *)malloc(LDB*NRHS*sizeof(double));
+        WORK = (double *)malloc(2*LDA*sizeof(double));
+        D    = (double *)malloc(LDA*sizeof(double));
+        
+        NminusOne = N-1;
+        LDBxNRHS = LDB*NRHS;
+        
+        /* generating a random matrix */
+        //printf("generating matrix on rank 0\n");
+        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
+        
+        // printf("tiling matrix\n");
+        tiling(&uplo, N, A2, LDA, &local_desc);
+        //printf("structure initialization\n");
+        dplasma_desc_init(&local_desc, &descA);
+        printf("Data distribution\n");
+        distribute_data(&local_desc, &descA, &requests, &req_count);
+    }
     else
-        { /* prepare data for block reception  */
-            /* initialize main tiles description structure (Bcast inside) */
-            dplasma_desc_init(NULL, &descA);
-            distribute_data(NULL, &descA, &requests, &req_count);
-        }
+    { /* prepare data for block reception  */
+        /* initialize main tiles description structure (Bcast inside) */
+        dplasma_desc_init(NULL, &descA);
+/*        c = 1; while(c);*/
+	    distribute_data(NULL, &descA, &requests, &req_count);
+    }
     /* checking local data ready */
     is_data_distributed(&descA, requests, req_count);
 

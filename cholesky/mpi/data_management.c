@@ -335,9 +335,10 @@ void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
     tile_rank = dplasma_get_rank_for_tile(Ddesc, m, n);
     if(Ddesc->mpi_rank == tile_rank)
     {
+        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n);
         return dplasma_get_local_tile(Ddesc, m, n);
     }
-    
+    printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank);
     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_DOUBLE, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return plasma_A((PLASMA_desc *)Ddesc, m, n);
 }
@@ -393,7 +394,6 @@ void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n)
     pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
     
     /************************************/
-    printf("get_tile (%d, %d) position in memory at %d\n", m, n, pos * Ddesc->bsiz);
     return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
 }
 
@@ -564,7 +564,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             {
                 rank = dplasma_get_rank_for_tile(Ddesc, i, j);
                 if (rank == 0)
-                    memcpy(plasma_A(Pdesc, i, j ), dplasma_get_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(double)) ;
+                    memcpy(plasma_A(Pdesc, i, j ), dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(double)) ;
                 else
                     MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &reqs[req_count++] );
             }
@@ -578,7 +578,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             {
                 rank = dplasma_get_rank_for_tile(Ddesc, i, j);
                 if (rank == Ddesc->mpi_rank)
-                    MPI_Send( dplasma_get_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD );
+                    MPI_Send( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD );
             }
         
     }
@@ -625,11 +625,7 @@ int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 {
     MPI_Status * stats;
     
-    stats = NULL;
-/*    while(!stats);*/
-       printf("waiting for completion of %d  Isend\n", req_count);
     stats = malloc(req_count * sizeof(MPI_Status));
     MPI_Waitall(req_count, reqs, stats);
-         printf("completion of Isend done\n");
     return 1;
 }
