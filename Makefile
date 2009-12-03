@@ -4,7 +4,7 @@ TARGETS=cholesky/dposv parser dpc tools/buildDAG
 
 OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o lex.yy.o dplasma.tab.o \
-	scheduling.o
+	scheduling.o profiling.o
 
 CHOLESKY_OBJECTS=cholesky/cholesky_hook.o \
 	cholesky/dposv.o
@@ -31,7 +31,7 @@ cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.tab.h %.tab.c: %.y
-	$(YACC) $< -o $(*F).tab.c
+	$(YACC) -o $(*F).tab.c $<
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<

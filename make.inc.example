@@ -28,6 +28,9 @@ LEX=flex # -d
 #
 # Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
 # Add -D_DEBUG to be verbose
+# Add -DDPLASMA_GENERATE_DOT to generate the dot output.
+# Add -DDPLASMA_PROFILING to generate a profiling svg output.
+
 #
 CFLAGS=-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_ -DDPLASMA_EXECUTE
 LDFLAGS=-g
