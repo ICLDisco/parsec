@@ -8,6 +8,7 @@
 
 
 #include "plasma.h"
+#include <mpi.h>
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */
@@ -61,10 +62,13 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
 
 int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n);
 
-/* get a pointer to a specific tile handled locally
- *  return NULL if tile not a local tile
- */
+/* get a pointer to a specific tile 
+ * if the tile is remote, it is downloaded first */
 void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n);
+
+/* get a pointer to a specific LOCAL tile */
+void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n);
+
 
 /* set new data to tile
  * return 0 if success, >0 if not

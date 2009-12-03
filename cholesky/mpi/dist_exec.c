@@ -203,11 +203,12 @@ int main(int argc, char ** argv){
             dplasma_desc_init(NULL, &descA);
             distribute_data(NULL, &descA, &requests, &req_count);
         }
+    /* checking local data ready */
+    is_data_distributed(&descA, requests, req_count);
 
     /* parsing jdf */
    /* dplasma_lineno = 1;*/
     time_elapsed = get_cur_time();
-    yyparse();
     {
         expr_t* constant;
 
@@ -224,12 +225,11 @@ int main(int argc, char ** argv){
         constant = expr_new_int( descA.colRANK );
         dplasma_add_global_symbol( "colRANK", constant );
     }
+    yyparse();
     load_dplasma_hooks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
     
-    /* checking local data ready */
-    is_data_distributed(&descA, requests, req_count);
 #ifdef DIST_VERIFICATION
     data_dist_verif(&local_desc, &descA);
 #endif
