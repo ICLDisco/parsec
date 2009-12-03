@@ -5,4 +5,193 @@
  */
 
 #include "profiling.h"
+#include <stdlib.h>
+#include <string.h>
+
+#define __X86
+
+#ifdef __IA64
+typedef uint64_t dplasma_time_t;
+static inline dplasma_time_t take_time(void)
+{
+    uint64_t ret;
+    __asm__ __volatile__ ("mov %0=ar.itc" : "=r"(ret));
+    return (dplasma_time_t)ret;
+}
+#elif defined(__X86)
+typedef uint64_t dplasma_time_t;
+static inline dplasma_time_t take_time(void)
+{
+    uint64_t ret;
+    __asm__ __volatile__("rdtsc" : "=A"(ret));
+    return (dplasma_time_t)ret;
+}
+#endif
+
+typedef struct dplasma_profiling_key_t {
+    char* name;
+    char* attributes;
+} dplasma_profiling_key_t;
+
+typedef struct dplasma_profiling_output_t {
+    int key;
+    dplasma_time_t timestamp;
+} dplasma_profiling_output_t;
+
+int dplasma_prof_events_count, dplasma_prof_events_number;
+dplasma_profiling_output_t* dplasma_prof_events;
+
+int dplasma_prof_keys_count, dplasma_prof_keys_number;
+dplasma_profiling_key_t* dplasma_prof_keys;
+
+int dplasma_profiling_init( size_t length )
+{
+    int i;
+
+    dplasma_prof_events_number = length;
+    dplasma_prof_events_count = 0;
+    dplasma_prof_events = (dplasma_profiling_output_t*)malloc(sizeof(dplasma_profiling_output_t) * length);
+
+    dplasma_prof_keys = (dplasma_profiling_key_t*)malloc(128 * sizeof(dplasma_profiling_key_t));
+    dplasma_prof_keys_count = 0;
+    dplasma_prof_keys_number = 128;
+    for( i = 0; i < dplasma_prof_keys_number; i++ ) {
+        dplasma_prof_keys[i].name = NULL;
+        dplasma_prof_keys[i].attributes = NULL;
+    }
+    return 0;
+}
+
+/**
+ * Release all resources for the tracing. If threads are enabled only
+ * the resources related to this thread are released.
+ */
+int dplasma_profiling_fini( void )
+{
+    int i;
+
+    dplasma_prof_events_number = 0;
+    dplasma_prof_events_count = 0;
+    free(dplasma_prof_events);
+    dplasma_prof_events = NULL;
+
+    for( i = 0; i < dplasma_prof_keys_number; i++ ) {
+        if( NULL != dplasma_prof_keys[i].name ) {
+            free(dplasma_prof_keys[i].name);
+            free(dplasma_prof_keys[i].attributes);
+        }
+    }
+    free(dplasma_prof_keys);
+    dplasma_prof_keys = NULL;
+    dplasma_prof_keys_count = 0;
+    dplasma_prof_keys_number = 0;
+    return 0;
+}
+
+int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
+                                              int* key_start, int* key_end )
+{
+    int i, pos = -1;
+
+    for( i = 0; i < dplasma_prof_keys_count; i++ ) {
+        if( NULL == dplasma_prof_keys[i].name ) {
+            if( -1 == pos ) {
+                pos = i;
+            }
+            continue;
+        }
+        if( 0 == strcmp(dplasma_prof_keys[i].name, key_name) ) {
+            *key_start = 2 * i;
+            *key_end = 2 * i + 1;
+            return 0;
+        }
+    }
+    if( -1 == pos ) {
+        pos = dplasma_prof_keys_count;
+    }
+
+    dplasma_prof_keys[pos].name = strdup(key_name);
+    dplasma_prof_keys[pos].attributes = strdup(attributes);
+    *key_start = 2 * pos;
+    *key_end = 2 * pos + 1;
+    dplasma_prof_keys_count++;
+    return 0;
+}
+
+int dplasma_profiling_del_dictionary_keyword( int key )
+{
+    return 0;
+}
+
+int dplasma_profiling_trace( int key )
+{
+    if( dplasma_prof_events_count == dplasma_prof_events_number ) {
+        return -1;
+    }
+    dplasma_prof_events[dplasma_prof_events_count].key = key;
+    dplasma_prof_events[dplasma_prof_events_count].timestamp = take_time();
+    dplasma_prof_events_count++;
+    return 0;
+}
+
+int dplasma_profiling_dump_svg( const char* filename )
+{
+    FILE* tracefile;
+    double scale = 0.0001, start, end, relative, gaps = 0.0, gaps_last = 0.0, last;
+    int i, tag, core, color;
+
+    tracefile = fopen(filename, "w");
+    if( NULL == tracefile ) {
+        return -1;
+    }
+
+    core = 1;
+
+    fprintf(tracefile,
+            "<?xml version=\"1.0\" standalone=\"no\"?>\n"
+            "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n" 
+            "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
+            "<svg width=\"50000\" height=\"%d\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+            400 * (core+1));
+
+    relative = dplasma_prof_events[0].timestamp;
+    last = dplasma_prof_events[0].timestamp - relative;
+    for( i = 0; i < dplasma_prof_events_count; i+=2 ) {
+        start = dplasma_prof_events[i].timestamp - relative;
+        end = dplasma_prof_events[i+1].timestamp - relative;
+        color = dplasma_prof_events[i].key;
+        tag = (dplasma_prof_events[i].key >> 1);
+
+        gaps += start - gaps_last;
+        gaps_last = end;
+
+        if( last < end ) last = end;
+
+        fprintf(tracefile,
+                "    "
+                "<rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" "
+                "style=\"%s;stroke-width:1\"/>\n",
+                start * scale,
+                (core - 1) * 100.0,
+                (end - start) * scale,
+                200.0,
+                dplasma_prof_keys[tag].attributes);
+
+        /*        fprintf(tracefile,
+                "    "
+                "<text x=\"%.2lf\" y=\"%.0lf\" font-size=\"20\" fill=\"black\">"
+                "%d"
+                "</text>\n",
+                start * scale + 10,
+                core * 100.0 + 20,
+                (int)tag);*/
+    }
+    fprintf(tracefile, "  </svg>\n");
+
+    fclose(tracefile);
+
+    printf("Found %.4lf ticks gaps out of %.4lf (%.2lf%%)\n", gaps,
+           last, (gaps * 100.0) / last);
+    return 0;
+}
 
