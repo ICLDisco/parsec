@@ -130,7 +130,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, uns
     if( !success ){
         printf("Can't evaluate expression for dep: %s ",peerNode->dplasma->name);
         printf("call_params[%d] ",whichCallParam);
-        expr_dump( peerNode->call_params[whichCallParam] );
+        expr_dump(stdout,  peerNode->call_params[whichCallParam] );
         printf("\n");
         exit(-1);
     }
@@ -146,7 +146,7 @@ void generateEdge(dplasma_t *currTask, char *fromNodeStr, char *localSymbol, ass
         ret_val = expr_eval(dep->cond, assgn, nbassgn, &res);
         if( EXPR_SUCCESS != ret_val ){
             printf("Can't evaluate expression for dep:\n  ");
-            expr_dump( dep->cond );
+            expr_dump(stdout,  dep->cond );
             printf("\n");
             exit(-1);
         }
@@ -172,7 +172,7 @@ void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *ass
         e = currTask->preds[i];
         if( !EXPR_IS_BINARY(e->op) || !EXPR_IS_BINARY(e->bop1->op) ){
             fprintf(stderr,"Predicate %d does not conform to the expected format \"actual %% global1 == global2\": ",i);
-            expr_dump(e);
+            expr_dump(stdout, e);
             fprintf(stderr,"\n");
             exit(-1);
         }
@@ -181,7 +181,7 @@ void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *ass
         /* Get the value of the LHS of the predicate, i.e. "k % GRIDrows" */
         if( EXPR_SUCCESS != expr_eval(e, assgn, nbassgn, &res) ){
             fprintf(stderr,"Cannot evaluate LHS of predicate %d: ",i);
-            expr_dump(e);
+            expr_dump(stdout, e);
             fprintf(stderr,"\n");
             exit(-1);
         }
@@ -190,12 +190,12 @@ void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *ass
         if( EXPR_SUCCESS != expr_eval(e->bop2, assgn, nbassgn, &max) ){
             if( EXPR_OP_SYMB != e->bop2->op ){
                 fprintf(stderr,"Expecting to find symbol instead of expression: ");
-                expr_dump(e->bop2);
+                expr_dump(stdout, e->bop2);
                 fprintf(stderr,"\n");
                 exit(-1);
             }
             fprintf(stderr,"Cannot evaluate the value of global variable: %s",e->bop2->var->name);
-            expr_dump(e);
+            expr_dump(stdout, e);
             fprintf(stderr,"\n");
             exit(-1);
         }
@@ -250,7 +250,7 @@ void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignmen
     /* Evaluate the lower bound for the local 'whichLocal' */
     if( EXPR_SUCCESS != expr_eval((expr_t *)currTask->locals[whichLocal]->min, assgn, nbassgn, &lb) ){
         printf("Can't evaluate expression for min:\n  ");
-        expr_dump( currTask->locals[whichLocal]->min );
+        expr_dump(stdout,  currTask->locals[whichLocal]->min );
         printf("\n");
         exit(-1);
     }
@@ -258,7 +258,7 @@ void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignmen
     /* Evaluate the upper bound for the local 'whichLocal' */
     if( EXPR_SUCCESS != expr_eval((expr_t *)currTask->locals[whichLocal]->max, assgn, nbassgn, &ub) ){
         printf("Can't evaluate expression for max:\n  ");
-        expr_dump( currTask->locals[whichLocal]->max );
+        expr_dump(stdout,  currTask->locals[whichLocal]->max );
         printf("\n");
         exit(-1);
     }

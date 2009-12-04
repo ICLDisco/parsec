@@ -22,8 +22,6 @@
 
 #include "dplasma.h"
 #include "scheduling.h"
-extern int dplasma_lineno;
-extern int yyparse();
 extern int load_dplasma_hooks( void );
 
 double time_elapsed, GFLOPS;
@@ -102,8 +100,6 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
 
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
-    dplasma_lineno = 1;
-
     time_elapsed = get_cur_time();
     {
         expr_t* constant;
@@ -114,7 +110,6 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
         constant = expr_new_int( NT );
         dplasma_add_global_symbol( "SIZE", constant );
     }
-	yyparse();
 
     load_dplasma_hooks();
     time_elapsed = get_cur_time() - time_elapsed;

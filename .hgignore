@@ -10,3 +10,5 @@ tools/buildDAG
 plasma
 dpc
 make.inc
+grapher
+cholesky.c

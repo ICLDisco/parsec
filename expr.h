@@ -164,7 +164,7 @@ char *expr_error(void);
  *
  * @param [IN]  e the expression to dump
  */
-void expr_dump(const expr_t *e);
+void expr_dump(FILE *out, const expr_t *e);
 
 /**
  * helper to dump the c structure representing the dplasma object

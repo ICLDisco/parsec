@@ -189,4 +189,6 @@ char* dplasma_dependency_to_string( const dplasma_execution_context_t* from,
                                     char* tmp,
                                     size_t length );
 
+void dplasma_load_array( dplasma_t *array, int size );
+
 #endif

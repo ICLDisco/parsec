@@ -34,6 +34,32 @@ void add_preamble(char *language, char *code)
     preambles = n;
 }
 
+static char *dump_c_dependency_list(FILE *out, dplasma_dependencies_t *d, char *init_func_body, int init_func_body_size)
+{
+    static char dname[64];
+    static int  ndx = 0;
+    int my_idx = ndx++;
+    char b[1024];
+    int p = 0;
+
+    if( d == NULL ) {
+        snprintf(dname, 64, "NULL");
+    } else {
+        my_idx = ndx++;
+        p += snprintf(b+p, 1024-p, "static struct dplasma_dependencies_t deplist%d = {\n", my_idx);
+        p += snprintf(b+p, 1024-p, "  .flags = 0x%04x, .min = %d, .max = %d, .symbol = %s,\n",
+                      d->flags, d->min, d->max, dump_c_symbol(out, d->symbol, init_func_body, init_func_body_size));
+        if(  DPLASMA_DEPENDENCIES_FLAG_NEXT & d->flags ) {
+            p += snprintf(b+p, 1024-p, "  .u.next = {%s} };\n", dump_c_dependency_list(out, d->u.next[0], init_func_body, init_func_body_size));
+        } else {
+            p += snprintf(b+p, 1024-p, "  .u.dependencies = { 0x%02x } };\n", d->u.dependencies[0]);
+        }
+        fprintf(out, "%s", b);
+        snprintf(dname, 64, "&deplist%d", my_idx);
+    }
+    return dname;
+}
+
 static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                             char *init_func_body,
                             int init_func_body_size)
@@ -75,11 +101,11 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
     p += snprintf(dp_txt+p, 4096-p, "      .params = {");
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         p += snprintf(dp_txt+p, 4096-p, "%s%s",
-                      dump_c_param(out, d->params[i], init_func_body, init_func_body_size),
+                      dump_c_param(out, d->params[i], init_func_body, init_func_body_size, 1),
                       i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
     }
 
-    p += snprintf(dp_txt+p, 4096-p, "      .deps = NULL,\n");
+    p += snprintf(dp_txt+p, 4096-p, "      .deps = %s,\n", dump_c_dependency_list(out, d->deps, init_func_body, init_func_body_size));
     p += snprintf(dp_txt+p, 4096-p, "      .hook = NULL\n");
     //    p += snprintf(dp_txt+p, 4096-p, "      .body = \"%s\"\n", d->body);
     p += snprintf(dp_txt+p, 4096-p, "    }");
@@ -122,7 +148,7 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
     printf("%s Predicates:\n", prefix);
     for(i = 0; i < MAX_PRED_COUNT && NULL != d->preds[i]; i++) {
         printf("%s", pref2);
-        expr_dump(d->preds[i]);
+        expr_dump(stdout, d->preds[i]);
         printf("\n");
     }
 
@@ -187,7 +213,7 @@ void dplasma_dump_all_c(FILE *out)
 
     dump_all_global_symbols_c(out, body, INIT_FUNC_BODY_SIZE);
 
-    p += snprintf(whole+p, 8192-p, "dplasma_t dplasma_array[%d] = {\n", dplasma_array_count);
+    p += snprintf(whole+p, 8192-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_array_count);
     for(i = 0; i < dplasma_array_count; i++) {
         p += snprintf(whole+p, 8192-p, "%s", dplasma_dump_c(out, dplasma_array[i], body, INIT_FUNC_BODY_SIZE));
         if( i < dplasma_array_count-1) {
@@ -198,8 +224,7 @@ void dplasma_dump_all_c(FILE *out)
     fprintf(out, 
             "%s\n"
             "\n"
-            "static void _init(void) __attribute((constructor));\n"
-            "static void _init(void)\n"
+            "void dplasma_init(void)\n"
             "{\n"
             "%s\n"
             "}\n"
@@ -209,11 +234,13 @@ void dplasma_dump_all_c(FILE *out)
             "int load_dplasma_hooks( void )\n"
             "{\n"
             "  dplasma_t* object;\n"
-#if 0
-            "  const symbol_t* pNB;\n"
-            "  int rc;\n"
-#endif
-            "\n");
+            "\n"
+            "  dplasma_init();\n"
+            "  dplasma_load_array( dplasma_array, %d );\n"
+            "  dplasma_load_symbols( dplasma_symbols, %d );\n"
+            "\n",
+            dplasma_array_count,
+            dplasma_symbol_get_count());
     for(i = 0; i < dplasma_array_count; i++) {
         /* Specials IN and OUT test */
         if( dplasma_array[i]->body != NULL ) {
@@ -283,6 +310,18 @@ dplasma_t* dplasma_find_or_create( const char* name )
     }
     free(object);
     return NULL;
+}
+
+void dplasma_load_array( dplasma_t *array, int size )
+{
+    int i;
+
+    dplasma_array_size = size;
+    dplasma_array_count = size;
+    dplasma_array = (const dplasma_t**)calloc(size, sizeof(dplasma_t*));
+    for(i = 0; i < size; i++) {
+        dplasma_array[i] = &(array[i]);
+    }
 }
 
 const dplasma_t* dplasma_element_at( int i )

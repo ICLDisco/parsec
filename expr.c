@@ -457,120 +457,120 @@ char *expr_error(void)
     return expr_eval_error;
 }
 
-static void expr_dump_unary(unsigned char op, const expr_t *op1)
+static void expr_dump_unary(FILE *out, unsigned char op, const expr_t *op1)
 {
     switch(op) {
     case EXPR_OP_UNARY_NOT:
-        printf("!(");
+        fprintf(out, "!(");
         break;
     }
 
     if( NULL == op1 ) {
-        printf("NULL");
+        fprintf(out, "NULL");
     } else {
-        expr_dump(op1);
+        expr_dump(out, op1);
         if( op == EXPR_OP_UNARY_NOT ){
-            printf(")");
+            fprintf(out, ")");
         }
     }
 }
 
-static void expr_dump_binary(unsigned char op, const expr_t *op1, const expr_t *op2)
+static void expr_dump_binary(FILE *out, unsigned char op, const expr_t *op1, const expr_t *op2)
 {
     if( EXPR_OP_BINARY_RANGE == op ) {
-        printf( " [" );
-        expr_dump(op1);
-        printf( " .. " );
-        expr_dump(op2);
-        printf( "] " );
+        fprintf(out,  " [" );
+        expr_dump(out, op1);
+        fprintf(out,  " .. " );
+        expr_dump(out, op2);
+        fprintf(out,  "] " );
         return;
     }
 
     if( EXPR_OP_BINARY_EQUAL == op ) {
-        printf( " (" );
-        expr_dump(op1);
-        printf( " == " );
-        expr_dump(op2);
-        printf( ") " );
+        fprintf(out,  " (" );
+        expr_dump(out, op1);
+        fprintf(out,  " == " );
+        expr_dump(out, op2);
+        fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_NOT_EQUAL == op ) {
-        printf( " (" );
-        expr_dump(op1);
-        printf( " != " );
-        expr_dump(op2);
-        printf( ") " );
+        fprintf(out,  " (" );
+        expr_dump(out, op1);
+        fprintf(out,  " != " );
+        expr_dump(out, op2);
+        fprintf(out,  ") " );
         return;
     }
 
-    expr_dump(op1);
+    expr_dump(out, op1);
 
     switch( op ) {
     case EXPR_OP_BINARY_PLUS:
-        printf(" + ");
+        fprintf(out, " + ");
         break;
     case EXPR_OP_BINARY_MINUS:
-        printf(" - ");
+        fprintf(out, " - ");
         break;
     case EXPR_OP_BINARY_TIMES:
-        printf(" * ");
+        fprintf(out, " * ");
         break;
     case EXPR_OP_BINARY_MOD:
-        printf(" %% ");
+        fprintf(out, " %% ");
         break;
     case EXPR_OP_BINARY_DIV:
-        printf(" / ");
+        fprintf(out, " / ");
         break;
     case EXPR_OP_BINARY_AND:
-        printf(" & ");
+        fprintf(out, " & ");
         break;
     case EXPR_OP_BINARY_OR:
-        printf(" | ");
+        fprintf(out, " | ");
         break;
     case EXPR_OP_BINARY_XOR:
-        printf(" ^ ");
+        fprintf(out, " ^ ");
         break;
     }
 
-    expr_dump(op2);
+    expr_dump(out, op2);
 }
 
-void expr_dump(const expr_t *e)
+void expr_dump(FILE *out, const expr_t *e)
 {
     if( NULL == e ) {
-        printf("NULL");
+        fprintf(out, "NULL");
         return;
     }
     if( EXPR_FLAG_CONSTANT & e->flags ) {
         if( EXPR_OP_CONST_INT == e->op ) {
-            printf( "%d", e->value );
+            fprintf(out,  "%d", e->value );
             return;
         }
-        printf( "{%d:", e->value );
+        fprintf(out,  "{%d:", e->value );
     }
     if( EXPR_OP_SYMB == e->op ) {
         if( dplasma_symbol_is_global(e->var) ) {
-            printf("%s", e->var->name);
+            fprintf(out, "%s", e->var->name);
         } else {
             int res;
             if( EXPR_SUCCESS == expr_eval_symbol(e->var, NULL, 0, &res)){
-                printf("%d", res);
+                fprintf(out, "%d", res);
             }else{
-                printf("%s", e->var->name);
+                fprintf(out, "%s", e->var->name);
             }
         }
     } else if( EXPR_OP_CONST_INT == e->op ) {
-        printf("%d", e->value);
+        fprintf(out, "%d", e->value);
     } else if( EXPR_IS_UNARY(e->op) ) {
-        expr_dump_unary(e->op, e->uop1);
+        expr_dump_unary(out, e->op, e->uop1);
     } else if( EXPR_IS_BINARY(e->op) ) {
-        expr_dump_binary(e->op, e->bop1, e->bop2);
+        expr_dump_binary(out, e->op, e->bop1, e->bop2);
     } else {
         fprintf(stderr, "Unkown operand %d in expression", e->op);
     }
     if( EXPR_FLAG_CONSTANT & e->flags ) {
-        printf( "}" );
+        fprintf(out,  "}" );
     }
 }
 
@@ -586,26 +586,55 @@ char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body, int in
         expr_idx++;
 
         if( EXPR_OP_CONST_INT == e->op ) {
-            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_CONST_INT, .flags = %d, .value = %d };\n",
+            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_CONST_INT, .flags = %d, .value = %d }; /* ",
                     my_id, e->flags, e->value);
+            expr_dump(out, e);
+            fprintf(out, " */\n");
         } 
         else if( EXPR_OP_SYMB == e->op ) {
             char sname[64];
             sprintf(sname, "%s", dump_c_symbol(out, e->var, init_func_body, init_func_body_size));
-            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s };\n",
-                    my_id, e->flags, sname);
+            if( e->flags & EXPR_FLAG_CONSTANT ) {
+                fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s, .value = %d }; /* ",
+                        my_id, e->flags, sname, e->value);
+                expr_dump(out, e);
+                fprintf(out, " */\n");
+            } else {
+                fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s }; /* ",
+                        my_id, e->flags, sname);
+                expr_dump(out, e);
+                fprintf(out, " */\n");
+            }
         } else if( EXPR_IS_UNARY(e->op) ) {
             char sn[64];
             sprintf(sn, "%s", dump_c_expression(out, e->uop1, init_func_body, init_func_body_size));
-            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s };\n", 
-                    my_id, e->op, e->flags, sn);
+            if( e->flags & EXPR_FLAG_CONSTANT ) {
+                fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s, .value = %d }; /* ", 
+                        my_id, e->op, e->flags, sn, e->value);
+                expr_dump(out, e);
+                fprintf(out, " */\n");
+            } else {
+                fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s }; /* ", 
+                        my_id, e->op, e->flags, sn);
+                expr_dump(out, e);
+                fprintf(out, " */\n");
+            }
         } else if( EXPR_IS_BINARY(e->op) ) {
             char sn1[64];
             char sn2[64];
             sprintf(sn1, "%s", dump_c_expression(out, e->bop1, init_func_body, init_func_body_size));
             sprintf(sn2, "%s", dump_c_expression(out, e->bop2, init_func_body, init_func_body_size));
-            fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s };\n", 
-                    my_id, e->op, e->flags, sn1, sn2);
+            if( e->flags & EXPR_FLAG_CONSTANT ) {
+                 fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s, .value = %d }; /* ", 
+                         my_id, e->op, e->flags, sn1, sn2, e->value);
+                 expr_dump(out, e);
+                fprintf(out, " */\n");
+            } else {
+                fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s }; /* ", 
+                        my_id, e->op, e->flags, sn1, sn2);
+                expr_dump(out, e);
+                fprintf(out, " */\n");
+            }
         } else {
             fprintf(stderr, "Unkown operand %d in expression", e->op);
         }

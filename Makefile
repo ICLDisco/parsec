@@ -1,15 +1,15 @@
 include make.inc
 
-TARGETS=cholesky/dposv parser dpc tools/buildDAG
+TARGETS=grapher dpc tools/buildDAG cholesky/dposv 
 
-OBJECTS=dplasma.o symbol.o assignment.o expr.o \
-	params.o dep.o lex.yy.o dplasma.tab.o \
-	scheduling.o
+LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
+	params.o dep.o scheduling.o
 
-CHOLESKY_OBJECTS=cholesky/cholesky_hook.o \
-	cholesky/dposv.o
+COMPILER_OBJECTS=lex.yy.o dplasma.tab.o
 
-PARSER_OBJECTS=parser.o
+CHOLESKY_OBJECTS=cholesky/dposv.o
+
+GRAPHER_OBJECTS=grapher.o
 
 BUILDDAG_OBJECTS=tools/buildDAG.o
 
@@ -18,16 +18,19 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 
 all: $(TARGETS)
 
-dpc: $(OBJECTS) dpc.o
+dpc: $(LIBRARY_OBJECTS) $(COMPILER_OBJECTS) dpc.o
 	$(LINKER) -o $@ $^ $(LDFLAGS)
 
-parser: $(OBJECTS) parser.o
+cholesky.c: cholesky/cholesky.jdf dpc
+	./dpc < cholesky/cholesky.jdf > cholesky.c
+
+grapher: $(LIBRARY_OBJECTS) grapher.o $(COMPILER_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
-tools/buildDAG:$(OBJECTS) $(BUILDDAG_OBJECTS)
+tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
-cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS)
+cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky.o $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.tab.h %.tab.c: %.y

@@ -39,7 +39,7 @@ void param_dump(const param_t *p, const char *prefix);
  *          the params to use to point to this param.
  *          the special value "NULL" if p is null
  */
-char *dump_c_param(FILE *out, const param_t *p,  char *init_func_body, int init_func_body_size);
+char *dump_c_param(FILE *out, const param_t *p,  char *init_func_body, int init_func_body_size, int dump_it);
 
 /**
  *

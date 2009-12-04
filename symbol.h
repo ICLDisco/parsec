@@ -47,6 +47,8 @@ void symbol_dump_all( const char* prefix );
  */
 const symbol_t* dplasma_search_global_symbol( const char* name );
 
+void dplasma_load_symbols( symbol_t **array, int size );
+
 /**
  * Return 1 if the symbol is global.
  */
@@ -188,5 +190,8 @@ int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,
  */
 int dplasma_symbol_get_absolute_maximum_value( const symbol_t* symbol,
                                                int* pvalue );
+
+
+int dplasma_symbol_get_count(void);
 
 #endif

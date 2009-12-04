@@ -13,8 +13,6 @@ extern char *strdup(const char *);
 #include "symbol.h"
 #include "dplasma.h"
 
-extern int dplasma_lineno;
-
 static const symbol_t** dplasma_symbol_array = NULL;
 static int dplasma_symbol_array_count = 0,
     dplasma_symbol_array_size = 0;
@@ -24,6 +22,33 @@ typedef struct symb_list {
     char *c_name;
     struct symb_list *next;
 } symb_list_t;
+
+int dplasma_symbol_get_count(void) 
+{
+    return dplasma_symbol_array_count;
+}
+
+void dplasma_load_symbols( symbol_t **array, int size )
+{
+    int i, j;
+
+    if( size + dplasma_symbol_array_count > dplasma_symbol_array_size ) {
+        dplasma_symbol_array_size = size + dplasma_symbol_array_count;
+        dplasma_symbol_array = (const symbol_t ** )realloc(dplasma_symbol_array, dplasma_symbol_array_size * sizeof(symbol_t*));
+    }
+
+    for(i = 0; i < size; i++) {
+        for(j = 0; j < dplasma_symbol_array_count; j++) {
+            if( !strcmp( array[i]->name, dplasma_symbol_array[j]->name) ) {
+                dplasma_symbol_array[j] = array[i];
+                break;
+            }
+        }
+        dplasma_symbol_array[dplasma_symbol_array_count] = array[i];
+        dplasma_symbol_array_count++;
+    }
+}
+
 
 char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size)
 {
@@ -95,22 +120,22 @@ void symbol_dump(const symbol_t *s, const char *prefix)
             printf("%s%s:%s%s = {%d = ", prefix, s->name,
                    (DPLASMA_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
                    (DPLASMA_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"), s->min->value);
-            expr_dump(s->min);
+            expr_dump(stdout, s->min);
             printf("}\n" );
         } else {
             printf("%s%s:%s%s = ", prefix, s->name,
                    (DPLASMA_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
                    (DPLASMA_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
-            expr_dump(s->min);
+            expr_dump(stdout, s->min);
             printf("\n" );
         }
     } else {
         printf("%s%s:%s%s = [", prefix, s->name,
                (DPLASMA_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
                (DPLASMA_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
-        expr_dump(s->min);
+        expr_dump(stdout, s->min);
         printf(" .. ");
-        expr_dump(s->max);
+        expr_dump(stdout, s->max);
         printf("]\n");
     }
 }
@@ -142,8 +167,8 @@ int dplasma_add_global_symbol( const char* name, const expr_t* expr )
     symbol_t* symbol;
 
     if( NULL != dplasma_search_global_symbol(name) ) {
-        printf( "Overwrite an already defined symbol %s at line %d\n",
-                name, dplasma_lineno );
+        fprintf( stderr, "Overwrite an already defined symbol %s at line ??\n",
+                 name/*, dplasma_lineno */);
         return -1;
     }
 
