@@ -22,7 +22,6 @@ int PLASMA_INFO;
 #else
 #define OUTPUT(ARG)
 #endif
-
 %}
 
 /* Globals
