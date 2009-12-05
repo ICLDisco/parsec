@@ -4,22 +4,19 @@
  *                         reserved.
  */
 
-#define __LINUX
-
-#ifdef __LINUX
+#ifdef __gnu_linux__
 /* We need it for the high resolution timers on Linux */
 #define _GNU_SOURCE
-#endif  /* __LINUX */
+#endif  /* __gnu_linux__ */
 
 #include "profiling.h"
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __LINUX
+#ifdef __gnu_linux__
 #include <unistd.h>
 #include <time.h>
 typedef struct timespec dplasma_time_t;
-static dplasma_time_t ZERO_TIME = {0, 0};
 static inline dplasma_time_t take_time(void)
 {
     dplasma_time_t ret;
@@ -36,7 +33,6 @@ static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 }
 #elif defined(__IA64)
 typedef uint64_t dplasma_time_t;
-static dplasma_time_t ZERO_TIME = 0;
 static inline dplasma_time_t take_time(void)
 {
     dplasma_time_t ret;
@@ -49,7 +45,6 @@ static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 }
 #elif defined(__X86)
 typedef uint64_t dplasma_time_t;
-static dplasma_time_t ZERO_TIME = 0;
 static inline dplasma_time_t take_time(void)
 {
     dplasma_time_t ret;
