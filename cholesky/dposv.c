@@ -117,6 +117,10 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
 
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_init(1024);
+#endif  /* DPLASMA_PROFILING */
+
     {
         dplasma_execution_context_t exec_context;
         /* I know what I'm doing ;) */
