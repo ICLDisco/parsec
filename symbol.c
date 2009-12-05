@@ -167,8 +167,7 @@ int dplasma_add_global_symbol( const char* name, const expr_t* expr )
     symbol_t* symbol;
 
     if( NULL != dplasma_search_global_symbol(name) ) {
-        fprintf( stderr, "Overwrite an already defined symbol %s at line ??\n",
-                 name/*, dplasma_lineno */);
+        DEBUG(("Symbol %d at line ?? is already defined\n", name));
         return -1;
     }
 

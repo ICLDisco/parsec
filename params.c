@@ -4,11 +4,15 @@
  *                         reserved.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "dplasma.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+
+/* Have to love that ... */
+extern char *strdup(const char *);
 
 void param_dump(const param_t *p, const char *prefix)
 {
@@ -117,7 +121,7 @@ param_t* dplasma_find_or_create_param(dplasma_t* function, char* param_name)
         return NULL;
     }
     param = (param_t*)calloc(1, sizeof(param_t));
-    param->name = strdup(param_name);
+    param->name = strdup((const char*)param_name);
     param->function = function;
     param->param_mask = (1 << i);
     function->params[i] = param;

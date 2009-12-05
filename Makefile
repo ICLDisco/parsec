@@ -3,7 +3,7 @@ include make.inc
 TARGETS=grapher dpc tools/buildDAG cholesky/dposv 
 
 LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
-	params.o dep.o scheduling.o
+	params.o dep.o scheduling.o profiling.o
 
 COMPILER_OBJECTS=lex.yy.o dplasma.tab.o
 
@@ -34,7 +34,7 @@ cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky.o $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.tab.h %.tab.c: %.y
-	$(YACC) $< -o $(*F).tab.c
+	$(YACC) -o $(*F).tab.c $<
 
 %.o: %.c $(wildcard *.h)
 	$(CC) -o $@ $(CFLAGS) -c $<

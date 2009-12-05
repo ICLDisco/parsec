@@ -8,6 +8,7 @@
 
 
 #include "plasma.h"
+#include <mpi.h>
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */
@@ -61,10 +62,13 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
 
 int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n);
 
-/* get a pointer to a specific tile handled locally
- *  return NULL if tile not a local tile
- */
+/* get a pointer to a specific tile 
+ * if the tile is remote, it is downloaded first */
 void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n);
+
+/* get a pointer to a specific LOCAL tile */
+void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n);
+
 
 /* set new data to tile
  * return 0 if success, >0 if not
@@ -81,6 +85,9 @@ int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
  */
 int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count);
 
+/* regroup the distributed tiles to the rank 0 */
+/* Pdesc is NULL except on rank 0 */
+int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
 /* test if the matrix data has been distributed
  * return 0 if not
@@ -101,6 +108,8 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
 
 /* convert to plasma desc and tiling format */
 int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+
 
 /* debugging print of blocks */
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );

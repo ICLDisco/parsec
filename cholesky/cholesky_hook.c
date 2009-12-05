@@ -9,6 +9,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef DPLASMA_PROFILING
+#include "profiling.h"
+int POTRF_start_key, POTRF_end_key;
+int SYRK_start_key, SYRK_end_key;
+int GEMM_start_key, GEMM_end_key;
+int TRSM_start_key, TRSM_end_key;
+#define TAKE_TIME(KEY)  dplasma_profiling_trace((KEY))
+#else
+#define TAKE_TIME(KEY)
+#endif  /* DPLASMA_PROFILING */
+
 extern PLASMA_desc descA;
 int PLASMA_INFO;
 
@@ -28,6 +39,8 @@ static int NB;
 int POTRF_hook(const dplasma_execution_context_t* exec_context)
 {
     int k, rc = 0;
+
+    TAKE_TIME(POTRF_start_key);
 
 #ifndef DPLASMA_HOOK_OPTIMIZED
     {
@@ -54,6 +67,7 @@ int POTRF_hook(const dplasma_execution_context_t* exec_context)
              k, k, NB /*A.nb,*/));
 #endif  /* DPLASMA_EXECUTE */
 
+    TAKE_TIME(POTRF_end_key);
     return rc;
 }
 
@@ -61,6 +75,7 @@ int SYRK_hook(const dplasma_execution_context_t* exec_context)
 {
     int k, n, rc = 0;
 
+    TAKE_TIME(SYRK_start_key);
 #ifndef DPLASMA_HOOK_OPTIMIZED
     {
         assignment_t *pk, *pn;
@@ -95,6 +110,7 @@ int SYRK_hook(const dplasma_execution_context_t* exec_context)
             1.0, k, k, NB /*A.nb*/));
 #endif  /* DPLASMA_EXECUTE */
 
+    TAKE_TIME(SYRK_end_key);
     return rc;
 }
 
@@ -102,6 +118,7 @@ int GEMM_hook(const dplasma_execution_context_t* exec_context)
 {
     int k, m, n, rc = 0;
 
+    TAKE_TIME(GEMM_start_key);
 #ifndef DPLASMA_HOOK_OPTIMIZED
     {
         assignment_t *pk, *pm, *pn;
@@ -146,6 +163,7 @@ int GEMM_hook(const dplasma_execution_context_t* exec_context)
             1.0, m, k, NB /*A.nb*/));
 #endif  /* DPLASMA_EXECUTE */
 
+    TAKE_TIME(GEMM_end_key);
     return rc;
 }
 
@@ -153,6 +171,7 @@ int TRSM_hook(const dplasma_execution_context_t* exec_context)
 {
     int k, m, rc = 0;
 
+    TAKE_TIME(TRSM_start_key);
 #ifndef DPLASMA_HOOK_OPTIMIZED
     {
         assignment_t *pk, *pm;
@@ -187,6 +206,7 @@ int TRSM_hook(const dplasma_execution_context_t* exec_context)
              m, k, NB /*A.nb*/));
 #endif  /* DPLASMA_EXECUTE */
 
+    TAKE_TIME(TRSM_end_key);
     return rc;
  }
 
@@ -214,6 +234,18 @@ int load_dplasma_hooks( void )
     if( 0 != rc ) {
         return rc;
     }
+
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_init(1024);
+    dplasma_profiling_add_dictionary_keyword( "POTRF", "fill:rgb(255,0,0);stroke:rgb(0,0,0)",
+                                              &POTRF_start_key, &POTRF_end_key);
+    dplasma_profiling_add_dictionary_keyword( "SYRK",  "fill:rgb(0,255,0);stroke:rgb(0,0,0)",
+                                              &SYRK_start_key, &SYRK_end_key);
+    dplasma_profiling_add_dictionary_keyword( "GEMM",  "fill:rgb(0,0,255);stroke:rgb(0,0,0)",
+                                              &GEMM_start_key, &GEMM_end_key);
+    dplasma_profiling_add_dictionary_keyword( "TRSM",  "fill:rgb(128,128,0);stroke:rgb(0,0,0)",
+                                              &TRSM_start_key, &TRSM_end_key);
+#endif  /* DPLASMA_PROFILING */
 
     return 0;
 }
