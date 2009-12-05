@@ -56,9 +56,22 @@ static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
     return (end - start);
 }
 #else
-typedef uint64_t dplasma_time_t;
-static inline dplasma_time_t take_time(void) { return 0; };
-static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end ) { return 0; }
+#include <sys/time.h>
+typedef struct timeval dplasma_time_t;
+static inline dplasma_time_t take_time(void)
+{
+    struct timeval tv;
+
+    gettimeofday( &tv, NULL );
+    return tv;
+}
+static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
+{
+    uint64_t diff;
+    diff = (start.tv_sec - end.tv_sec) * 1000000 +
+           (start.tv_usec - end.tv_usec);
+    return diff;
+}
 #endif
 
 typedef struct dplasma_profiling_key_t {
