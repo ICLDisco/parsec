@@ -7,7 +7,7 @@ LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 
 COMPILER_OBJECTS=lex.yy.o dplasma.tab.o
 
-CHOLESKY_OBJECTS=cholesky/dposv.o
+CHOLESKY_OBJECTS=cholesky/dposv.o cholesky/cholesky.o
 
 GRAPHER_OBJECTS=grapher.o
 
@@ -21,16 +21,16 @@ all: $(TARGETS)
 dpc: $(LIBRARY_OBJECTS) $(COMPILER_OBJECTS) dpc.o
 	$(LINKER) -o $@ $^ $(LDFLAGS)
 
-cholesky.c: cholesky/cholesky.jdf dpc
-	./dpc < cholesky/cholesky.jdf > cholesky.c
-
-grapher: $(LIBRARY_OBJECTS) grapher.o $(COMPILER_OBJECTS)
+grapher: $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
-cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky.o $(LIBRARY_OBJECTS)
+cholesky/cholesky.c: cholesky/cholesky.jdf dpc
+	./dpc < cholesky/cholesky.jdf > cholesky/cholesky.c
+
+cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.tab.h %.tab.c: %.y
@@ -46,4 +46,6 @@ lex.yy.c: dplasma.l
 	$(LEX) dplasma.l
 
 clean:
-	rm -f $(OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) $(TARGETS) test-expr lex.yy.c y.tab.c y.tab.h
+	rm -f $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
+           $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
+           dpc.o lex.yy.c y.tab.c y.tab.h
