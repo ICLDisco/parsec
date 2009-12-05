@@ -12,10 +12,17 @@ extern "C" %{
 extern PLASMA_desc descA;
 int PLASMA_INFO;
 
-#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
+#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 
 /* Define it to shortcut the lookup for the local variables. */
 #define DPLASMA_HOOK_OPTIMIZED
+
+#if 0
+#define OUTPUT(ARG)  printf ARG
+#else
+#define OUTPUT(ARG)
+#endif
+
 %}
 
 /* Globals
