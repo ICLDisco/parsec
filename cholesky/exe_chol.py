@@ -3,14 +3,13 @@
 import sys
 import commands
 
-DEXE = "./dposv.dplasma" # exe file for DPLASMA
-PEXE = "./dposv.plasma" # exe file for PLASMA
+EXE = ["./dposv_depth_first.dplasma", "./dposv_dynamic.dplasma", "./dposv.plasma"]
 JDF = "cholesky.jdf"
 
-def get_nb():
+def get_nb(exe):
   n = 500
   cores = 1
-  cmd = "env GOTO_NUM_THREADS=1 %s %d %d %d 1 %d < %s" % (PEXE, cores, n, n, n, JDF)
+  cmd = "env GOTO_NUM_THREADS=1 %s %d %d %d 1 %d < %s" % (exe, cores, n, n, n, JDF)
   st, out = commands.getstatusoutput(cmd)
   perf_line = find_perf_line(out)
   nb = int(perf_line.split()[4])
@@ -38,10 +37,11 @@ def test_exe(fname):
     raise
 
 def main(argv):
-  test_exe(DEXE)
-  test_exe(PEXE)
-  nb = get_nb()
-  for exe in (PEXE, DEXE):
+  for exe in (EXE):
+      test_exe(exe)
+
+  nb = get_nb(EXE[0])
+  for exe in (EXE):
     for n in range(nb, 50 * nb + 1, nb):
       run(n, exe)
 

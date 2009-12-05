@@ -10,7 +10,7 @@
 static dplasma_execution_context_t* ready_list = NULL;
 static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 
-#define DEPTH_FIRST_SCHEDULE 1
+#define DEPTH_FIRST_SCHEDULE 0
 
 /**
  * Schedule the instance of the service based on the values of the
@@ -20,7 +20,7 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context );
  */
 int dplasma_schedule( const dplasma_execution_context_t* exec_context )
 {
-#if DEPTH_FIRST_SCHEDULE
+#if !DEPTH_FIRST_SCHEDULE
     dplasma_execution_context_t* new_context;
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
@@ -38,7 +38,7 @@ int dplasma_schedule( const dplasma_execution_context_t* exec_context )
     return 0;
 #else
     return dplasma_execute(exec_context);
-#endif  /* DEPTH_FIRST_SCHEDULE */
+#endif  /* !DEPTH_FIRST_SCHEDULE */
 }
 
 int dplasma_progress(void)

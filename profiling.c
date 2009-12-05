@@ -4,32 +4,67 @@
  *                         reserved.
  */
 
+#define __LINUX
+
+#ifdef __LINUX
+/* We need it for the high resolution timers on Linux */
+#define _GNU_SOURCE
+#endif  /* __LINUX */
+
 #include "profiling.h"
 #include <stdlib.h>
 #include <string.h>
 
-#define __X86
-
-#ifdef __IA64
-typedef uint64_t dplasma_time_t;
+#ifdef __LINUX
+#include <unistd.h>
+#include <time.h>
+typedef struct timespec dplasma_time_t;
+static dplasma_time_t ZERO_TIME = {0, 0};
 static inline dplasma_time_t take_time(void)
 {
-    uint64_t ret;
+    dplasma_time_t ret;
+    clock_gettime(CLOCK_REALTIME, &ret);
+    return ret;
+}
+
+static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
+{
+    uint64_t diff;
+    diff = (start.tv_sec - end.tv_sec) * 1000000 +
+           (start.tv_nsec - end.tv_nsec);
+    return diff;
+}
+#elif defined(__IA64)
+typedef uint64_t dplasma_time_t;
+static dplasma_time_t ZERO_TIME = 0;
+static inline dplasma_time_t take_time(void)
+{
+    dplasma_time_t ret;
     __asm__ __volatile__ ("mov %0=ar.itc" : "=r"(ret));
-    return (dplasma_time_t)ret;
+    return ret;
+}
+static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
+{
+    return (end - time);
 }
 #elif defined(__X86)
 typedef uint64_t dplasma_time_t;
+static dplasma_time_t ZERO_TIME = 0;
 static inline dplasma_time_t take_time(void)
 {
-    uint64_t ret;
+    dplasma_time_t ret;
     __asm__ __volatile__("rdtsc" : "=A"(ret));
-    return (dplasma_time_t)ret;
+    return ret;
 }
+static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
+{
+    return (end - start);
+}
+#else
+typedef uint64_t dplasma_time_t;
+static inline dplasma_time_t take_time(void) { return 0; };
+static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end ) { return 0; }
 #endif
-
-/* Have to love that ... */
-extern char *strdup(const char *);
 
 typedef struct dplasma_profiling_key_t {
     char* name;
@@ -140,7 +175,9 @@ int dplasma_profiling_trace( int key )
 int dplasma_profiling_dump_svg( const char* filename )
 {
     FILE* tracefile;
-    double scale = 0.0001, start, end, relative, gaps = 0.0, gaps_last = 0.0, last;
+    uint64_t start, end;
+    dplasma_time_t relative;
+    double scale = 0.0001, gaps = 0.0, gaps_last = 0.0, last;
     int i, tag, core, color;
 
     tracefile = fopen(filename, "w");
@@ -158,10 +195,10 @@ int dplasma_profiling_dump_svg( const char* filename )
             400 * (core+1));
 
     relative = dplasma_prof_events[0].timestamp;
-    last = dplasma_prof_events[0].timestamp - relative;
+    last = diff_time( relative, dplasma_prof_events[0].timestamp );
     for( i = 0; i < dplasma_prof_events_count; i+=2 ) {
-        start = dplasma_prof_events[i].timestamp - relative;
-        end = dplasma_prof_events[i+1].timestamp - relative;
+        start = diff_time( relative, dplasma_prof_events[i].timestamp );
+        end = diff_time( relative, dplasma_prof_events[i+1].timestamp );
         color = dplasma_prof_events[i].key;
         tag = (dplasma_prof_events[i].key >> 1);
 
