@@ -9,6 +9,63 @@
 #include <stdlib.h>
 #include <assert.h>
 
+static const char *colors[54] = { 
+  "rgb(0xE5, 0x2B, 0x50)", 
+  "rgb(0xFF, 0xBF, 0x00)", 
+  "rgb(0x7F, 0xFF, 0xD4)", 
+  "rgb(0x00, 0x7F, 0xFF)", 
+  "rgb(0x00, 0x00, 0x00)", 
+  "rgb(0x00, 0x00, 0xFF)", 
+  "rgb(0x00, 0x95, 0xB6)", 
+  "rgb(0x8A, 0x2B, 0xE2)", 
+  "rgb(0xA5, 0x2A, 0x2A)", 
+  "rgb(0x70, 0x29, 0x63)", 
+  "rgb(0x96, 0x00, 0x18)", 
+  "rgb(0xDE, 0x31, 0x63)", 
+  "rgb(0x00, 0x7B, 0xA7)", 
+  "rgb(0x7F, 0xFF, 0x00)", 
+  "rgb(0xF8, 0x83, 0x79)", 
+  "rgb(0xDC, 0x14, 0x3C)", 
+  "rgb(0x00, 0xFF, 0xFF)", 
+  "rgb(0x7D, 0xF9, 0xFF)", 
+  "rgb(0xFF, 0xD7, 0x00)", 
+  "rgb(0x80, 0x80, 0x80)", 
+  "rgb(0x00, 0xCC, 0x00)", 
+  "rgb(0x3F, 0xFF, 0x00)", 
+  "rgb(0x4B, 0x00, 0x82)", 
+  "rgb(0x00, 0xA8, 0x6B)", 
+  "rgb(0xB5, 0x7E, 0xDC)", 
+  "rgb(0xC8, 0xA2, 0xC8)", 
+  "rgb(0xBF, 0xFF, 0x00)", 
+  "rgb(0xFF, 0x00, 0xFF)", 
+  "rgb(0x80, 0x00, 0x00)", 
+  "rgb(0xE0, 0xB0, 0xFF)", 
+  "rgb(0x00, 0x00, 0x80)", 
+  "rgb(0x80, 0x80, 0x00)", 
+  "rgb(0xFF, 0xA5, 0x00)", 
+  "rgb(0xFF, 0x45, 0x00)", 
+  "rgb(0xFF, 0xE5, 0xB4)", 
+  "rgb(0x1C, 0x39, 0xBB)", 
+  "rgb(0xFF, 0xC0, 0xCB)", 
+  "rgb(0x84, 0x31, 0x79)", 
+  "rgb(0xFF, 0x75, 0x18)", 
+  "rgb(0x80, 0x00, 0x80)", 
+  "rgb(0xFF, 0x00, 0x00)", 
+  "rgb(0xC7, 0x15, 0x85)", 
+  "rgb(0xFF, 0x00, 0x7F)", 
+  "rgb(0xFA, 0x80, 0x72)", 
+  "rgb(0xFF, 0x24, 0x00)", 
+  "rgb(0xC0, 0xC0, 0xC0)", 
+  "rgb(0x70, 0x80, 0x90)", 
+  "rgb(0x00, 0xFF, 0x7F)", 
+  "rgb(0x48, 0x3C, 0x32)", 
+  "rgb(0x00, 0x80, 0x80)", 
+  "rgb(0x40, 0xE0, 0xD0)", 
+  "rgb(0xEE, 0x82, 0xEE)", 
+  "rgb(0x40, 0x82, 0x6D)", 
+  "rgb(0xFF, 0xFF, 0x00)" 
+};
+
 extern char *strdup(const char *);
 
 #include "dplasma.h"
@@ -122,11 +179,14 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
         }
             
         fprintf(out, 
+                "  TAKE_TIME(%s_start_key);\n"
                 "\n"
                 "  %s\n"
+                "\n"
+                "  TAKE_TIME(%s_end_key);\n"
                 "  return 0;\n"
                 "}\n"
-                "\n", d->body);
+                "\n", d->name, d->body, d->name);
     }
 
     return dp_txt;
@@ -213,6 +273,18 @@ void dplasma_dump_all_c(FILE *out)
 
     dump_all_global_symbols_c(out, body, INIT_FUNC_BODY_SIZE);
 
+    fprintf(out, 
+            "#ifdef DPLASMA_PROFILING\n"
+            "#include \"profiling.h\"\n");
+    for(i = 0; i < dplasma_array_count; i++) {
+        fprintf(out, "int %s_start_key, %s_end_key;\n", dplasma_array[i]->name, dplasma_array[i]->name);
+    }
+    fprintf(out,
+            "#define TAKE_TIME(KEY)  dplasma_profiling_trace((KEY))\n"
+            "#else\n"
+            "#define TAKE_TIME(KEY)\n"
+            "#endif  /* DPLASMA_PROFILING */\n\n");
+
     p += snprintf(whole+p, 8192-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_array_count);
     for(i = 0; i < dplasma_array_count; i++) {
         p += snprintf(whole+p, 8192-p, "%s", dplasma_dump_c(out, dplasma_array[i], body, INIT_FUNC_BODY_SIZE));
@@ -248,16 +320,19 @@ void dplasma_dump_all_c(FILE *out)
             fprintf(out, "  object->hook = %s_hook;\n\n", dplasma_array[i]->name);
         }
     }
-#if 0
+
+    fprintf(out,
+            "#ifdef DPLASMA_PROFILING\n"
+            "  dplasma_profiling_init(1024);\n");
+    for(i = 0; i < dplasma_array_count; i++) {
+        fprintf(out, 
+                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s;stroke:rgb(0,0,0)\",\n"
+                "                                            &%s_start_key, &%s_end_key);\n",
+                dplasma_array[i]->name, colors[i % 54], dplasma_array[i]->name, dplasma_array[i]->name);
+    }
+
     fprintf(out, 
-            "/* This is a constant, only look for it once. */\n"
-            "  pNB = dplasma_search_global_symbol(\"NB\");\n"
-            "  rc = expr_eval( pNB->min, NULL, 0, &NB );\n"
-            "  if( 0 != rc ) {\n"
-            "    return rc;\n"
-            "  }\n");
-#endif
-    fprintf(out, 
+            "#endif /* DPLASMA_PROFILING */\n"
             "  return 0;\n"
             "}\n");
 }
