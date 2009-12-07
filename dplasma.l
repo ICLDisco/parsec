@@ -12,10 +12,42 @@
 extern char *strdup(const char *);
 int fileno(FILE *stream);
 
+extern char *yyfilename;
+
 #include "dplasma.h"
 #include "dplasma.tab.h"
 
 int dplasma_lineno = 1;
+
+char *extern_code(char *base, int len)
+{
+   char *res;
+   int nblines;
+   int p, rp, sp, rlen;
+   
+   nblines = 1;
+   for(p = 0; p < len; p++) {
+      if( base[p] == '\n' )
+         nblines++;
+   }
+   rlen = len + nblines * (16 + strlen(yyfilename));
+   res = (char*)calloc(1, rlen);
+
+   rp = 0;
+   sp = 0;
+   for(p = 0; p < len; p++) {
+      if( base[p] == '\n' ) {
+         rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", dplasma_lineno, yyfilename);
+	 dplasma_lineno++;
+         memcpy(res + rp, base + sp, p-sp);
+	 rp += p-sp;
+	 res[rp++] = '\n';
+	 sp = p+1;
+      }
+   }
+   res[rp] = '\0';
+   return res;
+}
 
 %}
 
@@ -27,13 +59,7 @@ WHITE         [\f\t\v ]
 %%
 
 [bB][oO][dD][yY]([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD] {
-                 int i;
-                 yylval.string = malloc(strlen(yytext)-6);
-                 strncpy( yylval.string, yytext + 4, strlen(yytext) - 7);
-                 for( i = 0; yylval.string[i] != '\0'; i++ ) {
-                     if( yylval.string[i] == '\n' )
-                         dplasma_lineno++;
-                 }
+                 yylval.string = extern_code( yytext+4, strlen(yytext) - 7 );
                  return DPLASMA_BODY; }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{([^\%]|(\%[^\}]))+\%\}    {
                    int lstart, lend, bstart;
@@ -51,8 +77,7 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{([^\%]|(\%[^\}]))+\%\}    {
                    /* Search for the start of the body */
                    for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
                    bstart++;
-                   yylval.two_strings.code = (char*)calloc(1, strlen(yytext)-bstart - 1);
-                   memcpy(yylval.two_strings.code, yytext + bstart, strlen(yytext)-bstart - 2);
+                   yylval.two_strings.code = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
                    return DPLASMA_EXTERN_DECL;
                  }
 {WHITE}*\n     { dplasma_lineno++; }
