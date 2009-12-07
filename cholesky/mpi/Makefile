@@ -1,15 +1,17 @@
 
 include ../../make.inc
 
-CC = mpicc
-LINKER = mpif77
-MPILIB =  
+CHOLESKY_OBJECTS=../cholesky.o
+
+CC = $(MPI_DIR)/bin/mpicc
+LINKER = $(MPI_DIR)/bin/mpif77
+MPILIB = -L $(MPI_DIR)/lib
 
 TARGETS = dist_exec
 
 OBJECTS= dist_exec.o data_management.o ../../dplasma.o ../../symbol.o ../../assignment.o ../../expr.o \
         ../../params.o ../../dep.o ../../lex.yy.o ../../dplasma.tab.o \
-        ../../scheduling.o cholesky_hook.o
+        ../../scheduling.o
  
 
 .SUFFIXES:
@@ -17,7 +19,7 @@ OBJECTS= dist_exec.o data_management.o ../../dplasma.o ../../symbol.o ../../assi
 
 all: $(TARGETS)
 
-dist_exec: $(OBJECTS)
+dist_exec: $(OBJECTS) $(CHOLESKY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(MPILIB) $(LIB)
 
 %.tab.h %.tab.c: %.y

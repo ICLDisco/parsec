@@ -5,25 +5,32 @@
  */
 
 
+
 #include "mpi.h"
 #include <getopt.h>
-#include "../../dplasma.h"
-#include "plasma.h"
-#include "data_management.h"
-#include <sys/time.h>
-#include "dplasma.h"
-#include "scheduling.h"
+
+
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+
 #include <cblas.h>
+#include <math.h>
+#include "plasma.h"
 #include <../src/common.h>
 #include <../src/lapack.h>
 #include <../src/context.h>
 #include <../src/allocate.h>
-#include <math.h>
-#include <string.h>
+#include <sys/time.h>
 
-extern FILE *yyin;
-extern int yyparse();
+#include "dplasma.h"
+#include "scheduling.h"
+#include "profiling.h"
+#include "data_management.h"
+
+
+//extern FILE *yyin;
+//extern int yyparse();
 extern int load_dplasma_hooks( void );
 
 
@@ -68,7 +75,7 @@ int main(int argc, char ** argv){
     double *D;
     MPI_Request * requests;
     int req_count;
-    char *lexfile = "../cholesky.jdf";
+    //    char * lexfile = "../cholesky.jdf";
 
     struct option long_options[] =
         {
@@ -140,9 +147,9 @@ int main(int argc, char ** argv){
                 descA.ncst = descA.nrst;
                 printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
                 break;
-            case 'j':
-                lexfile = strdup(optarg);
-                break;
+/*             case 'j': */
+/*                 lexfile = strdup(optarg); */
+/*                 break; */
             case '?': /* getopt_long already printed an error message. */
             case 'h':
             default:
@@ -152,12 +159,12 @@ int main(int argc, char ** argv){
         
     }
     
-    yyin = fopen(lexfile, "r");
-    if(NULL == yyin)
-    {
-        perror("opening JDF file");
-        MPI_Abort(MPI_COMM_WORLD, 2);
-    }
+/*     yyin = fopen(lexfile, "r"); */
+/*     if(NULL == yyin) */
+/*     { */
+/*         perror("opening JDF file"); */
+/*         MPI_Abort(MPI_COMM_WORLD, 2); */
+/*     } */
     
     if (N == 0)
     {
@@ -237,7 +244,7 @@ int main(int argc, char ** argv){
         constant = expr_new_int( descA.colRANK );
         dplasma_add_global_symbol( "colRANK", constant );
     }
-    yyparse();
+
     load_dplasma_hooks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
