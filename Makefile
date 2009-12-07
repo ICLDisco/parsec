@@ -28,7 +28,7 @@ tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 cholesky/cholesky.c: cholesky/cholesky.jdf dpc
-	./dpc < cholesky/cholesky.jdf > cholesky/cholesky.c
+	./dpc ./cholesky/cholesky.jdf > cholesky/cholesky.c
 
 cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
