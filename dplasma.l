@@ -36,18 +36,23 @@ WHITE         [\f\t\v ]
                  }
                  return DPLASMA_BODY; }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{([^\%]|(\%[^\}]))+\%\}    {
-                   int i, j;
-                   yylval.string = (char *)malloc(strlen(yytext)-13);
-                   /* Put the extern language, then a ", then the body */
+                   int lstart, lend, bstart;
                    /* This assumes that no extern language rightfully has a " in its name, which is also an assumption of the lexer anyway */
-                   for(i = 0; yytext[i] != '"'; i++) /* nothing */;
-                   j = 0;
-                   for(i = i+1; yytext[i] != '"'; i++)
-                       yylval.string[j++] = yytext[i];
-                   yylval.string[j++] = '"';
-                   for(i = i+1; yytext[i] != '{'; i++) /* nothing */;
-                   memcpy(yylval.string+j, yytext + i + 1, strlen(yytext+i+1)-2);
-                   yylval.string[j+strlen(yytext+i+1)-1] = '\0';
+
+                   /* find the beginning of the language */
+                   for(lstart = 0; yytext[lstart] != '"'; lstart++) /* nothing */;
+                   lstart++;
+
+                   /* find the end of the language */
+                   for(lend = lstart + 1; yytext[lend] != '"'; lend++) /* nothing */;
+                   yylval.two_strings.language = (char*)calloc(1, lend-lstart+1);
+                   memcpy(yylval.two_strings.language, yytext + lstart, lend-lstart);
+
+                   /* Search for the start of the body */
+                   for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
+                   bstart++;
+                   yylval.two_strings.code = (char*)calloc(1, strlen(yytext)-bstart - 1);
+                   memcpy(yylval.two_strings.code, yytext + bstart, strlen(yytext)-bstart - 2);
                    return DPLASMA_EXTERN_DECL;
                  }
 {WHITE}*\n     { dplasma_lineno++; }

@@ -46,6 +46,10 @@ int yywrap()
     char       operand;
     expr_t*    expr;
     dplasma_t* dplasma;
+    struct {
+        char  *code;
+        char  *language;
+    }          two_strings;
 }
 
 %token DPLASMA_COMMA DPLASMA_OPEN_PAR DPLASMA_CLOSE_PAR DPLASMA_RANGE
@@ -57,7 +61,7 @@ int yywrap()
 %token <operand> DPLASMA_OP
 %token <operand> DPLASMA_DEPENDENCY_TYPE
 %token <operand> DPLASMA_ARROW
-%token <string>  DPLASMA_EXTERN_DECL
+%token <two_strings>  DPLASMA_EXTERN_DECL
 
 %type  <expr>    expr
 
@@ -76,14 +80,7 @@ prog:
                 dplasma_add_global_symbol( $1, $3 );
             } prog
     | DPLASMA_EXTERN_DECL {
-                             char *code;
-                             char *language;
-                             int i;
-                             for(i = 0; $1[i] != '"'; i++)  /* nothing */;
-                             $1[i++] = '\0';
-                             language = $1;
-                             code = $1 + i;
-                             add_preamble(language, code);
+                             add_preamble($1.language, $1.code);
                           } prog
     |
 ;
