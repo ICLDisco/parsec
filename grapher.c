@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
+char *yyfilename;
+
 extern int yyparse();
 extern int dplasma_lineno;
 
@@ -43,6 +45,7 @@ static int generic_hook(const dplasma_execution_context_t* exec_context)
 
 int main(int argc, char *argv[])
 {
+    yyfilename = strdup("(stdin)");
     dplasma_lineno = 1;
 	yyparse();
 

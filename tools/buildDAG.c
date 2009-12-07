@@ -305,8 +305,11 @@ void external_hook(void){
 extern int yyparse();
 extern int dplasma_lineno;
 
+char *yyfilename = "(stdin)";
+
 int main(int argc, char *argv[])
 {
+    
     dplasma_lineno = 1;
 	yyparse();
 
