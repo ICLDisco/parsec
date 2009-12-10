@@ -1,8 +1,10 @@
-#include <dplasma.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+
+#include "dplasma.h"
+#include "precompile.h"
 
 extern int yyparse();
 extern int dplasma_lineno;

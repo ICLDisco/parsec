@@ -17,15 +17,18 @@ static const symbol_t** dplasma_symbol_array = NULL;
 static int dplasma_symbol_array_count = 0,
     dplasma_symbol_array_size = 0;
 
-typedef struct symb_list {
-    symbol_t *s;
-    char *c_name;
-    struct symb_list *next;
-} symb_list_t;
-
 int dplasma_symbol_get_count(void) 
 {
     return dplasma_symbol_array_count;
+}
+
+const symbol_t *dplasma_symbol_get_element_at( int i )
+{
+    if( i >= dplasma_symbol_array_count ) {
+        return NULL;
+    } else {
+        return dplasma_symbol_array[i];
+    }
 }
 
 void dplasma_load_symbols( symbol_t **array, int size )
@@ -47,66 +50,6 @@ void dplasma_load_symbols( symbol_t **array, int size )
         dplasma_symbol_array[dplasma_symbol_array_count] = array[i];
         dplasma_symbol_array_count++;
     }
-}
-
-
-char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size)
-{
-    static symb_list_t *already_dumped = NULL;
-    int i;
-    symb_list_t *e;
-    char mn[64];
-    char mm[64];
-    
-    /* Did we already dump this symbol (pointer-wise)? */
-    for(i = 0, e=already_dumped; e != NULL; i++, e = e->next ) {
-        if(e->s == s) {
-            return e->c_name;
-        }
-    }
-    
-    e = (symb_list_t*)calloc(1, sizeof(symb_list_t));
-    e->s = (symbol_t*)s;
-    e->c_name = (char*)malloc(64);
-    sprintf(e->c_name, "&symb%d", i);
-    e->next = already_dumped;
-    already_dumped = e;
-
-    sprintf(mn, "%s", dump_c_expression(out, s->min, init_func_body, init_func_body_size));
-    sprintf(mm, "%s", dump_c_expression(out, s->max, init_func_body, init_func_body_size));
-    
-    fprintf(out, "static symbol_t symb%d = { .flags = 0x%08x, .name = \"%s\", .min = %s, .max = %s };\n",
-            i,
-            s->flags, s->name, mn, mm);
-
-    return e->c_name;
-}
-
-void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_func_body_size)
-{
-    int i;
-    char whole[4096];
-    int l = 0;
-    l += snprintf(whole+l, 4096-l, "static symbol_t *dplasma_symbols[] = {\n");
-    for(i = 0; i < dplasma_symbol_array_count; i++) {
-        l += snprintf(whole+l, 4096-l, "   %s%s", dump_c_symbol(out, dplasma_symbol_array[i], init_func_body, init_func_body_size),
-                      i < dplasma_symbol_array_count-1 ? ",\n" : "};\n");
-    }
-    fprintf(out, "%s", whole);
-
-    fprintf(out, "\n");
-
-    for(i = 0; i < dplasma_symbol_array_count; i++) {
-        if( (dplasma_symbol_array[i]->min->flags & EXPR_FLAG_CONSTANT) &&
-            (dplasma_symbol_array[i]->max->flags & EXPR_FLAG_CONSTANT) &&
-            (dplasma_symbol_array[i]->min->value == dplasma_symbol_array[i]->max->value) ) {
-            /* strangely enough, this should be always the case... TODO: talk with the others -- Thomas */
-            fprintf(out, "int %s = %d;\n", dplasma_symbol_array[i]->name, dplasma_symbol_array[i]->min->value);
-        } else {
-            fprintf(out, "int %s;\n", dplasma_symbol_array[i]->name);
-        }
-    }
-    fprintf(out, "\n");
 }
 
 void symbol_dump(const symbol_t *s, const char *prefix)

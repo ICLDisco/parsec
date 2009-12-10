@@ -27,10 +27,22 @@ struct symbol {
 };
 
 /**
+ * Returns the number of symbols registered in the symbol array
+ */
+int dplasma_symbol_get_count(void);
+
+/**
+ * Returns the symbol stored at element i of the symbol array
+ *
+ * @param [IN] i the index of the element to return
+ * @return     NULL if i >= dplasma_symbol_get_count(), the symbol otherwise.
+ */
+const symbol_t *dplasma_symbol_get_element_at( int i );
+
+/**
  * Dump the specified symbol.
  */
 void symbol_dump(const symbol_t *s, const char *prefix);
-char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size);
 
 /**
  * helper for dumping the c structure representing the dplasma object
@@ -61,8 +73,6 @@ static inline int dplasma_symbol_is_global( const symbol_t* symbol )
  * Add a global symbol.
  */
 int dplasma_add_global_symbol( const char* name, const expr_t* expr );
-
-void dump_all_global_symbols_c( FILE *out, char *init_func_body, int init_func_body_size );
 
 /**
  * Return 0 if the symbol is standalone, i.e. it doesn't depend on any
@@ -190,8 +200,5 @@ int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,
  */
 int dplasma_symbol_get_absolute_maximum_value( const symbol_t* symbol,
                                                int* pvalue );
-
-
-int dplasma_symbol_get_count(void);
 
 #endif

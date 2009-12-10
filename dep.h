@@ -22,6 +22,5 @@ struct dep {
 };
 
 void dep_dump(const dep_t *d, const char *prefix);
-char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int init_func_body_size);
 
 #endif

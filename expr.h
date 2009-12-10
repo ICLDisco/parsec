@@ -167,17 +167,6 @@ char *expr_error(void);
 void expr_dump(FILE *out, const expr_t *e);
 
 /**
- * helper to dump the c structure representing the dplasma object
- * 
- * can add anything to init_func_body that will be run in the constructor at init time
- *
- * @returns a (static) string representing the (unique) name of 
- *          the expression to use to point to this expression.
- *          the special value "NULL" if e is null
- */
-char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body, int init_func_body_size);
-
-/**
  * Creates a new expression from a variable name
  *
  * @param  name [IN]  the name of the variable

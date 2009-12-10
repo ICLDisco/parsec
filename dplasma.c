@@ -9,63 +9,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-static const char *colors[54] = { 
-  "rgb(0xE5, 0x2B, 0x50)", 
-  "rgb(0xFF, 0xBF, 0x00)", 
-  "rgb(0x7F, 0xFF, 0xD4)", 
-  "rgb(0x00, 0x7F, 0xFF)", 
-  "rgb(0x00, 0x00, 0x00)", 
-  "rgb(0x00, 0x00, 0xFF)", 
-  "rgb(0x00, 0x95, 0xB6)", 
-  "rgb(0x8A, 0x2B, 0xE2)", 
-  "rgb(0xA5, 0x2A, 0x2A)", 
-  "rgb(0x70, 0x29, 0x63)", 
-  "rgb(0x96, 0x00, 0x18)", 
-  "rgb(0xDE, 0x31, 0x63)", 
-  "rgb(0x00, 0x7B, 0xA7)", 
-  "rgb(0x7F, 0xFF, 0x00)", 
-  "rgb(0xF8, 0x83, 0x79)", 
-  "rgb(0xDC, 0x14, 0x3C)", 
-  "rgb(0x00, 0xFF, 0xFF)", 
-  "rgb(0x7D, 0xF9, 0xFF)", 
-  "rgb(0xFF, 0xD7, 0x00)", 
-  "rgb(0x80, 0x80, 0x80)", 
-  "rgb(0x00, 0xCC, 0x00)", 
-  "rgb(0x3F, 0xFF, 0x00)", 
-  "rgb(0x4B, 0x00, 0x82)", 
-  "rgb(0x00, 0xA8, 0x6B)", 
-  "rgb(0xB5, 0x7E, 0xDC)", 
-  "rgb(0xC8, 0xA2, 0xC8)", 
-  "rgb(0xBF, 0xFF, 0x00)", 
-  "rgb(0xFF, 0x00, 0xFF)", 
-  "rgb(0x80, 0x00, 0x00)", 
-  "rgb(0xE0, 0xB0, 0xFF)", 
-  "rgb(0x00, 0x00, 0x80)", 
-  "rgb(0x80, 0x80, 0x00)", 
-  "rgb(0xFF, 0xA5, 0x00)", 
-  "rgb(0xFF, 0x45, 0x00)", 
-  "rgb(0xFF, 0xE5, 0xB4)", 
-  "rgb(0x1C, 0x39, 0xBB)", 
-  "rgb(0xFF, 0xC0, 0xCB)", 
-  "rgb(0x84, 0x31, 0x79)", 
-  "rgb(0xFF, 0x75, 0x18)", 
-  "rgb(0x80, 0x00, 0x80)", 
-  "rgb(0xFF, 0x00, 0x00)", 
-  "rgb(0xC7, 0x15, 0x85)", 
-  "rgb(0xFF, 0x00, 0x7F)", 
-  "rgb(0xFA, 0x80, 0x72)", 
-  "rgb(0xFF, 0x24, 0x00)", 
-  "rgb(0xC0, 0xC0, 0xC0)", 
-  "rgb(0x70, 0x80, 0x90)", 
-  "rgb(0x00, 0xFF, 0x7F)", 
-  "rgb(0x48, 0x3C, 0x32)", 
-  "rgb(0x00, 0x80, 0x80)", 
-  "rgb(0x40, 0xE0, 0xD0)", 
-  "rgb(0xEE, 0x82, 0xEE)", 
-  "rgb(0x40, 0x82, 0x6D)", 
-  "rgb(0xFF, 0xFF, 0x00)" 
-};
-
 extern char *strdup(const char *);
 
 #include "dplasma.h"
@@ -73,124 +16,6 @@ extern char *strdup(const char *);
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
-
-typedef struct preamble_list {
-    char *language;
-    char *code;
-    struct preamble_list *next;
-} preamble_list_t;
-    
-static preamble_list_t *preambles = NULL;
-
-void add_preamble(char *language, char *code)
-{
-    preamble_list_t *n = (preamble_list_t*)calloc(1, sizeof(preamble_list_t));
-    n->language = language;
-    n->code = code;
-    n->next = preambles;
-    preambles = n;
-}
-
-static char *dump_c_dependency_list(FILE *out, dplasma_dependencies_t *d, char *init_func_body, int init_func_body_size)
-{
-    static char dname[64];
-    static int  ndx = 0;
-    int my_idx = ndx++;
-    char b[1024];
-    int p = 0;
-
-    if( d == NULL ) {
-        snprintf(dname, 64, "NULL");
-    } else {
-        my_idx = ndx++;
-        p += snprintf(b+p, 1024-p, "static struct dplasma_dependencies_t deplist%d = {\n", my_idx);
-        p += snprintf(b+p, 1024-p, "  .flags = 0x%04x, .min = %d, .max = %d, .symbol = %s,\n",
-                      d->flags, d->min, d->max, dump_c_symbol(out, d->symbol, init_func_body, init_func_body_size));
-        if(  DPLASMA_DEPENDENCIES_FLAG_NEXT & d->flags ) {
-            p += snprintf(b+p, 1024-p, "  .u.next = {%s} };\n", dump_c_dependency_list(out, d->u.next[0], init_func_body, init_func_body_size));
-        } else {
-            p += snprintf(b+p, 1024-p, "  .u.dependencies = { 0x%02x } };\n", d->u.dependencies[0]);
-        }
-        fprintf(out, "%s", b);
-        snprintf(dname, 64, "&deplist%d", my_idx);
-    }
-    return dname;
-}
-
-static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
-                            char *init_func_body,
-                            int init_func_body_size)
-{
-    static char dp_txt[4096];
-    int i;
-    int p = 0;
-
-    p += snprintf(dp_txt+p, 4096-p, "    {\n");
-    p += snprintf(dp_txt+p, 4096-p, "      .name   = \"%s\",\n", d->name);
-    p += snprintf(dp_txt+p, 4096-p, "      .flags  = 0x%02x,\n", d->flags);
-    p += snprintf(dp_txt+p, 4096-p, "      .dependencies_mask = 0x%02x,\n", d->dependencies_mask);
-    p += snprintf(dp_txt+p, 4096-p, "      .nb_locals = %d,\n", d->nb_locals);
-    
-    p += snprintf(dp_txt+p, 4096-p, "      .locals = {");
-    for(i = 0; i < d->nb_locals; i++) {
-        if( symbol_c_index_lookup(d->locals[i]) > -1 ) {
-            p += snprintf(dp_txt+p, 4096-p, "dplasma_symbols[%d]%s", 
-                          symbol_c_index_lookup(d->locals[i]),
-                          i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
-        } else {
-            p += snprintf(dp_txt+p, 4096-p, "%s%s", 
-                          dump_c_symbol(out, d->locals[i], init_func_body, init_func_body_size),
-                          i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
-        }
-    }
-    for(; i < MAX_LOCAL_COUNT; i++) {
-        p += snprintf(dp_txt+p, 4096-p, "NULL%s",
-                      i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
-    }
-
-    p += snprintf(dp_txt+p, 4096-p, "      .preds = {");
-    for(i = 0; i < MAX_PRED_COUNT; i++) {
-        p += snprintf(dp_txt+p, 4096-p, "%s%s",
-                      dump_c_expression(out, d->preds[i], init_func_body, init_func_body_size),
-                      i < MAX_PRED_COUNT-1 ? ", " : "},\n");
-    }
-
-    p += snprintf(dp_txt+p, 4096-p, "      .params = {");
-    for(i = 0; i < MAX_PARAM_COUNT; i++) {
-        p += snprintf(dp_txt+p, 4096-p, "%s%s",
-                      dump_c_param(out, d->params[i], init_func_body, init_func_body_size, 1),
-                      i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
-    }
-
-    p += snprintf(dp_txt+p, 4096-p, "      .deps = %s,\n", dump_c_dependency_list(out, d->deps, init_func_body, init_func_body_size));
-    p += snprintf(dp_txt+p, 4096-p, "      .hook = NULL\n");
-    //    p += snprintf(dp_txt+p, 4096-p, "      .body = \"%s\"\n", d->body);
-    p += snprintf(dp_txt+p, 4096-p, "    }");
-    
-    /* d->body == NULL <=> IN or OUT. Is it the good test? */
-    if( NULL != d->body ) {
-        fprintf(out, 
-                "int %s_hook(const dplasma_execution_context_t *exec_context)\n"
-                "{\n",
-                d->name);
-
-        for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
-            fprintf(out, "  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
-        }
-            
-        fprintf(out, 
-                "  TAKE_TIME(%s_start_key);\n"
-                "\n"
-                "  %s\n"
-                "\n"
-                "  TAKE_TIME(%s_end_key);\n"
-                "  return 0;\n"
-                "}\n"
-                "\n", d->name, d->body, d->name);
-    }
-
-    return dp_txt;
-}
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
@@ -252,91 +77,6 @@ void dplasma_dump_all( void )
         dplasma_dump( dplasma_array[i], "" );
     }
 }
-
-#define INIT_FUNC_BODY_SIZE 4096
-
-void dplasma_dump_all_c(FILE *out)
-{
-    int i;
-    char whole[8192];
-    char body[INIT_FUNC_BODY_SIZE];
-    int p = 0;
-    preamble_list_t *n;
-
-    for(n = preambles; n != NULL; n = n->next) {
-        if( strcasecmp(n->language, "C") == 0 ) {
-            fprintf(out, "%s", n->code);
-        }
-    }
-
-    body[0] = '\0';
-
-    dump_all_global_symbols_c(out, body, INIT_FUNC_BODY_SIZE);
-
-    fprintf(out, 
-            "#ifdef DPLASMA_PROFILING\n"
-            "#include \"profiling.h\"\n");
-    for(i = 0; i < dplasma_array_count; i++) {
-        fprintf(out, "int %s_start_key, %s_end_key;\n", dplasma_array[i]->name, dplasma_array[i]->name);
-    }
-    fprintf(out,
-            "#define TAKE_TIME(KEY)  dplasma_profiling_trace((KEY))\n"
-            "#else\n"
-            "#define TAKE_TIME(KEY)\n"
-            "#endif  /* DPLASMA_PROFILING */\n\n");
-
-    p += snprintf(whole+p, 8192-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_array_count);
-    for(i = 0; i < dplasma_array_count; i++) {
-        p += snprintf(whole+p, 8192-p, "%s", dplasma_dump_c(out, dplasma_array[i], body, INIT_FUNC_BODY_SIZE));
-        if( i < dplasma_array_count-1) {
-            p += snprintf(whole+p, 8192-p, ",\n");
-        }
-    }
-    p += snprintf(whole+p, 8192-p, "};\n");
-    fprintf(out, 
-            "%s\n"
-            "\n"
-            "void dplasma_init(void)\n"
-            "{\n"
-            "%s\n"
-            "}\n"
-            , whole, body);
-
-    fprintf(out, 
-            "int load_dplasma_hooks( void )\n"
-            "{\n"
-            "  dplasma_t* object;\n"
-            "\n"
-            "  dplasma_init();\n"
-            "  dplasma_load_array( dplasma_array, %d );\n"
-            "  dplasma_load_symbols( dplasma_symbols, %d );\n"
-            "\n",
-            dplasma_array_count,
-            dplasma_symbol_get_count());
-    for(i = 0; i < dplasma_array_count; i++) {
-        /* Specials IN and OUT test */
-        if( dplasma_array[i]->body != NULL ) {
-            fprintf(out, "  object = (dplasma_t*)dplasma_find(\"%s\");\n", dplasma_array[i]->name);
-            fprintf(out, "  object->hook = %s_hook;\n\n", dplasma_array[i]->name);
-        }
-    }
-
-    fprintf(out,
-            "#ifdef DPLASMA_PROFILING\n"
-            "  dplasma_profiling_init(1024);\n");
-    for(i = 0; i < dplasma_array_count; i++) {
-        fprintf(out, 
-                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s;stroke:rgb(0,0,0)\",\n"
-                "                                            &%s_start_key, &%s_end_key);\n",
-                dplasma_array[i]->name, colors[i % 54], dplasma_array[i]->name, dplasma_array[i]->name);
-    }
-
-    fprintf(out, 
-            "#endif /* DPLASMA_PROFILING */\n"
-            "  return 0;\n"
-            "}\n");
-}
-
 
 int dplasma_push( const dplasma_t* d )
 {
@@ -405,6 +145,11 @@ const dplasma_t* dplasma_element_at( int i )
         return dplasma_array[i];
     }
     return NULL;
+}
+
+int dplasma_nb_elements( void )
+{
+    return dplasma_array_count;
 }
 
 /**

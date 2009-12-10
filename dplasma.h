@@ -91,14 +91,6 @@ void dplasma_dump(const dplasma_t *d, const char *prefix);
 void dplasma_dump_all( void );
 
 /**
- * Dump all defined dplasma_t objetcs in a C-like format in the out file
- */
-void dplasma_dump_all_c( FILE *out );
-
-void add_preamble(char *language, char *code);
-
-
-/**
  * helper to get the index of a dplasma object when dumping in the C-like format
  */
 int dplasma_dplasma_index( const dplasma_t *d );
@@ -126,6 +118,11 @@ dplasma_t* dplasma_find_or_create( const char* name );
  * return NULL.
  */
 const dplasma_t* dplasma_element_at( int i );
+
+/**
+ * Returns the number of elements in the dplasma_array
+ */
+int dplasma_nb_elements( void );
 
 /**
  * Compute the correct initial values for an execution context. These values

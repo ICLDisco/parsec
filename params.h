@@ -31,17 +31,6 @@ struct param {
 void param_dump(const param_t *p, const char *prefix);
 
 /**
- * helper to dump the c structure representing the dplasma object
- * 
- * can add anything to init_func_body that will be run in the constructor at init time
- *
- * @returns a (static) string representing the (unique) name of 
- *          the params to use to point to this param.
- *          the special value "NULL" if p is null
- */
-char *dump_c_param(FILE *out, const param_t *p,  char *init_func_body, int init_func_body_size, int dump_it);
-
-/**
  *
  */
 param_t* dplasma_find_or_create_param(struct dplasma_t* function, char* param_name);

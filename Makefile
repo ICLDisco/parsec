@@ -5,7 +5,7 @@ TARGETS=grapher dpc tools/buildDAG cholesky/dposv
 LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o scheduling.o profiling.o
 
-COMPILER_OBJECTS=lex.yy.o dplasma.tab.o
+COMPILER_OBJECTS=lex.yy.o dplasma.tab.o precompile.o
 
 CHOLESKY_OBJECTS=cholesky/dposv.o cholesky/cholesky.o
 

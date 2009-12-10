@@ -5,6 +5,7 @@
  *                         reserved.
  */
 #include "dplasma.h"
+#include "precompile.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -80,7 +81,7 @@ prog:
                 dplasma_add_global_symbol( $1, $3 );
             } prog
     | DPLASMA_EXTERN_DECL {
-                             add_preamble($1.language, $1.code);
+                             dplasma_precompiler_add_preamble($1.language, $1.code);
                           } prog
     |
 ;
