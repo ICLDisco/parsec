@@ -95,14 +95,6 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count);
 
 
-/* find which mpi rank handles a particular tile
- * row -> row of the data
- * col -> column of the data
- * return mpi rank
- */
-int where_is_data(int row, int col);
-
-
 /* generate a random matrix  */
 int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D,int LDA, int NRHS, int LDB);
 
@@ -113,5 +105,7 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
 
 /* debugging print of blocks */
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );
+int data_dump(DPLASMA_desc * Ddesc);
+int plasma_dump(PLASMA_desc * Pdesc);
 
 #endif
