@@ -29,8 +29,8 @@ int PLASMA_INFO;
  */
 GRIDrows = 1
 GRIDcols = 1
-NB = 120
-SIZE = 10
+NB
+SIZE
 colRANK = 0
 rowRANK = 0
 

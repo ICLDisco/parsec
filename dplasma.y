@@ -78,7 +78,11 @@ prog:
     dplasma prog
     | DPLASMA_VAR DPLASMA_ASSIGNMENT expr
             {
-                dplasma_add_global_symbol( $1, $3 );
+                dplasma_add_global_symbol_cst( $1, $3 );
+            } prog
+    | DPLASMA_VAR
+            {
+                dplasma_add_global_symbol( $1 );
             } prog
     | DPLASMA_EXTERN_DECL {
                              dplasma_precompiler_add_preamble($1.language, $1.code);
