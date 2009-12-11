@@ -147,13 +147,10 @@ int main(int argc, char ** argv){
                 descA.ncst = descA.nrst;
                 printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
                 break;
-/*             case 'j': */
-/*                 lexfile = strdup(optarg); */
-/*                 break; */
             case '?': /* getopt_long already printed an error message. */
             case 'h':
             default:
-                printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n -j --jdf : path to jackub description format file (default: ../cholesky.jdf)\n");
+                printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
                 MPI_Abort( MPI_COMM_WORLD, 2);
         }
         
@@ -225,8 +222,7 @@ int main(int argc, char ** argv){
     /* checking local data ready */
     is_data_distributed(&descA, requests, req_count);
 
-    /* parsing jdf */
-   /* dplasma_lineno = 1;*/
+    /* dplasma_lineno = 1;*/
     time_elapsed = get_cur_time();
     {
         expr_t* constant;
@@ -250,12 +246,17 @@ int main(int argc, char ** argv){
     printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
     
 #ifdef DIST_VERIFICATION
-    data_dist_verif(&local_desc, &descA);
-#endif
 
+#endif
+    
+    data_dist_verif(&local_desc, &descA);
+    if (descA.mpi_rank == 0)
+        plasma_dump(&local_desc);
+    data_dump(&descA);
     /* lets rock! */
     {
         dplasma_execution_context_t exec_context;
+        
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
@@ -266,6 +267,7 @@ int main(int argc, char ** argv){
 #define N descA.n
 #define NB descA.nb
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+
     }
 
     gather_data(&local_desc, &descA);

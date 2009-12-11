@@ -335,7 +335,7 @@ void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
     tile_rank = dplasma_get_rank_for_tile(Ddesc, m, n);
     if(Ddesc->mpi_rank == tile_rank)
     {
-        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n);
+        //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n);
         return dplasma_get_local_tile(Ddesc, m, n);
     }
     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank);
@@ -368,12 +368,9 @@ void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n)
 
     pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
 
-    if ((Ddesc->lnt - n) < Ddesc->ncst) /* tile is in the last column of super-tile */
+    if (n >= ((Ddesc->lnt/Ddesc->ncst)*Ddesc->ncst )) /* tile is in the last column of super-tile */
         {
-            if (Ddesc->lnt % Ddesc->ncst)
-                last_c_size = (Ddesc->lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
-            else
-                last_c_size = Ddesc->ncst * Ddesc->nrst;
+            last_c_size = (Ddesc->lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
         }
     else
         {
@@ -382,7 +379,7 @@ void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n)
     pos += (last_c_size * ((m / Ddesc->nrst) / Ddesc->GRIDrows ) ); /* pos is at head of supertile (BxA) containing (m,n)  */
 
     /* if tile (m,n) is in the last super tile in the row and this super tile is smaller than others */
-    if (((Ddesc->lmt - m) < Ddesc->nrst) && (Ddesc->lmt % Ddesc->nrst))
+        if (m >= ((Ddesc->lmt/Ddesc->nrst)*Ddesc->nrst))
         {           
             last_c_size = Ddesc->lmt % Ddesc->nrst;
         }
@@ -392,7 +389,8 @@ void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n)
         }
     pos += ((n % Ddesc->ncst) * last_c_size); /* pos is at (B, n)*/
     pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
-    
+
+    //    printf("get tile (%d, %d) is at pos %d\n", m, n,  pos*Ddesc->bsiz);
     /************************************/
     return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
 }
@@ -489,7 +487,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                 for (j = 0 ; j < str ; j++) /* for each super tile row in that column */
                     {
                         rank = dplasma_get_rank_for_tile(Ddesc, j*Ddesc->nrst, i*Ddesc->ncst);
-                        printf("tile (%d,%d) belongs to %d\n", j*Ddesc->nrst, i*Ddesc->ncst, rank);
+                        //  printf("tile (%d,%d) belongs to %d\n", j*Ddesc->nrst, i*Ddesc->ncst, rank);
                         if (rank == 0) /* this tile belongs to me */
                             {
                                 tile_size = min(Ddesc->nrst, Ddesc->lmt-(j*Ddesc->nrst));
@@ -600,16 +598,33 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
 }
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
-    int m,n, rank;
+    int m, n, k, rank;
     double * buff;
+    double * buff2;
     MPI_Barrier ( MPI_COMM_WORLD);
     for (m = 0 ; m < Ddesc->lmt ; m++)
         for ( n = 0 ; n < Ddesc->lnt ; n++)
             {
+                rank = dplasma_get_rank_for_tile(Ddesc, m, n);
+
+                if (rank == 0 && Ddesc->mpi_rank == 0)/* this proc is rank 0 and handles the tile*/
+                    {
+                        buff = plasma_A(Pdesc, m, n);
+                        buff2 = dplasma_get_tile(Ddesc, m, n);
+                        for ( k = 0; k < Ddesc->bsiz ; k++)
+                            {
+                                if(buff[k] != buff2[k])
+                                    {
+                                        printf("WARNING: tile(%d, %d) differ !\n", m, n);
+                                        break;
+                                    }
+                            }
+                        continue;
+                    }
                 if(Ddesc->mpi_rank == 0)
                     print_block("orig tile ", m, n, plasma_A(Pdesc, m, n), Pdesc->nb, Pdesc->bsiz);
 
-                rank = dplasma_get_rank_for_tile(Ddesc, m, n);
+                
                 if (Ddesc->mpi_rank == rank)
                     {
                         buff = dplasma_get_tile(Ddesc, m, n);
@@ -618,8 +633,60 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                     }
                 MPI_Barrier(MPI_COMM_WORLD);   
             }
-
+    printf("Data verification ended\n");
 }
+
+int data_dump(DPLASMA_desc * Ddesc){
+    FILE * tmpf;
+    int i, j, k;
+    double * buf;
+    tmpf = fopen("tmp_local_data_dump.txt", "w");
+    if(NULL == tmpf)
+        {
+            perror("opening file: tmp_local_data_dump.txt" );
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+    for (i = 0 ; i < Ddesc->lmt ; i++)
+        for ( j = 0 ; j< Ddesc->lnt ; j++)
+            {
+                if (dplasma_get_rank_for_tile(Ddesc, i, j) == Ddesc->mpi_rank)
+                    {
+                        buf = (double*)dplasma_get_local_tile(Ddesc, i, j);
+                        for (k = 0 ; k < Ddesc->bsiz ; k++)
+                            {
+                                fprintf(tmpf, "%e ", buf[k]);
+                            }
+                        fprintf(tmpf, "\n");
+                    }
+            }
+    fclose(tmpf);
+    return 0;
+}
+
+int plasma_dump(PLASMA_desc * Pdesc){
+    FILE * tmpf;
+    int i, j, k;
+    double * buf;
+    tmpf = fopen("tmp_plasma_data_dump.txt", "w");
+    if(NULL == tmpf)
+        {
+            perror("opening file: tmp_plasma_data_dump.txt" );
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+    for (i = 0 ; i < Pdesc->lmt ; i++)
+        for ( j = 0 ; j< Pdesc->lnt ; j++)
+            {
+                buf = (double*)plasma_A(Pdesc, i, j);
+                for (k = 0 ; k < Pdesc->bsiz ; k++)
+                    {
+                        fprintf(tmpf, "%e ", buf[k]);
+                    }
+                fprintf(tmpf, "\n");
+            }
+    fclose(tmpf);
+    return 0;
+}
+
 
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 {
