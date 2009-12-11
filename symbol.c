@@ -105,12 +105,27 @@ int symbol_c_index_lookup( const symbol_t *symbol )
     return -1;
 }
 
-int dplasma_add_global_symbol( const char* name, const expr_t* expr )
+int dplasma_assign_global_symbol( const char *name, const expr_t *expr )
+{
+    symbol_t* symbol;
+
+    if( NULL == (symbol = dplasma_search_global_symbol(name)) ) {
+        DEBUG(("Cannot assign symbol %s: not defined\n", name));
+        return -1;
+    }
+
+    symbol->min = expr;
+    symbol->max = expr;
+
+    return EXPR_SUCCESS;
+}
+
+int dplasma_add_global_symbol( const char *name )
 {
     symbol_t* symbol;
 
     if( NULL != dplasma_search_global_symbol(name) ) {
-        DEBUG(("Symbol %d at line ?? is already defined\n", name));
+        DEBUG(("Add global symbol cst: symbol %s is already defined\n", name));
         return -1;
     }
 
@@ -127,16 +142,22 @@ int dplasma_add_global_symbol( const char* name, const expr_t* expr )
         }
     }
 
-    /* TODO: check that this symbol doesn't depend on anything except others global symbols. */
     symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
-    symbol->flags = DPLASMA_SYMBOL_IS_GLOBAL | DPLASMA_SYMBOL_IS_STANDALONE;
+    symbol->flags = DPLASMA_SYMBOL_IS_GLOBAL;
     symbol->name = strdup(name);
-    symbol->min = expr;
-    symbol->max = expr;
 
     dplasma_symbol_array[dplasma_symbol_array_count] = symbol;
     dplasma_symbol_array_count++;
     return EXPR_SUCCESS;
+}
+
+int dplasma_add_global_symbol_cst( const char* name, const expr_t* expr )
+{
+    int ret;
+    ret = dplasma_add_global_symbol( name );
+    if( ret != EXPR_SUCCESS ) 
+        return ret;
+    return dplasma_assign_global_symbol( name, expr );
 }
 
 const symbol_t* dplasma_search_global_symbol( const char* name )

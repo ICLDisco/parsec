@@ -343,13 +343,27 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
     fprintf(out, "\n");
 
     for(i = 0; i < dplasma_symbol_get_count(); i++) {
-        if( (dplasma_symbol_get_element_at(i)->min->flags & EXPR_FLAG_CONSTANT) &&
+        if( (dplasma_symbol_get_element_at(i)->min != NULL) &&
+            (dplasma_symbol_get_element_at(i)->max != NULL) &&
+            (dplasma_symbol_get_element_at(i)->min->flags & EXPR_FLAG_CONSTANT) &&
             (dplasma_symbol_get_element_at(i)->max->flags & EXPR_FLAG_CONSTANT) &&
             (dplasma_symbol_get_element_at(i)->min->value == dplasma_symbol_get_element_at(i)->max->value) ) {
             /* strangely enough, this should be always the case... TODO: talk with the others -- Thomas */
             fprintf(out, "int %s = %d;\n", dplasma_symbol_get_element_at(i)->name, dplasma_symbol_get_element_at(i)->min->value);
         } else {
-            fprintf(out, "int %s;\n", dplasma_symbol_get_element_at(i)->name);
+            char *name = dplasma_symbol_get_element_at(i)->name;
+            fprintf(out, "int %s;\n", name);
+
+            snprintf(init_func_body + strlen(init_func_body),
+                     init_func_body_size - strlen(init_func_body),
+                     "  {\n"
+                     "    int rc;\n"
+                     "    rc = expr_eval( (%s)->min, NULL, 0, &%s);\n"
+                     "    if( 0 != rc ) {\n"
+                     "      return rc;\n"
+                     "    }\n"
+                     "  }\n",
+                     dump_c_symbol(out, dplasma_symbol_get_element_at(i), init_func_body, init_func_body_size), name);
         }
     }
     fprintf(out, "\n");
@@ -497,23 +511,33 @@ void dplasma_dump_all_c(FILE *out)
     fprintf(out, 
             "%s\n"
             "\n"
-            "void dplasma_init(void)\n"
+            "int dplasma_init(void)\n"
             "{\n"
             "%s\n"
+            "  return 0;\n"
             "}\n"
             , whole, body);
+
+    fprintf(out,
+            "int load_dplasma_objects( void )\n"
+            "{\n"
+            "  dplasma_load_array( dplasma_array, %d );\n"
+            "  dplasma_load_symbols( dplasma_symbols, %d );\n"
+            "  return 0;\n"
+            "}\n\n",
+            dplasma_nb_elements(),
+            dplasma_symbol_get_count());
 
     fprintf(out, 
             "int load_dplasma_hooks( void )\n"
             "{\n"
             "  dplasma_t* object;\n"
             "\n"
-            "  dplasma_init();\n"
-            "  dplasma_load_array( dplasma_array, %d );\n"
-            "  dplasma_load_symbols( dplasma_symbols, %d );\n"
-            "\n",
-            dplasma_nb_elements(),
-            dplasma_symbol_get_count());
+            "  if( 0 != dplasma_init()) {\n"
+            "     return -1;\n"
+            "  }\n"
+            "\n");
+            
     for(i = 0; i < dplasma_nb_elements(); i++) {
         /* Specials IN and OUT test */
         if( dplasma_element_at(i)->body != NULL ) {

@@ -15,6 +15,12 @@
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
+static int expr_is_constant( expr_t *e )
+{
+    return (NULL != e) &&
+        (e->flags & EXPR_FLAG_CONSTANT );
+}
+
 static int expr_eval_unary(unsigned char op, const expr_t *op1,
                            const assignment_t *assignments, unsigned int nbassignments,
                            int *v)
@@ -342,7 +348,8 @@ expr_t *expr_new_var(const symbol_t *symb)
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
     r->op = EXPR_OP_SYMB;
     r->var = (symbol_t*)symb;
-    if( dplasma_symbol_is_global(symb) ) {
+    if( dplasma_symbol_is_global(symb) &&
+        expr_is_constant(symb->min) ) {
         r->flags = EXPR_FLAG_CONSTANT;
         r->value = symb->min->value;
     } else {

@@ -102,15 +102,17 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
 
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
+    load_dplasma_objects();
+
     time_elapsed = get_cur_time();
     {
         expr_t* constant;
 
         constant = expr_new_int( PLASMA_NB );
-        dplasma_add_global_symbol( "NB", constant );
+        dplasma_assign_global_symbol( "NB", constant );
 
         constant = expr_new_int( NT );
-        dplasma_add_global_symbol( "SIZE", constant );
+        dplasma_assign_global_symbol( "SIZE", constant );
     }
 
     load_dplasma_hooks();

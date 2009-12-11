@@ -70,9 +70,20 @@ static inline int dplasma_symbol_is_global( const symbol_t* symbol )
 }
 
 /**
- * Add a global symbol.
+ * Add a (constant) global symbol.
  */
-int dplasma_add_global_symbol( const char* name, const expr_t* expr );
+int dplasma_add_global_symbol_cst( const char* name, const expr_t* expr );
+
+/**
+ * Add a non-assigned global symbol.
+ */
+int dplasma_add_global_symbol( const char* name );
+
+/**
+ * Assign an existing global symbol that wasn't constant before
+ */
+int dplasma_assign_global_symbol( const char *name, const expr_t *expr ); 
+ 
 
 /**
  * Return 0 if the symbol is standalone, i.e. it doesn't depend on any
