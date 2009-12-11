@@ -3,6 +3,7 @@ include ../../make.inc
 
 CHOLESKY_OBJECTS=cholesky_mpi.o
 
+MPI_DIR = $(HOME)/ompi
 CC = $(MPI_DIR)/bin/mpicc
 LINKER = $(MPI_DIR)/bin/mpif77
 MPILIB = -L $(MPI_DIR)/lib
