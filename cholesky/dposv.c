@@ -45,7 +45,7 @@ int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
 
 int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
 {
-    int NB, NT;
+    int NB, NT, nbtasks;
     int status;
     double *Abdl;
     plasma_context_t *plasma;
@@ -115,9 +115,10 @@ int DPLASMA_dpotrf(PLASMA_enum uplo, int N, double *A, int LDA)
         dplasma_assign_global_symbol( "SIZE", constant );
     }
 
-    load_dplasma_hooks();
+    nbtasks = load_dplasma_hooks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
+    printf("NBTASKS to run: %d\n", nbtasks);
 
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init(1024);
