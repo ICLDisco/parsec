@@ -224,21 +224,22 @@ int main(int argc, char ** argv){
 
     /* dplasma_lineno = 1;*/
     time_elapsed = get_cur_time();
+    load_dplasma_objects();
     {
         expr_t* constant;
 
         constant = expr_new_int( descA.nb );
-        dplasma_add_global_symbol( "NB", constant );
+        dplasma_assign_global_symbol( "NB", constant );
         constant = expr_new_int( descA.nt );
-        dplasma_add_global_symbol( "SIZE", constant );
+        dplasma_assign_global_symbol( "SIZE", constant );
         constant = expr_new_int( descA.GRIDrows );
-        dplasma_add_global_symbol( "GRIDrows", constant );
+        dplasma_assign_global_symbol( "GRIDrows", constant );
         constant = expr_new_int( descA.GRIDcols );
-        dplasma_add_global_symbol( "GRIDcols", constant );
+        dplasma_assign_global_symbol( "GRIDcols", constant );
         constant = expr_new_int( descA.rowRANK );
-        dplasma_add_global_symbol( "rowRANK", constant );
+        dplasma_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( descA.colRANK );
-        dplasma_add_global_symbol( "colRANK", constant );
+        dplasma_assign_global_symbol( "colRANK", constant );
     }
 
     load_dplasma_hooks();
