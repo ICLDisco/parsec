@@ -596,44 +596,53 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
         printf("%e ", block[i]);
     printf("\n\n");
 }
+
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
     int m, n, k, rank;
     double * buff;
     double * buff2;
-    MPI_Barrier ( MPI_COMM_WORLD);
+
     for (m = 0 ; m < Ddesc->lmt ; m++)
         for ( n = 0 ; n < Ddesc->lnt ; n++)
+        {
+            MPI_Barrier(MPI_COMM_WORLD);
+            
+            rank = dplasma_get_rank_for_tile(Ddesc, m, n);
+            
+            if (rank == 0 && Ddesc->mpi_rank == 0)/* this proc is rank 0 and handles the tile*/
             {
-                rank = dplasma_get_rank_for_tile(Ddesc, m, n);
-
-                if (rank == 0 && Ddesc->mpi_rank == 0)/* this proc is rank 0 and handles the tile*/
+                buff = plasma_A(Pdesc, m, n);
+                buff2 = dplasma_get_tile(Ddesc, m, n);
+                for ( k = 0; k < Ddesc->bsiz ; k++)
+                {
+                    if(buff[k] != buff2[k])
                     {
-                        buff = plasma_A(Pdesc, m, n);
-                        buff2 = dplasma_get_tile(Ddesc, m, n);
-                        for ( k = 0; k < Ddesc->bsiz ; k++)
-                            {
-                                if(buff[k] != buff2[k])
-                                    {
-                                        printf("WARNING: tile(%d, %d) differ !\n", m, n);
-                                        break;
-                                    }
-                            }
-                        MPI_Barrier(MPI_COMM_WORLD);
-                        continue;
+                        printf("WARNING: tile(%d, %d) differ !\n", m, n);
+                        break;
                     }
-                if(Ddesc->mpi_rank == 0)
-                    print_block("orig tile ", m, n, plasma_A(Pdesc, m, n), Pdesc->nb, Pdesc->bsiz);
-
-                
-                if (Ddesc->mpi_rank == rank)
-                    {
-                        buff = dplasma_get_tile(Ddesc, m, n);
-                        printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
-                        print_block("Dist tile", m, n, buff, Ddesc->nb, Ddesc->bsiz);
-                    }
-                MPI_Barrier(MPI_COMM_WORLD);   
+                }
+                continue;
             }
+#ifdef HEAVY_DEBUG
+            if(Ddesc->mpi_rank == 0)
+                print_block("orig tile ", m, n, plasma_A(Pdesc, m, n), Pdesc->nb, Pdesc->bsiz);
+            
+            
+            if (Ddesc->mpi_rank == rank)
+            {
+                buff = dplasma_get_tile(Ddesc, m, n);
+                printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
+                print_block("Dist tile", m, n, buff, Ddesc->nb, Ddesc->bsiz);
+            }
+#else 
+            if(Ddesc->mpi_rank == rank)
+            {
+                printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
+            }
+#endif
+        }
+    MPI_Barrier(MPI_COMM_WORLD);
     printf("Data verification ended\n");
 }
 
