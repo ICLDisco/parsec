@@ -27,12 +27,12 @@ int PLASMA_INFO;
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-GRIDrows = 1
-GRIDcols = 1
-NB = 120
-SIZE = 9
-colRANK = 0
-rowRANK = 0
+GRIDrows
+GRIDcols
+NB
+SIZE
+colRANK
+rowRANK
 
 // Name
 POTRF(k)
