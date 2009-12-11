@@ -558,8 +558,6 @@ static void dump_tasks_enumerator(FILE *out, const dplasma_t *d, char *init_func
         fprintf(out, "%s%s_end = ", spaces, d->locals[s]->name);
         dump_inline_c_expression(out, d->locals[s]->max); 
         fprintf(out, ";\n");
-    }
-    for(s = 0; s < d->nb_locals; s++) {
         fprintf(out, "%sfor(%s = %s_start; %s <= %s_end; %s++) {\n",
                 spaces, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name,  d->locals[s]->name, d->locals[s]->name);
         snprintf(spaces + strlen(spaces), FNAME_SIZE-strlen(spaces), "  ");
