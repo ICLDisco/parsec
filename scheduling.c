@@ -12,6 +12,7 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 #define DEPTH_FIRST_SCHEDULE 0
 
 #define MAC_OS_X
+//#undef MAC_OS_X
 
 #ifdef MAC_OS_X
 #include <libkern/OSAtomic.h>
@@ -25,7 +26,12 @@ static void atomic_push(dplasma_execution_context_t *n)
 
 static dplasma_execution_context_t *atomic_pop(void)
 {
-    return OSAtomicDequeue( &ready_list, offsetof(dplasma_execution_context_t, next) );
+    dplasma_execution_context_t *l;
+    l = OSAtomicDequeue( &ready_list, offsetof(dplasma_execution_context_t, next) );
+    if( l != NULL ) {
+        l->next = NULL;
+    }
+    return l;
 }
 
 static int32_t taskstodo;
@@ -37,12 +43,12 @@ static void set_tasks_todo(int32_t n)
 
 static int all_tasks_done(void)
 {
-    return (taskstodo == 0);
+    return (OSAtomicAdd32Barrier(0, &taskstodo) == 0);
 }
 
 static void done_task()
 {
-    OSAtomicDecrement32(&taskstodo);
+    OSAtomicDecrement32Barrier(&taskstodo);
 }
 #else
 #include <pthread.h>
@@ -77,7 +83,7 @@ static void set_tasks_todo(int n)
 {
     pthread_mutex_lock(&taskstodo_lock);
     taskstodo = n;
-    ptreahd_mutex_unlock(&taskstodo_lock);
+    pthread_mutex_unlock(&taskstodo_lock);
 }
 
 static int all_tasks_done(void)
