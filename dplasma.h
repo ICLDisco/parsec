@@ -76,7 +76,6 @@ struct dplasma_t {
 struct dplasma_execution_context_t {
     dplasma_t*   function;
     assignment_t locals[MAX_LOCAL_COUNT];
-    dplasma_execution_context_t* prev;
     dplasma_execution_context_t* next;
 };
 

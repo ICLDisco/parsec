@@ -12,6 +12,120 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 
 #define DEPTH_FIRST_SCHEDULE 0
 
+#define MAC_OS_X
+
+#ifdef MAC_OS_X
+#include <libkern/OSAtomic.h>
+
+static void atomic_push(dplasma_execution_context_t *n)
+{
+    dplasma_execution_context_t *h;
+
+    do {
+        h = ready_list;
+        n->next = h;
+    } while( false == OSAtomicCompareAndSwapPtr(h, n, (void *volatile*)&ready_list) );
+}
+
+static dplasma_execution_context_t *atomic_pop(void)
+{
+    dplasma_execution_context_t *h, *r;
+
+    do {
+        r = ready_list;
+        if( r != NULL )
+            h = r->next;
+        else
+            h = NULL;
+    } while ( false == OSAtomicCompareAndSwapPtr(r, h, (void *volatile*)&ready_list) );
+    if( r != NULL ) {
+        r->next = NULL;
+    }
+    return r;
+}
+
+static int atomic_empty(void)
+{
+    return ready_list == NULL;
+}
+
+static int32_t taskstodo;
+
+static void set_tasks_todo(int32_t n)
+{
+    taskstodo = n;
+}
+
+static int all_tasks_done(void)
+{
+    return OSAtomicAdd32(0, &taskstodo) == 0;
+}
+
+static void done_task()
+{
+    OSAtomicDecrement32(&taskstodo);
+}
+#else
+#include <pthread.h>
+static pthread_mutex_t default_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void atomic_push(dplasma_execution_context_t *n)
+{
+    pthread_mutex_lock(&default_lock);
+    n->next = ready_list;
+    ready_list = n;
+    pthread_mutex_unlock(&default_lock);
+}
+
+static dplasma_execution_context_t *atomic_pop(void)
+{
+    dplasma_execution_context_t *h;
+    pthread_mutex_lock(&default_lock);
+    h = ready_list;
+    if( h != NULL ) {
+        ready_list = ready_list->next;
+        h->next = NULL;
+    }
+    pthread_mutex_unlock(&default_lock);
+    return h;
+}
+
+static int atomic_empty(void)
+{
+    int r;
+    pthread_mutex_lock(&default_lock);
+    r = ready_list == NULL;
+    pthread_mutex_unlock(&default_lock);
+    return r;
+}
+
+static int taskstodo;
+static pthread_mutex_t taskstodo_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void set_tasks_todo(int n)
+{
+    pthread_mutex_lock(&taskstodo_lock);
+    taskstodo = n;
+    ptreahd_mutex_unlock(&taskstodo_lock);
+}
+
+static int all_tasks_done(void)
+{
+    int r;
+    pthread_mutex_lock(&taskstodo_lock);
+    r = taskstodo == 0;
+    pthread_mutex_unlock(&taskstodo_lock);
+    return r;
+}
+
+static void done_task()
+{
+    pthread_mutex_lock(&taskstodo_lock);
+    taskstodo--;
+    pthread_mutex_unlock(&taskstodo_lock);
+}
+#endif
+
 /**
  * Schedule the instance of the service based on the values of the
  * local variables stored in the execution context, by calling the
@@ -25,44 +139,38 @@ int dplasma_schedule( const dplasma_execution_context_t* exec_context )
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
-    if( NULL == ready_list ) {
-        new_context->prev = new_context;
-        new_context->next = new_context;
-        ready_list = new_context;
-    } else {
-        new_context->next = ready_list;
-        new_context->prev = ready_list->prev;
-        ready_list->prev = new_context;
-        new_context->prev->next = new_context;
-    }
+    atomic_push(new_context);
     return 0;
 #else
     return dplasma_execute(exec_context);
 #endif  /* !DEPTH_FIRST_SCHEDULE */
 }
 
+void dplasma_register_nb_tasks(int n)
+{
+    set_tasks_todo((int32_t)n);
+}
+
 int dplasma_progress(void)
 {
     dplasma_execution_context_t* exec_context;
+    int nbiterations = 0;
 
-    while( NULL != ready_list ) {
+    while( !all_tasks_done() ) {
+
         /* extract the first exeuction context from the ready list */
-        exec_context = ready_list;
-        if( exec_context == exec_context->next ) {
-            ready_list = NULL;
-        } else {
-            ready_list = exec_context->next;
-            ready_list->prev = exec_context->prev;
-            exec_context->prev->next = ready_list;
+        exec_context = atomic_pop();
+
+        if( exec_context ) {
+            /* We're good to go ... */
+            dplasma_execute( exec_context );
+            done_task();
+            nbiterations++;
+            /* Release the execution context */
+            free( exec_context );
         }
-
-        /* We're good to go ... */
-        dplasma_execute( exec_context );
-
-        /* Release the execution context */
-        free( exec_context );
     }
-    return 0;
+    return nbiterations;
 }
 
 static int dplasma_execute( const dplasma_execution_context_t* exec_context )

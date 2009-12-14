@@ -26,5 +26,7 @@ int dplasma_schedule( const dplasma_execution_context_t* exec_context );
 
 int dplasma_progress();
 
+void dplasma_register_nb_tasks(int32_t n);
+
 #endif  /* _dplasma_scheduling_h */
 
