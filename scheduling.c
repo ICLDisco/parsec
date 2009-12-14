@@ -7,7 +7,6 @@
 #include "scheduling.h"
 #include <string.h>
 
-static dplasma_execution_context_t* ready_list = NULL;
 static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 
 #define DEPTH_FIRST_SCHEDULE 0
@@ -17,36 +16,16 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 #ifdef MAC_OS_X
 #include <libkern/OSAtomic.h>
 
+static OSQueueHead ready_list = OS_ATOMIC_QUEUE_INIT;
+
 static void atomic_push(dplasma_execution_context_t *n)
 {
-    dplasma_execution_context_t *h;
-
-    do {
-        h = ready_list;
-        n->next = h;
-    } while( false == OSAtomicCompareAndSwapPtr(h, n, (void *volatile*)&ready_list) );
+    OSAtomicEnqueue( &ready_list, n, offsetof(dplasma_execution_context_t, next) );
 }
 
 static dplasma_execution_context_t *atomic_pop(void)
 {
-    dplasma_execution_context_t *h, *r;
-
-    do {
-        r = ready_list;
-        if( r != NULL )
-            h = r->next;
-        else
-            h = NULL;
-    } while ( false == OSAtomicCompareAndSwapPtr(r, h, (void *volatile*)&ready_list) );
-    if( r != NULL ) {
-        r->next = NULL;
-    }
-    return r;
-}
-
-static int atomic_empty(void)
-{
-    return ready_list == NULL;
+    return OSAtomicDequeue( &ready_list, offsetof(dplasma_execution_context_t, next) );
 }
 
 static int32_t taskstodo;
@@ -58,7 +37,7 @@ static void set_tasks_todo(int32_t n)
 
 static int all_tasks_done(void)
 {
-    return OSAtomicAdd32(0, &taskstodo) == 0;
+    return (taskstodo == 0);
 }
 
 static void done_task()
@@ -68,6 +47,7 @@ static void done_task()
 #else
 #include <pthread.h>
 static pthread_mutex_t default_lock = PTHREAD_MUTEX_INITIALIZER;
+static dplasma_execution_context_t* ready_list = NULL;
 
 static void atomic_push(dplasma_execution_context_t *n)
 {
@@ -90,15 +70,6 @@ static dplasma_execution_context_t *atomic_pop(void)
     return h;
 }
 
-static int atomic_empty(void)
-{
-    int r;
-    pthread_mutex_lock(&default_lock);
-    r = ready_list == NULL;
-    pthread_mutex_unlock(&default_lock);
-    return r;
-}
-
 static int taskstodo;
 static pthread_mutex_t taskstodo_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -113,7 +84,7 @@ static int all_tasks_done(void)
 {
     int r;
     pthread_mutex_lock(&taskstodo_lock);
-    r = taskstodo == 0;
+    r = (taskstodo == 0);
     pthread_mutex_unlock(&taskstodo_lock);
     return r;
 }
@@ -161,7 +132,7 @@ int dplasma_progress(void)
         /* extract the first exeuction context from the ready list */
         exec_context = atomic_pop();
 
-        if( exec_context ) {
+        if( exec_context != NULL ) {
             /* We're good to go ... */
             dplasma_execute( exec_context );
             done_task();
