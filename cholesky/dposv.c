@@ -24,8 +24,6 @@
 #include "scheduling.h"
 #include "profiling.h"
 
-extern int load_dplasma_hooks( void );
-
 double time_elapsed, GFLOPS;
 
 PLASMA_desc descA;
@@ -57,7 +55,7 @@ static void *dp_progress(void *_)
     pthread_mutex_unlock(&dplasma_wait_lock);
 
     it = dplasma_progress();
-    printf("thread number %d did %d tasks\n", (int)pthread_self(), it);
+    printf("thread number %p did %d tasks\n", (void*)pthread_self(), it);
     
     return NULL;
 }
@@ -141,8 +139,8 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         dplasma_assign_global_symbol( "SIZE", constant );
     }
 
-    nbtasks = load_dplasma_hooks();
-    dplasma_register_nb_tasks(nbtasks);
+    load_dplasma_hooks();
+    nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
     printf("NBTASKS to run: %d\n", nbtasks);

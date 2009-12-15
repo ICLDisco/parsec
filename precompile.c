@@ -670,13 +670,20 @@ void dplasma_dump_all_c(FILE *out)
     fprintf(out, 
             "#endif /* DPLASMA_PROFILING */\n"
             "\n"
-            "  nbtasks = 0;\n");
+            "  return 0;\n"
+            "}\n");
+
+    fprintf(out,
+            "int enumerate_dplasma_tasks(void)\n"
+            "{\n"
+            "  int nbtasks = 0;\n");
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         dump_tasks_enumerator(out,  dplasma_element_at(i), NULL, 0);
     }
 
     fprintf(out,
+            "  dplasma_register_nb_tasks(nbtasks);\n"
             "  return nbtasks;\n"
-            "}\n");
+            "}\n\n");
 }
