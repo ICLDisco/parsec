@@ -491,15 +491,15 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                         if (rank == 0) /* this tile belongs to me */
                             {
                                 tile_size = min(Ddesc->nrst, Ddesc->lmt-(j*Ddesc->nrst));
-                                printf("number of tile to copy at once: %d, ", tile_size);
+                                //printf("number of tile to copy at once: %d, ", tile_size);
                                 target = (double *) plasma_A(Pdesc, j*Ddesc->nrst, i*Ddesc->ncst);
-                                printf(" -->tile (%d, %d) for self, memcpy at pos %d\n", j*Ddesc->nrst , i*Ddesc->ncst, pos );
+                                //printf(" -->tile (%d, %d) for self, memcpy at pos %d\n", j*Ddesc->nrst , i*Ddesc->ncst, pos );
                                 for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
                                     {
-                                        printf("start nb=%d, end %d, ", nb , min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)));
-                                        printf("target at %e\n", target[0]);
+                                        //printf("start nb=%d, end %d, ", nb , min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)));
+                                        //printf("target at %e\n", target[0]);
                                         memcpy(&(((double *)Ddesc->mat)[pos]), target , tile_size * Ddesc->bsiz*(sizeof(double)));
-                                        printf("--->memcpy %d eme tile to %d (%ld bytes)\n", nb +1, pos, tile_size * Ddesc->bsiz*(sizeof(double)));
+                                        //printf("--->memcpy %d eme tile to %d (%ld bytes)\n", nb +1, pos, tile_size * Ddesc->bsiz*(sizeof(double)));
                                         pos += (Ddesc->bsiz * tile_size);
                                         target += Ddesc->lmt * Ddesc->bsiz;
                                     }

@@ -241,8 +241,8 @@ int main(int argc, char ** argv){
         constant = expr_new_int( descA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
     }
-
     load_dplasma_hooks();
+    enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
     
