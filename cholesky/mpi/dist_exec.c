@@ -246,14 +246,13 @@ int main(int argc, char ** argv){
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
     
-#ifdef DIST_VERIFICATION
-
-#endif
-    
+#ifdef DIST_VERIFICATION    
     data_dist_verif(&local_desc, &descA);
     if (descA.mpi_rank == 0)
         plasma_dump(&local_desc);
     data_dump(&descA);
+#endif
+
     /* lets rock! */
     {
         dplasma_execution_context_t exec_context;
