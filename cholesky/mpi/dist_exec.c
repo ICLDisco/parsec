@@ -216,7 +216,6 @@ int main(int argc, char ** argv){
     { /* prepare data for block reception  */
         /* initialize main tiles description structure (Bcast inside) */
         dplasma_desc_init(NULL, &descA);
-/*        c = 1; while(c);*/
 	    distribute_data(NULL, &descA, &requests, &req_count);
     }
     /* checking local data ready */
@@ -254,21 +253,21 @@ int main(int argc, char ** argv){
 #endif
 
     /* lets rock! */
+    time_elapsed = get_cur_time();
+    if(descA.mpi_rank == 0)
     {
         dplasma_execution_context_t exec_context;
         
         /* I know what I'm doing ;) */
-        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-        dplasma_set_initial_execution_context(&exec_context);
-        time_elapsed = get_cur_time();
-        dplasma_schedule(&exec_context);
-        dplasma_progress();
-        time_elapsed = get_cur_time() - time_elapsed;
 #define N descA.n
 #define NB descA.nb
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
-
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+        dplasma_set_initial_execution_context(&exec_context);
+        dplasma_schedule(&exec_context);
     }
+    dplasma_progress();
+    time_elapsed = get_cur_time() - time_elapsed;
 
     gather_data(&local_desc, &descA);
     
