@@ -17,7 +17,7 @@ int PLASMA_INFO;
 /* Define it to shortcut the lookup for the local variables. */
 #define DPLASMA_HOOK_OPTIMIZED
 
-#if 0
+#if 1
 #define OUTPUT(ARG)  printf ARG
 #else
 #define OUTPUT(ARG)
@@ -55,12 +55,12 @@ BODY
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  A(k, k), NB, /*A.nb,*/
                  &PLASMA_INFO); 
-#else
+#endif  /* DPLASMA_EXECUTE */
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
              "PlasmaLower",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
              k, k, NB /*A.nb,*/));
-#endif  /* DPLASMA_EXECUTE */
+
 END
 
 // Name
@@ -86,14 +86,15 @@ BODY
                 NB, /*A.nb,*/
                 -1.0, A(k, n), NB, /*A.nb,*/
                 1.0, A(k, k), NB /*A.nb*/);
-#else
+#endif  /* DPLASMA_EXECUTE */
+
     OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
             "PlasmaLower", "PlasmaNoTrans",
             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
             NB, /*A.nb,*/
             -1.0, k, n, NB, /*A.nb,*/
             1.0, k, k, NB /*A.nb*/));
-#endif  /* DPLASMA_EXECUTE */
+
 END
 
 // Name
@@ -123,7 +124,8 @@ BODY
                 -1.0, A(m, n), NB, /*A.nb,*/
                 A(k, n), NB, /*A.nb,*/
                 1.0, A(m, k), NB /*A.nb*/);
-#else
+#endif  /* DPLASMA_EXECUTE */
+
     OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
             "PlasmaNoTrans", "PlasmaTrans",
             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -132,7 +134,7 @@ BODY
             -1.0, m, n, NB, /*A.nb,*/
             k, n, NB, /*A.nb,*/
             1.0, m, k, NB /*A.nb*/));
-#endif  /* DPLASMA_EXECUTE */
+
 END
 
 // Name
@@ -161,13 +163,13 @@ BODY
                 NB, /*A.nb,*/
                 1.0, A(k, k), NB, /*A.nb,*/
                 A(m, k), NB /*A.nb*/);
-#else
+#endif  /* DPLASMA_EXECUTE */
     OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
              "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
              NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
              NB, /*A.nb,*/
              1.0, k, k, NB, /*A.nb,*/
              m, k, NB /*A.nb*/));
-#endif  /* DPLASMA_EXECUTE */
+
 END
 
