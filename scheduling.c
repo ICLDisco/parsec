@@ -185,7 +185,7 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context )
                 }
             }
             new_context.function = dep->dplasma;
-            DEBUG(( " -> %s of %s( ", dep->sym_name, dep->dplasma->name ));
+            DEBUG(( " -> %s( ", dep->dplasma->name ));
             /* Check to see if any of the params are conditionals or ranges and if they are
              * if they match. If yes, then set the correct values.
              */
