@@ -53,11 +53,12 @@ DGEQRT(k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-    CORE_dgeqrt(    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+                CORE_dgeqrt(
+                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
                     k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
                     descT.mb,
-                    A(k, k), NB,
-                    T(k, k), NB,
+                    A(k, k), descA.nb,
+                    T(k, k), descT.mb,
                     tau, work);
 #else
     OUTPUT(( "CORE_dgeqrt"));
