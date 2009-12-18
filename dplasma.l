@@ -22,32 +22,18 @@ int dplasma_lineno = 1;
 char *extern_code(char *base, int len)
 {
    char *res;
-   int nblines;
-   int p, rp, sp, rlen;
+   int rp, rlen;
    
-   nblines = 1;
-   for(p = 0; p < len; p++) {
-      if( base[p] == '\n' )
-         nblines++;
-   }
-   rlen = len + nblines * (16 + strlen(yyfilename));
+   rlen = len + 16 + strlen(yyfilename);
    res = (char*)calloc(1, rlen);
 
    rp = 0;
-   sp = 0;
    /**
     * As each BODY in contiguous we only have to set the #line once.
     */
    rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", dplasma_lineno, yyfilename);
-   for(p = 0; p < len; p++) {
-      if( base[p] == '\n' ) {
-	 dplasma_lineno++;
-         memcpy(res + rp, base + sp, p-sp);
-	 rp += p-sp;
-	 res[rp++] = '\n';
-	 sp = p+1;
-      }
-   }
+   memcpy(res + rp, base, len);
+   rp += len;
    res[rp] = '\0';
    return res;
 }
