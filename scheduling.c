@@ -43,12 +43,12 @@ static void set_tasks_todo(int32_t n)
 
 static int all_tasks_done(void)
 {
-    return (OSAtomicAdd32Barrier(0, &taskstodo) == 0);
+    return (taskstodo == 0);
 }
 
 static void done_task()
 {
-    OSAtomicDecrement32Barrier(&taskstodo);
+    OSAtomicDecrement32(&taskstodo);
 }
 #else
 #include <pthread.h>
