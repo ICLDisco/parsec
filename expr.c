@@ -15,7 +15,7 @@
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
-static int expr_is_constant( expr_t *e )
+static int expr_is_constant( const expr_t *e )
 {
     return (NULL != e) &&
         (e->flags & EXPR_FLAG_CONSTANT );

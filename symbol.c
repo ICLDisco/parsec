@@ -13,7 +13,7 @@ extern char *strdup(const char *);
 #include "symbol.h"
 #include "dplasma.h"
 
-static const symbol_t** dplasma_symbol_array = NULL;
+static symbol_t** dplasma_symbol_array = NULL;
 static int dplasma_symbol_array_count = 0,
     dplasma_symbol_array_size = 0;
 
@@ -37,7 +37,7 @@ void dplasma_load_symbols( symbol_t **array, int size )
 
     if( size + dplasma_symbol_array_count > dplasma_symbol_array_size ) {
         dplasma_symbol_array_size = size + dplasma_symbol_array_count;
-        dplasma_symbol_array = (const symbol_t ** )realloc(dplasma_symbol_array, dplasma_symbol_array_size * sizeof(symbol_t*));
+        dplasma_symbol_array = (symbol_t ** )realloc(dplasma_symbol_array, dplasma_symbol_array_size * sizeof(symbol_t*));
     }
 
     for(i = 0; i < size; i++) {
@@ -135,8 +135,8 @@ int dplasma_add_global_symbol( const char *name )
         } else {
             dplasma_symbol_array_size *= 2;
         }
-        dplasma_symbol_array = (const symbol_t**)realloc( dplasma_symbol_array,
-                                                          dplasma_symbol_array_size * sizeof(symbol_t*) );
+        dplasma_symbol_array = (symbol_t**)realloc( dplasma_symbol_array,
+                                                    dplasma_symbol_array_size * sizeof(symbol_t*) );
         if( NULL == dplasma_symbol_array ) {
             return -1;  /* No more available memory */
         }
@@ -160,10 +160,10 @@ int dplasma_add_global_symbol_cst( const char* name, const expr_t* expr )
     return dplasma_assign_global_symbol( name, expr );
 }
 
-const symbol_t* dplasma_search_global_symbol( const char* name )
+symbol_t* dplasma_search_global_symbol( const char* name )
 {
+    symbol_t* symbol;
     int i;
-    const symbol_t* symbol;
 
     for( i = 0; i < dplasma_symbol_array_count; i++ ) {
         symbol = dplasma_symbol_array[i];

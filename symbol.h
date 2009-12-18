@@ -57,7 +57,7 @@ void symbol_dump_all( const char* prefix );
 /**
  * Search for a global symbol.
  */
-const symbol_t* dplasma_search_global_symbol( const char* name );
+symbol_t* dplasma_search_global_symbol( const char* name );
 
 void dplasma_load_symbols( symbol_t **array, int size );
 
