@@ -44,13 +44,13 @@ param_t* dplasma_find_or_create_param(dplasma_t* function, char* param_name)
     param_t* param;
     int i;
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
+    for( i = 0; (NULL != function) && (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
         param = function->params[i];
         if( 0 == strcmp(param->name, param_name) ) {
             return param;
         }
     }
-    if( i == MAX_PARAM_COUNT ) {
+    if( MAX_PARAM_COUNT == i ) {
         fprintf( stderr, "Too many parameters for function %s (stopped at %s)\n",
                  function->name, param_name );
         return NULL;
@@ -59,6 +59,7 @@ param_t* dplasma_find_or_create_param(dplasma_t* function, char* param_name)
     param->name = strdup((const char*)param_name);
     param->function = function;
     param->param_mask = (1 << i);
-    function->params[i] = param;
+    if( NULL != function )
+        function->params[i] = param;
     return param;
 }

@@ -201,7 +201,6 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
 int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
 {
     const dplasma_t* function = exec_context->function;
-    const dplasma_t* in_function = dplasma_find("IN");
     param_t* param;
     dep_t* dep;
     int i, j, rc, value;
@@ -216,7 +215,7 @@ int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
             dep = param->dep_in[j];
 
             if( NULL == dep->cond ) {
-                if( dep->dplasma != in_function ) {
+                if( dep->dplasma->nb_locals != 0 ) {
                     /* Strict dependency on another service. No chance to be a starter */
                     return -1;
                 }
@@ -225,7 +224,7 @@ int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
             /* TODO: Check to see if the condition can be applied in the current context */
             rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
             if( value == 1 ) {
-                if( dep->dplasma != in_function ) {
+                if( dep->dplasma->nb_locals != 0 ) {
                     return -1;
                 }
             }
@@ -397,7 +396,6 @@ int dplasma_show_tasks( const dplasma_t* object )
 int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_context )
 {
     const dplasma_t* function = exec_context->function;
-    const dplasma_t* in_function = dplasma_find("IN");
     int i, j, rc, value, mask = 0;
     param_t* param;
     dep_t* dep;
@@ -421,7 +419,7 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
                     continue;
                 }
             }
-            if( dep->dplasma == in_function ) {
+            if( dep->dplasma->nb_locals == 0 ) {
                 mask |= param->param_mask;
             }
         }

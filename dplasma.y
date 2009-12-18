@@ -327,6 +327,25 @@ call: DPLASMA_VAR DPLASMA_VAR  {
                            global_call_params_index = 0;
                        }
       expr_list DPLASMA_CLOSE_PAR
+    | DPLASMA_VAR {
+                                   dep_t *curr_dep = NULL;
+
+                                   curr_dep = (dep_t*)calloc(1, sizeof(dep_t));
+                                   if( inout_type == SYM_IN ) {
+                                       current_param->dep_in[global_indep_index] = curr_dep;
+                                       global_dplasma->flags |= DPLASMA_HAS_IN_IN_DEPENDENCIES;
+                                   } else {
+                                       assert(inout_type == SYM_OUT );
+                                       current_param->dep_out[global_outdep_index] = curr_dep;
+                                       global_dplasma->flags |= DPLASMA_HAS_OUT_OUT_DEPENDENCIES;
+                                   }
+                                   curr_dep->dplasma = dplasma_find_or_create($1); 
+                                   curr_dep->param = NULL;
+                               }
+      DPLASMA_OPEN_PAR {
+                           global_call_params_index = 0;
+                       }
+      expr_list DPLASMA_CLOSE_PAR
       | DPLASMA_DEPENDENCY_TYPE {  /* Special case for IN() and OUT() */
                                        dep_t* curr_dep = (dep_t*)calloc(1, sizeof(dep_t));
 
