@@ -56,4 +56,4 @@ lex.yy.c: dplasma.l
 clean:
 	rm -f $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
            $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
-           dpc.o lex.yy.c y.tab.c y.tab.h
+           dpc.o lex.yy.c dplasma.tab.c dplasma.tab.h
