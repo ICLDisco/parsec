@@ -10,9 +10,12 @@ extern "C" %{
 #include <stdio.h>
 
 extern PLASMA_desc descA;
+extern PLASMA_desc descT;
+extern double *work, *tau;
 int PLASMA_INFO;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#define T(m,n) &(((double*)descT.mat)[descT.bsiz*(m)+descT.bsiz*descT.lmt*(n)])
 
 /* Define it to shortcut the lookup for the local variables. */
 #define DPLASMA_HOOK_OPTIMIZED
@@ -43,14 +46,22 @@ DGEQRT(k)
   : k % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN RV1 <- (k==0) ? IN(k,k) : C2 DSSRFB(k-1,k,k)
+  IN RV1 <- (k==0) ? IN(k,k) : C2 DSSMQR(k-1,k,k)
 
   OUT RV1 -> (k==SIZE-1) ? OUT(k,k) : R DTSQRT(k,k+1)
-  OUT T   -> T DLARFB(k, k+1..SIZE-1)
+  OUT T   -> T DORMQR(k, k+1..SIZE-1)
 
 BODY
-fake_dgeqrt(NB, RV1, T);
-
+#ifdef DPLASMA_EXECUTE
+    CORE_dgeqrt(    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+                    k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
+                    descT.mb,
+                    A(k, k), NB,
+                    T(k, k), NB,
+                    tau, work);
+#else
+    OUTPUT(( "CORE_dgeqrt"));
+#endif  /* DPLASMA_EXECUTE */
 END
 
 /*****************************************
@@ -66,22 +77,32 @@ DTSQRT(k,m)
   : m % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN V2 <- (k==0) ? IN(m,k) : C2 DSSRFB(k-1,k,m)
+  IN V2 <- (k==0) ? IN(m,k) : C2 DSSMQR(k-1,k,m)
   IN R  <- (m==k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)
 
-  OUT R  -> (m==SIZE-1) ?  V1 DLARFB(k,k+1..SIZE-1) : R DTSQRT(k,m+1)
-  OUT V2 -> V2 DSSRFB(k,k+1..SIZE-1,m)
-  OUT T  -> T DSSRFB(k,k+1..SIZE-1,m)
+  OUT R  -> (m==SIZE-1) ?  V1 DORMQR(k,k+1..SIZE-1) : R DTSQRT(k,m+1)
+  OUT V2 -> V2 DSSMQR(k,k+1..SIZE-1,m)
+  OUT T  -> T DSSMQR(k,k+1..SIZE-1,m)
 
 BODY
-fake_dtsqrt(NB, R, T, V2);
-
+#ifdef DPLASMA_EXECUTE
+           CORE_dtsqrt(
+                    m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
+                    k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
+                    descT.mb,
+                    A(k, k), descA.nb,
+                    A(m, k), descA.nb,
+                    T(m, k), descT.mb,
+                    tau, work);
+#else
+    OUTPUT(( "CORE_dtsqrt"));
+#endif  /* DPLASMA_EXECUTE */
 END
 
 /*****************************************
  28:31
 */
-DLARFB(k,n)
+DORMQR(k,n)
 
   // Execution space
   k = 0..SIZE-2
@@ -92,21 +113,33 @@ DLARFB(k,n)
   : k % GRIDcols == colRANK
 
 
-  IN C1 <- (k==0) ? IN(k,n) : C2 DSSRFB(k-1,n,k)
+  IN C1 <- (k==0) ? IN(k,n) : C2 DSSMQR(k-1,n,k)
   IN T  <-  T DGEQRT(k)
   IN V1 <- R DTSQRT(k, SIZE-1)
 
-  OUT C1 -> C1 DSSRFB(k,n,k+1)
+  OUT C1 -> C1 DSSMQR(k,n,k+1)
 
 BODY
-fake_dlarfb(NB, C1, T, V1);
-
+#ifdef DPLASMA_EXECUTE
+               CORE_dormqr(
+                    PlasmaLeft, PlasmaTrans,
+                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
+                    descT.mb,
+                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+                    A(k, k), descA.nb,
+                    T(k, k), descT.mb,
+                    A(k, n), descA.nb,
+                    work, descT.nb);
+#else
+    OUTPUT(( "CORE_dormqr"));
+#endif  /* DPLASMA_EXECUTE */ 
 END
 
 /*****************************************
  37:41
 */
-DSSRFB(k,n,m)
+DSSMQR(k,n,m)
 
   // Execution space
   k = 0..SIZE-2
@@ -118,20 +151,34 @@ DSSRFB(k,n,m)
   : k % GRIDcols == colRANK
 
 
-  IN C2 <- (k==0) ? IN(m,n) : C2 DSSRFB(k-1,n,m)
+  IN C2 <- (k==0) ? IN(m,n) : C2 DSSMQR(k-1,n,m)
   IN V2 <- V2 DTSQRT(k,m)
   IN T  <- T DTSQRT(k,m)
-  IN C1 <- (m==k+1) ? C1 DLARFB(k,n) : C1 DSSRFB(k,n,m-1)
+  IN C1 <- (m==k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
 
   OUT C2 -> ((m==k+1) & (n==k+1)) ? RV1 DGEQRT(k+1) : OUT(1,1)
-  OUT C2 -> ((m==k+1) & (n!=k+1))  ? C1 DLARFB(k+1,n) : OUT(1,1)
+  OUT C2 -> ((m==k+1) & (n!=k+1))  ? C1 DORMQR(k+1,n) : OUT(1,1)
   OUT C2 -> ((m!=k+1) & (n==k+1)) ? V2 DTSQRT(k+1,m) : OUT(1,1)
-  OUT C2 -> ((m!=k+1) & (n!=k+1))  ? C2 DSSRFB(k+1,n,m) : OUT(1,1)
+  OUT C2 -> ((m!=k+1) & (n!=k+1))  ? C2 DSSMQR(k+1,n,m) : OUT(1,1)
 
-  OUT C1 -> (m==SIZE-1) ? OUT(k,n) : C1 DSSRFB(k,n,m+1)
+  OUT C1 -> (m==SIZE-1) ? OUT(k,n) : C1 DSSMQR(k,n,m+1)
 
 BODY
-fake_dssrfb(NB, C1, C2, T, V2);
-
+#ifdef DPLASMA_EXECUTE
+                CORE_dssmqr(
+                    PlasmaLeft, PlasmaTrans,
+                    descA.nb,
+                    m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
+                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
+                    descT.mb,
+                    descA.nb,
+                    A(k, n), descA.nb,
+                    A(m, n), descA.nb,
+                    A(m, k), descA.nb,
+                    T(m, k), descT.mb,
+                    work, descT.mb);
+#else
+    OUTPUT(( "CORE_dssmqr"));
+#endif  /* DPLASMA_EXECUTE */ 
 END
 

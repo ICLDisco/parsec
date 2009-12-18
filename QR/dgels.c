@@ -43,6 +43,10 @@ double time_elapsed, GFLOPS;
 PLASMA_desc descA;
 PLASMA_desc descT;
 
+#ifdef DPLASMA_EXECUTE
+    double *work, *tau;
+#endif
+
 double get_cur_time(){
     double t;
     struct timeval tv;
@@ -77,13 +81,14 @@ static void *dp_progress(void *_)
     return NULL;
 }
 
-int PLASMA_dgeqrf(int M, int N, double *A, int LDA, double *T)
+int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
 {
-    int NB, MT, NT;
+    int NB, MT, NT, nbtasks, i;
     int status;
     double *Abdl;
     double *Tbdl;
     plasma_context_t *plasma;
+    pthread_t dpthreads[64];
 
     plasma = plasma_context_self();
     if (plasma == NULL) {
@@ -144,9 +149,74 @@ int PLASMA_dgeqrf(int M, int N, double *A, int LDA, double *T)
         int, LDA,
         PLASMA_desc, descA);
 
+#ifdef DPLASMA_EXECUTE
+    // TODO: this should be allocated per thread.
+    work = (double *)plasma_private_alloc(plasma, descT.mb*descT.nb, descT.dtyp);
+    tau = (double *)plasma_private_alloc(plasma, descA.nb, descA.dtyp);
+    load_dplasma_objects();
+
+    time_elapsed = get_cur_time();
+    {
+        expr_t* constant;
+
+        constant = expr_new_int( PLASMA_NB );
+        dplasma_assign_global_symbol( "NB", constant );
+
+        constant = expr_new_int( NT );
+        dplasma_assign_global_symbol( "SIZE", constant );
+    }
+
+    load_dplasma_hooks();
+    nbtasks = enumerate_dplasma_tasks();
+    time_elapsed = get_cur_time() - time_elapsed;
+    printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
+    printf("NBTASKS to run: %d\n", nbtasks);
+
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_init(1024);
+#endif  /* DPLASMA_PROFILING */
+
+    {
+        dplasma_execution_context_t exec_context;
+        int it;
+
+        /* I know what I'm doing ;) */
+        exec_context.function = (dplasma_t*)dplasma_find("DGEQRT");
+        dplasma_set_initial_execution_context(&exec_context);
+        time_elapsed = get_cur_time();
+        dplasma_schedule(&exec_context);
+        
+        pthread_mutex_lock(&dplasma_wait_lock);
+        dplasma_wait = 0;
+        pthread_mutex_unlock(&dplasma_wait_lock);
+        pthread_cond_broadcast(&dplasma_wait_cond);
+        it = dplasma_progress();
+        printf("main thread did %d tasks\n", it);
+        
+        for(i = 0; i < ncores-1; i++) {
+            pthread_join( dpthreads[i], NULL );
+        }
+        time_elapsed = get_cur_time() - time_elapsed;
+        printf("DPLASMA DGEQRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (4*N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+    }
+#ifdef DPLASMA_PROFILING
+    {
+        char* filename = NULL;
+
+        asprintf( &filename, "%s.svg", "dgels" );
+        dplasma_profiling_dump_svg(filename);
+        dplasma_profiling_fini();
+        free(filename);
+    }
+#endif  /* DPLASMA_PROFILING */
+#else // DPLASMA_EXECUTE
+    time_elapsed = get_cur_time();
     plasma_parallel_call_2(plasma_pdgeqrf,
         PLASMA_desc, descA,
         PLASMA_desc, descT);
+    time_elapsed = get_cur_time() - time_elapsed;
+    printf("PLASMA DGEQRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (4*N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+#endif // DPLASMA_EXECUTE
 
     if (status == PLASMA_SUCCESS) {
         /* Return T to the user */
@@ -229,49 +299,48 @@ int main (int argc, char **argv)
         for (j = 0; j < NRHS; j++)
              B2[LDB*j+i] = B1[LDB*j+i] ;
 
+    // memset((void*)Q, 0, LDA*N*sizeof(double));
         for (i = 0; i < K; i++)
             Q[LDA*i+i] = 1.0;
 
     /* PLASMA DGELS */
+    if (M >= N) {
+        printf("\n");
+        printf("------ TESTS FOR PLASMA DGEQRF + DGEQRS ROUTINE -------  \n");
+        printf("            Size of the Matrix %d by %d\n", M, N);
+        printf("\n");
+        printf(" The matrix A is randomly generated for each test.\n");
+        printf("============\n");
+        printf(" The relative machine precision (eps) is to be %e \n", eps);
+        printf(" Computational tests pass if scaled residuals are less than 60.\n");
 
-    double time =- get_cur_time();
-    PLASMA_dgels(PlasmaNoTrans, M, N, NRHS, A2, LDA, T, B2, LDB);
-    time += get_cur_time();
-    double flops = (4 * N/1e3*N/1e3*N/1e3/3 ) / (double)(time)  ;
-    printf("PLASMALPK DGELS %2d %5d %5d %5d %2d %5d %4.5f %4.5f\n", cores, M, N, LDA, NRHS, LDB, time, flops);
+        /* Plasma routines */
+	double time =- get_cur_time();
 
+	// PLASMA_dgels(PlasmaNoTrans, M, N, NRHS, A2, LDA, T, B2, LDB);
+	DPLASMA_dgeqrf(cores, M, N, A2, LDA, T);
+	PLASMA_dorgqr(M, N, K, A2, LDA, T, Q, LDA);
+	PLASMA_dgeqrs(M, N, NRHS, A2, LDA, T, B2, LDB);
 
-    /* PLASMA DGELS */
-    if (M >= N)
-       /* Building the economy-size Q */
-       PLASMA_dorgqr(M, N, K, A2, LDA, T, Q, LDA);
-    else
-       /* Building the economy-size Q */
-       PLASMA_dorglq(M, N, K, A2, LDA, T, Q, LDA);
+	time += get_cur_time();
+	double flops = (4 * N/1e3*N/1e3*N/1e3/3 ) / (double)(time)  ;
+	printf("PLASMALPK DGELS %2d %5d %5d %5d %2d %5d %4.5f %4.5f\n", cores, M, N, LDA, NRHS, LDB, time, flops);
 
-    printf("\n");
-    printf("------ TESTS FOR PLASMA DGELS ROUTINE -------  \n");
-    printf("            Size of the Matrix %d by %d\n", M, N);
-    printf("\n");
-    printf(" The matrix A is randomly generated for each test.\n");
-    printf("============\n");
-    printf(" The relative machine precision (eps) is to be %e \n",eps);
-    printf(" Computational tests pass if scaled residuals are less than 60.\n");
+        /* Check the orthogonality, factorization and the solution */
+        info_ortho = check_orthogonality(M, N, LDA, Q, eps);
+        info_factorization = check_factorization(M, N, A1, A2, LDA, Q, eps);
+        info_solution = check_solution(M, N, NRHS, A1, LDA, B1, B2, LDB, eps);
 
-    /* Check the orthogonality, factorization and the solution */
-    info_ortho = check_orthogonality(M, N, LDA, Q, eps);
-    info_factorization = check_factorization(M, N, A1, A2, LDA, Q, eps);
-    info_solution = check_solution(M, N, NRHS, A1, LDA, B1, B2, LDB, eps);
-
-    if ((info_solution == 0)&(info_factorization == 0)&(info_ortho == 0)) {
-        printf("***************************************************\n");
-        printf(" ---- TESTING DGELS ...................... PASSED !\n");
-        printf("***************************************************\n");
-    }
-    else {
-        printf("************************************************\n");
-        printf(" - TESTING DGELS ... FAILED !\n");
-        printf("************************************************\n");
+        if ((info_solution == 0)&(info_factorization == 0)&(info_ortho == 0)) {
+            printf("***************************************************\n");
+            printf(" ---- TESTING DGEQRF + DGEQRS ............ PASSED !\n");
+            printf("***************************************************\n");
+        }
+        else{
+            printf("***************************************************\n");
+            printf(" - TESTING DGEQRF + DGEQRS ... FAILED !\n");
+            printf("***************************************************\n");
+        }
     }
 
     free(A1); free(A2); free(B1); free(B2); free(Q); free(T);
