@@ -15,8 +15,9 @@ void dplasma_precompiler_add_preamble(const char *language, const char *code);
 /**
  * Dump all defined dplasma_t objetcs in a C-like format in the out file
  *
- * @param [INOUT] out the file to dump to
+ * @param [IN] the file to dump to
+ * @return 0 if succesfull, -1 if the file cannot be opened
  */
-void dplasma_dump_all_c( FILE *out );
+int dplasma_dump_all_c( char *filename );
 
 #endif

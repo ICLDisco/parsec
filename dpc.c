@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    dplasma_dump_all_c(stdout);
+    dplasma_dump_all_c(argv[2]);
 
 	return 0;
 }

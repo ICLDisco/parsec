@@ -30,7 +30,7 @@ tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 cholesky/cholesky.c: cholesky/cholesky.jdf dpc
-	./dpc ./cholesky/cholesky.jdf > cholesky/cholesky.c
+	./dpc ./cholesky/cholesky.jdf cholesky/cholesky.c
 
 cholesky/cholesky-norun.o: cholesky/cholesky.c
 	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky.c -o cholesky/cholesky-norun.o
