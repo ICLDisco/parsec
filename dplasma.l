@@ -35,9 +35,12 @@ char *extern_code(char *base, int len)
 
    rp = 0;
    sp = 0;
+   /**
+    * As each BODY in contiguous we only have to set the #line once.
+    */
+   rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", dplasma_lineno, yyfilename);
    for(p = 0; p < len; p++) {
       if( base[p] == '\n' ) {
-         rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", dplasma_lineno, yyfilename);
 	 dplasma_lineno++;
          memcpy(res + rp, base + sp, p-sp);
 	 rp += p-sp;
