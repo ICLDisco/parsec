@@ -31,7 +31,7 @@ tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 cholesky/cholesky.c: cholesky/cholesky.jdf dpc
-	./dpc ./cholesky/cholesky.jdf > cholesky/cholesky.c
+	./dpc ./cholesky/cholesky.jdf cholesky/cholesky.c
 
 cholesky/cholesky-norun.o: cholesky/cholesky.c
 	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky.c -o cholesky/cholesky-norun.o
@@ -43,7 +43,7 @@ cholesky/timeenumerator:$(OBJECTS) $(ENUMERATOR_OBJECTS) $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 QR/QR.c: QR/QR.jdf dpc
-	./dpc ./QR/QR.jdf > QR/QR.c
+	./dpc ./QR/QR.jdf QR/QR.c
 
 QR/dgels: $(OBJECTS) $(QR_OBJECTS) $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
