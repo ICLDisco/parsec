@@ -621,7 +621,7 @@ void dplasma_dump_all_c(FILE *out)
     fprintf(out, 
             "%s\n"
             "\n"
-            "int dplasma_init(void)\n"
+            "static int __dplasma_init(void)\n"
             "{\n"
             "%s\n"
             "  return 0;\n"
@@ -644,7 +644,7 @@ void dplasma_dump_all_c(FILE *out)
             "  dplasma_t* object;\n"
             "  int nbtasks;\n"
             "\n"
-            "  if( 0 != dplasma_init()) {\n"
+            "  if( 0 != __dplasma_init()) {\n"
             "     return -1;\n"
             "  }\n"
             "\n");
