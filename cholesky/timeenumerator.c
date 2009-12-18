@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
 {
     int NB, NT, N;
     double time_elapsed;
+    int nbtasks;
 
     N = atoi(argv[1]);
     NB = atoi(argv[2]);
@@ -44,9 +45,9 @@ int main(int argc, char *argv[])
     printf("load_dplasma_hooks(): %gs\n", time_elapsed);
 
     time_elapsed = get_cur_time();
-    enumerate_dplasma_tasks();
+    nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("enumerate_dplasma_tasks(): %gs\n", time_elapsed);
+    printf("enumerate_dplasma_tasks(): %gs (%d tasks)\n", time_elapsed, nbtasks);
 
     return 0;
 }
