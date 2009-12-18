@@ -19,9 +19,9 @@ static int generic_hook(const dplasma_execution_context_t* exec_context)
         color = "#4488AA";
     } else if(0 == strcmp(exec_context->function->name, "DTSQRT") ) {
         color = "#CC99EE";
-    } else if(0 == strcmp(exec_context->function->name, "DLARFB") ) {
+    } else if(0 == strcmp(exec_context->function->name, "DORMQR") ) {
         color = "#99CCFF";
-    } else if(0 == strcmp(exec_context->function->name, "DSSRFB") ) {
+    } else if(0 == strcmp(exec_context->function->name, "DSSMQR") ) {
         color = "#CCFF00";
     } else if(0 == strcmp(exec_context->function->name, "POTRF") ) {
         color = "#4488AA";
