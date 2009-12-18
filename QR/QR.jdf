@@ -1,7 +1,33 @@
+extern "C" %{
+   /**
+    * PLASMA include for defined and constants.
+    */
+#include <plasma.h>
+#include <core_dblas.h>
+
+#include "dplasma.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+extern PLASMA_desc descA;
+int PLASMA_INFO;
+
+#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+
+/* Define it to shortcut the lookup for the local variables. */
+#define DPLASMA_HOOK_OPTIMIZED
+
+#if 0
+#define OUTPUT(ARG)  printf ARG
+#else
+#define OUTPUT(ARG)
+#endif
+%}
+
 GRIDrows = 1
 GRIDcols = 1
-// NB = 120
-SIZE = 5
+NB
+SIZE
 colRANK = 0
 rowRANK = 0
 
