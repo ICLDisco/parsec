@@ -1,6 +1,6 @@
 include make.inc
 
-TARGETS=grapher dpc tools/buildDAG cholesky/dposv cholesky/timeenumerator
+TARGETS=grapher dpc tools/buildDAG cholesky/dposv cholesky/timeenumerator QR/dgels
 
 LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o scheduling.o profiling.o
@@ -8,6 +8,7 @@ LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 COMPILER_OBJECTS=lex.yy.o dplasma.tab.o precompile.o
 
 CHOLESKY_OBJECTS=cholesky/dposv.o cholesky/cholesky.o
+QR_OBJECTS = QR/dgels.o QR/QR.o
 
 ENUMERATOR_OBJECTS=cholesky/timeenumerator.o cholesky/cholesky-norun.o
 
@@ -30,7 +31,7 @@ tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS)
 
 cholesky/cholesky.c: cholesky/cholesky.jdf dpc
-	./dpc ./cholesky/cholesky.jdf cholesky/cholesky.c
+	./dpc ./cholesky/cholesky.jdf > cholesky/cholesky.c
 
 cholesky/cholesky-norun.o: cholesky/cholesky.c
 	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky.c -o cholesky/cholesky-norun.o
@@ -39,6 +40,12 @@ cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 cholesky/timeenumerator:$(OBJECTS) $(ENUMERATOR_OBJECTS) $(LIBRARY_OBJECTS)
+	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
+
+QR/QR.c: QR/QR.jdf dpc
+	./dpc ./QR/QR.jdf > QR/QR.c
+
+QR/dgels: $(OBJECTS) $(QR_OBJECTS) $(LIBRARY_OBJECTS)
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 %.tab.h %.tab.c: %.y
@@ -56,4 +63,4 @@ lex.yy.c: dplasma.l
 clean:
 	rm -f $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
            $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
-           dpc.o lex.yy.c dplasma.tab.c dplasma.tab.h
+           $(QR_OBJECTS) dpc.o lex.yy.c y.tab.c y.tab.h
