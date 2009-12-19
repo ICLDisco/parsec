@@ -13,6 +13,7 @@ extern char *strdup(const char *);
 
 #include "dplasma.h"
 #include "scheduling.h"
+#include "atomic.h"
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -150,6 +151,29 @@ const dplasma_t* dplasma_element_at( int i )
 int dplasma_nb_elements( void )
 {
     return dplasma_array_count;
+}
+
+/**
+ *
+ */
+int dplasma_init( int* pargc, char** pargv )
+{
+#ifdef DPLASMA_GENERATE_DOT
+    printf("digraph G {\n");
+#endif  /* DPLASMA_GENERATE_DOT */
+    return 0;
+}
+
+/**
+ *
+ */
+int dplasma_fini( void )
+{
+#ifdef DPLASMA_GENERATE_DOT
+    printf("}\n");
+#endif  /* DPLASMA_GENERATE_DOT */
+
+    return 0;
 }
 
 /**
@@ -540,6 +564,11 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                    number, function->locals[i]->name, min, max));
             deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                    number * sizeof(dplasma_dependencies_union_t));
+            if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
+                /* Some other thread manage to set it before us. Not a big deal. */
+                free(deps);
+                goto deps_created_by_another_thread;
+            }
             deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;
@@ -550,6 +579,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                 last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
             }
         } else {
+        deps_created_by_another_thread:
             deps = *deps_location;
             /* Make sure we stay in bounds */
             if( exec_context->locals[i].min < deps->min ) {
@@ -573,7 +603,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
 
     actual_loop = function->nb_locals - 1;
     while(1) {
-        int first_encounter = 0;
+        int first_encounter = 0, updated_deps;
 
         if( 0 != dplasma_is_valid(exec_context) ) {
             char tmp[128], tmp1[128];
@@ -594,9 +624,10 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             first_encounter = 1;
         }
 
-        deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] |= (DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask);
+        updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
+                                           (DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask));
 
-        if( (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN))
+        if( (updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN))
             == function->dependencies_mask ) {
 #ifdef DPLASMA_GENERATE_DOT
             {
@@ -614,8 +645,8 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
-                   (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & (~DPLASMA_DEPENDENCIES_HACK_IN)),
-                   (int)(deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)])));
+                   (int)(updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN)),
+                   (int)(updated_deps)));
 #ifdef DPLASMA_GENERATE_DOT
             {
                 char tmp[128];
@@ -662,12 +693,20 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                            exec_context->locals[actual_loop].value, min, max));
                     deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                            number * sizeof(dplasma_dependencies_union_t));
-                    deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
-                    deps->symbol = function->locals[actual_loop];
-                    deps->min = min;
-                    deps->max = max;
-                    deps->prev = last_deps; /* chain them backward */
-                    *deps_location = deps;
+                    /**
+                     * If we fail then the dependencies array has been allocated by another
+                     * thread. Keep going.
+                     */
+                    if( dplasma_atomic_cas(deps_location, NULL, deps) ) {
+                        deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
+                        deps->symbol = function->locals[actual_loop];
+                        deps->min = min;
+                        deps->max = max;
+                        deps->prev = last_deps; /* chain them backward */
+                        *deps_location = deps;
+                    } else {
+                        free(deps);
+                    }
                 }
                 deps = *deps_location;
                 deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);

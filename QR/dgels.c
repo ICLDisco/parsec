@@ -150,10 +150,11 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         PLASMA_desc, descA);
 
 #ifdef DPLASMA_EXECUTE
+    load_dplasma_objects();
+
     // TODO: this should be allocated per thread.
     work = (double *)plasma_private_alloc(plasma, descT.mb*descT.nb, descT.dtyp);
     tau = (double *)plasma_private_alloc(plasma, descA.nb, descA.dtyp);
-    load_dplasma_objects();
 
     time_elapsed = get_cur_time();
     {

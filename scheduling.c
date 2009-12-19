@@ -11,9 +11,6 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context );
 
 #define DEPTH_FIRST_SCHEDULE 0
 
-#define MAC_OS_X
-#undef MAC_OS_X
-
 #ifdef MAC_OS_X
 #include <libkern/OSAtomic.h>
 

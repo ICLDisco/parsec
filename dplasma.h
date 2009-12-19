@@ -40,7 +40,7 @@ typedef struct dplasma_t dplasma_t;
 
 typedef struct dplasma_dependencies_t dplasma_dependencies_t;
 typedef union {
-    unsigned char           dependencies[1];
+    unsigned int            dependencies[1];
     dplasma_dependencies_t* next[1];
 } dplasma_dependencies_union_t;
 
