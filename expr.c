@@ -109,6 +109,12 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
             *v = 0;
         }
         break;
+    case EXPR_OP_BINARY_MIN:
+        *v = ((v1 < v2) ? v1 : v2 );
+        break;
+    case EXPR_OP_BINARY_MAX:
+        *v = ((v1 > v2) ? v1 : v2);
+        break;
     case EXPR_OP_BINARY_RANGE:
         snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Cannot evaluate range");
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
@@ -295,6 +301,24 @@ int __expr_absolute_range_recursive( const expr_t* expr, int direction,
             *pmax = lmax * rmax;
         }
         return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_MIN:
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            *pmin = lmin < rmin ? lmin : rmin;
+        } else {
+            *pmax = lmax < rmax ? lmax : rmax;
+        }
+        return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_MAX:
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            *pmin = lmin > rmin ? lmin : rmin;
+        } else {
+            *pmax = lmax > rmax ? lmax : rmax;
+        }
+        return EXPR_SUCCESS;
     case EXPR_OP_BINARY_DIV:
     case EXPR_OP_BINARY_AND:
     case EXPR_OP_BINARY_OR:
@@ -450,6 +474,12 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
     case '^':
         r->op = EXPR_OP_BINARY_XOR;
         return r;
+    case 'm':
+        r->op = EXPR_OP_BINARY_MIN;
+        return r;
+    case 'M':
+        r->op = EXPR_OP_BINARY_MAX;
+        return r;
     default:
         free(r);
         fprintf(stderr, "Unknown operand %c. Return NULL expression\n", op );
@@ -508,6 +538,32 @@ static void expr_dump_binary(FILE *out, unsigned char op, const expr_t *op1, con
         fprintf(out,  " != " );
         expr_dump(out, op2);
         fprintf(out,  ") " );
+        return;
+    }
+
+    if( op == EXPR_OP_BINARY_MIN ) {
+        fprintf(out, "((");
+        expr_dump(out, op1);
+        fprintf(out, ")<(");
+        expr_dump(out, op2);
+        fprintf(out, ")?(");
+        expr_dump(out, op1);
+        fprintf(out, "):(");
+        expr_dump(out, op2);
+        fprintf(out, "))");
+        return;
+    }
+
+    if( op == EXPR_OP_BINARY_MAX ) {
+        fprintf(out, "((");
+        expr_dump(out, op1);
+        fprintf(out, ")>(");
+        expr_dump(out, op2);
+        fprintf(out, ")?(");
+        expr_dump(out, op1);
+        fprintf(out, "):(");
+        expr_dump(out, op2);
+        fprintf(out, "))");
         return;
     }
 
