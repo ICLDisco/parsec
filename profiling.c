@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __gnu_linux__
+#if defined(__gnu_linux__) && !defined INTEL 
 #include <unistd.h>
 #include <time.h>
 typedef struct timespec dplasma_time_t;
