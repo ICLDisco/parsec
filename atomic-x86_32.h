@@ -7,7 +7,23 @@
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {
-    return OSAtomicOr32( value, location );
+    __asm__ __volatile__ (
+                          "lock; orl %1,%0"
+                          : "+m" (*(location))
+                          : "r" (value)
+                          : "memory");
+    return *location;
+}
+
+static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
+                                           uint32_t value )
+{
+    __asm__ __volatile__ (
+                          "lock; andl %1,%0"
+                          : "+m" (*(location))
+                          : "r" (~(value))
+                          : "memory");
+    return *location;
 }
 
 static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,

@@ -16,6 +16,12 @@ static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
     return OSAtomicOr32( value, location );
 }
 
+static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
+                                          uint32_t value )
+{
+    return OSAtomicAnd32( value, location );
+}
+
 static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
                                           uint32_t old_value,
                                           uint32_t new_value )

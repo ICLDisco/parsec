@@ -9,9 +9,9 @@
 
 #ifdef MAC_OS_X
 #include "atomic-macosx.h"
-#elseif X86
+#elif X86
 #include "atomic-x86_32.h"
-#elseif X86_64
+#elif X86_64
 #include "atomic-x86_64.h"
 #else
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
@@ -69,6 +69,9 @@ static inline uint64_t dplasma_atomic_bor_xxb( volatile void* location,
                                              (uint32_t)or_value);
 }
 
+#define dplasma_atomic_band(LOCATION, OR_VALUE)  \
+    (__typeof__(*(LOCATION)))dplasma_atomic_band_xxb(LOCATION, OR_VALUE, sizeof(*(LOCATION)) )
+
 #define dplasma_atomic_bor(LOCATION, OR_VALUE)  \
     (__typeof__(*(LOCATION)))dplasma_atomic_bor_xxb(LOCATION, OR_VALUE, sizeof(*(LOCATION)) )
 
@@ -77,4 +80,7 @@ static inline uint64_t dplasma_atomic_bor_xxb( volatile void* location,
                            (uint64_t)(OLD_VALUE), (uint64_t)(NEW_VALUE), \
                            sizeof(*(LOCATION)))                         \
     
+#define dplasma_atomic_set_mask dplasma_atomic_bor
+#define dplasma_atomic_clear_mask  dplasma_atomic_band
+
 #endif  /* ATOMIC_H_HAS_BEEN_INCLUDED */
