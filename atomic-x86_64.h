@@ -8,9 +8,8 @@ static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {
     __asm__ __volatile__ (
-                          "lock; orl %1,%0"
-                          : "+m" (*(location))
-                          : "r" (value)
+                          "lock; orl %0,%1"
+                          : : "r" (value), "m" (*(location))
                           : "memory");
     return *location;
 }
@@ -19,9 +18,8 @@ static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
                                            uint32_t value )
 {
     __asm__ __volatile__ (
-                          "lock; andl %1,%0"
-                          : "+m" (*(location))
-                          : "r" (~(value))
+                          "lock; andl %0,%1"
+                          : : "r" (value), "m" (*(location))
                           : "memory");
     return *location;
 }
@@ -33,9 +31,9 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
     unsigned char ret;
     __asm__ __volatile__ (
                           "lock; cmpxchgl %3,%4   \n\t"
-                          "sete     %0      \n\t"
-                          : "=qm" (ret), "+a" (old_value), "+m" (*location)
-                          : "q"(new_value)
+                          "      sete     %0      \n\t"
+                          : "=qm" (ret), "=a" (old_value), "=m" (*location)
+                          : "q"(new_value), "m"(*location), "1"(old_value)
                           : "memory", "cc");
 
     return (int)ret;
@@ -48,9 +46,9 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
     unsigned char ret;
     __asm__ __volatile__ (
                           "lock; cmpxchgq %3,%4   \n\t"
-                          "sete     %0      \n\t"
-                          : "=qm" (ret), "+a" (old_value), "+m" (*((volatile long*)location))
-                          : "q"(new_value)
+                          "      sete     %0      \n\t"
+                          : "=qm" (ret), "=a" (old_value), "=m" (*((volatile long*)location))
+                          : "q"(new_value), "m"(*((volatile long*)location)), "1"(old_value)
                           : "memory", "cc");
 
    return (int)ret;

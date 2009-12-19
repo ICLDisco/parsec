@@ -80,7 +80,7 @@ static inline uint64_t dplasma_atomic_bor_xxb( volatile void* location,
                            (uint64_t)(OLD_VALUE), (uint64_t)(NEW_VALUE), \
                            sizeof(*(LOCATION)))                         \
     
-#define dplasma_atomic_set_mask dplasma_atomic_bor
-#define dplasma_atomic_clear_mask  dplasma_atomic_band
+#define dplasma_atomic_set_mask(LOCATION, MASK) dplasma_atomic_bor((LOCATION), (MASK))
+#define dplasma_atomic_clear_mask(LOCATION, MASK)  dplasma_atomic_band((LOCATION), ~(MASK))
 
 #endif  /* ATOMIC_H_HAS_BEEN_INCLUDED */
