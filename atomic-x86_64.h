@@ -34,8 +34,8 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
     __asm__ __volatile__ (
                           "lock; cmpxchgl %3,%4   \n\t"
                           "sete     %0      \n\t"
-                          : "=qm" (ret), "+a" (oldval), "+m" (*addr)
-                          : "q"(newval)
+                          : "=qm" (ret), "+a" (old_value), "+m" (*location)
+                          : "q"(new_value)
                           : "memory", "cc");
 
     return (int)ret;
@@ -49,9 +49,9 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
     __asm__ __volatile__ (
                           "lock; cmpxchgq %3,%4   \n\t"
                           "sete     %0      \n\t"
-                          : "=qm" (ret), "+a" (oldval), "+m" (*((volatile long*)addr))
-                          : "q"(newval)
-                            " "memory", "cc");
+                          : "=qm" (ret), "+a" (old_value), "+m" (*((volatile long*)location))
+                          : "q"(new_value)
+                          : "memory", "cc");
 
    return (int)ret;
 }
