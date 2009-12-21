@@ -67,7 +67,7 @@ static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
 {
     __asm__ __volatile__ (
                           "lock; incl %0\n"
-                          : "+m" location);
+                          : "+m" (*(location)));
     return (*location);
 }
 
@@ -76,7 +76,7 @@ static inline int32_t dplasma_atomic_dec_32b( volatile int32_t *location )
 {
     __asm__ __volatile__ (
                           "lock; decl %0\n"
-                          : "+m" location);
+                          : "+m" (*(location)));
     return (*location);
 }
 
