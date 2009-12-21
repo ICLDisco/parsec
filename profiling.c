@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "atomic.h"
+#include "tooltip.h"
 
 #if defined(__gnu_linux__) && !defined INTEL 
 #include <unistd.h>
@@ -189,7 +190,7 @@ int dplasma_profiling_dump_svg( const char* filename )
     FILE* tracefile;
     uint64_t start, end;
     dplasma_time_t relative;
-    double scale = 0.01, gaps = 0.0, gaps_last = 0.0, last;
+    double scale = 0.01, gaps = 0.0, gaps_last = 0.0, last, total_time;
     int i, tag, core;
 
     tracefile = fopen(filename, "w");
@@ -200,14 +201,22 @@ int dplasma_profiling_dump_svg( const char* filename )
     core = 1;
 
     fprintf(tracefile,
-            "<?xml version=\"1.0\" standalone=\"no\"?>\n"
-            "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n" 
-            "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
-            "<svg width=\"50000\" height=\"%d\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-            400 * (core+1));
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<!DOCTYPE svg PUBLIC \"-_W3C_DTD SVG 1.0_EN\"\n" 
+            "\"http://www.w3.org/TR/SVG/DTD/svg10.dtd\">\n"
+            "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'\n"
+            "  onload='Init(evt)'\n"
+            "  onmousemove='GetTrueCoords(evt); ShowTooltip(evt, true)'\n"
+            "  onmouseout='ShowTooltip(evt, false)'\n"
+            ">\n"
+            "  <script type=\"text/ecmascript\">\n"
+            "    <![CDATA[%s]]>\n"
+            "  </script>\n",
+            tooltip_script);
 
     relative = dplasma_prof_events[1].timestamp;
-    last = diff_time( relative, dplasma_prof_events[0].timestamp );
+    total_time = diff_time(relative, dplasma_prof_events[dplasma_prof_events_count-1].timestamp);
+    last = diff_time( relative, dplasma_prof_events[1].timestamp );
     for( i = 1; i < dplasma_prof_events_count; i+=2 ) {
         start = diff_time( relative, dplasma_prof_events[i].timestamp );
         end = diff_time( relative, dplasma_prof_events[i+1].timestamp );
@@ -219,14 +228,18 @@ int dplasma_profiling_dump_svg( const char* filename )
         if( last < end ) last = end;
 
         fprintf(tracefile,
-                "    "
-                "<rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" "
-                "style=\"%s\"/>\n",
+                "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\">\n"
+                "       <title>%s</title>\n"
+                "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
+                "    </rect>\n",                
                 start * scale,
                 (core - 1) * 100.0,
                 (end - start) * scale,
                 200.0,
-                dplasma_prof_keys[tag].attributes);
+                dplasma_prof_keys[tag].attributes,
+                dplasma_prof_keys[tag].name,
+                (double)end-(double)start,
+                100.0 * ( (double)end-(double)start) / (double)total_time);
 
         /*        fprintf(tracefile,
                 "    "
@@ -237,7 +250,15 @@ int dplasma_profiling_dump_svg( const char* filename )
                 core * 100.0 + 20,
                 (int)tag);*/
     }
-    fprintf(tracefile, "  </svg>\n");
+    fprintf(tracefile, 
+            "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>"
+            "    <rect id='tipbox' x='0' y='5' width='88' height='20' rx='2' ry='2' fill='white' stroke='black'/>"
+            "    <text id='tipText' x='5' y='20' font-family='Arial' font-size='12'>"
+            "      <tspan id='tipTitle' x='5' font-weight='bold'> </tspan>"
+            "      <tspan id='tipDesc' x='5' dy='1.2em' fill='blue'> </tspan>"
+            "    </text>"
+            "  </g>"
+            "</svg>\n");
 
     fclose(tracefile);
 
