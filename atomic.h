@@ -42,15 +42,6 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
     }
     return 0;
 }
-
-static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
-{
-    int32_t l;
-    do {
-        l = *location;
-    } while( !dplasma_atomic_cas_32b( location, l, l+1 ) );
-    return l+1;
-}
 #endif
 
 #include <assert.h>
@@ -93,5 +84,27 @@ static inline uint64_t dplasma_atomic_bor_xxb( volatile void* location,
     
 #define dplasma_atomic_set_mask(LOCATION, MASK) dplasma_atomic_bor((LOCATION), (MASK))
 #define dplasma_atomic_clear_mask(LOCATION, MASK)  dplasma_atomic_band((LOCATION), ~(MASK))
+
+#ifndef DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B
+static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
+{
+    int32_t l;
+    do {
+        l = *location;
+    } while( !dplasma_atomic_cas_32b( location, l, l+1 ) );
+    return l+1;
+}
+#endif  /* DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B */
+
+#ifndef DPLASMA_ATOMIC_HAS_ATOMIC_DEC_32B
+static inline int32_t dplasma_atomic_dec_32b( volatile int32_t *location )
+{
+    int32_t l;
+    do {
+        l = *location;
+    } while( !dplasma_atomic_cas_32b( location, l, l-1 ) );
+    return l-1;
+}
+#endif  /* DPLASMA_ATOMIC_HAS_ATOMIC_DEC_32B */
 
 #endif  /* ATOMIC_H_HAS_BEEN_INCLUDED */

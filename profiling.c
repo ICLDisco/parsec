@@ -207,7 +207,6 @@ int dplasma_profiling_dump_svg( const char* filename )
             400 * (core+1));
 
     relative = dplasma_prof_events[1].timestamp;
-    printf("relative = %llu\n", relative);
     last = diff_time( relative, dplasma_prof_events[0].timestamp );
     for( i = 1; i < dplasma_prof_events_count; i+=2 ) {
         start = diff_time( relative, dplasma_prof_events[i].timestamp );
@@ -222,7 +221,7 @@ int dplasma_profiling_dump_svg( const char* filename )
         fprintf(tracefile,
                 "    "
                 "<rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" "
-                "style=\"%s;stroke-width:1\"/>\n",
+                "style=\"%s\"/>\n",
                 start * scale,
                 (core - 1) * 100.0,
                 (end - start) * scale,

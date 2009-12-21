@@ -36,8 +36,15 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
     return OSAtomicCompareAndSwap64( old_value, new_value, (volatile int64_t*)location );
 }
 
+#define DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B
 static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
 {
     return OSAtomicIncrement32( location );
 }
-                                          
+
+#define DPLASMA_ATOMIC_HAS_ATOMIC_DEC_32B
+static inline int32_t dplasma_atomic_dec_32b( volatile int32_t *location )
+{
+    return OSAtomicDecrement32( location );
+}
+
