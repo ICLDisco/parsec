@@ -61,3 +61,11 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
                     : "cc", "memory", "ebx");
     return (int) ret;
 }
+
+static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
+{
+    __asm__ __volatile__ (
+                          "lock; incl %0\n"
+                          : "+m" location);
+}
+

@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "atomic.h"
+
 #if defined(__gnu_linux__) && !defined INTEL 
 #include <unistd.h>
 #include <time.h>
@@ -171,12 +173,13 @@ int dplasma_profiling_del_dictionary_keyword( int key )
 
 int dplasma_profiling_trace( int key )
 {
-    if( dplasma_prof_events_count == dplasma_prof_events_number ) {
+    int my_event = dplasma_atomic_inc_32b(&dplasma_prof_events_count);
+
+    if( my_event >= dplasma_prof_events_number ) {
         return -1;
     }
-    dplasma_prof_events[dplasma_prof_events_count].key = key;
-    dplasma_prof_events[dplasma_prof_events_count].timestamp = take_time();
-    dplasma_prof_events_count++;
+    dplasma_prof_events[my_event].key = key;
+    dplasma_prof_events[my_event].timestamp = take_time();
     return 0;
 }
 
