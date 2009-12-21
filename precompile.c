@@ -105,7 +105,7 @@ static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int
 static int current_line;
 static char *out_name = "";
 
-static int nblines(char *p)
+static int nblines(const char *p)
 {
     int r = 0;
     for(; *p != '\0'; p++)
@@ -671,8 +671,11 @@ int dplasma_dump_all_c(char *filename)
             "#define TAKE_TIME(KEY)  dplasma_profiling_trace((KEY))\n"
             "#else\n"
             "#define TAKE_TIME(KEY)\n"
-            "#endif  /* DPLASMA_PROFILING */\n\n");
-    current_line += 5;
+            "#endif  /* DPLASMA_PROFILING */\n"
+            "\n"
+            "#include \"scheduling.h\"\n"
+            "\n");
+    current_line += 7;
 
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
 
@@ -709,13 +712,12 @@ int dplasma_dump_all_c(char *filename)
             "int load_dplasma_hooks( void )\n"
             "{\n"
             "  dplasma_t* object;\n"
-            "  int nbtasks;\n"
             "\n"
             "  if( 0 != __dplasma_init()) {\n"
             "     return -1;\n"
             "  }\n"
             "\n");
-    current_line += 9;
+    current_line += 8;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         /* Specials IN and OUT test */
