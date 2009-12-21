@@ -66,16 +66,18 @@ static pthread_mutex_t dplasma_wait_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  dplasma_wait_cond = PTHREAD_COND_INITIALIZER;
 static int             dplasma_wait;
 
-static void *dp_progress(void *_)
+static void *dp_progress(void *arg)
 {
+    dplasma_context_t* dplasma = (dplasma_context_t*)arg;
     int it;
+
     pthread_mutex_lock(&dplasma_wait_lock);
     while( dplasma_wait ) {
         pthread_cond_wait(&dplasma_wait_cond, &dplasma_wait_lock);
     }
     pthread_mutex_unlock(&dplasma_wait_lock);
 
-    it = dplasma_progress();
+    it = dplasma_progress(dplasma);
     printf("thread number %p did %d tasks\n", (void*)pthread_self(), it);
     
     return NULL;
@@ -185,13 +187,13 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         exec_context.function = (dplasma_t*)dplasma_find("DGEQRT");
         dplasma_set_initial_execution_context(&exec_context);
         time_elapsed = get_cur_time();
-        dplasma_schedule(&exec_context);
+        dplasma_schedule(dplasma, &exec_context);
         
         pthread_mutex_lock(&dplasma_wait_lock);
         dplasma_wait = 0;
         pthread_mutex_unlock(&dplasma_wait_lock);
         pthread_cond_broadcast(&dplasma_wait_cond);
-        it = dplasma_progress();
+        it = dplasma_progress(dplasma);
         printf("main thread did %d tasks\n", it);
         
         for(i = 0; i < ncores-1; i++) {
@@ -205,7 +207,7 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         char* filename = NULL;
 
         asprintf( &filename, "%s.svg", "dgels" );
-        dplasma_profiling_dump_svg(filename);
+        dplasma_profiling_dump_svg(dplasma, filename);
         free(filename);
     }
 #endif  /* DPLASMA_PROFILING */

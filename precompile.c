@@ -540,7 +540,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
         int body_lines;
 
         fprintf(out, 
-                "int %s_hook(const dplasma_execution_context_t *exec_context)\n"
+                "int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
                 "{\n",
                 d->name);
         current_line += 2;
@@ -559,12 +559,12 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
         body_lines = nblines(d->body);
 
         fprintf(out, 
-                "  TAKE_TIME(%s_start_key);\n"
+                "  TAKE_TIME(context, %s_start_key);\n"
                 "\n"
                 "  %s\n"
                 "#line %d \"%s\"\n"
                 "\n"
-                "  TAKE_TIME(%s_end_key);\n"
+                "  TAKE_TIME(context, %s_end_key);\n"
                 "  return 0;\n"
                 "}\n"
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
@@ -674,9 +674,9 @@ int dplasma_dump_all_c(char *filename)
         current_line++;
     }
     fprintf(out,
-            "#define TAKE_TIME(KEY)  dplasma_profiling_trace((KEY))\n"
+            "#define TAKE_TIME(EU_CONTEXT, KEY)  dplasma_profiling_trace((EU_CONTEXT), (KEY))\n"
             "#else\n"
-            "#define TAKE_TIME(KEY)\n"
+            "#define TAKE_TIME(EU_CONTEXT, KEY)\n"
             "#endif  /* DPLASMA_PROFILING */\n"
             "\n"
             "#include \"scheduling.h\"\n"

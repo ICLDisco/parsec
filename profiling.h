@@ -31,8 +31,8 @@ int dplasma_profiling_add_dictionary_keyword( const char*, const char* attribute
                                               int* key_start, int* key_end );
 int dplasma_profiling_del_dictionary_keyword( int key );
 
-int dplasma_profiling_trace( int key );
+int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key );
 
-int dplasma_profiling_dump_svg( const char* filename );
+int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename );
 
 #endif  /* _dplasma_profiling_h */

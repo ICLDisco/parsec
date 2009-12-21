@@ -56,7 +56,7 @@ struct dplasma_dependencies_t {
 };
 
 typedef struct dplasma_execution_context_t dplasma_execution_context_t;
-typedef int (dplasma_hook_t)(const dplasma_execution_context_t*);
+typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*);
 
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
@@ -153,7 +153,8 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
  * @param [INOUT] The execution context used as destination
  * @param [IN] The name of the parameter at the destination
  */
-int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
+int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
+                                      const dplasma_execution_context_t* origin,
                                       const param_t* origin_param,
                                       dplasma_execution_context_t* exec_context,
                                       const param_t* dest_param );
