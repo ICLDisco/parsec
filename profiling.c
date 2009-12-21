@@ -224,7 +224,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
     FILE* tracefile;
     uint64_t start, end;
     dplasma_time_t relative;
-    double scale = 0.01, gaps, gaps_last, last, total_time;
+    double scale = 0.0000025, gaps, gaps_last, last, total_time;
     dplasma_eu_profiling_t* profile;
     int i, thread_id, tag;
 
@@ -276,17 +276,16 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                     "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
                     "    </rect>\n",                
                     start * scale,
-                    thread_id * 100.0 + 1.0,
+                    thread_id * 27.0 + 1.0,
                     (end - start) * scale,
-                    98.0,
+                    25.0,
                     dplasma_prof_keys[tag].attributes,
                     dplasma_prof_keys[tag].name,
                     (double)end-(double)start,
                     100.0 * ( (double)end-(double)start) / (double)total_time);
-            
-            printf("Found %.4lf ticks gaps out of %.4lf (%.2lf%%)\n", gaps,
-                   last, (gaps * 100.0) / last);
         }
+        printf("Found %.4lf ticks gaps out of %.4lf (%.2lf%%)\n", gaps,
+               last, (gaps * 100.0) / last);
     }
     fprintf(tracefile, 
             "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>\n"
