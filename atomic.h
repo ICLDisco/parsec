@@ -98,7 +98,7 @@ static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
     int32_t l;
     do {
         l = *location;
-    } while( !dplasma_atomic_cas_32b( location, l+1, l ) );
+    } while( !dplasma_atomic_cas_32b( location, l, l+1 ) );
     return l+1;
 }
 #endif  /* DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B */
@@ -109,7 +109,7 @@ static inline int32_t dplasma_atomic_dec_32b( volatile int32_t *location )
     int32_t l;
     do {
         l = *location;
-    } while( !dplasma_atomic_cas_32b( location, l-1, l ) );
+    } while( !dplasma_atomic_cas_32b( location, l, l-1 ) );
     return l-1;
 }
 #endif  /* DPLASMA_ATOMIC_HAS_ATOMIC_DEC_32B */
