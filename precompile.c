@@ -17,60 +17,60 @@
 #define COLORS_SIZE           54
 
 static const char *colors[COLORS_SIZE] = { 
-  "rgb(0xE5, 0x2B, 0x50)", 
-  "rgb(0xFF, 0xBF, 0x00)", 
-  "rgb(0x7F, 0xFF, 0xD4)", 
-  "rgb(0x00, 0x7F, 0xFF)", 
-  "rgb(0x00, 0x00, 0x00)", 
-  "rgb(0x00, 0x00, 0xFF)", 
-  "rgb(0x00, 0x95, 0xB6)", 
-  "rgb(0x8A, 0x2B, 0xE2)", 
-  "rgb(0xA5, 0x2A, 0x2A)", 
-  "rgb(0x70, 0x29, 0x63)", 
-  "rgb(0x96, 0x00, 0x18)", 
-  "rgb(0xDE, 0x31, 0x63)", 
-  "rgb(0x00, 0x7B, 0xA7)", 
-  "rgb(0x7F, 0xFF, 0x00)", 
-  "rgb(0xF8, 0x83, 0x79)", 
-  "rgb(0xDC, 0x14, 0x3C)", 
-  "rgb(0x00, 0xFF, 0xFF)", 
-  "rgb(0x7D, 0xF9, 0xFF)", 
-  "rgb(0xFF, 0xD7, 0x00)", 
-  "rgb(0x80, 0x80, 0x80)", 
-  "rgb(0x00, 0xCC, 0x00)", 
-  "rgb(0x3F, 0xFF, 0x00)", 
-  "rgb(0x4B, 0x00, 0x82)", 
-  "rgb(0x00, 0xA8, 0x6B)", 
-  "rgb(0xB5, 0x7E, 0xDC)", 
-  "rgb(0xC8, 0xA2, 0xC8)", 
-  "rgb(0xBF, 0xFF, 0x00)", 
-  "rgb(0xFF, 0x00, 0xFF)", 
-  "rgb(0x80, 0x00, 0x00)", 
-  "rgb(0xE0, 0xB0, 0xFF)", 
-  "rgb(0x00, 0x00, 0x80)", 
-  "rgb(0x80, 0x80, 0x00)", 
-  "rgb(0xFF, 0xA5, 0x00)", 
-  "rgb(0xFF, 0x45, 0x00)", 
-  "rgb(0xFF, 0xE5, 0xB4)", 
-  "rgb(0x1C, 0x39, 0xBB)", 
-  "rgb(0xFF, 0xC0, 0xCB)", 
-  "rgb(0x84, 0x31, 0x79)", 
-  "rgb(0xFF, 0x75, 0x18)", 
-  "rgb(0x80, 0x00, 0x80)", 
-  "rgb(0xFF, 0x00, 0x00)", 
-  "rgb(0xC7, 0x15, 0x85)", 
-  "rgb(0xFF, 0x00, 0x7F)", 
-  "rgb(0xFA, 0x80, 0x72)", 
-  "rgb(0xFF, 0x24, 0x00)", 
-  "rgb(0xC0, 0xC0, 0xC0)", 
-  "rgb(0x70, 0x80, 0x90)", 
-  "rgb(0x00, 0xFF, 0x7F)", 
-  "rgb(0x48, 0x3C, 0x32)", 
-  "rgb(0x00, 0x80, 0x80)", 
-  "rgb(0x40, 0xE0, 0xD0)", 
-  "rgb(0xEE, 0x82, 0xEE)", 
-  "rgb(0x40, 0x82, 0x6D)", 
-  "rgb(0xFF, 0xFF, 0x00)" 
+  "#E52B50", 
+  "#FFBF00", 
+  "#7FFFD4", 
+  "#007FFF", 
+  "#000000", 
+  "#0000FF", 
+  "#0095B6", 
+  "#8A2BE2", 
+  "#A52A2A", 
+  "#702963", 
+  "#960018", 
+  "#DE3163", 
+  "#007BA7", 
+  "#7FFF00", 
+  "#F88379", 
+  "#DC143C", 
+  "#00FFFF", 
+  "#7DF9FF", 
+  "#FFD700", 
+  "#808080", 
+  "#00CC00", 
+  "#3FFF00", 
+  "#4B0082", 
+  "#00A86B", 
+  "#B57EDC", 
+  "#C8A2C8", 
+  "#BFFF00", 
+  "#FF00FF", 
+  "#800000", 
+  "#E0B0FF", 
+  "#000080", 
+  "#808000", 
+  "#FFA500", 
+  "#FF4500", 
+  "#FFE5B4", 
+  "#1C39BB", 
+  "#FFC0CB", 
+  "#843179", 
+  "#FF7518", 
+  "#800080", 
+  "#FF0000", 
+  "#C71585", 
+  "#FF007F", 
+  "#FA8072", 
+  "#FF2400", 
+  "#C0C0C0", 
+  "#708090", 
+  "#00FF7F", 
+  "#483C32", 
+  "#008080", 
+  "#40E0D0", 
+  "#EE82EE", 
+  "#40826D", 
+  "#FFFF00" 
 };
 
 typedef struct preamble_list {
@@ -540,7 +540,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
         int body_lines;
 
         fprintf(out, 
-                "int %s_hook(const dplasma_execution_context_t *exec_context)\n"
+                "int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
                 "{\n",
                 d->name);
         current_line += 2;
@@ -559,12 +559,12 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
         body_lines = nblines(d->body);
 
         fprintf(out, 
-                "  TAKE_TIME(%s_start_key);\n"
+                "  TAKE_TIME(context, %s_start_key);\n"
                 "\n"
                 "  %s\n"
                 "#line %d \"%s\"\n"
                 "\n"
-                "  TAKE_TIME(%s_end_key);\n"
+                "  TAKE_TIME(context, %s_end_key);\n"
                 "  return 0;\n"
                 "}\n"
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
@@ -674,9 +674,9 @@ int dplasma_dump_all_c(char *filename)
         current_line++;
     }
     fprintf(out,
-            "#define TAKE_TIME(KEY)  dplasma_profiling_trace((KEY))\n"
+            "#define TAKE_TIME(EU_CONTEXT, KEY)  dplasma_profiling_trace((EU_CONTEXT), (KEY))\n"
             "#else\n"
-            "#define TAKE_TIME(KEY)\n"
+            "#define TAKE_TIME(EU_CONTEXT, KEY)\n"
             "#endif  /* DPLASMA_PROFILING */\n"
             "\n"
             "#include \"scheduling.h\"\n"
@@ -704,7 +704,7 @@ int dplasma_dump_all_c(char *filename)
     current_line += 7 + nblines(whole) + nblines(body);
 
     fprintf(out,
-            "int load_dplasma_objects( void )\n"
+            "int load_dplasma_objects( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_load_array( dplasma_array, %d );\n"
             "  dplasma_load_symbols( dplasma_symbols, %d );\n"
@@ -715,7 +715,7 @@ int dplasma_dump_all_c(char *filename)
     current_line += 7;
 
     fprintf(out, 
-            "int load_dplasma_hooks( void )\n"
+            "int load_dplasma_hooks( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_t* object;\n"
             "\n"
@@ -735,13 +735,12 @@ int dplasma_dump_all_c(char *filename)
     }
 
     fprintf(out,
-            "#ifdef DPLASMA_PROFILING\n"
-            "  dplasma_profiling_init(1024);\n");
-    current_line += 2;
+            "#ifdef DPLASMA_PROFILING\n");
+    current_line += 1;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         fprintf(out, 
-                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s;stroke:rgb(0,0,0)\",\n"
+                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
                 "                                            &%s_start_key, &%s_end_key);\n",
                 dplasma_element_at(i)->name, colors[i % COLORS_SIZE], dplasma_element_at(i)->name, dplasma_element_at(i)->name);
         current_line += 2;

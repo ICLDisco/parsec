@@ -45,16 +45,18 @@ static pthread_mutex_t dplasma_wait_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  dplasma_wait_cond = PTHREAD_COND_INITIALIZER;
 static int             dplasma_wait;
 
-static void *dp_progress(void *_)
+static void *dp_progress(void *arg)
 {
+    dplasma_context_t* dplasma = (dplasma_context_t*)arg;
     int it;
+
     pthread_mutex_lock(&dplasma_wait_lock);
     while( dplasma_wait ) {
         pthread_cond_wait(&dplasma_wait_cond, &dplasma_wait_lock);
     }
     pthread_mutex_unlock(&dplasma_wait_lock);
 
-    it = dplasma_progress();
+    it = dplasma_progress(dplasma);
     printf("thread number %p did %d tasks\n", (void*)pthread_self(), it);
     
     return NULL;
@@ -68,11 +70,9 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     plasma_context_t *plasma;
     int i;
     pthread_t dpthreads[64];
-
-    dplasma_wait = 1;
-    for(i = 0; i < ncores-1; i++) {
-        pthread_create(&dpthreads[i], NULL, dp_progress, NULL);
-    }
+#ifdef DPLASMA_EXECUTE
+    dplasma_context_t* dplasma;
+#endif  /* DPLASMA_EXECUTE */
 
     plasma = plasma_context_self();
     if (plasma == NULL) {
@@ -126,7 +126,8 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
-    load_dplasma_objects();
+    dplasma = dplasma_init(ncores, NULL, NULL );
+    load_dplasma_objects(dplasma);
 
     time_elapsed = get_cur_time();
     {
@@ -139,15 +140,11 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         dplasma_assign_global_symbol( "SIZE", constant );
     }
 
-    load_dplasma_hooks();
+    load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
     printf("NBTASKS to run: %d\n", nbtasks);
-
-#ifdef DPLASMA_PROFILING
-    dplasma_profiling_init(1024);
-#endif  /* DPLASMA_PROFILING */
 
     {
         dplasma_execution_context_t exec_context;
@@ -157,13 +154,18 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
         time_elapsed = get_cur_time();
-        dplasma_schedule(&exec_context);
-        
+        dplasma_schedule(dplasma, &exec_context);
+
+        dplasma_wait = 1;
+        for(i = 0; i < ncores-1; i++) {
+            pthread_create(&dpthreads[i], NULL, dp_progress, (void*)dplasma);
+        }
+
         pthread_mutex_lock(&dplasma_wait_lock);
         dplasma_wait = 0;
         pthread_mutex_unlock(&dplasma_wait_lock);
         pthread_cond_broadcast(&dplasma_wait_cond);
-        it = dplasma_progress();
+        it = dplasma_progress(dplasma);
         printf("main thread did %d tasks\n", it);
         
         for(i = 0; i < ncores-1; i++) {
@@ -177,11 +179,11 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         char* filename = NULL;
 
         asprintf( &filename, "%s.svg", "dposv" );
-        dplasma_profiling_dump_svg(filename);
-        dplasma_profiling_fini();
+        dplasma_profiling_dump_svg(dplasma, filename);
         free(filename);
     }
 #endif  /* DPLASMA_PROFILING */
+    dplasma_fini(&dplasma);
 #else
     time_elapsed = get_cur_time();
     plasma_parallel_call_2(plasma_pdpotrf,

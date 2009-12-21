@@ -12,3 +12,7 @@ dpc
 make.inc
 grapher
 cholesky.c
+QR/QR.c
+QR/dgels
+cholesky/timeenumerator
+dposv.svg

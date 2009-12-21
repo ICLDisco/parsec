@@ -6,8 +6,9 @@
 
 #include "scheduling.h"
 #include <string.h>
+#include "atomic.h"
 
-static int dplasma_execute( const dplasma_execution_context_t* exec_context );
+static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
 #define DEPTH_FIRST_SCHEDULE 0
 
@@ -106,7 +107,21 @@ static void done_task()
  * attached hook if any. At the end of the execution the dependencies
  * are released.
  */
-int dplasma_schedule( const dplasma_execution_context_t* exec_context )
+int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_context_t* exec_context )
+{
+#if !DEPTH_FIRST_SCHEDULE
+    dplasma_execution_unit_t* eu_context;
+
+    eu_context = &(context->execution_units[0]);
+
+    return __dplasma_schedule( eu_context, exec_context );
+#else
+    return dplasma_execute(eu_context, exec_context);
+#endif  /* !DEPTH_FIRST_SCHEDULE */
+}
+
+int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
+                        const dplasma_execution_context_t* exec_context )
 {
 #if !DEPTH_FIRST_SCHEDULE
     dplasma_execution_context_t* new_context;
@@ -116,7 +131,8 @@ int dplasma_schedule( const dplasma_execution_context_t* exec_context )
     atomic_push(new_context);
     return 0;
 #else
-    return dplasma_execute(exec_context);
+    printf( "This internal version of the dplasma_schedule is not supposed to be called\n");
+    return -1;
 #endif  /* !DEPTH_FIRST_SCHEDULE */
 }
 
@@ -125,10 +141,15 @@ void dplasma_register_nb_tasks(int n)
     set_tasks_todo((int32_t)n);
 }
 
-int dplasma_progress(void)
+int dplasma_progress(dplasma_context_t* context)
 {
     dplasma_execution_context_t* exec_context;
-    int nbiterations = 0;
+    dplasma_execution_unit_t* eu_context;
+    int nbiterations = 0, my_id;
+
+    /* Get my Execution Unit context */
+    my_id = dplasma_atomic_inc_32b(&(context->eu_waiting)) - 1;
+    eu_context = &(context->execution_units[my_id]);
 
     while( !all_tasks_done() ) {
 
@@ -137,7 +158,7 @@ int dplasma_progress(void)
 
         if( exec_context != NULL ) {
             /* We're good to go ... */
-            dplasma_execute( exec_context );
+            dplasma_execute( eu_context, exec_context );
             done_task();
             nbiterations++;
             /* Release the execution context */
@@ -147,7 +168,8 @@ int dplasma_progress(void)
     return nbiterations;
 }
 
-static int dplasma_execute( const dplasma_execution_context_t* exec_context )
+static int dplasma_execute( dplasma_execution_unit_t* eu_context,
+                            const dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
@@ -159,7 +181,7 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context )
     dep_t* dep;
 
     if( NULL != function->hook ) {
-        function->hook( exec_context );
+        function->hook( eu_context, exec_context );
     } else {
         DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
@@ -219,7 +241,8 @@ static int dplasma_execute( const dplasma_execution_context_t* exec_context )
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
-            dplasma_release_OUT_dependencies( exec_context, param,
+            dplasma_release_OUT_dependencies( eu_context,
+                                              exec_context, param,
                                               &new_context, dep->param );
         }
     }

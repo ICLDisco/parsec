@@ -9,7 +9,8 @@ char *yyfilename;
 extern int yyparse();
 extern int dplasma_lineno;
 
-static int generic_hook(const dplasma_execution_context_t* exec_context)
+static int generic_hook( dplasma_execution_unit_t* eu_context,
+                         const dplasma_execution_context_t* exec_context )
 {
     char tmp[128];
 #ifdef DPLASMA_GENERATE_DOT
@@ -45,6 +46,8 @@ static int generic_hook(const dplasma_execution_context_t* exec_context)
 
 int main(int argc, char *argv[])
 {
+    dplasma_context_t* dplasma;
+
     yyfilename = strdup("(stdin)");
     dplasma_lineno = 1;
 	yyparse();
@@ -61,7 +64,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("digraph G {\n");
+    dplasma = dplasma_init(1, NULL, NULL);
     {
         dplasma_execution_context_t exec_context;
         int i = 0, rc;
@@ -75,8 +78,8 @@ int main(int argc, char *argv[])
             dplasma_set_initial_execution_context(&exec_context);
             rc = dplasma_service_can_be_startup( &exec_context );
             if( rc == 0 ) {
-                dplasma_schedule(&exec_context);
-                dplasma_progress();
+                dplasma_schedule(dplasma, &exec_context);
+                dplasma_progress(dplasma);
             }
         }
 #if 0
@@ -90,10 +93,10 @@ int main(int argc, char *argv[])
             }
         }
         dplasma_set_initial_execution_context(&exec_context);
-        dplasma_schedule(&exec_context);
-        dplasma_progress();
+        dplasma_schedule(dplasma, &exec_context);
+        dplasma_progress(dplasma);
 #endif
     }
-    printf("}\n");
+    dplasma_fini(&dplasma);
 	return 0;
 }
