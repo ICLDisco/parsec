@@ -229,8 +229,10 @@ int dplasma_profiling_dump_svg( const char* filename )
 
         fprintf(tracefile,
                 "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\">\n"
-                "       <title>%s</title>\n"
-                "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
+                "       <title>%s (rank 0)</title>\n"
+                "       <desc>\n"
+                "          %.0lf time units (%.2lf%% of time)\n"
+                "       </desc>\n"
                 "    </rect>\n",                
                 start * scale,
                 (core - 1) * 100.0,
