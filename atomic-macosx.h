@@ -38,6 +38,6 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
 
 static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
 {
-    OSAtomicIncrement32( location );
+    return OSAtomicIncrement32( location );
 }
                                           
