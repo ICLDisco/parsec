@@ -741,7 +741,7 @@ int dplasma_dump_all_c(char *filename)
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         fprintf(out, 
-                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s;stroke:rgb(0,0,0)\",\n"
+                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
                 "                                            &%s_start_key, &%s_end_key);\n",
                 dplasma_element_at(i)->name, colors[i % COLORS_SIZE], dplasma_element_at(i)->name, dplasma_element_at(i)->name);
         current_line += 2;
