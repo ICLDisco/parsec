@@ -12,18 +12,20 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "execution_unit.h"
+
 /**
  * Initialize the circular trace with the specified length. If threads are
  * enabled then the trace is per thread and each one of them is supposed to
  * call the tracing initialization function.
  */
-int dplasma_profiling_init( size_t length );
+int dplasma_profiling_init( dplasma_context_t* context, size_t length );
 
 /**
  * Release all resources for the tracing. If threads are enabled only
  * the resources related to this thread are released.
  */
-int dplasma_profiling_fini( void );
+int dplasma_profiling_fini( dplasma_context_t* context );
 
 int dplasma_profiling_add_dictionary_keyword( const char*, const char* attributes,
                                               int* key_start, int* key_end );

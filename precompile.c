@@ -704,7 +704,7 @@ int dplasma_dump_all_c(char *filename)
     current_line += 7 + nblines(whole) + nblines(body);
 
     fprintf(out,
-            "int load_dplasma_objects( void )\n"
+            "int load_dplasma_objects( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_load_array( dplasma_array, %d );\n"
             "  dplasma_load_symbols( dplasma_symbols, %d );\n"
@@ -715,7 +715,7 @@ int dplasma_dump_all_c(char *filename)
     current_line += 7;
 
     fprintf(out, 
-            "int load_dplasma_hooks( void )\n"
+            "int load_dplasma_hooks( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_t* object;\n"
             "\n"
@@ -735,9 +735,8 @@ int dplasma_dump_all_c(char *filename)
     }
 
     fprintf(out,
-            "#ifdef DPLASMA_PROFILING\n"
-            "  dplasma_profiling_init(1024);\n");
-    current_line += 2;
+            "#ifdef DPLASMA_PROFILING\n");
+    current_line += 1;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         fprintf(out, 

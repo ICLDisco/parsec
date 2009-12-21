@@ -68,6 +68,9 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     plasma_context_t *plasma;
     int i;
     pthread_t dpthreads[64];
+#ifdef DPLASMA_EXECUTE
+    dplasma_context_t* dplasma;
+#endif  /* DPLASMA_EXECUTE */
 
     dplasma_wait = 1;
     for(i = 0; i < ncores-1; i++) {
@@ -126,7 +129,8 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
-    load_dplasma_objects();
+    dplasma = dplasma_init(ncores, NULL, NULL );
+    load_dplasma_objects(dplasma);
 
     time_elapsed = get_cur_time();
     {
@@ -139,7 +143,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         dplasma_assign_global_symbol( "SIZE", constant );
     }
 
-    load_dplasma_hooks();
+    load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
@@ -174,10 +178,10 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 
         asprintf( &filename, "%s.svg", "dposv" );
         dplasma_profiling_dump_svg(filename);
-        dplasma_profiling_fini();
         free(filename);
     }
 #endif  /* DPLASMA_PROFILING */
+    dplasma_fini(&dplasma);
 #else
     time_elapsed = get_cur_time();
     plasma_parallel_call_2(plasma_pdpotrf,

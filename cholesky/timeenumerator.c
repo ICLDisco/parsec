@@ -16,14 +16,17 @@ int main(int argc, char *argv[])
     int NB, NT, N;
     double time_elapsed;
     int nbtasks;
+    dplasma_context_t* dplasma;
 
     N = atoi(argv[1]);
     NB = atoi(argv[2]);
 
     NT = (N%NB==0) ? (N/NB) : (N/NB+1);
 
+    dplasma = dplasma_init(1, &argc, &argv );
+
     time_elapsed = get_cur_time();
-    load_dplasma_objects();
+    load_dplasma_objects(dplasma);
     time_elapsed = get_cur_time() - time_elapsed;
 
     printf("load_dplasma_objects(): %gs\n", time_elapsed);
@@ -39,7 +42,7 @@ int main(int argc, char *argv[])
     }
 
     time_elapsed = get_cur_time();
-    load_dplasma_hooks();
+    load_dplasma_hooks(dplasma);
     time_elapsed = get_cur_time() - time_elapsed;
 
     printf("load_dplasma_hooks(): %gs\n", time_elapsed);

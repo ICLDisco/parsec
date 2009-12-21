@@ -89,6 +89,9 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
     double *Tbdl;
     plasma_context_t *plasma;
     pthread_t dpthreads[64];
+#ifdef DPLASMA_EXECUTE
+    dplasma_context_t* dplasma;
+#endif  /* DPLASMA_EXECUTE */
 
     plasma = plasma_context_self();
     if (plasma == NULL) {
@@ -150,7 +153,8 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         PLASMA_desc, descA);
 
 #ifdef DPLASMA_EXECUTE
-    load_dplasma_objects();
+    dplasma = dplasma_init(ncores, NULL, NULL);
+    load_dplasma_objects(dplasma);
 
     // TODO: this should be allocated per thread.
     work = (double *)plasma_private_alloc(plasma, descT.mb*descT.nb, descT.dtyp);
@@ -167,15 +171,11 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         dplasma_assign_global_symbol( "SIZE", constant );
     }
 
-    load_dplasma_hooks();
+    load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
     printf("NBTASKS to run: %d\n", nbtasks);
-
-#ifdef DPLASMA_PROFILING
-    dplasma_profiling_init(1024);
-#endif  /* DPLASMA_PROFILING */
 
     {
         dplasma_execution_context_t exec_context;
@@ -206,10 +206,10 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
 
         asprintf( &filename, "%s.svg", "dgels" );
         dplasma_profiling_dump_svg(filename);
-        dplasma_profiling_fini();
         free(filename);
     }
 #endif  /* DPLASMA_PROFILING */
+    dplasma_fini(&dplasma);
 #else // DPLASMA_EXECUTE
     time_elapsed = get_cur_time();
     plasma_parallel_call_2(plasma_pdgeqrf,

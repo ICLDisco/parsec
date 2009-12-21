@@ -93,7 +93,7 @@ dplasma_profiling_output_t* dplasma_prof_events;
 int dplasma_prof_keys_count, dplasma_prof_keys_number;
 dplasma_profiling_key_t* dplasma_prof_keys;
 
-int dplasma_profiling_init( size_t length )
+int dplasma_profiling_init( dplasma_context_t* context, size_t length )
 {
     int i;
 
@@ -115,7 +115,7 @@ int dplasma_profiling_init( size_t length )
  * Release all resources for the tracing. If threads are enabled only
  * the resources related to this thread are released.
  */
-int dplasma_profiling_fini( void )
+int dplasma_profiling_fini( dplasma_context_t* context )
 {
     int i;
 

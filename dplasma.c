@@ -14,6 +14,9 @@ extern char *strdup(const char *);
 #include "dplasma.h"
 #include "scheduling.h"
 #include "atomic.h"
+#ifdef DPLASMA_PROFILING
+#include "profiling.h"
+#endif
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -156,23 +159,35 @@ int dplasma_nb_elements( void )
 /**
  *
  */
-int dplasma_init( int* pargc, char** pargv )
+dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
+    dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t));
+
+    context->nb_cores = nb_cores;
+
 #ifdef DPLASMA_GENERATE_DOT
     printf("digraph G {\n");
 #endif  /* DPLASMA_GENERATE_DOT */
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_init( context, 1024 );
+#endif  /* DPLASMA_PROFILING */
     return 0;
 }
 
 /**
  *
  */
-int dplasma_fini( void )
+int dplasma_fini( dplasma_context_t** context )
 {
 #ifdef DPLASMA_GENERATE_DOT
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_fini( *context );
+#endif  /* DPLASMA_PROFILING */
 
+    free(*context);
+    *context = NULL;
     return 0;
 }
 
