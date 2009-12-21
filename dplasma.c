@@ -518,7 +518,15 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
                                             (const expr_t**)function->preds,
                                             exec_context->locals );
         if( 0 != rc ) {
-            /* This is not a valid value for this parameter. Try the next one */
+            /* This is a valid value for this parameter, but it is executed 
+             * on a remote resource according to the data mapping 
+             */
+            if(EXPR_FAILURE_CANNOT_EVALUATE_RANGE == rc)
+            {
+                dplasma_release_remote_OUT_dependencies(origin, origin_param, i, exec_context, dest_param);
+            }
+            /* This is not a valid value for this parameter on this host. 
+             * Try the next one */
         pick_next_value:
             exec_context->locals[i].value++;
             if( exec_context->locals[i].value > exec_context->locals[i].max ) {
@@ -725,5 +733,98 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
     }
  end_of_all_loops:
 
+    return 0;
+}
+
+
+int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* origin,
+                                             const param_t* origin_param, int dep,
+                                             dplasma_execution_context_t* exec_context,
+                                             const param_t* dest_param )
+{
+#ifdef _DEBUG
+    char tmp[128];
+    char tmp2[128];
+    dplasma_t* function = exec_context->function;
+#endif
+    int i, pred_index;
+    int mpi_rank;
+    int ranks[2] = { -1, -1 };
+    const expr_t **predicates = (const expr_t**) exec_context->function->preds;
+    expr_t *expr;
+    symbol_t *symbols[2];
+    symbols[0] = dplasma_search_global_symbol( "colRANK" );
+    symbols[1] = dplasma_search_global_symbol( "rowRANK" );
+    int gridcols;
+        
+    assert(NULL != symbols[0]);
+    assert(NULL != symbols[1]);
+    
+#ifdef D_DEBUG
+    symbol_dump_all("ALL SYMBOLS::::");
+    
+    DEBUG(("REMOTE DEPENDENCY DETECTED %s (var %s=%d violates locality predicate) - from %s\n", dplasma_service_to_string(exec_context, tmp, 128), function->locals[dep]->name, exec_context->locals[dep].value, dplasma_service_to_string(origin, tmp2, 128)));
+    for(i = 0; i < function->nb_locals; i++)
+    {
+        symbol_dump(function->locals[i], "DEP VAR:\t");
+    }
+#endif
+    
+    /* compute matching colRank and rowRank from predicates */
+    for( pred_index = 0;
+        (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
+        pred_index++ ) 
+    {
+        for( i = 0; i < 2; i++ ) 
+        {            
+            if( EXPR_SUCCESS != expr_depend_on_symbol(predicates[pred_index], symbols[i]) )
+            {
+                DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n"));
+                continue;
+            }
+            assert(EXPR_IS_BINARY(predicates[pred_index]->op));
+            
+            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, symbols[i]) )
+            {
+                expr = predicates[pred_index]->bop2;
+            }
+            else
+            {                    
+                expr = predicates[pred_index]->bop1;
+            }
+            
+            assert(ranks[i] == -1);
+            DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n"));
+            if( EXPR_SUCCESS != expr_eval(expr,
+                                          exec_context->locals, MAX_LOCAL_COUNT,
+                                          &ranks[i]) ) 
+            {
+                DEBUG(("EVAL FAILED FOR EXPR\t"));
+                expr_dump(stderr, expr);
+                DEBUG(("\n"));
+                return -1;
+            }
+        }
+    }
+    assert((ranks[0] != -1) && (ranks[1] != -1));
+        
+    expr = (expr_t *) dplasma_search_global_symbol("GRIDcols");
+    assert(NULL != expr);
+    expr = ((symbol_t *) expr)->min;
+    if (EXPR_SUCCESS != expr_eval(expr, NULL, 0, &gridcols) )
+    {
+        DEBUG(("EVAL FAILED FOR EXPR\t"));
+        expr_dump(stdout, expr);
+        DEBUG(("\n"));
+    }
+
+    mpi_rank = ranks[0] + ranks[1] * gridcols;
+    
+    DEBUG(("Process RANK %d is responsible for task %s\n", mpi_rank, dplasma_service_to_string(exec_context, tmp, 128) ));
+    
+#if 0        
+    MPI_Send();
+/*    rrank = dplasma_get_rank_for_tile(DDesc, m, n);*/
+#endif
     return 0;
 }

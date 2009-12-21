@@ -24,7 +24,7 @@ dist_exec: $(OBJECTS) $(CHOLESKY_OBJECTS)
 
 
 cholesky_mpi.c: cholesky_mpi.jdf ../../dpc
-	../../dpc cholesky_mpi.jdf > cholesky_mpi.c
+	../../dpc cholesky_mpi.jdf cholesky_mpi.c
 
 
 
