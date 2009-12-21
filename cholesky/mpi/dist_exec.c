@@ -29,10 +29,6 @@
 #include "data_management.h"
 
 
-//extern FILE *yyin;
-//extern int yyparse();
-extern int load_dplasma_hooks( void );
-
 
 double time_elapsed, GFLOPS;
 
@@ -49,7 +45,6 @@ DPLASMA_desc descA;
 
 int check_factorization(int, double*, double*, int, int , double);
 int check_solution(int, int, double*, int, double*, double*, int, double);
-
 
 int main(int argc, char ** argv){
     /* local variables*/
@@ -75,7 +70,7 @@ int main(int argc, char ** argv){
     double *D;
     MPI_Request * requests;
     int req_count;
-    //    char * lexfile = "../cholesky.jdf";
+    dplasma_context_t* dplasma;
 
     struct option long_options[] =
         {
@@ -101,6 +96,7 @@ int main(int argc, char ** argv){
 
     /* plasma initialization */
     PLASMA_Init(cores);
+    
     
     /* parse arguments */
     descA.GRIDrows = 1;
@@ -155,13 +151,6 @@ int main(int argc, char ** argv){
         }
         
     }
-    
-/*     yyin = fopen(lexfile, "r"); */
-/*     if(NULL == yyin) */
-/*     { */
-/*         perror("opening JDF file"); */
-/*         MPI_Abort(MPI_COMM_WORLD, 2); */
-/*     } */
     
     if (N == 0)
     {
@@ -221,9 +210,11 @@ int main(int argc, char ** argv){
     /* checking local data ready */
     is_data_distributed(&descA, requests, req_count);
 
-    /* dplasma_lineno = 1;*/
+
+
     time_elapsed = get_cur_time();
-    load_dplasma_objects();
+    dplasma = dplasma_init(cores, NULL, NULL );
+    load_dplasma_objects(dplasma);
     {
         expr_t* constant;
 
@@ -240,7 +231,7 @@ int main(int argc, char ** argv){
         constant = expr_new_int( descA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
     }
-    load_dplasma_hooks();
+    load_dplasma_hooks(dplasma);
     enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",1,descA.n,descA.nb,time_elapsed);
@@ -264,9 +255,9 @@ int main(int argc, char ** argv){
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
-        dplasma_schedule(&exec_context);
+        dplasma_schedule(dplasma, &exec_context);
     }
-    dplasma_progress();
+    dplasma_progress(dplasma);
     time_elapsed = get_cur_time() - time_elapsed;
 
     gather_data(&local_desc, &descA);
