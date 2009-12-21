@@ -34,6 +34,13 @@ static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
            (end.tv_nsec - start.tv_nsec);
     return diff;
 }
+
+static int time_less( dplasma_time_t start, dplasma_time_t end )
+{
+    return start.tv_sec < end.tv_sec ||
+        (start.tv_sec == end.tv_sec &&
+         start.tv_usec < end.tv_usec);
+}
 #elif defined(__IA64)
 typedef uint64_t dplasma_time_t;
 static inline dplasma_time_t take_time(void)
@@ -46,6 +53,10 @@ static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     return (end - start);
 }
+static int time_less( dplasma_time_t start, dplasma_time_t end )
+{
+    return start < end;
+}
 #elif defined(__X86)
 typedef uint64_t dplasma_time_t;
 static inline dplasma_time_t take_time(void)
@@ -57,6 +68,10 @@ static inline dplasma_time_t take_time(void)
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     return (end - start);
+}
+static int time_less( dplasma_time_t start, dplasma_time_t end )
+{
+    return start < end;
 }
 #else
 #include <sys/time.h>
@@ -74,6 +89,12 @@ static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
     diff = (end.tv_sec - start.tv_sec) * 1000000 +
            (end.tv_usec - start.tv_usec);
     return diff;
+}
+static int time_less( dplasma_time_t start, dplasma_time_t end )
+{
+    return start.tv_sec < end.tv_sec ||
+        (start.tv_sec == end.tv_sec &&
+         start.tv_usec < end.tv_usec);
 }
 #endif
 
@@ -226,52 +247,58 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "  </script>\n",
             tooltip_script);
 
-        for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
-            profile = context->execution_units[thread_id].eu_profile;
-            gaps = 0.0;
-            gaps_last = 0.0;
+    relative = context->execution_units[0].eu_profile->events[0].timestamp;
+    for( thread_id = 1; thread_id < context->nb_cores; thread_id++ ) {
+        if( time_less(context->execution_units[0].eu_profile->events[0].timestamp, relative) ) {
             relative = profile->events[0].timestamp;
-            total_time = diff_time(relative, profile->events[profile->events_count-1].timestamp);
-            last = diff_time( relative, profile->events[1].timestamp );
-            for( i = 0; i < profile->events_count; i+=2 ) {
-                start = diff_time( relative, profile->events[i].timestamp );
-                end = diff_time( relative, profile->events[i+1].timestamp );
-                tag = profile->events[i].key / 2;
-            
-                gaps += start - gaps_last;
-                gaps_last = end;
-                
-                if( last < end ) last = end;
-            
-                fprintf(tracefile,
-                        "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\">\n"
-                        "       <title>%s</title>\n"
-                        "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
-                        "    </rect>\n",                
-                        start * scale,
-                        thread_id * 100.0 + 1.0,
-                        (end - start) * scale,
-                        98.0,
-                        dplasma_prof_keys[tag].attributes,
-                        dplasma_prof_keys[tag].name,
-                        (double)end-(double)start,
-                        100.0 * ( (double)end-(double)start) / (double)total_time);
-                
-                printf("Found %.4lf ticks gaps out of %.4lf (%.2lf%%)\n", gaps,
-                       last, (gaps * 100.0) / last);
-            }
         }
-        fprintf(tracefile, 
-                "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>\n"
-                "    <rect id='tipbox' x='0' y='5' width='88' height='20' rx='2' ry='2' fill='white' stroke='black'/>\n"
-                "    <text id='tipText' x='5' y='20' font-family='Arial' font-size='12'>\n"
-                "      <tspan id='tipTitle' x='5' font-weight='bold'><![CDATA[]]></tspan>\n"
-                "      <tspan id='tipDesc' x='5' dy='1.2em' fill='blue'><![CDATA[]]></tspan>\n"
-                "    </text>\n"
-                "  </g>\n"
-                "</svg>\n");
+    }
+
+    for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
+        profile = context->execution_units[thread_id].eu_profile;
+        gaps = 0.0;
+        gaps_last = 0.0;
+        total_time = diff_time(relative, profile->events[profile->events_count-1].timestamp);
+        last = diff_time( relative, profile->events[1].timestamp );
+        for( i = 0; i < profile->events_count; i+=2 ) {
+            start = diff_time( relative, profile->events[i].timestamp );
+            end = diff_time( relative, profile->events[i+1].timestamp );
+            tag = profile->events[i].key / 2;
+            
+            gaps += start - gaps_last;
+            gaps_last = end;
+            
+            if( last < end ) last = end;
+            
+            fprintf(tracefile,
+                    "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\">\n"
+                    "       <title>%s</title>\n"
+                    "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
+                    "    </rect>\n",                
+                    start * scale,
+                    thread_id * 100.0 + 1.0,
+                    (end - start) * scale,
+                    98.0,
+                    dplasma_prof_keys[tag].attributes,
+                    dplasma_prof_keys[tag].name,
+                    (double)end-(double)start,
+                    100.0 * ( (double)end-(double)start) / (double)total_time);
+            
+            printf("Found %.4lf ticks gaps out of %.4lf (%.2lf%%)\n", gaps,
+                   last, (gaps * 100.0) / last);
+        }
+    }
+    fprintf(tracefile, 
+            "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>\n"
+            "    <rect id='tipbox' x='0' y='5' width='88' height='20' rx='2' ry='2' fill='white' stroke='black'/>\n"
+            "    <text id='tipText' x='5' y='20' font-family='Arial' font-size='12'>\n"
+            "      <tspan id='tipTitle' x='5' font-weight='bold'><![CDATA[]]></tspan>\n"
+            "      <tspan id='tipDesc' x='5' dy='1.2em' fill='blue'><![CDATA[]]></tspan>\n"
+            "    </text>\n"
+            "  </g>\n"
+            "</svg>\n");
     fclose(tracefile);
-        
+    
     return 0;
 }
 
