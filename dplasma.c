@@ -14,6 +14,9 @@ extern char *strdup(const char *);
 #include "dplasma.h"
 #include "scheduling.h"
 #include "atomic.h"
+#ifdef DPLASMA_PROFILING
+#include "profiling.h"
+#endif
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -156,23 +159,37 @@ int dplasma_nb_elements( void )
 /**
  *
  */
-int dplasma_init( int* pargc, char** pargv )
+dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
+    dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t)+
+                                                            nb_cores * sizeof(dplasma_execution_unit_t));
+
+    context->nb_cores = nb_cores;
+    context->eu_waiting = 0;
+
 #ifdef DPLASMA_GENERATE_DOT
     printf("digraph G {\n");
 #endif  /* DPLASMA_GENERATE_DOT */
-    return 0;
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_init( context, 1024 );
+#endif  /* DPLASMA_PROFILING */
+    return context;
 }
 
 /**
  *
  */
-int dplasma_fini( void )
+int dplasma_fini( dplasma_context_t** context )
 {
 #ifdef DPLASMA_GENERATE_DOT
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_fini( *context );
+#endif  /* DPLASMA_PROFILING */
 
+    free(*context);
+    *context = NULL;
     return 0;
 }
 
@@ -489,7 +506,8 @@ int dplasma_is_valid( dplasma_execution_context_t* exec_context )
 /**
  * Release all OUT dependencies for this particular instance of the service.
  */
-int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
+int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
+                                      const dplasma_execution_context_t* origin,
                                       const param_t* origin_param,
                                       dplasma_execution_context_t* exec_context,
                                       const param_t* dest_param )
@@ -641,7 +659,7 @@ int dplasma_release_OUT_dependencies( const dplasma_execution_context_t* origin,
             /* This service is ready to be executed as all dependencies are solved. Let the
              * scheduler knows about this and keep going.
              */
-            dplasma_schedule(exec_context);
+            __dplasma_schedule(eu_context, exec_context);
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
