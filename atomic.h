@@ -53,6 +53,8 @@ static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
 }
 #endif
 
+#include <assert.h>
+
 static inline int dplasma_atomic_cas_xxb( volatile void* location,
                                           uint64_t old_value,
                                           uint64_t new_value,

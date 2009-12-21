@@ -29,8 +29,8 @@ static inline dplasma_time_t take_time(void)
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     uint64_t diff;
-    diff = (start.tv_sec - end.tv_sec) * 1000000 +
-           (start.tv_nsec - end.tv_nsec);
+    diff = (end.tv_sec - start.tv_sec) * 1000000 +
+           (end.tv_nsec - start.tv_nsec);
     return diff;
 }
 #elif defined(__IA64)
@@ -43,7 +43,7 @@ static inline dplasma_time_t take_time(void)
 }
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
-    return (end - time);
+    return (end - start);
 }
 #elif defined(__X86)
 typedef uint64_t dplasma_time_t;
@@ -70,8 +70,8 @@ static inline dplasma_time_t take_time(void)
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     uint64_t diff;
-    diff = (start.tv_sec - end.tv_sec) * 1000000 +
-           (start.tv_usec - end.tv_usec);
+    diff = (end.tv_sec - start.tv_sec) * 1000000 +
+           (end.tv_usec - start.tv_usec);
     return diff;
 }
 #endif
@@ -160,6 +160,7 @@ int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* 
 
     dplasma_prof_keys[pos].name = strdup(key_name);
     dplasma_prof_keys[pos].attributes = strdup(attributes);
+
     *key_start = 2 * pos;
     *key_end = 2 * pos + 1;
     dplasma_prof_keys_count++;
@@ -188,8 +189,8 @@ int dplasma_profiling_dump_svg( const char* filename )
     FILE* tracefile;
     uint64_t start, end;
     dplasma_time_t relative;
-    double scale = 0.0001, gaps = 0.0, gaps_last = 0.0, last;
-    int i, tag, core, color;
+    double scale = 0.01, gaps = 0.0, gaps_last = 0.0, last;
+    int i, tag, core;
 
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -205,13 +206,13 @@ int dplasma_profiling_dump_svg( const char* filename )
             "<svg width=\"50000\" height=\"%d\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n",
             400 * (core+1));
 
-    relative = dplasma_prof_events[0].timestamp;
+    relative = dplasma_prof_events[1].timestamp;
+    printf("relative = %llu\n", relative);
     last = diff_time( relative, dplasma_prof_events[0].timestamp );
-    for( i = 0; i < dplasma_prof_events_count; i+=2 ) {
+    for( i = 1; i < dplasma_prof_events_count; i+=2 ) {
         start = diff_time( relative, dplasma_prof_events[i].timestamp );
         end = diff_time( relative, dplasma_prof_events[i+1].timestamp );
-        color = dplasma_prof_events[i].key;
-        tag = (dplasma_prof_events[i].key >> 1);
+        tag = dplasma_prof_events[i].key / 2;
 
         gaps += start - gaps_last;
         gaps_last = end;
