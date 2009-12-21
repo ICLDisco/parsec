@@ -549,6 +549,12 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
             fprintf(out, "  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
             current_line++;
         }
+        fprintf(out, "  /* remove warnings in case the variable is not used later */\n");
+        current_line++;
+        for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+            fprintf(out, "  (void)%s;\n", d->locals[i]->name);
+            current_line++;
+        }
             
         body_lines = nblines(d->body);
 
