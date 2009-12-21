@@ -30,7 +30,7 @@ static inline dplasma_time_t take_time(void)
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     uint64_t diff;
-    diff = (end.tv_sec - start.tv_sec) * 1000000 +
+    diff = (end.tv_sec - start.tv_sec) * 1000000000 +
            (end.tv_nsec - start.tv_nsec);
     return diff;
 }
@@ -39,7 +39,7 @@ static int time_less( dplasma_time_t start, dplasma_time_t end )
 {
     return start.tv_sec < end.tv_sec ||
         (start.tv_sec == end.tv_sec &&
-         start.tv_usec < end.tv_usec);
+         start.tv_nsec < end.tv_nsec);
 }
 #elif defined(__IA64)
 typedef uint64_t dplasma_time_t;
