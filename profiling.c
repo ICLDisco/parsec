@@ -12,6 +12,7 @@
 #include "profiling.h"
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "atomic.h"
 #include "tooltip.h"
@@ -230,7 +231,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
     dplasma_time_t relative, latest;
     double scale, gaps, gaps_last, last, total_time;
     dplasma_eu_profiling_t* profile;
-    int i, thread_id, tag, last_timestamp;
+    int i, thread_id, tag, last_timestamp, key, keyplotted, nplot;
 
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -256,7 +257,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "      <desc><![CDATA[]]></desc>\n"
             "    </rect>\n\n",
             WIDTH,
-            context->nb_cores * CORE_STRIDE + 55.0,
+            context->nb_cores * CORE_STRIDE +  dplasma_prof_keys_count*20,
             tooltip_script);
 
     relative = context->execution_units[0].eu_profile->events[0].timestamp;
@@ -315,7 +316,72 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "      <tspan id='tipTitle' x='5' font-weight='bold'><![CDATA[]]></tspan>\n"
             "      <tspan id='tipDesc' x='5' dy='1.2em' fill='blue'><![CDATA[]]></tspan>\n"
             "    </text>\n"
-            "  </g>\n"
+            "  </g>\n");
+
+    nplot = 0;
+    for( key = 0; key < dplasma_prof_keys_count; key++ ) {
+        int key_start = 2*key;
+        int key_end = 2*key + 1;
+
+        keyplotted = 0;
+
+        for(  thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
+            uint64_t time;
+            uint64_t sum = 0;
+            uint64_t sqsum = 0;
+            int nb = 0;
+            double avg, var;
+
+            profile = context->execution_units[thread_id].eu_profile;
+            for( i = 0; i < min(profile->events_count, dplasma_prof_events_number); i+=2 ) {
+                if( profile->events[i].key == key_start ) {
+                    assert( profile->events[i+1].key == key_end);
+
+                    time = diff_time( profile->events[i].timestamp, profile->events[i+1].timestamp );
+                    sum += time;
+                    sqsum += time*time;
+                    nb++;
+                } 
+            }
+            
+            avg = (double) sum / (double) nb;
+            var = (double) sqsum - (double) nb * avg * avg;
+
+            if( !keyplotted && (sum > 0)) {
+                int ptid;
+                fprintf(tracefile,
+                        "  <rect x='%d' y='%d' width='20' height='10' style='%s' />\n"
+                        "  <text x='%d' y='%d'>%s",
+                        (nplot /  dplasma_prof_keys_count) * 400 + 10,
+                        (nplot %  dplasma_prof_keys_count) * 15 + 10 + context->nb_cores * (int)CORE_STRIDE,
+                        dplasma_prof_keys[key].attributes,
+                        (nplot /  dplasma_prof_keys_count) * 400 + 35,
+                        (nplot %  dplasma_prof_keys_count) * 15 + 20 + context->nb_cores * (int)CORE_STRIDE,
+                        dplasma_prof_keys[key].name);
+                for( ptid = 0; ptid < thread_id; ptid++) {
+                    fprintf(tracefile, "nan(nan)%c", (ptid + 1 == context->nb_cores) ? ' ' : '/');
+                }
+                fprintf(tracefile,
+                        "  %.2lf(%.2lf)%c",
+                        avg,
+                        sqrt(var),
+                        (thread_id + 1 == context->nb_cores) ? ' ' : '/');
+                keyplotted = 1;
+                nplot++;
+            } else if( keyplotted ) {
+                fprintf(tracefile,
+                        "  %.2lf(%.2lf)%c",
+                        avg,
+                        sqrt(var),
+                        (thread_id + 1 == context->nb_cores) ? ' ' : '/');
+            }
+        }
+        if( keyplotted ) {
+            fprintf(tracefile, "</text>\n");
+        }
+    }
+
+    fprintf(tracefile,
             "</svg>\n");
     fclose(tracefile);
     
