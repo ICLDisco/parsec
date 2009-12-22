@@ -14,9 +14,9 @@ static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_c
 
 dplasma_atomic_lifo_t ready_list;
 
-static int32_t taskstodo;
+static uint32_t taskstodo;
 
-static void set_tasks_todo(int32_t n)
+static void set_tasks_todo(uint32_t n)
 {
     taskstodo = n;
 }
@@ -68,7 +68,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
 void dplasma_register_nb_tasks(int n)
 {
-    set_tasks_todo((int32_t)n);
+    set_tasks_todo((uint32_t)n);
 }
 
 int dplasma_progress(dplasma_context_t* context)
@@ -78,7 +78,7 @@ int dplasma_progress(dplasma_context_t* context)
     int nbiterations = 0, my_id;
 
     /* Get my Execution Unit context */
-    my_id = dplasma_atomic_inc_32b(&(context->eu_waiting)) - 1;
+    my_id = dplasma_atomic_inc_32b((uint32_t*) &(context->eu_waiting)) - 1;
     eu_context = &(context->execution_units[my_id]);
     eu_context->eu_id = my_id;
 

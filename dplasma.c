@@ -764,6 +764,11 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
     return 0;
 }
 
+#ifdef HEAVY_DEBUG
+#define HDEBUG( args ) do { args } while(0)
+#else
+#define HDEBUG( args ) do {} while(0)
+#endif 
 
 int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* origin,
                                              const param_t* origin_param, int dep,
@@ -773,7 +778,6 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
 #ifdef _DEBUG
     char tmp[128];
     char tmp2[128];
-    dplasma_t* function = exec_context->function;
 #endif
     int i, pred_index;
     int mpi_rank;
@@ -788,7 +792,9 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
     assert(NULL != symbols[0]);
     assert(NULL != symbols[1]);
     
-#ifdef D_DEBUG
+HDEBUG( 
+    dplasma_t* function = exec_context->function;
+        
     symbol_dump_all("ALL SYMBOLS::::");
     
     DEBUG(("REMOTE DEPENDENCY DETECTED %s (var %s=%d violates locality predicate) - from %s\n", dplasma_service_to_string(exec_context, tmp, 128), function->locals[dep]->name, exec_context->locals[dep].value, dplasma_service_to_string(origin, tmp2, 128)));
@@ -796,7 +802,7 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
     {
         symbol_dump(function->locals[i], "DEP VAR:\t");
     }
-#endif
+);
     
     /* compute matching colRank and rowRank from predicates */
     for( pred_index = 0;
@@ -807,7 +813,7 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
         {            
             if( EXPR_SUCCESS != expr_depend_on_symbol(predicates[pred_index], symbols[i]) )
             {
-                DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n"));
+HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
                 continue;
             }
             assert(EXPR_IS_BINARY(predicates[pred_index]->op));
@@ -822,7 +828,7 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
             }
             
             assert(ranks[i] == -1);
-            DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n"));
+HDEBUG(     DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n")));
             if( EXPR_SUCCESS != expr_eval(expr,
                                           exec_context->locals, MAX_LOCAL_COUNT,
                                           &ranks[i]) ) 
@@ -848,7 +854,7 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
 
     mpi_rank = ranks[0] + ranks[1] * gridcols;
     
-    DEBUG(("Process RANK %d is responsible for task %s\n", mpi_rank, dplasma_service_to_string(exec_context, tmp, 128) ));
+    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), mpi_rank ));
     
 #if 0        
     MPI_Send();

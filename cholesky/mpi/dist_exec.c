@@ -57,7 +57,6 @@ int main(int argc, char ** argv){
     int LDB = 0;
     double eps;
     PLASMA_enum uplo;
-    int info;
     int info_solution, info_factorization;
     int NminusOne; /* = N-1;*/
     int LDBxNRHS; /* = LDB*NRHS;*/
