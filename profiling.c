@@ -223,10 +223,10 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 {
     FILE* tracefile;
     uint64_t start, end;
-    dplasma_time_t relative;
-    double scale = 0.0000025, gaps, gaps_last, last, total_time;
+    dplasma_time_t relative, latest;
+    double scale, gaps, gaps_last, last, total_time;
     dplasma_eu_profiling_t* profile;
-    int i, thread_id, tag;
+    int i, thread_id, tag, last_timestamp;
 
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -248,11 +248,20 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             tooltip_script);
 
     relative = context->execution_units[0].eu_profile->events[0].timestamp;
+    last_timestamp = context->execution_units[0].eu_profile->events_count - 1;
+    latest = context->execution_units[0].eu_profile->events[last_timestamp].timestamp;
     for( thread_id = 1; thread_id < context->nb_cores; thread_id++ ) {
-        if( time_less(context->execution_units[0].eu_profile->events[0].timestamp, relative) ) {
+        profile = context->execution_units[thread_id].eu_profile;
+
+        if( time_less(profile->events[0].timestamp, relative) ) {
             relative = profile->events[0].timestamp;
         }
+        last_timestamp = profile->events_count;
+        if( time_less( latest, profile->events[last_timestamp].timestamp) ) {
+            latest = profile->events[last_timestamp].timestamp;
+        }
     }
+    scale = diff_time(relative, latest) / 3000000.0;
 
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
