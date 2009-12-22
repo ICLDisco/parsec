@@ -16,6 +16,10 @@
 #include "atomic.h"
 #include "tooltip.h"
 
+#define WIDTH 800.0
+#define CORE_STRIDE 25.0
+
+#define min(a, b) ((a)<(b)?(a):(b))
 #if defined(__gnu_linux__) && !defined INTEL 
 #include <unistd.h>
 #include <time.h>
@@ -241,14 +245,22 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "  onload='Init(evt)'\n"
             "  onmousemove='GetTrueCoords(evt); ShowTooltip(evt, true)'\n"
             "  onmouseout='ShowTooltip(evt, false)'\n"
+            "  width='%lf'\n"
+            "  height='%lf'\n"
             ">\n"
             "  <script type=\"text/ecmascript\">\n"
             "    <![CDATA[%s]]>\n"
-            "  </script>\n",
+            "  </script>\n"
+            "    <rect x='0' y='0' width='100%%' height='100%%' fill='white'>\n"
+            "      <title><![CDATA[]]></title>\n"
+            "      <desc><![CDATA[]]></desc>\n"
+            "    </rect>\n\n",
+            WIDTH,
+            context->nb_cores * CORE_STRIDE + 55.0,
             tooltip_script);
 
     relative = context->execution_units[0].eu_profile->events[0].timestamp;
-    last_timestamp = context->execution_units[0].eu_profile->events_count - 1;
+    last_timestamp = min(context->execution_units[0].eu_profile->events_count - 1, dplasma_prof_events_number-1);
     latest = context->execution_units[0].eu_profile->events[last_timestamp].timestamp;
     for( thread_id = 1; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
@@ -256,20 +268,20 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
         if( time_less(profile->events[0].timestamp, relative) ) {
             relative = profile->events[0].timestamp;
         }
-        last_timestamp = profile->events_count;
+        last_timestamp = min(profile->events_count, dplasma_prof_events_number);
         if( time_less( latest, profile->events[last_timestamp].timestamp) ) {
             latest = profile->events[last_timestamp].timestamp;
         }
     }
-    scale = 3000.0 / diff_time(relative, latest);
+    scale = WIDTH / diff_time(relative, latest);
 
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
         gaps = 0.0;
         gaps_last = 0.0;
-        total_time = diff_time(relative, profile->events[profile->events_count-1].timestamp);
+        total_time = diff_time(relative, profile->events[min(profile->events_count-1, dplasma_prof_events_number-1)].timestamp);
         last = diff_time( relative, profile->events[1].timestamp );
-        for( i = 0; i < profile->events_count; i+=2 ) {
+        for( i = 0; i < min(profile->events_count, dplasma_prof_events_number); i+=2 ) {
             start = diff_time( relative, profile->events[i].timestamp );
             end = diff_time( relative, profile->events[i+1].timestamp );
             tag = profile->events[i].key / 2;
@@ -285,9 +297,9 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                     "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
                     "    </rect>\n",                
                     start * scale,
-                    thread_id * 27.0 + 1.0,
+                    thread_id * CORE_STRIDE + 2.0,
                     (end - start) * scale,
-                    25.0,
+                    CORE_STRIDE,
                     dplasma_prof_keys[tag].attributes,
                     dplasma_prof_keys[tag].name,
                     (double)end-(double)start,
