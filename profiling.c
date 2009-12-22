@@ -231,7 +231,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
     dplasma_time_t relative, latest;
     double scale, gaps, gaps_last, last, total_time;
     dplasma_eu_profiling_t* profile;
-    int i, thread_id, tag, last_timestamp, key, keyplotted, nplot;
+    int i, thread_id, tag, last_timestamp, key, keyplotted, nplot, foundone;
 
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -260,20 +260,30 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             context->nb_cores * CORE_STRIDE +  dplasma_prof_keys_count*20,
             tooltip_script);
 
-    relative = context->execution_units[0].eu_profile->events[0].timestamp;
-    last_timestamp = min(context->execution_units[0].eu_profile->events_count - 1, dplasma_prof_events_number-1);
-    latest = context->execution_units[0].eu_profile->events[last_timestamp].timestamp;
-    for( thread_id = 1; thread_id < context->nb_cores; thread_id++ ) {
+    foundone = 0;
+    for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
 
-        if( time_less(profile->events[0].timestamp, relative) ) {
-            relative = profile->events[0].timestamp;
+        if( profile->events_count == 0 ) {
+            continue;
         }
-        last_timestamp = min(profile->events_count, dplasma_prof_events_number);
-        if( time_less( latest, profile->events[last_timestamp].timestamp) ) {
-            latest = profile->events[last_timestamp].timestamp;
+
+        if( !foundone ) {
+            relative = profile->events[0].timestamp;
+            last_timestamp = min(profile->events_count, dplasma_prof_events_number) - 1;
+            latest   = profile->events[last_timestamp].timestamp;
+            foundone = 1;
+        } else {
+            if( time_less(profile->events[0].timestamp, relative) ) {
+                relative = profile->events[0].timestamp;
+            }
+            last_timestamp = min(profile->events_count, dplasma_prof_events_number) - 1;
+            if( time_less( latest, profile->events[last_timestamp].timestamp) ) {
+                latest = profile->events[last_timestamp].timestamp;
+            }
         }
     }
+
     scale = WIDTH / diff_time(relative, latest);
 
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
