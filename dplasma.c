@@ -17,7 +17,7 @@ extern char *strdup(const char *);
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
-#include "dependency_management.h"
+#include "remote_dep.h"
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -552,7 +552,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
              */
             if(EXPR_FAILURE_CANNOT_EVALUATE_RANGE == rc)
             {
-                dplasma_dependency_management_activate_remote(dplasma_execution_unit_t* eu_context, origin, origin_param, exec_context, dest_param);
+                dplasma_remote_dep_activate(eu_context, origin, origin_param, exec_context, dest_param);
             }
             /* This is not a valid value for this parameter on this host. 
              * Try the next one */

@@ -5,7 +5,6 @@
  */
 
 #include "remote_dep.h"
-#include <mpi.h>
 
 enum {
     REMOTE_DEP_ACTIVATE_TAG,
@@ -13,44 +12,82 @@ enum {
     REMOTE_DEP_PUT_DATA_TAG,
 } dplasma_remote_dep_tag_t;
 
-static MPI_Comm dep_comm;
-static MPI_Request dep_req;
-#define dep_dtt MPI_BYTE
-static dplasma_execution_context_t dep_buff
+static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context, 
+                                        const dplasma_execution_context_t* origin,
+                                        dplasma_execution_context_t* exec_context );
 
-int dplasma_dependency_management_init(void)
+#ifdef USE_MPI
+
+#include "remote_dep_mpi.c" 
+
+#else 
+
+/* This is just failsafe, to compile when no transport is selected.
+ *  In this mode, remote dependencies don't work, 
+ *  use it only for single node shared memory multicore
+ */
+
+int dplasma_dependency_management_init(dplasma_execution_unit_t* eu_context)
 {
-    MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
-    MPI_Irecv_init(&dep_buff, 1, dep_dtt, MPI_ANY_SOURCE, DEP_ACTIVATE_TAG, dep_comm, &dep_req);
-    MPI_Start(&dep_req, 1);
+    return 0;
 }
 
-int dplasma_dependency_management_fini(void)
+int dplasma_dependency_management_fini(dplasma_execution_unit_t* eu_context)
 {
-    MPI_Request_cancel(&dep_req);
-    MPI_Request_free(&dep_req);
-    MPI_Comm_free(&dep_comm);
+    return 0;
 }
 
-    
-#ifdef HEAVY_DEBUG
-#define HDEBUG( args ) do { args } while(0)
-#else
-#define HDEBUG( args ) do {} while(0)
-#endif 
-    
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* origin,
                                 const param_t* origin_param,
                                 dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param )
 {
+    /* return some error and be loud
+     * we should never get called in multicore mode */
+    char tmp[128];
+    char tmp2[128];
+    int i;
+    dplasma_t* function = exec_context->function;
+           
+    DEBUG(("/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be done somewhere else. Remote dependencies are not enabled in this build!\n", dplasma_service_to_string(origin, tmp, 128), dplasma_service_to_string(exec_context, tmp2, 128)));
+    for(i = 0; i < function->nb_locals; i++)
+    {
+        symbol_dump(function->locals[i], "\tPREDICATE VARS:\t");
+    }
+    symbol_dump_all("\tALL SYMBOLS:\t");
+    return -1;
+}
+    
+
+int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
+{
+    return 0;
+}
+
+#endif
+
+
+
+
+
+
+#ifdef HEAVY_DEBUG
+#define HDEBUG( args ) do { args } while(0)
+#else
+#define HDEBUG( args ) do {} while(0)
+#endif 
+
+static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
+                                        const dplasma_execution_context_t* origin,
+                                        dplasma_execution_context_t* exec_context)
+{
 #ifdef _DEBUG
     char tmp[128];
     char tmp2[128];
 #endif
     int i, pred_index;
-    int mpi_rank;
+    int rank;
     int ranks[2] = { -1, -1 };
     const expr_t **predicates = (const expr_t**) exec_context->function->preds;
     expr_t *expr;
@@ -61,19 +98,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     
     assert(NULL != symbols[0]);
     assert(NULL != symbols[1]);
-    
-HDEBUG( 
-    dplasma_t* function = exec_context->function;
-           
-    symbol_dump_all("ALL SYMBOLS::::");
-           
-    DEBUG(("REMOTE DEPENDENCY DETECTED %s (var %s=%d violates locality predicate) - from %s\n", dplasma_service_to_string(exec_context, tmp, 128), function->locals[dep]->name, exec_context->locals[dep].value, dplasma_service_to_string(origin, tmp2, 128)));
-    for(i = 0; i < function->nb_locals; i++)
-    {
-        symbol_dump(function->locals[i], "DEP VAR:\t");
-    }
-);
-    
+
     /* compute matching colRank and rowRank from predicates */
     for( pred_index = 0;
         (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
@@ -122,31 +147,10 @@ HDEBUG(     DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n")));
         DEBUG(("\n"));
     }
     
-    mpi_rank = ranks[0] + ranks[1] * gridcols;
+    rank = ranks[0] + ranks[1] * gridcols;
     
-    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), mpi_rank ));
+    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
     
-    MPI_Send(origin, sizeof(origin), dep_dtt, mpi_rank, DEP_ACTIVATE_TAG, dep_comm);
-    
-    return 0;
-}
-
-int dplasma_dependency_management_test_activation(DPLASMA_desc *Ddesc, dplasma_execution_context_t *new)
-{
-    MPI_Status status;
-    int flag;
-    
-    MPI_Test(&dep_req, &flag, &status);
-    if(flag)
-    {
-        
-        
-    }
-    else
-    {
-        new = NULL; 
-        
-    }
-    
+    return rank;
 }
 
