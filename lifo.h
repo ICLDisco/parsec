@@ -27,9 +27,9 @@ typedef struct dplasma_atomic_lifo_t {
  * compare-and-swap. On most architectures the reading of a pointer is an
  * atomic operation so we don't have to protect it.
  */
-static inline bool dplasma_atomic_lifo_is_empty( dplasma_atomic_lifo_t* lifo )
+static inline int dplasma_atomic_lifo_is_empty( dplasma_atomic_lifo_t* lifo )
 {
-    return (lifo->lifo_head == &(lifo->lifo_ghost) ? true : false);
+    return (lifo->lifo_head == &(lifo->lifo_ghost) ? 1 : 0);
 }
 
 /* Add one element to the LIFO. We will return the last head of the list
