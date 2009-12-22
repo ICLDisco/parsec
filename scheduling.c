@@ -150,6 +150,7 @@ int dplasma_progress(dplasma_context_t* context)
     /* Get my Execution Unit context */
     my_id = dplasma_atomic_inc_32b(&(context->eu_waiting)) - 1;
     eu_context = &(context->execution_units[my_id]);
+    eu_context->eu_id = my_id;
 
     while( !all_tasks_done() ) {
 
