@@ -159,6 +159,7 @@ int dplasma_nb_elements( void )
 /**
  *
  */
+extern dplasma_atomic_lifo_t ready_list;
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t)+
@@ -173,6 +174,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( context, 1024 );
 #endif  /* DPLASMA_PROFILING */
+
+    dplasma_atomic_lifo_construct(&ready_list);
+
     return context;
 }
 

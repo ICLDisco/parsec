@@ -6,31 +6,13 @@
 
 #include "scheduling.h"
 #include <string.h>
-#include "atomic.h"
+#include "lifo.h"
 
 static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
 #define DEPTH_FIRST_SCHEDULE 0
 
-#ifdef MAC_OS_X
-#include <libkern/OSAtomic.h>
-
-static OSQueueHead ready_list = OS_ATOMIC_QUEUE_INIT;
-
-static void atomic_push(dplasma_execution_context_t *n)
-{
-    OSAtomicEnqueue( &ready_list, n, offsetof(dplasma_execution_context_t, next) );
-}
-
-static dplasma_execution_context_t *atomic_pop(void)
-{
-    dplasma_execution_context_t *l;
-    l = OSAtomicDequeue( &ready_list, offsetof(dplasma_execution_context_t, next) );
-    if( l != NULL ) {
-        l->next = NULL;
-    }
-    return l;
-}
+dplasma_atomic_lifo_t ready_list;
 
 static int32_t taskstodo;
 
@@ -46,60 +28,8 @@ static int all_tasks_done(void)
 
 static void done_task()
 {
-    OSAtomicDecrement32(&taskstodo);
+    dplasma_atomic_dec_32b(&taskstodo);
 }
-#else
-#include <pthread.h>
-static pthread_mutex_t default_lock = PTHREAD_MUTEX_INITIALIZER;
-static dplasma_execution_context_t* ready_list = NULL;
-
-static void atomic_push(dplasma_execution_context_t *n)
-{
-    pthread_mutex_lock(&default_lock);
-    n->next = ready_list;
-    ready_list = n;
-    pthread_mutex_unlock(&default_lock);
-}
-
-static dplasma_execution_context_t *atomic_pop(void)
-{
-    dplasma_execution_context_t *h;
-    pthread_mutex_lock(&default_lock);
-    h = ready_list;
-    if( h != NULL ) {
-        ready_list = ready_list->next;
-        h->next = NULL;
-    }
-    pthread_mutex_unlock(&default_lock);
-    return h;
-}
-
-static int taskstodo;
-static pthread_mutex_t taskstodo_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static void set_tasks_todo(int n)
-{
-    pthread_mutex_lock(&taskstodo_lock);
-    taskstodo = n;
-    pthread_mutex_unlock(&taskstodo_lock);
-}
-
-static int all_tasks_done(void)
-{
-    int r;
-    pthread_mutex_lock(&taskstodo_lock);
-    r = (taskstodo == 0);
-    pthread_mutex_unlock(&taskstodo_lock);
-    return r;
-}
-
-static void done_task()
-{
-    pthread_mutex_lock(&taskstodo_lock);
-    taskstodo--;
-    pthread_mutex_unlock(&taskstodo_lock);
-}
-#endif
 
 /**
  * Schedule the instance of the service based on the values of the
@@ -128,7 +58,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
-    atomic_push(new_context);
+    dplasma_atomic_lifo_push( &ready_list, (dplasma_list_item_t*)new_context);
     return 0;
 #else
     printf( "This internal version of the dplasma_schedule is not supposed to be called\n");
@@ -155,7 +85,7 @@ int dplasma_progress(dplasma_context_t* context)
     while( !all_tasks_done() ) {
 
         /* extract the first exeuction context from the ready list */
-        exec_context = atomic_pop();
+        exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(ready_list));
 
         if( exec_context != NULL ) {
             /* We're good to go ... */

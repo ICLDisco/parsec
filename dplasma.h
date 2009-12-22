@@ -20,6 +20,7 @@ typedef struct dplasma_t dplasma_t;
 #include "params.h"
 #include "dep.h"
 #include "execution_unit.h"
+#include "lifo.h"
 
 #ifdef _DEBUG
 #define DEBUG(ARG)  printf ARG
@@ -75,8 +76,8 @@ struct dplasma_t {
 };
 
 struct dplasma_execution_context_t {
+    dplasma_list_item_t list_item;
     dplasma_t*   function;
-    dplasma_execution_context_t* next;
     assignment_t locals[MAX_LOCAL_COUNT];
 };
 
