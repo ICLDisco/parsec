@@ -25,10 +25,10 @@ dpc: $(LIBRARY_OBJECTS) $(COMPILER_OBJECTS) dpc.o
 	$(LINKER) -o $@ $^ $(LDFLAGS)
 
 grapher: $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS)
-	$(CLINKER) -o $@ $^ $(LDFLAGS)
+	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
-	$(CLINKER) -o $@ $^ $(LDFLAGS)
+	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 cholesky/cholesky.c: cholesky/cholesky.jdf dpc
 	./dpc ./cholesky/cholesky.jdf cholesky/cholesky.c
