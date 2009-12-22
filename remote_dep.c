@@ -48,14 +48,16 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     char tmp[128];
     char tmp2[128];
     int i;
+    int rank;
     dplasma_t* function = exec_context->function;
-           
-    DEBUG(("/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be done somewhere else. Remote dependencies are not enabled in this build!\n", dplasma_service_to_string(origin, tmp, 128), dplasma_service_to_string(exec_context, tmp2, 128)));
+    
+    rank = remote_dep_compute_grid_rank(eu_context, origin, exec_context);
+    DEBUG(("/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be executed on rank %d.\n    Remote dependencies are NOT ENABLED in this build!\n", dplasma_service_to_string(origin, tmp, 128), dplasma_service_to_string(exec_context, tmp2, 128), rank));
     for(i = 0; i < function->nb_locals; i++)
     {
         symbol_dump(function->locals[i], "\tPREDICATE VARS:\t");
     }
-    symbol_dump_all("\tALL SYMBOLS:\t");
+    symbol_dump_all("\tGLOBAL SYMBOLS:\t");
     return -1;
 }
     

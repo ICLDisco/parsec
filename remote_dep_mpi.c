@@ -11,7 +11,7 @@
 #include <mpi.h>
 
 
-/* >>>>TODO: use eu_context instead of ugly globals <<<<<< */
+/* >>>>TODO: smart use of eu_context instead of ugly globals <<<<<< */
 static MPI_Comm dep_comm;
 static MPI_Request dep_req;
 #define dep_dtt MPI_BYTE
