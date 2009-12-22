@@ -261,7 +261,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             latest = profile->events[last_timestamp].timestamp;
         }
     }
-    scale = diff_time(relative, latest) / 3000000.0;
+    scale = 3000.0 / diff_time(relative, latest);
 
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
