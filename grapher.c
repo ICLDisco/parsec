@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+char *strdup(const char *s);
 
 char *yyfilename;
 

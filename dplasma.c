@@ -828,7 +828,7 @@ int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* 
         
     expr = (expr_t *) dplasma_search_global_symbol("GRIDcols");
     assert(NULL != expr);
-    expr = ((symbol_t *) expr)->min;
+    expr = (expr_t *) ((symbol_t *) expr)->min;
     if (EXPR_SUCCESS != expr_eval(expr, NULL, 0, &gridcols) )
     {
         DEBUG(("EVAL FAILED FOR EXPR\t"));

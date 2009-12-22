@@ -159,6 +159,12 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                                       dplasma_execution_context_t* exec_context,
                                       const param_t* dest_param );
 
+int dplasma_release_remote_OUT_dependencies( const dplasma_execution_context_t* origin,
+                                             const param_t* origin_param, int dep,
+                                             dplasma_execution_context_t* exec_context,
+                                             const param_t* dest_param );
+
+
 /**
  * Check is there is any of the input parameters that do depend on some
  * other service.

@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
+#define _GNU_SOURCE
 #include <string.h>
+char *strdup(const char *s);
+
 #include <errno.h>
 
 #include "dplasma.h"

@@ -3,7 +3,11 @@
 #include "symbol.h"
 #include "expr.h"
 
+#define _GNU_SOURCE
+#include <stdio.h>
 #include <strings.h>
+size_t strlen(const char *s);
+int asprintf(char **strp, const char *fmt, ...);
 
 #define INIT_FUNC_BODY_SIZE 4096
 #define FNAME_SIZE            64

@@ -20,6 +20,8 @@
 #include <../src/allocate.h>
 #include <sys/time.h>
 
+int asprintf(char **strp, const char *fmt, ...);
+
 #include "dplasma.h"
 #include "scheduling.h"
 #include "profiling.h"

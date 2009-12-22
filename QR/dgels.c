@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+int asprintf(char **strp, const char *fmt, ...);
+
 
 #include <cblas.h>
 #include <math.h>
