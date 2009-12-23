@@ -7,13 +7,13 @@
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {
-    return __sync_fetch_and_or(location, value);
+    return __sync_or_and_fetch(location, value);
 }
 
 static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
                                            uint32_t value )
 {
-    return __sync_fetch_and_add(location, value);
+    return __sync_and_and_fetch(location, value);
 }
 
 static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
