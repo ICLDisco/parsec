@@ -4,15 +4,21 @@
  *                         reserved.
  */
 
-#include "scheduling.h"
 #include <string.h>
-#include "lifo.h"
+#include <sched.h>
+#include <sys/types.h>
+#include <linux/unistd.h>
+#include <errno.h>
+#include "scheduling.h"
+#include "dequeue.h"
 
 static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
 #define DEPTH_FIRST_SCHEDULE 0
 
+#ifdef DPLASMA_USE_GLOBAL_LIFO
 dplasma_atomic_lifo_t ready_list;
+#endif  /* DPLASMA_USE_GLOBAL_LIFO */
 
 static uint32_t taskstodo;
 
@@ -58,7 +64,16 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+#ifdef DPLASMA_USE_LIFO
+    dplasma_atomic_lifo_push( &(eu_context->eu_task_queue), (dplasma_list_item_t*)new_context );
+#elif defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( &ready_list, (dplasma_list_item_t*)new_context);
+#else
+    if( NULL != eu_context->placeholder ) {
+        dplasma_dequeue_push_back( &(eu_context->eu_task_queue), (dplasma_list_item_t*)eu_context->placeholder );
+    }
+    eu_context->placeholder = (void*)new_context;
+#endif  /* DPLASMA_USE_LIFO */
     return 0;
 #else
     printf( "This internal version of the dplasma_schedule is not supposed to be called\n");
@@ -71,31 +86,93 @@ void dplasma_register_nb_tasks(int n)
     set_tasks_todo((uint32_t)n);
 }
 
+#define gettid() syscall(__NR_gettid)
+
 int dplasma_progress(dplasma_context_t* context)
 {
     dplasma_execution_context_t* exec_context;
     dplasma_execution_unit_t* eu_context;
     int nbiterations = 0, my_id;
+    uint64_t found_local = 0, miss_local = 0, found_victim = 0, miss_victim = 0;
+    cpu_set_t cpuset;
 
     /* Get my Execution Unit context */
     my_id = dplasma_atomic_inc_32b((uint32_t*) &(context->eu_waiting)) - 1;
     eu_context = &(context->execution_units[my_id]);
     eu_context->eu_id = my_id;
+    eu_context->master_context = context;
 
+    __CPU_ZERO_S(sizeof (cpu_set_t), &cpuset);
+    /*CPU_ZERO(&cpuset);*/
+    __CPU_SET_S(my_id, sizeof (cpu_set_t), &cpuset);
+    /*CPU_SET(i+1, &cpuset);*/
+    if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
+        printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+    }
+
+
+#if 0
+    dplasma_atomic_cas(&(context->eu_waiting), context->nb_cores, context->nb_cores+1);
+    while( *((volatile int*)&(context->eu_waiting)) != (context->nb_cores + 1) ) {
+        /* nothing special to do */
+    }
+#endif
     while( !all_tasks_done() ) {
-
-        /* extract the first exeuction context from the ready list */
+#ifdef DPLASMA_USE_LIFO
+        exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(eu_context->eu_task_queue));
+#elif defined(DPLASMA_USE_GLOBAL_LIFO)
         exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(ready_list));
+#else
+        if( NULL != eu_context->placeholder ) {
+            exec_context = (dplasma_execution_context_t*)eu_context->placeholder;
+            eu_context->placeholder = NULL;
+        } else {
+            /* extract the first exeuction context from the ready list */
+            exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(&(eu_context->eu_task_queue));
+        }
+#endif  /* DPLASMA_USE_LIFO */
+        /*exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(ready_list));*/
 
         if( exec_context != NULL ) {
+            found_local++;
+        do_some_work:
             /* We're good to go ... */
             dplasma_execute( eu_context, exec_context );
             done_task();
             nbiterations++;
             /* Release the execution context */
             free( exec_context );
+#ifndef DPLASMA_USE_GLOBAL_LIFO
+        } else {
+            miss_local++;
+            /* Work stealing from the other workers */
+            int i;
+            for( i = 0; i < eu_context->master_context->nb_cores; i++ ) {
+                dplasma_execution_unit_t* victim;
+                if( i == my_id ) continue;
+                victim = &(eu_context->master_context->execution_units[i]);
+#ifdef DPLASMA_USE_LIFO
+                exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(victim->eu_task_queue));
+#else
+                exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(&(victim->eu_task_queue));
+#endif  /* DPLASMA_USE_LIFO */
+                if( NULL != exec_context ) {
+                    found_victim++;
+                    goto do_some_work;
+                } else {
+                    miss_victim++;
+                }
+            }
+#endif  /* DPLASMA_USE_GLOBAL_LIFO */
         }
     }
+    printf("# done tasks       %d\n"
+           "# local tasks      %lu\n"
+           "# stolen tasks     %lu\n"
+           "# miss local tasks %lu\n"
+           "# failed steals    %lu\n",
+           nbiterations, found_local, found_victim, miss_local, miss_victim );
+
     return nbiterations;
 }
 
