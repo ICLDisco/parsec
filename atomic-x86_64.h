@@ -55,20 +55,22 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
 }
 
 #define DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B
-static inline int32_t dplasma_atomic_inc_32b( volatile int32_t *location )
+static inline uint32_t dplasma_atomic_inc_32b( volatile uint32_t *location )
 {
     __asm__ __volatile__ (
                           "lock; incl %0\n"
-                          : "+m" (*(location)));
+                          : "=m" (*(location))
+                          : "m" (*(location)) );
     return (*location);
 }
 
 #define DPLASMA_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline int32_t dplasma_atomic_dec_32b( volatile int32_t *location )
+static inline uint32_t dplasma_atomic_dec_32b( volatile uint32_t *location )
 {
     __asm__ __volatile__ (
                           "lock; decl %0\n"
-                          : "+m" (*(location)));
+                          : "=m" (*(location))
+                          : "m" (*(location)));
     return (*location);
 }
 
