@@ -7,7 +7,9 @@
 #include <string.h>
 #include <sched.h>
 #include <sys/types.h>
+#ifdef HAVE_CPU_SET_T
 #include <linux/unistd.h>
+#endif  /* HAVE_CPU_SET_T */
 #include <errno.h>
 #include "scheduling.h"
 #include "dequeue.h"
@@ -94,7 +96,6 @@ int dplasma_progress(dplasma_context_t* context)
     dplasma_execution_unit_t* eu_context;
     int nbiterations = 0, my_id;
     uint64_t found_local = 0, miss_local = 0, found_victim = 0, miss_victim = 0;
-    cpu_set_t cpuset;
 
     /* Get my Execution Unit context */
     my_id = dplasma_atomic_inc_32b((uint32_t*) &(context->eu_waiting)) - 1;
@@ -102,14 +103,18 @@ int dplasma_progress(dplasma_context_t* context)
     eu_context->eu_id = my_id;
     eu_context->master_context = context;
 
-    __CPU_ZERO_S(sizeof (cpu_set_t), &cpuset);
-    /*CPU_ZERO(&cpuset);*/
-    __CPU_SET_S(my_id, sizeof (cpu_set_t), &cpuset);
-    /*CPU_SET(i+1, &cpuset);*/
-    if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-        printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+#ifdef HAVE_CPU_SET_T
+    {
+        cpu_set_t cpuset;
+        __CPU_ZERO_S(sizeof (cpu_set_t), &cpuset);
+        /*CPU_ZERO(&cpuset);*/
+        __CPU_SET_S(my_id, sizeof (cpu_set_t), &cpuset);
+        /*CPU_SET(i+1, &cpuset);*/
+        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
+            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+        }
     }
-
+#endif  /* HAVE_CPU_SET_T */
 
 #if 0
     dplasma_atomic_cas(&(context->eu_waiting), context->nb_cores, context->nb_cores+1);
@@ -167,10 +172,10 @@ int dplasma_progress(dplasma_context_t* context)
         }
     }
     printf("# done tasks       %d\n"
-           "# local tasks      %lu\n"
-           "# stolen tasks     %lu\n"
-           "# miss local tasks %lu\n"
-           "# failed steals    %lu\n",
+           "# local tasks      %llu\n"
+           "# stolen tasks     %llu\n"
+           "# miss local tasks %llu\n"
+           "# failed steals    %llu\n",
            nbiterations, found_local, found_victim, miss_local, miss_victim );
 
     return nbiterations;
