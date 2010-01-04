@@ -46,6 +46,7 @@ static int time_less( dplasma_time_t start, dplasma_time_t end )
         (start.tv_sec == end.tv_sec &&
          start.tv_nsec < end.tv_nsec);
 }
+#define ZERO_TIME {0,0}
 #elif defined(__IA64)
 typedef uint64_t dplasma_time_t;
 static inline dplasma_time_t take_time(void)
@@ -62,6 +63,7 @@ static int time_less( dplasma_time_t start, dplasma_time_t end )
 {
     return start < end;
 }
+#define ZERO_TIME 0
 #elif defined(__X86)
 typedef uint64_t dplasma_time_t;
 static inline dplasma_time_t take_time(void)
@@ -78,6 +80,7 @@ static int time_less( dplasma_time_t start, dplasma_time_t end )
 {
     return start < end;
 }
+#define ZERO_TIME 0
 #else
 #include <sys/time.h>
 typedef struct timeval dplasma_time_t;
@@ -101,6 +104,7 @@ static int time_less( dplasma_time_t start, dplasma_time_t end )
         (start.tv_sec == end.tv_sec &&
          start.tv_usec < end.tv_usec);
 }
+#define ZERO_TIME {0,0}
 #endif
 
 typedef struct dplasma_profiling_key_t {
@@ -228,7 +232,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 {
     FILE* tracefile;
     uint64_t start, end;
-    dplasma_time_t relative, latest;
+    dplasma_time_t relative = ZERO_TIME, latest = ZERO_TIME;
     double scale, gaps, gaps_last, last, total_time;
     dplasma_eu_profiling_t* profile;
     int i, thread_id, tag, last_timestamp, key, keyplotted, nplot, foundone;

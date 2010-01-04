@@ -13,7 +13,7 @@ extern char *strdup(const char *);
 
 #include "dplasma.h"
 #include "scheduling.h"
-#include "atomic.h"
+#include "dequeue.h"
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
@@ -160,7 +160,10 @@ int dplasma_nb_elements( void )
 /**
  *
  */
+#ifdef DPLASMA_USE_GLOBAL_LIFO
 extern dplasma_atomic_lifo_t ready_list;
+#endif  /* DPLASMA_USE_GLOBAL_LIFO */
+
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t)+
@@ -174,15 +177,21 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     printf("digraph G {\n");
 #endif  /* DPLASMA_GENERATE_DOT */
 #ifdef DPLASMA_PROFILING
-    dplasma_profiling_init( context, 1024 );
+    dplasma_profiling_init( context, 4096 );
 #endif  /* DPLASMA_PROFILING */
 
     /* Prepare the LIFO task queue for each execution unit */
     for( i = 0; i < nb_cores; i++ ) {
         dplasma_execution_unit_t* eu = &(context->execution_units[i]);
+#ifdef DPLASMA_USE_LIFO
         dplasma_atomic_lifo_construct(&(eu->eu_task_queue));
+#elif defined(DPLASMA_USE_GLOBAL_LIFO)
+        dplasma_atomic_lifo_construct(&ready_list);
+#else
+        dplasma_dequeue_construct(&(eu->eu_task_queue));
+        eu->placeholder = NULL;
+#endif  /* DPLASMA_USE_LIFO */
     }
-    dplasma_atomic_lifo_construct(&ready_list);
 
     dplasma_remote_dep_init(context);
     

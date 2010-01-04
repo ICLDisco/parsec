@@ -7,13 +7,17 @@
 #ifndef ATOMIC_H_HAS_BEEN_INCLUDED
 #define ATOMIC_H_HAS_BEEN_INCLUDED
 
-#ifdef MAC_OS_X
+#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
+#include "atomic-gcc.h"
+#elif MAC_OS_X
 #include "atomic-macosx.h"
 #elif X86
 #include "atomic-x86_32.h"
 #elif X86_64
 #include "atomic-x86_64.h"
 #else
+#warning "Using unsafe atomics"
+
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {
