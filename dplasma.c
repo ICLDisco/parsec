@@ -184,6 +184,8 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
     dplasma_atomic_lifo_construct(&ready_list);
 
+    dplasma_remote_dep_init(context);
+    
     return context;
 }
 
@@ -195,6 +197,9 @@ int dplasma_fini( dplasma_context_t** context )
 #ifdef DPLASMA_GENERATE_DOT
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
+    
+    dplasma_remote_dep_fini(context);
+    
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( *context );
 #endif  /* DPLASMA_PROFILING */
