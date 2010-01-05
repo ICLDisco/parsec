@@ -6,7 +6,7 @@
 
 #include "barrier.h"
 
-#if !(defined(_POSIX_BARRIERS) && (_POSIX_BARRIERS - 20012L) >= 0)
+#if DPLASMA_IMPLEMENT_BARRIERS
 
 int dplasma_barrier_init(dplasma_barrier_t* barrier, const void* attr, unsigned int count)
 {
