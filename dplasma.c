@@ -257,7 +257,7 @@ int dplasma_fini( dplasma_context_t** context )
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
     
-    dplasma_remote_dep_fini(context);
+    dplasma_remote_dep_fini(*context);
     
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( *context );
@@ -712,7 +712,10 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     actual_loop = function->nb_locals - 1;
     while(1) {
-        int first_encounter = 0, updated_deps;
+#ifdef DPLASMA_GENERATE_DOT
+        int first_encounter = 0;
+#endif  /* DPLASMA_GENERATE_DOT */
+        int updated_deps;
 
         if( 0 != dplasma_is_valid(exec_context) ) {
             char tmp[128], tmp1[128];
@@ -730,7 +733,9 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
+#ifdef DPLASMA_GENERATE_DOT
             first_encounter = 1;
+#endif  /* DPLASMA_GENERATE_DOT */
         }
 
         updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
