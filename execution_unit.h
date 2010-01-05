@@ -31,7 +31,6 @@ typedef struct dplasma_execution_unit_t {
 
 struct dplasma_context_t {
     int32_t nb_cores;
-    int32_t eu_waiting;
     dplasma_barrier_t  barrier;
     dplasma_execution_unit_t execution_units[1];
 };

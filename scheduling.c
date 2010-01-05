@@ -90,7 +90,7 @@ void dplasma_register_nb_tasks(int n)
 
 #define gettid() syscall(__NR_gettid)
 
-int __dplasma_progress( dplasma_execution_unit_t* eu_context )
+void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local = 0, miss_local = 0, found_victim = 0, miss_victim = 0;
     dplasma_execution_context_t* exec_context;
@@ -101,7 +101,7 @@ int __dplasma_progress( dplasma_execution_unit_t* eu_context )
         cpu_set_t cpuset;
         __CPU_ZERO_S(sizeof(cpu_set_t), &cpuset);
         /*CPU_ZERO(&cpuset);*/
-        __CPU_SET_S(my_id, sizeof(cpu_set_t), &cpuset);
+        __CPU_SET_S(eu_context->eu_id, sizeof(cpu_set_t), &cpuset);
         /*CPU_SET(i+1, &cpuset);*/
         if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
@@ -166,30 +166,21 @@ int __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
         }
     }
-    printf("# done tasks       %d\n"
-           "# local tasks      %llu\n"
-           "# stolen tasks     %llu\n"
-           "# miss local tasks %llu\n"
-           "# failed steals    %llu\n",
-           nbiterations, (long long unsigned int)found_local,
+    printf("# thread <%3d> done tasks       %d\n"
+           "#              local tasks      %llu\n"
+           "#              stolen tasks     %llu\n"
+           "#              miss local tasks %llu\n"
+           "#              failed steals    %llu\n",
+           eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
-    return nbiterations;
+    return (void*)(long)nbiterations;
 }
 
 int dplasma_progress(dplasma_context_t* context)
 {
-    dplasma_execution_unit_t* eu_context;
-    int my_id;
-
-    /* Get my Execution Unit ID */
-    my_id = dplasma_atomic_inc_32b((uint32_t*) &(context->eu_waiting)) - 1;
-    eu_context = &(context->execution_units[my_id]);
-    eu_context->eu_id = my_id;
-    eu_context->master_context = context;
-
-    return __dplasma_progress( eu_context );
+    return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
 }
 
 static int dplasma_execute( dplasma_execution_unit_t* eu_context,

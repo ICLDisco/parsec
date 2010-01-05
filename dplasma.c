@@ -160,30 +160,6 @@ int dplasma_nb_elements( void )
 }
 
 /**
- * DPlasma internal thread progress function.
- */
-static pthread_mutex_t dplasma_wait_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  dplasma_wait_cond = PTHREAD_COND_INITIALIZER;
-static int             dplasma_wait;
-
-static void* __dplasma_thread_progress(void *arg)
-{
-    dplasma_context_t* dplasma = (dplasma_context_t*)arg;
-    int it;
-
-    pthread_mutex_lock(&dplasma_wait_lock);
-    while( dplasma_wait ) {
-        pthread_cond_wait(&dplasma_wait_cond, &dplasma_wait_lock);
-    }
-    pthread_mutex_unlock(&dplasma_wait_lock);
-
-    it = dplasma_progress(dplasma);
-    printf("thread number %p did %d tasks\n", (void*)pthread_self(), it);
-    
-    return NULL;
-}
-
-/**
  *
  */
 #ifdef DPLASMA_USE_GLOBAL_LIFO
@@ -197,7 +173,6 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     int i;
 
     context->nb_cores = nb_cores;
-    context->eu_waiting = 0;
 
     /* Initialize the barrier */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
@@ -220,7 +195,8 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
         dplasma_dequeue_construct(&(eu->eu_task_queue));
         eu->placeholder = NULL;
 #endif  /* DPLASMA_USE_LIFO */
-        context->execution_units[i].eu_id = -1;
+        context->execution_units[i].eu_id = i;
+        context->execution_units[i].master_context = context;
     }
 
     if( nb_cores > 1 ) {
@@ -236,8 +212,8 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
         for( i = 1; i < context->nb_cores; i++ ) {
             pthread_create( &((context)->execution_units[i].pthread_id),
                             &thread_attr,
-                            __dplasma_thread_progress,
-                            (void*)context);
+                            (void* (*)(void*))__dplasma_progress,
+                            (void*)&(context->execution_units[i]));
         }
     }
 
