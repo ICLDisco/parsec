@@ -132,16 +132,9 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
-#if 0
-        dplasma_wait = 1;
-#endif
+
         dplasma_schedule(dplasma, &exec_context);
-#if 0
-        pthread_mutex_lock(&dplasma_wait_lock);
-        dplasma_wait = 0;
-        pthread_mutex_unlock(&dplasma_wait_lock);
-        pthread_cond_broadcast(&dplasma_wait_cond);
-#endif
+
         /* Now that everything is created start the timer */
         time_elapsed = get_cur_time();
 
