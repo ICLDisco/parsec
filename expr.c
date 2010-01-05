@@ -480,13 +480,11 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
     case 'M':
         r->op = EXPR_OP_BINARY_MAX;
         return r;
-    default:
-        free(r);
-        fprintf(stderr, "Unknown operand %c. Return NULL expression\n", op );
-        return NULL;
     }
 
-    return r;
+    free(r);
+    fprintf(stderr, "Unknown operand %c. Return NULL expression\n", op );
+    return NULL;
 }
 
 char *expr_error(void)
