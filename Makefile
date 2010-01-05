@@ -3,7 +3,7 @@ include make.inc
 TARGETS=grapher dpc tools/buildDAG cholesky/dposv cholesky/timeenumerator QR/dgels
 
 LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
-	params.o dep.o scheduling.o profiling.o remote_dep.o
+	params.o dep.o scheduling.o profiling.o remote_dep.o barrier.o
 
 COMPILER_OBJECTS=lex.yy.o dplasma.tab.o precompile.o
 
