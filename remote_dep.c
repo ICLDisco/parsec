@@ -27,12 +27,12 @@ static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
  *  use it only for single node shared memory multicore
  */
 
-int dplasma_dependency_management_init(dplasma_execution_unit_t* eu_context)
+int dplasma_remote_dep_init(dplasma_execution_unit_t* eu_context)
 {
     return 0;
 }
 
-int dplasma_dependency_management_fini(dplasma_execution_unit_t* eu_context)
+int dplasma_remote_dep_fini(dplasma_execution_unit_t* eu_context)
 {
     return 0;
 }

@@ -90,25 +90,18 @@ void dplasma_register_nb_tasks(int n)
 
 #define gettid() syscall(__NR_gettid)
 
-int dplasma_progress(dplasma_context_t* context)
+int __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
-    dplasma_execution_context_t* exec_context;
-    dplasma_execution_unit_t* eu_context;
-    int nbiterations = 0, my_id;
     uint64_t found_local = 0, miss_local = 0, found_victim = 0, miss_victim = 0;
-
-    /* Get my Execution Unit context */
-    my_id = dplasma_atomic_inc_32b((uint32_t*) &(context->eu_waiting)) - 1;
-    eu_context = &(context->execution_units[my_id]);
-    eu_context->eu_id = my_id;
-    eu_context->master_context = context;
+    dplasma_execution_context_t* exec_context;
+    int nbiterations = 0;
 
 #ifdef HAVE_CPU_SET_T
     {
         cpu_set_t cpuset;
-        __CPU_ZERO_S(sizeof (cpu_set_t), &cpuset);
+        __CPU_ZERO_S(sizeof(cpu_set_t), &cpuset);
         /*CPU_ZERO(&cpuset);*/
-        __CPU_SET_S(my_id, sizeof (cpu_set_t), &cpuset);
+        __CPU_SET_S(my_id, sizeof(cpu_set_t), &cpuset);
         /*CPU_SET(i+1, &cpuset);*/
         if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
@@ -116,12 +109,9 @@ int dplasma_progress(dplasma_context_t* context)
     }
 #endif  /* HAVE_CPU_SET_T */
 
-#if 0
-    dplasma_atomic_cas(&(context->eu_waiting), context->nb_cores, context->nb_cores+1);
-    while( *((volatile int*)&(context->eu_waiting)) != (context->nb_cores + 1) ) {
-        /* nothing special to do */
-    }
-#endif
+    /* Wait until all threads are here and the main thread signal the begining of the work */
+    dplasma_barrier_wait( &(eu_context->master_context->barrier) );
+
     while( !all_tasks_done() ) {
 #ifdef DPLASMA_USE_LIFO
         exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(eu_context->eu_task_queue));
@@ -149,12 +139,17 @@ int dplasma_progress(dplasma_context_t* context)
             free( exec_context );
 #ifndef DPLASMA_USE_GLOBAL_LIFO
         } else {
+            /* check for remote deps completion */
+            if(dplasma_remote_dep_progress(eu_context) > 0)
+            {
+                continue;
+            }
             miss_local++;
             /* Work stealing from the other workers */
             int i;
             for( i = 0; i < eu_context->master_context->nb_cores; i++ ) {
                 dplasma_execution_unit_t* victim;
-                if( i == my_id ) continue;
+                if( i == eu_context->eu_id ) continue;
                 victim = &(eu_context->master_context->execution_units[i]);
 #ifdef DPLASMA_USE_LIFO
                 exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(victim->eu_task_queue));
@@ -177,8 +172,21 @@ int dplasma_progress(dplasma_context_t* context)
            "# miss local tasks %llu\n"
            "# failed steals    %llu\n",
            nbiterations, found_local, found_victim, miss_local, miss_victim );
-
     return nbiterations;
+}
+
+int dplasma_progress(dplasma_context_t* context)
+{
+    dplasma_execution_unit_t* eu_context;
+    int my_id;
+
+    /* Get my Execution Unit ID */
+    my_id = dplasma_atomic_inc_32b((uint32_t*) &(context->eu_waiting)) - 1;
+    eu_context = &(context->execution_units[my_id]);
+    eu_context->eu_id = my_id;
+    eu_context->master_context = context;
+
+    return __dplasma_progress( eu_context );
 }
 
 static int dplasma_execute( dplasma_execution_unit_t* eu_context,
