@@ -8,8 +8,8 @@
 
 #include "dplasma.h"
 
-int dplasma_remote_dep_init(dplasma_execution_unit_t* eu_context);
-int dplasma_remote_dep_fini(dplasma_execution_unit_t* eu_context);
+int dplasma_remote_dep_init(dplasma_context_t* context);
+int dplasma_remote_dep_fini(dplasma_context_t* context);
 
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* origin,
@@ -22,3 +22,4 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context);
 /*int dependency_management_satisfy(DPLASMA_desc * Ddesc, int tm, int tn, int lm, int ln);*/
 
 #endif /* __USE_REMOTE_DEP_H__ */
+
