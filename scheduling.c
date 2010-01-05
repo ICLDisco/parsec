@@ -171,7 +171,10 @@ int __dplasma_progress( dplasma_execution_unit_t* eu_context )
            "# stolen tasks     %llu\n"
            "# miss local tasks %llu\n"
            "# failed steals    %llu\n",
-           nbiterations, found_local, found_victim, miss_local, miss_victim );
+           nbiterations, (long long unsigned int)found_local,
+           (long long unsigned int)found_victim,
+           (long long unsigned int)miss_local,
+           (long long unsigned int)miss_victim );
     return nbiterations;
 }
 
