@@ -10,8 +10,6 @@
 #include <assert.h>
 #include <pthread.h>
 
-extern char *strdup(const char *);
-
 #include "dplasma.h"
 #include "scheduling.h"
 #include "dequeue.h"

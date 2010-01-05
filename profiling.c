@@ -4,11 +4,6 @@
  *                         reserved.
  */
 
-#ifdef __gnu_linux__
-/* We need it for the high resolution timers on Linux */
-#define _GNU_SOURCE
-#endif  /* __gnu_linux__ */
-
 #include "profiling.h"
 #include <stdlib.h>
 #include <string.h>

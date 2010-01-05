@@ -11,9 +11,6 @@
 #include <string.h>
 #include <strings.h>
 
-/* Have to love that ... */
-extern char *strdup(const char *);
-
 void param_dump(const param_t *p, const char *prefix)
 {
     int i, length;

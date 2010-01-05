@@ -9,9 +9,6 @@
 #include <string.h>
 #include <stdio.h>
 
-extern char *strdup(const char *);
-int fileno(FILE *stream);
-
 extern char *yyfilename;
 
 #include "dplasma.h"

@@ -99,10 +99,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #ifdef HAVE_CPU_SET_T
     {
         cpu_set_t cpuset;
-        __CPU_ZERO_S(sizeof(cpu_set_t), &cpuset);
-        /*CPU_ZERO(&cpuset);*/
-        __CPU_SET_S(eu_context->eu_id, sizeof(cpu_set_t), &cpuset);
-        /*CPU_SET(i+1, &cpuset);*/
+        /*__CPU_ZERO_S(sizeof(cpu_set_t), &cpuset);*/
+        CPU_ZERO(&cpuset);
+        /*__CPU_SET_S(eu_context->eu_id, sizeof(cpu_set_t), &cpuset);*/
+        CPU_SET(eu_context->eu_id, &cpuset);
         if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
         }
