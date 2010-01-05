@@ -11,9 +11,10 @@
 #include <mpi.h>
 
 
-/* >>>>TODO: smart use of eu_context instead of ugly globals <<<<<< */
+/* TODO: smart use of eu_context instead of ugly globals */
 static MPI_Comm dep_comm;
 static MPI_Request dep_req;
+/* TODO: fix heterogeneous restriction by using mpi datatypes */ 
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(dplasma_execution_context_t)
 static dplasma_execution_context_t dep_buff;
@@ -54,16 +55,15 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 {
     MPI_Status status;
     int flag;
+#ifdef _DEBUG
+    char tmp[128];
+#endif
     
     MPI_Test(&dep_req, &flag, &status);
     if(flag)
     {
-        
-        
-    }
-    else
-    {
-        
+        DEBUG(("%s -> local\tFROM REMOTE process rank %d\n", dplasma_service_to_string(&dep_buff, tmp, 128), status.MPI_SOURCE));
+        MPI_Start(&dep_req);
     }
     return 0;
 }

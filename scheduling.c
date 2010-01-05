@@ -149,6 +149,11 @@ int dplasma_progress(dplasma_context_t* context)
             free( exec_context );
 #ifndef DPLASMA_USE_GLOBAL_LIFO
         } else {
+            /* check for remote deps completion */
+            if(dplasma_remote_dep_progress(eu_context) > 0)
+            {
+                continue;
+            }
             miss_local++;
             /* Work stealing from the other workers */
             int i;
@@ -177,7 +182,6 @@ int dplasma_progress(dplasma_context_t* context)
            "# miss local tasks %llu\n"
            "# failed steals    %llu\n",
            nbiterations, found_local, found_victim, miss_local, miss_victim );
-
     return nbiterations;
 }
 
