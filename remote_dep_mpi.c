@@ -11,7 +11,7 @@
 #include <mpi.h>
 
 
-/* TODO: smart use of eu_context instead of ugly globals */
+/* TODO: smart use of dplasma context instead of ugly globals */
 static MPI_Comm dep_comm;
 static MPI_Request dep_req;
 /* TODO: fix heterogeneous restriction by using mpi datatypes */ 
@@ -19,7 +19,7 @@ static MPI_Request dep_req;
 #define dep_count sizeof(dplasma_execution_context_t)
 static dplasma_execution_context_t dep_buff;
 
-int dplasma_remote_dep_init(dplasma_execution_unit_t* eu_context)
+int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     MPI_Recv_init(&dep_buff, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_req);
@@ -27,7 +27,7 @@ int dplasma_remote_dep_init(dplasma_execution_unit_t* eu_context)
     return 0;
 }
 
-int dplasma_remote_dep_fini(dplasma_execution_unit_t* eu_context)
+int dplasma_remote_dep_fini(dplasma_context_t* context)
 {
     MPI_Cancel(&dep_req);
     MPI_Request_free(&dep_req);
