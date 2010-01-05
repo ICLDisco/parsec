@@ -22,7 +22,7 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 all: $(TARGETS)
 
 dpc: $(LIBRARY_OBJECTS) $(COMPILER_OBJECTS) dpc.o
-	$(CLINKER) -o $@ $^ $(LDFLAGS)
+	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 grapher: $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
