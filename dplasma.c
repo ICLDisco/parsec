@@ -229,7 +229,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
         pthread_attr_init(&thread_attr);
         pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 #ifdef __linux
-        pthread_setconcurrency(ncores);
+        pthread_setconcurrency(nb_cores);
 #endif  /* __linux */
 
         /* The first execution unit is for the master thread */
