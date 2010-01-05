@@ -18,12 +18,10 @@ typedef struct dplasma_execution_unit_t {
     int32_t eu_id;
     pthread_t pthread_id;
     struct dplasma_eu_profiling_t* eu_profile;
-#ifdef DPLASMA_USE_LIFO
-    dplasma_atomic_lifo_t eu_task_queue;
-#elif defined(DPLASMA_USE_GLOBAL_LIFO)
-    /* Nothing in this case */
+#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+    dplasma_atomic_lifo_t* eu_task_queue;
 #else
-    dplasma_dequeue_t eu_task_queue;
+    dplasma_dequeue_t* eu_task_queue;
     void* placeholder;
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;

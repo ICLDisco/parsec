@@ -18,10 +18,6 @@ static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_c
 
 #define DEPTH_FIRST_SCHEDULE 0
 
-#ifdef DPLASMA_USE_GLOBAL_LIFO
-dplasma_atomic_lifo_t ready_list;
-#endif  /* DPLASMA_USE_GLOBAL_LIFO */
-
 static uint32_t taskstodo;
 
 static void set_tasks_todo(uint32_t n)
@@ -66,13 +62,11 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
-#ifdef DPLASMA_USE_LIFO
-    dplasma_atomic_lifo_push( &(eu_context->eu_task_queue), (dplasma_list_item_t*)new_context );
-#elif defined(DPLASMA_USE_GLOBAL_LIFO)
-    dplasma_atomic_lifo_push( &ready_list, (dplasma_list_item_t*)new_context);
+#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+    dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #else
     if( NULL != eu_context->placeholder ) {
-        dplasma_dequeue_push_back( &(eu_context->eu_task_queue), (dplasma_list_item_t*)eu_context->placeholder );
+        dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)eu_context->placeholder );
     }
     eu_context->placeholder = (void*)new_context;
 #endif  /* DPLASMA_USE_LIFO */
@@ -99,10 +93,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #ifdef HAVE_CPU_SET_T
     {
         cpu_set_t cpuset;
-        /*__CPU_ZERO_S(sizeof(cpu_set_t), &cpuset);*/
+
         CPU_ZERO(&cpuset);
-        /*__CPU_SET_S(eu_context->eu_id, sizeof(cpu_set_t), &cpuset);*/
         CPU_SET(eu_context->eu_id, &cpuset);
+
         if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
         }
@@ -113,20 +107,17 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     dplasma_barrier_wait( &(eu_context->master_context->barrier) );
 
     while( !all_tasks_done() ) {
-#ifdef DPLASMA_USE_LIFO
-        exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(eu_context->eu_task_queue));
-#elif defined(DPLASMA_USE_GLOBAL_LIFO)
-        exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(ready_list));
+#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+        exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
 #else
         if( NULL != eu_context->placeholder ) {
             exec_context = (dplasma_execution_context_t*)eu_context->placeholder;
             eu_context->placeholder = NULL;
         } else {
             /* extract the first exeuction context from the ready list */
-            exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(&(eu_context->eu_task_queue));
+            exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(eu_context->eu_task_queue);
         }
 #endif  /* DPLASMA_USE_LIFO */
-        /*exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(ready_list));*/
 
         if( exec_context != NULL ) {
             found_local++;
@@ -152,9 +143,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 if( i == eu_context->eu_id ) continue;
                 victim = &(eu_context->master_context->execution_units[i]);
 #ifdef DPLASMA_USE_LIFO
-                exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(&(victim->eu_task_queue));
+                exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(victim->eu_task_queue);
 #else
-                exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(&(victim->eu_task_queue));
+                exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(victim->eu_task_queue);
 #endif  /* DPLASMA_USE_LIFO */
                 if( NULL != exec_context ) {
                     found_victim++;

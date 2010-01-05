@@ -182,15 +182,22 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     dplasma_profiling_init( context, 4096 );
 #endif  /* DPLASMA_PROFILING */
 
+#if defined(DPLASMA_USE_GLOBAL_LIFO)
+    dplasma_atomic_lifo_construct(&ready_list);
+#endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
+
     /* Prepare the LIFO task queue for each execution unit */
     for( i = 0; i < nb_cores; i++ ) {
         dplasma_execution_unit_t* eu = &(context->execution_units[i]);
 #ifdef DPLASMA_USE_LIFO
-        dplasma_atomic_lifo_construct(&(eu->eu_task_queue));
+        eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
+        dplasma_atomic_lifo_construct( eu->eu_task_queue );
 #elif defined(DPLASMA_USE_GLOBAL_LIFO)
-        dplasma_atomic_lifo_construct(&ready_list);
+        /* Everybody share the same global LIFO */
+        eu->eu_task_queue = &ready_list;
 #else
-        dplasma_dequeue_construct(&(eu->eu_task_queue));
+        eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
+        dplasma_dequeue_construct( eu->eu_task_queue );
         eu->placeholder = NULL;
 #endif  /* DPLASMA_USE_LIFO */
         context->execution_units[i].eu_id = i;
@@ -240,6 +247,10 @@ int dplasma_fini( dplasma_context_t** context )
         /* The first execution unit is for the master thread */
     for(i = 1; i < (*context)->nb_cores; i++) {
         pthread_join( (*context)->execution_units[i].pthread_id, NULL );
+#if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
+        free( (*context)->execution_units[i].eu_task_queue );
+        (*context)->execution_units[i].eu_task_queue = NULL;
+#endif  /* defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO) */
     }
 
     /* Destroy all resources allocated for the barrier */
