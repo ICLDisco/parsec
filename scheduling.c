@@ -179,29 +179,36 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
                             const dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
-    dplasma_execution_context_t new_context;
-    int i, j, k, rc, value;
 #ifdef _DEBUG
     char tmp[128];
 #endif
-    param_t* param;
-    dep_t* dep;
 
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );
     } else {
         DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
+    return dplasma_post_execute( eu_context, exec_context );
+}
 
+int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
+                         const dplasma_execution_context_t* exec_context )
+{
+    param_t* param;
+    dep_t* dep;
+    dplasma_t* function = exec_context->function;
+    dplasma_execution_context_t new_context;
+    int i, j, k, rc, value;    
+    
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
         param = function->params[i];
-
+        
         if( !(SYM_OUT & param->sym_type) ) {
             continue;  /* this is only an INPUT dependency */
         }
         for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
             int dont_generate = 0;
-
+            
             dep = param->dep_out[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
@@ -243,16 +250,15 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
             if( dont_generate ) {
                 continue;
             }
-
+            
             /* Mark the end of the list */
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
             dplasma_release_OUT_dependencies( eu_context,
-                                              exec_context, param,
-                                              &new_context, dep->param );
+                                             exec_context, param,
+                                             &new_context, dep->param );
         }
     }
-
     return 0;
 }
