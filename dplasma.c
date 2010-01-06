@@ -578,7 +578,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                                       const dplasma_execution_context_t* origin,
                                       const param_t* origin_param,
                                       dplasma_execution_context_t* exec_context,
-                                      const param_t* dest_param )
+                                      const param_t* dest_param, int forward_remote )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
@@ -609,7 +609,10 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
              */
             if(EXPR_FAILURE_CANNOT_EVALUATE_RANGE == rc)
             {
-                dplasma_remote_dep_activate(eu_context, origin, origin_param, exec_context, dest_param);
+                if(forward_remote)
+                {
+                   dplasma_remote_dep_activate(eu_context, origin, origin_param, exec_context, dest_param);
+                }
             }
             /* This is not a valid value for this parameter on this host. 
              * Try the next one */

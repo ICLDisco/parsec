@@ -188,11 +188,12 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     } else {
         DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
-    return dplasma_post_execute( eu_context, exec_context );
+    return dplasma_post_execute( eu_context, exec_context, 1 );
 }
 
 int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
-                         const dplasma_execution_context_t* exec_context )
+                         const dplasma_execution_context_t* exec_context,
+                         int forward_remote )
 {
     param_t* param;
     dep_t* dep;
@@ -257,7 +258,7 @@ int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
             }
             dplasma_release_OUT_dependencies( eu_context,
                                              exec_context, param,
-                                             &new_context, dep->param );
+                                             &new_context, dep->param, forward_remote );
         }
     }
     return 0;
