@@ -4,12 +4,12 @@
  *                         reserved.
  */
 
-#include <string.h>
-#include <sched.h>
-#include <sys/types.h>
 #ifdef HAVE_CPU_SET_T
 #include <linux/unistd.h>
 #endif  /* HAVE_CPU_SET_T */
+#include <string.h>
+#include <sched.h>
+#include <sys/types.h>
 #include <errno.h>
 #include "scheduling.h"
 #include "dequeue.h"
@@ -65,10 +65,11 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #else
-    if( NULL != eu_context->placeholder ) {
-        dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)eu_context->placeholder );
+    if( NULL == eu_context->placeholder ) {
+        eu_context->placeholder = (void*)new_context;
+    } else {
+        dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     }
-    eu_context->placeholder = (void*)new_context;
 #endif  /* DPLASMA_USE_LIFO */
     return 0;
 #else
