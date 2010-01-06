@@ -11,7 +11,7 @@ MPILIB = -L $(MPI_DIR)/lib
 TARGETS = dist_exec
 
 OBJECTS= dist_exec.o data_management.o ../../dplasma.o ../../symbol.o ../../assignment.o ../../expr.o \
-        ../../params.o ../../dep.o ../../scheduling.o ../../remote_dep.o
+        ../../barrier.o ../../params.o ../../dep.o ../../scheduling.o ../../remote_dep.o
 
 
 .SUFFIXES:

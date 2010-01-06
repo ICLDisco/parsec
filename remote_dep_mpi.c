@@ -63,7 +63,11 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
     if(flag)
     {
         DEBUG(("%s -> local\tFROM REMOTE process rank %d\n", dplasma_service_to_string(&dep_buff, tmp, 128), status.MPI_SOURCE));
+        dep_buff.function->hook = NULL;
+        dplasma_schedule(eu_context, &dep_buff);
+        
         MPI_Start(&dep_req);
+        return 1;
     }
     return 0;
 }
