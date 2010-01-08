@@ -43,8 +43,8 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
     }
 
     printf("%s Parameters and Dependencies:\n", prefix);
-    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->params[i]; i++) {
-        param_dump(d->params[i], pref2);
+    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+        param_dump(d->inout[i], pref2);
     }
 
     printf("%s Required dependencies mask: 0x%x (%s/%s/%s)\n", prefix,
@@ -314,8 +314,8 @@ int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
     dep_t* dep;
     int i, j, rc, value;
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
-        param = function->params[i];
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
+        param = function->inout[i];
         if( !(SYM_IN & param->sym_type) ) {
             continue;
         }
@@ -425,11 +425,11 @@ int plasma_show_ranges( const dplasma_t* object )
  * This function generate all possible execution context for a given function with
  * respect to the predicates.
  */
-int dplasma_show_tasks( const dplasma_t* object )
+int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates )
 {
     dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     const expr_t** predicates = (const expr_t**)object->preds;
-    int rc, actual_loop;
+    int rc, actual_loop, nb_tasks = 0;
 
     exec_context->function = (dplasma_t*)object;
 
@@ -446,6 +446,9 @@ int dplasma_show_tasks( const dplasma_t* object )
         return -1;
     }
 
+    /* Clear the predicates if not needed */
+    if( !use_predicates ) predicates = NULL;
+
     actual_loop = object->nb_locals - 1;
     while(1) {
         int value;
@@ -454,6 +457,7 @@ int dplasma_show_tasks( const dplasma_t* object )
         {
             char tmp[128];
             printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128) );
+            nb_tasks++;
         }
 
         /* Go to the next valid value for this loop context */
@@ -496,7 +500,7 @@ int dplasma_show_tasks( const dplasma_t* object )
     }
  end_of_all_loops:
 
-    return 0;
+    return nb_tasks;
 }
 
 /**
@@ -513,8 +517,8 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
         return 0;
     }
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
-        param = function->params[i];
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
+        param = function->inout[i];
 
         if( !(SYM_IN & param->sym_type) ) {
             continue;  /* this is only an OUTPUT dependency */

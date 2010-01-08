@@ -115,7 +115,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             exec_context = (dplasma_execution_context_t*)eu_context->placeholder;
             eu_context->placeholder = NULL;
         } else {
-            /* extract the first exeuction context from the ready list */
+            /* extract the first execution context from the ready list */
             exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(eu_context->eu_task_queue);
         }
 #endif  /* DPLASMA_USE_LIFO */
@@ -201,8 +201,8 @@ int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
     dplasma_execution_context_t new_context;
     int i, j, k, rc, value;    
     
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->params[i]); i++ ) {
-        param = function->params[i];
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
+        param = function->inout[i];
         
         if( !(SYM_OUT & param->sym_type) ) {
             continue;  /* this is only an INPUT dependency */

@@ -231,7 +231,7 @@ void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassg
     printNodeColor(currTask, taskInstanceStr, assgn, nbassgn);
 
     for(j=0; j<MAX_PARAM_COUNT; ++j){
-        if( (currParam=currTask->params[j]) == NULL ) break;
+        if( (currParam=currTask->inout[j]) == NULL ) break;
         for(k=0; k<MAX_DEP_OUT_COUNT; ++k){
             if( (currOutDep=currParam->dep_out[k]) == NULL ) break;
             generateEdge(currTask, taskInstanceStr, currParam->name, assgn, nbassgn, currOutDep);

@@ -524,10 +524,10 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                       i < MAX_PRED_COUNT-1 ? ", " : "},\n");
     }
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .params = {");
+    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .inout= {");
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
-                      dump_c_param(out, d->params[i], init_func_body, init_func_body_size, 1),
+                      dump_c_param(out, d->inout[i], init_func_body, init_func_body_size, 1),
                       i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
     }
 
@@ -541,7 +541,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
         int body_lines;
 
         fprintf(out, 
-                "int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
+                "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
                 "{\n",
                 d->name);
         current_line += 2;

@@ -69,7 +69,7 @@ struct dplasma_t {
     int                     nb_locals;
     symbol_t*               locals[MAX_LOCAL_COUNT];
     expr_t*                 preds[MAX_PRED_COUNT];
-    param_t*                params[MAX_PARAM_COUNT];
+    param_t*                inout[MAX_PARAM_COUNT];
     dplasma_dependencies_t* deps;
     dplasma_hook_t*         hook;
     char*                   body;
@@ -199,6 +199,13 @@ char* dplasma_dependency_to_string( const dplasma_execution_context_t* from,
                                     const dplasma_execution_context_t* to,
                                     char* tmp,
                                     size_t length );
+
+/**
+ * Compute the total number of tasks for a dplasma_object. If use_predicates
+ * is true then the predicates will be applied, otherwise it compute the
+ * total number of tasks.
+ */
+int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates );
 
 void dplasma_load_array( dplasma_t *array, int size );
 
