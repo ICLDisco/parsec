@@ -66,7 +66,9 @@ struct dplasma_t {
     const char*             name;
     uint16_t                flags;
     uint16_t                dependencies_mask;
-    int                     nb_locals;
+    uint16_t                nb_locals;
+    uint16_t                nb_params;
+    symbol_t*               params[MAX_LOCAL_COUNT];
     symbol_t*               locals[MAX_LOCAL_COUNT];
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                inout[MAX_PARAM_COUNT];

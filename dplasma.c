@@ -31,6 +31,11 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
     printf("%sDplasma Function: %s\n", prefix, d->name);
 
     printf("%s Parameter Variables:\n", prefix);
+    for(i = 0; i < d->nb_params; i++) {
+        symbol_dump(d->params[i], pref2);
+    }
+
+    printf("%s Local Variables:\n", prefix);
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
         symbol_dump(d->locals[i], pref2);
     }

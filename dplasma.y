@@ -112,37 +112,35 @@ dplasma:
 ;
 
 varlist:   DPLASMA_VAR DPLASMA_COMMA {
-                                        if( global_lists_index == MAX_LOCAL_COUNT ) {
+                                        if( global_dplasma->nb_params == MAX_LOCAL_COUNT ) {
                                             fprintf(stderr,
                                                     "Internal Error while parsing at line %d:\n"
-                                                    "  Maximal variable list count reached: %d (I told you guys this will happen)\n",
-                                                    dplasma_lineno,
-                                                    global_lists_index);
+                                                    "  Maximal variable list count reached (%d) in function %s \n",
+                                                    dplasma_lineno, global_dplasma->nb_params, global_dplasma->name);
                                             YYERROR;
                                         } else {
                                             symbol_t* symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
                                             symbol->name = $1;
 
                                             /* Store it and move to the next one */
-                                            global_dplasma->locals[global_dplasma->nb_locals] = symbol;
-                                            global_dplasma->nb_locals++;
+                                            global_dplasma->params[global_dplasma->nb_params] = symbol;
+                                            global_dplasma->nb_params++;
                                         }
                                      } varlist
          | DPLASMA_VAR {
-                          if( global_lists_index == MAX_LOCAL_COUNT ) {
-                               fprintf(stderr,
-                                       "Internal Error while parsing at line %d:\n"
-                                       "  Maximal variable list count reached: %d (I told you guys this will happen)\n",
-                                       dplasma_lineno,
-                                       global_lists_index);
-                               YYERROR;
+                          if( global_dplasma->nb_params == MAX_LOCAL_COUNT ) {
+                              fprintf(stderr,
+                                      "Internal Error while parsing at line %d:\n"
+                                      "  Maximal variable list count reached (%d) in function %s \n",
+                                      dplasma_lineno, global_dplasma->nb_params, global_dplasma->name);
+                              YYERROR;
                           } else {
                               symbol_t* symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
                               symbol->name = $1;
 
                               /* Store it and move to the next one */
-                              global_dplasma->locals[global_dplasma->nb_locals] = symbol;
-                              global_dplasma->nb_locals++;
+                              global_dplasma->params[global_dplasma->nb_params] = symbol;
+                              global_dplasma->nb_params++;
                           }
                        }
          |
@@ -154,21 +152,27 @@ execution_space: assignment execution_space
 
 assignment: DPLASMA_VAR DPLASMA_ASSIGNMENT expr {
                                                     int i;
-                                                    for(i = 0; (i < MAX_LOCAL_COUNT) &&
-                                                               (NULL != global_dplasma->locals[i]); i++) {
-                                                        if( strcmp(global_dplasma->locals[i]->name, $1) ) {
-                                                            continue;
+                                                    for(i = 0; i < global_dplasma->nb_params; i++) {
+                                                        if( 0 == strcmp(global_dplasma->params[i]->name, $1) ) {
+                                                            break;
                                                         }
-                                                        break;
                                                     }
                                                     if( i == MAX_LOCAL_COUNT ) {
-                                                        fprintf(stderr,
-                                                                "Parse Error at line %d:\n"
-                                                                "  '%s' is an unbound variable\n",
-                                                                dplasma_lineno,
-                                                                $1);
+                                                        fprintf(stderr, "Parse Error at line %d:\n  '%s' is an unbound variable\n",
+                                                                dplasma_lineno, $1);
                                                         YYERROR;
                                                     }
+                                                    if( i < global_dplasma->nb_params ) {
+                                                        global_dplasma->locals[global_dplasma->nb_locals] = global_dplasma->params[i];
+                                                    } else {
+                                                        symbol_t* symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
+                                                        symbol->name = $1;
+
+                                                        /* Store it and move to the next one */
+                                                        global_dplasma->locals[global_dplasma->nb_locals] = symbol;
+                                                    }
+                                                    i = global_dplasma->nb_locals;
+                                                    global_dplasma->nb_locals++;
                                                     if( EXPR_OP_BINARY_RANGE == $3->op ) {
                                                         global_dplasma->locals[i]->min = $3->bop1;
                                                         global_dplasma->locals[i]->max = $3->bop2;
@@ -440,8 +444,9 @@ expr:     DPLASMA_VAR                                {
                                                          }
                                                          if( NULL == symbol ) {
                                                              fprintf( stderr,
-                                                                      "Add expression based on unknown symbol %s at line %d\n",
-                                                                      $1, dplasma_lineno );
+                                                                      "Add expression based on unknown symbol %s in function %s at line %d\n",
+                                                                      $1, global_dplasma->name, dplasma_lineno );
+                                                             dplasma_dump(global_dplasma, "");
                                                              YYERROR;
                                                          }
                                                          $$ = expr_new_var(symbol);
