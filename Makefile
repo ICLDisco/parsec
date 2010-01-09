@@ -1,13 +1,14 @@
 include make.inc
 
-TARGETS=grapher dpc tools/buildDAG cholesky/dposv cholesky/timeenumerator QR/dgels
+TESTING_TARGETS=cholesky/dposv_ll cholesky/dposv_rl QR/dgels
+TARGETS=grapher dpc tools/buildDAG cholesky/timeenumerator $(TESTING_TARGETS)
 
 LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
 	params.o dep.o scheduling.o profiling.o remote_dep.o barrier.o
 
 COMPILER_OBJECTS=lex.yy.o dplasma.tab.o precompile.o
 
-CHOLESKY_OBJECTS=cholesky/dposv.o cholesky/cholesky.o
+CHOLESKY_OBJECTS=cholesky/dposv.o
 QR_OBJECTS = QR/dgels.o QR/QR.o
 
 ENUMERATOR_OBJECTS=cholesky/timeenumerator.o cholesky/cholesky-norun.o
@@ -30,13 +31,19 @@ grapher: $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS)
 tools/buildDAG:$(COMPILER_OBJECTS) $(LIBRARY_OBJECTS) $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-cholesky/cholesky.c: cholesky/cholesky.jdf dpc
-	./dpc ./cholesky/cholesky.jdf cholesky/cholesky.c
+cholesky/cholesky_ll.c: cholesky/cholesky_ll.jdf dpc
+	./dpc ./cholesky/cholesky_ll.jdf $@
 
-cholesky/cholesky-norun.o: cholesky/cholesky.c
-	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky.c -o cholesky/cholesky-norun.o
+cholesky/cholesky_rl.c: cholesky/cholesky_rl.jdf dpc
+	./dpc ./cholesky/cholesky_rl.jdf $@
 
-cholesky/dposv:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS)
+cholesky/cholesky-norun.o: cholesky/cholesky_ll.c
+	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky_ll.c -o cholesky/cholesky-norun.o
+
+cholesky/dposv_ll:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS) cholesky/cholesky_ll.o
+	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
+
+cholesky/dposv_rl:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS) cholesky/cholesky_rl.o
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 cholesky/timeenumerator:$(OBJECTS) $(ENUMERATOR_OBJECTS) $(LIBRARY_OBJECTS)
@@ -63,4 +70,4 @@ lex.yy.c: dplasma.l
 clean:
 	rm -f $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
            $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
-           $(QR_OBJECTS) dpc.o lex.yy.c y.tab.c y.tab.h
+           $(QR_OBJECTS) cholesky/cholesky-norun.o dpc.o lex.yy.c y.tab.c y.tab.h
