@@ -33,6 +33,19 @@ static inline void dplasma_dequeue_construct( dplasma_dequeue_t* dequeue )
     dequeue->atomic_lock = 0;
 }
 
+static inline int dplasma_dequeue_is_empty( dplasma_dequeue_t * dequeue )
+{
+    int res;
+    
+    dplasma_atomic_lock(&(dequeue->atomic_lock));
+    
+    res = (dequeue->ghost_element.list_prev == &(dequeue->ghost_element)) 
+       && (dequeue->ghost_element.list_next == &(dequeue->ghost_element));
+    
+    dplasma_atomic_unlock(&(dequeue->atomic_lock));
+    return res;
+}
+
 static inline dplasma_list_item_t* dplasma_dequeue_pop_back( dplasma_dequeue_t* dequeue )
 {
     dplasma_list_item_t* item;
