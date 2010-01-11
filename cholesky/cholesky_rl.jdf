@@ -38,67 +38,31 @@ rowRANK = 0
  *                      PORTF                     *
  **************************************************/
 // Name
-POTRF(step)
+POTRF(k)
 
 // Execution space
-step = 0..SIZE-1
+k = 0..SIZE-1
 
 // Parallel partitioning
-: step % GRIDrows == rowRANK
-: step % GRIDcols == colRANK
+: k % GRIDrows == rowRANK
+: k % GRIDcols == colRANK
 
 // Parameters
-INOUT T <- (step == 0) ? IN(step, step) : T SYRK(step-1, step-1)
-        -> T TRSM(step, step+1..SIZE-1)
-        -> A(step, step)
+INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
+        -> k == SIZE-1 ? A(k,k) : T TRSM(k, k+1..SIZE-1)
+        -> A(k, k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
     CORE_dpotrf( PlasmaLower,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                 A(step, step), NB, /*A.nb,*/
+                 A(k, k), NB, /*A.nb,*/
                  &PLASMA_INFO); 
 #else
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
              "PlasmaLower",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-             step, step, NB /*A.nb,*/));
-#endif  /* DPLASMA_EXECUTE */
-END
-
-/**************************************************
- *                      SYRK                      *
- **************************************************/
-// Name
-SYRK(n, step)
-
-// Execution space
-step = 0..SIZE-1
-n = step+1..SIZE-1
-
-// Parallel partitioning
-: step % GRIDrows == rowRANK
-: step % GRIDcols == colRANK
-
-//Parameters
-IN    A <- C TRSM(n, step)
-INOUT T <- (n == 0) ? IN(n, n) : T SYRK(n-1, step)
-        -> T POTRF(n)
-
-BODY
-#ifdef DPLASMA_EXECUTE
-    CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
-                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                -1.0, A(n, step), NB, /*A.nb,*/
-                1.0, A(n, n), NB /*A.nb*/);
-#else
-    OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-            "PlasmaLower", "PlasmaNoTrans",
-            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-            NB, /*A.nb,*/
-            -1.0, n, step, NB, /*A.nb,*/
-            1.0, n, n, NB /*A.nb*/));
+             k, k, NB /*A.nb,*/));
 #endif  /* DPLASMA_EXECUTE */
 END
 
@@ -106,62 +70,97 @@ END
  *                      TRSM                      *
  **************************************************/
 // Name
-TRSM(n, step)
+TRSM(k, n)
 
 // Execution space
-step = 0..SIZE-1
-n = step+1..SIZE-1
+k = 0..SIZE-1
+n = k+1..SIZE-1
 
 // Parallel partitioning
 : n % GRIDrows == rowRANK
-: step % GRIDcols == colRANK
+: k % GRIDcols == colRANK
 
 // Parameters
-IN    T <- T POTRF(step)
-INOUT C <- (step == 0) ? IN(n, step) : C GEMM(step, n, step-1)
-        -> A GEMM(n, n+1..SIZE-1, step)
-        -> B GEMM(step+1..n-1, n, step)
-        -> A SYRK(n, step)
-        -> A(step, n)
+IN    T <- T POTRF(k)
+INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
+        -> A SYRK(k, n)
+        -> A GEMM(k, n+1..SIZE-1, n)
+        -> (n > k+1) ? B GEMM(k, n, k+1..n-1) : OUT(n,k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
     CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                1.0, A(step, step), NB, /*A.nb,*/
-                A(n, step), NB /*A.nb*/);
+                1.0, A(k, k), NB, /*A.nb,*/
+                A(n, k), NB /*A.nb*/);
 #else
     OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
              "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
              NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
              NB, /*A.nb,*/
-             1.0, step, step, NB, /*A.nb,*/
-             n, step, NB /*A.nb*/));
+             1.0, k, k, NB, /*A.nb,*/
+             n, k, NB /*A.nb*/));
 #endif  /* DPLASMA_EXECUTE */
 END
 
 
 /**************************************************
+ *                      SYRK                      *
+ **************************************************/
+// Name
+SYRK(k, n)
+
+// Execution space
+k = 0..SIZE-1
+n = k+1..SIZE-1
+
+// Parallel partitioning
+: k % GRIDrows == rowRANK
+: k % GRIDcols == colRANK
+
+//Parameters
+IN    A <- C TRSM(k, n)
+INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
+        -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
+
+BODY
+#ifdef DPLASMA_EXECUTE
+    CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A(n, k), NB, /*A.nb,*/
+                1.0, A(n, n), NB /*A.nb*/);
+#else
+    OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "PlasmaLower", "PlasmaNoTrans",
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, n, k, NB, /*A.nb,*/
+            1.0, n, n, NB /*A.nb*/));
+#endif  /* DPLASMA_EXECUTE */
+END
+
+/**************************************************
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM(step, n, m)
+GEMM(k, m, n)
 
 // Execution space
-step = 0..SIZE-1
-m = step+2..SIZE-1
-n = step+1..m
+k = 0..SIZE-1
+m = k+2..SIZE-1
+n = k+1..m-1
 
 // Parallel partitioning
 : m % GRIDrows == rowRANK
-: step % GRIDcols == colRANK
+: k % GRIDcols == colRANK
 
 // Parameters
-IN    A <- C TRSM(n, step)
-IN    B <- C TRSM(n, m)
-INOUT C <- (n == 0) ? IN(m, n) : C GEMM(step, m, n-1)
-        -> (n == step-1) ? C TRSM(step, m) : C GEMM(step, m, n+1)
+IN    A <- C TRSM(k, n)
+IN    B <- C TRSM(k, m)
+INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n-1)
+        -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
 BODY
 #ifdef DPLASMA_EXECUTE
@@ -169,8 +168,8 @@ BODY
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A(n, step), NB, /*A.nb,*/
-                A(m, step), NB, /*A.nb,*/
+                -1.0, A(n, k), NB, /*A.nb,*/
+                A(m, k), NB, /*A.nb,*/
                 1.0, A(m, n), NB /*A.nb*/);
 #else
     OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
@@ -178,8 +177,8 @@ BODY
             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
             NB, /*A.nb,*/
             NB, /*A.nb,*/
-            -1.0, n, step, NB, /*A.nb,*/
-            m, step, NB, /*A.nb,*/
+            -1.0, n, k, NB, /*A.nb,*/
+            m, k, NB, /*A.nb,*/
             1.0, m, n, NB /*A.nb*/));
 #endif  /* DPLASMA_EXECUTE */
 END
