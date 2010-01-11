@@ -10,8 +10,7 @@ MPILIB = -L $(MPI_DIR)/lib
 
 TARGETS = dist_exec
 
-OBJECTS= dist_exec.o data_management.o ../../dplasma.o ../../symbol.o ../../assignment.o ../../expr.o \
-        ../../barrier.o ../../params.o ../../dep.o ../../scheduling.o ../../remote_dep.o
+OBJECTS= dist_exec.o data_management.o ../../dplasma.a
 
 
 .SUFFIXES:
@@ -27,6 +26,8 @@ cholesky_mpi.c: cholesky_mpi.jdf ../../dpc
 	../../dpc cholesky_mpi.jdf cholesky_mpi.c
 
 
+../../dplasma.a:
+	( cd ../.. && make dplasma.a )
 
 %.tab.h %.tab.c: %.y
 	$(YACC) $< -o $(*F).tab.c

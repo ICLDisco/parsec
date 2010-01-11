@@ -158,6 +158,13 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
         }
     }
+#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+    assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
+    assert(1 == 1); /*masks check goes here*/
+#else 
+    assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
+    assert(1 == 1);
+#endif
     printf("# thread <%3d> done tasks       %d\n"
            "#              local tasks      %llu\n"
            "#              stolen tasks     %llu\n"
