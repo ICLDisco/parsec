@@ -10,6 +10,7 @@ extern "C" %{
 #include <stdio.h>
 
 extern PLASMA_desc descA;
+extern int uplo;
 int PLASMA_INFO;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
@@ -54,13 +55,13 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-    CORE_dpotrf( PlasmaLower,
+    CORE_dpotrf( uplo,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  A(k, k), NB, /*A.nb,*/
                  &PLASMA_INFO); 
 #else
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
-             "PlasmaLower",
+             (uplo == PlasmaLower) ? "PlasmaLower" " "PlasmaUpper",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
              k, k, NB /*A.nb,*/));
 #endif  /* DPLASMA_EXECUTE */
@@ -90,18 +91,35 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-    CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                1.0, A(k, k), NB, /*A.nb,*/
-                A(n, k), NB /*A.nb*/);
+    if( uplo == PlasmaLower ) {
+        CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
+                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                    NB, /*A.nb,*/
+                    1.0, A(k, k), NB, /*A.nb,*/
+                    A(n, k), NB /*A.nb*/);
+    } else {
+        CORE_dtrsm( PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
+                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                    NB, /*A.nb,*/
+                    1.0, A(k, k), NB, /*A.nb,*/
+                    A(k, n), NB /*A.nb*/);
+    }
 #else
-    OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-             "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
-             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-             NB, /*A.nb,*/
-             1.0, k, k, NB, /*A.nb,*/
-             n, k, NB /*A.nb*/));
+    if( uplo == PlasmaLower ) {
+        OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                 "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 1.0, k, k, NB, /*A.nb,*/
+                 n, k, NB /*A.nb*/));
+    } else {
+        OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                 "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
+                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 1.0, k, k, NB, /*A.nb,*/
+                 k, n, NB /*A.nb*/));
+    }
 #endif  /* DPLASMA_EXECUTE */
 END
 
@@ -127,18 +145,35 @@ INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-    CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
+    if( uplo == PlasmaLower ) {
+        CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
+                    NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                    NB, /*A.nb,*/
+                    -1.0, A(n, k), NB, /*A.nb,*/
+                     1.0, A(n, n), NB /*A.nb*/);
+    } else {
+        CORE_dsyrk( PlasmaUpper, PlasmaTrans,
+                    NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                    NB, /*A.nb,*/
+                    -1.0, A(k, n), NB, /*A.nb,*/
+                     1.0, A(n, n), NB /*A.nb*/);
+    }
+#else
+    if( uplo == PlasmaLower ) {
+        OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A(n, k), NB, /*A.nb,*/
-                1.0, A(n, n), NB /*A.nb*/);
-#else
-    OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-            "PlasmaLower", "PlasmaNoTrans",
-            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-            NB, /*A.nb,*/
-            -1.0, n, k, NB, /*A.nb,*/
-            1.0, n, n, NB /*A.nb*/));
+                -1.0, n, k, NB, /*A.nb,*/
+                1.0, n, n, NB /*A.nb*/));
+    } else {
+        OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                "PlasmaLower", "PlasmaNoTrans",
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, k, n, NB, /*A.nb,*/
+                1.0, n, n, NB /*A.nb*/));
+    }
 #endif  /* DPLASMA_EXECUTE */
 END
 
@@ -165,21 +200,42 @@ INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n-1)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-    CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
+    if( uplo == PlasmaLower ) {
+        CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
+                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                    NB, /*A.nb,*/
+                    NB, /*A.nb,*/
+                    -1.0, A(m, k), NB, /*A.nb,*/
+                          A(n, k), NB, /*A.nb,*/
+                     1.0, A(m, n), NB /*A.nb*/);
+    } else {
+        CORE_dgemm( PlasmaTrans, PlasmaNoTrans,
+                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                    NB, /*A.nb,*/
+                    NB, /*A.nb,*/
+                    -1.0, A(k, n), NB, /*A.nb,*/
+                          A(k, m), NB, /*A.nb,*/
+                     1.0, A(n, m), NB /*A.nb*/);
+    }
+#else
+    if( uplo == PlasmaLower ) {
+        OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A(m, k), NB, /*A.nb,*/
-                A(n, k), NB, /*A.nb,*/
-                1.0, A(m, n), NB /*A.nb*/);
-#else
-    OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-            "PlasmaNoTrans", "PlasmaTrans",
-            NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-            NB, /*A.nb,*/
-            NB, /*A.nb,*/
-            -1.0, n, k, NB, /*A.nb,*/
-            m, k, NB, /*A.nb,*/
-            1.0, m, n, NB /*A.nb*/));
+                -1.0, n, k, NB, /*A.nb,*/
+                      m, k, NB, /*A.nb,*/
+                 1.0, m, n, NB /*A.nb*/));
+    } else {
+        OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                "PlasmaNoTrans", "PlasmaTrans",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, k, n, NB, /*A.nb,*/
+                      k, m, NB, /*A.nb,*/
+                 1.0, n, m, NB /*A.nb*/));
+    }
 #endif  /* DPLASMA_EXECUTE */
 END
