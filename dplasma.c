@@ -317,7 +317,7 @@ int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
     const dplasma_t* function = exec_context->function;
     param_t* param;
     dep_t* dep;
-    int i, j, rc, value;
+    int i, j, value;
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
         param = function->inout[i];
@@ -336,7 +336,7 @@ int dplasma_service_can_be_startup( dplasma_execution_context_t* exec_context )
                 continue;
             }
             /* TODO: Check to see if the condition can be applied in the current context */
-            rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+            (void)expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
             if( value == 1 ) {
                 if( dep->dplasma->nb_locals != 0 ) {
                     return -1;
@@ -385,45 +385,6 @@ char* dplasma_dependency_to_string( const dplasma_execution_context_t* from,
     index += snprintf( tmp + index, length - index, " -> " );
     dplasma_service_to_string( to, tmp + index, length - index );
     return tmp;
-}
-
-int plasma_show_ranges( const dplasma_t* object )
-{
-    dplasma_execution_context_t* exec_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-    const expr_t** predicates = (const expr_t**)object->preds;
-    int i, nb_locals;
-
-    exec_context->function = (dplasma_t*)object;
-
-    /* Compute the number of local values */
-    for( i = nb_locals = 0; (NULL != object->locals[i]) && (i < MAX_LOCAL_COUNT); i++, nb_locals++ );
-    if( 0 == nb_locals ) {
-        /* special case for the IN/OUT obejcts */
-        return 0;
-    }
-    printf( "Function %s (loops %d)\n", object->name, nb_locals );
-
-    /**
-     * This section of code walk through the tree and printout the local and global
-     * minimum and maximum values for all local variables.
-     */
-    for( i = 0; i < nb_locals; i++ ) {
-        int abs_min, min, abs_max, max;
-        exec_context->locals[i].sym = object->locals[i];
-        dplasma_symbol_get_first_value(object->locals[i], predicates,
-                                       exec_context->locals, &min);
-        exec_context->locals[i].value = min;
-        dplasma_symbol_get_last_value(object->locals[i], predicates,
-                                      exec_context->locals, &max);
-
-        dplasma_symbol_get_absolute_minimum_value(object->locals[i], &abs_min);
-        dplasma_symbol_get_absolute_maximum_value(object->locals[i], &abs_max);
-
-        printf( "Range for local symbol %s is [%d..%d] (global range [%d..%d]) %s\n",
-                object->locals[i]->name, min, max, abs_min, abs_max,
-                (0 == dplasma_symbol_is_standalone(object->locals[i]) ? "[standalone]" : "[dependent]") );
-    }
-    return 0;
 }
 
 /**
@@ -511,10 +472,10 @@ int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates )
 /**
  * Resolve all IN() dependencies for this particular instance of execution.
  */
-int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_context )
+static int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_context )
 {
     const dplasma_t* function = exec_context->function;
-    int i, j, rc, value, mask = 0;
+    int i, j, value, mask = 0;
     param_t* param;
     dep_t* dep;
 
@@ -532,7 +493,7 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
             dep = param->dep_in[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
-                rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                (void)expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
                 if( 0 == value ) {
                     continue;
                 }
@@ -549,7 +510,7 @@ int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exec_conte
  * Check if a particular instance of the service can be executed based on the
  * values of the arguments and the ranges specified.
  */
-int dplasma_is_valid( dplasma_execution_context_t* exec_context )
+static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
     int i, rc, min, max;

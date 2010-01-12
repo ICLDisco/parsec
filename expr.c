@@ -223,8 +223,8 @@ int expr_depend_on_symbol( const expr_t* expr,
 #define EXPR_ABSOLUTE_RANGE_MIN 1
 #define EXPR_ABSOLUTE_RANGE_MAX 2
 
-int __expr_absolute_range_recursive( const expr_t* expr, int direction,
-                                     int* pmin, int* pmax )
+static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
+                                            int* pmin, int* pmax )
 {
     int rc, *storage, lmin, lmax, rmin, rmax;
 
@@ -380,12 +380,13 @@ expr_t *expr_new_unary(char op, expr_t *e)
 {
     expr_t *n = (expr_t*)calloc(1, sizeof(expr_t));
     n->uop1 = e;
-    n->op   = EXPR_OP_UNARY_NOT;
-    if( e->flags & EXPR_FLAG_CONSTANT ) {
-        n->flags = EXPR_FLAG_CONSTANT;
-        n->value = !(n->value);
-    } else {
-        n->flags = 0;  /* unknown yet */
+    n->flags = 0;  /* unknown yet */
+    if( op == '!' ) {
+        n->op   = EXPR_OP_UNARY_NOT;
+        if( e->flags & EXPR_FLAG_CONSTANT ) {
+            n->flags = EXPR_FLAG_CONSTANT;
+            n->value = !(n->value);
+        }
     }
     return n;
 }

@@ -270,8 +270,9 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
     static char name[FNAME_SIZE];
     static dumped_dep_list_t *dumped_deps;
     dumped_dep_list_t *dumped;
-    int i;
     unsigned int my_idx;
+    size_t body_length;
+    int i;
     
     if( d == NULL ) {
         snprintf(name, FNAME_SIZE, "NULL");
@@ -289,22 +290,23 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
         dumped = (dumped_dep_list_t*)calloc(1, sizeof(dumped_dep_list_t));
         dumped->dep = d;
         dumped->next = dumped_deps;
-        asprintf(&dumped->name, "&dep%d", my_idx);
+        asprintf(&dumped->name, "&dep%u", my_idx);
         dumped_deps = dumped;
         
         p += snprintf(whole + p, DEP_CODE_SIZE-p, 
-                      "static dep_t dep%d = { .cond = %s, .dplasma = NULL,\n"
+                      "static dep_t dep%u = { .cond = %s, .dplasma = NULL,\n"
                       "                       .call_params = {",
                       my_idx, dump_c_expression(out, d->cond, init_func_body, init_func_body_size));
-        i = snprintf(init_func_body + strlen(init_func_body), init_func_body_size - strlen(init_func_body),
+        body_length = strlen(init_func_body);
+        i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
                      "  dep%d.dplasma = &dplasma_array[%d];\n", my_idx, dplasma_dplasma_index( d->dplasma ));
-        if(i + strlen(init_func_body) >= init_func_body_size ) {
+        if(i + body_length >= init_func_body_size ) {
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
         }
-        i = snprintf(init_func_body + strlen(init_func_body), init_func_body_size - strlen(init_func_body),
+        i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
                      "  dep%d.param = %s;\n", my_idx, dump_c_param(out, d->param, init_func_body, init_func_body_size, 0));
-        if(i + strlen(init_func_body) >= init_func_body_size ) {
+        if(i + body_length >= init_func_body_size ) {
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
         }
@@ -314,7 +316,7 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
         }
         fprintf(out, "%s", whole);
         current_line += nblines(whole);
-        snprintf(name, FNAME_SIZE, "&dep%d", my_idx);
+        snprintf(name, FNAME_SIZE, "&dep%u", my_idx);
     }
      
    return name;
@@ -351,7 +353,7 @@ static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int
             dumped = (dumped_param_list_t*)calloc(1, sizeof(dumped_param_list_t));
             dumped->param = p;
             dumped->idx = my_idx;
-            asprintf(&dumped->param_name, "&param%d", my_idx);
+            asprintf(&dumped->param_name, "&param%u", my_idx);
             dumped->next = dumped_params;
             dumped_params = dumped;
             if( !dump_it ) {
@@ -360,7 +362,7 @@ static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int
         }
 
         l += snprintf(param + l, PARAM_CODE_SIZE-l, 
-                      "static param_t param%d = { .name = \"%s\", .sym_type = %d, .param_mask = 0x%02x,\n"
+                      "static param_t param%u = { .name = \"%s\", .sym_type = %d, .param_mask = 0x%02x,\n"
                       "     .dep_in  = {", my_idx, p->name, p->sym_type, p->param_mask);
         for(i = 0; i < MAX_DEP_IN_COUNT; i++) {
             dep_name = dump_c_dep(out, p->dep_in[i], init_func_body, init_func_body_size);
@@ -373,7 +375,7 @@ static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int
         }
         fprintf(out, "%s", param);
         current_line += nblines(param);
-        snprintf(name, FNAME_SIZE, "&param%d", my_idx);
+        snprintf(name, FNAME_SIZE, "&param%u", my_idx);
     }
 
     return name;
@@ -414,14 +416,15 @@ static char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, i
 
 static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_func_body_size)
 {
-    int i;
+    int i, l = 0;
     char whole[SYMBOL_CODE_SIZE];
-    int l = 0;
+    const symbol_t* symbol;
+
     l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "static symbol_t *dplasma_symbols[] = {\n");
     for(i = 0; i < dplasma_symbol_get_count(); i++) {
         l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "   %s%s", 
                       dump_c_symbol(out, dplasma_symbol_get_element_at(i), init_func_body, init_func_body_size),
-                      i < dplasma_symbol_get_count()-1 ? ",\n" : "};\n");
+                      (i < (dplasma_symbol_get_count()-1)) ? ",\n" : "};\n");
     }
     fprintf(out, "%s", whole);
     current_line += nblines(whole);
@@ -430,29 +433,27 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
     current_line++;
 
     for(i = 0; i < dplasma_symbol_get_count(); i++) {
-        if( (dplasma_symbol_get_element_at(i)->min != NULL) &&
-            (dplasma_symbol_get_element_at(i)->max != NULL) &&
-            (dplasma_symbol_get_element_at(i)->min->flags & EXPR_FLAG_CONSTANT) &&
-            (dplasma_symbol_get_element_at(i)->max->flags & EXPR_FLAG_CONSTANT) &&
-            (dplasma_symbol_get_element_at(i)->min->value == dplasma_symbol_get_element_at(i)->max->value) ) {
+        symbol = dplasma_symbol_get_element_at(i);
+        if( (symbol->min != NULL) &&
+            (symbol->max != NULL) &&
+            ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
+            (symbol->min->value == symbol->max->value) ) {
             /* strangely enough, this should be always the case... TODO: talk with the others -- Thomas */
-            fprintf(out, "int %s = %d;\n", dplasma_symbol_get_element_at(i)->name, dplasma_symbol_get_element_at(i)->min->value);
+            fprintf(out, "int %s = %d;\n", symbol->name, symbol->min->value);
             current_line++;
         } else {
-            const char *name = dplasma_symbol_get_element_at(i)->name;
-            fprintf(out, "int %s;\n", name);
+            fprintf(out, "int %s;\n", symbol->name);
             current_line++;
 
             snprintf(init_func_body + strlen(init_func_body),
                      init_func_body_size - strlen(init_func_body),
                      "  {\n"
                      "    int rc;\n"
-                     "    rc = expr_eval( (%s)->min, NULL, 0, &%s);\n"
-                     "    if( 0 != rc ) {\n"
+                     "    if( 0 != (rc = expr_eval( (%s)->min, NULL, 0, &%s)) ) {\n"
                      "      return rc;\n"
                      "    }\n"
                      "  }\n",
-                     dump_c_symbol(out, dplasma_symbol_get_element_at(i), init_func_body, init_func_body_size), name);
+                     dump_c_symbol(out, symbol, init_func_body, init_func_body_size), symbol->name);
         }
     }
     fprintf(out, "\n");
@@ -577,9 +578,9 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
 
 static void dump_tasks_enumerator(FILE *out, const dplasma_t *d, char *init_func_body, int init_func_body_size)
 {
-    int s;
-    int p;
     char spaces[FNAME_SIZE];
+    size_t spaces_length;
+    int s, p;
 
     if(d->body == NULL)
         return;
@@ -591,7 +592,8 @@ static void dump_tasks_enumerator(FILE *out, const dplasma_t *d, char *init_func
     fprintf(out, "%s{\n", spaces);
     current_line++;
 
-    snprintf(spaces + strlen(spaces), FNAME_SIZE-strlen(spaces), "  ");
+    spaces_length = strlen(spaces);
+    snprintf(spaces + spaces_length, FNAME_SIZE-spaces_length, "  ");
     for(s = 0; s < d->nb_locals; s++) {
         fprintf(out, "%sint %s, %s_start, %s_end;\n", spaces, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name );
         current_line++;
@@ -626,23 +628,25 @@ static void dump_tasks_enumerator(FILE *out, const dplasma_t *d, char *init_func
     }
     fprintf(out, ") nbtasks++;\n");
     current_line++;
+
     for(s = 0; s < d->nb_locals; s++) {
-        spaces[strlen(spaces)-2] = '\0';        
+        spaces[strlen(spaces)-2] = '\0';
         fprintf(out, "%s}\n", spaces);
         current_line++;
     }
-    spaces[strlen(spaces)-2] = '\0';        
+
+    spaces[strlen(spaces)-2] = '\0';
     fprintf(out, "%s}\n", spaces);
     current_line++;
 }
 
 int dplasma_dump_all_c(char *filename)
 {
-    int i;
     char whole[DPLASMA_ALL_SIZE];
     char body[INIT_FUNC_BODY_SIZE];
-    int p = 0;
     preamble_list_t *n;
+    const dplasma_t* object;
+    int i, p = 0;
     FILE *out;
     
     out = fopen(filename, "w");
@@ -671,7 +675,8 @@ int dplasma_dump_all_c(char *filename)
     current_line += 2;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
-        fprintf(out, "int %s_start_key, %s_end_key;\n", dplasma_element_at(i)->name, dplasma_element_at(i)->name);
+        object = dplasma_element_at(i);
+        fprintf(out, "int %s_start_key, %s_end_key;\n", object->name, object->name);
         current_line++;
     }
     fprintf(out,
@@ -727,23 +732,25 @@ int dplasma_dump_all_c(char *filename)
     current_line += 8;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
+        object = dplasma_element_at(i);
         /* Specials IN and OUT test */
-        if( dplasma_element_at(i)->body != NULL ) {
-            fprintf(out, "  object = (dplasma_t*)dplasma_find(\"%s\");\n", dplasma_element_at(i)->name);
-            fprintf(out, "  object->hook = %s_hook;\n\n", dplasma_element_at(i)->name);
+        if( object->body != NULL ) {
+            fprintf(out, "  object = (dplasma_t*)dplasma_find(\"%s\");\n"
+                         "  object->hook = %s_hook;\n\n",
+                    object->name, object->name);
             current_line += 2;
         }
     }
 
-    fprintf(out,
-            "#ifdef DPLASMA_PROFILING\n");
+    fprintf(out, "#ifdef DPLASMA_PROFILING\n");
     current_line += 1;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
+        object = dplasma_element_at(i);
         fprintf(out, 
                 "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
                 "                                            &%s_start_key, &%s_end_key);\n",
-                dplasma_element_at(i)->name, colors[i % COLORS_SIZE], dplasma_element_at(i)->name, dplasma_element_at(i)->name);
+                object->name, colors[i % COLORS_SIZE], object->name, object->name);
         current_line += 2;
     }
 

@@ -207,6 +207,20 @@ int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* 
 
 int dplasma_profiling_del_dictionary_keyword( int key )
 {
+    int i;
+
+    free(dplasma_prof_keys[key].name);
+    dplasma_prof_keys[key].name = NULL;
+    free(dplasma_prof_keys[key].attributes);
+    dplasma_prof_keys[key].attributes = NULL;
+
+    /* Update the number of active/registered keys */
+    for( i = key; i < dplasma_prof_keys_count; i++ )
+        if( NULL != dplasma_prof_keys[i].name ) {
+            return 0;
+        }
+    dplasma_prof_keys_count = key;
+
     return 0;
 }
 
@@ -225,12 +239,12 @@ int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key )
 
 int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename )
 {
-    FILE* tracefile;
-    uint64_t start, end;
-    dplasma_time_t relative = ZERO_TIME, latest = ZERO_TIME;
-    double scale, gaps, gaps_last, last, total_time;
-    dplasma_eu_profiling_t* profile;
     int i, thread_id, tag, last_timestamp, key, keyplotted, nplot, foundone;
+    uint64_t start, end, total_time, last, gaps, gaps_last;
+    dplasma_time_t relative = ZERO_TIME, latest = ZERO_TIME;
+    dplasma_eu_profiling_t* profile;
+    FILE* tracefile;
+    double scale;
 
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -283,7 +297,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
         }
     }
 
-    scale = WIDTH / diff_time(relative, latest);
+    scale = WIDTH / (double)diff_time(relative, latest);
 
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
@@ -315,8 +329,8 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                     (double)end-(double)start,
                     100.0 * ( (double)end-(double)start) / (double)total_time);
         }
-        printf("Found %.4lf ticks gaps out of %.4lf (%.2lf%%)\n", gaps,
-               last, (gaps * 100.0) / last);
+        printf("Found %lu ticks gaps out of %lu (%.2lf%%)\n", (unsigned long)gaps,
+               (unsigned long)last, (gaps * 100.0) / (double)last);
     }
     fprintf(tracefile, 
             "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>\n"
@@ -329,17 +343,14 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 
     nplot = 0;
     for( key = 0; key < dplasma_prof_keys_count; key++ ) {
-        int key_start = 2*key;
-        int key_end = 2*key + 1;
+        int key_start = 2*key, key_end = 2*key + 1;
 
         keyplotted = 0;
 
         for(  thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
-            uint64_t time;
-            uint64_t sum = 0;
-            uint64_t sqsum = 0;
-            int nb = 0;
+            uint64_t time, sum = 0, sqsum = 0;
             double avg, var;
+            int nb = 0;
 
             profile = context->execution_units[thread_id].eu_profile;
             for( i = 0; i < min(profile->events_count, dplasma_prof_events_number); i+=2 ) {

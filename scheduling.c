@@ -175,31 +175,15 @@ int dplasma_progress(dplasma_context_t* context)
     return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
 }
 
-static int dplasma_execute( dplasma_execution_unit_t* eu_context,
-                            const dplasma_execution_context_t* exec_context )
-{
-    dplasma_t* function = exec_context->function;
-#ifdef _DEBUG
-    char tmp[128];
-#endif
-
-    if( NULL != function->hook ) {
-        function->hook( eu_context, exec_context );
-    } else {
-        DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
-    }
-    return dplasma_post_execute( eu_context, exec_context, 1 );
-}
-
-int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
-                         const dplasma_execution_context_t* exec_context,
-                         int forward_remote )
+static int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
+                                 const dplasma_execution_context_t* exec_context,
+                                 int forward_remote )
 {
     param_t* param;
     dep_t* dep;
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
-    int i, j, k, rc, value;    
+    int i, j, k, value;    
     
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
         param = function->inout[i];
@@ -213,7 +197,7 @@ int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
             dep = param->dep_out[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
-                rc = expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                (void)expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
                 if( 0 == value ) {
                     continue;
                 }
@@ -226,12 +210,12 @@ int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
             for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
                 new_context.locals[k].sym = dep->dplasma->locals[k];
                 if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
-                    rc = expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
+                    (void)expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
                     new_context.locals[k].min = new_context.locals[k].max = value;
                     DEBUG(( "%d ", value ));
                 } else {
                     int min, max;
-                    rc = expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
+                    (void)expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
                     if( min > max ) {
                         dont_generate = 1;
                         DEBUG(( " -- skipped" ));
@@ -262,4 +246,20 @@ int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
         }
     }
     return 0;
+}
+
+static int dplasma_execute( dplasma_execution_unit_t* eu_context,
+                            const dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+#ifdef _DEBUG
+    char tmp[128];
+#endif
+
+    if( NULL != function->hook ) {
+        function->hook( eu_context, exec_context );
+    } else {
+        DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
+    }
+    return dplasma_post_execute( eu_context, exec_context, 1 );
 }
