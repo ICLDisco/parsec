@@ -304,6 +304,7 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
         }
+        body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
                      "  dep%d.param = %s;\n", my_idx, dump_c_param(out, d->param, init_func_body, init_func_body_size, 0));
         if(i + body_length >= init_func_body_size ) {
