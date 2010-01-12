@@ -3,13 +3,12 @@
 import sys
 import commands
 
-EXE = ["./dposv_depth_first.dplasma", "./dposv_dynamic.dplasma", "./dposv.plasma"]
-JDF = "cholesky.jdf"
+EXE = ["./dposv_ll"]
 
 def get_nb(exe):
   n = 500
   cores = 1
-  cmd = "env GOTO_NUM_THREADS=1 %s %d %d %d 1 %d < %s" % (exe, cores, n, n, n, JDF)
+  cmd = "env GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 %s %d %d %d 1 %d" % (exe, cores, n, n, n)
   st, out = commands.getstatusoutput(cmd)
   perf_line = find_perf_line(out)
   nb = int(perf_line.split()[4])
@@ -23,11 +22,12 @@ def find_perf_line(txt):
   raise ValueError, "Cannot find '%s' in this:\n%s" % (s, txt)
 
 def run(n, exe):
-  cores = 1
-  cmd = "env GOTO_NUM_THREADS=1 %s %d %d %d 1 %d < %s" % (exe, cores, n, n, n, JDF)
-  print "####", cmd
-  st, out = commands.getstatusoutput(cmd)
-  print find_perf_line(out)
+  for cores in [1, 2, 4, 8]:
+    cmd = "env GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1  %s %d %d %d 1 %d" % (exe, cores, n, n, n)
+    print "####", cmd
+    st, out = commands.getstatusoutput(cmd)
+    print find_perf_line(out)
+    sys.stdout.flush()
 
 def test_exe(fname):
   try:
