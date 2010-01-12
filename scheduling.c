@@ -13,6 +13,7 @@
 #include <errno.h>
 #include "scheduling.h"
 #include "dequeue.h"
+#include "remote_dep.h"
 
 static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
@@ -129,13 +130,11 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             nbiterations++;
             /* Release the execution context */
             free( exec_context );
-#ifndef DPLASMA_USE_GLOBAL_LIFO
         } else {
             /* check for remote deps completion */
             if(dplasma_remote_dep_progress(eu_context) > 0)
-            {
                 continue;
-            }
+#ifndef DPLASMA_USE_GLOBAL_LIFO
             miss_local++;
             /* Work stealing from the other workers */
             int i;
@@ -190,7 +189,7 @@ int dplasma_progress(dplasma_context_t* context)
     return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
 }
 
-int dplasma_signal_dependencies( dplasma_execution_unit_t* eu_context,
+int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* exec_context,
                                 int forward_remote )
 {
@@ -199,6 +198,8 @@ int dplasma_signal_dependencies( dplasma_execution_unit_t* eu_context,
     dplasma_t* function = exec_context->function;
     dplasma_execution_context_t new_context;
     int i, j, k, value;    
+
+    dplasma_remote_dep_reset_forwarded(eu_context);
     
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
         param = function->inout[i];
@@ -276,5 +277,5 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     } else {
         DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
-    return dplasma_signal_dependencies( eu_context, exec_context, 1 );
+    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
 }
