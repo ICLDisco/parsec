@@ -143,7 +143,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         printf("main thread did %d tasks\n", it);
         
         time_elapsed = get_cur_time() - time_elapsed;
-        printf("DPLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+        printf("DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
     }
 #ifdef DPLASMA_PROFILING
     {
@@ -161,7 +161,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
                            PLASMA_enum, uplo,
                            PLASMA_desc, descA);
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("PLASMA DPOTRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+    printf("PLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
 #endif
 
     if (PLASMA_INFO == PLASMA_SUCCESS)
