@@ -717,9 +717,9 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
         if( 0 != dplasma_is_valid(exec_context) ) {
             char tmp[128], tmp1[128];
 
-            fprintf( stderr, "Output dependencies of %s generate an invalid call to %s\n",
+            fprintf( stderr, "Output dependencies of %s generate an invalid call to %s for param %s\n",
                      dplasma_service_to_string(origin, tmp, 128),
-                     dplasma_service_to_string(exec_context, tmp1, 128) );
+                     dplasma_service_to_string(exec_context, tmp1, 128), dest_param->name );
             goto next_value;
         }
 
