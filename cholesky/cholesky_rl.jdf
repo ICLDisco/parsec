@@ -29,8 +29,8 @@ int PLASMA_INFO;
  */
 GRIDrows = 1
 GRIDcols = 1
-NB = 120
-SIZE = 5
+NB
+SIZE
 colRANK = 0
 rowRANK = 0
 
@@ -49,7 +49,7 @@ k = 0..SIZE-1
 
 // Parameters
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
-        -> k == SIZE-1 ? A(k,k) : T TRSM(k, k+1..SIZE-1)
+        -> (k == SIZE-1) ? A(k,k) : T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
 
 BODY
