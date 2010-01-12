@@ -35,8 +35,8 @@ typedef struct expr expr_t;
 #define EXPR_OP_BINARY_OR         28
 #define EXPR_OP_BINARY_AND        29
 #define EXPR_OP_BINARY_XOR        30
-#define EXPR_OP_BINARY_MIN        31
-#define EXPR_OP_BINARY_MAX        32
+#define EXPR_OP_BINARY_LESS       31
+#define EXPR_OP_BINARY_MORE       32
 #define EXPR_OP_MAX_BINARY        32
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )

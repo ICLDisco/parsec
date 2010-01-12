@@ -55,6 +55,7 @@ int yywrap()
 
 %token DPLASMA_COMMA DPLASMA_OPEN_PAR DPLASMA_CLOSE_PAR DPLASMA_RANGE
 %token DPLASMA_EQUAL DPLASMA_NOT_EQUAL DPLASMA_ASSIGNMENT DPLASMA_QUESTION
+%token DPLASMA_LESS DPLASMA_MORE
 %token DPLASMA_COLON 
 %token <number>  DPLASMA_INT
 %token <string>  DPLASMA_VAR
@@ -70,6 +71,8 @@ int yywrap()
 %nonassoc DPLASMA_RANGE
 %left DPLASMA_EQUAL
 %left DPLASMA_NOT_EQUAL
+%left DPLASMA_LESS
+%left DPLASMA_MORE
 %left DPLASMA_OP
 
 %%
@@ -457,6 +460,8 @@ expr:     DPLASMA_VAR                                {
         | DPLASMA_OPEN_PAR expr DPLASMA_CLOSE_PAR    { $$ = $2; }
         | expr DPLASMA_EQUAL expr                    { $$ = expr_new_binary($1, '=', $3); }
         | expr DPLASMA_NOT_EQUAL expr                { $$ = expr_new_binary($1, '!', $3); }
+        | expr DPLASMA_LESS expr                     { $$ = expr_new_binary($1, '<', $3); }
+        | expr DPLASMA_MORE expr                     { $$ = expr_new_binary($1, '>', $3); }
         | expr DPLASMA_RANGE expr                    { $$ = expr_new_binary($1, '.', $3);; }
 ;
 
