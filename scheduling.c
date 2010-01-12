@@ -158,6 +158,14 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
         }
     }
+#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+    assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
+    assert(1 == 1); /*masks check goes here*/
+#else 
+    assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
+    assert(1 == 1);
+#endif
+
     printf("# th <%3d> done %d local %llu stolen %llu miss %llu failed %llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_victim,
