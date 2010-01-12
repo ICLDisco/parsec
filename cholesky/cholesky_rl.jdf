@@ -29,13 +29,13 @@ int PLASMA_INFO;
  */
 GRIDrows = 1
 GRIDcols = 1
-NB = 120
-SIZE = 5
+NB
+SIZE
 colRANK = 0
 rowRANK = 0
 
 /**************************************************
- *                      PORTF                     *
+ *                      POTRF                     *
  **************************************************/
 // Name
 POTRF(k)
@@ -49,7 +49,7 @@ k = 0..SIZE-1
 
 // Parameters
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
-        -> k == SIZE-1 ? A(k,k) : T TRSM(k, k+1..SIZE-1)
+        -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
 
 BODY
@@ -86,6 +86,7 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> A SYRK(k, n)
         -> A GEMM(k, n+1..SIZE-1, n)
         -> (n > k+1) ? B GEMM(k, n, k+1..n-1) : OUT(n,k)
+        -> A(n, k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
@@ -168,8 +169,8 @@ BODY
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A(n, k), NB, /*A.nb,*/
-                A(m, k), NB, /*A.nb,*/
+                -1.0, A(m, k), NB, /*A.nb,*/
+                A(n, k), NB, /*A.nb,*/
                 1.0, A(m, n), NB /*A.nb*/);
 #else
     OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
