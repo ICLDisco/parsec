@@ -25,6 +25,22 @@
 int dplasma_schedule( dplasma_context_t*, const dplasma_execution_context_t* );
 int __dplasma_schedule( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
+
+/**
+ * Signal the termination of the execution context to all dependencies of 
+ * its dependencies.  
+ * 
+ * @param [IN]  The exeuction context of the finished task.
+ * @param [IN]  when forward_remote is 0, only local (in the sense of the 
+ *              process grid predicates) dependencies are satisfied.
+ *
+ * @return 0    If the dependencies have successfully been signaled.
+ * @return -1   If something went wrong. 
+ */
+int dplasma_signal_dependencies( dplasma_execution_unit_t*,
+                                const dplasma_execution_context_t*,
+                                int forward_remote );
+
 int dplasma_progress(dplasma_context_t* context);
 void* __dplasma_progress(dplasma_execution_unit_t* eu_context);
 

@@ -190,9 +190,9 @@ int dplasma_progress(dplasma_context_t* context)
     return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
 }
 
-static int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
-                                 const dplasma_execution_context_t* exec_context,
-                                 int forward_remote )
+int dplasma_signal_dependencies( dplasma_execution_unit_t* eu_context,
+                                const dplasma_execution_context_t* exec_context,
+                                int forward_remote )
 {
     param_t* param;
     dep_t* dep;
@@ -276,5 +276,5 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     } else {
         DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
-    return dplasma_post_execute( eu_context, exec_context, 1 );
+    return dplasma_signal_dependencies( eu_context, exec_context, 1 );
 }
