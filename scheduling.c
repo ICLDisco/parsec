@@ -158,6 +158,12 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
         }
     }
+    printf("# th <%3d> done %d local %llu stolen %llu miss %llu failed %llu\n",
+           eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
+           (long long unsigned int)found_victim,
+           (long long unsigned int)miss_local,
+           (long long unsigned int)miss_victim );
+#if 0
     printf("# thread <%3d> done tasks       %d\n"
            "#              local tasks      %llu\n"
            "#              stolen tasks     %llu\n"
@@ -167,6 +173,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
+#endif
     return (void*)(long)nbiterations;
 }
 
