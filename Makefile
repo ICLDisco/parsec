@@ -70,4 +70,5 @@ lex.yy.c: dplasma.l
 clean:
 	rm -f $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
            $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
-           $(QR_OBJECTS) cholesky/cholesky-norun.o dpc.o lex.yy.c y.tab.c y.tab.h
+           $(QR_OBJECTS) cholesky/cholesky-norun.o dpc.o lex.yy.c y.tab.c y.tab.h \
+	   cholesky/cholesky_ll.o cholesky/cholesky_rl.o
