@@ -64,6 +64,10 @@ int check_solution(int, int, int, double*, int, double*, double*, int, double);
 int IONE=1;
 int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
 
+/* TODO Remove this ugly stuff */
+extern int dgels_private_memory_initialization(plasma_context_t*);
+struct dplasma_memory_pool_t *work_pool = NULL, *tau_pool = NULL;
+
 int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
 {
     int NB, MT, NT, nbtasks;
@@ -138,9 +142,12 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
     dplasma = dplasma_init(ncores, NULL, NULL);
     load_dplasma_objects(dplasma);
 
-    // TODO: this should be allocated per thread.
+    dgels_private_memory_initialization(plasma);
+#if 0
+    // TODO: this should be allocated per execution context.
     work = (double *)plasma_private_alloc(plasma, descT.mb*descT.nb, descT.dtyp);
     tau = (double *)plasma_private_alloc(plasma, descA.nb, descA.dtyp);
+#endif
 
     time_elapsed = get_cur_time();
     {

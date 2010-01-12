@@ -4,6 +4,9 @@ extern "C" %{
     */
 #include <plasma.h>
 #include <core_dblas.h>
+/*#include <../src/common.h>*/
+/*#include <../src/context.h>*/
+/*#include <../src/allocate.h>*/
 
 #include "dplasma.h"
 #include <stdlib.h>
@@ -11,7 +14,6 @@ extern "C" %{
 
 extern PLASMA_desc descA;
 extern PLASMA_desc descT;
-extern double *work, *tau;
 int PLASMA_INFO;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
@@ -25,6 +27,60 @@ int PLASMA_INFO;
 #else
 #define OUTPUT(ARG)
 #endif
+
+typedef struct dplasma_memory_pool_t {
+    dplasma_atomic_lifo_t lifo;
+    struct plasma_context_t *plasma;
+    size_t elem_size;
+    int elem_type;
+} dplasma_memory_pool_t;
+
+extern dplasma_memory_pool_t *work_pool, *tau_pool;
+extern void* plasma_private_alloc(void*, size_t, int);
+
+int dplasma_private_memory_init( dplasma_memory_pool_t* pool,
+                                 size_t size,
+                                 int type )
+{
+    dplasma_atomic_lifo_construct( &(pool->lifo) );
+    pool->elem_size = size;
+    pool->elem_type = type;
+    pool->plasma = NULL;
+    return 0;
+}
+
+void* dplasma_private_memory_pop(dplasma_memory_pool_t* pool)
+{
+    dplasma_list_item_t* elem = dplasma_atomic_lifo_pop(&(pool->lifo));
+    if( NULL == elem ) {
+        elem = (dplasma_list_item_t*)plasma_private_alloc(pool->plasma, pool->elem_size, pool->elem_type);
+    }
+    return elem;
+}
+
+void dplasma_private_memory_push(dplasma_memory_pool_t* pool, void* memory)
+{
+    dplasma_atomic_lifo_push( &(pool->lifo), (dplasma_list_item_t*)memory );
+}
+
+int dgels_private_memory_initialization(struct plasma_context_t *plasma)
+{
+    work_pool = (dplasma_memory_pool_t*)malloc(sizeof(dplasma_memory_pool_t));
+    dplasma_private_memory_init( work_pool, descT.mb*descT.nb, descT.dtyp );
+    work_pool->plasma = plasma;
+
+    tau_pool = (dplasma_memory_pool_t*)malloc(sizeof(dplasma_memory_pool_t));
+    dplasma_private_memory_init( tau_pool, descA.nb, descA.dtyp );
+    tau_pool->plasma = plasma;
+
+    return 0;
+}
+
+int dgels_private_memory_finalization(void)
+{
+    return 0;
+}
+
 %}
 
 GRIDrows = 1
@@ -53,13 +109,17 @@ DGEQRT(k)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-                CORE_dgeqrt(
-                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-                    k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-                    descT.mb,
-                    A(k, k), descA.nb,
-                    T(k, k), descT.mb,
-                    tau, work);
+    void* work = dplasma_private_memory_pop(work_pool);
+    void* tau = dplasma_private_memory_pop(tau_pool);
+    CORE_dgeqrt(
+        k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+        k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
+        descT.mb,
+        A(k, k), descA.nb,
+        T(k, k), descT.mb,
+        tau, work);
+    dplasma_private_memory_push(tau_pool, tau);
+    dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dgeqrt"));
 #endif  /* DPLASMA_EXECUTE */
@@ -87,14 +147,18 @@ DTSQRT(k,m)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-           CORE_dtsqrt(
-                    m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
-                    k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-                    descT.mb,
-                    A(k, k), descA.nb,
-                    A(m, k), descA.nb,
-                    T(m, k), descT.mb,
-                    tau, work);
+    void* work = dplasma_private_memory_pop(work_pool);
+    void* tau = dplasma_private_memory_pop(tau_pool);
+    CORE_dtsqrt(
+        m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
+        k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
+        descT.mb,
+        A(k, k), descA.nb,
+        A(m, k), descA.nb,
+        T(m, k), descT.mb,
+        tau, work);
+    dplasma_private_memory_push(tau_pool, tau);
+    dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dtsqrt"));
 #endif  /* DPLASMA_EXECUTE */
@@ -122,16 +186,18 @@ DORMQR(k,n)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-               CORE_dormqr(
-                    PlasmaLeft, PlasmaTrans,
-                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-                    descT.mb,
-                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-                    A(k, k), descA.nb,
-                    T(k, k), descT.mb,
-                    A(k, n), descA.nb,
-                    work, descT.nb);
+    void* work = dplasma_private_memory_pop(work_pool);
+    CORE_dormqr(
+        PlasmaLeft, PlasmaTrans,
+        k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+        n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
+        descT.mb,
+        k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
+        A(k, k), descA.nb,
+        T(k, k), descT.mb,
+        A(k, n), descA.nb,
+        work, descT.nb);
+    dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dormqr"));
 #endif  /* DPLASMA_EXECUTE */ 
@@ -166,18 +232,20 @@ DSSMQR(k,n,m)
 
 BODY
 #ifdef DPLASMA_EXECUTE
-                CORE_dssmqr(
-                    PlasmaLeft, PlasmaTrans,
-                    descA.nb,
-                    m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
-                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-                    descT.mb,
-                    descA.nb,
-                    A(k, n), descA.nb,
-                    A(m, n), descA.nb,
-                    A(m, k), descA.nb,
-                    T(m, k), descT.mb,
-                    work, descT.mb);
+    void* work = dplasma_private_memory_pop(work_pool);
+    CORE_dssmqr(
+        PlasmaLeft, PlasmaTrans,
+        descA.nb,
+        m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
+        n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
+        descT.mb,
+        descA.nb,
+        A(k, n), descA.nb,
+        A(m, n), descA.nb,
+        A(m, k), descA.nb,
+        T(m, k), descT.mb,
+        work, descT.mb);
+    dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dssmqr"));
 #endif  /* DPLASMA_EXECUTE */ 
