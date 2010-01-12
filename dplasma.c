@@ -712,7 +712,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 #ifdef DPLASMA_GENERATE_DOT
         int first_encounter = 0;
 #endif  /* DPLASMA_GENERATE_DOT */
-        int updated_deps;
+        int updated_deps, mask;
 
         if( 0 != dplasma_is_valid(exec_context) ) {
             char tmp[128], tmp1[128];
@@ -723,10 +723,10 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             goto next_value;
         }
 
+        mask = DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask;
         /* Mark the dependencies and check if this particular instance can be executed */
         if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
-            int mask = dplasma_check_IN_dependencies( exec_context );
-            deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] |= mask;
+            mask |= dplasma_check_IN_dependencies( exec_context );
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
@@ -736,10 +736,9 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
         }
 
         updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
-                                           (DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask));
+                                           mask);
 
-        if( (updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN))
-            == function->dependencies_mask ) {
+        if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
 #ifdef DPLASMA_GENERATE_DOT
             {
                 char tmp[128];
