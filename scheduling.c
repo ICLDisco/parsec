@@ -182,7 +182,7 @@ int dplasma_progress(dplasma_context_t* context)
     return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
 }
 
-static int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
+int dplasma_post_execute( dplasma_execution_unit_t* eu_context,
                                  const dplasma_execution_context_t* exec_context,
                                  int forward_remote )
 {
