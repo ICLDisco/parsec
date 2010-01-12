@@ -272,16 +272,20 @@ int main (int argc, char **argv)
     */
 
     /* Initialize A1 and A2 */
+#if 0
     dlarnv(&IONE, ISEED, &LDAxN, A1);
+#endif
     for (i = 0; i < M; i++)
         for (j = 0; j < N; j++)
-            A2[LDA*j+i] = A1[LDA*j+i] ;
+            A2[LDA*j+i] = A1[LDA*j+i] = 0.5 - (double)rand() / RAND_MAX;
 
     /* Initialize B1 and B2 */
+#if 0
     dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
+#endif
     for (i = 0; i < M; i++)
         for (j = 0; j < NRHS; j++)
-             B2[LDB*j+i] = B1[LDB*j+i] ;
+             B2[LDB*j+i] = B1[LDB*j+i] = 0.5 - (double)rand() / RAND_MAX;
 
     // memset((void*)Q, 0, LDA*N*sizeof(double));
         for (i = 0; i < K; i++)

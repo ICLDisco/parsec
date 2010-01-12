@@ -29,6 +29,7 @@ int asprintf(char **strp, const char *fmt, ...);
 double time_elapsed, GFLOPS;
 
 PLASMA_desc descA;
+int uplo;
 
 int check_factorization(int, double*, double*, int, int , double);
 int check_solution(int, int, double*, int, double*, double*, int, double);
@@ -189,7 +190,6 @@ int main (int argc, char **argv)
    int NRHS  = atoi(argv[4]);
    int LDB   = atoi(argv[5]);
    double eps;
-   int uplo;
    int info;
    int info_solution, info_factorization;
    int i,j;
@@ -217,22 +217,27 @@ int main (int argc, char **argv)
    *  TESTING DPOTRF + DPOTRS
    */
    /* Initialize A1 and A2 for Symmetric Positive Matrix */
+#if 0
    dlarnv(&IONE, ISEED, &LDA, D);
    dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
+#endif
    for ( i = 0; i < N; i++)
-       for (  j = 0; j < N; j++)
-           A2[LDA*j+i] = A1[LDA*j+i];
-
+       for ( j = i; j < N; j++) {
+           A2[LDA*j+i] = A1[LDA*j+i] = (double)rand() / RAND_MAX;
+           A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
+       }
    for ( i = 0; i < N; i++){
-       A1[LDA*i+i] = A1[LDA*i+i]+ N ;
+       A1[LDA*i+i] = A1[LDA*i+i] + 10*N;
        A2[LDA*i+i] = A1[LDA*i+i];
    }
 
    /* Initialize B1 and B2 */
+#if 0
    dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
+#endif
    for ( i = 0; i < N; i++)
        for ( j = 0; j < NRHS; j++)
-           B2[LDB*j+i] = B1[LDB*j+i];
+           B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
 
    /* Plasma routines */
    uplo=PlasmaLower;
