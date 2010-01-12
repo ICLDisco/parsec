@@ -33,6 +33,6 @@ LEX=flex # -d
 # Add -DDPLASMA_PROFILING to generate a profiling svg output.
 
 #
-CFLAGS=-D_GNU_SOURCE-Wall -pedantic -g -I. $(INC) -std=c99 -DADD_ -DDPLASMA_EXECUTE
+CFLAGS=-D_GNU_SOURCE -Wall -pedantic -g -I. $(INC) -std=c99 -DADD_ -DDPLASMA_EXECUTE
 LDFLAGS=-g
 
