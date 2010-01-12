@@ -157,7 +157,11 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         dplasma_assign_global_symbol( "NB", constant );
 
         constant = expr_new_int( NT );
-        dplasma_assign_global_symbol( "SIZE", constant );
+        dplasma_assign_global_symbol( "NT", constant );
+        constant = expr_new_int( MT );
+        dplasma_assign_global_symbol( "MT", constant );
+        constant = expr_new_int( ((MT < NT) ? MT : NT) );
+        dplasma_assign_global_symbol( "MINMTNT", constant );
     }
 
     load_dplasma_hooks(dplasma);
