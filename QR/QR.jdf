@@ -85,10 +85,10 @@ int dgels_private_memory_finalization(void)
 
 GRIDrows = 1
 GRIDcols = 1
-NB = 144
-MT = 10
-NT = 5
-MINMTNT = 5
+NB
+MT
+NT
+MINMTNT
 colRANK = 0
 rowRANK = 0
 
