@@ -19,9 +19,6 @@ int PLASMA_INFO;
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #define T(m,n) &(((double*)descT.mat)[descT.bsiz*(m)+descT.bsiz*descT.lmt*(n)])
 
-/* Define it to shortcut the lookup for the local variables. */
-#define DPLASMA_HOOK_OPTIMIZED
-
 #if 0
 #define OUTPUT(ARG)  printf ARG
 #else
