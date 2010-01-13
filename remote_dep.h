@@ -8,6 +8,8 @@
 
 #include "dplasma.h"
 
+#define SIZEOF_FW_MASK(eu_context) (((eu_context)->master_context->nb_nodes + sizeof(char) - 1) / sizeof(char))
+
 int dplasma_remote_dep_init(dplasma_context_t* context);
 int dplasma_remote_dep_fini(dplasma_context_t* context);
 

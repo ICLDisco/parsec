@@ -17,8 +17,6 @@ enum {
 static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context, 
                                         const dplasma_execution_context_t* origin,
                                         dplasma_execution_context_t* exec_context );
-static void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank );
-static int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank );
 
 static int __remote_dep_init(dplasma_context_t* context);
 static int __remote_dep_fini(dplasma_context_t* context);
@@ -51,8 +49,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 {
     /* return some error and be loud
      * we should never get called in multicore mode */
-    char tmp[128];
-    char tmp2[128];
+  /*    char tmp[128];
+	char tmp2[128];*/
     int i;
     int rank;
     dplasma_t* function = exec_context->function;
@@ -73,11 +71,12 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
     return 0;
 }
 
+void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
+{
+  return;
+}
+
 #endif
-
-
-
-
 
 
 #ifdef HEAVY_DEBUG
@@ -86,70 +85,43 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 #define HDEBUG( args ) do {} while(0)
 #endif 
 
-#define SIZEOF_FW_MASK(eu_context) (((eu_context)->master_context->nb_nodes + sizeof(char) - 1) / sizeof(char))
 
-void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
-{
-    memset(eu_context->remote_dep_fw_mask, 0, SIZEOF_FW_MASK(eu_context));
-}
+
 
 int dplasma_remote_dep_init(dplasma_context_t* context)
 {
-    int i;
+    
     int nb = __remote_dep_init(context);
-    if(nb > 1)
-    {
-        context->nb_nodes = nb;
-        for(i = 0; i < context->nb_cores; i++)
-        {
-            dplasma_execution_unit_t *eu = &context->execution_units[i];
-            eu->remote_dep_fw_mask = (char *) malloc(SIZEOF_FW_MASK(eu));
-            dplasma_remote_dep_reset_forwarded(eu);
+#ifdef USE_MPI
+    int i;
+    context->nb_nodes = nb;
+    for(i = 0; i < context->nb_cores; i++)
+      {
+	dplasma_execution_unit_t *eu = &context->execution_units[i];
+	eu->remote_dep_fw_mask = (char *) malloc(SIZEOF_FW_MASK(eu));
+	dplasma_remote_dep_reset_forwarded(eu);
         }
-    }
-    else
-    {
-        context->nb_nodes = 0; /* avoid memset */
-    }
+#else
+    context->nb_nodes = 1; /* avoid memset */
+#endif    
     return nb;
 }
 
 int dplasma_remote_dep_fini(dplasma_context_t* context)
 {
-    if(context->nb_nodes)
+  
+#ifdef USE_MPI
+  
+  int i;        
+  for(i = 0; i < context->nb_cores; i++)
     {
-        int i;        
-        for(i = 0; i < context->nb_cores; i++)
-        {
-            free(context->execution_units[i].remote_dep_fw_mask);
-        }
+      free(context->execution_units[i].remote_dep_fw_mask);
     }
+#endif    
     return __remote_dep_fini(context);
 }
 
-static void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
-{
-    int boffset;
-    char mask = 1;
-    
-    DEBUG(("REMOTE rank %d is marked (W)\n", rank));
-    boffset = rank / sizeof(char);
-    mask = 1 << (rank % sizeof(char));
-    assert(boffset <= SIZEOF_FW_MASK(eu_context));
-    eu_context->remote_dep_fw_mask[boffset] |= mask;
-}
 
-static int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
-{
-    int boffset;
-    char mask = 1;
-    
-    boffset = rank / sizeof(char);
-    mask = 1 << (rank % sizeof(char));
-    assert(boffset <= SIZEOF_FW_MASK(eu_context));
-    DEBUG(("REMOTE rank %d is valued (%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
-    return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
-}
 
 static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                         const dplasma_execution_context_t* origin,
