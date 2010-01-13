@@ -69,7 +69,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     if( NULL == eu_context->placeholder ) {
         eu_context->placeholder = (void*)new_context;
     } else {
-        dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
+        dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     }
 #endif  /* DPLASMA_USE_LIFO */
     return 0;
