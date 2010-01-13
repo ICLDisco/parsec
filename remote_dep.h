@@ -19,7 +19,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context);
 
-/*int dependency_management_satisfy(DPLASMA_desc * Ddesc, int tm, int tn, int lm, int ln);*/
+void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context );
 
 #endif /* __USE_REMOTE_DEP_H__ */
 

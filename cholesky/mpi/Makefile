@@ -12,7 +12,7 @@ TARGETS = dist_exec
 
 OBJECTS= dist_exec.o data_management.o ../../dplasma.a
 
-
+.PHONY: all clean ../../dplasma.a
 .SUFFIXES:
 .SUFFIXES: .c .o .h
 
@@ -26,8 +26,8 @@ cholesky_mpi.c: cholesky_mpi.jdf ../../dpc
 	../../dpc cholesky_mpi.jdf cholesky_mpi.c
 
 
-../../dplasma.a:
-	( cd ../.. && make dplasma.a )
+../../dplasma.a: 
+	$(MAKE) -C ../..
 
 %.tab.h %.tab.c: %.y
 	$(YACC) $< -o $(*F).tab.c

@@ -19,15 +19,17 @@ static MPI_Request dep_req;
 #define dep_count sizeof(dplasma_execution_context_t)
 static dplasma_execution_context_t dep_buff;
 
-int dplasma_remote_dep_init(dplasma_context_t* context)
+int __remote_dep_init(dplasma_context_t* context)
 {
+    int np;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
+    MPI_Comm_size(dep_comm, &np);
     MPI_Recv_init(&dep_buff, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_req);
     MPI_Start(&dep_req);
-    return 0;
+    return np;
 }
 
-int dplasma_remote_dep_fini(dplasma_context_t* context)
+int __remote_dep_fini(dplasma_context_t* context)
 {
     MPI_Cancel(&dep_req);
     MPI_Request_free(&dep_req);
@@ -43,10 +45,19 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param )
 {
+#ifdef _DEBUG
+    char tmp[128];
+#endif    
     int rank; 
     
     rank = remote_dep_compute_grid_rank(eu_context, origin, exec_context);
     assert(rank >= 0);
+    assert(rank < eu_context->master_context->nb_nodes);
+    if(remote_dep_is_forwarded(eu_context, rank))
+    {    
+        return 0;
+    }
+    remote_dep_mark_forwarded(eu_context, rank);
     return MPI_Send((void*) origin, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
 }
 
@@ -63,7 +74,7 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
     if(flag)
     {
         DEBUG(("%s -> local\tFROM REMOTE process rank %d\n", dplasma_service_to_string(&dep_buff, tmp, 128), status.MPI_SOURCE));
-        dplasma_signal_dependencies(eu_context, &dep_buff, 0);
+        dplasma_trigger_dependencies(eu_context, &dep_buff, 0);
         
         MPI_Start(&dep_req);
         return 1;

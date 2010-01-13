@@ -25,10 +25,12 @@ typedef struct dplasma_execution_unit_t {
     void* placeholder;
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;
+    char* remote_dep_fw_mask;
 } dplasma_execution_unit_t;
 
 struct dplasma_context_t {
     int32_t nb_cores;
+    int32_t nb_nodes;
     dplasma_barrier_t  barrier;
     dplasma_execution_unit_t execution_units[1];
 };
