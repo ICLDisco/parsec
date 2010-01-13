@@ -104,6 +104,19 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
                            int, LDA,
                            PLASMA_desc, descA);
 
+    /* warm the cache for the first tile */
+    {
+        int i, j;
+        double useless = 0.0;
+
+        for( i = 0; i < PLASMA_NB; i++ ) {
+            for( j = 0; j < PLASMA_NB; j++ ) {
+                useless += ((double*)descA.mat)[i*PLASMA_NB+j];
+            }
+        }
+        printf( "Useless value %f\n", useless );
+    }
+
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
     dplasma = dplasma_init(ncores, NULL, NULL );
