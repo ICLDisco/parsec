@@ -1,0 +1,103 @@
+
+GRIDrows = 1
+GRIDcols = 1
+BB=4
+colRANK = 0
+rowRANK = 0
+
+DGETRF(k)
+
+  // Execution space
+  k = 0..BB-1
+
+  // Parallel partitioning
+  : k % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  IN A <- (k == 0) ? A(k,k) : C2 DSSSSM(k-1,k,k)
+
+  OUT A -> (k == BB-1) ? A(k,k) : U DTSTRF(k,k+1)
+  OUT IPIV -> IPIV DGESSM(k, k+1..BB-1)
+
+BODY
+    /* void task_DGETRF(double *A, int *IPIV) */
+END
+
+
+
+DTSTRF(k,m)
+
+  // Execution space
+  k = 0..BB-2
+  m = k+1..BB-1
+
+  // Parallel partitioning
+  : m % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  IN L <- (k == 0) ? A(m,k) : C2 DSSSSM(k-1,k,m)
+  IN U <- (m == k+1) ? A DGETRF(k) : U DTSTRF(k,m-1)
+
+  OUT U -> (m == BB-1) ? L DGESSM(k,k+1..BB-1) : U DTSTRF(k,m+1)
+  OUT L -> L DSSSSM(k,k+1..BB-1,m)
+  OUT L -> A(m,k)
+  OUT dL -> dL DSSSSM(k,k+1..BB-1,m)
+  OUT dL -> OUT(m,k)
+  OUT IPIV -> IPIV DSSSSM(k,k+1..BB-1,m)
+  OUT IPIV -> IPIV(m,k)
+
+BODY
+    /* void task_DTSTRF(double *U, double *L, double *dL, int *IPIV) */
+END
+
+
+
+DGESSM(k,n)
+
+  // Execution space
+  k = 0..BB-2
+  n = k+1..BB-1
+
+  // Parallel partitioning
+  : k % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  IN C1 <- (k == 0) ? A(k,n) : C2 DSSSSM(k-1,n,k)
+  IN IPIV <- IPIV DGETRF(k)
+  IN L <- U DTSTRF(k,BB-1) 
+
+  OUT C1 -> C1 DSSSSM(k,n,k+1)
+
+BODY
+    /* void task_DGESSM(int *IPIV, double *L, double *C1) */
+END
+
+
+DSSSSM(k,n,m)
+
+  // Execution space
+  k = 0..BB-2
+  n = k+1..BB-1
+  m = k+1..BB-1
+
+  // Parallel partitioning
+  : m % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  IN C2 <- (k == 0) ? A(m,n) : C2 DSSSSM(k-1,n,m)
+  IN dL <- dL DTSTRF(k,m)
+  IN L <- L DTSTRF(k,m) 
+  IN IPIV <- IPIV DTSTRF(k,m)
+  IN C1 <- (m == k+1) ? C1 DGESSM(k,n) : C1 DSSSSM(k,n,m-1)
+
+  OUT C2 -> ((m == k+1) & (n == k+1)) ? A DGETRF(k+1) : OUT(1,1)
+  OUT C2 -> ((m == k+1) & (n != k+1)) ? C1 DGESSM(k+1,n) : OUT(1,1)
+  OUT C2 -> ((m != k+1) & (n == k+1)) ? L DTSTRF(k+1,m) : OUT(1,1)
+  OUT C2 -> ((m != k+1) & (n != k+1)) ? C2 DSSSSM(k+1,n,m) : OUT(1,1)
+
+  OUT C1 -> (m == BB-1) ? A(k,n) : C1 DSSSSM(k,n,m+1)
+
+BODY
+    /* void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV) */
+END
+
