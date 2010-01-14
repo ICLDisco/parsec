@@ -104,19 +104,6 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
                            int, LDA,
                            PLASMA_desc, descA);
 
-    /* warm the cache for the first tile */
-    {
-        int i, j;
-        double useless = 0.0;
-
-        for( i = 0; i < PLASMA_NB; i++ ) {
-            for( j = 0; j < PLASMA_NB; j++ ) {
-                useless += ((double*)descA.mat)[i*PLASMA_NB+j];
-            }
-        }
-        printf( "Useless value %f\n", useless );
-    }
-
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
     dplasma = dplasma_init(ncores, NULL, NULL );
@@ -149,6 +136,19 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 
         dplasma_schedule(dplasma, &exec_context);
 
+        /* warm the cache for the first tile */
+        {
+            int i, j;
+            double useless = 0.0;
+            
+            for( i = 0; i < PLASMA_NB; i++ ) {
+                for( j = 0; j < PLASMA_NB; j++ ) {
+                    useless += ((double*)descA.mat)[i*PLASMA_NB+j];
+                }
+            }
+            printf( "Useless value %f\n", useless );
+        }
+
         /* Now that everything is created start the timer */
         time_elapsed = get_cur_time();
 
@@ -156,7 +156,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         printf("main thread did %d tasks\n", it);
         
         time_elapsed = get_cur_time() - time_elapsed;
-        printf("DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+        printf("DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
     }
 #ifdef DPLASMA_PROFILING
     {
@@ -174,7 +174,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
                            PLASMA_enum, uplo,
                            PLASMA_desc, descA);
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("PLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+    printf("PLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
 #endif
 
     if (PLASMA_INFO == PLASMA_SUCCESS)

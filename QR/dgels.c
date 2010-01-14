@@ -185,7 +185,7 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         printf("main thread did %d tasks\n", it);
         
         time_elapsed = get_cur_time() - time_elapsed;
-        printf("DPLASMA DGEQRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (4*N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+        printf("DPLASMA DGEQRF %d %d %d %f %f\n",1,N,NB,time_elapsed, (4*N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
     }
 #ifdef DPLASMA_PROFILING
     {
@@ -203,7 +203,7 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         PLASMA_desc, descA,
         PLASMA_desc, descT);
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("PLASMA DGEQRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (4*N/1e3*N/1e3*N/1e3/2.0)/time_elapsed );
+    printf("PLASMA DGEQRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (4*N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
 #endif // DPLASMA_EXECUTE
 
     if (status == PLASMA_SUCCESS) {
