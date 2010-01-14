@@ -268,7 +268,7 @@ int main (int argc, char **argv)
    for ( i = 0; i < N; i++)
        for ( j = 0; j < NRHS; j++)
            B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
-#endif  /* defined(DO_THE_NASTY_VALIDATIONS)
+#endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
 
    /* Plasma routines */
    uplo=PlasmaLower;
