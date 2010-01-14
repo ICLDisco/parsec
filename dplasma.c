@@ -422,7 +422,7 @@ int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates )
         /* Do whatever we have to do for this context */
         {
             char tmp[128];
-            printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128) );
+            /*printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128) );*/
             nb_tasks++;
         }
 

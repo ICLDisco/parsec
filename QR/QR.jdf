@@ -101,7 +101,7 @@ DGEQRT(k)
   : k % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN RV1 <- (k==0) ? IN(k,k) : C2 DSSMQR(k-1,k,k)
+  IN RV1 <- (k==0) ? A(k,k) : C2 DSSMQR(k-1,k,k)
 
   OUT RV1 -> (k==MT-1) ? OUT(k,k) : R DTSQRT(k,k+1)
   OUT T   -> T DORMQR(k, k+1..NT-1)
@@ -176,7 +176,6 @@ DORMQR(k,n)
   : k % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-
   IN C1 <- (k==0) ? IN(k,n) : C2 DSSMQR(k-1,n,k)
   IN T  <-  T DGEQRT(k)
   IN V1 <- R DTSQRT(k, MT-1)
@@ -215,7 +214,6 @@ DSSMQR(k,n,m)
   // Parallel partitioning
   : m % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
-
 
   IN C2 <- (k==0) ? IN(m,n) : C2 DSSMQR(k-1,n,m)
   IN V2 <- V2 DTSQRT(k,m)
