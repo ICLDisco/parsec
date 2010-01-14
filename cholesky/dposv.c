@@ -140,7 +140,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         {
             int i, j;
             double useless = 0.0;
-            
+
             for( i = 0; i < PLASMA_NB; i++ ) {
                 for( j = 0; j < PLASMA_NB; j++ ) {
                     useless += ((double*)descA.mat)[i*PLASMA_NB+j];
@@ -209,22 +209,28 @@ int main (int argc, char **argv)
    int NminusOne = N-1;
    int LDBxNRHS = LDB*NRHS;
 
-   double *A1   = (double *)malloc(LDA*N*sizeof(double));
    double *A2   = (double *)malloc(LDA*N*sizeof(double));
+#if defined(DO_THE_NASTY_VALIDATIONS)
+   double *A1   = (double *)malloc(LDA*N*sizeof(double));
    double *B1   = (double *)malloc(LDB*NRHS*sizeof(double));
    double *B2   = (double *)malloc(LDB*NRHS*sizeof(double));
    double *WORK = (double *)malloc(2*LDA*sizeof(double));
    double *D                = (double *)malloc(LDA*sizeof(double));
+   /* Check if unable to allocate memory */
+   if ((!A1)||(!B1)||(!B2)){
+       printf("Out of Memory \n ");
+       exit(0);
+   }
+#endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
 
    /* Check if unable to allocate memory */
-   if ((!A1)||(!A2)||(!B1)||(!B2)){
+   if (!A2){
        printf("Out of Memory \n ");
        exit(0);
    }
 
    /* Plasma Initialize */
    PLASMA_Init(cores);
-
 
    /*-------------------------------------------------------------
    *  TESTING DPOTRF + DPOTRS
@@ -234,6 +240,7 @@ int main (int argc, char **argv)
    dlarnv(&IONE, ISEED, &LDA, D);
    dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
 #endif
+#if defined(DO_THE_NASTY_VALIDATIONS)
    for ( i = 0; i < N; i++)
        for ( j = i; j < N; j++) {
            A2[LDA*j+i] = A1[LDA*j+i] = (double)rand() / RAND_MAX;
@@ -243,18 +250,30 @@ int main (int argc, char **argv)
        A1[LDA*i+i] = A1[LDA*i+i] + 10*N;
        A2[LDA*i+i] = A1[LDA*i+i];
    }
+#else
+   for ( i = 0; i < N; i++)
+       for ( j = i; j < N; j++) {
+           A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
+       }
+   for ( i = 0; i < N; i++){
+       A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+   }
+#endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
 
    /* Initialize B1 and B2 */
 #if 0
    dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
 #endif
+#if defined(DO_THE_NASTY_VALIDATIONS)
    for ( i = 0; i < N; i++)
        for ( j = 0; j < NRHS; j++)
            B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
+#endif  /* defined(DO_THE_NASTY_VALIDATIONS)
 
    /* Plasma routines */
    uplo=PlasmaLower;
    DPLASMA_dpotrf(cores, uplo, N, A2, LDA);
+#if defined(DO_THE_NASTY_VALIDATIONS)
    PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
    eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
    printf("\n");
@@ -280,8 +299,12 @@ int main (int argc, char **argv)
        printf(" - TESTING DPOTRF + DPOTRS ... FAILED !\n");
        printf("****************************************************\n");
    }
+#endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
 
-   free(A1); free(A2); free(B1); free(B2); free(WORK); free(D);
+   free(A2);
+#if defined(DO_THE_NASTY_VALIDATIONS)
+   free(A1); free(B1); free(B2); free(WORK); free(D);
+#endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
 
    PLASMA_Finalize();
 
