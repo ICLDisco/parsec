@@ -127,7 +127,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 
 int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
-
+#ifdef USE_MPI
     int * tmp_ints;
         
     tmp_ints = malloc(sizeof(int)*18);
@@ -190,6 +190,10 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         MPI_Abort(MPI_COMM_WORLD, 2);
     }
     return 0;
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+    return -1;
+#endif
 }
 
 
@@ -364,9 +368,14 @@ void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
         //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n);
         return dplasma_get_local_tile(Ddesc, m, n);
     }
+#ifdef USE_MPI
     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank);
     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_DOUBLE, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return plasma_A((PLASMA_desc *)Ddesc, m, n);
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+    return -1;
+#endif
 }
 
 void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n)
@@ -488,6 +497,7 @@ static int nb_request(DPLASMA_desc * Ddesc, int rank)
 
 int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count)
 {
+#ifdef USE_MPI
     int i, j, k, nb, pos, rank;
     int tile_size, str, stc;
     double * target;
@@ -570,10 +580,15 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
             }
     }
     return 0;
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+    return -1;
+#endif    
 }
 
 int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc) 
 {
+#ifdef USE_MPI
     int i, j,  rank;
     int req_count;
     MPI_Request * reqs;
@@ -607,6 +622,10 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         
     }
     return 0;
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+    return -1;
+#endif    
 }
 
 
@@ -625,6 +644,7 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
 
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
+#ifdef USE_MPI
     int m, n, k, rank;
     double * buff;
     double * buff2;
@@ -670,6 +690,9 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         }
     MPI_Barrier(MPI_COMM_WORLD);
     printf("Data verification ended\n");
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+#endif    
 }
 
 int data_dump(DPLASMA_desc * Ddesc){
@@ -680,7 +703,7 @@ int data_dump(DPLASMA_desc * Ddesc){
     if(NULL == tmpf)
         {
             perror("opening file: tmp_local_data_dump.txt" );
-            MPI_Abort(MPI_COMM_WORLD, 2);
+            return -1;
         }
     for (i = 0 ; i < Ddesc->lmt ; i++)
         for ( j = 0 ; j< Ddesc->lnt ; j++)
@@ -707,7 +730,7 @@ int plasma_dump(PLASMA_desc * Pdesc){
     if(NULL == tmpf)
         {
             perror("opening file: tmp_plasma_data_dump.txt" );
-            MPI_Abort(MPI_COMM_WORLD, 2);
+            return -1;
         }
     for (i = 0 ; i < Pdesc->lmt ; i++)
         for ( j = 0 ; j< Pdesc->lnt ; j++)
@@ -726,9 +749,14 @@ int plasma_dump(PLASMA_desc * Pdesc){
 
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 {
+#ifdef USE_MPI
     MPI_Status * stats;
     
     stats = malloc(req_count * sizeof(MPI_Status));
     MPI_Waitall(req_count, reqs, stats);
     return 1;
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+    return -1;
+#endif    
 }
