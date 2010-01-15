@@ -35,7 +35,7 @@ static inline void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t*
 
     if(rfwsize)
     {
-        DEBUG(("fw reset\tcontext %p", (void*) eu_context));
+        DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));
         memset(eu_context->remote_dep_fw_mask, 0, rfwsize);        
     }
 }
