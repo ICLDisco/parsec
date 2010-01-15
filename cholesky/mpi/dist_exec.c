@@ -29,6 +29,7 @@
 #include "data_management.h"
 
 /* globals and argv set values */
+PLASMA_desc local_desc;
 DPLASMA_desc descA;
 int cores = 1;
 int nodes = 1;
@@ -74,7 +75,6 @@ int main(int argc, char ** argv){
     int info_solution, info_factorization;
     int NminusOne; /* = N-1;*/
     int LDBxNRHS; /* = LDB*NRHS;*/
-    PLASMA_desc local_desc;
     double *A1;
     double *A2;
     double *B1;
@@ -103,15 +103,15 @@ int main(int argc, char ** argv){
         /* generating a random matrix */
         generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
         tiling(&uplo, N, A2, LDA, &local_desc);
-        dplasma_desc_init(&local_desc, &descA);
 #ifdef USE_MPI
+        dplasma_desc_bcast(&local_desc, &descA);
         TIME_START();
         distribute_data(&local_desc, &descA, &requests, &req_count);
     }
     else
     { /* prepare data for block reception  */
         TIME_START();
-        dplasma_desc_init(NULL, &descA);
+        dplasma_desc_bcast(NULL, &descA);
         distribute_data(NULL, &descA, &requests, &req_count);
     }
     /* wait for data distribution to finish before continuing */
@@ -124,6 +124,7 @@ int main(int argc, char ** argv){
     data_dump(&descA);
 # endif
 #else
+        dplasma_desc_init(&local_desc, &descA);
     }
 #endif
 

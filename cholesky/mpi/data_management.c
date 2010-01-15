@@ -28,23 +28,113 @@ static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 
 }
 
-
-int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+static int ddesc_compute_vals_and_allocate( DPLASMA_desc * Ddesc )
 {
-
-    int * tmp_ints;
     int i, j;
     int nb_elem_c;
     int nb_elem_r;
     int nbstile_r;
     int nbstile_c;
     
+    /* computing colRANK and rowRANK */
+    Ddesc->colRANK = 0;
+    Ddesc->rowRANK = 0;
+    i = Ddesc->mpi_rank;
+    
+    /* find rowRANK */
+    while ( i >= Ddesc->GRIDcols)
+    {
+        Ddesc->rowRANK = Ddesc->rowRANK + 1;
+        i = i - Ddesc->GRIDcols;
+    }
+    /* affect colRANK */
+    Ddesc->colRANK = i;
+    
+    printf("mpi rank %d is map to P(%d,%d)\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK);
+    
+    /* computing the number of rows of super-tile */
+    nbstile_r = Ddesc->lmt / Ddesc->nrst;
+    if((Ddesc->lmt % Ddesc->nrst) != 0)
+        nbstile_r++;
+    
+    /* computing the number of colums of super-tile*/
+    nbstile_c = Ddesc->lnt / Ddesc->ncst;
+    if((Ddesc->lnt % Ddesc->ncst) != 0)
+        nbstile_c++;
+    
+    if (Ddesc->mpi_rank == 0) 
+        printf("matrix is super-tiled in (%d, %d)", nbstile_r, nbstile_c);
+    /* allocate memory for tiles data */
+    
+    /*  nbt = Ddesc->lmt * Ddesc->lnt;  total number of tiles */ 
+    if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
+    {
+        printf("The process grid chosen is %dx%d, supertiling is %d, %d\n", Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
+        return -1;
+    }
+    /* find the number of tiles this process will handle */
+    nb_elem_r = 0;
+    j = Ddesc->rowRANK * Ddesc->nrst;
+    while ( j < Ddesc->lmt)
+    {
+        if ( (j  + (Ddesc->nrst)) < Ddesc->lmt)
+        {
+            nb_elem_r += (Ddesc->nrst);
+            j += (Ddesc->GRIDrows) * (Ddesc->nrst);
+            continue;
+        }
+        nb_elem_r += ((Ddesc->lmt) - j);
+        break;
+    }
+    
+    nb_elem_c = 0;
+    j = Ddesc->colRANK * Ddesc->ncst;
+    while ( j < Ddesc->lnt)
+    {
+        if ( (j  + (Ddesc->ncst)) < Ddesc->lnt)
+        {
+            nb_elem_c += (Ddesc->ncst);
+            j += (Ddesc->GRIDcols) * (Ddesc->ncst);
+            continue;
+        }
+        nb_elem_c += ((Ddesc->lnt) - j);
+        break;
+    }
+    printf("process %d(%d,%d) handles %d x %d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, nb_elem_r, nb_elem_c);
+    
+    Ddesc->mat = malloc(sizeof(double) * nb_elem_c * nb_elem_r * Ddesc->bsiz);
+    return 0;
+}
+
+int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+{
+    Ddesc->dtyp = Pdesc->dtyp;
+    Ddesc->mb = Pdesc->mb;
+    Ddesc->nb = Pdesc->nb;
+    Ddesc->bsiz = Pdesc->bsiz ;
+    Ddesc->lm = Pdesc->lm ;
+    Ddesc->ln = Pdesc->ln ;
+    Ddesc->lmt = Pdesc->lmt ;
+    Ddesc->lnt = Pdesc->lnt ;
+    Ddesc->i = Pdesc->i ;
+    Ddesc->j = Pdesc->j ;
+    Ddesc->m = Pdesc->m  ;
+    Ddesc->n = Pdesc->n ;
+    Ddesc->mt = Pdesc->mt ;
+    Ddesc->nt = Pdesc->nt ;
+    return ddesc_compute_vals_and_allocate( Ddesc );
+}
+
+int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+{
+
+    int * tmp_ints;
         
     tmp_ints = malloc(sizeof(int)*18);
     if (tmp_ints == NULL)
         {
             printf("memory allocation failed\n");
-            exit(2);
+            MPI_Abort(MPI_COMM_WORLD, 2);
         }
     if (Ddesc->mpi_rank == 0) /* send data */
         {
@@ -95,74 +185,10 @@ int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         }
     free(tmp_ints);
 
-    
-    /* computing colRANK and rowRANK */
-    Ddesc->colRANK = 0;
-    Ddesc->rowRANK = 0;
-    i = Ddesc->mpi_rank;
-
-    /* find rowRANK */
-    while ( i >= Ddesc->GRIDcols)
-        {
-            Ddesc->rowRANK = Ddesc->rowRANK + 1;
-            i = i - Ddesc->GRIDcols;
-        }
-    /* affect colRANK */
-    Ddesc->colRANK = i;
-
-    printf("mpi rank %d is map to P(%d,%d)\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK);
-
-    /* computing the number of rows of super-tile */
-    nbstile_r = Ddesc->lmt / Ddesc->nrst;
-    if((Ddesc->lmt % Ddesc->nrst) != 0)
-        nbstile_r++;
-    
-    /* computing the number of colums of super-tile*/
-    nbstile_c = Ddesc->lnt / Ddesc->ncst;
-    if((Ddesc->lnt % Ddesc->ncst) != 0)
-        nbstile_c++;
-    
-    if (Ddesc->mpi_rank == 0) 
-        printf("matrix is super-tiled in (%d, %d)", nbstile_r, nbstile_c);
-    /* allocate memory for tiles data */
-    
-    /*  nbt = Ddesc->lmt * Ddesc->lnt;  total number of tiles */ 
-    if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
-        {
-            printf("The process grid chosen is %dx%d, supertiling is %d, %d\n", Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
-            exit(2);
-        }
-    /* find the number of tiles this process will handle */
-    nb_elem_r = 0;
-    j = Ddesc->rowRANK * Ddesc->nrst;
-    while ( j < Ddesc->lmt)
-        {
-            if ( (j  + (Ddesc->nrst)) < Ddesc->lmt)
-                {
-                    nb_elem_r += (Ddesc->nrst);
-                    j += (Ddesc->GRIDrows) * (Ddesc->nrst);
-                    continue;
-                }
-            nb_elem_r += ((Ddesc->lmt) - j);
-            break;
-        }
-
-    nb_elem_c = 0;
-    j = Ddesc->colRANK * Ddesc->ncst;
-    while ( j < Ddesc->lnt)
-        {
-            if ( (j  + (Ddesc->ncst)) < Ddesc->lnt)
-                {
-                    nb_elem_c += (Ddesc->ncst);
-                    j += (Ddesc->GRIDcols) * (Ddesc->ncst);
-                    continue;
-                }
-            nb_elem_c += ((Ddesc->lnt) - j);
-            break;
-        }
-    printf("process %d(%d,%d) handles %d x %d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, nb_elem_r, nb_elem_c);
-    
-    Ddesc->mat = malloc(sizeof(double) * nb_elem_c * nb_elem_r * Ddesc->bsiz);
+    if( -1 == ddesc_compute_vals_and_allocate(Ddesc) )
+    {
+        MPI_Abort(MPI_COMM_WORLD, 2);
+    }
     return 0;
 }
 

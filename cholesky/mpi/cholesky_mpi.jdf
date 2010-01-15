@@ -10,9 +10,14 @@ extern "C" %{
 #include <stdio.h>
 #include "data_management.h"
 extern DPLASMA_desc descA;
+extern PLASMA_desc local_desc;
 int PLASMA_INFO;
 
+#ifdef USE_MPI
 #define A(m,n) dplasma_get_tile(&descA, m, n)
+#else
+#define A(m,n) &(((double*)local_desc.mat)[local_desc.bsiz*(m)+local_desc.bsiz*local_desc.lmt*(n)])
+#endif
 
 /* Define it to shortcut the lookup for the local variables. */
 #define DPLASMA_HOOK_OPTIMIZED

@@ -55,8 +55,11 @@ typedef struct dplasma_desc_t {
  ************************************************/
 
 // #define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
-/* initialize structure */
-int dplasma_desc_init(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
+/* initialize Ddesc from Pdesc */
+int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
+
+/* initialize and bcast Ddesc from Pdesc */
+int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
 /* computing the mpi process rank that should handle tile A(m,n) */
 
