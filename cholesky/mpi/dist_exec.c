@@ -71,6 +71,7 @@ printf print; \
 int main(int argc, char ** argv){
     /* local variables*/
     double eps;
+    double flops;
     PLASMA_enum uplo;
     int info_solution, info_factorization;
     int NminusOne; /* = N-1;*/
@@ -144,7 +145,7 @@ int main(int argc, char ** argv){
         dplasma_schedule(dplasma, &exec_context);
     }
     dplasma_progress(dplasma);
-    TIME_PRINT(("executing kernels on rank %d:\t%d %d %fflops\n", rank, N, NB, (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed));
+    TIME_PRINT(("executing kernels on rank %d:\t%d %d %fflops\n", rank, N, NB, flops = (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed));
 
 #ifdef USE_MPI    
     TIME_START();
@@ -173,6 +174,8 @@ int main(int argc, char ** argv){
         if((info_solution == 0) && (info_factorization == 0)) {
             printf("***************************************************\n");
             printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED !\n");
+            printf("***************************************************\n");
+            printf(" ---- FLOPS .............................. %.4f\n", flops);
             printf("***************************************************\n");
         }
         else{
@@ -277,19 +280,21 @@ static void dague_init(int argc, char **argv)
                 cores = atoi(optarg);
                 if(cores<= 0)
                     cores=1;
-                printf("Number of cores (computing threads) set to %d", cores);
+                printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
             case '?': /* getopt_long already printed an error message. */
             case 'h':
             default:
-                printf("must provide : -n, --matrix-size : the size of the matrix \n \
-                       Optional arguments are:\n                                               \
-                       -a --lda : leading dimension of the matrix A (equal matrix size by default) \n \
-                       -r --nrhs : number of RHS (default: 1) \n                               \
-                       -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n \
-                       -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n \
-                       -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n \
-                       -c --nb-cores : number of computing threads to use\n");
+                printf("\
+Mandatory argument:\n\
+   -n, --matrix-size : the size of the matrix\n\
+Optional arguments:\n\
+   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n\
+   -r --nrhs : number of RHS (default: 1)\n\
+   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n\
+   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n\
+   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n\
+   -c --nb-cores : number of computing threads to use\n");
                 cleanup_exit(0);
         }
     } while(1);
