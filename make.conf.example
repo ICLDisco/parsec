@@ -14,7 +14,7 @@ LDFLAGS     += -g
 
 CC            = gcc 
 CLINKER       = gcc
-LINKER        = ld
+LINKER        = gfortran
 YACC          = bison -d -y --verbose
 LEX           = flex # -d
 
