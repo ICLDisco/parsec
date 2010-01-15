@@ -10,8 +10,6 @@
 
 #include <mpi.h>
 
-static void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank );
-static int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank );
 /* TODO: smart use of dplasma context instead of ugly globals */
 static MPI_Comm dep_comm;
 static MPI_Request dep_req;
@@ -51,7 +49,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 #endif    
     int rank; 
     
-    rank = remote_dep_compute_grid_rank(eu_context, origin, exec_context);
+    rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
     assert(rank >= 0);
     assert(rank < eu_context->master_context->nb_nodes);
     if(remote_dep_is_forwarded(eu_context, rank))
@@ -81,35 +79,4 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
         return 1;
     }
     return 0;
-}
-
-
-void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
-{
-    memset(eu_context->remote_dep_fw_mask, 0, SIZEOF_FW_MASK(eu_context));
-}
-
-
-static void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
-{
-    int boffset;
-    char mask = 1;
-    
-    DEBUG(("REMOTE rank %d is marked (W)\n", rank));
-    boffset = rank / sizeof(char);
-    mask = 1 << (rank % sizeof(char));
-    assert(boffset <= SIZEOF_FW_MASK(eu_context));
-    eu_context->remote_dep_fw_mask[boffset] |= mask;
-}
-
-static int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
-{
-    int boffset;
-    char mask = 1;
-    
-    boffset = rank / sizeof(char);
-    mask = 1 << (rank % sizeof(char));
-    assert(boffset <= SIZEOF_FW_MASK(eu_context));
-    DEBUG(("REMOTE rank %d is valued (%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
-    return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
 }

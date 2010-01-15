@@ -26,21 +26,17 @@ typedef struct dplasma_execution_unit_t {
     void* placeholder;
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;
-
-
-#ifdef USE_MPI
+    
     char* remote_dep_fw_mask;
-#endif
-
 } dplasma_execution_unit_t;
 
 struct dplasma_context_t {
     int32_t nb_cores;
     int32_t nb_nodes;
+    size_t remote_dep_fw_mask_sizeof;
     dplasma_barrier_t  barrier;
     dplasma_execution_unit_t execution_units[1];
   
-#ifdef USE_MPI
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_t* fwd_IN_dep_queue;
     dplasma_atomic_lifo_t* fwd_OUT_dep_queue;
@@ -48,7 +44,6 @@ struct dplasma_context_t {
     dplasma_dequeue_t* fwd_IN_dep_queue;
     dplasma_dequeue_t* fwd_OUT_dep_queue;
 #endif /*DPLASMA_USE_LIFO */
-#endif /* USE_MPI*/
 };
 
 #endif  /* DPLASMA_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */

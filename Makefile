@@ -58,6 +58,8 @@ QR/QR.c: QR/QR.jdf dpc
 QR/dgels: $(OBJECTS) $(QR_OBJECTS) dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
+remote_dep.c: $(wildcard remote_dep_*.c)
+
 %.tab.h %.tab.c: %.y
 	$(YACC) -o $(*F).tab.c $<
 

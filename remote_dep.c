@@ -6,17 +6,12 @@
 
 #include "remote_dep.h"
 #include "scheduling.h"
-#include <string.h>
 
 enum {
     REMOTE_DEP_ACTIVATE_TAG,
     REMOTE_DEP_GET_DATA_TAG,
     REMOTE_DEP_PUT_DATA_TAG,
 } dplasma_remote_dep_tag_t;
-
-static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context, 
-                                        const dplasma_execution_context_t* origin,
-                                        dplasma_execution_context_t* exec_context );
 
 static int __remote_dep_init(dplasma_context_t* context);
 static int __remote_dep_fini(dplasma_context_t* context);
@@ -49,13 +44,13 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 {
     /* return some error and be loud
      * we should never get called in multicore mode */
-  /*    char tmp[128];
-	char tmp2[128];*/
+    char tmp[128];
+    char tmp2[128];
     int i;
     int rank;
     dplasma_t* function = exec_context->function;
     
-    rank = remote_dep_compute_grid_rank(eu_context, origin, exec_context);
+    rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
     DEBUG(("/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be executed on rank %d.\n    Remote dependencies are NOT ENABLED in this build!\n", dplasma_service_to_string(origin, tmp, 128), dplasma_service_to_string(exec_context, tmp2, 128), rank));
     for(i = 0; i < function->nb_locals; i++)
     {
@@ -71,12 +66,73 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
     return 0;
 }
 
-void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
+#endif
+
+/* Note for Pierre: this is not MPI specific and should not go to 
+ * remote_dep_mpi.c. I fixed the warnings and legitimate concerns about dirty 
+ * tricks with nb_nodes another way */
+
+void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
 {
-  return;
+    int boffset;
+    char mask = 1;
+    
+    DEBUG(("fw mark\tREMOTE rank %d\n", rank));
+    boffset = rank / sizeof(char);
+    mask = 1 << (rank % sizeof(char));
+    assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
+    eu_context->remote_dep_fw_mask[boffset] |= mask;
 }
 
-#endif
+int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
+{
+    int boffset;
+    char mask = 1;
+    
+    boffset = rank / sizeof(char);
+    mask = 1 << (rank % sizeof(char));
+    assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
+    DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
+    return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
+}
+
+
+int dplasma_remote_dep_init(dplasma_context_t* context)
+{
+    int i;
+    
+    context->nb_nodes = __remote_dep_init(context);
+    if(context->nb_nodes > 1)
+    {
+        context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(char) - 1) / sizeof(char);
+        for(i = 0; i < context->nb_cores; i++)
+        {
+            dplasma_execution_unit_t *eu = &context->execution_units[i];
+            eu->remote_dep_fw_mask = (char *) malloc(context->remote_dep_fw_mask_sizeof);
+            dplasma_remote_dep_reset_forwarded(eu);
+        }
+    }
+    else 
+    {
+        context->remote_dep_fw_mask_sizeof = 0;
+    }
+    return context->nb_nodes;
+}
+
+int dplasma_remote_dep_fini(dplasma_context_t* context)
+{
+    int i;        
+    
+    if(context->nb_nodes > 1)
+    {
+        for(i = 0; i < context->nb_cores; i++)
+        {
+            free(context->execution_units[i].remote_dep_fw_mask);
+        }
+    }
+    return __remote_dep_fini(context);
+}
+
 
 
 #ifdef HEAVY_DEBUG
@@ -85,47 +141,9 @@ void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
 #define HDEBUG( args ) do {} while(0)
 #endif 
 
-
-
-
-int dplasma_remote_dep_init(dplasma_context_t* context)
-{
-    
-    int nb = __remote_dep_init(context);
-#ifdef USE_MPI
-    int i;
-    context->nb_nodes = nb;
-    for(i = 0; i < context->nb_cores; i++)
-      {
-	dplasma_execution_unit_t *eu = &context->execution_units[i];
-	eu->remote_dep_fw_mask = (char *) malloc(SIZEOF_FW_MASK(eu));
-	dplasma_remote_dep_reset_forwarded(eu);
-        }
-#else
-    context->nb_nodes = 1; /* avoid memset */
-#endif    
-    return nb;
-}
-
-int dplasma_remote_dep_fini(dplasma_context_t* context)
-{
-  
-#ifdef USE_MPI
-  
-  int i;        
-  for(i = 0; i < context->nb_cores; i++)
-    {
-      free(context->execution_units[i].remote_dep_fw_mask);
-    }
-#endif    
-    return __remote_dep_fini(context);
-}
-
-
-
-static int remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
-                                        const dplasma_execution_context_t* origin,
-                                        dplasma_execution_context_t* exec_context)
+int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
+                                         const dplasma_execution_context_t* origin,
+                                         dplasma_execution_context_t* exec_context)
 {
 #ifdef _DEBUG
     char tmp[128];
