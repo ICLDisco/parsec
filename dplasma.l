@@ -32,6 +32,11 @@ char *extern_code(char *base, int len)
    memcpy(res + rp, base, len);
    rp += len;
    res[rp] = '\0';
+   for(rp = 0; rp < len; rp++) {
+     if( base[rp] == '\n' ) {
+       dplasma_lineno++;
+     }
+   }
    return res;
 }
 
@@ -44,10 +49,13 @@ WHITE         [\f\t\v ]
 
 %%
 
-[bB][oO][dD][yY]([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD] {
-                 yylval.string = extern_code( yytext+4, strlen(yytext) - 7 );
+[bB][oO][dD][yY]{WHITE}*"\n"([^E]|([eE][^N])|([eE][nN][^D]))+[eE][nN][dD] {
+                 char *b = yytext + 4;
+                 while( *b != '\n' ) b++;
+                 yylval.string = extern_code( b+1, strlen(b+1) - 3 );
+		 dplasma_lineno++;
                  return DPLASMA_BODY; }
-extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{([^\%]|(\%[^\}]))+\%\}    {
+extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}    {
                    int lstart, lend, bstart;
                    /* This assumes that no extern language rightfully has a " in its name, which is also an assumption of the lexer anyway */
 
@@ -63,7 +71,10 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{([^\%]|(\%[^\}]))+\%\}    {
                    /* Search for the start of the body */
                    for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
                    bstart++;
+                   while( yytext[bstart] != '\n' ) bstart++;
+                   bstart++;
                    yylval.two_strings.code = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
+                   dplasma_lineno++;
                    return DPLASMA_EXTERN_DECL;
                  }
 {WHITE}*\n     { dplasma_lineno++; }

@@ -20,13 +20,15 @@ typedef struct dplasma_execution_unit_t {
     struct dplasma_eu_profiling_t* eu_profile;
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_t* eu_task_queue;
-
 #else
     dplasma_dequeue_t* eu_task_queue;
     void* placeholder;
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;
-    
+#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
+    int8_t*  eu_steal_from;
+#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO) */
+
     char* remote_dep_fw_mask;
 } dplasma_execution_unit_t;
 

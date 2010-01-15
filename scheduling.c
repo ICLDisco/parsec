@@ -138,10 +138,13 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             miss_local++;
             /* Work stealing from the other workers */
             int i;
-            for( i = 0; i < eu_context->master_context->nb_cores; i++ ) {
+            for( i = 0; i < (eu_context->master_context->nb_cores-1); i++ ) {
                 dplasma_execution_unit_t* victim;
-                if( i == eu_context->eu_id ) continue;
+#if defined(HAVE_HWLOC)
+                victim = &(eu_context->master_context->execution_units[eu_context->eu_steal_from[i]]);
+#else
                 victim = &(eu_context->master_context->execution_units[i]);
+#endif  /* defined(HAVE_HWLOC) */
 #ifdef DPLASMA_USE_LIFO
                 exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(victim->eu_task_queue);
 #else

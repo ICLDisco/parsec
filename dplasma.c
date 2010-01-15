@@ -207,6 +207,20 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* DPLASMA_USE_LIFO */
         context->execution_units[i].eu_id = i;
         context->execution_units[i].master_context = context;
+#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
+        eu->eu_steal_from = (int8_t*)malloc(nb_cores * sizeof(int8_t));
+        {
+            int j;
+#if defined(ON_ZOOT)
+            int distance[] = {8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
+#else
+            int distance[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+#endif
+            for( j = 0; j < nb_cores; j++ ) {
+                eu->eu_steal_from[j] = (i +  distance[j]) % 16;
+            }
+        }
+#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
 
     if( nb_cores > 1 ) {
@@ -256,6 +270,10 @@ int dplasma_fini( dplasma_context_t** context )
         free( (*context)->execution_units[i].eu_task_queue );
         (*context)->execution_units[i].eu_task_queue = NULL;
 #endif  /* defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO) */
+#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
+        free((*context)->execution_units[i].eu_steal_from);
+        (*context)->execution_units[i].eu_steal_from = NULL;
+#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
 
     /* Destroy all resources allocated for the barrier */

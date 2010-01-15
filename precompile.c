@@ -661,7 +661,10 @@ int dplasma_dump_all_c(char *filename)
     for(n = preambles; n != NULL; n = n->next) {
         if( strcasecmp(n->language, "C") == 0 ) {
             int nb = nblines(n->code);
-            fprintf(out, "%s\n#line %d \"%s\"\n", n->code, nb+current_line+1, out_name);
+            fprintf(out, 
+                    "%s\n"
+                    "#line %d \"%s\"\n", 
+                    n->code, nb+current_line+1, out_name);
             current_line += nb + 2;
         }
     }
@@ -716,7 +719,8 @@ int dplasma_dump_all_c(char *filename)
             "  dplasma_load_array( dplasma_array, %d );\n"
             "  dplasma_load_symbols( dplasma_symbols, %d );\n"
             "  return 0;\n"
-            "}\n\n",
+            "}\n"
+            "\n",
             dplasma_nb_elements(),
             dplasma_symbol_get_count());
     current_line += 7;
@@ -775,7 +779,8 @@ int dplasma_dump_all_c(char *filename)
     fprintf(out,
             "  dplasma_register_nb_tasks(nbtasks);\n"
             "  return nbtasks;\n"
-            "}\n\n");
+            "}\n"
+            "\n");
     current_line += 4;
 
     fclose(out);
