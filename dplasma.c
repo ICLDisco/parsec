@@ -438,11 +438,7 @@ int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates )
         int value;
 
         /* Do whatever we have to do for this context */
-        {
-            char tmp[128];
-            /*printf( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128) );*/
-            nb_tasks++;
-        }
+        nb_tasks++;
 
         /* Go to the next valid value for this loop context */
         rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
