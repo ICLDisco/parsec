@@ -123,7 +123,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("DPLASMA initialization %d %d %d %f\n",1,N,NB,time_elapsed);
+    printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);
     printf("NBTASKS to run: %d\n", nbtasks);
 
     {
