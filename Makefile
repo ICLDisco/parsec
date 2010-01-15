@@ -43,19 +43,16 @@ tools/buildDAG:$(COMPILER_OBJECTS) dplasma.a $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 	
 cholesky/cholesky-norun.o: cholesky/cholesky_ll.c
-	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky_ll.c -o cholesky/cholesky-norun.o
+	$(LINKER) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky_ll.c -o cholesky/cholesky-norun.o
 
-cholesky/dposv_ll:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS) cholesky/cholesky_ll.o dplasma.a
+cholesky/dposv_ll:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_ll.o dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-cholesky/dposv_rl:$(OBJECTS) $(CHOLESKY_OBJECTS) $(LIBRARY_OBJECTS) cholesky/cholesky_rl.o dplasma.a
+cholesky/dposv_rl:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_rl.o dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 cholesky/timeenumerator:$(OBJECTS) $(ENUMERATOR_OBJECTS) dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
-
-QR/QR.c: QR/QR.jdf dpc
-	./dpc ./QR/QR.jdf QR/QR.c
 
 QR/dgels: $(OBJECTS) $(QR_OBJECTS) dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
@@ -64,7 +61,7 @@ QR/dgels: $(OBJECTS) $(QR_OBJECTS) dplasma.a
 DPC = $(realpath dpc)
 
 ifneq "$(strip $(findstring -DUSE_MPI , $(CFLAGS)))" ""
-CLINKER = $(MPILINKER)
+CLINKER = $(MPICLINKER)
 LINKER = $(MPILINKER)
 
 $(MPI_OBJECTS): %.o: %.c
@@ -89,7 +86,7 @@ lex.yy.c: dplasma.l
 
 
 clean:
-	rm -f $(CLEAN_OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
+	rm -f dplasma.a $(CLEAN_OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
            $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
            $(QR_OBJECTS) cholesky/cholesky-norun.o dpc.o lex.yy.c y.tab.c y.tab.h \
 	   cholesky/cholesky_ll.o cholesky/cholesky_rl.o

@@ -5,7 +5,6 @@
 CHOLESKY_MPI_DIR = cholesky/mpi
 CHOLESKY_MPI_TARGETS = $(CHOLESKY_MPI_DIR)/dist_exec
 CHOLESKY_MPI_OBJECTS = $(CHOLESKY_MPI_DIR)/dist_exec.o $(CHOLESKY_MPI_DIR)/data_management.o $(CHOLESKY_MPI_DIR)/cholesky_mpi.o
-MPILINKER=mpicc
 
 $(CHOLESKY_MPI_DIR)/dist_exec: $(CHOLESKY_MPI_OBJECTS) dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB) dplasma.a
