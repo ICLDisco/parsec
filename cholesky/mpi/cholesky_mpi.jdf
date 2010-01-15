@@ -22,7 +22,7 @@ int PLASMA_INFO;
 /* Define it to shortcut the lookup for the local variables. */
 #define DPLASMA_HOOK_OPTIMIZED
 
-#if 1
+#ifdef DPLASMA_CALL_TRACE
 #define OUTPUT(ARG)  printf ARG
 #else
 #define OUTPUT(ARG)
