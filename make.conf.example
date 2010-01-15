@@ -1,0 +1,46 @@
+#
+# Add -DDPLASMA_EXECUTE in order to integrate DPLASMA as a scheduler for PLASMA.
+# Add -DUSE_MPI to enable distributed memory DPLASMA over MPI
+# Add -D_DEBUG to be verbose
+# Add -DDPLASMA_GENERATE_DOT to generate the dot output. This should be added
+#     in addition to the DPLASMA_EXECUTE.
+# Add -DDPLASMA_PROFILING to generate a profiling svg output.
+
+CFLAGS      += -g -DADD_ -DDPLASMA_EXECUTE -DUSE_MPI -DNO_DEBUG
+LDFLAGS     += -g
+
+#
+# Setup compilers
+
+CC            = gcc 
+CLINKER       = gcc
+LINKER        = ld
+YACC          = bison -d -y --verbose
+LEX           = flex # -d
+
+MPI_DIR       = $(HOME)/ompi
+MPICC         = $(MPI_DIR)/bin/mpicc
+MPIF77        = $(MPI_DIR)/bin/mpif77
+MPILINKER     = $(MPI_DIR)/bin/mpif77
+MPILIB        = -L$(MPI_DIR)/lib -lmpi
+
+#
+# Setup PLASMA and BLAS 
+
+PLASMA_DIR    = $(HOME)/dague/plasma/build/plasma_2.1.0
+DPLASMA_DIR   = $(HOME)/dague/dplasma
+LIBBLAS       = -L/opt/mkl/lib/em64t -lmkl_core -lmkl_sequential -lmkl_gf_lp64
+# Include directory
+INC          += -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src -I$(DPLASMA_DIR)
+# Location of the libraries.
+LIBDIR       += -L$(PLASMA_DIR)/lib/
+# Location and name of the static PLASMA libraries.
+#LIBCBLAS      = $(PLASMA_DIR)/lib/libcblas.a
+#LIBCORELAPACK = $(PLASMA_DIR)/lib/libcorelapack.a
+#LIBCOREBLAS   = $(PLASMA_DIR)/lib/libcoreblas.a
+#LIBPLASMA     = $(PLASMA_DIR)/lib/libplasma.a
+
+#  All libraries required by the tester.
+LIB          += $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpthread -lm
+
+

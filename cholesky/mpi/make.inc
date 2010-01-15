@@ -1,0 +1,16 @@
+# 
+# make.inc to be included from general dplasma Makefile
+#
+
+CHOLESKY_MPI_DIR = cholesky/mpi
+CHOLESKY_MPI_TARGETS = $(CHOLESKY_MPI_DIR)/dist_exec
+CHOLESKY_MPI_OBJECTS = $(CHOLESKY_MPI_DIR)/dist_exec.o $(CHOLESKY_MPI_DIR)/data_management.o $(CHOLESKY_MPI_DIR)/cholesky_mpi.o
+
+$(CHOLESKY_MPI_DIR)/dist_exec: $(CHOLESKY_MPI_OBJECTS) dplasma.a
+	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB) dplasma.a
+
+$(CHOLESKY_MPI_OBJECTS): %.o: %.c $(wildcard $(CHOLESKY_MPI_DIR)/*.h)
+
+TESTING_TARGETS += $(CHOLESKY_MPI_TARGETS)
+MPI_OBJECTS += $(CHOLESKY_MPI_OBJECTS)
+CLEAN_OBJECTS += $(CHOLESKY_MPI_TARGETS) $(CHOLESKY_MPI_OBJECTS) $(subst .jdf,.c,$(wildcard $(CHOLESKY_MPI_DIR)/*.jdf))
