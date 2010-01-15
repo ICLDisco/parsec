@@ -8,7 +8,9 @@
 
 
 #include "plasma.h"
+#if defined(USE_MPI)
 #include <mpi.h>
+#endif  /* defined(USE_MPI) */
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */
@@ -82,7 +84,9 @@ int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
 /****************************************************************
  * matrix generation, tiling and distribution
  ****************************************************************/
-
+#if !defined(USE_MPI)
+typedef struct MPI_Request MPI_Request;
+#endif  /* !defined(USE_MPI) */
 /* distribute the matrix to the different mpi ranks 
  * matrix -> pointer to matrix data on mpi rank 0 // NULL for other ranks
  */

@@ -5,7 +5,7 @@
 CFLAGS = -D_GNU_SOURCE -Wall -pedantic -I. $(INC) -std=c99
 LDFLAGS = -lrt 
 
-include make.conf
+include make.inc
 
 TESTING_TARGETS = cholesky/dposv_ll cholesky/dposv_rl QR/dgels
 TOOL_TARGETS = grapher dpc tools/buildDAG cholesky/timeenumerator 
@@ -71,7 +71,7 @@ $(MPI_OBJECTS): %.o: %.c
 	$(MPICC) -o $@ $(CFLAGS) -c $<
 endif
 
-%.o: %.c $(wildcard *.h) make.conf
+%.o: %.c $(wildcard *.h) make.inc
 	$(CC) -o $@ $(CFLAGS) -c $<
 
 %.c: %.jdf dpc

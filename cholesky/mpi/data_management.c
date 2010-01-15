@@ -18,7 +18,6 @@
 #include "../src/lapack.h"
 #include "../src/context.h"
 #include "../src/allocate.h"
-#include "mpi.h"
 #include "data_management.h"
 
 //#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
