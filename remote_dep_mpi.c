@@ -52,11 +52,11 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
     assert(rank >= 0);
     assert(rank < eu_context->master_context->nb_nodes);
-    if(remote_dep_is_forwarded(eu_context, rank))
+    if(dplasma_remote_dep_is_forwarded(eu_context, rank))
     {    
         return 0;
     }
-    remote_dep_mark_forwarded(eu_context, rank);
+    dplasma_remote_dep_mark_forwarded(eu_context, rank);
     return MPI_Send((void*) origin, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
 }
 
