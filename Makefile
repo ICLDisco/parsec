@@ -28,7 +28,7 @@ BUILDDAG_OBJECTS=tools/buildDAG.o
 .SUFFIXES: .c .o .a .h
 
 
-remote_dep.o: $(wildcard remote_dep*.c) $(wildcard *.h)
+remote_dep.o: $(wildcard remote_dep*.c)
 MPI_OBJECTS += remote_dep.o
 
 dplasma.a: dplasma.a($(LIBRARY_OBJECTS))
@@ -71,7 +71,7 @@ $(MPI_OBJECTS): %.o: %.c
 	$(MPICC) -o $@ $(CFLAGS) -c $<
 endif
 
-%.o: %.c $(wildcard *.h)
+%.o: %.c $(wildcard *.h) make.conf
 	$(CC) -o $@ $(CFLAGS) -c $<
 
 %.c: %.jdf dpc
