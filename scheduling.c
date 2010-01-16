@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,17 +21,17 @@ static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_c
 
 static uint32_t taskstodo;
 
-static void set_tasks_todo(uint32_t n)
+static inline void set_tasks_todo(uint32_t n)
 {
     taskstodo = n;
 }
 
-static int all_tasks_done(void)
+static inline int all_tasks_done(void)
 {
     return (taskstodo == 0);
 }
 
-static void done_task()
+static inline void done_task()
 {
     dplasma_atomic_dec_32b(&taskstodo);
 }
