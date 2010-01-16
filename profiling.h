@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -30,6 +30,8 @@ int dplasma_profiling_fini( dplasma_context_t* context );
 int dplasma_profiling_add_dictionary_keyword( const char*, const char* attributes,
                                               int* key_start, int* key_end );
 int dplasma_profiling_del_dictionary_keyword( int key );
+
+int dplasma_profiling_reset( dplasma_execution_unit_t* context );
 
 int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key );
 

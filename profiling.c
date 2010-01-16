@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -222,6 +222,11 @@ int dplasma_profiling_del_dictionary_keyword( int key )
     dplasma_prof_keys_count = key;
 
     return 0;
+}
+
+int dplasma_profiling_reset( dplasma_execution_unit_t* context )
+{
+    context->eu_profile->events_count = 0;
 }
 
 int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key )
