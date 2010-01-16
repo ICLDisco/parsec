@@ -28,8 +28,8 @@ typedef pthread_barrier_t dplasma_barrier_t;
 
 typedef struct dplasma_barrier_t {
     int                 count;
-    int                 curcount;
-    int                 generation;
+    volatile int        curcount;
+    volatile int        generation;
     pthread_mutex_t     mutex;
     pthread_cond_t      cond;
 } dplasma_barrier_t;
