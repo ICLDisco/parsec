@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
+#ifdef HAVE_CPU_SET_T
+#include <linux/unistd.h>
+#endif  /* HAVE_CPU_SET_T */
+#include <errno.h>
 
 #include "dplasma.h"
 #include "scheduling.h"
@@ -165,9 +169,11 @@ int dplasma_nb_elements( void )
 /**
  *
  */
-#ifdef DPLASMA_USE_GLOBAL_LIFO
+#if defined(DPLASMA_USE_GLOBAL_LIFO)
 dplasma_atomic_lifo_t ready_list;
-#endif  /* DPLASMA_USE_GLOBAL_LIFO */
+#endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
+
+#define gettid() syscall(__NR_gettid)
 
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
@@ -178,7 +184,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     context->nb_cores = (int16_t)nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;
 
-    /* Initialize the barrier */
+    /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
 #ifdef DPLASMA_GENERATE_DOT
@@ -206,20 +212,44 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
         dplasma_dequeue_construct( eu->eu_task_queue );
         eu->placeholder = NULL;
 #endif  /* DPLASMA_USE_LIFO */
-        context->execution_units[i].eu_id = i;
-        context->execution_units[i].master_context = context;
+        eu->eu_id = i;
+        eu->master_context = context;
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
         eu->eu_steal_from = (int8_t*)malloc(nb_cores * sizeof(int8_t));
         {
-            int j;
+            int j, k;
 #if defined(ON_ZOOT)
-            int distance[] = {8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
-#else
-            int distance[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-#endif
+            int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
+            int8_t placement[] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                    1,  0,  3,  2,  5,  4,  7,  6,  9,  8, 11, 10, 13, 12, 15, 14,
+                                    2,  3,  0,  1,  6,  7,  4,  5, 10, 11,  8,  9, 14, 15, 12, 13,
+                                    3,  2,  1,  0,  7,  6,  5,  4, 11, 10,  9,  8, 15, 14, 13, 12,
+                                    4,  5,  6,  7,  0,  1,  2,  3, 12, 13, 14, 15,  8,  9, 10, 11,
+                                    5,  4,  7,  6,  1,  0,  3,  2, 13, 12, 15, 14,  9,  8, 11, 10,
+                                    6,  7,  4,  5,  2,  3,  0,  1, 14, 15, 12, 13, 10, 11,  8,  9,
+                                    7,  6,  5,  4,  3,  2,  1,  0, 15, 14, 13, 12, 11, 10,  9,  8,
+                                    8,  9, 10, 11, 12, 13, 14, 15,  0,  1,  2,  3,  4,  5,  6,  7,
+                                    9,  8, 11, 10, 13, 12, 15, 14,  1,  0,  3,  2,  5,  4,  7,  6,
+                                   10, 11,  8,  9, 14, 15, 12, 13,  2,  3,  0,  1,  6,  7,  4,  5,
+                                   11, 10,  9,  8, 15, 14, 13, 12,  3,  2,  1,  0,  7,  6,  5,  4,
+                                    8,  9, 10, 11, 12, 13, 14, 15,  4,  5,  6,  7,  0,  1,  2,  3,
+                                    9,  8, 11, 10, 13, 12, 15, 14,  5,  4,  7,  6,  1,  0,  3,  2,
+                                   10, 11,  8,  9, 14, 15, 12, 13,  6,  7,  4,  5,  2,  3,  0,  1,
+                                   11, 10,  9,  8, 15, 14, 13, 12,  7,  6,  5,  4,  3,  2,  1,  0 };
+
             for( j = 0; j < nb_cores; j++ ) {
-                eu->eu_steal_from[j] = (i +  distance[j]) % 16;
+                eu->eu_steal_from[j] = placement[eu->eu_id*16 + j];
             }
+            eu->eu_steal_from[0] = distance[eu->eu_id];
+#else
+            eu->eu_steal_from[0] = eu->eu_id;
+            for( j = 0, k = 1; j < nb_cores; j++ ) {
+                if( eu->eu_id != j ) {
+                    eu->eu_steal_from[k] = j;
+                    k++;
+                }
+            }
+#endif
         }
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
@@ -242,6 +272,23 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
 
+#ifdef HAVE_CPU_SET_T
+    {
+        cpu_set_t cpuset;
+
+        CPU_ZERO(&cpuset);
+#if defined(HAVE_HWLOC)
+        CPU_SET(context->execution_units[0].eu_steal_from[0], &cpuset);
+#else
+        CPU_SET(context->execution_units[0].eu_id, &cpuset);
+#endif  /* defined(HAVE_HWLOC) */
+
+        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
+            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+        }
+    }
+#endif  /* HAVE_CPU_SET_T */
+
     dplasma_remote_dep_init(context);
 
     /* Wait until all threads are done binding themselves */
@@ -260,7 +307,7 @@ int dplasma_fini( dplasma_context_t** context )
 #ifdef DPLASMA_GENERATE_DOT
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
-    
+
     /* Now wait until every thread is back */
     (*context)->__dplasma_internal_finalization_in_progress = 1;
     dplasma_barrier_wait( &((*context)->barrier) );

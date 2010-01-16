@@ -104,6 +104,21 @@ void dplasma_register_nb_tasks(int n)
     set_tasks_todo((uint32_t)n);
 }
 
+#include <math.h>
+static void __do_some_computations( void )
+{
+    const int NB = 256;
+    double *A = (double*)malloc(NB*NB*sizeof(double));
+    int i, j;
+
+    for( i = 0; i < NB; i++ ) {
+        for( j = 0; j < NB; j++ ) {
+            A[i*NB+j] = (double)rand() / RAND_MAX;
+        }
+    }
+    free(A);
+}
+
 #define gettid() syscall(__NR_gettid)
 
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
@@ -112,20 +127,25 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     dplasma_execution_context_t* exec_context;
     int nbiterations;
 
+    if( 0 != eu_context->eu_id ) {
 #ifdef HAVE_CPU_SET_T
-    {
         cpu_set_t cpuset;
 
         CPU_ZERO(&cpuset);
+#if defined(HAVE_HWLOC)
+        CPU_SET(eu_context->eu_steal_from[0], &cpuset);
+#else
         CPU_SET(eu_context->eu_id, &cpuset);
+#endif  /* defined(HAVE_HWLOC) */
 
         if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
         }
-    }
 #endif  /* HAVE_CPU_SET_T */
 
-    if( 0 != eu_context->eu_id ) {
+        /* Force the kernel to bind me to the expected core */
+        __do_some_computations();
+
         /* Wait until all threads are done binding themselves */
         dplasma_barrier_wait( &(eu_context->master_context->barrier) );
     }
@@ -168,8 +188,12 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #ifndef DPLASMA_USE_GLOBAL_LIFO
             miss_local++;
             /* Work stealing from the other workers */
-            int i;
-            for( i = 0; i < (eu_context->master_context->nb_cores-1); i++ ) {
+#if defined(HAVE_HWLOC)
+            int i = 1;
+#else
+            int i = 0;
+#endif  /* defined(HAVE_HWLOC) */
+            for( ; i < eu_context->master_context->nb_cores; i++ ) {
                 dplasma_execution_unit_t* victim;
 #if defined(HAVE_HWLOC)
                 victim = &(eu_context->master_context->execution_units[eu_context->eu_steal_from[i]]);
@@ -199,7 +223,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     }
     assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
     assert(1 == 1); /* masks check goes here */
-#else 
+#else
     while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue)) ) {
         char tmp[128];
         dplasma_service_to_string( exec_context, tmp, 128 );
