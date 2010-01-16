@@ -58,6 +58,8 @@ int dplasma_barrier_destroy(dplasma_barrier_t* barrier)
 {
     pthread_mutex_destroy( &(barrier->mutex) );
     pthread_cond_destroy( &(barrier->cond) );
+    barrier->count    = 0;
+    barrier->curcount = 0;
     return 0;
 }
 
