@@ -124,15 +124,31 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);
-    printf("NBTASKS to run: %d\n", nbtasks);
 
     {
         dplasma_execution_context_t exec_context;
         int it;
 
+#define DPLASMA_WARM_UP 1
+#if defined(DPLASMA_WARM_UP)
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
+
+        dplasma_schedule(dplasma, &exec_context);
+
+        /* Now that everything is created start the timer */
+        time_elapsed = get_cur_time();
+
+        it = dplasma_progress(dplasma);
+        time_elapsed = get_cur_time() - time_elapsed;
+        printf("Warming up: DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
+#endif  /* defined(DPLASMA_WARM_UP) */
+
+        printf("NBTASKS to run: %d\n", nbtasks);
+
+        /* And now that everything is warmed up, do the real test */
+        nbtasks = enumerate_dplasma_tasks();
 
         dplasma_schedule(dplasma, &exec_context);
 
@@ -153,7 +169,6 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         time_elapsed = get_cur_time();
 
         it = dplasma_progress(dplasma);
-        printf("main thread did %d tasks\n", it);
         
         time_elapsed = get_cur_time() - time_elapsed;
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
@@ -169,6 +184,9 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 #endif  /* DPLASMA_PROFILING */
     dplasma_fini(&dplasma);
 #else
+    plasma_parallel_call_2(plasma_pdpotrf,
+                           PLASMA_enum, uplo,
+                           PLASMA_desc, descA);
     time_elapsed = get_cur_time();
     plasma_parallel_call_2(plasma_pdpotrf,
                            PLASMA_enum, uplo,
