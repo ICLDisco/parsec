@@ -242,10 +242,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
             }
             eu->eu_steal_from[0] = distance[eu->eu_id];
 #else
-            eu->eu_steal_from[0] = eu->eu_id;
+            eu->eu_steal_from[0] = (int8_t)eu->eu_id;
             for( j = 0, k = 1; j < nb_cores; j++ ) {
                 if( eu->eu_id != j ) {
-                    eu->eu_steal_from[k] = j;
+                    eu->eu_steal_from[k] = (int8_t)j;
                     k++;
                 }
             }
@@ -300,8 +300,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 /**
  *
  */
-int dplasma_fini( dplasma_context_t** context )
+int dplasma_fini( dplasma_context_t** pcontext )
 {
+    dplasma_context_t* context = *pcontext;
     int i;
 
 #ifdef DPLASMA_GENERATE_DOT
@@ -309,33 +310,33 @@ int dplasma_fini( dplasma_context_t** context )
 #endif  /* DPLASMA_GENERATE_DOT */
 
     /* Now wait until every thread is back */
-    (*context)->__dplasma_internal_finalization_in_progress = 1;
-    dplasma_barrier_wait( &((*context)->barrier) );
+    context->__dplasma_internal_finalization_in_progress = 1;
+    dplasma_barrier_wait( &(context->barrier) );
 
     /* The first execution unit is for the master thread */
-    for(i = 1; i < (*context)->nb_cores; i++) {
-        pthread_join( (*context)->execution_units[i].pthread_id, NULL );
+    for(i = 1; i < context->nb_cores; i++) {
+        pthread_join( context->execution_units[i].pthread_id, NULL );
 #if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
-        free( (*context)->execution_units[i].eu_task_queue );
-        (*context)->execution_units[i].eu_task_queue = NULL;
+        free( context->execution_units[i].eu_task_queue );
+        context->execution_units[i].eu_task_queue = NULL;
 #endif  /* defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-        free((*context)->execution_units[i].eu_steal_from);
-        (*context)->execution_units[i].eu_steal_from = NULL;
+        free(context->execution_units[i].eu_steal_from);
+        context->execution_units[i].eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
 
-    dplasma_remote_dep_fini(*context);
+    dplasma_remote_dep_fini( context );
     
 #ifdef DPLASMA_PROFILING
-    dplasma_profiling_fini( *context );
+    dplasma_profiling_fini( context );
 #endif  /* DPLASMA_PROFILING */
 
     /* Destroy all resources allocated for the barrier */
-    dplasma_barrier_destroy( &((*context)->barrier) );
+    dplasma_barrier_destroy( &(context->barrier) );
 
-    free(*context);
-    *context = NULL;
+    free(context);
+    *pcontext = NULL;
     return 0;
 }
 
