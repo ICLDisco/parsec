@@ -36,10 +36,9 @@ struct dplasma_context_t {
     volatile int32_t __dplasma_internal_finalization_in_progress;
     int16_t nb_cores;
     int16_t nb_nodes;
-    size_t remote_dep_fw_mask_sizeof;
     dplasma_barrier_t  barrier;
-    dplasma_execution_unit_t execution_units[1];
-  
+
+    size_t remote_dep_fw_mask_sizeof;
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_t* fwd_IN_dep_queue;
     dplasma_atomic_lifo_t* fwd_OUT_dep_queue;
@@ -47,6 +46,14 @@ struct dplasma_context_t {
     dplasma_dequeue_t* fwd_IN_dep_queue;
     dplasma_dequeue_t* fwd_OUT_dep_queue;
 #endif /*DPLASMA_USE_LIFO */
+
+    /* This field should always be the last one in the structure. Even if the
+     * declared number of execution units is 1 when we allocate the memory
+     * we will allocate more (as many as we need), so everything after this
+     * field might be overwritten.
+     */
+    dplasma_execution_unit_t execution_units[1];
+  
 };
 
 #endif  /* DPLASMA_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */
