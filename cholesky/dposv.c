@@ -142,7 +142,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 
         it = dplasma_progress(dplasma);
         time_elapsed = get_cur_time() - time_elapsed;
-        printf("Warming up: DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
+        printf("Warming up: DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
 #endif  /* defined(DPLASMA_WARM_UP) */
 
         printf("NBTASKS to run: %d\n", nbtasks);
@@ -169,7 +169,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         time_elapsed = get_cur_time();
 
         it = dplasma_progress(dplasma);
-        
+
         time_elapsed = get_cur_time() - time_elapsed;
         printf("DPLASMA DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
     }
