@@ -123,7 +123,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks();
     time_elapsed = get_cur_time() - time_elapsed;
-    printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);
+    /*printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);*/
 
     {
         dplasma_execution_context_t exec_context;
@@ -145,7 +145,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         printf("Warming up: DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
 #endif  /* defined(DPLASMA_WARM_UP) */
 
-        printf("NBTASKS to run: %d\n", nbtasks);
+        /*printf("NBTASKS to run: %d\n", nbtasks);*/
 
         /* And now that everything is warmed up, do the real test */
         nbtasks = enumerate_dplasma_tasks();
@@ -162,7 +162,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
                     useless += ((double*)descA.mat)[i*PLASMA_NB+j];
                 }
             }
-            printf( "Useless value %f\n", useless );
+            /*printf( "Useless value %f\n", useless );*/
         }
 
         /* Now that everything is created start the timer */
@@ -248,7 +248,11 @@ int main (int argc, char **argv)
    }
 
    /* Plasma Initialize */
+#if defined(DPLASMA_EXECUTE)
+   PLASMA_Init(1);
+#else
    PLASMA_Init(cores);
+#endif  /* defined(DPLASMA_EXECUTE) */
 
    /*-------------------------------------------------------------
    *  TESTING DPOTRF + DPOTRS
