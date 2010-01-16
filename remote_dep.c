@@ -52,7 +52,10 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     dplasma_t* function = exec_context->function;
     
     rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
-    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be executed on rank %d.\n    Remote dependencies are NOT ENABLED in this build!\n", dplasma_service_to_string(origin, tmp, 128), dplasma_service_to_string(exec_context, tmp2, 128), rank);
+    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be executed on rank %d.\n    Remote dependencies are NOT ENABLED in this build!\n",
+            dplasma_service_to_string(origin, tmp, 128),
+            dplasma_service_to_string(exec_context, tmp2, 128),
+            rank);
     for(i = 0; i < function->nb_locals; i++)
     {
         symbol_dump(function->locals[i], "\tPREDICATE VARS:\t");
@@ -76,11 +79,11 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
 {
     int boffset;
-    char mask = 1;
+    uint8_t mask = 1;
     
     DEBUG(("fw mark\tREMOTE rank %d\n", rank));
-    boffset = rank / sizeof(char);
-    mask = 1 << (rank % sizeof(char));
+    boffset = rank / sizeof(uint8_t);
+    mask = ((uint8_t)1) << (rank % sizeof(uint8_t));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
     eu_context->remote_dep_fw_mask[boffset] |= mask;
 }
@@ -88,10 +91,10 @@ void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, in
 int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
 {
     int boffset;
-    char mask = 1;
+    uint8_t mask = 1;
     
-    boffset = rank / sizeof(char);
-    mask = 1 << (rank % sizeof(char));
+    boffset = rank / sizeof(uint8_t);
+    mask = ((uint8_t)1) << (rank % sizeof(uint8_t));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
     DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
     return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
@@ -102,7 +105,7 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     int i;
     
-    context->nb_nodes = __remote_dep_init(context);
+    context->nb_nodes = (int16_t)__remote_dep_init(context);
     if(context->nb_nodes > 1)
     {
         context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(char) - 1) / sizeof(char);

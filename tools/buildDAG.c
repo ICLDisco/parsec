@@ -10,13 +10,11 @@
  * Forward Declarations
  */
 
-void external_hook(void);
-void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignment_t *assgn, unsigned int nbassgn);
-void generateTaskInstances(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
-void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
-void generateEdge(dplasma_t *currTask, char *fromNodeStr, char *localSymbol, assignment_t *assgn, unsigned int nbassgn, dep_t *dep);
-void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn);
-void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV);
+static void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignment_t *assgn, unsigned int nbassgn);
+static void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn);
+static void generateEdge(dplasma_t *currTask, char *fromNodeStr, char *localSymbol, assignment_t *assgn, unsigned int nbassgn, dep_t *dep);
+static void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn);
+static void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV);
 
 
 /*
@@ -24,7 +22,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, uns
  */
 
 /**************************************************************************/
-int nameToColor(const char *name){
+static int nameToColor(const char *name){
     int i, len;
     long long int tmp, rslt;
 
@@ -48,7 +46,7 @@ int nameToColor(const char *name){
  * the argument "callParamsV" satisfy the ranges of the Execution space
  * for task "task"
  */
-int isValidTask(dplasma_t *task, int *callParamsV, int callParamCount){
+static int isValidTask(dplasma_t *task, int *callParamsV, int callParamCount){
     int i, lb, ub;
     assignment_t *assgn;
 
@@ -84,7 +82,7 @@ int isValidTask(dplasma_t *task, int *callParamsV, int callParamCount){
 
 
 /**************************************************************************/
-void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
+static void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, unsigned int whichCallParam, int callParamCount, assignment_t *assgn, unsigned int nbassgn, int *callParamsV){
     int success = 0;
     int i, ret_val, res;
 
@@ -129,7 +127,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, uns
 
     if( !success ){
         printf("Can't evaluate expression for dep: %s ",peerNode->dplasma->name);
-        printf("call_params[%d] ",whichCallParam);
+        printf("call_params[%d] ",(int)whichCallParam);
         expr_dump(stdout,  peerNode->call_params[whichCallParam] );
         printf("\n");
         exit(-1);
@@ -139,7 +137,7 @@ void generatePeerNode(dep_t *peerNode, char *fromNodeStr, char *localSymbol, uns
 }
 
 /**************************************************************************/
-void generateEdge(dplasma_t *currTask, char *fromNodeStr, char *localSymbol, assignment_t *assgn, unsigned int nbassgn, dep_t *dep){
+static void generateEdge(dplasma_t *currTask, char *fromNodeStr, char *localSymbol, assignment_t *assgn, unsigned int nbassgn, dep_t *dep){
     int i, res, ret_val, callParamsV[MAX_CALL_PARAM_COUNT], callParamCount;
 
     if( dep->cond != NULL ){
@@ -162,7 +160,7 @@ void generateEdge(dplasma_t *currTask, char *fromNodeStr, char *localSymbol, ass
 }
 
 /**************************************************************************/
-void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn){
+static void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *assgn, unsigned int nbassgn){
     int i, color, val = 0;
     expr_t *e;
 
@@ -213,7 +211,7 @@ void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment_t *ass
 }
 
 /**************************************************************************/
-void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn){
+static void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassgn){
     int i, j, k, off, len;
     param_t *currParam;
     dep_t *currOutDep;
@@ -243,7 +241,7 @@ void generateEdges(dplasma_t *currTask, assignment_t *assgn, unsigned int nbassg
 }
 
 /**************************************************************************/
-void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignment_t *assgn, unsigned int nbassgn) {
+static void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignment_t *assgn, unsigned int nbassgn) {
     int i, lb, ub;
     assignment_t *assgnNew;
 
@@ -282,7 +280,8 @@ void processTask(dplasma_t *currTask, int localsCount, int whichLocal, assignmen
 }
 
 /**************************************************************************/
-void external_hook(void){
+static void external_hook(void)
+{
     int i, j;
 
     printf("digraph DAG {\n");

@@ -227,6 +227,7 @@ int dplasma_profiling_del_dictionary_keyword( int key )
 int dplasma_profiling_reset( dplasma_execution_unit_t* context )
 {
     context->eu_profile->events_count = 0;
+    return 0;
 }
 
 int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key )

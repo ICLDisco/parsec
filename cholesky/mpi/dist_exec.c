@@ -83,8 +83,10 @@ int main(int argc, char ** argv){
     double *B2;
     double *WORK;
     double *D;
+#ifdef USE_MPI
     MPI_Request * requests;
     int req_count;
+#endif
     dplasma_context_t* dplasma;
 
     dague_init(argc, argv);
