@@ -237,6 +237,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         goto wait_for_the_next_round;
 
  finalize_progress:
+#if defined(DPLASMA_REPORT_STATISTICS)
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
@@ -246,6 +247,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
 #endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
+#endif  /* DPLASMA_REPORT_STATISTICS */
 
     return (void*)(long)nbiterations;
 }
