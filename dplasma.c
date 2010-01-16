@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -175,7 +175,8 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
                                                             nb_cores * sizeof(dplasma_execution_unit_t));
     int i;
 
-    context->nb_cores = nb_cores;
+    context->nb_cores = (int16_t)nb_cores;
+    context->__dplasma_internal_finalization_in_progress = 0;
 
     /* Initialize the barrier */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
@@ -243,6 +244,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 
     dplasma_remote_dep_init(context);
 
+    /* Wait until all threads are done binding themselves */
+    dplasma_barrier_wait( &(context->barrier) );
+
     return context;
 }
 
@@ -257,13 +261,11 @@ int dplasma_fini( dplasma_context_t** context )
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
     
-    dplasma_remote_dep_fini(*context);
-    
-#ifdef DPLASMA_PROFILING
-    dplasma_profiling_fini( *context );
-#endif  /* DPLASMA_PROFILING */
+    /* Now wait until every thread is back */
+    (*context)->__dplasma_internal_finalization_in_progress = 1;
+    dplasma_barrier_wait( &((*context)->barrier) );
 
-        /* The first execution unit is for the master thread */
+    /* The first execution unit is for the master thread */
     for(i = 1; i < (*context)->nb_cores; i++) {
         pthread_join( (*context)->execution_units[i].pthread_id, NULL );
 #if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -275,6 +277,12 @@ int dplasma_fini( dplasma_context_t** context )
         (*context)->execution_units[i].eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
+
+    dplasma_remote_dep_fini(*context);
+    
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_fini( *context );
+#endif  /* DPLASMA_PROFILING */
 
     /* Destroy all resources allocated for the barrier */
     dplasma_barrier_destroy( &((*context)->barrier) );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,8 +33,9 @@ typedef struct dplasma_execution_unit_t {
 } dplasma_execution_unit_t;
 
 struct dplasma_context_t {
-    int32_t nb_cores;
-    int32_t nb_nodes;
+    int16_t nb_cores;
+    int16_t nb_nodes;
+    int32_t __dplasma_internal_finalization_in_progress;
     size_t remote_dep_fw_mask_sizeof;
     dplasma_barrier_t  barrier;
     dplasma_execution_unit_t execution_units[1];
