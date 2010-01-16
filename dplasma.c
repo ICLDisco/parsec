@@ -166,7 +166,7 @@ int dplasma_nb_elements( void )
  *
  */
 #ifdef DPLASMA_USE_GLOBAL_LIFO
-extern dplasma_atomic_lifo_t ready_list;
+dplasma_atomic_lifo_t ready_list;
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
 
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
