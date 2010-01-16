@@ -124,6 +124,7 @@ static void __do_some_computations( void )
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim;
+    dplasma_context_t* master_context = eu_context->master_context;
     dplasma_execution_context_t* exec_context;
     int nbiterations;
 
@@ -147,14 +148,15 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         __do_some_computations();
 
         /* Wait until all threads are done binding themselves */
-        dplasma_barrier_wait( &(eu_context->master_context->barrier) );
+        dplasma_barrier_wait( &(master_context->barrier) );
     }
 
+    /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
-    dplasma_barrier_wait( &(eu_context->master_context->barrier) );
+    dplasma_barrier_wait( &(master_context->barrier) );
 
-    if( eu_context->master_context->__dplasma_internal_finalization_in_progress )
+    if( master_context->__dplasma_internal_finalization_in_progress )
         goto finalize_progress;
     found_local = miss_local = found_victim = miss_victim = 0;
     nbiterations = 0;
@@ -182,10 +184,12 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             /* Release the execution context */
             free( exec_context );
         } else {
+#if defined(USE_MPI)
             /* check for remote deps completion */
             if(dplasma_remote_dep_progress(eu_context) > 0)
                 continue;
-#ifndef DPLASMA_USE_GLOBAL_LIFO
+#endif  /* defined(USE_MPI) */
+#if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
             /* Work stealing from the other workers */
 #if defined(HAVE_HWLOC)
@@ -193,14 +197,14 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #else
             int i = 0;
 #endif  /* defined(HAVE_HWLOC) */
-            for( ; i < eu_context->master_context->nb_cores; i++ ) {
+            for( ; i < master_context->nb_cores; i++ ) {
                 dplasma_execution_unit_t* victim;
 #if defined(HAVE_HWLOC)
-                victim = &(eu_context->master_context->execution_units[eu_context->eu_steal_from[i]]);
+                victim = &(master_context->execution_units[eu_context->eu_steal_from[i]]);
 #else
-                victim = &(eu_context->master_context->execution_units[i]);
+                victim = &(master_context->execution_units[i]);
 #endif  /* defined(HAVE_HWLOC) */
-#ifdef DPLASMA_USE_LIFO
+#if defined(DPLASMA_USE_LIFO)
                 exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(victim->eu_task_queue);
 #else
                 exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(victim->eu_task_queue);
@@ -215,6 +219,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
         }
     }
+
+ finalize_progress:
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue)) ) {
         char tmp[128];
@@ -222,7 +228,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         printf( "Pending task: %s\n", tmp );
     }
     assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
-    assert(1 == 1); /* masks check goes here */
 #else
     while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue)) ) {
         char tmp[128];
@@ -230,13 +235,11 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         printf( "Pending task: %s\n", tmp );
     }
     assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
-    assert(1 == 1);
-#endif
+#endif  /* defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO) */
 
-    if( (0 != eu_context->eu_id) && (!eu_context->master_context->__dplasma_internal_finalization_in_progress) )
+    if( (0 != eu_context->eu_id) && (!master_context->__dplasma_internal_finalization_in_progress) )
         goto wait_for_the_next_round;
 
- finalize_progress:
 #if defined(DPLASMA_REPORT_STATISTICS)
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
