@@ -439,7 +439,6 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
             (symbol->max != NULL) &&
             ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
             (symbol->min->value == symbol->max->value) ) {
-            /* strangely enough, this should be always the case... TODO: talk with the others -- Thomas */
             fprintf(out, "int %s = %d;\n", symbol->name, symbol->min->value);
             current_line++;
         } else {
