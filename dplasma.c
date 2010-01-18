@@ -293,6 +293,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Wait until all threads are done binding themselves */
     dplasma_barrier_wait( &(context->barrier) );
+    context->__dplasma_internal_finalization_counter++;
 
     return context;
 }
@@ -311,6 +312,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
 
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
+    context->__dplasma_internal_finalization_counter++;
     dplasma_barrier_wait( &(context->barrier) );
 
     /* The first execution unit is for the master thread */

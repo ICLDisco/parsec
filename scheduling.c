@@ -124,6 +124,7 @@ static void __do_some_computations( void )
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim;
+    int32_t my_barrier_counter = 0;
     dplasma_context_t* master_context = eu_context->master_context;
     dplasma_execution_context_t* exec_context;
     int nbiterations;
@@ -149,15 +150,21 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
         /* Wait until all threads are done binding themselves */
         dplasma_barrier_wait( &(master_context->barrier) );
+        my_barrier_counter++;
     }
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
     dplasma_barrier_wait( &(master_context->barrier) );
+    my_barrier_counter++;
 
-    if( master_context->__dplasma_internal_finalization_in_progress )
+    if( master_context->__dplasma_internal_finalization_in_progress ) {
+        for(; my_barrier_counter < master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
+            dplasma_barrier_wait( &(master_context->barrier) );
+        }
         goto finalize_progress;
+    }
     found_local = miss_local = found_victim = miss_victim = 0;
     nbiterations = 0;
 
@@ -220,7 +227,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         }
     }
 
- finalize_progress:
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue)) ) {
         char tmp[128];
@@ -237,9 +243,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
 #endif  /* defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO) */
 
-    if( (0 != eu_context->eu_id) && (!master_context->__dplasma_internal_finalization_in_progress) )
+    if( 0 != eu_context->eu_id )
         goto wait_for_the_next_round;
 
+ finalize_progress:
 #if defined(DPLASMA_REPORT_STATISTICS)
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
@@ -257,6 +264,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
 int dplasma_progress(dplasma_context_t* context)
 {
+    context->__dplasma_internal_finalization_counter++;
     return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
 }
 
