@@ -257,7 +257,7 @@ int dplasma_fini( dplasma_context_t** context )
     printf("}\n");
 #endif  /* DPLASMA_GENERATE_DOT */
     
-    dplasma_remote_dep_fini(*context);
+    dplasma_remote_dep_fini( *context );
     
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( *context );

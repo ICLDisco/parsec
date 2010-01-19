@@ -23,7 +23,17 @@ typedef struct dplasma_t dplasma_t;
 #include "lifo.h"
 
 #ifdef _DEBUG
-#define DEBUG(ARG)  printf ARG
+#   ifdef USE_MPI
+#include <mpi.h>
+#define DEBUG(ARG)  do { \
+    int rank; \
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); \
+    printf("[%d]\t", rank); \
+    printf ARG ;\
+} while(0)
+#   else
+#define DEBUG(ARG) printf ARG
+#   endif
 #else
 #define DEBUG(ARG)
 #endif

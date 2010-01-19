@@ -41,7 +41,7 @@ int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
 
-static void dague_fini(void);
+static void dague_fini(dplasma_context_t* context);
 static void dague_init(int argc, char **argv);
 static void cleanup_exit(int ret);
 static dplasma_context_t *setup_dplasma(void);
@@ -72,7 +72,7 @@ printf print; \
 int main(int argc, char ** argv){
     /* local variables*/
     double eps;
-    double flops;
+    double flops, gflops;
     PLASMA_enum uplo;
     int info_solution, info_factorization;
     int NminusOne; /* = N-1;*/
@@ -90,10 +90,11 @@ int main(int argc, char ** argv){
     dague_init(argc, argv);
     
     /* Matrix creation, tiling and distribution */
-    if(rank == 0)
+    if(1)
     {
-        A1   = (double *)malloc(LDA*N*sizeof(double));
         A2   = (double *)malloc(LDA*N*sizeof(double));
+#if defined(DO_THE_NASTY_VALIDATIONS)
+        A1   = (double *)malloc(LDA*N*sizeof(double));
         B1   = (double *)malloc(LDB*NRHS*sizeof(double));
         B2   = (double *)malloc(LDB*NRHS*sizeof(double));
         WORK = (double *)malloc(2*LDA*sizeof(double));
@@ -103,9 +104,20 @@ int main(int argc, char ** argv){
         LDBxNRHS = LDB*NRHS;
         
         /* generating a random matrix */
-        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
+        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);*/
+#else        
+        /* generating a random matrix */
+        int i, j;
+        for ( i = 0; i < N; i++)
+            for ( j = i; j < N; j++) {
+                A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
+            }
+        for ( i = 0; i < N; i++){
+            A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+        }
+#endif
         tiling(&uplo, N, A2, LDA, &local_desc);
-#ifdef USE_MPI
+#ifdef trick_USE_MPI
         dplasma_desc_bcast(&local_desc, &descA);
         TIME_START();
         distribute_data(&local_desc, &descA, &requests, &req_count);
@@ -119,7 +131,7 @@ int main(int argc, char ** argv){
     /* wait for data distribution to finish before continuing */
     is_data_distributed(&descA, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", rank));    
-# ifdef DIST_VERIFICATION    
+# if defined(DO_THE_NASTY_VALIDATIONS)
     data_dist_verif(&local_desc, &descA);
     if(rank == 0)
         plasma_dump(&local_desc);
@@ -132,10 +144,7 @@ int main(int argc, char ** argv){
 
     TIME_START();
     dplasma = setup_dplasma();
-    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
     
-    /* lets rock! */
-    TIME_START();
     if(rank == 0)
     {
         dplasma_execution_context_t exec_context;
@@ -145,19 +154,23 @@ int main(int argc, char ** argv){
         dplasma_set_initial_execution_context(&exec_context);
         dplasma_schedule(dplasma, &exec_context);
     }
-    dplasma_progress(dplasma);
-    TIME_PRINT(("executing kernels on rank %d:\t%d %d %fflops\n", rank, N, NB, flops = (N/1e3*N/1e3*N/1e3/2.0)/time_elapsed));
+    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
 
-#ifdef USE_MPI    
+    TIME_START();
+/* lets rock! */
+    dplasma_progress(dplasma);
+    TIME_PRINT(("executing kernels on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
+
+#ifdef trick_USE_MPI    
     TIME_START();
     gather_data(&local_desc, &descA);
     TIME_PRINT(("data reduction on rank %d (to rank 0)\n", rank));
+#elif USE_MPI
+    MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
 
     if(rank == 0) 
     {
-        untiling(&uplo, N, A2, LDA, &local_desc);
-        PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
         eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
         printf("\n");
         printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
@@ -166,7 +179,10 @@ int main(int argc, char ** argv){
         printf(" The matrix A is randomly generated for each test.\n");
         printf("============\n");
         printf(" The relative machine precision (eps) is to be %e \n", eps);
-        printf(" Computational tests pass if scaled residuals are less than 10.\n");
+        printf(" Computational tests pass if scaled residuals are less than 10.\n");        
+#if defined(DO_THE_NASTY_VALIDATIONS)
+        untiling(&uplo, N, A2, LDA, &local_desc);
+        PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
         
         /* Check the factorization and the solution */
         info_factorization = check_factorization(N, A1, A2, LDA, uplo, eps);
@@ -176,7 +192,7 @@ int main(int argc, char ** argv){
             printf("***************************************************\n");
             printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED !\n");
             printf("***************************************************\n");
-            printf(" ---- FLOPS .............................. %.4f\n", flops);
+            printf(" ---- GFLOPS ............................. %.4f\n", gflops);
             printf("***************************************************\n");
         }
         else{
@@ -185,15 +201,34 @@ int main(int argc, char ** argv){
             printf("****************************************************\n");
         }
         
-        free(A1); free(A2); free(B1); free(B2); free(WORK); free(D);
+        free(A1); free(B1); free(B2); free(WORK); free(D);
+#else   
+        printf("***************************************************\n");
+        printf(" ---- TESTING DPOTRF + DPOTRS ............ NOTEST !\n");
+        printf("***************************************************\n");
+        printf(" ---- GFLOPS .............................. %.4f\n", gflops);
+        printf("***************************************************\n");
+#endif
+        free(A2);
     }
-        
-    dague_fini();
+
+#ifdef DPLASMA_PROFILING
+{
+    char* filename = NULL;
+    
+    asprintf( &filename, "%s-%d.svg", "dposv-mpi", rank );
+    dplasma_profiling_dump_svg(dplasma, filename);
+    free(filename);
+}
+#endif  /* DPLASMA_PROFILING */
+
+    dague_fini(dplasma);
     return 0;
 }
 
-static void dague_fini(void)
+static void dague_fini(dplasma_context_t* dplasma)
 {
+    dplasma_fini(&dplasma);
     PLASMA_Finalize();
 #ifdef USE_MPI
     MPI_Finalize();
@@ -266,7 +301,6 @@ static void dague_init(int argc, char **argv)
                 
             case 'g':
                 descA.GRIDrows = atoi(optarg);
-                printf("%d rows od processes in the process grid\n", descA.GRIDrows);                
                 break;
             case 's':
                 descA.ncst = descA.nrst = atoi(optarg);
@@ -310,7 +344,8 @@ Optional arguments:\n\
     {
         printf("GRIDrows %d does not divide the total number of nodes %d\n", descA.GRIDrows, nodes);
         cleanup_exit(2);
-    }    
+    }
+    printf("Grid is %dx%d\n", descA.GRIDrows, descA.GRIDcols);
     if(LDA <= 0) 
     {
         LDA = N;

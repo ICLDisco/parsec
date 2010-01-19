@@ -46,9 +46,7 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
 {
 #if !DEPTH_FIRST_SCHEDULE
     dplasma_execution_unit_t* eu_context;
-
     eu_context = &(context->execution_units[0]);
-
     return __dplasma_schedule( eu_context, exec_context );
 #else
     return dplasma_execute(eu_context, exec_context);
@@ -276,11 +274,11 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
 #ifdef _DEBUG
     char tmp[128];
 #endif
-
+    
+    DEBUG(( "Execute %s\n", rank, dplasma_service_to_string(exec_context, tmp, 128)));
+    
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );
-    } else {
-        DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
     return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
 }

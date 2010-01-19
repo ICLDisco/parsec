@@ -30,7 +30,6 @@ int __remote_dep_init(dplasma_context_t* context)
 
 int __remote_dep_fini(dplasma_context_t* context)
 {
-    MPI_Cancel(&dep_req);
     MPI_Request_free(&dep_req);
     MPI_Comm_free(&dep_comm);
     return 0;
