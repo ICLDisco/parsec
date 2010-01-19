@@ -101,7 +101,7 @@ typedef struct dumped_param_list {
 } dumped_param_list_t;
 
 static char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size);
-static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it);
+static char *dump_c_param(FILE *out, const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it);
 
 static int current_line;
 static char *out_name = "";
@@ -131,8 +131,8 @@ static void dump_inline_c_expression(FILE *out, const expr_t *e)
     } else {
         if( EXPR_OP_CONST_INT == e->op ) {
             fprintf(out, "%d", e->value);
-        } 
-        else if( EXPR_OP_SYMB == e->op ) {
+        } else if( EXPR_OP_SYMB == e->op ) {
+            fflush(stdout);
             fprintf(out, "%s", e->var->name);
         } else if( EXPR_IS_UNARY(e->op) ) {
             if( e->op == EXPR_OP_UNARY_NOT ) {
@@ -158,6 +158,7 @@ static void dump_inline_c_expression(FILE *out, const expr_t *e)
                 break;
             case EXPR_OP_BINARY_RANGE:
                 fprintf(stderr, "cannot evaluate range expression here!\n");
+                fprintf(out, "\n#error cannot evaluate range expression here!\n");
                 break;
             case EXPR_OP_BINARY_MINUS:
                 fprintf(out, ")-(");
@@ -177,13 +178,75 @@ static void dump_inline_c_expression(FILE *out, const expr_t *e)
             case EXPR_OP_BINARY_XOR:
                 fprintf(out, ")^(");
                 break;
+            case EXPR_OP_BINARY_LESS:
+                fprintf(out, ")<(");
+                break;
+            case EXPR_OP_BINARY_MORE:
+                fprintf(out, ")>(");
+                break;
+            default:
+                fprintf(out, "\n#error unknown binary operand %d\n", e->op);
+                fprintf(stderr, "Unkown binary operand %d\n", e->op);
             }
             dump_inline_c_expression(out, e->bop2);
             fprintf(out, ")");
         } else {
-            fprintf(stderr, "Unkown operand %d in expression", e->op);
+            fprintf(stderr, "Unkown operand %d in expression\n", e->op);
+            fprintf(out, "\n#error Unknown operand %d in expression\n", e->op);
         }
     }
+}
+
+static char *dump_c_expression_inline(FILE *out, const expr_t *e,
+                                      const symbol_t **symbols, int nbsymbols,
+                                      char *init_func_body, int init_func_body_size)
+{
+    static unsigned int expr_idx = 0;
+    static char name[FNAME_SIZE];
+
+    if( e == NULL ) {
+        snprintf(name, FNAME_SIZE, "NULL");
+    } else {
+        int my_id = expr_idx;
+        int i;
+        expr_idx++;
+
+        fprintf(out, 
+                "static int inline_expr%d( const  assignment_t *assignments )\n"
+                "{\n",
+                my_id);
+        current_line += 2;
+
+        for(i = 0; i < nbsymbols; i++) {
+            if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
+                fprintf(out, "  int %s = assignments[%d].value;\n", symbols[i]->name, i);
+                current_line++;
+            } 
+        }
+
+        for(i = 0; i < nbsymbols; i++) {
+            if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
+                fprintf(out, "  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
+                current_line++;
+            } 
+        }
+
+        fprintf(out, "  return ");
+        dump_inline_c_expression(out, e);
+        fprintf(out, 
+                ";\n"
+                "}\n"
+                "static expr_t inline%d = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr%d }; /* ",
+                my_id, my_id);
+        current_line += 2;
+        expr_dump(out, e);
+        fprintf(out, " */\n");
+        current_line++;
+
+        snprintf(name, FNAME_SIZE, "&inline%d", my_id);
+    }
+
+    return name;
 }
 
 static char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body, int init_func_body_size)
@@ -245,7 +308,7 @@ static char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body,
                  fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s, .value = %d }; /* ", 
                          my_id, e->op, e->flags, sn1, sn2, e->value);
                  expr_dump(out, e);
-                fprintf(out, " */\n");
+                 fprintf(out, " */\n");
                 current_line++;
             } else {
                 fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s }; /* ", 
@@ -264,7 +327,7 @@ static char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body,
     return name;
 }
 
-static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int init_func_body_size)
+static char *dump_c_dep(FILE *out, const dplasma_t *dplasma, const dep_t *d, char *init_func_body, int init_func_body_size)
 {
     static unsigned int dep_idx = 0;
     static char name[FNAME_SIZE];
@@ -296,7 +359,7 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
         p += snprintf(whole + p, DEP_CODE_SIZE-p, 
                       "static dep_t dep%u = { .cond = %s, .dplasma = NULL,\n"
                       "                       .call_params = {",
-                      my_idx, dump_c_expression(out, d->cond, init_func_body, init_func_body_size));
+                      my_idx, dump_c_expression_inline(out, d->cond, dplasma->locals, dplasma->nb_locals, init_func_body, init_func_body_size));
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
                      "  dep%d.dplasma = &dplasma_array[%d];\n", my_idx, dplasma_dplasma_index( d->dplasma ));
@@ -306,12 +369,13 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
         }
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
-                     "  dep%d.param = %s;\n", my_idx, dump_c_param(out, d->param, init_func_body, init_func_body_size, 0));
+                     "  dep%d.param = %s;\n", my_idx, dump_c_param(out, d, d->param, init_func_body, init_func_body_size, 0));
         if(i + body_length >= init_func_body_size ) {
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
         }
         for(i = 0 ; i < MAX_CALL_PARAM_COUNT; i++) {
+            /* params can have ranges here: don't use inline c expression */
             p += snprintf(whole + p, DEP_CODE_SIZE-p, "%s%s", dump_c_expression(out, d->call_params[i], init_func_body, init_func_body_size), 
                           i < MAX_CALL_PARAM_COUNT-1 ? ", " : "}};\n");
         }
@@ -323,7 +387,7 @@ static char *dump_c_dep(FILE *out, const dep_t *d, char *init_func_body, int ini
    return name;
 }
 
-static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
+static char *dump_c_param(FILE *out, const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
 {
     static unsigned int param_idx = 0;
     static dumped_param_list_t *dumped_params = NULL;
@@ -366,12 +430,12 @@ static char *dump_c_param(FILE *out, const param_t *p, char *init_func_body, int
                       "static param_t param%u = { .name = \"%s\", .sym_type = %d, .param_mask = 0x%02x,\n"
                       "     .dep_in  = {", my_idx, p->name, p->sym_type, p->param_mask);
         for(i = 0; i < MAX_DEP_IN_COUNT; i++) {
-            dep_name = dump_c_dep(out, p->dep_in[i], init_func_body, init_func_body_size);
+            dep_name = dump_c_dep(out, dplasma, p->dep_in[i], init_func_body, init_func_body_size);
             l += snprintf(param + l, PARAM_CODE_SIZE-l, "%s%s", dep_name, i < MAX_DEP_IN_COUNT-1 ? ", " : "},\n"
                           "     .dep_out = {");
         }
         for(i = 0; i < MAX_DEP_OUT_COUNT; i++) {
-            dep_name = dump_c_dep(out, p->dep_out[i], init_func_body, init_func_body_size);
+            dep_name = dump_c_dep(out, dplasma, p->dep_out[i], init_func_body, init_func_body_size);
             l += snprintf(param + l, PARAM_CODE_SIZE-l, "%s%s", dep_name, i < MAX_DEP_OUT_COUNT-1 ? ", " : "} };\n");
         }
         fprintf(out, "%s", param);
@@ -439,7 +503,6 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
             (symbol->max != NULL) &&
             ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
             (symbol->min->value == symbol->max->value) ) {
-            /* strangely enough, this should be always the case... TODO: talk with the others -- Thomas */
             fprintf(out, "int %s = %d;\n", symbol->name, symbol->min->value);
             current_line++;
         } else {
@@ -529,7 +592,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .inout= {");
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
-                      dump_c_param(out, d->inout[i], init_func_body, init_func_body_size, 1),
+                      dump_c_param(out, d, d->inout[i], init_func_body, init_func_body_size, 1),
                       i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
     }
 
@@ -670,13 +733,15 @@ int dplasma_dump_all_c(char *filename)
     }
 
     body[0] = '\0';
-
+    
     dump_all_global_symbols_c(out, body, INIT_FUNC_BODY_SIZE);
 
     fprintf(out, 
+            "#include <assert.h>\n"
+            "#include <string.h>\n"
             "#ifdef DPLASMA_PROFILING\n"
             "#include \"profiling.h\"\n");
-    current_line += 2;
+    current_line += 3;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
@@ -782,7 +847,7 @@ int dplasma_dump_all_c(char *filename)
             "}\n"
             "\n");
     current_line += 4;
-
+    
     fclose(out);
 
     return 0;

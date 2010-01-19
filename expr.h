@@ -41,10 +41,15 @@ typedef struct expr expr_t;
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )
 
+#define EXPR_OP_INLINE            100
+#define EXPR_IS_INLINE(op)  ( (op) == EXPR_OP_INLINE )
+
 /**
  * Flags to be used with the expressions to speed-up their evaluation.
  */
 #define EXPR_FLAG_CONSTANT   0x01
+
+typedef int (*expr_op_inline_func_t)(const assignment_t *assignments);
 
 struct expr {
     unsigned char op;
@@ -62,6 +67,7 @@ struct expr {
             struct expr *op1;
         } unary;
         symbol_t *var;
+        expr_op_inline_func_t inline_func;
     } u;
 };
 
@@ -70,6 +76,7 @@ struct expr {
 #define uop1        u.unary.op1
 #define var         u.var
 #define const_int   u.const_int
+#define inline_func u.inline_func
 
 #define EXPR_SUCCESS                        0
 #define EXPR_FAILURE_SYMBOL_NOT_FOUND      -1

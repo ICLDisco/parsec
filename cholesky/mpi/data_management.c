@@ -373,7 +373,7 @@ void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
     return plasma_A((PLASMA_desc *)Ddesc, m, n);
 #else
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
-    return -1;
+    return NULL;
 #endif
 }
 
@@ -627,7 +627,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 #endif    
 }
 
-
+#ifdef HEAVY_DEBUG
 static void print_block(char * stri, int m, int n, double * block, int blength, int total_size)
 {
     int i;
@@ -640,6 +640,7 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
         printf("%e ", block[i]);
     printf("\n\n");
 }
+#endif
 
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {

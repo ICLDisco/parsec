@@ -259,7 +259,11 @@ int main (int argc, char **argv)
     }
 
     /* Plasma Initialization */
+#if defined(DPLASMA_EXECUTE)
+    PLASMA_Init(1);
+#else
     PLASMA_Init(cores);
+#endif  /* defined(DPLASMA_EXECUTE) */
 
     PLASMA_Alloc_Workspace_dgels(M, N, &T);
 

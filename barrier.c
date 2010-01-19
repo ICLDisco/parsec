@@ -16,8 +16,9 @@ int dplasma_barrier_init(dplasma_barrier_t* barrier, const void* attr, unsigned 
         return rc;
     }
 
-    barrier->count   = count;
-    barrier->missing = count;
+    barrier->count      = count;
+    barrier->curcount   = 0;
+    barrier->generation = 0;
     if( 0 != (rc = pthread_cond_init(&(barrier->cond), NULL)) ) {
         pthread_mutex_destroy( &(barrier->mutex) );
         return rc;
@@ -27,13 +28,28 @@ int dplasma_barrier_init(dplasma_barrier_t* barrier, const void* attr, unsigned 
 
 int dplasma_barrier_wait(dplasma_barrier_t* barrier)
 {
+    int generation;
+
     pthread_mutex_lock( &(barrier->mutex) );
-    if( 0 == --(barrier->missing) ) {
+    if( (barrier->curcount + 1) == barrier->count) {
+        barrier->generation++;
+        barrier->curcount = 0;
         pthread_cond_broadcast( &(barrier->cond) );
-    } else {
-        pthread_cond_wait( &(barrier->cond), &(barrier->mutex) );
+        pthread_mutex_unlock( &(barrier->mutex) );
+        return 1;
     }
-    barrier->missing++;
+    barrier->curcount++;
+    generation = barrier->generation;
+    for(;;) {
+        pthread_cond_wait( &(barrier->cond), &(barrier->mutex) );
+        if( generation != barrier->generation ) {
+            break;
+        }
+        pthread_mutex_lock( &(barrier->mutex) );
+        if( generation != barrier->generation ) {
+            break;
+        }
+    }
     pthread_mutex_unlock( &(barrier->mutex) );
     return 0;
 }
@@ -42,6 +58,8 @@ int dplasma_barrier_destroy(dplasma_barrier_t* barrier)
 {
     pthread_mutex_destroy( &(barrier->mutex) );
     pthread_cond_destroy( &(barrier->cond) );
+    barrier->count    = 0;
+    barrier->curcount = 0;
     return 0;
 }
 

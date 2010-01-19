@@ -14,8 +14,6 @@ char *yyfilename;
 
 int main(int argc, char *argv[])
 {
-    int d;
-    
     if( argc != 1 ) {
         yyin = fopen(argv[1], "r");
         if( yyin == NULL ) {
@@ -28,7 +26,7 @@ int main(int argc, char *argv[])
     }
 
     dplasma_lineno = 1;
-	if( (d = yyparse()) > 0 ) {
+	if( yyparse() > 0 ) {
         exit(1);
     }
 

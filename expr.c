@@ -12,6 +12,12 @@
 #include "expr.h"
 #include "symbol.h"
 
+#ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
+#define likely(x)       __builtin_expect((x),1)
+#else
+#define likely(x)       x
+#endif
+
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
@@ -159,6 +165,11 @@ int expr_eval(const expr_t *expr,
     }
     assert( EXPR_OP_CONST_INT != expr->op );
 
+    if( likely( EXPR_IS_INLINE(expr->op) ) ) {
+        *res = expr->inline_func(assignments);
+        return EXPR_SUCCESS;
+    }
+
     if( EXPR_OP_SYMB == expr->op ) {
         int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, res);
         return ret_val;
@@ -202,7 +213,7 @@ int expr_depend_on_symbol( const expr_t* expr,
     int rc;
 
     if( EXPR_OP_SYMB == expr->op ) {
-        if( expr->var == symbol ) {
+        if( !strcmp(expr->var->name, symbol->name) ) {
             return EXPR_SUCCESS;
         }
         return EXPR_FAILURE_SYMBOL_NOT_FOUND;
@@ -213,6 +224,9 @@ int expr_depend_on_symbol( const expr_t* expr,
     if( EXPR_IS_UNARY(expr->op) ) {
         return expr_depend_on_symbol( expr->uop1, symbol );
     }
+
+    assert( EXPR_IS_BINARY(expr->op) );
+
     rc = expr_depend_on_symbol( expr->bop1, symbol );
     if( EXPR_FAILURE_SYMBOL_NOT_FOUND == rc ) { /* not yet check for the second expression */
         return expr_depend_on_symbol( expr->bop2, symbol );
@@ -619,4 +633,3 @@ void expr_dump(FILE *out, const expr_t *e)
         fprintf(out,  "}" );
     }
 }
-

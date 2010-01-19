@@ -43,9 +43,6 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param )
 {
-#ifdef _DEBUG
-    char tmp[128];
-#endif    
     int rank; 
     
     rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);

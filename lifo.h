@@ -11,6 +11,7 @@
 
 typedef struct dplasma_list_item_t {
     volatile struct dplasma_list_item_t* list_next;
+    void* cache_friendly_emptiness;
     volatile struct dplasma_list_item_t* list_prev;
 #ifdef DPLASMA_DEBUG
     volatile int32_t refcount;

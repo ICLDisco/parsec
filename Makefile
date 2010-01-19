@@ -8,7 +8,7 @@ LDFLAGS = -lrt
 include make.inc
 
 TESTING_TARGETS = cholesky/dposv_ll cholesky/dposv_rl QR/dgels
-TOOL_TARGETS = grapher dpc tools/buildDAG cholesky/timeenumerator 
+TOOL_TARGETS = grapher dpc tools/buildDAG cholesky/timeenumerator
 
 include cholesky/mpi/make.inc
 
@@ -41,9 +41,9 @@ grapher: $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS) dplasma.a
 
 tools/buildDAG:$(COMPILER_OBJECTS) dplasma.a $(BUILDDAG_OBJECTS)
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
-	
+
 cholesky/cholesky-norun.o: cholesky/cholesky_ll.c
-	$(LINKER) $(CFLAGS) -UDPLASMA_EXECUTE -c cholesky/cholesky_ll.c -o cholesky/cholesky-norun.o
+	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c $^ -o $@
 
 cholesky/dposv_ll:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_ll.o dplasma.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
@@ -73,17 +73,15 @@ endif
 
 %.c: %.jdf dpc
 	$(DPC) $< $@
-	
+
 %.tab.h %.tab.c: %.y
 	$(YACC) -o $(*F).tab.c $<
-	
+
 lex.yy.o: lex.yy.c dplasma.tab.h $(wildcard *.h)
 	$(CC) -o lex.yy.o $(CFLAGS) -c lex.yy.c
 	
 lex.yy.c: dplasma.l
 	$(LEX) dplasma.l
-
-
 
 clean:
 	rm -f dplasma.a $(CLEAN_OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
