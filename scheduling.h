@@ -44,7 +44,7 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t*,
 int dplasma_progress(dplasma_context_t* context);
 void* __dplasma_progress(dplasma_execution_unit_t* eu_context);
 
-void dplasma_register_nb_tasks(int32_t n);
+void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
 
 #endif  /* _dplasma_scheduling_h */
 

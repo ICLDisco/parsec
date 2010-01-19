@@ -183,6 +183,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 
     context->nb_cores = (int16_t)nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;
+    context->__dplasma_internal_finalization_counter = 0;
 
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
@@ -312,7 +313,6 @@ int dplasma_fini( dplasma_context_t** pcontext )
 
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
-    context->__dplasma_internal_finalization_counter++;
     dplasma_barrier_wait( &(context->barrier) );
 
     /* The first execution unit is for the master thread */

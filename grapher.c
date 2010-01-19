@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/
 
+    dplasma = dplasma_init(1, NULL, NULL);
+
     {
         /* Setup generic hook for all services */
         dplasma_t* object;
@@ -66,10 +68,8 @@ int main(int argc, char *argv[])
             object->hook = generic_hook;
             total_nb_tasks += dplasma_compute_nb_tasks( object, 1 );
         }
-        dplasma_register_nb_tasks(total_nb_tasks);
+        dplasma_register_nb_tasks(dplasma, total_nb_tasks);
     }
-
-    dplasma = dplasma_init(1, NULL, NULL);
 
     {
         dplasma_execution_context_t exec_context;

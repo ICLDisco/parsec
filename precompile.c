@@ -831,7 +831,7 @@ int dplasma_dump_all_c(char *filename)
     current_line += 4;
 
     fprintf(out,
-            "int enumerate_dplasma_tasks(void)\n"
+            "int enumerate_dplasma_tasks(dplasma_context_t* context)\n"
             "{\n"
             "  int nbtasks = 0;\n");
     current_line += 3;
@@ -841,7 +841,7 @@ int dplasma_dump_all_c(char *filename)
     }
 
     fprintf(out,
-            "  dplasma_register_nb_tasks(nbtasks);\n"
+            "  dplasma_register_nb_tasks(context, nbtasks);\n"
             "  return nbtasks;\n"
             "}\n"
             "\n");
