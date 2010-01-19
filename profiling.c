@@ -335,8 +335,10 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                     (double)end-(double)start,
                     100.0 * ( (double)end-(double)start) / (double)total_time);
         }
-        printf("Found %lu ticks gaps out of %lu (%.2lf%%)\n", (unsigned long)gaps,
-               (unsigned long)last, (gaps * 100.0) / (double)last);
+        if( 0 != i ) {
+            printf("Found %lu ticks gaps out of %lu (%.2lf%%)\n", (unsigned long)gaps,
+                   (unsigned long)last, (gaps * 100.0) / (double)last);
+        }
     }
     fprintf(tracefile, 
             "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>\n"
