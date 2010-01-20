@@ -71,6 +71,7 @@ static inline uint64_t dplasma_atomic_bor_xxb( volatile void* location,
                                                size_t type_size )
 {
     assert( 4 == type_size );
+	(void)type_size;
     return (uint64_t)dplasma_atomic_bor_32b( (volatile uint32_t*)location,
                                              (uint32_t)or_value);
 }
