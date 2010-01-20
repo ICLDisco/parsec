@@ -607,9 +607,10 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
 
         fprintf(out, 
                 "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
-                "{\n",
+                "{\n"
+				"  (void)context;\n",
                 d->name);
-        current_line += 2;
+        current_line += 3;
 
         for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
             fprintf(out, "  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
@@ -780,6 +781,7 @@ int dplasma_dump_all_c(char *filename)
     fprintf(out,
             "int load_dplasma_objects( dplasma_context_t* context )\n"
             "{\n"
+			"  (void)context;\n"
             "  dplasma_load_array( dplasma_array, %d );\n"
             "  dplasma_load_symbols( dplasma_symbols, %d );\n"
             "  return 0;\n"
@@ -787,18 +789,19 @@ int dplasma_dump_all_c(char *filename)
             "\n",
             dplasma_nb_elements(),
             dplasma_symbol_get_count());
-    current_line += 7;
+    current_line += 8;
 
     fprintf(out, 
             "int load_dplasma_hooks( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_t* object;\n"
             "\n"
+			"  (void)context;\n"
             "  if( 0 != __dplasma_init()) {\n"
             "     return -1;\n"
             "  }\n"
             "\n");
-    current_line += 8;
+    current_line += 9;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
