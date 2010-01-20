@@ -364,5 +364,5 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     } else {
         DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     }
-    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    return 0; //dplasma_trigger_dependencies( eu_context, exec_context, 1 );
 }
