@@ -652,7 +652,6 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                     DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
                            function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, min));
                     exec_context->locals[i].min = min;
-                    exec_context->locals[i].value = min;
                 }
                 if( exec_context->locals[i].max > max ) {
                     DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
