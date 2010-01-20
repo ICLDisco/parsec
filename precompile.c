@@ -585,7 +585,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .preds = {");
     for(i = 0; i < MAX_PRED_COUNT; i++) {
         p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
-                      dump_c_expression(out, d->preds[i], init_func_body, init_func_body_size),
+                      dump_c_expression_inline(out, d->preds[i], d->locals, d->nb_locals, init_func_body, init_func_body_size),
                       i < MAX_PRED_COUNT-1 ? ", " : "},\n");
     }
 
