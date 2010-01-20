@@ -26,6 +26,11 @@ static inline void dplasma_atomic_unlock( volatile uint32_t* atomic_lock )
     *atomic_lock = 0;
 }
 
+static inline int dplasma_atomic_trylock( volatile uint32_t* atomic_lock )
+{
+    return dplasma_atomic_cas( atomic_lock, 0, 1);
+}
+
 static inline void dplasma_dequeue_construct( dplasma_dequeue_t* dequeue )
 {
     dequeue->ghost_element.list_next = &(dequeue->ghost_element);
@@ -50,7 +55,9 @@ static inline dplasma_list_item_t* dplasma_dequeue_pop_back( dplasma_dequeue_t* 
 {
     dplasma_list_item_t* item;
 
-    dplasma_atomic_lock(&(dequeue->atomic_lock));
+    if( !dplasma_atomic_trylock(&(dequeue->atomic_lock)) ) {
+        return NULL;
+    }
 
     item = (dplasma_list_item_t*)dequeue->ghost_element.list_prev;
     dequeue->ghost_element.list_prev = item->list_prev;
@@ -68,7 +75,9 @@ static inline dplasma_list_item_t* dplasma_dequeue_pop_front( dplasma_dequeue_t*
 {
     dplasma_list_item_t* item;
 
-    dplasma_atomic_lock(&(dequeue->atomic_lock));
+    if( !dplasma_atomic_trylock(&(dequeue->atomic_lock)) ) {
+        return NULL;
+    }
 
     item = (dplasma_list_item_t*)dequeue->ghost_element.list_next;
     dequeue->ghost_element.list_next = item->list_next;
