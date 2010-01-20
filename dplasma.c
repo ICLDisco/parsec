@@ -614,6 +614,148 @@ static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
 /**
+ * Release the OUT dependencies for a single instance of a task. No ranges are
+ * supported and the task is supposed to be valid (no input/output tasks) and
+ * local.
+ */
+int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context,
+                                            const dplasma_execution_context_t* origin,
+                                            const param_t* origin_param,
+                                            dplasma_execution_context_t* exec_context,
+                                            const param_t* dest_param,
+                                            dplasma_dependencies_t **deps_location )
+{
+    dplasma_t* function = exec_context->function;
+    dplasma_dependencies_t *deps, *last_deps;
+    int i, updated_deps, mask;
+#ifdef _DEBUG
+    char tmp[128];
+#endif
+
+    DEBUG(("Activate dependencies for %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
+    deps = *deps_location;
+    if( NULL == *deps_location ) {
+        deps_location = &(function->deps);
+        deps = *deps_location;
+        last_deps = NULL;
+
+        for( i = 0; i < function->nb_locals; i++ ) {
+            if( NULL == (*deps_location) ) {
+                int min, max, number;
+                /* TODO: optimize this section (and the similar one few tens of lines down
+                 * the code) to work on local ranges instead of absolute ones.
+                 */
+                dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
+                dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
+                /* Make sure we stay in the expected ranges */
+                if( exec_context->locals[i].min < min ) {
+                    DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
+                           function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, min));
+                    exec_context->locals[i].min = min;
+                    exec_context->locals[i].value = min;
+                }
+                if( exec_context->locals[i].max > max ) {
+                    DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
+                           function->name, exec_context->locals[i].sym->name, exec_context->locals[i].max, max));
+                    exec_context->locals[i].max = max;
+                }
+                assert( (min <= exec_context->locals[i].value) && (max >= exec_context->locals[i].value) );
+                number = max - min;
+                DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
+                       number, function->locals[i]->name, min, max));
+                deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
+                                                       number * sizeof(dplasma_dependencies_union_t));
+                if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
+                    /* Some other thread manage to set it before us. Not a big deal. */
+                    free(deps);
+                    goto deps_created_by_another_thread;
+                }
+                deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
+                deps->symbol = function->locals[i];
+                deps->min = min;
+                deps->max = max;
+                deps->prev = last_deps; /* chain them backward */
+                *deps_location = deps;  /* store the deps in the right location */
+                if( NULL != last_deps ) {
+                    last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
+                }
+            } else {
+            deps_created_by_another_thread:
+                deps = *deps_location;
+            }
+
+            DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
+                   exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
+            deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
+            last_deps = deps;
+        }
+    }
+
+    i = function->nb_locals - 1;
+
+#if !defined(NDEBUG)
+    if( deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask ) {
+        char tmp[128], tmp1[128];
+        fprintf( stderr, "Output dependencies %2x from %s (param %s) activate an already existing dependency %2x on %s (param %s)\n",
+                 dest_param->param_mask, dplasma_service_to_string(origin, tmp, 128), origin_param->name,
+                 deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+                 dplasma_service_to_string(exec_context, tmp1, 128),  dest_param->name );
+    }
+    assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
+#endif  /* !defined(NDEBUG) */
+    mask = DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask;
+    /* Mark the dependencies and check if this particular instance can be executed */
+    if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
+        mask |= dplasma_check_IN_dependencies( exec_context );
+        if( mask > 0 ) {
+            DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
+        }
+    }
+
+    updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
+
+#ifdef DPLASMA_GENERATE_DOT
+    {
+        char tmp[128];
+        printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+               origin_param->name, dest_param->name, (updated_deps == mask ? "#00FF00" : "#FF0000"),
+               ((updated_deps & function->dependencies_mask) == function->dependencies_mask) ? "solid" : "dashed");
+    }
+#endif  /* DPLASMA_GENERATE_DOT */
+
+    if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
+
+#if !defined(NDEBUG)
+        {
+            int success, tmp_mask;
+            do {
+                tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(i)];
+                success = dplasma_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+                                              tmp_mask, (tmp_mask | (1<<30)) );
+                if( !success || (tmp_mask & (1<<30)) ) {
+                    char tmp[128];
+                    fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice !!!\n",
+                            success, tmp_mask, dplasma_service_to_string(exec_context, tmp, 128));
+                    assert(0);
+                }
+            } while (0);
+        }
+#endif  /* !defined(NDEBUG) */
+        /* This service is ready to be executed as all dependencies are solved. Let the
+         * scheduler knows about this and keep going.
+         */
+        __dplasma_schedule(eu_context, exec_context);
+    } else {
+        DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
+               dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
+               (int)(updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN)),
+               (int)(updated_deps)));
+    }
+
+    return 0;
+}
+
+/**
  * Release all OUT dependencies for this particular instance of the service.
  */
 int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
