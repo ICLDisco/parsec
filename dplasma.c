@@ -756,6 +756,16 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             goto next_value;
         }
 
+#if !defined(NDEBUG)
+        if( deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & dest_param->param_mask ) {
+            char tmp[128], tmp1[128];
+            fprintf( stderr, "Output dependencies %2x from %s (param %s) activate an already existing dependency %2x on %s (param %s)\n",
+                     dest_param->param_mask, dplasma_service_to_string(origin, tmp, 128), origin_param->name,
+                     deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
+                     dplasma_service_to_string(exec_context, tmp1, 128),  dest_param->name );
+        }
+        assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & dest_param->param_mask) );
+#endif  /* !defined(NDEBUG) */
         mask = DPLASMA_DEPENDENCIES_HACK_IN | dest_param->param_mask;
         /* Mark the dependencies and check if this particular instance can be executed */
         if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
@@ -781,6 +791,22 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 #endif  /* DPLASMA_GENERATE_DOT */
             execution_step++;
 
+#if !defined(NDEBUG)
+            {
+                int success, tmp_mask;
+                do {
+                    tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)];
+                    success = dplasma_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
+                                                  tmp_mask, (tmp_mask | (1<<30)) );
+                    if( !success || (tmp_mask & (1<<30)) ) {
+                        char tmp[128];
+                        fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice !!!\n",
+                                success, tmp_mask, dplasma_service_to_string(exec_context, tmp, 128));
+                        assert(0);
+                    }
+                } while (0);
+            }
+#endif  /* !defined(NDEBUG) */
             /* This service is ready to be executed as all dependencies are solved. Let the
              * scheduler knows about this and keep going.
              */
