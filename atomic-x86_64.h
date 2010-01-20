@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#if 0
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {
@@ -23,6 +24,7 @@ static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
                           : "memory");
     return *location;
 }
+#endif
 
 static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
                                           uint32_t old_value,
@@ -37,6 +39,28 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
                           : "memory", "cc");
 
     return (int)ret;
+}
+
+static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
+                                          uint32_t value )
+{
+    uint32_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !dplasma_atomic_cas_32b(location, old_value, (old_value|value) ));
+    return old_value | value;
+}
+
+static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
+                                           uint32_t value )
+{
+    uint32_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !dplasma_atomic_cas_32b(location, old_value, (old_value&value) ));
+    return old_value & value;
 }
 
 static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
