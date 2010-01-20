@@ -223,13 +223,14 @@ static char *dump_c_expression_inline(FILE *out, const expr_t *e,
                 current_line++;
             } 
         }
-
+        /*
         for(i = 0; i < nbsymbols; i++) {
             if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
-                fprintf(out, "  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
-                current_line++;
+                   fprintf(out, "  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
+                   current_line++;
             } 
         }
+        */
 
         fprintf(out, "  return ");
         dump_inline_c_expression(out, e);
@@ -632,10 +633,161 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                 "#line %d \"%s\"\n"
                 "\n"
                 "  TAKE_TIME(context, %s_end_key);\n"
+                "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
+        current_line += 6 + body_lines;
+
+        for(i = 0; i < MAX_PARAM_COUNT; i++) {
+            if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
+                char spaces[MAX_CALL_PARAM_COUNT * 2 + 3];
+                int j;
+
+                struct param *p = d->inout[i];
+
+                fprintf(out, 
+                        "  {\n"
+                        "    struct dplasma_dependencies_t *placeholder = NULL;\n"
+                        "    dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
+                current_line+=2;
+                for(j = 0; j < MAX_LOCAL_COUNT; j++) {
+                    fprintf(out, " {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
+                }
+                current_line++;
+
+                sprintf(spaces, "  ");
+
+                for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
+                    if( (NULL != p->dep_out[j]) &&
+                        (p->dep_out[j]->dplasma->nb_locals > 0) ) {
+                        int k;
+                        struct dep *dep = p->dep_out[j];
+                        
+                        fprintf(out, "    { /** iterate now on the params and dependencies to release OUT dependencies */\n");
+                        current_line++;
+
+                        for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
+                            if( NULL != dep->call_params[k] ) {
+                                fprintf(out, "      int _p%d;\n", k);
+                                current_line++;
+                            }
+                        }
+
+                        fprintf(out, 
+                                "      new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* placeholder for %s */\n" 
+                                "      assert( strcmp( new_context.function->name, \"%s\") == 0 );\n",
+                                i, j, dep->dplasma->name, dep->dplasma->name);
+                        current_line+=2;
+
+                        for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
+                            if( NULL != dep->call_params[k] ) {
+
+                                if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
+                                    fprintf(out, "%s    for(_p%d = ", spaces, k);
+                                    dump_inline_c_expression(out, dep->call_params[k]->bop1);
+                                    fprintf(out, "; _p%d <= ", k);
+                                    dump_inline_c_expression(out, dep->call_params[k]->bop2);
+                                    fprintf(out, "; _p%d++) {\n", k);
+                                    current_line++;
+                                    snprintf(spaces + strlen(spaces), MAX_CALL_PARAM_COUNT * 2 + 3 - strlen(spaces), "  ");
+                                } else {
+                                    fprintf(out, "%s    _p%d = ", spaces, k);
+                                    dump_inline_c_expression(out, dep->call_params[k]);
+                                    fprintf(out, ";\n");
+                                    current_line += 1;
+                                }
+                                fprintf(out, 
+                                        "%s    new_context.locals[%d].value = _p%d;\n"
+                                        "%s    new_context.locals[%d].min   = _p%d;\n"
+                                        "%s    new_context.locals[%d].max   = _p%d;\n", 
+                                        spaces, k, k,
+                                        spaces, k, k,
+                                        spaces, k, k);
+                                current_line++;
+                                fprintf(out, "%s    new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
+                                current_line++;
+                            }
+                        }
+
+#if defined(_DEBUG)
+                        {
+                            int l;
+                            fprintf(out, 
+                                    "%s    fprintf(stderr, \"%s", spaces, d->name);
+                            for(l = 0; l < d->nb_locals; l++) {
+                                fprintf(out, "_%s=%%d", d->locals[l]->name);
+                            }
+                            fprintf(out, "\\n\"");
+                            for(l = 0; l < d->nb_locals; l++) {
+                                fprintf(out, ", %s", d->locals[l]->name);
+                            }
+                            fprintf(out, ");\n");
+                            current_line++;
+                        }
+#endif
+
+                        if( NULL != dep->cond ) {
+                            fprintf(out, "%s    if(", spaces);
+                            dump_inline_c_expression(out, dep->cond);
+                            fprintf(out, ") {\n");
+                            current_line++;
+                        } else {
+                            fprintf(out, "%s    {\n", spaces);
+                            current_line++;
+                        }
+                        for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                            fprintf(out, "%s      int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
+                            current_line++;
+                        }
+
+                        fprintf(out, "%s      if( 1 ", spaces);
+                        for(k = 0; k < MAX_PRED_COUNT; k++) {
+                            if( NULL != dep->dplasma->preds[k] ) {
+                                fprintf(out, " && ");
+                                dump_inline_c_expression(out, dep->dplasma->preds[k]);
+                            }
+                        }
+                        fprintf(out, ") {\n");
+                        current_line++;
+
+                        fprintf(out,
+                                "%s        dplasma_release_local_OUT_dependencies(context, exec_context, \n"
+                                "%s                       exec_context->function->inout[%d/*i*/],\n"
+                                "%s                       &new_context,\n"
+                                "%s                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
+                                "%s                       &placeholder);\n"
+                                "%s        placeholder = NULL;\n"
+                                "%s      } else {\n"
+                                "%s        /* release_remote_OUT_dependency(&new_context); */\n"
+                                "%s      }\n", spaces, spaces, i, spaces, spaces, i, j, spaces, spaces, spaces, spaces, spaces);
+                        current_line += 9;
+
+                        fprintf(out, "%s    }\n", spaces);
+                        current_line++;
+
+                        for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
+                            if( NULL != dep->call_params[k] ) {
+                                if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
+                                    spaces[strlen(spaces)-2] = '\0';
+                                    fprintf(out,
+                                            "%s    }\n", spaces);
+                                    current_line++;
+                                }
+                            }
+                        }
+                        fprintf(out, "    }\n");
+                        current_line++;
+                    }
+                }
+
+                fprintf(out, "  }\n");
+                current_line++;
+            }
+        }
+
+        fprintf(out, 
                 "  return 0;\n"
                 "}\n"
-                "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
-        current_line += 9 + body_lines;
+                "\n");
+        current_line += 3;
     }
 
     return dp_txt;
