@@ -182,9 +182,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         if( exec_context != NULL ) {
             found_local++;
         do_some_work:
+            /* Update the number of remaining tasks before the execution */
+            done_task(master_context);
             /* We're good to go ... */
             dplasma_execute( eu_context, exec_context );
-            done_task(master_context);
             nbiterations++;
             /* Release the execution context */
             free( exec_context );
