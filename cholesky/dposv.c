@@ -122,7 +122,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     }
 
     load_dplasma_hooks(dplasma);
-    nbtasks = enumerate_dplasma_tasks();
+    nbtasks = enumerate_dplasma_tasks(dplasma);
     time_elapsed = get_cur_time() - time_elapsed;
     /*printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);*/
 
@@ -149,7 +149,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         /*printf("NBTASKS to run: %d\n", nbtasks);*/
 
         /* And now that everything is warmed up, do the real test */
-        nbtasks = enumerate_dplasma_tasks();
+        nbtasks = enumerate_dplasma_tasks(dplasma);
 
         dplasma_schedule(dplasma, &exec_context);
 

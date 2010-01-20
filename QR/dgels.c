@@ -165,7 +165,7 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
     }
 
     load_dplasma_hooks(dplasma);
-    nbtasks = enumerate_dplasma_tasks();
+    nbtasks = enumerate_dplasma_tasks(dplasma);
     time_elapsed = get_cur_time() - time_elapsed;
     printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);
     printf("NBTASKS to run: %d\n", nbtasks);
