@@ -107,7 +107,6 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
     dplasma = dplasma_init(ncores, NULL, NULL );
-    printf( "dplasma context at %p\n", (void*)dplasma);
     load_dplasma_objects(dplasma);
 
     time_elapsed = get_cur_time();
