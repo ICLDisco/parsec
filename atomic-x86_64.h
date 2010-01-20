@@ -1,30 +1,8 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
-#if 0
-static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
-                                          uint32_t value )
-{
-    __asm__ __volatile__ (
-                          "lock; orl %0,%1"
-                          : : "r" (value), "m" (*(location))
-                          : "memory");
-    return *location;
-}
-
-static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
-                                           uint32_t value )
-{
-    __asm__ __volatile__ (
-                          "lock; andl %0,%1"
-                          : : "r" (value), "m" (*(location))
-                          : "memory");
-    return *location;
-}
-#endif
 
 static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
                                           uint32_t old_value,
