@@ -440,18 +440,13 @@ int dplasma_symbol_validate_value( const symbol_t* symbol,
     for( pred_index = 0;
          (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
          pred_index++ ) {
-        /* If we fail to evaluate the expression, let's suppose we don't have
-         * all the required symbols in the assignment array.
-         */
-        if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], symbol) ) {
-            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
-                                          local_context, MAX_LOCAL_COUNT,
-                                          &pred_val) ) {
-                if( 0 == pred_val ) {
-                    /* This particular value doesn't fit. Go to the next one */
-                    valid_value = 0;
-                    break;
-                }
+        if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
+                                      local_context, MAX_LOCAL_COUNT,
+                                      &pred_val) ) {
+            if( 0 == pred_val ) {
+                /* This particular value doesn't fit. Go to the next one */
+                valid_value = 0;
+                break;
             }
         }
     }
