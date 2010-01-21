@@ -289,9 +289,7 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
     dplasma_execution_context_t new_context;
     int i, j, k, value;    
 
-#ifdef USE_MPI
     dplasma_remote_dep_reset_forwarded(eu_context);
-#endif
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
         param = function->inout[i];
@@ -369,5 +367,5 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );
     }
-    return 0; //dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    return 0; /*dplasma_trigger_dependencies( eu_context, exec_context, 1 );*/
 }

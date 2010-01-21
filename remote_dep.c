@@ -63,43 +63,12 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     symbol_dump_all("\tGLOBAL SYMBOLS:\t");
     return -1;
 }
-    
-
-int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
-{
-    return 0;
-}
 
 #endif
 
 /* Note for Pierre: this is not MPI specific and should not go to 
  * remote_dep_mpi.c. I fixed the warnings and legitimate concerns about dirty 
  * tricks with nb_nodes another way */
-
-void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
-{
-    int boffset;
-    uint8_t mask = 1;
-    
-    DEBUG(("fw mark\tREMOTE rank %d\n", rank));
-    boffset = rank / sizeof(uint8_t);
-    mask = ((uint8_t)1) << (rank % sizeof(uint8_t));
-    assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
-    eu_context->remote_dep_fw_mask[boffset] |= mask;
-}
-
-int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
-{
-    int boffset;
-    uint8_t mask = 1;
-    
-    boffset = rank / sizeof(uint8_t);
-    mask = ((uint8_t)1) << (rank % sizeof(uint8_t));
-    assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
-    DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
-    return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
-}
-
 
 int dplasma_remote_dep_init(dplasma_context_t* context)
 {

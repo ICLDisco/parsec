@@ -75,14 +75,16 @@ int main(int argc, char ** argv){
     double flops, gflops;
     PLASMA_enum uplo;
     int info_solution, info_factorization;
+    double *A2;
+#if defined(DO_THE_NASTY_VALIDATIONS)
     int NminusOne; /* = N-1;*/
     int LDBxNRHS; /* = LDB*NRHS;*/
     double *A1;
-    double *A2;
     double *B1;
     double *B2;
     double *WORK;
     double *D;
+#endif
 #ifdef USE_MPI
     MPI_Request * requests;
     int req_count;
@@ -96,14 +98,13 @@ int main(int argc, char ** argv){
     {
         A2   = (double *)malloc(LDA*N*sizeof(double));
 #if defined(DO_THE_NASTY_VALIDATIONS)
-        A1   = (double *)malloc(LDA*N*sizeof(double));
-        B1   = (double *)malloc(LDB*NRHS*sizeof(double));
-        B2   = (double *)malloc(LDB*NRHS*sizeof(double));
-        WORK = (double *)malloc(2*LDA*sizeof(double));
-        D    = (double *)malloc(LDA*sizeof(double));
-        
         NminusOne = N-1;
         LDBxNRHS = LDB*NRHS;
+        A1   = (double *)malloc(LDA*N*sizeof(double));
+        B1   = (double *)malloc(LDBxNRHS*sizeof(double));
+        B2   = (double *)malloc(LDBxNRHS*sizeof(double));
+        WORK = (double *)malloc(2*LDA*sizeof(double));
+        D    = (double *)malloc(LDA*sizeof(double));
         
         /* generating a random matrix */
         generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
