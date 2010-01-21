@@ -16,3 +16,5 @@ QR/QR.c
 QR/dgels
 cholesky/timeenumerator
 dposv.svg
+cholesky/mpi/cholesky_mpi.c
+cholesky/mpi/dist_exec

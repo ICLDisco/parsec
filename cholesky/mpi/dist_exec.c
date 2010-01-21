@@ -392,7 +392,7 @@ static dplasma_context_t *setup_dplasma(void)
         dplasma_assign_global_symbol( "colRANK", constant );
     }
     load_dplasma_hooks(dplasma);
-    enumerate_dplasma_tasks();
+    enumerate_dplasma_tasks(dplasma);
     
     return dplasma;
 }

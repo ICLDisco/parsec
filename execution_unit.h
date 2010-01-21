@@ -37,6 +37,7 @@ struct dplasma_context_t {
     int32_t nb_cores;
     volatile int32_t __dplasma_internal_finalization_counter;
     int32_t nb_nodes;
+    volatile uint32_t taskstodo;
     dplasma_barrier_t  barrier;
 
     size_t remote_dep_fw_mask_sizeof;

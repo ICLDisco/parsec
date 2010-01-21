@@ -20,21 +20,19 @@ static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_c
 
 #define DEPTH_FIRST_SCHEDULE 0
 
-static uint32_t taskstodo;
-
-static inline void set_tasks_todo(uint32_t n)
+static inline void set_tasks_todo(dplasma_context_t* context, uint32_t n)
 {
-    taskstodo = n;
+    context->taskstodo = n;
 }
 
-static inline int all_tasks_done(void)
+static inline int all_tasks_done(dplasma_context_t* context)
 {
-    return (taskstodo == 0);
+    return (context->taskstodo == 0);
 }
 
-static inline void done_task()
+static inline void done_task(dplasma_context_t* context)
 {
-    dplasma_atomic_dec_32b(&taskstodo);
+    dplasma_atomic_dec_32b( &(context->taskstodo) );
 }
 
 /**
@@ -103,9 +101,9 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 #endif  /* !DEPTH_FIRST_SCHEDULE */
 }
 
-void dplasma_register_nb_tasks(int n)
+void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
-    set_tasks_todo((uint32_t)n);
+    set_tasks_todo(context, (uint32_t)n);
 }
 
 #include <math.h>
@@ -128,8 +126,8 @@ static void __do_some_computations( void )
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim;
-    int32_t my_barrier_counter = 0;
     dplasma_context_t* master_context = eu_context->master_context;
+    int32_t my_barrier_counter = master_context->__dplasma_internal_finalization_counter;
     dplasma_execution_context_t* exec_context;
     int nbiterations;
 
@@ -154,17 +152,17 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
         /* Wait until all threads are done binding themselves */
         dplasma_barrier_wait( &(master_context->barrier) );
-        my_barrier_counter++;
+        my_barrier_counter = 1;
     }
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
     dplasma_barrier_wait( &(master_context->barrier) );
-    my_barrier_counter++;
 
     if( master_context->__dplasma_internal_finalization_in_progress ) {
-        for(; my_barrier_counter < master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
+        my_barrier_counter++;
+        for(; my_barrier_counter <= master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
             dplasma_barrier_wait( &(master_context->barrier) );
         }
         goto finalize_progress;
@@ -173,7 +171,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     found_local = miss_local = found_victim = miss_victim = 0;
     nbiterations = 0;
 
-    while( !all_tasks_done() ) {
+    while( !all_tasks_done(master_context) ) {
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
         exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
 #else
@@ -189,9 +187,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         if( exec_context != NULL ) {
             found_local++;
         do_some_work:
+            /* Update the number of remaining tasks before the execution */
+            done_task(master_context);
             /* We're good to go ... */
             dplasma_execute( eu_context, exec_context );
-            done_task();
             nbiterations++;
             /* Release the execution context */
             free( exec_context );
@@ -236,20 +235,25 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue)) ) {
         char tmp[128];
         dplasma_service_to_string( exec_context, tmp, 128 );
-        printf( "Pending task: %s\n", tmp );
+        printf( "[iteration %d: th %d] Pending task: %s\n", my_barrier_counter, eu_context->eu_id, tmp );
     }
     assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
 #else
     while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue)) ) {
         char tmp[128];
         dplasma_service_to_string( exec_context, tmp, 128 );
-        printf( "Pending task: %s\n", tmp );
+        printf( "[iteration %d: th %d] Pending task: %s\n", my_barrier_counter, eu_context->eu_id, tmp );
     }
     assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
 #endif  /* defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO) */
 
-    if( 0 != eu_context->eu_id )
+    /* We're all done ? */
+    dplasma_barrier_wait( &(master_context->barrier) );
+
+    if( 0 != eu_context->eu_id ) {
+        my_barrier_counter++;
         goto wait_for_the_next_round;
+    }
 
  finalize_progress:
 #if defined(DPLASMA_REPORT_STATISTICS)
@@ -269,8 +273,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
 int dplasma_progress(dplasma_context_t* context)
 {
+    int ret = (int)(long)__dplasma_progress( &(context->execution_units[0]) );
+
     context->__dplasma_internal_finalization_counter++;
-    return (int)(long)__dplasma_progress( &(context->execution_units[0]) );
+    return ret;
 }
 
 int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
@@ -363,5 +369,5 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );
     }
-    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    return 0; //dplasma_trigger_dependencies( eu_context, exec_context, 1 );
 }
