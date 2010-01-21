@@ -106,7 +106,7 @@ int main(int argc, char ** argv){
         LDBxNRHS = LDB*NRHS;
         
         /* generating a random matrix */
-        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);*/
+        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
 #else        
         /* generating a random matrix */
         int i, j;

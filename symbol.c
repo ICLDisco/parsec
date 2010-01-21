@@ -448,7 +448,7 @@ int dplasma_symbol_validate_value( const symbol_t* symbol,
                                           local_context, MAX_LOCAL_COUNT,
                                           &pred_val) ) {
                 if( 0 == pred_val ) {
-                    /* This particular value doesn't fit. Go to the next one */
+                    /* This particular value doesn't fit. Quit. */
                     valid_value = 0;
                     break;
                 }

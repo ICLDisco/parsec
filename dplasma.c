@@ -641,6 +641,8 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
     last_deps = NULL;
 
     for( i = 0; i < function->nb_locals; i++ ) {
+        int rmin, rmax;
+        rmin = rmax = -1;
     restart_validation:
         rc = dplasma_symbol_validate_value( function->locals[i],
                                             (const expr_t**)function->preds,

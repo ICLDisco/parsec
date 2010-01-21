@@ -79,6 +79,9 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
                         const dplasma_execution_context_t* exec_context )
 {
 #if !DEPTH_FIRST_SCHEDULE
+# ifdef _DEBUG
+    char tmp[128];
+# endif
     dplasma_execution_context_t* new_context;
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
@@ -92,6 +95,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
         dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     }
 #endif  /* DPLASMA_USE_LIFO */
+    DEBUG(( "Schedule %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
     return 0;
 #else
     printf( "This internal version of the dplasma_schedule is not supposed to be called\n");

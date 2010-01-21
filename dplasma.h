@@ -26,9 +26,9 @@ typedef struct dplasma_t dplasma_t;
 #   ifdef USE_MPI
 #include <mpi.h>
 #define DEBUG(ARG)  do { \
-    int rank; \
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); \
-    printf("[%d]\t", rank); \
+    int __debug_rank; \
+    MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
+    printf("[%d]\t", __debug_rank); \
     printf ARG ;\
 } while(0)
 #   else

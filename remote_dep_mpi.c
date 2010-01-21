@@ -44,6 +44,10 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const param_t* dest_param )
 {
     int rank; 
+#ifdef _DEBUG
+    char tmp[128];
+    char tmp2[128];
+#endif
     
     rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
     assert(rank >= 0);
@@ -53,6 +57,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
         return 0;
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
+    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
     return MPI_Send((void*) origin, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
 }
 

@@ -139,7 +139,7 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 
 
 
-#ifdef HEAVY_DEBUG
+#if defined(_DEBUG) && defined(HEAVY_DEBUG)
 #define HDEBUG( args ) do { args } while(0)
 #else
 #define HDEBUG( args ) do {} while(0)
@@ -149,10 +149,6 @@ int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                          const dplasma_execution_context_t* origin,
                                          dplasma_execution_context_t* exec_context)
 {
-#ifdef _DEBUG
-    char tmp[128];
-    char tmp2[128];
-#endif
     int i, pred_index;
     int rank;
     int ranks[2] = { -1, -1 };
@@ -216,7 +212,7 @@ HDEBUG(     DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n")));
     
     rank = ranks[0] + ranks[1] * gridcols;
     
-    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
+    DEBUG(("gridrank = %d ( %d + %d x %d )\n", rank, ranks[0], ranks[1], gridcols));
     
     return rank;
 }
