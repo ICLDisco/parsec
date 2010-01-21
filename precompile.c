@@ -754,22 +754,24 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                                 "%s                       &new_context,\n"
                                 "%s                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
                                 "%s                       &placeholder);\n"
-                                "%s        placeholder = NULL;\n"
                                 "%s      } else {\n"
                                 "%s        /* release_remote_OUT_dependency(&new_context); */\n"
-                                "%s      }\n", spaces, spaces, i, spaces, spaces, i, j, spaces, spaces, spaces, spaces, spaces);
-                        current_line += 9;
+                                "%s      }\n", spaces, spaces, i, spaces, spaces, i, j, spaces, spaces, spaces, spaces);
+                        current_line += 8;
 
                         fprintf(out, "%s    }\n", spaces);
                         current_line++;
 
-                        for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
+                        for(k = MAX_PRED_COUNT-1; k >= 0; k--) {
                             if( NULL != dep->call_params[k] ) {
                                 if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
                                     spaces[strlen(spaces)-2] = '\0';
-                                    fprintf(out,
-                                            "%s    }\n", spaces);
+                                    fprintf(out, "%s    }\n", spaces);
                                     current_line++;
+                                    if( k == MAX_PRED_COUNT-1 ) {
+                                        fprintf(out, "%s  placeholder=NULL;\n", spaces);
+                                        current_line++;
+                                    }
                                 }
                             }
                         }
