@@ -737,6 +737,10 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                             fprintf(out, "%s      int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
                             current_line++;
                         }
+                        for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                            fprintf(out, "%s      (void)%s;\n", spaces, dep->dplasma->locals[k]->name);
+                            current_line++;
+                        }
 
                         fprintf(out, "%s      if( 1 ", spaces);
                         for(k = 0; k < MAX_PRED_COUNT; k++) {
