@@ -441,6 +441,7 @@ int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
     return 0;
 }
 
+#ifdef USE_MPI
 static int nb_request(DPLASMA_desc * Ddesc, int rank)
 {
     int nb_req = 0; //number of request
@@ -493,6 +494,7 @@ static int nb_request(DPLASMA_desc * Ddesc, int rank)
         }
     return nb_req;
 }
+#endif
 
 int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count)
 {

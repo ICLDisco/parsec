@@ -46,8 +46,10 @@ static void dague_init(int argc, char **argv);
 static void cleanup_exit(int ret);
 static dplasma_context_t *setup_dplasma(void);
 
+#ifdef DO_THE_NASTY_VALIDATIONS
 static int check_factorization(int, double*, double*, int, int , double);
 static int check_solution(int, int, double*, int, double*, double*, int, double);
+#endif
 
 /* timing profiling etc */
 double time_elapsed, GFLOPS;
@@ -74,9 +76,9 @@ int main(int argc, char ** argv){
     double eps;
     double flops, gflops;
     PLASMA_enum uplo;
-    int info_solution, info_factorization;
     double *A2;
 #if defined(DO_THE_NASTY_VALIDATIONS)
+    int info_solution, info_factorization;
     int NminusOne; /* = N-1;*/
     int LDBxNRHS; /* = LDB*NRHS;*/
     double *A1;
@@ -402,10 +404,11 @@ static dplasma_context_t *setup_dplasma(void)
 #undef rank
 
 
+
+#ifdef DO_THE_NASTY_VALIDATIONS
 /*------------------------------------------------------------------------
  * *  Check the factorization of the matrix A2
  * */
-
 static int check_factorization(int N, double *A1, double *A2, int LDA, int uplo, double eps)
 {
     double Anorm, Rnorm;
@@ -468,7 +471,6 @@ static int check_factorization(int N, double *A1, double *A2, int LDA, int uplo,
 /*------------------------------------------------------------------------
  * *  Check the accuracy of the solution of the linear system
  * */
-
 static int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, double *B2, int LDB, double eps )
 {
     int info_solution;
@@ -504,3 +506,4 @@ static int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, doub
     return info_solution;
 }
 
+#endif

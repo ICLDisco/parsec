@@ -2,7 +2,7 @@
 .PHONY: clean all
 .DEFAULT_GOAL = all
 
-CFLAGS = -D_GNU_SOURCE -Wall -pedantic -I. $(INC) -std=c99
+CFLAGS = -D_GNU_SOURCE -Wall -pedantic -I. $(INC) -std=c99 -DREENTRANT
 LDFLAGS = -lrt 
 
 include make.inc
@@ -12,7 +12,7 @@ TOOL_TARGETS = grapher dpc tools/buildDAG cholesky/timeenumerator
 
 include cholesky/mpi/make.inc
 
-TARGETS = $(TOOL_TARGETS) $(TESTING_TARGETS)
+TARGETS = dplasma.a $(TOOL_TARGETS) $(TESTING_TARGETS)
 all: $(TARGETS)
 
 LIBRARY_OBJECTS=dplasma.o symbol.o assignment.o expr.o \
@@ -39,7 +39,7 @@ dpc: $(COMPILER_OBJECTS) dpc.o dplasma.a
 grapher: $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS) dplasma.a
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-tools/buildDAG:$(COMPILER_OBJECTS) dplasma.a $(BUILDDAG_OBJECTS)
+tools/buildDAG: $(COMPILER_OBJECTS) $(BUILDDAG_OBJECTS) dplasma.a
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 cholesky/cholesky-norun.o: cholesky/cholesky_ll.c
@@ -64,7 +64,7 @@ ifneq "$(strip $(findstring -DUSE_MPI , $(CFLAGS)))" ""
 CLINKER = $(MPICLINKER)
 LINKER = $(MPILINKER)
 
-$(MPI_OBJECTS): %.o: %.c
+$(MPI_OBJECTS): %.o: %.c $(wildcard *.h) make.inc
 	$(MPICC) -o $@ $(CFLAGS) -c $<
 endif
 
@@ -82,6 +82,7 @@ lex.yy.o: lex.yy.c dplasma.tab.h $(wildcard *.h)
 	
 lex.yy.c: dplasma.l
 	$(LEX) dplasma.l
+
 
 clean:
 	rm -f dplasma.a $(CLEAN_OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
