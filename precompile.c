@@ -555,6 +555,207 @@ static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_b
 
 #include "remote_dep.h"
 
+static void dplasma_dump_dependency_helper(const dplasma_t *d,
+                                           char *init_func_body,
+                                           int init_func_body_size)
+{
+    int i, j;
+
+    output("static void %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep)\n"
+           "{\n",
+           d->name);
+
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+        output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
+    }
+    output("  struct dplasma_dependencies_t *placeholder = NULL;\n"
+           "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
+    for(j = 0; j < MAX_LOCAL_COUNT; j++) {
+        output(" {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
+    }
+
+    output("  /* remove warnings about unused context variable*/\n" 
+           "  (void)context;\n"
+           "  /* remove warnings in case the variable is not used later */\n");
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+        output("  (void)%s;\n", d->locals[i]->name);
+    }
+            
+    for(i = 0; i < MAX_PARAM_COUNT; i++) {
+        if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
+            char spaces[MAX_CALL_PARAM_COUNT * 2 + 3];
+            
+            struct param *p = d->inout[i];
+            
+            sprintf(spaces, "  ");
+
+            for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
+                if( (NULL != p->dep_out[j]) &&
+                    (p->dep_out[j]->dplasma->nb_locals > 0) ) {
+                    int k, placeholder_reset;
+                    struct dep *dep = p->dep_out[j];
+                    
+                    output("  { /** iterate now on the params and dependencies to release OUT dependencies */\n");
+
+                    for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
+                        if( NULL != dep->call_params[k] ) {
+                            output("    int _p%d;\n", k);
+                        }
+                    }
+
+                    output("    new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* placeholder for %s */\n" 
+                           "    assert( strcmp( new_context.function->name, \"%s\") == 0 );\n",
+                           i, j, dep->dplasma->name, dep->dplasma->name);
+
+                    for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
+                        if( NULL != dep->call_params[k] ) {
+                            if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
+                                output("%s  for(_p%d = ", spaces, k);
+                                dump_inline_c_expression(dep->call_params[k]->bop1);
+                                output("; _p%d <= ", k);
+                                dump_inline_c_expression(dep->call_params[k]->bop2);
+                                output("; _p%d++) {\n", k);
+                                snprintf(spaces + strlen(spaces), MAX_CALL_PARAM_COUNT * 2 + 3 - strlen(spaces), "  ");
+                            } else {
+                                output("%s  _p%d = ", spaces, k);
+                                dump_inline_c_expression(dep->call_params[k]);
+                                output(";\n");
+                            }
+                            output("%s  new_context.locals[%d].value = _p%d;\n"
+                                   "%s  new_context.locals[%d].min   = _p%d;\n"
+                                   "%s  new_context.locals[%d].max   = _p%d;\n", 
+                                   spaces, k, k,
+                                   spaces, k, k,
+                                   spaces, k, k);
+                            output("%s  new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
+                        }
+                    }
+
+#if defined(_DEBUG)
+                    {
+                        int l;
+                        output("%s  fprintf(stderr, \"%s", spaces, d->name);
+                        for(l = 0; l < d->nb_locals; l++) {
+                            output("_%s=%%d", d->locals[l]->name);
+                        }
+                        output("\\n\"");
+                        for(l = 0; l < d->nb_locals; l++) {
+                            output(", %s", d->locals[l]->name);
+                        }
+                        output(");\n");
+                    }
+#endif
+
+                    if( NULL != dep->cond ) {
+                        output("%s  if(", spaces);
+                        dump_inline_c_expression(dep->cond);
+                        output(") {\n");
+                    } else {
+                        output("%s   {\n", spaces);
+                    }
+                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                        output("%s    int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
+                    }
+                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                        output("%s    (void)%s;\n", spaces, dep->dplasma->locals[k]->name);
+                    }
+                    
+                    /******************************************************/
+                    /* Compute predicates                                 */
+                    output("%s    if( (1", spaces);
+                    for(k = 0; k < MAX_PRED_COUNT; k++) {
+                        if( NULL != dep->dplasma->preds[k] ) {
+                            output(") && (");
+                            dump_inline_c_expression(dep->dplasma->preds[k]);
+                        }
+                    }
+                    output(") ) {\n");
+                    
+                    output( "%s      dplasma_release_local_OUT_dependencies(context, exec_context, \n"
+                            "%s                     exec_context->function->inout[%d/*i*/],\n"
+                            "%s                     &new_context,\n"
+                            "%s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
+                            "%s                     &placeholder);\n",
+                            spaces, spaces, i, spaces, spaces, i, j, spaces);
+
+                    /* If predicates don't verify, this is remote, compute 
+                     * target rank from predicate values
+                     */
+                    {
+                        expr_t *rowpred; 
+                        expr_t *colpred;
+                        expr_t *rowsize;
+                        expr_t *colsize;
+                            
+                        if(dplasma_remote_dep_get_rank_preds((const expr_t **)dep->dplasma->preds, 
+                                                             &rowpred, 
+                                                             &colpred, 
+                                                             &rowsize,
+                                                             &colsize) < 0)
+                            {
+                                output("%s    } else if (propagate_remote_dep) {\n"
+                                       "%s      DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
+                                       "%s    }\n", 
+                                       spaces, spaces, spaces);
+                            }
+                        else 
+                            {
+                                output( "%s    } else {\n"
+                                        "%s      int rank, rrank, crank, ncols;\n"
+                                        "%s      rrank = ",
+                                        spaces, spaces, spaces);
+                                dump_inline_c_expression(rowpred);
+                                output( "\n"
+                                        "%s      crank = ", 
+                                        spaces);
+                                dump_inline_c_expression(colpred);
+                                output( "\n"
+                                        "%s      ncols = ",
+                                        spaces);
+                                dump_inline_c_expression(colsize);
+                                output( "\n"
+                                        "%s      rank = crank + rrank * ncols;\n"
+                                        "%s      DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
+                                        "%s      dplasma_remote_dep_activate_rank(context,\n"
+                                        "%s                                       exec_context,\n"
+                                        "%s                                       exec_context->function->inout[%d/*i*/],\n"
+                                        "%s                                       new_context,\n"
+                                        "%s                                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
+                                        "%s                                       rank);\n"
+                                        "%s    }\n",
+                                        spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
+                            }
+                    }
+                    output("%s  }\n", spaces);
+                    
+                    placeholder_reset = 0;
+                    for(k = MAX_PARAM_COUNT-1; k >= 0; k--) {
+                        if( NULL != dep->call_params[k] ) {
+                            if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
+                                spaces[strlen(spaces)-2] = '\0';
+                                output("%s  }\n", spaces);
+                                if( placeholder_reset == 0 ) {
+                                    output("%s  if( _p%d == ", spaces, k);
+                                    dump_inline_c_expression(dep->call_params[k]->bop2);
+                                    output(")\n"
+                                           "%s     placeholder=NULL;\n", 
+                                           spaces);
+                                    placeholder_reset = 1;
+                                }
+                            } else if( placeholder_reset == 0) {
+                                placeholder_reset = 1;
+                                output("%s  placeholder=NULL;\n", spaces);
+                            }
+                        }
+                    }
+                    output("  }\n");
+                }
+            }
+        }
+    }
+    output("}\n");
+}
+
 static char *dplasma_dump_c(const dplasma_t *d,
                             char *init_func_body,
                             int init_func_body_size)
@@ -609,8 +810,9 @@ static char *dplasma_dump_c(const dplasma_t *d,
     if( NULL != d->body ) {
         int body_lines;
 
-        output(
-                "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
+        dplasma_dump_dependency_helper(d, init_func_body, init_func_body_size);
+
+        output( "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
                 "{\n"
 				"  (void)context;\n",
                 d->name);
@@ -625,8 +827,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
             
         body_lines = nblines(d->body);
 
-        output(
-                "  TAKE_TIME(context, %s_start_key);\n"
+        output( "  TAKE_TIME(context, %s_start_key);\n"
                 "\n"
                 "  %s\n"
                 "#line %d \"%s\"\n"
@@ -634,193 +835,10 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "  TAKE_TIME(context, %s_end_key);\n"
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
 
-        for(i = 0; i < MAX_PARAM_COUNT; i++) {
-            if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
-                char spaces[MAX_CALL_PARAM_COUNT * 2 + 3];
-                int j;
+        output( "   %s_release_dependencies(context, exec_context, 1);\n",
+                d->name);
 
-                struct param *p = d->inout[i];
-
-                output(
-                        "  {\n"
-                        "    struct dplasma_dependencies_t *placeholder = NULL;\n"
-                        "    dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
-                for(j = 0; j < MAX_LOCAL_COUNT; j++) {
-                    output(" {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
-                }
-
-                sprintf(spaces, "  ");
-
-                for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
-                    if( (NULL != p->dep_out[j]) &&
-                        (p->dep_out[j]->dplasma->nb_locals > 0) ) {
-                        int k;
-                        struct dep *dep = p->dep_out[j];
-                        
-                        output("    { /** iterate now on the params and dependencies to release OUT dependencies */\n");
-
-                        for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
-                            if( NULL != dep->call_params[k] ) {
-                                output("      int _p%d;\n", k);
-                            }
-                        }
-
-                        output(
-                                "      new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* placeholder for %s */\n" 
-                                "      assert( strcmp( new_context.function->name, \"%s\") == 0 );\n",
-                                i, j, dep->dplasma->name, dep->dplasma->name);
-
-                        for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
-                            if( NULL != dep->call_params[k] ) {
-
-                                if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
-                                    output("%s    for(_p%d = ", spaces, k);
-                                    dump_inline_c_expression(dep->call_params[k]->bop1);
-                                    output("; _p%d <= ", k);
-                                    dump_inline_c_expression(dep->call_params[k]->bop2);
-                                    output("; _p%d++) {\n", k);
-                                    snprintf(spaces + strlen(spaces), MAX_CALL_PARAM_COUNT * 2 + 3 - strlen(spaces), "  ");
-                                } else {
-                                    output("%s    _p%d = ", spaces, k);
-                                    dump_inline_c_expression(dep->call_params[k]);
-                                    output(";\n");
-                                }
-                                output(
-                                        "%s    new_context.locals[%d].value = _p%d;\n"
-                                        "%s    new_context.locals[%d].min   = _p%d;\n"
-                                        "%s    new_context.locals[%d].max   = _p%d;\n", 
-                                        spaces, k, k,
-                                        spaces, k, k,
-                                        spaces, k, k);
-                                output("%s    new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
-                            }
-                        }
-
-#if defined(_DEBUG)
-                        {
-                            int l;
-                            output(
-                                    "%s    fprintf(stderr, \"%s", spaces, d->name);
-                            for(l = 0; l < d->nb_locals; l++) {
-                                output("_%s=%%d", d->locals[l]->name);
-                            }
-                            output("\\n\"");
-                            for(l = 0; l < d->nb_locals; l++) {
-                                output(", %s", d->locals[l]->name);
-                            }
-                            output(");\n");
-                        }
-#endif
-
-                        if( NULL != dep->cond ) {
-                            output("%s    if(", spaces);
-                            dump_inline_c_expression(dep->cond);
-                            output(") {\n");
-                        } else {
-                            output("%s    {\n", spaces);
-                        }
-                        for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                            output("%s      int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
-                        }
-                        for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                            output("%s      (void)%s;\n", spaces, dep->dplasma->locals[k]->name);
-                        }
-
-                        /******************************************************/
-                        /* Compute predicates                                 */
-                        output("%s      if( (1", spaces);
-                        for(k = 0; k < MAX_PRED_COUNT; k++) {
-                            if( NULL != dep->dplasma->preds[k] ) {
-                                output(") && (");
-                                dump_inline_c_expression(dep->dplasma->preds[k]);
-                            }
-                        }
-                        output(") ) {\n");
-
-                        fprintf(out,
-                                "%s        dplasma_release_local_OUT_dependencies(context, exec_context, \n"
-                                "%s                       exec_context->function->inout[%d/*i*/],\n"
-                                "%s                       &new_context,\n"
-                                "%s                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
-                                "%s                       &placeholder);\n", 
-                                spaces, spaces, i, spaces, spaces, i, j, spaces);
-
-                        /* If predicates don't verify, this is remote, compute 
-                         * target rank from predicate values
-                         */
-                        {
-                            expr_t *rowpred; 
-                            expr_t *colpred;
-                            expr_t *rowsize;
-                            expr_t *colsize;
-                            
-                            if(dplasma_remote_dep_get_rank_preds((const expr_t **)dep->dplasma->preds, 
-                                                                 &rowpred, 
-                                                                 &colpred, 
-                                                                 &rowsize,
-                                                                 &colsize) < 0)
-                            {
-                               fprintf(out,
-                                       "%s      } else {\n"
-                                       "%s        DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
-                                       "%s      }\n", 
-                                       spaces, spaces, spaces);
-                            }
-                            else 
-                            {
-                                output(
-                                        "%s      } else {\n"
-                                        "%s        int rank, rrank, crank, ncols;\n"
-                                        "%s        rrank = ",
-                                        spaces, spaces, spaces);
-                                dump_inline_c_expression(rowpred);
-                                output(
-                                        "\n"
-                                        "%s        crank = ", 
-                                        spaces);
-                                dump_inline_c_expression(colpred);
-                                output(
-                                        "\n"
-                                        "%s        ncols = ",
-                                        spaces);
-                                dump_inline_c_expression(colsize);
-                                output(
-                                        "\n"
-                                        "%s        rank = crank + rrank * ncols;\n"
-                                        "%s        DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
-                                        "%s        dplasma_remote_dep_activate_rank(context,\n"
-                                        "%s                                         exec_context,\n"
-                                        "%s                                         exec_context->function->inout[%d/*i*/],\n"
-                                        "%s                                         new_context,\n"
-                                        "%s                                         exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
-                                        "%s                                         rank);\n"
-                                        "%s      }\n",
-                                        spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
-                            }
-                        }
-                        output("%s    }\n", spaces);
-                        
-                        for(k = MAX_PARAM_COUNT-1; k >= 0; k--) {
-                            if( NULL != dep->call_params[k] ) {
-                                if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
-                                    spaces[strlen(spaces)-2] = '\0';
-                                    output("%s    }\n", spaces);
-                                    if( k == MAX_PARAM_COUNT-1 ) {
-                                        output("%s  placeholder=NULL;\n", spaces);
-                                    }
-                                }
-                            }
-                        }
-                        output("    }\n");
-                    }
-                }
-
-                output("  }\n");
-            }
-        }
-
-        output(
-                "  return 0;\n"
+        output( "  return 0;\n"
                 "}\n"
                 "\n");
     }
