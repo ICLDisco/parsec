@@ -17,6 +17,7 @@ enum {
 static int __remote_dep_init(dplasma_context_t* context);
 static int __remote_dep_fini(dplasma_context_t* context);
 
+
 #ifdef USE_MPI
 
 #include "remote_dep_mpi.c" 
@@ -43,15 +44,27 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param )
 {
-    /* return some error and be loud
-     * we should never get called in multicore mode */
-    char tmp[128];
-    char tmp2[128];
-    int i;
     int rank;
-    dplasma_t* function = exec_context->function;
     
     rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
+    return dplasma_remote_dep_activate_rank(eu_context, origin, origin_param, 
+                                            exec_context, dest_param, rank);
+}
+
+int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
+                                     const dplasma_execution_context_t* origin, 
+                                     const param_t* origin_param,
+                                     dplasma_execution_context_t* exec_context, 
+                                     const param_t* dest_param, 
+                                     int rank)
+{
+    /* return some error and be loud
+     * we should never get called in multicore mode */
+    int i;
+    char tmp[128];
+    char tmp2[128];
+    dplasma_t* function = exec_context->function;
+    
     fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates %s and predicates states it should be executed on rank %d.\n    Remote dependencies are NOT ENABLED in this build!\n",
             dplasma_service_to_string(origin, tmp, 128),
             dplasma_service_to_string(exec_context, tmp2, 128),
@@ -65,6 +78,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 }
 
 #endif
+
 
 /* Note for Pierre: this is not MPI specific and should not go to 
  * remote_dep_mpi.c. I fixed the warnings and legitimate concerns about dirty 
@@ -107,9 +121,9 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 }
 
 
-
+#define HEAVY_DEBUG
 #if defined(_DEBUG) && defined(HEAVY_DEBUG)
-#define HDEBUG( args ) do { args } while(0)
+#define HDEBUG( args ) do { args ; } while(0)
 #else
 #define HDEBUG( args ) do {} while(0)
 #endif 
@@ -117,8 +131,8 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
                                       expr_t **rowpred,
                                       expr_t **colpred, 
-                                      expr_t **rowsize,
-                                      expr_t **colsize)
+                                      symbol_t **rowsize,
+                                      symbol_t **colsize)
 {
     int i, pred_index;
     symbol_t *rowSymbol, *colSymbol;
@@ -140,17 +154,29 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
             assert(*rowpred == NULL);
             
             if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, rowSymbol) )
-                {
-                    *rowpred = predicates[pred_index]->bop2;
-                }
-        } else if(  EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], colSymbol) ) {
+            {
+                *rowpred = predicates[pred_index]->bop2;
+            }
+            else
+            {
+                *rowpred = predicates[pred_index]->bop1;
+            }
+        } 
+        else if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], colSymbol) ) 
+        {
             assert(EXPR_IS_BINARY(predicates[pred_index]->op));
             assert(*colpred == NULL);
             if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, colSymbol) )
-                {
-                    *rowpred = predicates[pred_index]->bop2;
-                }
-        } else {
+            {
+                *colpred = predicates[pred_index]->bop2;
+            }
+            else
+            {
+                *colpred = predicates[pred_index]->bop1;
+            }
+        } 
+        else 
+        {
             HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
         }
     }
@@ -158,8 +184,8 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
     if(NULL == *rowpred) return -1;
     if(NULL == *colpred) return -2;
 
-    *rowsize = (expr_t*) dplasma_search_global_symbol( "GRIDrows" );
-    *colsize = (expr_t*) dplasma_search_global_symbol( "GRIDcols" );
+    *rowsize = dplasma_search_global_symbol( "GRIDrows" );
+    *colsize = dplasma_search_global_symbol( "GRIDcols" );
     if(NULL == *rowsize) return -3;
     if(NULL == *colsize) return -4;
     
@@ -237,4 +263,3 @@ HDEBUG(     DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n")));
     
     return rank;
 }
-

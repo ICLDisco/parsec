@@ -561,6 +561,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
 {
     int i, j;
 
+    output("#include \"remote_dep.h\"\n\n");
     output("static void %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep)\n"
            "{\n",
            d->name);
@@ -684,8 +685,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     {
                         expr_t *rowpred; 
                         expr_t *colpred;
-                        expr_t *rowsize;
-                        expr_t *colsize;
+                        symbol_t *rowsize;
+                        symbol_t *colsize;
                             
                         if(dplasma_remote_dep_get_rank_preds((const expr_t **)dep->dplasma->preds, 
                                                              &rowpred, 
@@ -700,20 +701,20 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             }
                         else 
                             {
-                                output( "%s    } else {\n"
+                                output( "%s    } else if (propagate_remote_dep) {\n"
                                         "%s      int rank, rrank, crank, ncols;\n"
                                         "%s      rrank = ",
                                         spaces, spaces, spaces);
                                 dump_inline_c_expression(rowpred);
-                                output( "\n"
+                                output( ";\n"
                                         "%s      crank = ", 
                                         spaces);
                                 dump_inline_c_expression(colpred);
-                                output( "\n"
+                                output( ";\n"
                                         "%s      ncols = ",
                                         spaces);
-                                dump_inline_c_expression(colsize);
-                                output( "\n"
+                                output( "%s", colsize->name);
+                                output( ";\n"
                                         "%s      rank = crank + rrank * ncols;\n"
                                         "%s      DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
                                         "%s      dplasma_remote_dep_activate_rank(context,\n"
