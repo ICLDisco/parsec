@@ -1,10 +1,12 @@
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
 #include "precompile.h"
 #include "dplasma.h"
 #include "symbol.h"
 #include "expr.h"
-
-#include <stdio.h>
-#include <string.h>
 
 #define INIT_FUNC_BODY_SIZE 4096
 #define FNAME_SIZE            64
@@ -100,9 +102,10 @@ typedef struct dumped_param_list {
     struct dumped_param_list *next;
 } dumped_param_list_t;
 
-static char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size);
-static char *dump_c_param(FILE *out, const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it);
+static char *dump_c_symbol(const symbol_t *s, char *init_func_body, int init_func_body_size);
+static char *dump_c_param(const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it);
 
+static FILE *out;
 static int current_line;
 static char *out_name = "";
 
@@ -115,6 +118,25 @@ static int nblines(const char *p)
     return r;
 }
 
+static void output(char *format, ...) 
+{
+    va_list ap;
+    char *res;
+    int len;
+
+    va_start(ap, format);
+    len = vasprintf(&res, format, ap);
+    va_end(ap);
+
+    if( len == -1 ) {
+        fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
+    } else {
+        fwrite(res, len, 1, out);
+        current_line += nblines(res);
+        free(res);
+    }
+}
+
 void dplasma_precompiler_add_preamble(const char *language, const char *code)
 {
     preamble_list_t *n = (preamble_list_t*)calloc(1, sizeof(preamble_list_t));
@@ -124,80 +146,80 @@ void dplasma_precompiler_add_preamble(const char *language, const char *code)
     preambles = n;
 }
 
-static void dump_inline_c_expression(FILE *out, const expr_t *e)
+static void dump_inline_c_expression(const expr_t *e)
 {
     if( e == NULL ) {
         return;
     } else {
         if( EXPR_OP_CONST_INT == e->op ) {
-            fprintf(out, "%d", e->value);
+            output("%d", e->value);
         } else if( EXPR_OP_SYMB == e->op ) {
             fflush(stdout);
-            fprintf(out, "%s", e->var->name);
+            output("%s", e->var->name);
         } else if( EXPR_IS_UNARY(e->op) ) {
             if( e->op == EXPR_OP_UNARY_NOT ) {
-                fprintf(out, "!(");
-                dump_inline_c_expression(out, e->uop1);
-                fprintf(out, ")");
+                output("!(");
+                dump_inline_c_expression(e->uop1);
+                output(")");
             }
         } else if( EXPR_IS_BINARY(e->op) ) {
-            fprintf(out, "(");
-            dump_inline_c_expression(out, e->bop1);
+            output("(");
+            dump_inline_c_expression(e->bop1);
             switch( e->op ) {
             case EXPR_OP_BINARY_MOD:            
-                fprintf(out, ")%%(");
+                output(")%%(");
                 break;
             case EXPR_OP_BINARY_EQUAL:
-                fprintf(out, ")==(");
+                output(")==(");
                 break;
             case EXPR_OP_BINARY_NOT_EQUAL:
-                fprintf(out, ")!=(");
+                output(")!=(");
                 break;
             case EXPR_OP_BINARY_PLUS:
-                fprintf(out, ")+(");
+                output(")+(");
                 break;
             case EXPR_OP_BINARY_RANGE:
                 fprintf(stderr, "cannot evaluate range expression here!\n");
-                fprintf(out, "\n#error cannot evaluate range expression here!\n");
+                output("\n#error cannot evaluate range expression here!\n");
                 break;
             case EXPR_OP_BINARY_MINUS:
-                fprintf(out, ")-(");
+                output(")-(");
                 break;
             case EXPR_OP_BINARY_TIMES:
-                fprintf(out, ")*(");
+                output(")*(");
                 break;
             case EXPR_OP_BINARY_DIV:
-                fprintf(out, ")/(");
+                output(")/(");
                 break;
             case EXPR_OP_BINARY_OR:
-                fprintf(out, ")||(");
+                output(")||(");
                 break;
             case EXPR_OP_BINARY_AND:
-                fprintf(out, ")&&(");
+                output(")&&(");
                 break;
             case EXPR_OP_BINARY_XOR:
-                fprintf(out, ")^(");
+                output(")^(");
                 break;
             case EXPR_OP_BINARY_LESS:
-                fprintf(out, ")<(");
+                output(")<(");
                 break;
             case EXPR_OP_BINARY_MORE:
-                fprintf(out, ")>(");
+                output(")>(");
                 break;
             default:
-                fprintf(out, "\n#error unknown binary operand %d\n", e->op);
+                output("\n#error unknown binary operand %d\n", e->op);
                 fprintf(stderr, "Unkown binary operand %d\n", e->op);
             }
-            dump_inline_c_expression(out, e->bop2);
-            fprintf(out, ")");
+            dump_inline_c_expression(e->bop2);
+            output(")");
         } else {
             fprintf(stderr, "Unkown operand %d in expression\n", e->op);
-            fprintf(out, "\n#error Unknown operand %d in expression\n", e->op);
+            output("\n#error Unknown operand %d in expression\n", e->op);
         }
     }
 }
 
-static char *dump_c_expression_inline(FILE *out, const expr_t *e,
+static char *dump_c_expression_inline(const expr_t *e,
                                       const symbol_t **symbols, int nbsymbols,
                                       char *init_func_body, int init_func_body_size)
 {
@@ -211,38 +233,33 @@ static char *dump_c_expression_inline(FILE *out, const expr_t *e,
         int i;
         expr_idx++;
 
-        fprintf(out, 
+        output(
                 "static int inline_expr%d( const  assignment_t *assignments )\n"
                 "{\n",
                 my_id);
-        current_line += 2;
 
         for(i = 0; i < nbsymbols; i++) {
             if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
-                fprintf(out, "  int %s = assignments[%d].value;\n", symbols[i]->name, i);
-                current_line++;
+                output("  int %s = assignments[%d].value;\n", symbols[i]->name, i);
             } 
         }
         /*
         for(i = 0; i < nbsymbols; i++) {
             if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
-                   fprintf(out, "  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
-                   current_line++;
+                   output("  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
             } 
         }
         */
 
-        fprintf(out, "  return ");
-        dump_inline_c_expression(out, e);
-        fprintf(out, 
+        output("  return ");
+        dump_inline_c_expression(e);
+        output(
                 ";\n"
                 "}\n"
                 "static expr_t inline%d = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr%d }; /* ",
                 my_id, my_id);
-        current_line += 2;
-        expr_dump(out, e);
-        fprintf(out, " */\n");
-        current_line++;
+        dump_inline_c_expression(e);
+        output(" */\n");
 
         snprintf(name, FNAME_SIZE, "&inline%d", my_id);
     }
@@ -250,7 +267,7 @@ static char *dump_c_expression_inline(FILE *out, const expr_t *e,
     return name;
 }
 
-static char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body, int init_func_body_size)
+static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_func_body_size)
 {
     static unsigned int expr_idx = 0;
     static char name[FNAME_SIZE];
@@ -262,61 +279,54 @@ static char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body,
         expr_idx++;
 
         if( EXPR_OP_CONST_INT == e->op ) {
-            fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_CONST_INT, .flags = %d, .value = %d }; /* ",
+            output("static expr_t expr%d = { .op = EXPR_OP_CONST_INT, .flags = %d, .value = %d }; /* ",
                     my_id, e->flags, e->value);
             expr_dump(out, e);
-            fprintf(out, " */\n");
-            current_line++;
+            output(" */\n");
         } 
         else if( EXPR_OP_SYMB == e->op ) {
             char sname[FNAME_SIZE];
-            snprintf(sname, FNAME_SIZE, "%s", dump_c_symbol(out, e->var, init_func_body, init_func_body_size));
+            snprintf(sname, FNAME_SIZE, "%s", dump_c_symbol(e->var, init_func_body, init_func_body_size));
             if( e->flags & EXPR_FLAG_CONSTANT ) {
-                fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s, .value = %d }; /* ",
+                output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s, .value = %d }; /* ",
                         my_id, e->flags, sname, e->value);
                 expr_dump(out, e);
-                fprintf(out, " */\n");
-                current_line++;                
+                output(" */\n");
             } else {
-                fprintf(out, "static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s }; /* ",
+                output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s }; /* ",
                         my_id, e->flags, sname);
                 expr_dump(out, e);
-                fprintf(out, " */\n");
-                current_line++;
+                output(" */\n");
             }
         } else if( EXPR_IS_UNARY(e->op) ) {
             char sn[FNAME_SIZE];
-            snprintf(sn, FNAME_SIZE, "%s", dump_c_expression(out, e->uop1, init_func_body, init_func_body_size));
+            snprintf(sn, FNAME_SIZE, "%s", dump_c_expression(e->uop1, init_func_body, init_func_body_size));
             if( e->flags & EXPR_FLAG_CONSTANT ) {
-                fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s, .value = %d }; /* ", 
+                output("static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s, .value = %d }; /* ", 
                         my_id, e->op, e->flags, sn, e->value);
                 expr_dump(out, e);
-                fprintf(out, " */\n");
-                current_line++;
+                output(" */\n");
             } else {
-                fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s }; /* ", 
+                output("static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s }; /* ", 
                         my_id, e->op, e->flags, sn);
                 expr_dump(out, e);
-                fprintf(out, " */\n");
-                current_line++;
+                output(" */\n");
             }
         } else if( EXPR_IS_BINARY(e->op) ) {
             char sn1[FNAME_SIZE];
             char sn2[FNAME_SIZE];
-            snprintf(sn1, FNAME_SIZE, "%s", dump_c_expression(out, e->bop1, init_func_body, init_func_body_size));
-            snprintf(sn2, FNAME_SIZE, "%s", dump_c_expression(out, e->bop2, init_func_body, init_func_body_size));
+            snprintf(sn1, FNAME_SIZE, "%s", dump_c_expression(e->bop1, init_func_body, init_func_body_size));
+            snprintf(sn2, FNAME_SIZE, "%s", dump_c_expression(e->bop2, init_func_body, init_func_body_size));
             if( e->flags & EXPR_FLAG_CONSTANT ) {
-                 fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s, .value = %d }; /* ", 
+                 output("static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s, .value = %d }; /* ", 
                          my_id, e->op, e->flags, sn1, sn2, e->value);
                  expr_dump(out, e);
-                 fprintf(out, " */\n");
-                current_line++;
+                 output(" */\n");
             } else {
-                fprintf(out, "static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s }; /* ", 
+                output("static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s }; /* ", 
                         my_id, e->op, e->flags, sn1, sn2);
                 expr_dump(out, e);
-                fprintf(out, " */\n");
-                current_line++;
+                output(" */\n");
             }
         } else {
             fprintf(stderr, "Unkown operand %d in expression", e->op);
@@ -328,7 +338,7 @@ static char *dump_c_expression(FILE *out, const expr_t *e, char *init_func_body,
     return name;
 }
 
-static char *dump_c_dep(FILE *out, const dplasma_t *dplasma, const dep_t *d, char *init_func_body, int init_func_body_size)
+static char *dump_c_dep(const dplasma_t *dplasma, const dep_t *d, char *init_func_body, int init_func_body_size)
 {
     static unsigned int dep_idx = 0;
     static char name[FNAME_SIZE];
@@ -360,7 +370,7 @@ static char *dump_c_dep(FILE *out, const dplasma_t *dplasma, const dep_t *d, cha
         p += snprintf(whole + p, DEP_CODE_SIZE-p, 
                       "static dep_t dep%u = { .cond = %s, .dplasma = NULL,\n"
                       "                       .call_params = {",
-                      my_idx, dump_c_expression_inline(out, d->cond, dplasma->locals, dplasma->nb_locals, init_func_body, init_func_body_size));
+                      my_idx, dump_c_expression_inline(d->cond, (const symbol_t**)dplasma->locals, dplasma->nb_locals, init_func_body, init_func_body_size));
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
                      "  dep%d.dplasma = &dplasma_array[%d];\n", my_idx, dplasma_dplasma_index( d->dplasma ));
@@ -370,25 +380,24 @@ static char *dump_c_dep(FILE *out, const dplasma_t *dplasma, const dep_t *d, cha
         }
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
-                     "  dep%d.param = %s;\n", my_idx, dump_c_param(out, d, d->param, init_func_body, init_func_body_size, 0));
+                     "  dep%d.param = %s;\n", my_idx, dump_c_param(dplasma, d->param, init_func_body, init_func_body_size, 0));
         if(i + body_length >= init_func_body_size ) {
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
         }
         for(i = 0 ; i < MAX_CALL_PARAM_COUNT; i++) {
             /* params can have ranges here: don't use inline c expression */
-            p += snprintf(whole + p, DEP_CODE_SIZE-p, "%s%s", dump_c_expression(out, d->call_params[i], init_func_body, init_func_body_size), 
+            p += snprintf(whole + p, DEP_CODE_SIZE-p, "%s%s", dump_c_expression(d->call_params[i], init_func_body, init_func_body_size), 
                           i < MAX_CALL_PARAM_COUNT-1 ? ", " : "}};\n");
         }
-        fprintf(out, "%s", whole);
-        current_line += nblines(whole);
+        output("%s", whole);
         snprintf(name, FNAME_SIZE, "&dep%u", my_idx);
     }
      
    return name;
 }
 
-static char *dump_c_param(FILE *out, const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
+static char *dump_c_param(const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
 {
     static unsigned int param_idx = 0;
     static dumped_param_list_t *dumped_params = NULL;
@@ -431,23 +440,22 @@ static char *dump_c_param(FILE *out, const dplasma_t *dplasma, const param_t *p,
                       "static param_t param%u = { .name = \"%s\", .sym_type = %d, .param_mask = 0x%02x,\n"
                       "     .dep_in  = {", my_idx, p->name, p->sym_type, p->param_mask);
         for(i = 0; i < MAX_DEP_IN_COUNT; i++) {
-            dep_name = dump_c_dep(out, dplasma, p->dep_in[i], init_func_body, init_func_body_size);
+            dep_name = dump_c_dep(dplasma, p->dep_in[i], init_func_body, init_func_body_size);
             l += snprintf(param + l, PARAM_CODE_SIZE-l, "%s%s", dep_name, i < MAX_DEP_IN_COUNT-1 ? ", " : "},\n"
                           "     .dep_out = {");
         }
         for(i = 0; i < MAX_DEP_OUT_COUNT; i++) {
-            dep_name = dump_c_dep(out, dplasma, p->dep_out[i], init_func_body, init_func_body_size);
+            dep_name = dump_c_dep(dplasma, p->dep_out[i], init_func_body, init_func_body_size);
             l += snprintf(param + l, PARAM_CODE_SIZE-l, "%s%s", dep_name, i < MAX_DEP_OUT_COUNT-1 ? ", " : "} };\n");
         }
-        fprintf(out, "%s", param);
-        current_line += nblines(param);
+        output("%s", param);
         snprintf(name, FNAME_SIZE, "&param%u", my_idx);
     }
 
     return name;
 }
 
-static char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, int init_func_body_size)
+static char *dump_c_symbol(const symbol_t *s, char *init_func_body, int init_func_body_size)
 {
     static symb_list_t *already_dumped = NULL;
     int i;
@@ -469,18 +477,17 @@ static char *dump_c_symbol(FILE *out, const symbol_t *s, char *init_func_body, i
     e->next = already_dumped;
     already_dumped = e;
 
-    snprintf(mn, FNAME_SIZE, "%s", dump_c_expression(out, s->min, init_func_body, init_func_body_size));
-    snprintf(mm, FNAME_SIZE, "%s", dump_c_expression(out, s->max, init_func_body, init_func_body_size));
+    snprintf(mn, FNAME_SIZE, "%s", dump_c_expression(s->min, init_func_body, init_func_body_size));
+    snprintf(mm, FNAME_SIZE, "%s", dump_c_expression(s->max, init_func_body, init_func_body_size));
     
-    fprintf(out, "static symbol_t symb%d = { .flags = 0x%08x, .name = \"%s\", .min = %s, .max = %s };\n",
+    output("static symbol_t symb%d = { .flags = 0x%08x, .name = \"%s\", .min = %s, .max = %s };\n",
             i,
             s->flags, s->name, mn, mm);
-    current_line++;
 
     return e->c_name;
 }
 
-static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_func_body_size)
+static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_size)
 {
     int i, l = 0;
     char whole[SYMBOL_CODE_SIZE];
@@ -489,14 +496,12 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
     l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "static symbol_t *dplasma_symbols[] = {\n");
     for(i = 0; i < dplasma_symbol_get_count(); i++) {
         l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "   %s%s", 
-                      dump_c_symbol(out, dplasma_symbol_get_element_at(i), init_func_body, init_func_body_size),
+                      dump_c_symbol(dplasma_symbol_get_element_at(i), init_func_body, init_func_body_size),
                       (i < (dplasma_symbol_get_count()-1)) ? ",\n" : "};\n");
     }
-    fprintf(out, "%s", whole);
-    current_line += nblines(whole);
+    output("%s", whole);
 
-    fprintf(out, "\n");
-    current_line++;
+    output("\n");
 
     for(i = 0; i < dplasma_symbol_get_count(); i++) {
         symbol = dplasma_symbol_get_element_at(i);
@@ -504,11 +509,9 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
             (symbol->max != NULL) &&
             ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
             (symbol->min->value == symbol->max->value) ) {
-            fprintf(out, "int %s = %d;\n", symbol->name, symbol->min->value);
-            current_line++;
+            output("int %s = %d;\n", symbol->name, symbol->min->value);
         } else {
-            fprintf(out, "int %s;\n", symbol->name);
-            current_line++;
+            output("int %s;\n", symbol->name);
 
             snprintf(init_func_body + strlen(init_func_body),
                      init_func_body_size - strlen(init_func_body),
@@ -518,14 +521,13 @@ static void dump_all_global_symbols_c(FILE *out, char *init_func_body, int init_
                      "      return rc;\n"
                      "    }\n"
                      "  }\n",
-                     dump_c_symbol(out, symbol, init_func_body, init_func_body_size), symbol->name);
+                     dump_c_symbol(symbol, init_func_body, init_func_body_size), symbol->name);
         }
     }
-    fprintf(out, "\n");
-    current_line++;
+    output("\n");
 }
 
-static char *dump_c_dependency_list(FILE *out, dplasma_dependencies_t *d, char *init_func_body, int init_func_body_size)
+static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_body, int init_func_body_size)
 {
     static char dname[FNAME_SIZE];
     static int  ndx = 0;
@@ -539,14 +541,13 @@ static char *dump_c_dependency_list(FILE *out, dplasma_dependencies_t *d, char *
         my_idx = ndx++;
         p += snprintf(b+p, DEPENDENCY_SIZE-p, "static struct dplasma_dependencies_t deplist%d = {\n", my_idx);
         p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .flags = 0x%04x, .min = %d, .max = %d, .symbol = %s,\n",
-                      d->flags, d->min, d->max, dump_c_symbol(out, d->symbol, init_func_body, init_func_body_size));
+                      d->flags, d->min, d->max, dump_c_symbol(d->symbol, init_func_body, init_func_body_size));
         if(  DPLASMA_DEPENDENCIES_FLAG_NEXT & d->flags ) {
-            p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .u.next = {%s} };\n", dump_c_dependency_list(out, d->u.next[0], init_func_body, init_func_body_size));
+            p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .u.next = {%s} };\n", dump_c_dependency_list(d->u.next[0], init_func_body, init_func_body_size));
         } else {
             p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .u.dependencies = { 0x%02x } };\n", d->u.dependencies[0]);
         }
-        fprintf(out, "%s", b);
-        current_line += nblines(b);
+        output("%s", b);
         snprintf(dname, FNAME_SIZE, "&deplist%d", my_idx);
     }
     return dname;
@@ -554,7 +555,7 @@ static char *dump_c_dependency_list(FILE *out, dplasma_dependencies_t *d, char *
 
 #include "remote_dep.h"
 
-static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
+static char *dplasma_dump_c(const dplasma_t *d,
                             char *init_func_body,
                             int init_func_body_size)
 {
@@ -576,7 +577,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                           i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
         } else {
             p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s", 
-                          dump_c_symbol(out, d->locals[i], init_func_body, init_func_body_size),
+                          dump_c_symbol(d->locals[i], init_func_body, init_func_body_size),
                           i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
         }
     }
@@ -588,18 +589,18 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .preds = {");
     for(i = 0; i < MAX_PRED_COUNT; i++) {
         p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
-                      dump_c_expression_inline(out, d->preds[i], d->locals, d->nb_locals, init_func_body, init_func_body_size),
+                      dump_c_expression_inline(d->preds[i], (const symbol_t**)d->locals, d->nb_locals, init_func_body, init_func_body_size),
                       i < MAX_PRED_COUNT-1 ? ", " : "},\n");
     }
 
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .inout= {");
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
-                      dump_c_param(out, d, d->inout[i], init_func_body, init_func_body_size, 1),
+                      dump_c_param(d, d->inout[i], init_func_body, init_func_body_size, 1),
                       i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
     }
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .deps = %s,\n", dump_c_dependency_list(out, d->deps, init_func_body, init_func_body_size));
+    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .deps = %s,\n", dump_c_dependency_list(d->deps, init_func_body, init_func_body_size));
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .hook = NULL\n");
     //    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .body = \"%s\"\n", d->body);
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    }");
@@ -608,27 +609,23 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
     if( NULL != d->body ) {
         int body_lines;
 
-        fprintf(out, 
+        output(
                 "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
                 "{\n"
 				"  (void)context;\n",
                 d->name);
-        current_line += 3;
 
         for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
-            fprintf(out, "  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
-            current_line++;
+            output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
         }
-        fprintf(out, "  /* remove warnings in case the variable is not used later */\n");
-        current_line++;
+        output("  /* remove warnings in case the variable is not used later */\n");
         for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
-            fprintf(out, "  (void)%s;\n", d->locals[i]->name);
-            current_line++;
+            output("  (void)%s;\n", d->locals[i]->name);
         }
             
         body_lines = nblines(d->body);
 
-        fprintf(out, 
+        output(
                 "  TAKE_TIME(context, %s_start_key);\n"
                 "\n"
                 "  %s\n"
@@ -636,7 +633,6 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                 "\n"
                 "  TAKE_TIME(context, %s_end_key);\n"
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
-        current_line += 6 + body_lines;
 
         for(i = 0; i < MAX_PARAM_COUNT; i++) {
             if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
@@ -645,15 +641,13 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
 
                 struct param *p = d->inout[i];
 
-                fprintf(out, 
+                output(
                         "  {\n"
                         "    struct dplasma_dependencies_t *placeholder = NULL;\n"
                         "    dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
-                current_line+=2;
                 for(j = 0; j < MAX_LOCAL_COUNT; j++) {
-                    fprintf(out, " {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
+                    output(" {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
                 }
-                current_line++;
 
                 sprintf(spaces, "  ");
 
@@ -663,98 +657,85 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                         int k;
                         struct dep *dep = p->dep_out[j];
                         
-                        fprintf(out, "    { /** iterate now on the params and dependencies to release OUT dependencies */\n");
-                        current_line++;
+                        output("    { /** iterate now on the params and dependencies to release OUT dependencies */\n");
 
                         for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                             if( NULL != dep->call_params[k] ) {
-                                fprintf(out, "      int _p%d;\n", k);
-                                current_line++;
+                                output("      int _p%d;\n", k);
                             }
                         }
 
-                        fprintf(out, 
+                        output(
                                 "      new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* placeholder for %s */\n" 
                                 "      assert( strcmp( new_context.function->name, \"%s\") == 0 );\n",
                                 i, j, dep->dplasma->name, dep->dplasma->name);
-                        current_line+=2;
 
                         for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                             if( NULL != dep->call_params[k] ) {
 
                                 if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
-                                    fprintf(out, "%s    for(_p%d = ", spaces, k);
-                                    dump_inline_c_expression(out, dep->call_params[k]->bop1);
-                                    fprintf(out, "; _p%d <= ", k);
-                                    dump_inline_c_expression(out, dep->call_params[k]->bop2);
-                                    fprintf(out, "; _p%d++) {\n", k);
-                                    current_line++;
+                                    output("%s    for(_p%d = ", spaces, k);
+                                    dump_inline_c_expression(dep->call_params[k]->bop1);
+                                    output("; _p%d <= ", k);
+                                    dump_inline_c_expression(dep->call_params[k]->bop2);
+                                    output("; _p%d++) {\n", k);
                                     snprintf(spaces + strlen(spaces), MAX_CALL_PARAM_COUNT * 2 + 3 - strlen(spaces), "  ");
                                 } else {
-                                    fprintf(out, "%s    _p%d = ", spaces, k);
-                                    dump_inline_c_expression(out, dep->call_params[k]);
-                                    fprintf(out, ";\n");
-                                    current_line += 1;
+                                    output("%s    _p%d = ", spaces, k);
+                                    dump_inline_c_expression(dep->call_params[k]);
+                                    output(";\n");
                                 }
-                                fprintf(out, 
+                                output(
                                         "%s    new_context.locals[%d].value = _p%d;\n"
                                         "%s    new_context.locals[%d].min   = _p%d;\n"
                                         "%s    new_context.locals[%d].max   = _p%d;\n", 
                                         spaces, k, k,
                                         spaces, k, k,
                                         spaces, k, k);
-                                current_line++;
-                                fprintf(out, "%s    new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
-                                current_line++;
+                                output("%s    new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
                             }
                         }
 
 #if defined(_DEBUG)
                         {
                             int l;
-                            fprintf(out, 
+                            output(
                                     "%s    fprintf(stderr, \"%s", spaces, d->name);
                             for(l = 0; l < d->nb_locals; l++) {
-                                fprintf(out, "_%s=%%d", d->locals[l]->name);
+                                output("_%s=%%d", d->locals[l]->name);
                             }
-                            fprintf(out, "\\n\"");
+                            output("\\n\"");
                             for(l = 0; l < d->nb_locals; l++) {
-                                fprintf(out, ", %s", d->locals[l]->name);
+                                output(", %s", d->locals[l]->name);
                             }
-                            fprintf(out, ");\n");
-                            current_line++;
+                            output(");\n");
                         }
 #endif
 
                         if( NULL != dep->cond ) {
-                            fprintf(out, "%s    if(", spaces);
-                            dump_inline_c_expression(out, dep->cond);
-                            fprintf(out, ") {\n");
-                            current_line++;
+                            output("%s    if(", spaces);
+                            dump_inline_c_expression(dep->cond);
+                            output(") {\n");
                         } else {
-                            fprintf(out, "%s    {\n", spaces);
-                            current_line++;
+                            output("%s    {\n", spaces);
                         }
                         for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                            fprintf(out, "%s      int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
-                            current_line++;
+                            output("%s      int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
                         }
                         for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                            fprintf(out, "%s      (void)%s;\n", spaces, dep->dplasma->locals[k]->name);
-                            current_line++;
+                            output("%s      (void)%s;\n", spaces, dep->dplasma->locals[k]->name);
                         }
 
                         /******************************************************/
                         /* Compute predicates                                 */
-                        fprintf(out, "%s      if( (1", spaces);
+                        output("%s      if( (1", spaces);
                         for(k = 0; k < MAX_PRED_COUNT; k++) {
                             if( NULL != dep->dplasma->preds[k] ) {
-                                fprintf(out, ") && (");
-                                dump_inline_c_expression(out, dep->dplasma->preds[k]);
+                                output(") && (");
+                                dump_inline_c_expression(dep->dplasma->preds[k]);
                             }
                         }
-                        fprintf(out, ") ) {\n");
-                        current_line++;
+                        output(") ) {\n");
 
                         fprintf(out,
                                 "%s        dplasma_release_local_OUT_dependencies(context, exec_context, \n"
@@ -763,7 +744,6 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                                 "%s                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
                                 "%s                       &placeholder);\n", 
                                 spaces, spaces, i, spaces, spaces, i, j, spaces);
-                        current_line += 5;
 
                         /* If predicates don't verify, this is remote, compute 
                          * target rank from predicate values
@@ -774,7 +754,7 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                             expr_t *rowsize;
                             expr_t *colsize;
                             
-                            if(dplasma_remote_dep_get_rank_preds(dep->dplasma->preds, 
+                            if(dplasma_remote_dep_get_rank_preds((const expr_t **)dep->dplasma->preds, 
                                                                  &rowpred, 
                                                                  &colpred, 
                                                                  &rowsize,
@@ -785,27 +765,26 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                                        "%s        DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
                                        "%s      }\n", 
                                        spaces, spaces, spaces);
-                                current_line += 3;
                             }
                             else 
                             {
-                                fprintf(out, 
+                                output(
                                         "%s      } else {\n"
                                         "%s        int rank, rrank, crank, ncols;\n"
                                         "%s        rrank = ",
                                         spaces, spaces, spaces);
-                                dump_inline_c_expression(out, rowpred);
-                                fprintf(out, 
+                                dump_inline_c_expression(rowpred);
+                                output(
                                         "\n"
                                         "%s        crank = ", 
                                         spaces);
-                                dump_inline_c_expression(out, colpred);
-                                fprintf(out, 
+                                dump_inline_c_expression(colpred);
+                                output(
                                         "\n"
                                         "%s        ncols = ",
                                         spaces);
-                                dump_inline_c_expression(out, colsize);
-                                fprintf(out, 
+                                dump_inline_c_expression(colsize);
+                                output(
                                         "\n"
                                         "%s        rank = crank + rrank * ncols;\n"
                                         "%s        DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
@@ -817,46 +796,39 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                                         "%s                                         rank);\n"
                                         "%s      }\n",
                                         spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
-                                current_line += 14;
                             }
                         }
-                        fprintf(out, "%s    }\n", spaces);
-                        current_line++;
+                        output("%s    }\n", spaces);
                         
                         for(k = MAX_PARAM_COUNT-1; k >= 0; k--) {
                             if( NULL != dep->call_params[k] ) {
                                 if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
                                     spaces[strlen(spaces)-2] = '\0';
-                                    fprintf(out, "%s    }\n", spaces);
-                                    current_line++;
+                                    output("%s    }\n", spaces);
                                     if( k == MAX_PARAM_COUNT-1 ) {
-                                        fprintf(out, "%s  placeholder=NULL;\n", spaces);
-                                        current_line++;
+                                        output("%s  placeholder=NULL;\n", spaces);
                                     }
                                 }
                             }
                         }
-                        fprintf(out, "    }\n");
-                        current_line++;
+                        output("    }\n");
                     }
                 }
 
-                fprintf(out, "  }\n");
-                current_line++;
+                output("  }\n");
             }
         }
 
-        fprintf(out, 
+        output(
                 "  return 0;\n"
                 "}\n"
                 "\n");
-        current_line += 3;
     }
 
     return dp_txt;
 }
 
-static void dump_tasks_enumerator(FILE *out, const dplasma_t *d, char *init_func_body, int init_func_body_size)
+static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int init_func_body_size)
 {
     char spaces[FNAME_SIZE];
     size_t spaces_length;
@@ -866,58 +838,47 @@ static void dump_tasks_enumerator(FILE *out, const dplasma_t *d, char *init_func
         return;
 
     snprintf(spaces, FNAME_SIZE, "  ");
-    fprintf(out, "%s/* %s */\n", spaces, d->name);
-    current_line ++;
+    output("%s/* %s */\n", spaces, d->name);
 
-    fprintf(out, "%s{\n", spaces);
-    current_line++;
+    output("%s{\n", spaces);
 
     spaces_length = strlen(spaces);
     snprintf(spaces + spaces_length, FNAME_SIZE-spaces_length, "  ");
     for(s = 0; s < d->nb_locals; s++) {
-        fprintf(out, "%sint %s, %s_start, %s_end;\n", spaces, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name );
-        current_line++;
+        output("%sint %s, %s_start, %s_end;\n", spaces, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name );
     }
     for(p = 0; d->preds[p]!=NULL; p++) {
-        fprintf(out, "%sint pred%d;\n", spaces, p);
-        current_line++;
+        output("%sint pred%d;\n", spaces, p);
     }
     for(s = 0; s < d->nb_locals; s++) {
-        fprintf(out, "%s%s_start = ", spaces, d->locals[s]->name);
-        dump_inline_c_expression(out, d->locals[s]->min); 
-        fprintf(out, ";\n");
-        current_line++;
-        fprintf(out, "%s%s_end = ", spaces, d->locals[s]->name);
-        dump_inline_c_expression(out, d->locals[s]->max); 
-        fprintf(out, ";\n");
-        current_line++;
-        fprintf(out, "%sfor(%s = %s_start; %s <= %s_end; %s++) {\n",
+        output("%s%s_start = ", spaces, d->locals[s]->name);
+        dump_inline_c_expression(d->locals[s]->min); 
+        output(";\n");
+        output("%s%s_end = ", spaces, d->locals[s]->name);
+        dump_inline_c_expression(d->locals[s]->max); 
+        output(";\n");
+        output("%sfor(%s = %s_start; %s <= %s_end; %s++) {\n",
                 spaces, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name,  d->locals[s]->name, d->locals[s]->name);
-        current_line++;
         snprintf(spaces + strlen(spaces), FNAME_SIZE-strlen(spaces), "  ");
     }
     for(p = 0; d->preds[p] != NULL; p++) {
-        fprintf(out, "%spred%d = ", spaces, p);
-        dump_inline_c_expression(out, d->preds[p]);
-        fprintf(out, ";\n");
-        current_line++;
+        output("%spred%d = ", spaces, p);
+        dump_inline_c_expression(d->preds[p]);
+        output(";\n");
     }
-    fprintf(out, "%sif(1", spaces);
+    output("%sif(1", spaces);
     for(p = 0; d->preds[p] != NULL; p++) {
-        fprintf(out, " && pred%d", p);
+        output(" && pred%d", p);
     }
-    fprintf(out, ") nbtasks++;\n");
-    current_line++;
+    output(") nbtasks++;\n");
 
     for(s = 0; s < d->nb_locals; s++) {
         spaces[strlen(spaces)-2] = '\0';
-        fprintf(out, "%s}\n", spaces);
-        current_line++;
+        output("%s}\n", spaces);
     }
 
     spaces[strlen(spaces)-2] = '\0';
-    fprintf(out, "%s}\n", spaces);
-    current_line++;
+    output("%s}\n", spaces);
 }
 
 int dplasma_dump_all_c(char *filename)
@@ -927,7 +888,6 @@ int dplasma_dump_all_c(char *filename)
     preamble_list_t *n;
     const dplasma_t* object;
     int i, p = 0;
-    FILE *out;
     
     out = fopen(filename, "w");
     if( out == NULL ) {
@@ -940,7 +900,7 @@ int dplasma_dump_all_c(char *filename)
     for(n = preambles; n != NULL; n = n->next) {
         if( strcasecmp(n->language, "C") == 0 ) {
             int nb = nblines(n->code);
-            fprintf(out, 
+            output(
                     "%s\n"
                     "#line %d \"%s\"\n", 
                     n->code, nb+current_line+1, out_name);
@@ -950,9 +910,9 @@ int dplasma_dump_all_c(char *filename)
 
     body[0] = '\0';
     
-    dump_all_global_symbols_c(out, body, INIT_FUNC_BODY_SIZE);
+    dump_all_global_symbols_c(body, INIT_FUNC_BODY_SIZE);
 
-    fprintf(out, 
+    output(
             "#include <assert.h>\n"
             "#include <string.h>\n"
             "#ifdef DPLASMA_PROFILING\n"
@@ -961,7 +921,7 @@ int dplasma_dump_all_c(char *filename)
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
-        fprintf(out, "int %s_start_key, %s_end_key;\n", object->name, object->name);
+        output("int %s_start_key, %s_end_key;\n", object->name, object->name);
         current_line++;
     }
     fprintf(out,
@@ -977,13 +937,13 @@ int dplasma_dump_all_c(char *filename)
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
-        p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "%s", dplasma_dump_c(out, dplasma_element_at(i), body, INIT_FUNC_BODY_SIZE));
+        p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "%s", dplasma_dump_c(dplasma_element_at(i), body, INIT_FUNC_BODY_SIZE));
         if( i < dplasma_nb_elements()-1) {
             p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, ",\n");
         }
     }
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "};\n");
-    fprintf(out, 
+    output(
             "%s\n"
             "\n"
             "static int __dplasma_init(void)\n"
@@ -1007,7 +967,7 @@ int dplasma_dump_all_c(char *filename)
             dplasma_symbol_get_count());
     current_line += 8;
 
-    fprintf(out, 
+    output(
             "int load_dplasma_hooks( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_t* object;\n"
@@ -1023,26 +983,26 @@ int dplasma_dump_all_c(char *filename)
         object = dplasma_element_at(i);
         /* Specials IN and OUT test */
         if( object->body != NULL ) {
-            fprintf(out, "  object = (dplasma_t*)dplasma_find(\"%s\");\n"
+            output("  object = (dplasma_t*)dplasma_find(\"%s\");\n"
                          "  object->hook = %s_hook;\n\n",
                     object->name, object->name);
             current_line += 2;
         }
     }
 
-    fprintf(out, "#ifdef DPLASMA_PROFILING\n");
+    output("#ifdef DPLASMA_PROFILING\n");
     current_line += 1;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
-        fprintf(out, 
+        output(
                 "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
                 "                                            &%s_start_key, &%s_end_key);\n",
                 object->name, colors[i % COLORS_SIZE], object->name, object->name);
         current_line += 2;
     }
 
-    fprintf(out, 
+    output(
             "#endif /* DPLASMA_PROFILING */\n"
             "\n"
             "  return 0;\n"
@@ -1056,7 +1016,7 @@ int dplasma_dump_all_c(char *filename)
     current_line += 3;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
-        dump_tasks_enumerator(out,  dplasma_element_at(i), NULL, 0);
+        dump_tasks_enumerator(dplasma_element_at(i), NULL, 0);
     }
 
     fprintf(out,
