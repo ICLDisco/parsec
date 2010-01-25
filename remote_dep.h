@@ -23,12 +23,17 @@ int dplasma_remote_dep_fini(dplasma_context_t* context);
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* origin,
                                 const param_t* origin_param,
-                                dplasma_execution_context_t* exec_context,
+                                const dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param );
 
+int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
+                                     const dplasma_execution_context_t* origin, 
+                                     const param_t* origin_param, 
+                                     const dplasma_execution_context_t* exec_context, 
+                                     const param_t* dest_param,
+                                     int rank);
 
-
-/* Gives pointers to expr_t containing row and col predicates */
+/* Gives pointers to expr_t allowing for evaluation of GRID predicates */
 int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
                                       expr_t **rowpred,
                                       expr_t **colpred, 

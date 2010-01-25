@@ -41,7 +41,7 @@ static int __remote_dep_fini(dplasma_context_t* context)
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* origin,
                                 const param_t* origin_param,
-                                dplasma_execution_context_t* exec_context,
+                                const dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param )
 {
     int rank;
@@ -54,7 +54,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param,
-                                     dplasma_execution_context_t* exec_context, 
+                                     const dplasma_execution_context_t* exec_context, 
                                      const param_t* dest_param, 
                                      int rank)
 {
@@ -88,7 +88,7 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     int i;
     
-    context->nb_nodes = (int16_t)__remote_dep_init(context);
+    context->nb_nodes = __remote_dep_init(context);
     if(context->nb_nodes > 1)
     {
         context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(char) - 1) / sizeof(char);
@@ -134,7 +134,7 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
                                       symbol_t **rowsize,
                                       symbol_t **colsize)
 {
-    int i, pred_index;
+    int pred_index;
     symbol_t *rowSymbol, *colSymbol;
     rowSymbol = dplasma_search_global_symbol( "rowRANK" );
     colSymbol = dplasma_search_global_symbol( "colRANK" );

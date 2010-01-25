@@ -720,7 +720,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                         "%s      dplasma_remote_dep_activate_rank(context,\n"
                                         "%s                                       exec_context,\n"
                                         "%s                                       exec_context->function->inout[%d/*i*/],\n"
-                                        "%s                                       new_context,\n"
+                                        "%s                                       &new_context,\n"
                                         "%s                                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
                                         "%s                                       rank);\n"
                                         "%s    }\n",
