@@ -918,11 +918,9 @@ int dplasma_dump_all_c(char *filename)
     for(n = preambles; n != NULL; n = n->next) {
         if( strcasecmp(n->language, "C") == 0 ) {
             int nb = nblines(n->code);
-            output(
-                    "%s\n"
+            output( "%s\n"
                     "#line %d \"%s\"\n", 
                     n->code, nb+current_line+1, out_name);
-            current_line += nb + 2;
         }
     }
 
@@ -930,27 +928,22 @@ int dplasma_dump_all_c(char *filename)
     
     dump_all_global_symbols_c(body, INIT_FUNC_BODY_SIZE);
 
-    output(
-            "#include <assert.h>\n"
+    output( "#include <assert.h>\n"
             "#include <string.h>\n"
             "#ifdef DPLASMA_PROFILING\n"
             "#include \"profiling.h\"\n");
-    current_line += 3;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
         output("int %s_start_key, %s_end_key;\n", object->name, object->name);
-        current_line++;
     }
-    fprintf(out,
-            "#define TAKE_TIME(EU_CONTEXT, KEY)  dplasma_profiling_trace((EU_CONTEXT), (KEY))\n"
+    output( "#define TAKE_TIME(EU_CONTEXT, KEY)  dplasma_profiling_trace((EU_CONTEXT), (KEY))\n"
             "#else\n"
             "#define TAKE_TIME(EU_CONTEXT, KEY)\n"
             "#endif  /* DPLASMA_PROFILING */\n"
             "\n"
             "#include \"scheduling.h\"\n"
             "\n");
-    current_line += 7;
 
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
 
@@ -961,8 +954,7 @@ int dplasma_dump_all_c(char *filename)
         }
     }
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "};\n");
-    output(
-            "%s\n"
+    output( "%s\n"
             "\n"
             "static int __dplasma_init(void)\n"
             "{\n"
@@ -970,10 +962,8 @@ int dplasma_dump_all_c(char *filename)
             "  return 0;\n"
             "}\n"
             , whole, body);
-    current_line += 7 + nblines(whole) + nblines(body);
 
-    fprintf(out,
-            "int load_dplasma_objects( dplasma_context_t* context )\n"
+    output( "int load_dplasma_objects( dplasma_context_t* context )\n"
             "{\n"
 			"  (void)context;\n"
             "  dplasma_load_array( dplasma_array, %d );\n"
@@ -983,10 +973,8 @@ int dplasma_dump_all_c(char *filename)
             "\n",
             dplasma_nb_elements(),
             dplasma_symbol_get_count());
-    current_line += 8;
 
-    output(
-            "int load_dplasma_hooks( dplasma_context_t* context )\n"
+    output( "int load_dplasma_hooks( dplasma_context_t* context )\n"
             "{\n"
             "  dplasma_t* object;\n"
             "\n"
@@ -995,7 +983,6 @@ int dplasma_dump_all_c(char *filename)
             "     return -1;\n"
             "  }\n"
             "\n");
-    current_line += 9;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
@@ -1004,45 +991,35 @@ int dplasma_dump_all_c(char *filename)
             output("  object = (dplasma_t*)dplasma_find(\"%s\");\n"
                          "  object->hook = %s_hook;\n\n",
                     object->name, object->name);
-            current_line += 2;
         }
     }
 
     output("#ifdef DPLASMA_PROFILING\n");
-    current_line += 1;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
-        output(
-                "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
+        output( "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
                 "                                            &%s_start_key, &%s_end_key);\n",
                 object->name, colors[i % COLORS_SIZE], object->name, object->name);
-        current_line += 2;
     }
 
-    output(
-            "#endif /* DPLASMA_PROFILING */\n"
+    output( "#endif /* DPLASMA_PROFILING */\n"
             "\n"
             "  return 0;\n"
             "}\n");
-    current_line += 4;
 
-    fprintf(out,
-            "int enumerate_dplasma_tasks(dplasma_context_t* context)\n"
+    output( "int enumerate_dplasma_tasks(dplasma_context_t* context)\n"
             "{\n"
             "  int nbtasks = 0;\n");
-    current_line += 3;
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         dump_tasks_enumerator(dplasma_element_at(i), NULL, 0);
     }
 
-    fprintf(out,
-            "  dplasma_register_nb_tasks(context, nbtasks);\n"
+    output( "  dplasma_register_nb_tasks(context, nbtasks);\n"
             "  return nbtasks;\n"
             "}\n"
             "\n");
-    current_line += 4;
     
     fclose(out);
 
