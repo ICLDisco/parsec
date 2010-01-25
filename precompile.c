@@ -700,7 +700,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             }
                         else 
                             {
-                                output( "%s    } else {\n"
+                                output( "%s    } else if (propagate_remote_dep) {\n"
                                         "%s      int rank, rrank, crank, ncols;\n"
                                         "%s      rrank = ",
                                         spaces, spaces, spaces);
