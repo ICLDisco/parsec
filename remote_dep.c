@@ -121,38 +121,40 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
                                       expr_t **colsize)
 {
     int i, pred_index;
-    symbol_t *symbols[2];
-    symbols[0] = dplasma_search_global_symbol( "rowRANK" );
-    symbols[1] = dplasma_search_global_symbol( "colRANK" );
+    symbol_t *rowSymbol, *colSymbol;
+    rowSymbol = dplasma_search_global_symbol( "rowRANK" );
+    colSymbol = dplasma_search_global_symbol( "colRANK" );
     *rowpred = *colpred = NULL;
     
-    if(NULL == symbols[0]) return -1;
-    if(NULL == symbols[1]) return -2;
+    if(NULL == rowSymbol) return -1;
+    if(NULL == colSymbol) return -2;
+
     
     /* compute matching colRank and rowRank from predicates */
     for( pred_index = 0;
          (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
          pred_index++ )
     {
-        for( i = 0; i < 2; i++ ) 
-        {            
-            if( EXPR_SUCCESS != expr_depend_on_symbol(predicates[pred_index], symbols[i]) )
-            {
-                HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
-                continue;
-            }
+        if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], rowSymbol) ) {
             assert(EXPR_IS_BINARY(predicates[pred_index]->op));
+            assert(*rowpred == NULL);
             
-            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, symbols[i]) )
-            {
-                *(rowpred + i) = predicates[pred_index]->bop2;
-            }
-            else
-            {                    
-                *(rowpred + i) = predicates[pred_index]->bop1;
-            }
+            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, rowSymbol) )
+                {
+                    *rowpred = predicates[pred_index]->bop2;
+                }
+        } else if(  EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], colSymbol) ) {
+            assert(EXPR_IS_BINARY(predicates[pred_index]->op));
+            assert(*colpred == NULL);
+            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, colSymbol) )
+                {
+                    *rowpred = predicates[pred_index]->bop2;
+                }
+        } else {
+            HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
         }
     }
+
     if(NULL == *rowpred) return -1;
     if(NULL == *colpred) return -2;
 
