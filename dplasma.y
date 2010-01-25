@@ -230,7 +230,7 @@ param: DPLASMA_DEPENDENCY_TYPE DPLASMA_VAR {
                                                global_lists_index);
                                        YYERROR;
                                    }
-                                   if( global_indep_index >= MAX_DEP_IN_COUNT ) {
+                                   if( ($1 & SYM_IN) && (global_indep_index >= MAX_DEP_IN_COUNT) ) {
                                        fprintf(stderr,
                                                "Internal Error while parsing at line %d:\n"
                                                "  Maximal dependencies list count reached: %d\n",
@@ -238,7 +238,7 @@ param: DPLASMA_DEPENDENCY_TYPE DPLASMA_VAR {
                                                MAX_DEP_IN_COUNT);
                                        YYERROR;
                                    }
-                                   if( global_outdep_index >= MAX_DEP_OUT_COUNT ) {
+                                   if( ($1 & SYM_OUT) && (global_outdep_index >= MAX_DEP_OUT_COUNT) ) {
                                        fprintf(stderr,
                                                "Internal Error while parsing at line %d:\n"
                                                "  Maximal output dependencies count reached: %d)\n",
