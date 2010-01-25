@@ -137,7 +137,7 @@ DTSQRT(k,m)
   : m % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN V2 <- (k==0) ? IN(m,k) : C2 DSSMQR(k-1,k,m)
+  IN V2 <- (k==0) ? A(m,k) : C2 DSSMQR(k-1,k,m)
   IN R  <- (m==k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)
 
   OUT R  -> (m==MT-1) ?  V1 DORMQR(k,k+1..NT-1) : R DTSQRT(k,m+1)
@@ -176,7 +176,7 @@ DORMQR(k,n)
   : k % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN C1 <- (k==0) ? IN(k,n) : C2 DSSMQR(k-1,n,k)
+  IN C1 <- (k==0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
   IN T  <-  T DGEQRT(k)
   IN V1 <- R DTSQRT(k, MT-1)
 
@@ -215,7 +215,7 @@ DSSMQR(k,n,m)
   : m % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN C2 <- (k==0) ? IN(m,n) : C2 DSSMQR(k-1,n,m)
+  IN C2 <- (k==0) ? A(m,n) : C2 DSSMQR(k-1,n,m)
   IN V2 <- V2 DTSQRT(k,m)
   IN T  <- T DTSQRT(k,m)
   IN C1 <- (m==k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)

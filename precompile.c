@@ -762,7 +762,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             int init_func_body_size)
 {
     static char dp_txt[DPLASMA_SIZE];
-    int i;
+    int i, j, k;
     int p = 0;
 
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    {\n");
@@ -821,13 +821,50 @@ static char *dplasma_dump_c(const dplasma_t *d,
         for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
             output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
         }
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            output("  void *%s;\n", d->inout[i]->name);
+        }
+
         output("  /* remove warnings in case the variable is not used later */\n");
         for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
             output("  (void)%s;\n", d->locals[i]->name);
         }
-            
-        body_lines = nblines(d->body);
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_IN ) {
+                for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
+                    if( d->inout[i]->dep_in[k] != NULL ) {
+                        if( NULL != d->inout[i]->dep_in[0]->cond ) {
+                            output("  if(");
+                            dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
+                            output(") {\n"
+                                   "    %s = ", d->inout[i]->name);
+                        } else {
+                            output("  %s = ", d->inout[i]->name);
+                        }
+                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                            output("exec_context->data[%d].pointer;\n", i);
+                        } else {
+                            output("%s", d->inout[i]->dep_in[k]->dplasma->name);
+                            for(j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
+                                if( NULL != d->inout[i]->dep_in[k]->call_params[j] ) {
+                                    output("%c ", j == 0 ? '(' : ',' );
+                                    dump_inline_c_expression(d->inout[i]->dep_in[k]->call_params[j]);
+                                }
+                            }
+                            output(" );\n");
+                        }
+                        if( NULL != d->inout[i]->dep_in[k]->cond ) {
+                            output("  }\n");
+                        }
+                    }
+                }
+            } else {
+                output("  (void)%s;\n", d->inout[i]->name);
+            }
+            output("\n");
+        }
 
+        body_lines = nblines(d->body);
         output( "  TAKE_TIME(context, %s_start_key);\n"
                 "\n"
                 "  %s\n"

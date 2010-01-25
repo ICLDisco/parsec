@@ -8,7 +8,7 @@ LDFLAGS = -lrt
 include make.inc
 
 TESTING_TARGETS = cholesky/dposv_ll cholesky/dposv_rl QR/dgels
-TOOL_TARGETS = grapher dpc tools/buildDAG cholesky/timeenumerator
+TOOL_TARGETS = grapher dpc tools/buildDAG #cholesky/timeenumerator
 
 include cholesky/mpi/make.inc
 
