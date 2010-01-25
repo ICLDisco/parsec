@@ -64,11 +64,11 @@ ifneq "$(strip $(findstring -DUSE_MPI , $(CFLAGS)))" ""
 CLINKER = $(MPICLINKER)
 LINKER = $(MPILINKER)
 
-$(MPI_OBJECTS): %.o: %.c $(wildcard *.h) make.inc
+$(MPI_OBJECTS): %.o: %.c $(wildcard *.h) $(wildcard $(dir %.o)/*.h) make.inc
 	$(MPICC) -o $@ $(CFLAGS) -c $<
 endif
 
-%.o: %.c $(wildcard *.h) make.inc
+%.o: %.c $(wildcard *.h) $(wildcard $(dir %.o)/*.h) make.inc
 	$(CC) -o $@ $(CFLAGS) -c $<
 
 %.c: %.jdf dpc

@@ -754,6 +754,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     return 0;
 }
 
+
 /**
  * Release all OUT dependencies for this particular instance of the service.
  */

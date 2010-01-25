@@ -26,6 +26,15 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param );
 
+
+
+/* Gives pointers to expr_t containing row and col predicates */
+int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
+                                      expr_t **rowpred,
+                                      expr_t **colpred, 
+                                      expr_t **rowsize,
+                                      expr_t **colsize);
+
 /* Compute the flat rank of the node hosting exec_context in the process grid */
 int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                          const dplasma_execution_context_t* origin,

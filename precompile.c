@@ -552,6 +552,8 @@ static char *dump_c_dependency_list(FILE *out, dplasma_dependencies_t *d, char *
     return dname;
 }
 
+#include "remote_dep.h"
+
 static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                             char *init_func_body,
                             int init_func_body_size)
@@ -742,14 +744,16 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                             current_line++;
                         }
 
-                        fprintf(out, "%s      if( 1 ", spaces);
+                        /******************************************************/
+                        /* Compute predicates                                 */
+                        fprintf(out, "%s      if( (1", spaces);
                         for(k = 0; k < MAX_PRED_COUNT; k++) {
                             if( NULL != dep->dplasma->preds[k] ) {
-                                fprintf(out, " && ");
+                                fprintf(out, ") && (");
                                 dump_inline_c_expression(out, dep->dplasma->preds[k]);
                             }
                         }
-                        fprintf(out, ") {\n");
+                        fprintf(out, ") ) {\n");
                         current_line++;
 
                         fprintf(out,
@@ -757,22 +761,75 @@ static char *dplasma_dump_c(FILE *out, const dplasma_t *d,
                                 "%s                       exec_context->function->inout[%d/*i*/],\n"
                                 "%s                       &new_context,\n"
                                 "%s                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
-                                "%s                       &placeholder);\n"
-                                "%s      } else {\n"
-                                "%s        /* release_remote_OUT_dependency(&new_context); */\n"
-                                "%s      }\n", spaces, spaces, i, spaces, spaces, i, j, spaces, spaces, spaces, spaces);
-                        current_line += 8;
+                                "%s                       &placeholder);\n", 
+                                spaces, spaces, i, spaces, spaces, i, j, spaces);
+                        current_line += 5;
 
+                        /* If predicates don't verify, this is remote, compute 
+                         * target rank from predicate values
+                         */
+                        {
+                            expr_t *rowpred; 
+                            expr_t *colpred;
+                            expr_t *rowsize;
+                            expr_t *colsize;
+                            
+                            if(dplasma_remote_dep_get_rank_preds(dep->dplasma->preds, 
+                                                                 &rowpred, 
+                                                                 &colpred, 
+                                                                 &rowsize,
+                                                                 &colsize) < 0)
+                            {
+                               fprintf(out,
+                                       "%s      } else {\n"
+                                       "%s        DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
+                                       "%s      }\n", 
+                                       spaces, spaces, spaces);
+                                current_line += 3;
+                            }
+                            else 
+                            {
+                                fprintf(out, 
+                                        "%s      } else {\n"
+                                        "%s        int rank, rrank, crank, ncols;\n"
+                                        "%s        rrank = ",
+                                        spaces, spaces, spaces);
+                                dump_inline_c_expression(out, rowpred);
+                                fprintf(out, 
+                                        "\n"
+                                        "%s        crank = ", 
+                                        spaces);
+                                dump_inline_c_expression(out, colpred);
+                                fprintf(out, 
+                                        "\n"
+                                        "%s        ncols = ",
+                                        spaces);
+                                dump_inline_c_expression(out, colsize);
+                                fprintf(out, 
+                                        "\n"
+                                        "%s        rank = crank + rrank * ncols;\n"
+                                        "%s        DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
+                                        "%s        dplasma_remote_dep_activate_rank(context,\n"
+                                        "%s                                         exec_context,\n"
+                                        "%s                                         exec_context->function->inout[%d/*i*/],\n"
+                                        "%s                                         new_context,\n"
+                                        "%s                                         exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
+                                        "%s                                         rank);\n"
+                                        "%s      }\n",
+                                        spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
+                                current_line += 14;
+                            }
+                        }
                         fprintf(out, "%s    }\n", spaces);
                         current_line++;
-
-                        for(k = MAX_PRED_COUNT-1; k >= 0; k--) {
+                        
+                        for(k = MAX_PARAM_COUNT-1; k >= 0; k--) {
                             if( NULL != dep->call_params[k] ) {
                                 if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
                                     spaces[strlen(spaces)-2] = '\0';
                                     fprintf(out, "%s    }\n", spaces);
                                     current_line++;
-                                    if( k == MAX_PRED_COUNT-1 ) {
+                                    if( k == MAX_PARAM_COUNT-1 ) {
                                         fprintf(out, "%s  placeholder=NULL;\n", spaces);
                                         current_line++;
                                     }

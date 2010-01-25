@@ -36,6 +36,28 @@ int __remote_dep_fini(dplasma_context_t* context)
 }
 
 
+int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
+                                     const dplasma_execution_context_t* origin,
+                                     const param_t* origin_param,
+                                     const dplasma_execution_context_t* exec_context,
+                                     const param_t* new_param,
+                                     int rank)
+{
+#ifdef _DEBUG
+    char tmp[128];
+    char tmp2[128];
+#endif
+    
+    assert(rank >= 0);
+    assert(rank < eu_context->master_context->nb_nodes);
+    if(dplasma_remote_dep_is_forwarded(eu_context, rank))
+    {    
+        return 0;
+    }
+    dplasma_remote_dep_mark_forwarded(eu_context, rank);
+    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
+    return MPI_Send((void*) origin, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+}
 
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* origin,

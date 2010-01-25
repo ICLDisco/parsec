@@ -114,6 +114,56 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 #define HDEBUG( args ) do {} while(0)
 #endif 
 
+int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
+                                      expr_t **rowpred,
+                                      expr_t **colpred, 
+                                      expr_t **rowsize,
+                                      expr_t **colsize)
+{
+    int i, pred_index;
+    symbol_t *symbols[2];
+    symbols[0] = dplasma_search_global_symbol( "rowRANK" );
+    symbols[1] = dplasma_search_global_symbol( "colRANK" );
+    *rowpred = *colpred = NULL;
+    
+    if(NULL == symbols[0]) return -1;
+    if(NULL == symbols[1]) return -2;
+    
+    /* compute matching colRank and rowRank from predicates */
+    for( pred_index = 0;
+         (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
+         pred_index++ )
+    {
+        for( i = 0; i < 2; i++ ) 
+        {            
+            if( EXPR_SUCCESS != expr_depend_on_symbol(predicates[pred_index], symbols[i]) )
+            {
+                HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
+                continue;
+            }
+            assert(EXPR_IS_BINARY(predicates[pred_index]->op));
+            
+            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, symbols[i]) )
+            {
+                *(rowpred + i) = predicates[pred_index]->bop2;
+            }
+            else
+            {                    
+                *(rowpred + i) = predicates[pred_index]->bop1;
+            }
+        }
+    }
+    if(NULL == *rowpred) return -1;
+    if(NULL == *colpred) return -2;
+
+    *rowsize = (expr_t*) dplasma_search_global_symbol( "GRIDrows" );
+    *colsize = (expr_t*) dplasma_search_global_symbol( "GRIDcols" );
+    if(NULL == *rowsize) return -3;
+    if(NULL == *colsize) return -4;
+    
+    return 0;
+}
+
 int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                          const dplasma_execution_context_t* origin,
                                          dplasma_execution_context_t* exec_context)
