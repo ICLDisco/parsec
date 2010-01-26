@@ -129,7 +129,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     dplasma_context_t* master_context = eu_context->master_context;
     int32_t my_barrier_counter = master_context->__dplasma_internal_finalization_counter;
     dplasma_execution_context_t* exec_context;
-    int nbiterations;
+    int nbiterations = 0;
 
     if( 0 != eu_context->eu_id ) {
 #ifdef HAVE_CPU_SET_T
@@ -169,7 +169,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     }
 
     found_local = miss_local = found_victim = miss_victim = 0;
-    nbiterations = 0;
 
     while( !all_tasks_done(master_context) ) {
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
