@@ -553,7 +553,9 @@ static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_b
     return dname;
 }
 
+#ifdef DISTRIBUTED
 #include "remote_dep.h"
+#endif
 
 static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                            char *init_func_body,
@@ -682,6 +684,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             "%s                     &placeholder);\n",
                             spaces, spaces, i, spaces, spaces, i, j, spaces);
 
+#ifdef DISTRIBUTED
                     /* If predicates don't verify, this is remote, compute 
                      * target rank from predicate values
                      */
@@ -730,6 +733,18 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                         spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
                             }
                     }
+#else
+                    {
+                        output("%s    } else if (propagate_remote_dep) {\n"
+                               "%s      DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
+                               "%s    }\n", 
+                               spaces, spaces, spaces);
+                    }
+#endif
+
+
+
+                    
                     output("%s  }\n", spaces);
                     
                     placeholder_reset = 0;

@@ -5,7 +5,7 @@
  */
 
 
-#if defined(USE_MPI)
+#ifdef USE_MPI
 #include "mpi.h"
 #endif  /* defined(USE_MPI) */
 #include <getopt.h>

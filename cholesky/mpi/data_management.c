@@ -350,12 +350,14 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
     return res;
 }
 
+#ifdef USE_MPI
 /* empty stub for now, should allow for async data transfer from recv side */
 void * dplasma_get_tile_async(DPLASMA_desc *Ddesc, int m, int n, MPI_Request *req)
 {
     
     return NULL;
 }
+#endif
 
 void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
 {
@@ -496,9 +498,10 @@ static int nb_request(DPLASMA_desc * Ddesc, int rank)
 }
 #endif
 
+#ifdef USE_MPI
 int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count)
 {
-#ifdef USE_MPI
+
     int i, j, k, nb, pos, rank;
     int tile_size, str, stc;
     double * target;
@@ -581,11 +584,9 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
             }
     }
     return 0;
-#else
-    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
-    return -1;
-#endif    
+
 }
+#endif    
 
 int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc) 
 {
@@ -748,17 +749,15 @@ int plasma_dump(PLASMA_desc * Pdesc){
     return 0;
 }
 
-
+#ifdef USE_MPI
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 {
-#ifdef USE_MPI
+
     MPI_Status * stats;
     
     stats = malloc(req_count * sizeof(MPI_Status));
     MPI_Waitall(req_count, reqs, stats);
     return 1;
-#else
-    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
-    return -1;
-#endif    
+
 }
+#endif    

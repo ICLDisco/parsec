@@ -84,22 +84,25 @@ int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
 /****************************************************************
  * matrix generation, tiling and distribution
  ****************************************************************/
-#if !defined(USE_MPI)
+#ifdef USE_MPI
 typedef struct MPI_Request MPI_Request;
-#endif  /* !defined(USE_MPI) */
+
 /* distribute the matrix to the different mpi ranks 
  * matrix -> pointer to matrix data on mpi rank 0 // NULL for other ranks
  */
 int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count);
 
-/* regroup the distributed tiles to the rank 0 */
-/* Pdesc is NULL except on rank 0 */
-int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
-
 /* test if the matrix data has been distributed
  * return 0 if not
  */
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count);
+
+#endif  /* !defined(USE_MPI) */
+
+/* regroup the distributed tiles to the rank 0 */
+/* Pdesc is NULL except on rank 0 */
+int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
+
 
 
 /* generate a random matrix  */

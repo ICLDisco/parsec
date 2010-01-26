@@ -21,7 +21,9 @@
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
+#ifdef DISTRIBUTED
 #include "remote_dep.h"
+#endif
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -290,8 +292,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* HAVE_CPU_SET_T */
 
+#ifdef DISTRIBUTED
     dplasma_remote_dep_init(context);
-
+#endif
     /* Wait until all threads are done binding themselves */
     dplasma_barrier_wait( &(context->barrier) );
     context->__dplasma_internal_finalization_counter++;
@@ -327,8 +330,9 @@ int dplasma_fini( dplasma_context_t** pcontext )
         context->execution_units[i].eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
-
+#ifdef DISTRIBUTED
     dplasma_remote_dep_fini( context );
+#endif
     
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( context );
@@ -793,6 +797,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             /* This is a valid value for this parameter, but it is executed 
              * on a remote resource according to the data mapping 
              */
+#ifdef DISTRIBUTED
             if(EXPR_FAILURE_CANNOT_EVALUATE_RANGE == rc)
             {
                 if(forward_remote)
@@ -800,6 +805,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    dplasma_remote_dep_activate(eu_context, origin, origin_param, exec_context, dest_param);
                 }
             }
+#endif
             /* This is not a valid value for this parameter on this host. 
              * Try the next one */
         pick_next_value:
