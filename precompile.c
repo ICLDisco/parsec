@@ -562,8 +562,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     int i, j;
 
     output("#include \"remote_dep.h\"\n\n");
-    output("static void %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep)\n"
-           "{\n",
+    output("static int %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep)\n"
+           "{\n"
+           "  int ret = 0;",
            d->name);
 
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
@@ -672,7 +673,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     }
                     output(") ) {\n");
                     
-                    output( "%s      dplasma_release_local_OUT_dependencies(context, exec_context, \n"
+                    output( "%s      ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"
                             "%s                     exec_context->function->inout[%d/*i*/],\n"
                             "%s                     &new_context,\n"
                             "%s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
@@ -717,12 +718,12 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                 output( ";\n"
                                         "%s      rank = crank + rrank * ncols;\n"
                                         "%s      DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
-                                        "%s      dplasma_remote_dep_activate_rank(context,\n"
-                                        "%s                                       exec_context,\n"
-                                        "%s                                       exec_context->function->inout[%d/*i*/],\n"
-                                        "%s                                       &new_context,\n"
-                                        "%s                                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
-                                        "%s                                       rank);\n"
+                                        "%s      ret += dplasma_remote_dep_activate_rank(context,\n"
+                                        "%s                     exec_context,\n"
+                                        "%s                     exec_context->function->inout[%d/*i*/],\n"
+                                        "%s                     &new_context,\n"
+                                        "%s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
+                                        "%s                     rank);\n"
                                         "%s    }\n",
                                         spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
                             }
@@ -754,7 +755,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             }
         }
     }
-    output("}\n");
+    output("  return ret;\n"
+           "}\n");
 }
 
 static char *dplasma_dump_c(const dplasma_t *d,
@@ -1027,8 +1029,9 @@ int dplasma_dump_all_c(char *filename)
         /* Specials IN and OUT test */
         if( object->body != NULL ) {
             output("  object = (dplasma_t*)dplasma_find(\"%s\");\n"
-                         "  object->hook = %s_hook;\n\n",
-                    object->name, object->name);
+                   "  object->hook = %s_hook;\n"
+                   "  object->release_deps = %s_release_dependencies;\n\n",
+                    object->name, object->name, object->name);
         }
     }
 
