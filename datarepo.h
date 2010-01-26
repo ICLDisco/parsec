@@ -34,7 +34,7 @@ typedef struct data_repo {
 
 static  data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, unsigned int nbdata)
 {
-    data_repo_t *res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t)*hashsize);
+    data_repo_t *res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t) * (hashsize-1));
     res->nbentries = hashsize;
     res->nbdata = nbdata;
     return res;
@@ -54,7 +54,7 @@ static  data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int ke
             break;
         }
     if( (NULL == e) && (create != 0) ) {
-        e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+repo->nbdata*sizeof(void*));
+        e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(void*));
         e->next_entry = repo->heads[h].first_entry;
         repo->heads[h].first_entry = e;
         e->refcount++;
