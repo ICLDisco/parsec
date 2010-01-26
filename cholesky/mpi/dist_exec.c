@@ -96,7 +96,7 @@ int main(int argc, char ** argv){
     dague_init(argc, argv);
     
     /* Matrix creation, tiling and distribution */
-    if(rank == 0)
+    if(rank == rank)
     {
         A2   = (double *)malloc(LDA*N*sizeof(double));
 #if defined(DO_THE_NASTY_VALIDATIONS)
@@ -122,7 +122,7 @@ int main(int argc, char ** argv){
         }
 #endif
         tiling(&uplo, N, A2, LDA, &local_desc);
-#ifdef USE_MPI
+#ifdef trickUSE_MPI
         dplasma_desc_bcast(&local_desc, &descA);
         TIME_START();
         distribute_data(&local_desc, &descA, &requests, &req_count);
@@ -166,10 +166,12 @@ int main(int argc, char ** argv){
     dplasma_progress(dplasma);
     TIME_PRINT(("executing kernels on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
-#ifdef USE_MPI    
+#ifdef trickUSE_MPI    
     TIME_START();
     gather_data(&local_desc, &descA);
     TIME_PRINT(("data reduction on rank %d (to rank 0)\n", rank));
+#endif
+#ifdef USE_MPI
     MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
 

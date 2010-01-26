@@ -583,6 +583,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
         output("  (void)%s;\n", d->locals[i]->name);
     }
             
+    output("  dplasma_remote_dep_reset_forwarded(context);\n");
+    
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
             char spaces[MAX_CALL_PARAM_COUNT * 2 + 3];
