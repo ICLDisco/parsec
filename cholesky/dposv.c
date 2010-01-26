@@ -129,12 +129,15 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         dplasma_execution_context_t exec_context;
         int it;
 
+#if !defined(DPLASMA_WARM_UP)
 #define DPLASMA_WARM_UP 1
-#if defined(DPLASMA_WARM_UP)
+#endif  /* !defined(DPLASMA_WARM_UP) */
+
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
 
+#if DPLASMA_WARM_UP
         dplasma_schedule(dplasma, &exec_context);
 
         /* Now that everything is created start the timer */
@@ -143,7 +146,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
         it = dplasma_progress(dplasma);
         time_elapsed = get_cur_time() - time_elapsed;
         printf("Warming up: DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
-#endif  /* defined(DPLASMA_WARM_UP) */
+#endif  /* DPLASMA_WARM_UP */
 
         /*printf("NBTASKS to run: %d\n", nbtasks);*/
 
