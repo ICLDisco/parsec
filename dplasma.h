@@ -89,17 +89,10 @@ struct dplasma_t {
     char*                   body;
 };
 
-typedef struct data_assignment_t {
-    unsigned int            local_data;
-    void                   *pointer;
-    unsigned int            refcount;        /**< unused if local_data = 1 */
-} data_assignment_t;
-
 struct dplasma_execution_context_t {
     dplasma_list_item_t list_item;
     dplasma_t*   function;
     assignment_t locals[MAX_LOCAL_COUNT];
-    data_assignment_t data[MAX_LOCAL_COUNT]; /**< data[i] holds the pointer defined by params[i] in function */
 };
 
 /**
