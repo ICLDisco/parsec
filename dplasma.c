@@ -290,12 +290,13 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* HAVE_CPU_SET_T */
 
-    dplasma_remote_dep_init(context);
-
     /* Wait until all threads are done binding themselves */
     dplasma_barrier_wait( &(context->barrier) );
     context->__dplasma_internal_finalization_counter++;
 
+    /* Wait until threads are bound before introducing progress threads */
+    dplasma_remote_dep_init(context);
+    
     return context;
 }
 
