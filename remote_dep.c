@@ -194,7 +194,7 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 
 int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                          const dplasma_execution_context_t* origin,
-                                         dplasma_execution_context_t* exec_context)
+                                         const dplasma_execution_context_t* exec_context)
 {
     int i, pred_index;
     int rank;
