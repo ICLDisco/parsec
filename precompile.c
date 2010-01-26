@@ -750,13 +750,13 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             }
                         }
                     }
-                    output("  }\n"
-                           "  return ret;\n");
+                    output("  }\n");
                 }
             }
         }
     }
-    output("}\n");
+    output("  return ret;\n"
+           "}\n");
 }
 
 static char *dplasma_dump_c(const dplasma_t *d,
