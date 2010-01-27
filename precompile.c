@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -1093,10 +1099,10 @@ int dplasma_dump_all_c(char *filename)
 
     output( "#include <assert.h>\n"
             "#include <string.h>\n"
-            "#ifdef DPLASMA_PROFILING\n"
-            "#include \"profiling.h\"\n"
             "#include \"remote_dep.h\"\n"
-            "#include \"datarepo.h\"\n\n");
+            "#include \"datarepo.h\"\n\n"
+            "#ifdef DPLASMA_PROFILING\n"
+            "#include \"profiling.h\"\n");
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
@@ -1113,7 +1119,7 @@ int dplasma_dump_all_c(char *filename)
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
 
     for(i = 0; i < dplasma_nb_elements(); i++) {
-        dplasma_t *d = dplasma_element_at(i);
+        const dplasma_t *d = dplasma_element_at(i);
         if( d->nb_locals != 0 ) {
             dplasma_dump_context_holder(d, body, INIT_FUNC_BODY_SIZE);
         }
