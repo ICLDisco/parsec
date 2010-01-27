@@ -606,7 +606,7 @@ static void dplasma_dump_context_holder(const dplasma_t *d,
            d->name);
     snprintf(init_func_body + strlen(init_func_body),
              init_func_body_size - strlen(init_func_body),
-             "  %s_repo = data_repo_create_nothreadsafe(32, %d);\n",
+             "  %s_repo = data_repo_create_nothreadsafe(256, %d);\n",
              d->name, k);
 }
 
@@ -614,16 +614,36 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                            char *init_func_body,
                                            int init_func_body_size)
 {
-    int i, j;
+    int i, j, cpt;
 
-    output("static int %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep)\n"
+    output("static int %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep, void **data)\n"
            "{\n"
-           "  int ret = 0;\n",
-           d->name);
+           "  int ret = 0;\n"
+           "  data_repo_entry_t *e%s;\n", 
+           d->name, d->name);
 
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
         output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
     }
+    
+    output("  e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+           d->name, d->name, d->name);
+    for(j = 0; j < d->nb_locals; j++) {
+        output("%s", d->locals[j]->name );
+        if( j == d->nb_locals - 1 ) 
+            output("), 1 );\n");
+        else
+            output(", ");
+    }
+    cpt = 0;
+    for( i = 0; i < MAX_PARAM_COUNT; i++) {
+        if( d->inout[i] != NULL &&
+            d->inout[i]->sym_type & SYM_OUT ) {
+            output("  e%s->data[%d] = data[%d];\n", d->name, cpt, cpt);
+            cpt++;
+        }
+    }
+
     output("  struct dplasma_dependencies_t *placeholder = NULL;\n"
            "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
     for(j = 0; j < MAX_LOCAL_COUNT; j++) {
@@ -636,7 +656,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
         output("  (void)%s;\n", d->locals[i]->name);
     }
-            
+    
     output("  dplasma_remote_dep_reset_forwarded(context);\n");
     
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
@@ -731,6 +751,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                     }
                     output(") ) {\n");
+
+                    output( "%s      dplasma_atomic_inc_32b(&e%s->refcount);\n",
+                            spaces, d->name);
                     
                     output( "%s      ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"
                             "%s                     exec_context->function->inout[%d/*i*/],\n"
@@ -827,8 +850,11 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             }
         }
     }
-    output("  return ret;\n"
-           "}\n");
+    output("  /* release the hold on e%s */\n"
+           "  data_repo_unref_entry(%s_repo, e%s->key);\n"
+           "  return ret;\n"
+           "}\n",
+           d->name, d->name, d->name);
 }
 
 static char *dplasma_dump_c(const dplasma_t *d,
@@ -983,29 +1009,54 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "  TAKE_TIME(context, %s_end_key);\n"
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
 
-        output("  {\n"
-               "    data_repo_entry_t *e%s;\n", d->name);
-        output("    e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
-               d->name, d->name, d->name);
-        for(j = 0; j < d->nb_locals; j++) {
-            output("%s", d->locals[j]->name );
-            if( j == d->nb_locals - 1 ) 
-                output("), 1 );\n");
-            else
-                output(", ");
-        }
         cpt = 0;
-        for( i = 0; i < MAX_PARAM_COUNT; i++) {
-            if( d->inout[i] != NULL &&
-                d->inout[i]->sym_type & SYM_OUT ) {
-                output("    e%s->data[%d] = %s;\n", d->name, cpt, d->inout[i]->name);
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_OUT ) {
                 cpt++;
             }
         }
-        output("  }\n");
+        output("  {\n"
+               "    void *data[%d];\n",
+               cpt);
+        cpt=0;
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_OUT ) {
+                output("    data[%d] = %s;\n", cpt++, d->inout[i]->name);
+            }
+        }
+        output("    %s_release_dependencies(context, exec_context, 1, data);\n"
+               "  }\n",
+               d->name);
 
-        output( "   %s_release_dependencies(context, exec_context, 1);\n",
-                d->name);
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_IN ) {
+                for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
+                    if( d->inout[i]->dep_in[k] != NULL ) {
+                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                            if( NULL != d->inout[i]->dep_in[k]->cond ) {
+                                output("  if(");
+                                dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
+                                output(") {\n"
+                                       "    data_repo_unref_entry( %s_repo, e%s->key );\n"
+                                       "    data_repo_unref_entry( %s_repo, e%s->key );\n"
+                                       "  }\n",
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->name);
+                            } else {
+                                output("  data_repo_unref_entry( %s_repo, e%s->key );\n"
+                                       "  data_repo_unref_entry( %s_repo, e%s->key );\n",
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         output( "  return 0;\n"
                 "}\n"

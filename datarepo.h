@@ -50,14 +50,14 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
         e != NULL;
         e = e->next_entry)
         if( e->key == key ) {
-            e->refcount++;
+            dplasma_atomic_inc_32b(&e->refcount);
             break;
         }
     if( (NULL == e) && (create != 0) ) {
         e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(void*));
         e->next_entry = repo->heads[h].first_entry;
         repo->heads[h].first_entry = e;
-        e->refcount++;
+        dplasma_atomic_inc_32b(&e->refcount);
         e->key = key;
     }
     data_repo_atomic_unlock(&repo->heads[h].lock);
@@ -75,7 +75,7 @@ static inline void data_repo_unref_entry(data_repo_t *repo, long int key)
         e != NULL;
         p = e, e = e->next_entry)
         if( e->key == key ) {
-            e->refcount--;
+            dplasma_atomic_dec_32b(&e->refcount);
             break;
         }
     if( (NULL != e) && (0 == e->refcount) ) {
