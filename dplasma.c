@@ -220,7 +220,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
         eu->eu_steal_from = (int8_t*)malloc(nb_cores * sizeof(int8_t));
         {
-            int j, k;
+            int j;
 #if defined(ON_ZOOT)
             int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
             int8_t placement[] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -245,6 +245,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
             }
             eu->eu_steal_from[0] = distance[eu->eu_id];
 #else
+            int k;
             eu->eu_steal_from[0] = (int8_t)eu->eu_id;
             for( j = 0, k = 1; j < nb_cores; j++ ) {
                 if( eu->eu_id != j ) {
@@ -789,8 +790,6 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
     last_deps = NULL;
 
     for( i = 0; i < function->nb_locals; i++ ) {
-        int rmin, rmax;
-        rmin = rmax = -1;
     restart_validation:
         rc = dplasma_symbol_validate_value( function->locals[i],
                                             (const expr_t**)function->preds,
