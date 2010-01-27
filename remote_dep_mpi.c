@@ -162,6 +162,7 @@ pthread_mutex_t dep_msg_mutex;
 typedef enum {WANT_ZERO, WANT_SEND, WANT_RECV, WANT_FINI} dep_signal_reason_t;
 dep_signal_reason_t dep_signal_reason = WANT_ZERO;
 
+volatile int enable_progress = 0;
 volatile int np = 0;
 
 dplasma_execution_context_t *dep_send_context;
@@ -196,7 +197,10 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                 ts.tv_nsec += YIELD_TIME;
                 ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
                 assert((0 == ret) || (ETIMEDOUT == ret));
-                __remote_dep_progress(&context->execution_units[0]);
+                if(enable_progress)
+                {                    
+                    __remote_dep_progress(&context->execution_units[0]);
+                }
                 continue;
         }
         dep_signal_reason = WANT_ZERO;
@@ -260,6 +264,8 @@ static int remote_dep_thread_send(const dplasma_execution_context_t* task, int r
 static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
 {
     pthread_mutex_lock(&dep_msg_mutex);
+ 
+    enable_progress = 1;
     
     dep_signal_reason = WANT_RECV;
     dep_recv_eu_context = eu_context;
