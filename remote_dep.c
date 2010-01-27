@@ -80,10 +80,10 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
 #endif
 
 
+#ifdef DISTRIBUTED
 /* Note for Pierre: this is not MPI specific and should not go to 
  * remote_dep_mpi.c. I fixed the warnings and legitimate concerns about dirty 
  * tricks with nb_nodes another way */
-
 int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     int i;
@@ -119,7 +119,7 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
     }
     return __remote_dep_fini(context);
 }
-
+#endif
 
 #define HEAVY_DEBUG
 #if defined(_DEBUG) && defined(HEAVY_DEBUG)
