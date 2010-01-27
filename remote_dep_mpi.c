@@ -205,7 +205,6 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                     ts.tv_nsec -= 1000000000;
                 }
                 ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
-                printf("RET %d, TS: %ld\n", ret, ts.tv_nsec);
                 assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
@@ -279,12 +278,6 @@ static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
 
     pthread_cond_signal(&dep_msg_cond);
     
-    while(WANT_RECV == dep_signal_reason)
-    {
-        int ret;
-        ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
-        assert(0 == ret);
-    }
     pthread_mutex_unlock(&dep_msg_mutex);
     return 0;
 }
