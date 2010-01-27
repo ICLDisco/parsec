@@ -13,18 +13,22 @@
 #define USE_MPI_THREAD_PROGRESS
 
 static int __remote_dep_mpi_init(dplasma_context_t* context);
+static int __remote_dep_mpi_fini(dplasma_context_t* context);
 static int __remote_dep_send(const dplasma_execution_context_t* task, int rank);
 static int __remote_dep_progress(dplasma_execution_unit_t* eu_context);
 
 #ifdef USE_MPI_THREAD_PROGRESS
     static int remote_dep_thread_init(dplasma_context_t* context);
+    static int remote_dep_thread_fini(dplasma_context_t* fini);
     static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank);
     static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context);
 #   define remote_dep_mpi_init(ctx) remote_dep_thread_init(ctx)
+#   define remote_dep_mpi_fini(ctx) remote_dep_thread_fini(ctx)
 #   define remote_dep_send(task, rank) remote_dep_thread_send(task, rank)
 #   define remote_dep_progress(ctx) remote_dep_thread_progress(ctx)
 #else
 #   define remote_dep_mpi_init(ctx) __remote_dep_mpi_init(ctx)
+#   define remote_dep_mpi_fini(ctx) __remote_dep_mpi_fini(ctx)
 #   define remote_dep_send(task, rank) __remote_dep_send(task, rank)
 #   define remote_dep_progress(ctx) __remote_dep_progress(ctx)
 #endif 
@@ -45,9 +49,7 @@ int __remote_dep_init(dplasma_context_t* context)
 
 int __remote_dep_fini(dplasma_context_t* context)
 {
-    MPI_Request_free(&dep_req);
-    MPI_Comm_free(&dep_comm);
-    return 0;
+    return remote_dep_mpi_fini(context);
 }
 
 
@@ -113,6 +115,13 @@ static int __remote_dep_mpi_init(dplasma_context_t* context)
     MPI_Recv_init(&dep_buff, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_req);
     MPI_Start(&dep_req);
     return np;    
+}
+
+static int __remote_dep_mpi_fini(dplasma_context_t* context)
+{
+    MPI_Request_free(&dep_req);
+    MPI_Comm_free(&dep_comm);
+    return 0;
 }
 
 static int __remote_dep_send(const dplasma_execution_context_t* task, int rank)
@@ -183,19 +192,21 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                 break;
             case WANT_FINI:
                 goto fini;
-            case WANT_ZERO:
-                __remote_dep_progress(&context->execution_units[0]);
-                
+            case WANT_ZERO:                
                 ts.tv_nsec += YIELD_TIME;
-                ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
-                assert(0 == ret);
-                break;
+                ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
+                assert((0 == ret) || (ETIMEDOUT == ret));
+                __remote_dep_progress(&context->execution_units[0]);
+                continue;
         }
         dep_signal_reason = WANT_ZERO;
     } while(1);
 fini:
     pthread_mutex_unlock(&dep_msg_mutex);
-    return NULL;
+    
+    __remote_dep_mpi_fini(context);
+
+    return context;
 }
 
 static int remote_dep_thread_init(dplasma_context_t* context)
@@ -215,6 +226,22 @@ static int remote_dep_thread_init(dplasma_context_t* context)
 
     while(0 == np); /* wait until the thread inits MPI */
     return np;
+}
+
+static int remote_dep_thread_fini(dplasma_context_t* context)
+{
+    dplasma_context_t *ret;
+    
+    pthread_mutex_lock(&dep_msg_mutex);
+    
+    dep_signal_reason = WANT_FINI;
+    
+    pthread_mutex_unlock(&dep_msg_mutex);
+    
+    pthread_join(dep_thread_id, (void**) &ret);
+    assert(ret == context);
+    
+    return 0;
 }
 
 static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank)
