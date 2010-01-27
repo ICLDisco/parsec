@@ -153,7 +153,7 @@ pthread_mutex_t dep_msg_mutex;
 typedef enum {WANT_ZERO, WANT_SEND, WANT_RECV, WANT_FINI} dep_signal_reason_t;
 dep_signal_reason_t dep_signal_reason = WANT_ZERO;
 
-int np = 0;
+volatile int np = 0;
 
 dplasma_execution_context_t *dep_send_context;
 int dep_send_rank;
@@ -213,8 +213,8 @@ static int remote_dep_thread_init(dplasma_context_t* context)
                     (void* (*)(void*))remote_dep_thread_main,
                     (void*)context);
 
-/*    while(!np); /* wait until the thread inits MPI */
-    return 2;
+    while(0 == np); /* wait until the thread inits MPI */
+    return np;
 }
 
 static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank)
