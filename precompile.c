@@ -561,7 +561,7 @@ static void dplasma_dump_context_holder(const dplasma_t *d,
                                         char *init_func_body,
                                         int init_func_body_size)
 {
-    int i, j;
+    int i, j, k;
 
     output("static long int %s_hash(",
            d->name);
@@ -587,12 +587,21 @@ static void dplasma_dump_context_holder(const dplasma_t *d,
     output(";\n");
     output("}\n"
            "\n");
+
+    k = 0;
+    for(i = 0; i < MAX_PARAM_COUNT; i++) {
+        if( d->inout[i] != NULL &&
+            d->inout[i]->sym_type & SYM_OUT ) {
+            k++;
+        }
+    }
+
     output("static data_repo_t *%s_repo = NULL;\n",
            d->name);
     snprintf(init_func_body + strlen(init_func_body),
              init_func_body_size - strlen(init_func_body),
              "  %s_repo = data_repo_create_nothreadsafe(32, %d);\n",
-             d->name, d->nb_params);
+             d->name, k);
 }
 
 static void dplasma_dump_dependency_helper(const dplasma_t *d,
@@ -821,7 +830,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             int init_func_body_size)
 {
     static char dp_txt[DPLASMA_SIZE];
-    int i, j, k;
+    int i, j, k, cpt;
     int p = 0;
 
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    {\n");
@@ -930,11 +939,14 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             output("  %s = ", d->inout[i]->name);
                         }
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                            cpt = 0;
                             for(j = 0; j < MAX_PARAM_COUNT; j++) {
                                 if( d->inout[i]->dep_in[k]->dplasma->inout[j] == d->inout[i]->dep_in[k]->param )
                                     break;
+                                if( d->inout[i]->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
+                                    cpt++;
                             }
-                            output("e%s->data[%d];\n", d->inout[i]->name, j);
+                            output("e%s->data[%d];\n", d->inout[i]->name, cpt);
                         } else {
                             output("%s", d->inout[i]->dep_in[k]->dplasma->name);
                             for(j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
@@ -976,10 +988,12 @@ static char *dplasma_dump_c(const dplasma_t *d,
             else
                 output(", ");
         }
+        cpt = 0;
         for( i = 0; i < MAX_PARAM_COUNT; i++) {
             if( d->inout[i] != NULL &&
                 d->inout[i]->sym_type & SYM_OUT ) {
-                output("    e%s->data[%d] = %s;\n", d->name, i, d->inout[i]->name);
+                output("    e%s->data[%d] = %s;\n", d->name, cpt, d->inout[i]->name);
+                cpt++;
             }
         }
         output("  }\n");
