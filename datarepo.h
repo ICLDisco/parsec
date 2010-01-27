@@ -3,13 +3,13 @@
 
 #include "atomic.h"
 
-static  void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
+static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {
     while( !dplasma_atomic_cas( atomic_lock, 0, 1) )
         /* nothing */;
 }
 
-static  void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
+static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
 {
     *atomic_lock = 0;
 }
@@ -32,7 +32,7 @@ typedef struct data_repo {
     data_repo_head_t  heads[1];
 } data_repo_t;
 
-static  data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, unsigned int nbdata)
+static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, unsigned int nbdata)
 {
     data_repo_t *res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t) * (hashsize-1));
     res->nbentries = hashsize;
@@ -40,7 +40,7 @@ static  data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, unsign
     return res;
 }
 
-static  data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key, int create)
+static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key, int create)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
@@ -64,7 +64,7 @@ static  data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int ke
     return e;
 }
 
-static  void data_repo_unref_entry(data_repo_t *repo, long int key)
+static inline void data_repo_unref_entry(data_repo_t *repo, long int key)
 {
     data_repo_entry_t *e, *p;
     int h = key % repo->nbentries;
@@ -89,7 +89,7 @@ static  void data_repo_unref_entry(data_repo_t *repo, long int key)
     data_repo_atomic_unlock(&repo->heads[h].lock);
 }
 
-static  void data_repo_destroy_nothreadsafe(data_repo_t *repo)
+static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 {
     data_repo_entry_t *e, *n;
     int i;
