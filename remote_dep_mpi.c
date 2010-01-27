@@ -154,11 +154,11 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 #include <pthread.h>
 #include <errno.h>
 
-#define YIELD_TIME 5000
+#define YIELD_TIME 50000
 
 pthread_t dep_thread_id;
-pthread_cond_t dep_msg_cond;
-pthread_mutex_t dep_msg_mutex;
+pthread_cond_t dep_msg_cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t dep_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 typedef enum {WANT_ZERO, WANT_SEND, WANT_RECV, WANT_FINI} dep_signal_reason_t;
 dep_signal_reason_t dep_signal_reason = WANT_ZERO;
 
@@ -194,13 +194,19 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
             case WANT_FINI:
                 goto fini;
             case WANT_ZERO:                
-                ts.tv_nsec += YIELD_TIME;
-                ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
-                assert((0 == ret) || (ETIMEDOUT == ret));
                 if(enable_progress)
                 {                    
                     __remote_dep_progress(&context->execution_units[0]);
                 }
+                ts.tv_nsec += YIELD_TIME;
+                while(ts.tv_nsec > 1000000000)
+                {
+                    ts.tv_sec += 1;
+                    ts.tv_nsec -= 1000000000;
+                }
+                ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
+                printf("RET %d, TS: %ld\n", ret, ts.tv_nsec);
+                assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
         dep_signal_reason = WANT_ZERO;
@@ -239,6 +245,7 @@ static int remote_dep_thread_fini(dplasma_context_t* context)
     pthread_mutex_lock(&dep_msg_mutex);
     
     dep_signal_reason = WANT_FINI;
+    pthread_cond_signal(&dep_msg_cond);
     
     pthread_mutex_unlock(&dep_msg_mutex);
     
@@ -265,12 +272,19 @@ static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
 {
     pthread_mutex_lock(&dep_msg_mutex);
  
-    enable_progress = 1;
+/*    enable_progress = 1;*/
     
     dep_signal_reason = WANT_RECV;
     dep_recv_eu_context = eu_context;
 
     pthread_cond_signal(&dep_msg_cond);
+    
+    while(WANT_RECV == dep_signal_reason)
+    {
+        int ret;
+        ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
+        assert(0 == ret);
+    }
     pthread_mutex_unlock(&dep_msg_mutex);
     return 0;
 }
