@@ -63,7 +63,7 @@ static int check_solution(int, int, double*, int, double*, double*, int, double)
 /* timing profiling etc */
 double time_elapsed, GFLOPS;
 
-double get_cur_time(){
+static inline double get_cur_time(){
     double t;
     struct timeval tv;
     gettimeofday(&tv,NULL);
