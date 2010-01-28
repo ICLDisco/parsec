@@ -7,7 +7,7 @@
 #ifndef ATOMIC_H_HAS_BEEN_INCLUDED
 #define ATOMIC_H_HAS_BEEN_INCLUDED
 
-#if (defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) || defined(__ICC)
+#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4)  || defined(__ICC)
 #include "atomic-gcc.h"
 #elif defined(MAC_OS_X)
 #include "atomic-macosx.h"
