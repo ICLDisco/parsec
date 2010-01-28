@@ -197,10 +197,12 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
         {                
             case WANT_SEND:
                 dep_ret = __remote_dep_send(dep_send_context, dep_send_rank);
-                break;
+                dep_signal_reason = WANT_ZERO;
+                goto sleep;
             case WANT_RECV:
                 dep_ret = __remote_dep_progress(dep_recv_eu_context);
-                break;
+                dep_signal_reason = WANT_ZERO;
+                goto sleep;
             case WANT_FINI:
                 goto fini;
             case WANT_ZERO:
@@ -208,12 +210,12 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                 {
                     __remote_dep_progress(&context->execution_units[0]);
                 }
+sleep:
                 update_ts(&ts, YIELD_TIME);
                 ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
                 assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
-        dep_signal_reason = WANT_ZERO;
     } while(1);
 fini:
     pthread_mutex_unlock(&dep_msg_mutex);
@@ -245,10 +247,13 @@ static int remote_dep_thread_fini(dplasma_context_t* context)
     dplasma_context_t *ret;
     
     pthread_mutex_lock(&dep_seq_mutex);
+    pthread_mutex_lock(&dep_msg_mutex);
     
     dep_signal_reason = WANT_FINI;
+    
     pthread_cond_signal(&dep_msg_cond);
-        
+    pthread_mutex_unlock(&dep_msg_mutex);
+    
     pthread_join(dep_thread_id, (void**) &ret);
     assert(ret == context);
     
@@ -261,7 +266,8 @@ static int remote_dep_thread_send(const dplasma_execution_context_t* task, int r
 {
     int ret; 
     
-    pthread_mutex_lock(&dep_seq_mutex); 
+    pthread_mutex_lock(&dep_seq_mutex);
+    pthread_mutex_lock(&dep_msg_mutex);
     
     dep_signal_reason = WANT_SEND;
     dep_ret = -1;
@@ -269,7 +275,8 @@ static int remote_dep_thread_send(const dplasma_execution_context_t* task, int r
     dep_send_rank = rank;
     
     pthread_cond_signal(&dep_msg_cond);
-
+    pthread_mutex_unlock(&dep_msg_mutex);
+    
     while(-1 == dep_ret);
     ret = dep_ret;
     
@@ -282,6 +289,7 @@ static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
     int ret;
 
     pthread_mutex_lock(&dep_seq_mutex);
+    pthread_mutex_lock(&dep_msg_mutex);
     
 /*    enable_progress = 1;*/
     
@@ -290,6 +298,7 @@ static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
     dep_recv_eu_context = eu_context;
 
     pthread_cond_signal(&dep_msg_cond);
+    pthread_mutex_unlock(&dep_msg_mutex);
     
     while(-1 == dep_ret);
     ret = dep_ret;
