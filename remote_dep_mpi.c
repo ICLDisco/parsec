@@ -190,6 +190,7 @@ dplasma_execution_unit_t *dep_recv_eu_context;
 static void* remote_dep_thread_main(dplasma_context_t* context)
 {
     int ret;
+    int keep_probing = 1;
     struct timespec ts;
     
     np = __remote_dep_mpi_init(context);
@@ -202,27 +203,25 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
         {                
             case WANT_SEND:
                 dep_ret = __remote_dep_send(dep_send_context, dep_send_rank);
-                dep_signal_reason = WANT_ZERO;
-                goto sleep;
+                break;
             case WANT_RECV:
                 dep_ret = __remote_dep_progress(dep_recv_eu_context);
-                dep_signal_reason = WANT_ZERO;
-                goto sleep;
+                break;
             case WANT_FINI:
-                goto fini;
+                keep_probing = 0;
+                break;
             case WANT_ZERO:
                 if(enable_self_progress)
                 {
                     __remote_dep_progress(&context->execution_units[0]);
                 }
-sleep:
                 update_ts(&ts, YIELD_TIME);
                 ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
                 assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
-    } while(1);
-fini:
+        dep_signal_reason = WANT_ZERO;
+    } while(keep_probing);
     pthread_mutex_unlock(&dep_msg_mutex);
 
     __remote_dep_mpi_fini(context);    
