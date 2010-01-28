@@ -25,12 +25,25 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 
+
+#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
+
 static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
 {
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
+#else
+static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
+                                          uint64_t old_value,
+                                          uint64_t new_value )
+{
+    printf("Use of 64b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 set\n \n");
+    exit(-2);
+    return -1;
+}
+#endif
 
 #define DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B
 static inline uint32_t dplasma_atomic_inc_32b( volatile uint32_t *location )

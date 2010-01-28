@@ -141,7 +141,12 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
     if(flag)
     {
         DEBUG(("%s -> local\tFROM REMOTE process rank %d\n", dplasma_service_to_string(&dep_buff, tmp, 128), status.MPI_SOURCE));
-        dep_buff.function->release_deps(eu_context, &dep_buff, 0);
+        fprintf(stderr, 
+                "TODO: currently, I'm calling the last parameter with NULL (%s:%d),\n"
+                "it MUST be an array of pointers of output variables produced by this task\n"
+                "-- expect segfault in the next call\n"
+                "-- Thomas\n", __FILE__, __LINE__);
+        dep_buff.function->release_deps(eu_context, &dep_buff, 0, NULL);
         MPI_Start(&dep_req);
         return 1;
     }

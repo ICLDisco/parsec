@@ -12,8 +12,8 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
     __asm__ __volatile__ (
                           "lock; cmpxchgl %3,%4   \n\t"
                           "sete     %0      \n\t"
-                          : "=qm" (ret), "=a" (oldval), "=m" (*addr)
-                          : "q"(newval), "m"(*location), "1"(old_value)
+                          : "=qm" (ret), "=a" (old_value), "=m" (*location)
+                          : "q"(new_value), "m"(*location), "1"(old_value)
                           : "memory", "cc");
 
     return (int)ret;
@@ -41,6 +41,9 @@ static inline int dplasma_atomic_band_32b( volatile uint32_t* location,
     return old_value & value;
 }
 
+#define ll_low(x)	*(((unsigned int *)&(x)) + 0)
+#define ll_high(x)	*(((unsigned int *)&(x)) + 1)
+
 static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
@@ -54,12 +57,12 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
     __asm__ __volatile__(
                     "push %%ebx            \n\t"
                     "movl %3, %%ebx        \n\t"
-                    SMPLOCK "cmpxchg8b (%4)  \n\t"
+                    "lock cmpxchg8b (%4)  \n\t"
                     "sete %0               \n\t"
                     "pop %%ebx             \n\t"
-                    : "=qm"(ret),"=a"(ll_low(oldval)), "=d"(ll_high(oldval))
-                    : "D"(addr), "1"(ll_low(oldval)), "2"(ll_high(oldval)),
-                      "r"(ll_low(newval)), "c"(ll_high(newval))
+                    : "=qm"(ret),"=a"(ll_low(old_value)), "=d"(ll_high(old_value))
+                    : "D"(location), "1"(ll_low(old_value)), "2"(ll_high(old_value)),
+                      "r"(ll_low(new_value)), "c"(ll_high(new_value))
                     : "cc", "memory", "ebx");
     return (int) ret;
 }

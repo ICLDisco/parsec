@@ -33,7 +33,8 @@ int uplo;
 
 int check_factorization(int, double*, double*, int, int , double);
 int check_solution(int, int, double*, int, double*, double*, int, double);
-double get_cur_time(){
+
+static inline double get_cur_time(){
     double t;
     struct timeval tv;
     gettimeofday(&tv,NULL);
