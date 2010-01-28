@@ -212,7 +212,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                 }
 sleep:
                 update_ts(&ts, YIELD_TIME);
-                ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
+                ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
                 assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
@@ -291,7 +291,7 @@ static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
     pthread_mutex_lock(&dep_seq_mutex);
     pthread_mutex_lock(&dep_msg_mutex);
     
-/*    enable_progress = 1;*/
+    enable_progress = 1;
     
     dep_signal_reason = WANT_RECV;
     dep_ret = -1;
