@@ -178,7 +178,7 @@ typedef enum {WANT_ZERO, WANT_SEND, WANT_RECV, WANT_FINI} dep_signal_reason_t;
 volatile dep_signal_reason_t dep_signal_reason = WANT_ZERO;
 volatile int dep_ret;
 
-volatile int enable_progress = 0;
+volatile int enable_self_progress = 0;
 volatile int np = 0;
 
 dplasma_execution_context_t *dep_send_context;
@@ -211,7 +211,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
             case WANT_FINI:
                 goto fini;
             case WANT_ZERO:
-                if(enable_progress)
+                if(enable_self_progress)
                 {
                     __remote_dep_progress(&context->execution_units[0]);
                 }
@@ -296,7 +296,7 @@ static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context)
     pthread_mutex_lock(&dep_seq_mutex);
     pthread_mutex_lock(&dep_msg_mutex);
     
-    enable_progress = 1;
+    enable_self_progress = 1;
     
     dep_signal_reason = WANT_RECV;
     dep_ret = -1;
