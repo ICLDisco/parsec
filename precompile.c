@@ -815,8 +815,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     }
 #else
                     {
-                        output("%s    } else if (propagate_remote_dep) {\n"
-                               "%s      DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
+                        output("%s    } else  {\n"
+                               "%s      DEBUG((\"This build does not support distributed runs, but some of your predicates didn't verified\\n\"));\n"
                                "%s    }\n", 
                                spaces, spaces, spaces);
                     }
