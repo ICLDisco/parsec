@@ -88,7 +88,7 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     int i;
     
-    context->nb_nodes = __remote_dep_init(context);
+    context->nb_nodes = (int32_t) __remote_dep_init(context);
     if(context->nb_nodes > 1)
     {
         context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(char) - 1) / sizeof(char);

@@ -181,7 +181,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
                                                             nb_cores * sizeof(dplasma_execution_unit_t));
     int i;
 
-    context->nb_cores = (int16_t)nb_cores;
+    context->nb_cores = (int32_t) nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
 
@@ -248,7 +248,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
                 if( eu->eu_id != j ) {
                     eu->eu_steal_from[k] = (int8_t)j;
                     k++;
-                }
+0                }
             }
 #endif
         }

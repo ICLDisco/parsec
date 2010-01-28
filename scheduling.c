@@ -150,7 +150,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         /* Force the kernel to bind me to the expected core */
         __do_some_computations();
 
-        /* Wait until all threads are done binding themselves */
+        /* Wait until all threads are done binding themselves 
+         * (see dplasma_init) */
         dplasma_barrier_wait( &(master_context->barrier) );
         my_barrier_counter = 1;
     }
