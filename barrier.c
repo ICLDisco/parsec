@@ -45,10 +45,6 @@ int dplasma_barrier_wait(dplasma_barrier_t* barrier)
         if( generation != barrier->generation ) {
             break;
         }
-        pthread_mutex_lock( &(barrier->mutex) );
-        if( generation != barrier->generation ) {
-            break;
-        }
     }
     pthread_mutex_unlock( &(barrier->mutex) );
     return 0;
