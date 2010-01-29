@@ -13,8 +13,11 @@
 #include <errno.h>
 #include "scheduling.h"
 #include "dequeue.h"
-#include "remote_dep.h"
 #include "profiling.h"
+
+#ifdef DISTRIBUTED
+#include "remote_dep.h"
+#endif
 
 static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
@@ -129,7 +132,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     dplasma_context_t* master_context = eu_context->master_context;
     int32_t my_barrier_counter = master_context->__dplasma_internal_finalization_counter;
     dplasma_execution_context_t* exec_context;
-    int nbiterations;
+    int nbiterations = 0;
 
     if( 0 != eu_context->eu_id ) {
 #ifdef HAVE_CPU_SET_T
@@ -150,7 +153,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         /* Force the kernel to bind me to the expected core */
         __do_some_computations();
 
-        /* Wait until all threads are done binding themselves */
+        /* Wait until all threads are done binding themselves 
+         * (see dplasma_init) */
         dplasma_barrier_wait( &(master_context->barrier) );
         my_barrier_counter = 1;
     }
@@ -169,7 +173,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     }
 
     found_local = miss_local = found_victim = miss_victim = 0;
-    nbiterations = 0;
 
     while( !all_tasks_done(master_context) ) {
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -289,7 +292,9 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
     dplasma_execution_context_t new_context;
     int i, j, k, value;    
 
+#ifdef DISTRIBUTED
     dplasma_remote_dep_reset_forwarded(eu_context);
+#endif
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
         param = function->inout[i];

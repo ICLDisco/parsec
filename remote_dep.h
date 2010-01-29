@@ -43,7 +43,7 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 /* Compute the flat rank of the node hosting exec_context in the process grid */
 int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                          const dplasma_execution_context_t* origin,
-                                         dplasma_execution_context_t* exec_context);
+                                         const dplasma_execution_context_t* exec_context);
 #if defined(ALLOW_REMOTE_DEP)
 
 /* Poll for remote completion of tasks that would enable some work locally */

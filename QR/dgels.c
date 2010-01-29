@@ -49,7 +49,7 @@ PLASMA_desc descT;
     double *work, *tau;
 #endif
 
-double get_cur_time(){
+static inline double get_cur_time(){
     double t;
     struct timeval tv;
     gettimeofday(&tv,NULL);

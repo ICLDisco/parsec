@@ -5,7 +5,7 @@
  */
 
 
-#if defined(USE_MPI)
+#ifdef USE_MPI
 #include "mpi.h"
 #endif  /* defined(USE_MPI) */
 #include <getopt.h>
@@ -13,6 +13,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <string.h>
 
 #include <cblas.h>
@@ -41,6 +47,9 @@ int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
 
+
+/* int asprintf(char **strp, const char *fmt, ...);*/
+
 static void dague_fini(dplasma_context_t* context);
 static void dague_init(int argc, char **argv);
 static void cleanup_exit(int ret);
@@ -54,7 +63,7 @@ static int check_solution(int, int, double*, int, double*, double*, int, double)
 /* timing profiling etc */
 double time_elapsed, GFLOPS;
 
-double get_cur_time(){
+static inline double get_cur_time(){
     double t;
     struct timeval tv;
     gettimeofday(&tv,NULL);
@@ -92,47 +101,47 @@ int main(int argc, char ** argv){
     int req_count;
 #endif
     dplasma_context_t* dplasma;
-
+    
     dague_init(argc, argv);
     
     /* Matrix creation, tiling and distribution */
-    if(rank == 0)
-    {
-        A2   = (double *)malloc(LDA*N*sizeof(double));
+    if(rank == rank)
+        {
+            A2   = (double *)malloc(LDA*N*sizeof(double));
 #if defined(DO_THE_NASTY_VALIDATIONS)
-        NminusOne = N-1;
-        LDBxNRHS = LDB*NRHS;
-        A1   = (double *)malloc(LDA*N*sizeof(double));
-        B1   = (double *)malloc(LDBxNRHS*sizeof(double));
-        B2   = (double *)malloc(LDBxNRHS*sizeof(double));
-        WORK = (double *)malloc(2*LDA*sizeof(double));
-        D    = (double *)malloc(LDA*sizeof(double));
-        
-        /* generating a random matrix */
-        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
+            NminusOne = N-1;
+            LDBxNRHS = LDB*NRHS;
+            A1   = (double *)malloc(LDA*N*sizeof(double));
+            B1   = (double *)malloc(LDBxNRHS*sizeof(double));
+            B2   = (double *)malloc(LDBxNRHS*sizeof(double));
+            WORK = (double *)malloc(2*LDA*sizeof(double));
+            D    = (double *)malloc(LDA*sizeof(double));
+            
+            /* generating a random matrix */
+            generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
 #else        
-        /* generating a random matrix */
-        int i, j;
-        for ( i = 0; i < N; i++)
-            for ( j = i; j < N; j++) {
-                A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
+            /* generating a random matrix */
+            int i, j;
+            for ( i = 0; i < N; i++)
+                for ( j = i; j < N; j++) {
+                    A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
+                }
+            for ( i = 0; i < N; i++){
+                A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
             }
-        for ( i = 0; i < N; i++){
-            A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
-        }
 #endif
-        tiling(&uplo, N, A2, LDA, &local_desc);
-#ifdef USE_MPI
-        dplasma_desc_bcast(&local_desc, &descA);
-        TIME_START();
-        distribute_data(&local_desc, &descA, &requests, &req_count);
-    }
+            tiling(&uplo, N, A2, LDA, &local_desc);
+#ifdef trickUSE_MPI
+            dplasma_desc_bcast(&local_desc, &descA);
+            TIME_START();
+            distribute_data(&local_desc, &descA, &requests, &req_count);
+        }
     else
-    { /* prepare data for block reception  */
-        TIME_START();
-        dplasma_desc_bcast(NULL, &descA);
-        distribute_data(NULL, &descA, &requests, &req_count);
-    }
+        { /* prepare data for block reception  */
+            TIME_START();
+            dplasma_desc_bcast(NULL, &descA);
+            distribute_data(NULL, &descA, &requests, &req_count);
+        }
     /* wait for data distribution to finish before continuing */
     is_data_distributed(&descA, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", rank));    
@@ -143,22 +152,56 @@ int main(int argc, char ** argv){
     data_dump(&descA);
 # endif
 #else
-        dplasma_desc_init(&local_desc, &descA);
-    }
+            dplasma_desc_init(&local_desc, &descA);
+        }
 #endif
-
+    
     TIME_START();
     dplasma = setup_dplasma();
     
     if(rank == 0)
-    {
-        dplasma_execution_context_t exec_context;
-        
+        {
+            dplasma_execution_context_t exec_context;
+            
+            
+            
         /* I know what I'm doing ;) */
-        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-        dplasma_set_initial_execution_context(&exec_context);
-        dplasma_schedule(dplasma, &exec_context);
-    }
+            exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+            dplasma_set_initial_execution_context(&exec_context);
+            
+#ifdef DPLASMA_WARM_UP
+            dplasma_schedule(dplasma, &exec_context);
+            
+            /* Now that everything is created start the timer */
+            time_elapsed = get_cur_time();
+            
+            dplasma_progress(dplasma);
+            time_elapsed = get_cur_time() - time_elapsed;
+            printf("Warming up: DPOTRF %d %d %d %f %f\n", cores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
+#endif  /* DPLASMA_WARM_UP */
+            
+            
+            dplasma_schedule(dplasma, &exec_context);
+            
+            /* warm the cache for the first tile */
+            {
+                int i, j;
+                double useless = 0.0;
+                
+                for( i = 0; i < descA.nb; i++ ) {
+                    for( j = 0; j < descA.nb; j++ ) {
+                        useless += ((double*)descA.mat)[i*descA.nb+j];
+                    }
+                }
+                /*printf( "Useless value %f\n", useless );*/
+            }
+            
+        }
+
+#ifdef DPLASMA_WARM_UP
+    dplasma_progress(dplasma);
+#endif
+
     TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
 
     TIME_START();
@@ -166,10 +209,12 @@ int main(int argc, char ** argv){
     dplasma_progress(dplasma);
     TIME_PRINT(("executing kernels on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
-#ifdef USE_MPI    
+#ifdef trickUSE_MPI    
     TIME_START();
     gather_data(&local_desc, &descA);
     TIME_PRINT(("data reduction on rank %d (to rank 0)\n", rank));
+#endif
+#ifdef USE_MPI
     MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
 

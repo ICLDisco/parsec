@@ -32,41 +32,46 @@ remote_dep.o: $(wildcard remote_dep*.c)
 MPI_OBJECTS += remote_dep.o
 
 dplasma.a: dplasma.a($(LIBRARY_OBJECTS))
+dplasma-single.a: dplasma-single.a($(patsubst %.o, %-single.o, $(LIBRARY_OBJECTS)))
 
-dpc: $(COMPILER_OBJECTS) dpc.o dplasma.a
+
+dpc: $(patsubst %.o, %-single.o, $(COMPILER_OBJECTS) dpc.o) dplasma-single.a
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-grapher: $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS) dplasma.a
+grapher: $(patsubst %.o, %-single.o, $(GRAPHER_OBJECTS) $(COMPILER_OBJECTS)) dplasma-single.a
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-tools/buildDAG: $(COMPILER_OBJECTS) $(BUILDDAG_OBJECTS) dplasma.a
+tools/buildDAG: $(patsubst %.o, %-single.o, $(COMPILER_OBJECTS) $(BUILDDAG_OBJECTS)) dplasma-single.a
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 cholesky/cholesky-norun.o: cholesky/cholesky_ll.c
-	$(CC) $(CFLAGS) -UDPLASMA_EXECUTE -c $^ -o $@
+	$(CC) $(CFLAGS) -UDUSE_MPI -UDPLASMA_EXECUTE -c $^ -o $@
 
-cholesky/dposv_ll:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_ll.o dplasma.a
+cholesky/dposv_ll: $(patsubst %.o, %-single.o, $(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_ll.o) dplasma-single.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-cholesky/dposv_rl:$(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_rl.o dplasma.a
+cholesky/dposv_rl: $(patsubst %.o, %-single.o, $(OBJECTS) $(CHOLESKY_OBJECTS) cholesky/cholesky_rl.o) dplasma-single.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-cholesky/timeenumerator:$(OBJECTS) $(ENUMERATOR_OBJECTS) dplasma.a
+cholesky/timeenumerator: $(patsubst %.o, %-single.o, $(OBJECTS) $(ENUMERATOR_OBJECTS)) dplasma-single.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
-QR/dgels: $(OBJECTS) $(QR_OBJECTS) dplasma.a
+QR/dgels: $(patsubst %.o, %-single.o, $(OBJECTS) $(QR_OBJECTS)) dplasma-single.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
 
 DPC = $(realpath dpc)
 
-ifneq "$(strip $(findstring -DUSE_MPI , $(CFLAGS)))" ""
-CLINKER = $(MPICLINKER)
-LINKER = $(MPILINKER)
-
+ifeq "$(strip $(findstring -DUSE_MPI , $(CFLAGS)))" ""
+MPICLINKER = $(CLINKER)
+MPILINKER = $(LINKER)
+else
 $(MPI_OBJECTS): %.o: %.c $(wildcard *.h) $(wildcard $(dir $(realpath %.o))/*.h) make.inc
 	$(MPICC) -o $@ $(CFLAGS) -c $<
 endif
+
+%-single.o: %.c $(wildcard *.h) $(wildcard $(dir $(realpath %.o))/*.h) make.inc
+	$(CC) -o $@ $(subst -DUSE_MPI,-UDUSE_MPI, $(CFLAGS)) -c $<
 
 %.o: %.c $(wildcard *.h) $(wildcard $(dir $(realpath %.o))/*.h) make.inc
 	$(CC) -o $@ $(CFLAGS) -c $<

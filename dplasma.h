@@ -68,6 +68,7 @@ struct dplasma_dependencies_t {
 
 typedef struct dplasma_execution_context_t dplasma_execution_context_t;
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*);
+typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, void **);
 
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
@@ -84,20 +85,14 @@ struct dplasma_t {
     param_t*                inout[MAX_PARAM_COUNT];
     dplasma_dependencies_t* deps;
     dplasma_hook_t*         hook;
+    dplasma_release_deps_t* release_deps;
     char*                   body;
 };
-
-typedef struct data_assignment_t {
-    unsigned int            local_data;
-    void                   *pointer;
-    unsigned int            refcount;        /**< unused if local_data = 1 */
-} data_assignment_t;
 
 struct dplasma_execution_context_t {
     dplasma_list_item_t list_item;
     dplasma_t*   function;
     assignment_t locals[MAX_LOCAL_COUNT];
-    data_assignment_t data[MAX_LOCAL_COUNT]; /**< data[i] holds the pointer defined by params[i] in function */
 };
 
 /**

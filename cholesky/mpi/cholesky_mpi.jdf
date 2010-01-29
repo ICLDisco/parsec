@@ -13,7 +13,7 @@ extern DPLASMA_desc descA;
 extern PLASMA_desc local_desc;
 int PLASMA_INFO;
 
-#ifdef USE_MPI
+#ifdef trickUSE_MPI
 #define A(m,n) dplasma_get_tile(&descA, m, n)
 #else
 #define A(m,n) &(((double*)local_desc.mat)[local_desc.bsiz*(m)+local_desc.bsiz*local_desc.lmt*(n)])
@@ -58,7 +58,7 @@ BODY
 #ifdef DPLASMA_EXECUTE
     CORE_dpotrf( PlasmaLower,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                 A(k, k), NB, /*A.nb,*/
+                 T /*A(k, k)*/, NB, /*A.nb,*/
                  &PLASMA_INFO); 
 #endif  /* DPLASMA_EXECUTE */
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
@@ -89,8 +89,8 @@ BODY
     CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A(k, n), NB, /*A.nb,*/
-                1.0, A(k, k), NB /*A.nb*/);
+                -1.0, T /*A(k, n)*/, NB, /*A.nb,*/
+                1.0, A /*A(k, k)*/, NB /*A.nb*/);
 #endif  /* DPLASMA_EXECUTE */
 
     OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
@@ -126,9 +126,9 @@ BODY
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A(m, n), NB, /*A.nb,*/
-                A(k, n), NB, /*A.nb,*/
-                1.0, A(m, k), NB /*A.nb*/);
+                -1.0, B /*A(m, n)*/, NB, /*A.nb,*/
+                A /*A(k, n)*/, NB, /*A.nb,*/
+                1.0, C /*A(m, k)*/, NB /*A.nb*/);
 #endif  /* DPLASMA_EXECUTE */
 
     OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
@@ -166,8 +166,8 @@ BODY
     CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                1.0, A(k, k), NB, /*A.nb,*/
-                A(m, k), NB /*A.nb*/);
+                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                C /*A(m, k)*/, NB /*A.nb*/);
 #endif  /* DPLASMA_EXECUTE */
     OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
              "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",

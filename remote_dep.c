@@ -80,15 +80,15 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
 #endif
 
 
+#ifdef DISTRIBUTED
 /* Note for Pierre: this is not MPI specific and should not go to 
  * remote_dep_mpi.c. I fixed the warnings and legitimate concerns about dirty 
  * tricks with nb_nodes another way */
-
 int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     int i;
     
-    context->nb_nodes = __remote_dep_init(context);
+    context->nb_nodes = (int32_t) __remote_dep_init(context);
     if(context->nb_nodes > 1)
     {
         context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(char) - 1) / sizeof(char);
@@ -119,7 +119,7 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
     }
     return __remote_dep_fini(context);
 }
-
+#endif
 
 #define HEAVY_DEBUG
 #if defined(_DEBUG) && defined(HEAVY_DEBUG)
@@ -194,7 +194,7 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 
 int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
                                          const dplasma_execution_context_t* origin,
-                                         dplasma_execution_context_t* exec_context)
+                                         const dplasma_execution_context_t* exec_context)
 {
     int i, pred_index;
     int rank;

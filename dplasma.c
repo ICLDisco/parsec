@@ -21,7 +21,9 @@
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
+#ifdef DISTRIBUTED
 #include "remote_dep.h"
+#endif
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -181,7 +183,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
                                                             nb_cores * sizeof(dplasma_execution_unit_t));
     int i;
 
-    context->nb_cores = (int16_t)nb_cores;
+    context->nb_cores = (int32_t) nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
 
@@ -218,7 +220,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
         eu->eu_steal_from = (int8_t*)malloc(nb_cores * sizeof(int8_t));
         {
-            int j, k;
+            int j;
 #if defined(ON_ZOOT)
             int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
             int8_t placement[] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -243,12 +245,13 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
             }
             eu->eu_steal_from[0] = distance[eu->eu_id];
 #else
+            int k;
             eu->eu_steal_from[0] = (int8_t)eu->eu_id;
             for( j = 0, k = 1; j < nb_cores; j++ ) {
                 if( eu->eu_id != j ) {
                     eu->eu_steal_from[k] = (int8_t)j;
                     k++;
-                }
+0                }
             }
 #endif
         }
@@ -290,11 +293,14 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* HAVE_CPU_SET_T */
 
-    dplasma_remote_dep_init(context);
-
     /* Wait until all threads are done binding themselves */
     dplasma_barrier_wait( &(context->barrier) );
     context->__dplasma_internal_finalization_counter++;
+
+#ifdef DISTRIBUTED
+    /* Wait until threads are bound before introducing progress threads */
+    dplasma_remote_dep_init(context);
+#endif
 
     return context;
 }
@@ -327,8 +333,9 @@ int dplasma_fini( dplasma_context_t** pcontext )
         context->execution_units[i].eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
-
+#ifdef DISTRIBUTED
     dplasma_remote_dep_fini( context );
+#endif
     
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( context );
@@ -783,13 +790,12 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
     last_deps = NULL;
 
     for( i = 0; i < function->nb_locals; i++ ) {
-        int rmin, rmax;
-        rmin = rmax = -1;
     restart_validation:
         rc = dplasma_symbol_validate_value( function->locals[i],
                                             (const expr_t**)function->preds,
                                             exec_context->locals );
         if( 0 != rc ) {
+#ifdef DISTRIBUTED
             /* This is a valid value for this parameter, but it is executed 
              * on a remote resource according to the data mapping 
              */
@@ -800,6 +806,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    dplasma_remote_dep_activate(eu_context, origin, origin_param, exec_context, dest_param);
                 }
             }
+#endif
             /* This is not a valid value for this parameter on this host. 
              * Try the next one */
         pick_next_value:
