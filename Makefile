@@ -84,8 +84,8 @@ endif
 
 lex.yy.o: lex.yy.c dplasma.tab.h $(wildcard *.h)
 	$(CC) -o lex.yy.o $(CFLAGS) -c lex.yy.c
-	
-lex.yy.c: dplasma.l
+
+lex.yy.c: dplasma.l dplasma.tab.h
 	$(LEX) dplasma.l
 
 
@@ -93,4 +93,4 @@ clean:
 	rm -f dplasma.a $(CLEAN_OBJECTS) $(PARSER_OBJECTS) $(CHOLESKY_OBJECTS) $(BUILDDAG_OBJECTS) \
            $(LIBRARY_OBJECTS) $(GRAPHER_OBJECTS) $(TARGETS) $(COMPILER_OBJECTS) \
            $(QR_OBJECTS) cholesky/cholesky-norun.o dpc.o lex.yy.c y.tab.c y.tab.h \
-	   cholesky/cholesky_ll.o cholesky/cholesky_rl.o
+	   cholesky/cholesky_ll.o cholesky/cholesky_rl.o dplasma.tab.h lex.yy.c
