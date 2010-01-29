@@ -39,7 +39,7 @@ for k = 0 to TILES-1 do
             mgc9 = A(k,n)
             A(k,n) = mgc0
             mgc10 = A(m,n)
-!            A(m,n) = mgc0
+            A(m,n) = mgc0
         endfor
     endfor
 endfor
