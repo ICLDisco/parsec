@@ -82,6 +82,24 @@ static const char *colors[COLORS_SIZE] = {
   "#FFFF00" 
 };
 
+#define SHAPES_SIZE 14
+static char *shapes[SHAPES_SIZE] = {
+    "polygon",
+    "ellipse",
+    "egg",
+    "diamond",
+    "trapezium",
+    "parallelogram",
+    "hexagon",
+    "octagon",
+    "doublecircle",
+    "tripleoctagon",
+    "invtrapezium",
+    "box",
+    "triangle",
+    "invtriangle"
+};
+
 typedef struct preamble_list {
     const char *language;
     const char *code;
@@ -864,6 +882,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             int init_func_body_size)
 {
     static char dp_txt[DPLASMA_SIZE];
+    static int next_shape_idx = 0;
     int i, j, k, cpt;
     int p = 0;
 
@@ -1011,6 +1030,18 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "  TAKE_TIME(context, %s_end_key);\n"
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
 
+        output( "#if defined(DPLASMA_GRAPHER)\n"
+                "{\n"
+                "  char tmp[128];\n"
+                "  dplasma_service_to_string(exec_context, tmp, 128);\n"
+                "  fprintf(__dplasma_graph_file,\n"
+                "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\"];\\n\",\n"
+                "          tmp, colors[context->eu_id], tmp);\n"
+                "  fflush(__dplasma_graph_file);\n"
+                "}\n"
+                "#endif /* defined(DPLASMA_GRAPHER) */\n",
+                shapes[next_shape_idx++ % SHAPES_SIZE]);
+
         cpt = 0;
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_OUT ) {
@@ -1154,6 +1185,18 @@ int dplasma_dump_all_c(char *filename)
             "#include <string.h>\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
+            "#if defined(DPLASMA_GRAPHER)\n"
+            "#include <stdio.h>\n"
+            "extern FILE *__dplasma_graph_file;\n"
+            "#define COLORS_SIZE %d\n"
+            "static char *colors[%d] = {\n",
+            COLORS_SIZE, COLORS_SIZE);
+
+    for(i = 0; i < COLORS_SIZE; i++) {
+        output("  \"%s\"%s", colors[i], i==COLORS_SIZE-1 ? "\n};\n" : ",\n");
+    }
+
+    output( "#endif /* defined(DPLASMA_GRAPHER) */\n"
             "#ifdef DPLASMA_PROFILING\n"
             "#include \"profiling.h\"\n");
 

@@ -25,6 +25,10 @@
 #include "remote_dep.h"
 #endif
 
+#ifdef DPLASMA_GRAPHER
+FILE *__dplasma_graph_file;
+#endif
+
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
 
@@ -190,9 +194,11 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
-#ifdef DPLASMA_GENERATE_DOT
-    printf("digraph G {\n");
-#endif  /* DPLASMA_GENERATE_DOT */
+#ifdef DPLASMA_GRAPHER
+    __dplasma_graph_file = fopen("dplasma.dot", "w");
+    fprintf(__dplasma_graph_file, "digraph G {\n");
+    fflush(__dplasma_graph_file);
+#endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( context, 4096 );
 #endif  /* DPLASMA_PROFILING */
@@ -313,9 +319,10 @@ int dplasma_fini( dplasma_context_t** pcontext )
     dplasma_context_t* context = *pcontext;
     int i;
 
-#ifdef DPLASMA_GENERATE_DOT
-    printf("}\n");
-#endif  /* DPLASMA_GENERATE_DOT */
+#ifdef DPLASMA_GRAPHER
+    fprintf(__dplasma_graph_file, "}\n");
+    fflush(__dplasma_graph_file);
+#endif  /* DPLASMA_GRAPHER */
 
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
@@ -720,14 +727,16 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
 
     updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
 
-#ifdef DPLASMA_GENERATE_DOT
+#ifdef DPLASMA_GRAPHER
     {
         char tmp[128];
-        printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
-               origin_param->name, dest_param->name, (updated_deps == mask ? "#00FF00" : "#FF0000"),
-               ((updated_deps & function->dependencies_mask) == function->dependencies_mask) ? "solid" : "dashed");
+        fprintf(__dplasma_graph_file, 
+                "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                origin_param->name, dest_param->name, (updated_deps == mask ? "#00FF00" : "#FF0000"),
+                ((updated_deps & function->dependencies_mask) == function->dependencies_mask) ? "solid" : "dashed");
+        fflush(__dplasma_graph_file);
     }
-#endif  /* DPLASMA_GENERATE_DOT */
+#endif  /* DPLASMA_GRAPHER */
 
     if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
 
@@ -893,9 +902,9 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     actual_loop = function->nb_locals - 1;
     while(1) {
-#ifdef DPLASMA_GENERATE_DOT
+#ifdef DPLASMA_GRAPHER
         int first_encounter = 0;
-#endif  /* DPLASMA_GENERATE_DOT */
+#endif  /* DPLASMA_GRAPHER */
         int updated_deps, mask;
 
         if( 0 != dplasma_is_valid(exec_context) ) {
@@ -924,22 +933,24 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
-#ifdef DPLASMA_GENERATE_DOT
+#ifdef DPLASMA_GRAPHER
             first_encounter = 1;
-#endif  /* DPLASMA_GENERATE_DOT */
+#endif  /* DPLASMA_GRAPHER */
         }
 
         updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
                                            mask);
 
         if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
-#ifdef DPLASMA_GENERATE_DOT
+#ifdef DPLASMA_GRAPHER
             {
                 char tmp[128];
-                printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
-                       origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
+                fprintf(__dplasma_graph_file,
+                        "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
+                fflush(__dplasma_graph_file);
             }
-#endif  /* DPLASMA_GENERATE_DOT */
+#endif  /* DPLASMA_GRAPHER */
             execution_step++;
 
 #if !defined(NDEBUG)
@@ -967,13 +978,15 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
                    (int)(updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(updated_deps)));
-#ifdef DPLASMA_GENERATE_DOT
+#ifdef DPLASMA_GRAPHER
             {
                 char tmp[128];
-                printf("%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
-                       origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
+                fprintf(__dplasma_graph_file,
+                        "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
+                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
+                fflush(__dplasma_graph_file);
             }
-#endif  /* DPLASMA_GENERATE_DOT */
+#endif  /* DPLASMA_GRAPHER */
         }
 
     next_value:
