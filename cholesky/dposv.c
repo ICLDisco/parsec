@@ -129,6 +129,9 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
     {
         dplasma_execution_context_t exec_context;
         int it;
+#if !defined(DPLASMA_WARM_UP)
+#define DPLASMA_WARM_UP 1
+#endif  /* !defined(DPLASMA_WARM_UP) */
 
 #if !defined(DPLASMA_WARM_UP)
 #define DPLASMA_WARM_UP 1
