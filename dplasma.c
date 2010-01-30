@@ -454,8 +454,6 @@ char* dplasma_service_to_string( const dplasma_execution_context_t* exec_context
                            exec_context->locals[i].value );
         if( index >= length ) return tmp;
     }
-    /*index += snprintf( tmp + index, length - index, ")" );
-      if( index >= length ) return tmp;*/
 
     return tmp;
 }
@@ -633,10 +631,10 @@ static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
  * local.
  */
 int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context,
-                                            const dplasma_execution_context_t* origin,
-                                            const param_t* origin_param,
-                                            dplasma_execution_context_t* exec_context,
-                                            const param_t* dest_param,
+                                            const dplasma_execution_context_t* restrict origin,
+                                            const param_t* restrict origin_param,
+                                            dplasma_execution_context_t* restrict exec_context,
+                                            const param_t* restrict dest_param,
                                             dplasma_dependencies_t **deps_location )
 {
     dplasma_t* function = exec_context->function;
@@ -775,10 +773,11 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
  * Release all OUT dependencies for this particular instance of the service.
  */
 int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
-                                      const dplasma_execution_context_t* origin,
-                                      const param_t* origin_param,
-                                      dplasma_execution_context_t* exec_context,
-                                      const param_t* dest_param, int forward_remote )
+                                      const dplasma_execution_context_t* restrict origin,
+                                      const param_t* restrict origin_param,
+                                      dplasma_execution_context_t* restrict exec_context,
+                                      const param_t* restrict dest_param,
+                                      int forward_remote )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;

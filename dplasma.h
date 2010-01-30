@@ -176,10 +176,10 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
  *        intact only between calls related to a specific range of values.
  */
 int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context,
-                                            const dplasma_execution_context_t* origin,
-                                            const param_t* origin_param,
-                                            dplasma_execution_context_t* exec_context,
-                                            const param_t* dest_param,
+                                            const dplasma_execution_context_t* restrict origin,
+                                            const param_t* restrict origin_param,
+                                            dplasma_execution_context_t* restrict exec_context,
+                                            const param_t* restrict dest_param,
                                             struct dplasma_dependencies_t **deps_location );
 
 /**
@@ -191,10 +191,10 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
  * @param [IN] Allow forwarding to remote processes of dependency resolution
  */
 int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
-                                      const dplasma_execution_context_t* origin,
-                                      const param_t* origin_param,
-                                      dplasma_execution_context_t* exec_context,
-                                      const param_t* dest_param, 
+                                      const dplasma_execution_context_t* restrict origin,
+                                      const param_t* restrict origin_param,
+                                      dplasma_execution_context_t* restrict exec_context,
+                                      const param_t* restrict dest_param, 
                                       int forward_remote );
 
 /**
