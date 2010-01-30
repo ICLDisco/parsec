@@ -5,6 +5,7 @@
 #include <string.h>
 
 char *yyfilename;
+FILE* output_graph_file = NULL;
 
 extern int yyparse();
 extern int dplasma_lineno;
@@ -38,12 +39,12 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
             color = "#FFFFFF";
         }
         dplasma_service_to_string(exec_context, tmp, 128);
-        printf("%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
-               tmp, color, tmp);
+        fprintf( output_graph_file, "%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
+                 tmp, color, tmp );
     } else {
         printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
     }
-    return 0;
+    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
 }
 
 int main(int argc, char *argv[])
@@ -60,8 +61,47 @@ int main(int argc, char *argv[])
 
     dplasma = dplasma_init(1, NULL, NULL);
 
+    /* If arguments are provided then they are supposed to initialize some of the
+     * global symbols. Try to do so ...
+     */
+    if( argc > 0 ) {
+        int i, j, nb_syms = dplasma_symbol_get_count();
+        const symbol_t* symbol;
+
+        for( i = 1; i < argc; i += 2 ) {
+            for( j = 0; j < nb_syms; j++ ) {
+                symbol = dplasma_symbol_get_element_at(j);
+                if( 0 == strcmp(argv[i], symbol->name) ) {
+                    expr_t* constant;
+
+                    constant = expr_new_int( atoi(argv[i+1]) );
+                    dplasma_assign_global_symbol( symbol->name, constant );
+                }
+            }
+        }
+    }
+
+    /* Make sure all symbols are correctly initialized */
     {
-        /* Setup generic hook for all services */
+        const symbol_t* symbol;
+        int i = dplasma_symbol_get_count();
+        int uninitialized_symbols = 0;
+
+        for( --i; i >= 0; i-- ) {
+            symbol = dplasma_symbol_get_element_at(i);
+            if( (NULL == symbol->min) || (NULL == symbol->max) ) {
+                printf( "Symbol %s is not initialized\n", symbol->name );
+                uninitialized_symbols++;
+            }
+        }
+        if( uninitialized_symbols ) {
+            printf( "We cannot generate the dependencies graph if there are uninitialized symbols\n" );
+            exit(-1);
+        }
+    }
+
+    /* Setup generic hook for all services */
+    {
         dplasma_t* object;
         int i;
         for( i = 0; NULL != (object = (dplasma_t*)dplasma_element_at(i)); i++ ) {
@@ -75,6 +115,8 @@ int main(int argc, char *argv[])
         dplasma_execution_context_t exec_context;
         int i = 0, rc;
 
+        output_graph_file = fopen("dplasma.dot", "w");
+
         for( i = 0; ; i++ ) {
             memset(&exec_context, 0, sizeof(dplasma_execution_context_t));
             exec_context.function = (dplasma_t*)dplasma_element_at(i);
@@ -85,24 +127,13 @@ int main(int argc, char *argv[])
             rc = dplasma_service_can_be_startup( &exec_context );
             if( rc == 0 ) {
                 dplasma_schedule(dplasma, &exec_context);
+                fprintf( output_graph_file, "digraph G {\n" );
                 dplasma_progress(dplasma);
+                fprintf( output_graph_file, "}\n" );
                 break;
             }
         }
-#if 0
-        /* I know what I'm doing ;) */
-        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-        if( NULL == exec_context.function ) {
-            exec_context.function = (dplasma_t*)dplasma_find("DGEQRT");
-            if( NULL == exec_context.function ) {
-                printf("Unable to find the expected function. Giving up.\n");
-                exit(-1);
-            }
-        }
-        dplasma_set_initial_execution_context(&exec_context);
-        dplasma_schedule(dplasma, &exec_context);
-        dplasma_progress(dplasma);
-#endif
+        fclose(output_graph_file);
     }
     dplasma_fini(&dplasma);
 	return 0;
