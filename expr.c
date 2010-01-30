@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,12 +20,6 @@
 
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
-
-static int expr_is_constant( const expr_t *e )
-{
-    return (NULL != e) &&
-        (e->flags & EXPR_FLAG_CONSTANT );
-}
 
 static int expr_eval_unary(unsigned char op, const expr_t *op1,
                            const assignment_t *assignments, unsigned int nbassignments,
@@ -180,6 +174,16 @@ int expr_eval(const expr_t *expr,
     if ( EXPR_IS_BINARY(expr->op) ) {
         return expr_eval_binary(expr->op, expr->bop1, expr->bop2, assignments, nbassignments, res);
     }
+    if ( EXPR_IS_TERTIAR(expr->op) ) {
+        int ret_val = expr_eval(expr->tcond, assignments, nbassignments, res);
+        if( EXPR_SUCCESS != ret_val )
+            return ret_val;
+
+        if( 0 != res ) {
+            return expr_eval(expr->top1, assignments, nbassignments, res);
+        }
+        return expr_eval(expr->top2, assignments, nbassignments, res);
+    }
     snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Unkown operand %d in expression", expr->op);
     return EXPR_FAILURE_UNKNOWN_OP;
 }
@@ -199,10 +203,22 @@ int expr_parse_symbols( const expr_t* expr,
     if( EXPR_IS_UNARY(expr->op) ) {
         return expr_parse_symbols( expr->uop1, callback, data );
     }
-    rc = expr_parse_symbols( expr->bop1, callback, data );
-    /* if we got an error don't check for the second expression */
+    if( EXPR_IS_BINARY(expr->op) ) {
+        rc = expr_parse_symbols( expr->bop1, callback, data );
+        /* if we got an error don't check for the second expression */
+        if( EXPR_SUCCESS == rc ) {
+            return expr_parse_symbols( expr->bop2, callback, data );
+        }
+        return rc;
+    }
+    assert( EXPR_IS_TERTIAR(expr->op) );
+    rc = expr_parse_symbols( expr->tcond, callback, data );
     if( EXPR_SUCCESS == rc ) {
-        return expr_parse_symbols( expr->bop2, callback, data );
+        rc = expr_parse_symbols( expr->top1, callback, data );
+        /* if we got an error don't check for the second expression */
+        if( EXPR_SUCCESS == rc ) {
+            return expr_parse_symbols( expr->top2, callback, data );
+        }
     }
     return rc;
 }
@@ -225,12 +241,24 @@ int expr_depend_on_symbol( const expr_t* expr,
         return expr_depend_on_symbol( expr->uop1, symbol );
     }
 
-    assert( EXPR_IS_BINARY(expr->op) );
-
-    rc = expr_depend_on_symbol( expr->bop1, symbol );
-    if( EXPR_FAILURE_SYMBOL_NOT_FOUND == rc ) { /* not yet check for the second expression */
-        return expr_depend_on_symbol( expr->bop2, symbol );
+    if( EXPR_IS_BINARY(expr->op) ) {
+        rc = expr_depend_on_symbol( expr->bop1, symbol );
+        if( EXPR_FAILURE_SYMBOL_NOT_FOUND == rc ) { /* not yet check for the second expression */
+            return expr_depend_on_symbol( expr->bop2, symbol );
+        }
+        return rc;
     }
+
+    assert( EXPR_IS_TERTIAR(expr->op) );
+
+    rc = expr_depend_on_symbol( expr->tcond, symbol );
+    if( EXPR_FAILURE_SYMBOL_NOT_FOUND == rc ) {
+        rc = expr_depend_on_symbol( expr->top1, symbol );
+        if( EXPR_FAILURE_SYMBOL_NOT_FOUND == rc ) {
+            return expr_depend_on_symbol( expr->top2, symbol );
+        }
+    }
+
     return rc;
 }
 
@@ -371,7 +399,7 @@ expr_t *expr_new_var(const symbol_t *symb)
     r->op = EXPR_OP_SYMB;
     r->var = (symbol_t*)symb;
     if( dplasma_symbol_is_global(symb) &&
-        expr_is_constant(symb->min) ) {
+        ((NULL != symb->min) && (symb->min->flags & EXPR_FLAG_CONSTANT)) ) {
         r->flags = EXPR_FLAG_CONSTANT;
         r->value = symb->min->value;
     } else {
@@ -490,8 +518,30 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
     }
 
     free(r);
-    fprintf(stderr, "Unknown operand %c. Return NULL expression\n", op );
+    fprintf(stderr, "[%s:%d] Unknown operand %c. Return NULL expression\n", __FILE__, __LINE__, op );
     return NULL;
+}
+
+expr_t *expr_new_tertiar(const expr_t *cond, const expr_t *op1, const expr_t *op2)
+{
+    expr_t *r;
+
+    if( cond->flags & EXPR_FLAG_CONSTANT ) {
+        /* the condition is constant therefore we can safely translate the tertiar
+         * expression into a single expression depending on the cond value.
+         */
+        if( cond->value ) {
+            return (expr_t*)op1;
+        }
+        return (expr_t*)op2;
+    }
+    r = (expr_t*)calloc(1, sizeof(expr_t));
+    r->op = EXPR_OP_CONDITIONAL;
+    r->flags = 0;  /* unknown yet */
+    r->tcond = (expr_t*)cond;
+    r->top1 = (expr_t*)op1;
+    r->top2 = (expr_t*)op2;
+    return r;
 }
 
 char *expr_error(void)
@@ -626,8 +676,16 @@ void expr_dump(FILE *out, const expr_t *e)
         expr_dump_unary(out, e->op, e->uop1);
     } else if( EXPR_IS_BINARY(e->op) ) {
         expr_dump_binary(out, e->op, e->bop1, e->bop2);
+    } else if( EXPR_IS_TERTIAR(e->op) ) {
+        fprintf( out, "(");
+        expr_dump(out, e->tcond);
+        fprintf( out, " ? " );
+        expr_dump(out, e->top1);
+        fprintf( out, " : ");
+        expr_dump(out, e->top2);
+        fprintf( out, ")");
     } else {
-        fprintf(stderr, "Unkown operand %d in expression", e->op);
+        fprintf(stderr, "[%s:%d] Unkown operand %d in expression\n", __FILE__, __LINE__, e->op);
     }
     if( EXPR_FLAG_CONSTANT & e->flags ) {
         fprintf(out,  "}" );

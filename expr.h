@@ -41,6 +41,11 @@ typedef struct expr expr_t;
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )
 
+#define EXPR_OP_MIN_TERTIAR       33
+#define EXPR_OP_CONDITIONAL       33
+#define EXPR_OP_MAX_TERTIAR       33
+#define EXPR_IS_TERTIAR(op)  ( ((op) >= EXPR_OP_MIN_TERTIAR) && ((op) <= EXPR_OP_MAX_TERTIAR) )
+
 #define EXPR_OP_INLINE            100
 #define EXPR_IS_INLINE(op)  ( (op) == EXPR_OP_INLINE )
 
@@ -60,6 +65,11 @@ struct expr {
                            */
     union {
         struct {
+            struct expr *cond;
+            struct expr *op1;
+            struct expr *op2;
+        } tertiar;
+        struct {
             struct expr *op1;
             struct expr *op2;
         } binary;
@@ -71,6 +81,9 @@ struct expr {
     } u;
 };
 
+#define tcond       u.tertiar.cond
+#define top1        u.tertiar.op1
+#define top2        u.tertiar.op2
 #define bop1        u.binary.op1
 #define bop2        u.binary.op2
 #define uop1        u.unary.op1
@@ -203,6 +216,7 @@ expr_t *expr_new_unary(char op, expr_t *expr);
  * Creates a new binary expression from two others and an operand
  *
  * @param  op1 [IN]  first operand
+ * @param  op2 [IN]  first operand
  * @param  op  [IN] a character defining the operand in the alphabet
  *         [+-*%=.] where 
  *              = is the == comparison 
@@ -210,5 +224,17 @@ expr_t *expr_new_unary(char op, expr_t *expr);
  * @return the new expression
  */
 expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2);
+
+/**
+ * Creates a new tertiar expression from two others and a condition.
+ * If the condition is true the expression evaluate as the op1,
+ * otherwise it evaluate as op2.
+ *
+ * @param  cond [IN]  first operand
+ * @param  op1  [IN]  first operand
+ * @param  op2  [IN]  first operand
+ * @return the new expression
+ */
+expr_t *expr_new_tertiar(const expr_t *cond, const expr_t *op1, const expr_t *op2);
 
 #endif

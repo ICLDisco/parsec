@@ -236,9 +236,17 @@ static void dump_inline_c_expression(const expr_t *e)
             }
             dump_inline_c_expression(e->bop2);
             output(")");
+        } else if( EXPR_IS_TERTIAR(e->op) ) {
+            output("(");
+            dump_inline_c_expression(e->tcond);
+            output(" ? ");
+            dump_inline_c_expression(e->top1);
+            output(" : ");
+            dump_inline_c_expression(e->top2);
+            output(")");
         } else {
-            fprintf(stderr, "Unkown operand %d in expression\n", e->op);
-            output("\n#error Unknown operand %d in expression\n", e->op);
+            fprintf(stderr, "[%s:%d] Unkown operand %d in expression\n", __FILE__, __LINE__, e->op);
+            output("\n#error Unknown operand %d in expression in %s:%d\n", e->op, __FILE__, __LINE__);
         }
     }
 }
@@ -337,23 +345,30 @@ static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_f
                 output(" */\n");
             }
         } else if( EXPR_IS_BINARY(e->op) ) {
-            char sn1[FNAME_SIZE];
-            char sn2[FNAME_SIZE];
-            snprintf(sn1, FNAME_SIZE, "%s", dump_c_expression(e->bop1, init_func_body, init_func_body_size));
-            snprintf(sn2, FNAME_SIZE, "%s", dump_c_expression(e->bop2, init_func_body, init_func_body_size));
-            if( e->flags & EXPR_FLAG_CONSTANT ) {
-                 output("static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s, .value = %d }; /* ", 
-                         my_id, e->op, e->flags, sn1, sn2, e->value);
-                 expr_dump(out, e);
-                 output(" */\n");
-            } else {
-                output("static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s }; /* ", 
-                        my_id, e->op, e->flags, sn1, sn2);
-                expr_dump(out, e);
-                output(" */\n");
-            }
+            char sop1[FNAME_SIZE];
+            char sop2[FNAME_SIZE];
+            snprintf(sop1, FNAME_SIZE, "%s", dump_c_expression(e->bop1, init_func_body, init_func_body_size));
+            snprintf(sop2, FNAME_SIZE, "%s", dump_c_expression(e->bop2, init_func_body, init_func_body_size));
+            output("static expr_t expr%d = { .op = %d, .flags = %d, .bop1 = %s, .bop2 = %s, .value = %d }; /* ", 
+                   my_id, e->op, e->flags, sop1, sop2,
+                   ((e->flags & EXPR_FLAG_CONSTANT) ? e->value : 0));
+            expr_dump(out, e);
+            output(" */\n");
+        } else if( EXPR_IS_TERTIAR(e->op) ) {
+            char scond[FNAME_SIZE];
+            char sop1[FNAME_SIZE];
+            char sop2[FNAME_SIZE];
+            snprintf(scond, FNAME_SIZE, "%s", dump_c_expression(e->tcond, init_func_body, init_func_body_size));
+            snprintf(sop1, FNAME_SIZE, "%s", dump_c_expression(e->top1, init_func_body, init_func_body_size));
+            snprintf(sop2, FNAME_SIZE, "%s", dump_c_expression(e->top2, init_func_body, init_func_body_size));
+
+            output("static expr_t expr%d = { .op = %d, .flags = %d, .tcond = %s, .top1 = %s, .top2 = %s, .value = %d }; /* ", 
+                   my_id, e->op, e->flags, scond, sop1, sop2,
+                   ( (e->flags & EXPR_FLAG_CONSTANT) ? e->value : 0));
+            expr_dump(out, e);
+            output(" */\n");
         } else {
-            fprintf(stderr, "Unkown operand %d in expression", e->op);
+            fprintf(stderr, "[%s:%d] Unkown operand %d in expression\n", __FILE__, __LINE__, e->op);
         }
 
         snprintf(name, FNAME_SIZE, "&expr%d", my_id);

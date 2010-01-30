@@ -69,12 +69,11 @@ int yywrap()
 
 %nonassoc DPLASMA_ASSIGNMENT
 %nonassoc DPLASMA_RANGE
-%left DPLASMA_EQUAL
-%left DPLASMA_NOT_EQUAL
-%left DPLASMA_LESS
-%left DPLASMA_MORE
+%nonassoc DPLASMA_QUESTION
+%nonassoc DPLASMA_COLON
+%left DPLASMA_EQUAL DPLASMA_NOT_EQUAL
+%left DPLASMA_LESS DPLASMA_MORE
 %left DPLASMA_OP
-
 %%
 
 prog:
@@ -431,14 +430,16 @@ expr_list: expr {
 ;
 
 expr:     DPLASMA_VAR                                {
-                                                         const symbol_t     *symbol = NULL;
+                                                         const symbol_t *symbol = NULL;
                                                          int i;
                                                          
-                                                         for(i = 0; (i < MAX_LOCAL_COUNT) &&
-                                                                 (NULL != global_dplasma->locals[i]); i++) {
-                                                             if( 0 == strcmp(global_dplasma->locals[i]->name, $1) ) {
-                                                                 symbol = global_dplasma->locals[i];
-                                                                 break;
+                                                         if( NULL != global_dplasma ) {
+                                                             for(i = 0; (i < MAX_LOCAL_COUNT) &&
+                                                                     (NULL != global_dplasma->locals[i]); i++) {
+                                                                 if( 0 == strcmp(global_dplasma->locals[i]->name, $1) ) {
+                                                                     symbol = global_dplasma->locals[i];
+                                                                     break;
+                                                                 }
                                                              }
                                                          }
                                                          if( NULL == symbol ) {
@@ -462,7 +463,8 @@ expr:     DPLASMA_VAR                                {
         | expr DPLASMA_NOT_EQUAL expr                { $$ = expr_new_binary($1, '!', $3); }
         | expr DPLASMA_LESS expr                     { $$ = expr_new_binary($1, '<', $3); }
         | expr DPLASMA_MORE expr                     { $$ = expr_new_binary($1, '>', $3); }
-        | expr DPLASMA_RANGE expr                    { $$ = expr_new_binary($1, '.', $3);; }
+        | expr DPLASMA_RANGE expr                    { $$ = expr_new_binary($1, '.', $3); }
+        | expr DPLASMA_QUESTION expr DPLASMA_COLON expr { $$ = expr_new_tertiar($1, $3, $5); }
 ;
 
 %%

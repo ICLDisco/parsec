@@ -85,7 +85,7 @@ GRIDcols = 1
 NB
 MT
 NT
-MINMTNT
+MINMTNT = (MT < NT ? MT : NT)
 colRANK = 0
 rowRANK = 0
 
