@@ -489,7 +489,7 @@ int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates )
 
     exec_context->function = (dplasma_t*)object;
 
-    printf( "Function %s (loops %d)\n", object->name, object->nb_locals );
+    DEBUG(( "Function %s (loops %d)\n", object->name, object->nb_locals ));
     if( 0 == object->nb_locals ) {
         /* special case for the IN/OUT obejcts */
         return 0;
