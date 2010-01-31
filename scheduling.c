@@ -46,23 +46,6 @@ static inline void done_task(dplasma_context_t* context)
  */
 int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_context_t* exec_context )
 {
-    /* Dirty workaround or how to deliberaty generate memory leaks */
-    {
-        int i, upto = dplasma_nb_elements();
-
-        for( i = 0; i < upto; i++ ) {
-            dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
-            object->deps = NULL;
-        }
-
-#if defined(DPLASMA_PROFILING)
-        /* Reset the profiling information */
-        for( i = 0; i < context->nb_cores; i++ ) {
-            dplasma_profiling_reset( &context->execution_units[i] );
-        }
-#endif  /* defined(DPLASMA_PROFILING) */
-    }
-
 #if !DEPTH_FIRST_SCHEDULE
     {
         dplasma_execution_unit_t* eu_context;
@@ -106,6 +89,23 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
+    /* Dirty workaround or how to deliberaty generate memory leaks */
+    {
+        int i, upto = dplasma_nb_elements();
+        
+        for( i = 0; i < upto; i++ ) {
+            dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
+            object->deps = NULL;
+        }
+        
+#if defined(DPLASMA_PROFILING)
+        /* Reset the profiling information */
+        for( i = 0; i < context->nb_cores; i++ ) {
+            dplasma_profiling_reset( &context->execution_units[i] );
+        }
+#endif  /* defined(DPLASMA_PROFILING) */
+    }
+        
     set_tasks_todo(context, (uint32_t)n);
 }
 

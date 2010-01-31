@@ -160,54 +160,52 @@ int main(int argc, char ** argv){
     dplasma = setup_dplasma();
     
     if(rank == 0)
-        {
-            dplasma_execution_context_t exec_context;
-            
-            
+    {
+        dplasma_execution_context_t exec_context;
             
         /* I know what I'm doing ;) */
-            exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-            dplasma_set_initial_execution_context(&exec_context);
-            
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+        dplasma_set_initial_execution_context(&exec_context);
+        dplasma_schedule(dplasma, &exec_context);
+    }
+    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
+
 #ifdef DPLASMA_WARM_UP
-            dplasma_schedule(dplasma, &exec_context);
-            
-            /* Now that everything is created start the timer */
-            time_elapsed = get_cur_time();
-            
-            dplasma_progress(dplasma);
-            time_elapsed = get_cur_time() - time_elapsed;
-            printf("Warming up: DPOTRF %d %d %d %f %f\n", cores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
-#endif  /* DPLASMA_WARM_UP */
-            
-            
-            dplasma_schedule(dplasma, &exec_context);
-            
-            /* warm the cache for the first tile */
-            {
-                int i, j;
-                double useless = 0.0;
-                
-                for( i = 0; i < descA.nb; i++ ) {
-                    for( j = 0; j < descA.nb; j++ ) {
-                        useless += ((double*)descA.mat)[i*descA.nb+j];
-                    }
-                }
-                /*printf( "Useless value %f\n", useless );*/
+    TIME_START();
+    dplasma_progress(dplasma);
+    TIME_PRINT(("Warmup on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
+
+    enumerate_dplasma_tasks(dplasma);
+
+    if(0 == rank)    
+    {
+        /* warm the cache for the first tile */
+        dplasma_execution_context_t exec_context;
+        int i, j;
+        double useless = 0.0;
+        for( i = 0; i < descA.nb; i++ ) {
+            for( j = 0; j < descA.nb; j++ ) {
+                useless += ((double*)descA.mat)[i*descA.nb+j];
             }
-            
         }
 
-#ifdef DPLASMA_WARM_UP
-    dplasma_progress(dplasma);
+        /* Ok, now get ready for the same thing again. */
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+        dplasma_set_initial_execution_context(&exec_context);
+        dplasma_schedule(dplasma, &exec_context);
+    }
+
+#ifdef USE_MPI
+    /* Make sure everybody is done with warmup before proceeding */
+    MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
+#endif  /* DPLASMA_WARM_UP */
 
     TIME_START();
 /* lets rock! */
     dplasma_progress(dplasma);
-    TIME_PRINT(("executing kernels on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
+    TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
 #ifdef trickUSE_MPI    
     TIME_START();
@@ -246,7 +244,7 @@ int main(int argc, char ** argv){
         }
         else{
             printf("****************************************************\n");
-            printf(" - TESTING DPOTRF + DPOTRS ... FAILED !\n");
+            printf(" - TESTING DPOTRF + DPOTRS ................ FAILED !\n");
             printf("****************************************************\n");
         }
         
@@ -255,7 +253,7 @@ int main(int argc, char ** argv){
         printf("***************************************************\n");
         printf(" ---- TESTING DPOTRF + DPOTRS ............ NOTEST !\n");
         printf("***************************************************\n");
-        printf(" ---- GFLOPS .............................. %.4f\n", gflops);
+        printf(" ---- n= %d nb= %d np= %d nc= %d g= %d\t %.4f GFLOPS\n", N, NB, nodes, cores, descA.GRIDrows, gflops);
         printf("***************************************************\n");
 #endif
         free(A2);

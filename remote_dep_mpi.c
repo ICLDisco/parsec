@@ -175,11 +175,11 @@ pthread_cond_t dep_msg_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t dep_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t dep_seq_mutex = PTHREAD_MUTEX_INITIALIZER;
 typedef enum {WANT_ZERO, WANT_SEND, WANT_RECV, WANT_FINI} dep_signal_reason_t;
-volatile dep_signal_reason_t dep_signal_reason = WANT_ZERO;
+volatile dep_signal_reason_t dep_signal_reason;
 volatile int dep_ret;
 
-volatile int enable_self_progress = 0;
-volatile int np = 0;
+volatile int enable_self_progress;
+volatile int np;
 
 dplasma_execution_context_t *dep_send_context;
 int dep_send_rank;
@@ -216,7 +216,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                     __remote_dep_progress(&context->execution_units[0]);
                 }
                 update_ts(&ts, YIELD_TIME);
-                ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
+                ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
                 assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
@@ -233,9 +233,15 @@ static int remote_dep_thread_init(dplasma_context_t* context)
     pthread_attr_t thread_attr;
     pthread_attr_init(&thread_attr);
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
+#if 0
 #ifdef __linux
     pthread_setconcurrency(context->nb_cores + 1);
 #endif  /* __linux */
+#endif
+    
+    enable_self_progress = 0;
+    np = 0;
+    dep_signal_reason = WANT_ZERO;
 
     pthread_create( &dep_thread_id,
                     &thread_attr,
