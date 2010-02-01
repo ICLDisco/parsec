@@ -25,9 +25,7 @@
 #include "remote_dep.h"
 #endif
 
-#ifdef DPLASMA_GRAPHER
 FILE *__dplasma_graph_file = NULL;
-#endif
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;

@@ -39,8 +39,10 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
             color = "#FFFFFF";
         }
         dplasma_service_to_string(exec_context, tmp, 128);
+#ifdef DPLASMA_GRAPHER
         fprintf( __dplasma_graph_file, "%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
                  tmp, color, tmp );
+#endif  /* DPLASMA_GRAPHER */
     } else {
         printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
     }
@@ -60,7 +62,9 @@ int main(int argc, char *argv[])
     /*dplasma_dump_all();*/
 
     /* The dot output file should always be initialized before calling dplasma_init */
+#ifdef DPLASMA_GRAPHER
     __dplasma_graph_file = fopen("dplasma.dot", "w");
+#endif  /* DPLASMA_GRAPHER */
 
     dplasma = dplasma_init(1, NULL, NULL);
 
@@ -135,7 +139,9 @@ int main(int argc, char *argv[])
     }
     dplasma_fini(&dplasma);
 
+#ifdef DPLASMA_GRAPHER
     fclose(__dplasma_graph_file);
+#endif  /* DPLASMA_GRAPHER */
 
 	return 0;
 }
