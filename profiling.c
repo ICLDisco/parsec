@@ -10,7 +10,6 @@
 #include <math.h>
 
 #include "atomic.h"
-#include "tooltip.h"
 
 #define WIDTH 800.0
 #define CORE_STRIDE 25.0
@@ -259,25 +258,35 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 
     fprintf(tracefile,
             "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-            "<!DOCTYPE svg PUBLIC \"-_W3C_DTD SVG 1.0_EN\"\n" 
-            "\"http://www.w3.org/TR/SVG/DTD/svg10.dtd\">\n"
-            "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'\n"
-            "  onload='Init(evt)'\n"
-            "  onmousemove='GetTrueCoords(evt); ShowTooltip(evt, true)'\n"
-            "  onmouseout='ShowTooltip(evt, false)'\n"
-            "  width='%lf'\n"
-            "  height='%lf'\n"
-            ">\n"
-            "  <script type=\"text/ecmascript\">\n"
-            "    <![CDATA[%s]]>\n"
+            "<!DOCTYPE svg PUBLIC \"-_W3C_DTD SVG 1.0_EN\" \"http://www.w3.org/TR/SVG/DTD/svg10.dtd\">\n"
+            "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \n"
+            " onload=\"startup(evt)\"\n"
+            " width='%g'\n"
+            " height='%g'>\n"
+            "  <script><![CDATA[\n"
+            "var svgDoc;\n"
+            "var Root;\n"
+            "var xmlns=\"http://www.w3.org/2000/svg\"\n"
+            "function startup(evt){\n"
+            "  O=evt.target\n"
+            "  svgDoc=O.ownerDocument;\n"
+            "  Root=svgDoc.documentElement;\n"
+            "  O.setAttribute(\"onmousemove\",\"adjust(evt)\")\n"
+            "  top.ready()\n"
+            "}\n"
+            "function adjust(evt){\n"
+            "  targetFName = evt.target.getElementsByTagName('FName').item(0).firstChild.nodeValue;\n"
+            "  targetFDesc = evt.target.getElementsByTagName('FDesc').item(0).firstChild.nodeValue;\n"
+            "  top.mouseMove(targetFName, targetFDesc)\n"
+            "}\n"
+            "//]]>\n"
             "  </script>\n"
             "    <rect x='0' y='0' width='100%%' height='100%%' fill='white'>\n"
-            "      <title><![CDATA[]]></title>\n"
-            "      <desc><![CDATA[]]></desc>\n"
-            "    </rect>\n\n",
+            "      <FName><![CDATA[]]></FName>\n"
+            "      <FDesc><![CDATA[]]></FDesc>\n"
+            "    </rect>\n",
             WIDTH,
-            context->nb_cores * CORE_STRIDE +  dplasma_prof_keys_count*20,
-            tooltip_script);
+            context->nb_cores * CORE_STRIDE +  dplasma_prof_keys_count*20);
 
     foundone = 0;
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
@@ -323,8 +332,8 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             
             fprintf(tracefile,
                     "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\">\n"
-                    "       <title>%s</title>\n"
-                    "       <desc>%.0lf time units (%.2lf%% of time)</desc>\n"
+                    "       <FName>%s</FName>\n"
+                    "       <FDesc>%.0lf time units (%.2lf%% of time)</FDesc>\n"
                     "    </rect>\n",                
                     start * scale,
                     thread_id * CORE_STRIDE + 2.0,
@@ -340,14 +349,6 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                    (unsigned long)last, (gaps * 100.0) / (double)last);
         }
     }
-    fprintf(tracefile, 
-            "  <g id='ToolTip' opacity='0.8' display='none' pointer-events='none'>\n"
-            "    <rect id='tipbox' x='0' y='5' width='88' height='20' rx='2' ry='2' fill='white' stroke='black'/>\n"
-            "    <text id='tipText' x='5' y='20' font-family='Arial' font-size='12'>\n"
-            "      <tspan id='tipTitle' x='5' font-weight='bold'><![CDATA[]]></tspan>\n"
-            "      <tspan id='tipDesc' x='5' dy='1.2em' fill='blue'><![CDATA[]]></tspan>\n"
-            "    </text>\n"
-            "  </g>\n");
 
     nplot = 0;
     for( key = 0; key < dplasma_prof_keys_count; key++ ) {

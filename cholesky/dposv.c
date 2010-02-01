@@ -129,19 +129,12 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
     {
         dplasma_execution_context_t exec_context;
         int it;
-#if !defined(DPLASMA_WARM_UP)
-#define DPLASMA_WARM_UP 1
-#endif  /* !defined(DPLASMA_WARM_UP) */
-
-#if !defined(DPLASMA_WARM_UP)
-#define DPLASMA_WARM_UP 1
-#endif  /* !defined(DPLASMA_WARM_UP) */
 
         /* I know what I'm doing ;) */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
 
-#if DPLASMA_WARM_UP > 0
+#if defined(DPLASMA_WARM_UP)
         dplasma_schedule(dplasma, &exec_context);
 
         /* Now that everything is created start the timer */
