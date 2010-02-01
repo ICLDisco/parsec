@@ -27,11 +27,9 @@ static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 
 }
 
-static int ddesc_compute_vals_and_allocate( DPLASMA_desc * Ddesc )
+static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
 {
-    int i, j;
-    int nb_elem_c;
-    int nb_elem_r;
+    int i;
     int nbstile_r;
     int nbstile_c;
     
@@ -71,6 +69,13 @@ static int ddesc_compute_vals_and_allocate( DPLASMA_desc * Ddesc )
         printf("The process grid chosen is %dx%d, supertiling is %d, %d\n", Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
         return -1;
     }
+    return 0;
+}
+
+static int ddesc_allocate( DPLASMA_desc * Ddesc ) 
+{
+    int nb_elem_r, nb_elem_c, j;
+    
     /* find the number of tiles this process will handle */
     nb_elem_r = 0;
     j = Ddesc->rowRANK * Ddesc->nrst;
@@ -121,7 +126,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     Ddesc->n = Pdesc->n ;
     Ddesc->mt = Pdesc->mt ;
     Ddesc->nt = Pdesc->nt ;
-    return ddesc_compute_vals_and_allocate( Ddesc );
+    return ddesc_compute_vals( Ddesc );
 }
 
 int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
@@ -184,10 +189,11 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         }
     free(tmp_ints);
 
-    if( -1 == ddesc_compute_vals_and_allocate(Ddesc) )
+    if( -1 == ddesc_compute_vals(Ddesc) )
     {
         MPI_Abort(MPI_COMM_WORLD, 2);
     }
+    ddesc_allocate(Ddesc);
     return 0;
 #else
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);

@@ -119,47 +119,43 @@ int main(int argc, char ** argv){
             
         /* generating a random matrix */
         generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
-#else        
+#else
         /* generating a random matrix */
         int i, j;
         for ( i = 0; i < N; i++)
             for ( j = i; j < N; j++) {
                 A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
             }
-        for ( i = 0; i < N; i++){
+        for ( i = 0; i < N; i++) {
             A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
         }
 #endif
         tiling(&uplo, N, A2, LDA, &local_desc);
+    }
 #ifdef trickUSE_MPI
-        dplasma_desc_bcast(&local_desc, &descA);
-        TIME_START();
-        distribute_data(&local_desc, &descA, &requests, &req_count);
-    }
-    else
-    { /* prepare data for block reception  */
-        TIME_START();
-        dplasma_desc_bcast(NULL, &descA);
-        distribute_data(NULL, &descA, &requests, &req_count);
-    }
+    TIME_START();
+    /* prepare data for block reception  */
+    dplasma_desc_bcast(&local_desc, &descA);
+    distribute_data(&local_desc, &descA, &requests, &req_count);
     /* wait for data distribution to finish before continuing */
     is_data_distributed(&descA, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", rank));    
+
 # if defined(DO_THE_NASTY_VALIDATIONS)
     data_dist_verif(&local_desc, &descA);
     if(rank == 0)
         plasma_dump(&local_desc);
     data_dump(&descA);
 # endif
+
 #else /* NO MPI */
-        dplasma_desc_init(&local_desc, &descA);
-    }
+    dplasma_desc_init(&local_desc, &descA);
 #endif
     
     TIME_START();
     dplasma = setup_dplasma();
     
-    if(rank == 0)
+    if(0 == rank)
     {
         dplasma_execution_context_t exec_context;
             
@@ -170,7 +166,7 @@ int main(int argc, char ** argv){
     }
     TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
 
-#if !defined(DPLASMA_WARM_UP) || DPLASMA_WARM_UP>0
+#if defined(DPLASMA_WARM_UP)
     TIME_START();
     dplasma_progress(dplasma);
     TIME_PRINT(("Warmup on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
@@ -194,27 +190,25 @@ int main(int argc, char ** argv){
         dplasma_set_initial_execution_context(&exec_context);
         dplasma_schedule(dplasma, &exec_context);
     }
-
-#ifdef USE_MPI
+# ifdef USE_MPI
     /* Make sure everybody is done with warmup before proceeding */
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
+# endif
 #endif  /* DPLASMA_WARM_UP */
 
+    /* lets rock! */
     TIME_START();
-/* lets rock! */
     dplasma_progress(dplasma);
     TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
-#ifdef trickUSE_MPI    
+# ifdef trickUSE_MPI    
     TIME_START();
     gather_data(&local_desc, &descA);
     TIME_PRINT(("data reduction on rank %d (to rank 0)\n", rank));
-#endif
-#ifdef USE_MPI
+# endif
+# ifdef USE_MPI
     MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-#endif
+# endif
 
     if(rank == 0) 
     {
@@ -230,7 +224,7 @@ int main(int argc, char ** argv){
 #if defined(DO_THE_NASTY_VALIDATIONS)
         untiling(&uplo, N, A2, LDA, &local_desc);
         PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
-        
+
         /* Check the factorization and the solution */
         info_factorization = check_factorization(N, A1, A2, LDA, uplo, eps);
         info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
@@ -259,22 +253,20 @@ int main(int argc, char ** argv){
         free(A2);
     }
 
-#ifdef DPLASMA_PROFILING
-{
-    char* filename = NULL;
-    
-    asprintf( &filename, "%s-%d.svg", "dposv-mpi", rank );
-    dplasma_profiling_dump_svg(dplasma, filename);
-    free(filename);
-}
-#endif  /* DPLASMA_PROFILING */
-
     dague_fini(dplasma);
     return 0;
 }
 
 static void dague_fini(dplasma_context_t* dplasma)
 {
+#ifdef DPLASMA_PROFILING
+    char* filename = NULL;
+        
+    asprintf( &filename, "%s-%d.svg", "dposv-mpi", rank );
+    dplasma_profiling_dump_svg(dplasma, filename);
+    free(filename);
+#endif  /* DPLASMA_PROFILING */
+    
     dplasma_fini(&dplasma);
     PLASMA_Finalize();
 #ifdef USE_MPI
