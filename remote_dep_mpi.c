@@ -14,22 +14,22 @@
 
 static int __remote_dep_mpi_init(dplasma_context_t* context);
 static int __remote_dep_mpi_fini(dplasma_context_t* context);
-static int __remote_dep_send(const dplasma_execution_context_t* task, int rank);
+static int __remote_dep_send(const dplasma_execution_context_t* task, int rank, void **data);
 static int __remote_dep_progress(dplasma_execution_unit_t* eu_context);
 
 #ifdef USE_MPI_THREAD_PROGRESS
     static int remote_dep_thread_init(dplasma_context_t* context);
     static int remote_dep_thread_fini(dplasma_context_t* fini);
-    static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank);
+    static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank, void **data);
     static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context);
 #   define remote_dep_mpi_init(ctx) remote_dep_thread_init(ctx)
 #   define remote_dep_mpi_fini(ctx) remote_dep_thread_fini(ctx)
-#   define remote_dep_send(task, rank) remote_dep_thread_send(task, rank)
+#   define remote_dep_send(task, rank, data) remote_dep_thread_send(task, rank, data)
 #   define remote_dep_progress(ctx) remote_dep_thread_progress(ctx)
 #else
 #   define remote_dep_mpi_init(ctx) __remote_dep_mpi_init(ctx)
 #   define remote_dep_mpi_fini(ctx) __remote_dep_mpi_fini(ctx)
-#   define remote_dep_send(task, rank) __remote_dep_send(task, rank)
+#   define remote_dep_send(task, rank, data) __remote_dep_send(task, rank, data)
 #   define remote_dep_progress(ctx) __remote_dep_progress(ctx)
 #endif 
 
@@ -58,7 +58,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
                                      const param_t* origin_param,
                                      const dplasma_execution_context_t* exec_context,
                                      const param_t* new_param,
-                                     int rank)
+                                     int rank, void** data)
 {
 #ifdef _DEBUG
     char tmp[128];
@@ -73,7 +73,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
     DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
-    return remote_dep_send(origin, rank);
+    return remote_dep_send(origin, rank, data);
 }
 
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
@@ -97,7 +97,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
     DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
-    return remote_dep_send(origin, rank);
+    return remote_dep_send(origin, rank, NULL);
 }
 
 
@@ -124,10 +124,15 @@ static int __remote_dep_mpi_fini(dplasma_context_t* context)
     return 0;
 }
 
-static int __remote_dep_send(const dplasma_execution_context_t* task, int rank)
+#define TILE_SIZE (120 * 120)
+
+static int __remote_dep_send(const dplasma_execution_context_t* task, int rank, void **data)
 {
-    return MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+    MPI_Bsend((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+    return MPI_Send(data[0], TILE_SIZE, MPI_DOUBLE, rank, REMOTE_DEP_GET_DATA_TAG, dep_comm);
 }
+
+static int remote_dep_get_data(const dplasma_execution_context_t* task, int from, void **data);
 
 static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 {
@@ -140,15 +145,27 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
     MPI_Test(&dep_req, &flag, &status);
     if(flag)
     {
+        void *dep_data[1];
+        
         DEBUG(("%s -> local\tFROM REMOTE process rank %d\n", dplasma_service_to_string(&dep_buff, tmp, 128), status.MPI_SOURCE));
-        fprintf(stderr, 
-                "TODO: currently, I'm calling the last parameter with NULL (%s:%d),\n"
-                "it MUST be an array of pointers of output variables produced by this task\n"
-                "-- expect segfault in the next call\n"
-                "-- Thomas\n", __FILE__, __LINE__);
-        dep_buff.function->release_deps(eu_context, &dep_buff, 0, NULL);
+        
+        remote_dep_get_data(&dep_buff, status.MPI_SOURCE, dep_data);
+        dep_buff.function->release_deps(eu_context, &dep_buff, 0, dep_data);
         MPI_Start(&dep_req);
         return 1;
+    }
+    return 0;
+}
+
+static int remote_dep_get_data(const dplasma_execution_context_t* task, int from, void **data)
+{
+    int i;
+    MPI_Status status;
+    
+    for(i = 0; i < 1; i++)
+    {
+        data[i] = malloc(sizeof(double) * TILE_SIZE);
+        MPI_Recv(data[i], TILE_SIZE, MPI_DOUBLE, from, REMOTE_DEP_GET_DATA_TAG, dep_comm, &status);
     }
     return 0;
 }
@@ -159,7 +176,7 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 #include <pthread.h>
 #include <errno.h>
 
-#define YIELD_TIME 50000
+#define YIELD_TIME 100000
 static inline void update_ts(struct timespec *ts, long nsec) 
 {
     ts->tv_nsec += nsec;
@@ -182,6 +199,7 @@ volatile int enable_self_progress;
 volatile int np;
 
 dplasma_execution_context_t *dep_send_context;
+void **dep_send_data;
 int dep_send_rank;
 
 dplasma_execution_unit_t *dep_recv_eu_context;
@@ -202,7 +220,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
         switch(dep_signal_reason)
         {                
             case WANT_SEND:
-                dep_ret = __remote_dep_send(dep_send_context, dep_send_rank);
+                dep_ret = __remote_dep_send(dep_send_context, dep_send_rank, dep_send_data);
                 break;
             case WANT_RECV:
                 dep_ret = __remote_dep_progress(dep_recv_eu_context);
@@ -216,7 +234,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
                     __remote_dep_progress(&context->execution_units[0]);
                 }
                 update_ts(&ts, YIELD_TIME);
-                ret = pthread_cond_wait(&dep_msg_cond, &dep_msg_mutex);
+                ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
                 assert((0 == ret) || (ETIMEDOUT == ret));
                 continue;
         }
@@ -272,7 +290,7 @@ static int remote_dep_thread_fini(dplasma_context_t* context)
     return 0;
 }
 
-static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank)
+static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank, void **data)
 {
     int ret; 
     
@@ -282,6 +300,7 @@ static int remote_dep_thread_send(const dplasma_execution_context_t* task, int r
     dep_signal_reason = WANT_SEND;
     dep_ret = -1;
     dep_send_context = (dplasma_execution_context_t*) task;
+    dep_send_data = data;
     dep_send_rank = rank;
     
     pthread_cond_signal(&dep_msg_cond);
