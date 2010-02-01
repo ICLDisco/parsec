@@ -106,42 +106,42 @@ int main(int argc, char ** argv){
     
     /* Matrix creation, tiling and distribution */
     if(rank == rank)
-        {
-            A2   = (double *)malloc(LDA*N*sizeof(double));
+    {
+        A2   = (double *)malloc(LDA*N*sizeof(double));
 #if defined(DO_THE_NASTY_VALIDATIONS)
-            NminusOne = N-1;
-            LDBxNRHS = LDB*NRHS;
-            A1   = (double *)malloc(LDA*N*sizeof(double));
-            B1   = (double *)malloc(LDBxNRHS*sizeof(double));
-            B2   = (double *)malloc(LDBxNRHS*sizeof(double));
-            WORK = (double *)malloc(2*LDA*sizeof(double));
-            D    = (double *)malloc(LDA*sizeof(double));
+        NminusOne = N-1;
+        LDBxNRHS = LDB*NRHS;
+        A1   = (double *)malloc(LDA*N*sizeof(double));
+        B1   = (double *)malloc(LDBxNRHS*sizeof(double));
+        B2   = (double *)malloc(LDBxNRHS*sizeof(double));
+        WORK = (double *)malloc(2*LDA*sizeof(double));
+        D    = (double *)malloc(LDA*sizeof(double));
             
-            /* generating a random matrix */
-            generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
+        /* generating a random matrix */
+        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
 #else        
-            /* generating a random matrix */
-            int i, j;
-            for ( i = 0; i < N; i++)
-                for ( j = i; j < N; j++) {
-                    A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
-                }
-            for ( i = 0; i < N; i++){
-                A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+        /* generating a random matrix */
+        int i, j;
+        for ( i = 0; i < N; i++)
+            for ( j = i; j < N; j++) {
+                A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
             }
+        for ( i = 0; i < N; i++){
+            A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+        }
 #endif
-            tiling(&uplo, N, A2, LDA, &local_desc);
+        tiling(&uplo, N, A2, LDA, &local_desc);
 #ifdef trickUSE_MPI
-            dplasma_desc_bcast(&local_desc, &descA);
-            TIME_START();
-            distribute_data(&local_desc, &descA, &requests, &req_count);
-        }
+        dplasma_desc_bcast(&local_desc, &descA);
+        TIME_START();
+        distribute_data(&local_desc, &descA, &requests, &req_count);
+    }
     else
-        { /* prepare data for block reception  */
-            TIME_START();
-            dplasma_desc_bcast(NULL, &descA);
-            distribute_data(NULL, &descA, &requests, &req_count);
-        }
+    { /* prepare data for block reception  */
+        TIME_START();
+        dplasma_desc_bcast(NULL, &descA);
+        distribute_data(NULL, &descA, &requests, &req_count);
+    }
     /* wait for data distribution to finish before continuing */
     is_data_distributed(&descA, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", rank));    
@@ -151,9 +151,9 @@ int main(int argc, char ** argv){
         plasma_dump(&local_desc);
     data_dump(&descA);
 # endif
-#else
-            dplasma_desc_init(&local_desc, &descA);
-        }
+#else /* NO MPI */
+        dplasma_desc_init(&local_desc, &descA);
+    }
 #endif
     
     TIME_START();
