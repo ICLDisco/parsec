@@ -117,7 +117,7 @@ n = 0..k-1
 // Parameters
 IN    A <- C TRSM(n, k)
 IN    B <- C TRSM(n, m)
-INOUT C <- (n == 0) ? A(m, n) : C GEMM(k, m, n-1)
+INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
 BODY
