@@ -34,7 +34,6 @@ MPI_OBJECTS += remote_dep.o
 dplasma.a: dplasma.a($(LIBRARY_OBJECTS))
 dplasma-single.a: dplasma-single.a($(patsubst %.o, %-single.o, $(LIBRARY_OBJECTS)))
 
-
 dpc: $(patsubst %.o, %-single.o, $(COMPILER_OBJECTS) dpc.o) dplasma-single.a
 	$(CLINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
