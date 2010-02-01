@@ -48,7 +48,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     
     rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
     return dplasma_remote_dep_activate_rank(eu_context, origin, origin_param, 
-                                            exec_context, dest_param, rank);
+                                            exec_context, dest_param, rank, NULL);
 }
 
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
@@ -56,7 +56,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
                                      const param_t* origin_param,
                                      const dplasma_execution_context_t* exec_context, 
                                      const param_t* dest_param, 
-                                     int rank)
+                                     int rank, void** data)
 {
     /* return some error and be loud
      * we should never get called in multicore mode */

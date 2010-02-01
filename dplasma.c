@@ -256,7 +256,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
                 if( eu->eu_id != j ) {
                     eu->eu_steal_from[k] = (int8_t)j;
                     k++;
-0                }
+                }
             }
 #endif
         }
