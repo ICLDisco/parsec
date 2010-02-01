@@ -31,7 +31,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
                                      const param_t* origin_param, 
                                      const dplasma_execution_context_t* exec_context, 
                                      const param_t* dest_param,
-                                     int rank);
+                                     int rank, void** data);
 
 /* Gives pointers to expr_t allowing for evaluation of GRID predicates */
 int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
