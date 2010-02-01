@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+  <head>
+    <title>DPOSV Gantt-Like Observer</title>
+    <script>
+function prepare(){
+        opera.postError("Prepare called");
+        if (document.all){
+		rightedge=document.body.clientWidth-100
+		bottomedge=document.body.clientHeight-50
+	}else{
+		rightedge=window.innerWidth-100
+		bottomedge=window.innerHeight-50
+	}
+	T1H=100
+	svgright=rightedge;
+	midx=Math.ceil(svgright/2);
+	high=bottomedge-T1H;
+	E="<EMBED name='sv' src='dposv.svg' width='"+svgright+"' height='"+high+"'></EMBED>"
+       document.getElementById("gee").innerHTML=E
+	document.getElementById("gee").style.top=T1H
+}
+function ready(){
+        opera.postError("Ready Called");
+	svgdoc = document.sv.getSVGDocument();
+	svgRoot = svgdoc.documentElement;
+}
+function mouseMove(t, d) {
+        document.f.title.value = t;
+        document.f.desc.value = d;
+}
+    </script>
+  </head>
+
+  <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="10">
+    <div align=center>
+      <b>DPOSV Gantt-Like Observer</b>
+      <form name="f">
+        Function Name <input name=title size=12 />
+        Stats  <input name=desc size=48 />
+      </form>
+    </div>
+    <DIV id="gee" style="position:absolute;top:300;left:50" />
+  </body>
+</html>
