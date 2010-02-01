@@ -189,6 +189,16 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
 
+    for( i = 0; i < *pargc; i++ ) {
+        if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
+#ifdef DPLASMA_GRAPHER
+            if( NULL == __dplasma_graph_file ) {
+                __dplasma_graph_file = fopen( (*pargv)[i+1], "w");
+                i++;
+            }      
+#endif  /* DPLASMA_GRAPHER */
+        }
+    }
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
@@ -318,13 +328,6 @@ int dplasma_fini( dplasma_context_t** pcontext )
     dplasma_context_t* context = *pcontext;
     int i;
 
-#ifdef DPLASMA_GRAPHER
-    if( NULL != __dplasma_graph_file ) {
-        fprintf(__dplasma_graph_file, "}\n");
-        fflush(__dplasma_graph_file);
-    }
-#endif  /* DPLASMA_GRAPHER */
-
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
     dplasma_barrier_wait( &(context->barrier) );
@@ -351,6 +354,14 @@ int dplasma_fini( dplasma_context_t** pcontext )
 
     /* Destroy all resources allocated for the barrier */
     dplasma_barrier_destroy( &(context->barrier) );
+
+#ifdef DPLASMA_GRAPHER
+    if( NULL != __dplasma_graph_file ) {
+        fprintf(__dplasma_graph_file, "}\n");
+        fclose(__dplasma_graph_file);
+        __dplasma_graph_file = NULL;
+    }
+#endif  /* DPLASMA_GRAPHER */
 
     free(context);
     *pcontext = NULL;

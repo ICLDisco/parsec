@@ -68,7 +68,7 @@ int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
 extern int dgels_private_memory_initialization(plasma_context_t*);
 struct dplasma_memory_pool_t *work_pool = NULL, *tau_pool = NULL;
 
-int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
+int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T, int* pargc, char** pargv[])
 {
     int NB, MT, NT, nbtasks;
     int status;
@@ -139,7 +139,7 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T)
         PLASMA_desc, descA);
 
 #ifdef DPLASMA_EXECUTE
-    dplasma = dplasma_init(ncores, NULL, NULL);
+    dplasma = dplasma_init(ncores, pargc, pargv);
     load_dplasma_objects(dplasma);
 
     dgels_private_memory_initialization(plasma);
@@ -314,7 +314,7 @@ int main (int argc, char **argv)
 	double time =- get_cur_time();
 
 	// PLASMA_dgels(PlasmaNoTrans, M, N, NRHS, A2, LDA, T, B2, LDB);
-	DPLASMA_dgeqrf(cores, M, N, A2, LDA, T);
+	DPLASMA_dgeqrf(cores, M, N, A2, LDA, T, &argc, &argv);
 	PLASMA_dorgqr(M, N, K, A2, LDA, T, Q, LDA);
 	PLASMA_dgeqrs(M, N, NRHS, A2, LDA, T, B2, LDB);
 

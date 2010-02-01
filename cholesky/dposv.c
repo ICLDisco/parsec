@@ -45,7 +45,7 @@ static inline double get_cur_time(){
 int IONE=1;
 int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
 
-int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
+int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int* pargc, char** pargv[])
 {
     int NB, NT, nbtasks;
     int status;
@@ -107,7 +107,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 
     /* Init DPLASMA */
 #ifdef DPLASMA_EXECUTE
-    dplasma = dplasma_init(ncores, NULL, NULL );
+    dplasma = dplasma_init(ncores, pargc, pargv );
     load_dplasma_objects(dplasma);
 
     time_elapsed = get_cur_time();
@@ -217,8 +217,8 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA)
 int main (int argc, char **argv)
 {
    /* Check for number of arguments*/
-   if (argc != 6){
-       printf(" Proper Usage is : ./%s ncores N LDA NRHS LDB with \n - ncores : number of cores \n - N : the size of the matrix \n - LDA : leading dimension of the matrix A \n - NRHS : number of RHS \n - LDB : leading dimension of the RHS B \n", (char*)argv[0]);
+   if (argc < 6){
+       printf(" Proper Usage is : ./%s ncores N LDA NRHS LDB [-dot <output.dot>] with \n - ncores : number of cores \n - N : the size of the matrix \n - LDA : leading dimension of the matrix A \n - NRHS : number of RHS \n - LDB : leading dimension of the RHS B \n", (char*)argv[0]);
        exit(1);
    }
 
@@ -301,7 +301,7 @@ int main (int argc, char **argv)
 
    /* Plasma routines */
    uplo=PlasmaLower;
-   DPLASMA_dpotrf(cores, uplo, N, A2, LDA);
+   DPLASMA_dpotrf(cores, uplo, N, A2, LDA, &argc, &argv);
 #if defined(DO_THE_NASTY_VALIDATIONS)
    PLASMA_dpotrs(uplo, N, NRHS, A2, LDA, B2, LDB);
    eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/

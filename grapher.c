@@ -61,12 +61,7 @@ int main(int argc, char *argv[])
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/
 
-    /* The dot output file should always be initialized before calling dplasma_init */
-#ifdef DPLASMA_GRAPHER
-    __dplasma_graph_file = fopen("dplasma.dot", "w");
-#endif  /* DPLASMA_GRAPHER */
-
-    dplasma = dplasma_init(1, NULL, NULL);
+    dplasma = dplasma_init(1, &argc, &argv);
 
     /* If arguments are provided then they are supposed to initialize some of the
      * global symbols. Try to do so ...
@@ -138,10 +133,6 @@ int main(int argc, char *argv[])
         }
     }
     dplasma_fini(&dplasma);
-
-#ifdef DPLASMA_GRAPHER
-    fclose(__dplasma_graph_file);
-#endif  /* DPLASMA_GRAPHER */
 
 	return 0;
 }
