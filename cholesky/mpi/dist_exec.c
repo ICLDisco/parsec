@@ -170,7 +170,7 @@ int main(int argc, char ** argv){
     }
     TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
 
-#ifdef DPLASMA_WARM_UP
+#if !defined(DPLASMA_WARM_UP) || DPLASMA_WARM_UP>0
     TIME_START();
     dplasma_progress(dplasma);
     TIME_PRINT(("Warmup on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
