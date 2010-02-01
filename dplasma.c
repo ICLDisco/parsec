@@ -26,7 +26,7 @@
 #endif
 
 #ifdef DPLASMA_GRAPHER
-FILE *__dplasma_graph_file;
+FILE *__dplasma_graph_file = NULL;
 #endif
 
 static const dplasma_t** dplasma_array = NULL;
@@ -195,9 +195,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
 #ifdef DPLASMA_GRAPHER
-    __dplasma_graph_file = fopen("dplasma.dot", "w");
-    fprintf(__dplasma_graph_file, "digraph G {\n");
-    fflush(__dplasma_graph_file);
+    if( NULL != __dplasma_graph_file ) {
+        fprintf(__dplasma_graph_file, "digraph G {\n");
+        fflush(__dplasma_graph_file);
+    }
 #endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( context, 4096 );
@@ -320,8 +321,10 @@ int dplasma_fini( dplasma_context_t** pcontext )
     int i;
 
 #ifdef DPLASMA_GRAPHER
-    fprintf(__dplasma_graph_file, "}\n");
-    fflush(__dplasma_graph_file);
+    if( NULL != __dplasma_graph_file ) {
+        fprintf(__dplasma_graph_file, "}\n");
+        fflush(__dplasma_graph_file);
+    }
 #endif  /* DPLASMA_GRAPHER */
 
     /* Now wait until every thread is back */
@@ -726,7 +729,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
 
 #ifdef DPLASMA_GRAPHER
-    {
+    if( NULL != __dplasma_graph_file ) {
         char tmp[128];
         fprintf(__dplasma_graph_file, 
                 "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
@@ -942,7 +945,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
         if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
 #ifdef DPLASMA_GRAPHER
-            {
+            if( NULL != __dplasma_graph_file ) {
                 char tmp[128];
                 fprintf(__dplasma_graph_file,
                         "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
@@ -978,7 +981,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    (int)(updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(updated_deps)));
 #ifdef DPLASMA_GRAPHER
-            {
+            if( NULL != __dplasma_graph_file ) {
                 char tmp[128];
                 fprintf(__dplasma_graph_file,
                         "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),

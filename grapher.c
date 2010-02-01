@@ -1,11 +1,11 @@
 #include "dplasma.h"
 #include "scheduling.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 char *yyfilename;
-FILE* output_graph_file = NULL;
+extern FILE* __dplasma_graph_file;
 
 extern int yyparse();
 extern int dplasma_lineno;
@@ -39,7 +39,7 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
             color = "#FFFFFF";
         }
         dplasma_service_to_string(exec_context, tmp, 128);
-        fprintf( output_graph_file, "%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
+        fprintf( __dplasma_graph_file, "%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
                  tmp, color, tmp );
     } else {
         printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
@@ -58,6 +58,9 @@ int main(int argc, char *argv[])
 
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/
+
+    /* The dot output file should always be initialized before calling dplasma_init */
+    __dplasma_graph_file = fopen("dplasma.dot", "w");
 
     dplasma = dplasma_init(1, NULL, NULL);
 
@@ -115,8 +118,6 @@ int main(int argc, char *argv[])
         dplasma_execution_context_t exec_context;
         int i = 0, rc;
 
-        output_graph_file = fopen("dplasma.dot", "w");
-
         for( i = 0; ; i++ ) {
             memset(&exec_context, 0, sizeof(dplasma_execution_context_t));
             exec_context.function = (dplasma_t*)dplasma_element_at(i);
@@ -127,14 +128,14 @@ int main(int argc, char *argv[])
             rc = dplasma_service_can_be_startup( &exec_context );
             if( rc == 0 ) {
                 dplasma_schedule(dplasma, &exec_context);
-                fprintf( output_graph_file, "digraph G {\n" );
                 dplasma_progress(dplasma);
-                fprintf( output_graph_file, "}\n" );
                 break;
             }
         }
-        fclose(output_graph_file);
     }
     dplasma_fini(&dplasma);
+
+    fclose(__dplasma_graph_file);
+
 	return 0;
 }
