@@ -53,7 +53,7 @@ int LDB = 0;
 static void dague_fini(dplasma_context_t* context);
 static void dague_init(int argc, char **argv);
 static void cleanup_exit(int ret);
-static dplasma_context_t *setup_dplasma(void);
+static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[]);
 
 #ifdef DO_THE_NASTY_VALIDATIONS
 static int check_factorization(int, double*, double*, int, int , double);
@@ -153,7 +153,7 @@ int main(int argc, char ** argv){
 #endif
     
     TIME_START();
-    dplasma = setup_dplasma();
+    dplasma = setup_dplasma(&argc, &argv);
     
     if(0 == rank)
     {
@@ -406,11 +406,11 @@ static void cleanup_exit(int ret)
 #endif
 }
 
-static dplasma_context_t *setup_dplasma(void)
+static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
     
-    dplasma = dplasma_init(cores, NULL, NULL);
+    dplasma = dplasma_init(cores, pargc, pargv);
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;

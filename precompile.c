@@ -1046,7 +1046,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
 
         output( "#if defined(DPLASMA_GRAPHER)\n"
-                "{\n"
+                "if( NULL != __dplasma_graph_file ) {\n"
                 "  char tmp[128];\n"
                 "  dplasma_service_to_string(exec_context, tmp, 128);\n"
                 "  fprintf(__dplasma_graph_file,\n"

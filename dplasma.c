@@ -25,9 +25,7 @@
 #include "remote_dep.h"
 #endif
 
-#ifdef DPLASMA_GRAPHER
-FILE *__dplasma_graph_file;
-#endif
+FILE *__dplasma_graph_file = NULL;
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
@@ -191,13 +189,24 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
 
+    for( i = 0; i < *pargc; i++ ) {
+        if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
+#ifdef DPLASMA_GRAPHER
+            if( NULL == __dplasma_graph_file ) {
+                __dplasma_graph_file = fopen( (*pargv)[i+1], "w");
+                i++;
+            }      
+#endif  /* DPLASMA_GRAPHER */
+        }
+    }
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
 #ifdef DPLASMA_GRAPHER
-    __dplasma_graph_file = fopen("dplasma.dot", "w");
-    fprintf(__dplasma_graph_file, "digraph G {\n");
-    fflush(__dplasma_graph_file);
+    if( NULL != __dplasma_graph_file ) {
+        fprintf(__dplasma_graph_file, "digraph G {\n");
+        fflush(__dplasma_graph_file);
+    }
 #endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( context, 4096 );
@@ -257,7 +266,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
                 if( eu->eu_id != j ) {
                     eu->eu_steal_from[k] = (int8_t)j;
                     k++;
-0                }
+                }
             }
 #endif
         }
@@ -319,11 +328,6 @@ int dplasma_fini( dplasma_context_t** pcontext )
     dplasma_context_t* context = *pcontext;
     int i;
 
-#ifdef DPLASMA_GRAPHER
-    fprintf(__dplasma_graph_file, "}\n");
-    fflush(__dplasma_graph_file);
-#endif  /* DPLASMA_GRAPHER */
-
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
     dplasma_barrier_wait( &(context->barrier) );
@@ -350,6 +354,14 @@ int dplasma_fini( dplasma_context_t** pcontext )
 
     /* Destroy all resources allocated for the barrier */
     dplasma_barrier_destroy( &(context->barrier) );
+
+#ifdef DPLASMA_GRAPHER
+    if( NULL != __dplasma_graph_file ) {
+        fprintf(__dplasma_graph_file, "}\n");
+        fclose(__dplasma_graph_file);
+        __dplasma_graph_file = NULL;
+    }
+#endif  /* DPLASMA_GRAPHER */
 
     free(context);
     *pcontext = NULL;
@@ -726,7 +738,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
 
 #ifdef DPLASMA_GRAPHER
-    {
+    if( NULL != __dplasma_graph_file ) {
         char tmp[128];
         fprintf(__dplasma_graph_file, 
                 "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
@@ -942,7 +954,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
         if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
 #ifdef DPLASMA_GRAPHER
-            {
+            if( NULL != __dplasma_graph_file ) {
                 char tmp[128];
                 fprintf(__dplasma_graph_file,
                         "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
@@ -978,7 +990,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    (int)(updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(updated_deps)));
 #ifdef DPLASMA_GRAPHER
-            {
+            if( NULL != __dplasma_graph_file ) {
                 char tmp[128];
                 fprintf(__dplasma_graph_file,
                         "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dplasma_dependency_to_string(origin, exec_context, tmp, 128),
