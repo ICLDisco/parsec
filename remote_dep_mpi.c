@@ -208,9 +208,20 @@ static int remote_dep_get_data(const dplasma_execution_context_t* task, int from
 
 #include <pthread.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #define YIELD_TIME 100000
-static inline void update_ts(struct timespec *ts, long nsec) 
+static void init_ts(struct timespec* ts)
+{
+#if defined(__gnu_linux__)
+    clock_gettime(CLOCK_REALTIME, ts);
+#else
+    gettimeofday((struct timeval*) ts, NULL);
+    ts->tv_nsec *= 1000;
+#endif
+}
+
+static inline void update_ts(struct timespec* ts, long nsec) 
 {
     ts->tv_nsec += nsec;
     while(ts->tv_nsec > 1000000000)
@@ -246,7 +257,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
     
     np = __remote_dep_mpi_init(context);
     
-    clock_gettime(CLOCK_REALTIME, &ts);
+    init_ts(&ts);
     
     pthread_mutex_lock(&dep_msg_mutex);
     do {
