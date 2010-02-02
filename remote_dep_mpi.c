@@ -58,13 +58,10 @@ int __remote_dep_fini(dplasma_context_t* context)
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin,
                                      const param_t* origin_param,
-                                     const dplasma_execution_context_t* exec_context,
-                                     const param_t* new_param,
                                      int rank, void** data)
 {
 #ifdef _DEBUG
     char tmp[128];
-    char tmp2[128];
 #endif
     
     assert(rank >= 0);
@@ -74,7 +71,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
         return 0;
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
-    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
+    DEBUG(("Realease %s deps\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp, 128), rank ));
 
     /* make sure we don't leave before serving all data deps */
     dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
@@ -208,9 +205,20 @@ static int remote_dep_get_data(const dplasma_execution_context_t* task, int from
 
 #include <pthread.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #define YIELD_TIME 100000
-static inline void update_ts(struct timespec *ts, long nsec) 
+static void init_ts(struct timespec* ts)
+{
+#if defined(__gnu_linux__)
+    clock_gettime(CLOCK_REALTIME, ts);
+#else
+    gettimeofday((struct timeval*) ts, NULL);
+    ts->tv_nsec *= 1000;
+#endif
+}
+
+static inline void update_ts(struct timespec* ts, long nsec) 
 {
     ts->tv_nsec += nsec;
     while(ts->tv_nsec > 1000000000)
@@ -246,7 +254,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
     
     np = __remote_dep_mpi_init(context);
     
-    clock_gettime(CLOCK_REALTIME, &ts);
+    init_ts(&ts);
     
     pthread_mutex_lock(&dep_msg_mutex);
     do {

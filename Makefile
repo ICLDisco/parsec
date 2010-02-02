@@ -3,7 +3,7 @@
 .DEFAULT_GOAL = all
 
 CFLAGS = -D_GNU_SOURCE -Wall -pedantic -I. $(INC) -std=c99 -DREENTRANT
-LDFLAGS = -lrt 
+LDFLAGS =  
 
 include make.inc
 

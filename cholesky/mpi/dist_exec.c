@@ -126,7 +126,7 @@ int main(int argc, char ** argv){
 #endif
         tiling(&uplo, N, A2, LDA, &local_desc);
     }
-#ifdef trickUSE_MPI
+#ifdef USE_MPI
     TIME_START();
     /* prepare data for block reception  */
     dplasma_desc_bcast(&local_desc, &descA);
@@ -196,7 +196,7 @@ int main(int argc, char ** argv){
     dplasma_progress(dplasma);
     TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
-# ifdef trickUSE_MPI    
+# ifdef USE_MPI    
     TIME_START();
     gather_data(&local_desc, &descA);
     TIME_PRINT(("data reduction on rank %d (to rank 0)\n", rank));

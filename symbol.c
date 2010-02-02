@@ -31,7 +31,7 @@ const symbol_t *dplasma_symbol_get_element_at( int i )
 
 void dplasma_load_symbols( symbol_t **array, int size )
 {
-    int i, j;
+    int i, j, found;
 
     if( size + dplasma_symbol_array_count > dplasma_symbol_array_size ) {
         dplasma_symbol_array_size = size + dplasma_symbol_array_count;
@@ -39,14 +39,17 @@ void dplasma_load_symbols( symbol_t **array, int size )
     }
 
     for(i = 0; i < size; i++) {
+        found = 0;
         for(j = 0; j < dplasma_symbol_array_count; j++) {
             if( !strcmp( array[i]->name, dplasma_symbol_array[j]->name) ) {
-                dplasma_symbol_array[j] = array[i];
+                found = 1;
                 break;
             }
         }
-        dplasma_symbol_array[dplasma_symbol_array_count] = array[i];
-        dplasma_symbol_array_count++;
+        if( 0 == found ) {
+            dplasma_symbol_array[dplasma_symbol_array_count] = array[i];
+            dplasma_symbol_array_count++;
+        }
     }
 }
 

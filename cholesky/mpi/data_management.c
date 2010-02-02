@@ -356,14 +356,14 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
     return res;
 }
 
-#ifdef USE_MPI
+
+#if 0 /*def USE_MPI*/
 /* empty stub for now, should allow for async data transfer from recv side */
 void * dplasma_get_tile_async(DPLASMA_desc *Ddesc, int m, int n, MPI_Request *req)
 {
     
     return NULL;
 }
-#endif
 
 void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
 {
@@ -384,6 +384,11 @@ void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
     return NULL;
 #endif
 }
+
+#else 
+#define dplasma_get_local_tile dplasma_get_tile
+#endif
+
 
 void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n)
 {
@@ -689,11 +694,6 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 buff = dplasma_get_tile(Ddesc, m, n);
                 printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
                 print_block("Dist tile", m, n, buff, Ddesc->nb, Ddesc->bsiz);
-            }
-#else 
-            if(Ddesc->mpi_rank == rank)
-            {
-                printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
             }
 #endif
         }

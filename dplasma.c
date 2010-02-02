@@ -209,7 +209,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
-    dplasma_profiling_init( context, 4096 );
+    dplasma_profiling_init( context, 8*4096 );
 #endif  /* DPLASMA_PROFILING */
 
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
