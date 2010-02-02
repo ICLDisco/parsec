@@ -58,13 +58,10 @@ int __remote_dep_fini(dplasma_context_t* context)
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin,
                                      const param_t* origin_param,
-                                     const dplasma_execution_context_t* exec_context,
-                                     const param_t* new_param,
                                      int rank, void** data)
 {
 #ifdef _DEBUG
     char tmp[128];
-    char tmp2[128];
 #endif
     
     assert(rank >= 0);
@@ -74,7 +71,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
         return 0;
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
-    DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
+    DEBUG(("Realease %s deps\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp, 128), rank ));
 
     /* make sure we don't leave before serving all data deps */
     dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
