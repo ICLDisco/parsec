@@ -846,7 +846,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                         "%s                     exec_context->function->inout[%d/*i*/],\n"
                                         "%s                     rank, data);\n"
                                         "%s    }\n",
-                                        spaces, spaces, spaces, spaces, spaces, i, spaces, spaces, i, j, spaces, spaces);
+                                        spaces, spaces, spaces, spaces, spaces, i, spaces, spaces);
                             }
                     }
 #else
