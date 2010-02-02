@@ -543,7 +543,9 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
     output("\n");
 
     for(i = 0; i < dplasma_symbol_get_count(); i++) {
+        char* current_symbol_pointer;
         symbol = dplasma_symbol_get_element_at(i);
+        current_symbol_pointer = dump_c_symbol(symbol, init_func_body, init_func_body_size);
         if( (symbol->min != NULL) &&
             (symbol->max != NULL) &&
             ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
@@ -551,17 +553,18 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
             output("int %s = %d;\n", symbol->name, symbol->min->value);
         } else {
             output("int %s;\n", symbol->name);
-
-            snprintf(init_func_body + strlen(init_func_body),
-                     init_func_body_size - strlen(init_func_body),
-                     "  {\n"
-                     "    int rc;\n"
-                     "    if( 0 != (rc = expr_eval( (%s)->min, NULL, 0, &%s)) ) {\n"
-                     "      return rc;\n"
-                     "    }\n"
-                     "  }\n",
-                     dump_c_symbol(symbol, init_func_body, init_func_body_size), symbol->name);
         }
+        snprintf(init_func_body + strlen(init_func_body),
+                 init_func_body_size - strlen(init_func_body),
+                 "  {\n"
+                 "    int rc;\n"
+                 "    symbol_t* symbol = dplasma_search_global_symbol((%s)->name);\n"
+                 "    if( NULL == symbol ) symbol = %s;\n"
+                 "    if( 0 != (rc = expr_eval( symbol->min, NULL, 0, &%s)) ) {\n"
+                 "      return rc;\n"
+                 "    }\n"
+                 "  }\n",
+                 current_symbol_pointer, current_symbol_pointer, symbol->name);
     }
     output("\n");
 }
