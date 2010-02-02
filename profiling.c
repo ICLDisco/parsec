@@ -266,25 +266,48 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "  <script><![CDATA[\n"
             "var svgDoc;\n"
             "var Root;\n"
+            "var scale=1;\n"
+            "var translate=1;\n"
             "var xmlns=\"http://www.w3.org/2000/svg\"\n"
             "function startup(evt){\n"
             "  O=evt.target\n"
             "  svgDoc=O.ownerDocument;\n"
             "  Root=svgDoc.documentElement;\n"
             "  O.setAttribute(\"onmousemove\",\"adjust(evt)\")\n"
+            "  top.svgzoom = svgzoom\n"
+            "  top.svgtranslate = svgtranslate\n"
             "  top.ready()\n"
             "}\n"
             "function adjust(evt){\n"
-            "  targetFName = evt.target.getElementsByTagName('FName').item(0).firstChild.nodeValue;\n"
-            "  targetFDesc = evt.target.getElementsByTagName('FDesc').item(0).firstChild.nodeValue;\n"
+            "  if( evt.target.getElementsByTagName('FName').item(0) &&\n"
+            "      evt.target.getElementsByTagName('FName').item(0).firstChild ) {\n"
+            "    targetFName = evt.target.getElementsByTagName('FName').item(0).firstChild.nodeValue;\n"
+            "  } else {\n"
+            "    targetFName = \"\";\n"
+            "  }\n"
+            "  if( evt.target.getElementsByTagName('FDesc').item(0) &&\n"
+            "      evt.target.getElementsByTagName('FDesc').item(0).firstChild ) {\n"
+            "    targetFDesc = evt.target.getElementsByTagName('FDesc').item(0).firstChild.nodeValue;\n"
+            "  } else {\n"
+            "    targetFDesc = \"\";\n"
+            "  }\n"
             "  top.mouseMove(targetFName, targetFDesc)\n"
+            "}\n"
+            "function svgzoom( x ) {\n"
+            "  scale=x;\n"
+            "  svgDoc.getElementById('gantt').setAttribute(\"transform\", \"scale(\" + scale + \", 1) translate(\" + translate + \", 0)\");\n"
+            "}\n"
+            "function svgtranslate( x ) {\n"
+            "  translate=-x;\n"
+            "  svgDoc.getElementById('gantt').setAttribute(\"transform\", \"scale(\" + scale + \", 1) translate(\" + translate + \", 0)\");\n"
             "}\n"
             "//]]>\n"
             "  </script>\n"
             "    <rect x='0' y='0' width='100%%' height='100%%' fill='white'>\n"
             "      <FName><![CDATA[]]></FName>\n"
             "      <FDesc><![CDATA[]]></FDesc>\n"
-            "    </rect>\n",
+            "    </rect>\n"
+            "    <g id=\"gantt\" transform=\"scale(1) translate(1, 0)\">\n",
             WIDTH,
             context->nb_cores * CORE_STRIDE +  dplasma_prof_keys_count*20);
 
@@ -314,6 +337,15 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 
     scale = WIDTH / (double)diff_time(relative, latest);
 
+    fprintf(tracefile, "    <rect x=\"0.00\" y=\"18.0\" width=\"%l.2f\" height=\"1.0\" />\n", WIDTH);
+    for( i = 0; i <= WIDTH; i += WIDTH/20 ) {
+        fprintf(tracefile, "    <rect x=\"%l.2f\" y=\"14.0\" width=\"1.0\" height=\"8.0\" />\n", (double)i);
+                
+        fprintf(tracefile,
+                "    <text x=\"%.2lf\" y=\"12.0\">%.2lf</text>\n",
+                (double)i, i*scale);
+    }
+
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
         gaps = 0.0;
@@ -336,7 +368,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                     "       <FDesc>%.0lf time units (%.2lf%% of time)</FDesc>\n"
                     "    </rect>\n",                
                     start * scale,
-                    thread_id * CORE_STRIDE + 2.0,
+                    thread_id * CORE_STRIDE + 25.0,
                     (end - start) * scale,
                     CORE_STRIDE,
                     dplasma_prof_keys[tag].attributes,
@@ -349,6 +381,9 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                    (unsigned long)last, (gaps * 100.0) / (double)last);
         }
     }
+
+    fprintf(tracefile,
+            "  </g>\n");
 
     nplot = 0;
     for( key = 0; key < dplasma_prof_keys_count; key++ ) {
@@ -382,10 +417,10 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                         "  <rect x='%d' y='%d' width='20' height='10' style='%s' />\n"
                         "  <text x='%d' y='%d'>%s",
                         (nplot /  dplasma_prof_keys_count) * 400 + 10,
-                        (nplot %  dplasma_prof_keys_count) * 15 + 10 + context->nb_cores * (int)CORE_STRIDE,
+                        (nplot %  dplasma_prof_keys_count) * 15 + 33 + context->nb_cores * (int)CORE_STRIDE,
                         dplasma_prof_keys[key].attributes,
                         (nplot /  dplasma_prof_keys_count) * 400 + 35,
-                        (nplot %  dplasma_prof_keys_count) * 15 + 20 + context->nb_cores * (int)CORE_STRIDE,
+                        (nplot %  dplasma_prof_keys_count) * 15 + 43 + context->nb_cores * (int)CORE_STRIDE,
                         dplasma_prof_keys[key].name);
                 for( ptid = 0; ptid < thread_id; ptid++) {
                     fprintf(tracefile, "nan(nan)%c", (ptid + 1 == context->nb_cores) ? ' ' : '/');
