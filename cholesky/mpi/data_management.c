@@ -690,11 +690,6 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
                 print_block("Dist tile", m, n, buff, Ddesc->nb, Ddesc->bsiz);
             }
-#else 
-            if(Ddesc->mpi_rank == rank)
-            {
-                printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
-            }
 #endif
         }
     MPI_Barrier(MPI_COMM_WORLD);
