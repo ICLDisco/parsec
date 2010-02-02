@@ -1,11 +1,32 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
   <head>
+    <style type="text/css">
+	body{
+		height:100%;
+		width:100%;
+		margin:10px;
+		padding-left:0px;
+		text-align:left;
+	}
+	
+	.form_widget_amount_slider{
+		border-top:1px solid #9d9c99;
+		border-left:1px solid #9d9c99;
+		border-bottom:1px solid #eee;
+		border-right:1px solid #eee;
+		background-color:#f0ede0;
+		height:3px;
+		position:absolute;
+		bottom:0px;
+	}
+
+    </style>
+
     <title>DPOSV Gantt-Like Observer</title>
     <script>
 function prepare(){
-        opera.postError("Prepare called");
-        if (document.all){
+       if (document.all){
 		rightedge=document.body.clientWidth-100
 		bottomedge=document.body.clientHeight-50
 	}else{
@@ -17,11 +38,10 @@ function prepare(){
 	midx=Math.ceil(svgright/2);
 	high=bottomedge-T1H;
 	E="<EMBED name='sv' src='dposv.svg' width='"+svgright+"' height='"+high+"'></EMBED>"
-       document.getElementById("gee").innerHTML=E
+        document.getElementById("gee").innerHTML=E
 	document.getElementById("gee").style.top=T1H
 }
 function ready(){
-        opera.postError("Ready Called");
 	svgdoc = document.sv.getSVGDocument();
 	svgRoot = svgdoc.documentElement;
 }
@@ -29,16 +49,35 @@ function mouseMove(t, d) {
         document.f.title.value = t;
         document.f.desc.value = d;
 }
+function zoom() {
+        v = document.f.zoom.value;
+        svgzoom( v/10 );
+}
+function translate() {
+        v = document.f.translate.value;
+        svgtranslate( v );
+}
+function error( x ) {
+        opera.postError( x );
+}
     </script>
+    <script src="html/dhtmlgoodies_slider.js"></script>
   </head>
 
   <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="10">
     <div align=center>
       <b>DPOSV Gantt-Like Observer</b>
       <form name="f">
-        Function Name <input name=title size=12 />
-        Stats  <input name=desc size=48 />
+        <table>
+	  <tr><td>Function Name</td><td><input name=title size=12 /></td><td>Stats</td><td><input name=desc size=48 /></td></tr>
+	  <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td><td>&nbsp;</td></tr>
+	  <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td><td>&nbsp;</td></tr>
+	</table>
       </form>
+<script type="text/javascript">
+form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 100, "zoom()");
+form_widget_amount_slider('slider_translate',document.f.translate, 200, 0, 800, "translate()");
+</script>
     </div>
     <DIV id="gee" style="position:absolute;top:300;left:50" />
   </body>
