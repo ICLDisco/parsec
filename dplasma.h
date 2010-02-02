@@ -73,6 +73,8 @@ typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dpl
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
 #define DPLASMA_HAS_IN_STRONG_DEPENDENCIES 0x0004
+#define DPLASMA_HIGH_PRIORITY_TASK         0x0008
+
 struct dplasma_t {
     const char*             name;
     uint16_t                flags;
