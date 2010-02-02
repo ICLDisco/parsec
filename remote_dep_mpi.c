@@ -36,7 +36,7 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context);
 
 /* TODO: smart use of dplasma context instead of ugly globals */
 static MPI_Comm dep_comm;
-static MPI_Request dep_req[2];
+static MPI_Request dep_req[3];
 /* TODO: fix heterogeneous restriction by using mpi datatypes */ 
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(dplasma_execution_context_t)
@@ -75,6 +75,9 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
     DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
+
+    /* make sure we don't leave before serving all data deps */
+    dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
     return remote_dep_send(origin, rank, data);
 }
 
@@ -116,6 +119,7 @@ static int __remote_dep_mpi_init(dplasma_context_t* context)
     MPI_Comm_size(dep_comm, &np);
     MPI_Recv_init(&dep_buff, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_req[0]);
     MPI_Recv_init(&dep_data, 1, data_dtt, MPI_ANY_SOURCE, REMOTE_DEP_GET_DATA_TAG, dep_comm, &dep_req[1]);
+    dep_req[2] = MPI_REQUEST_NULL;
     MPI_Start(&dep_req[0]);
     MPI_Start(&dep_req[1]);
     return np;    
@@ -138,7 +142,7 @@ static int __remote_dep_send(dplasma_execution_context_t* task, int rank, void *
 }
 
 static int remote_dep_put_data(void* data, int to);
-static int remote_dep_get_data(const dplasma_execution_context_t* task, int from, void **data);
+static int remote_dep_get_data(const dplasma_execution_context_t* task, int from);
 
 static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 {
@@ -150,27 +154,30 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
     int i, flag;
     
     do {
-        MPI_Testany(2, dep_req, &i, &flag, &status);
+        MPI_Testany(3, dep_req, &i, &flag, &status);
         if(flag)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
             {
-                void *data[1];
-                
                 assert(i == 0);
                 DEBUG(("%s -> local\tFROM REMOTE process rank %d\n", dplasma_service_to_string(&dep_buff, tmp, 128), status.MPI_SOURCE));
-
-                remote_dep_get_data(&dep_buff, status.MPI_SOURCE, data);
-                dep_buff.function->release_deps(eu_context, &dep_buff, 0, data);
-                MPI_Start(&dep_req[0]);
-                ret++;
+                remote_dep_get_data(&dep_buff, status.MPI_SOURCE);
             } 
-            else 
+            else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
-                assert(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG);
                 assert(i == 1);
                 remote_dep_put_data(dep_data, status.MPI_SOURCE);
                 MPI_Start(&dep_req[1]);
+                /* Allow for termination if needed */
+                dplasma_atomic_dec_32b( &(eu_context->master_context->taskstodo) );
+            }
+            else 
+            {
+                assert(i == 2);
+                assert(REMOTE_DEP_PUT_DATA_TAG == status.MPI_TAG);
+                dep_buff.function->release_deps(eu_context, &dep_buff, 0, &dep_buff.list_item.cache_friendly_emptiness);
+                MPI_Start(&dep_req[0]);
+                ret++;
             }
         }
     } while(flag);
@@ -182,16 +189,16 @@ static int remote_dep_put_data(void* data, int to)
     return MPI_Send(data, TILE_SIZE, MPI_DOUBLE, to, REMOTE_DEP_PUT_DATA_TAG, dep_comm);
 }
 
-static int remote_dep_get_data(const dplasma_execution_context_t* task, int from, void** data)
+static int remote_dep_get_data(const dplasma_execution_context_t* task, int from)
 {
     int i;
-    MPI_Status status;
     
     for(i = 0; i < 1; i++)
     {
         MPI_Send(&dep_buff.list_item.cache_friendly_emptiness, 1, data_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
-        data[i] = malloc(sizeof(double) * TILE_SIZE);
-        MPI_Recv(data[i], TILE_SIZE, MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &status);
+        dep_buff.list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
+        MPI_Irecv(dep_buff.list_item.cache_friendly_emptiness, TILE_SIZE, 
+                  MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_req[2]);
     }
     return i;
 }
