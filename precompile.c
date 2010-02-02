@@ -678,6 +678,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     }
 
     output("  struct dplasma_dependencies_t *placeholder = NULL;\n"
+           "  uint32_t usage = 0;\n"
            "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
     for(j = 0; j < MAX_LOCAL_COUNT; j++) {
         output(" {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
@@ -791,7 +792,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output("%s      new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
                     }
 
-                    output( "%s      dplasma_atomic_inc_32b(&e%s->refcount);\n",
+                    output( "%s      usage++;\n",
                             spaces, d->name);
                     
                     output( "%s      ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"
@@ -858,9 +859,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                spaces, spaces, spaces);
                     }
 #endif
-
-
-
                     
                     output("%s  }\n", spaces);
                     
@@ -889,11 +887,10 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             }
         }
     }
-    output("  /* release the hold on e%s */\n"
-           "  data_repo_unref_entry(%s_repo, e%s->key);\n"
+    output("  data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"
            "  return ret;\n"
            "}\n",
-           d->name, d->name, d->name);
+           d->name, d->name);
 }
 
 static char *dplasma_dump_c(const dplasma_t *d,
@@ -1089,18 +1086,12 @@ static char *dplasma_dump_c(const dplasma_t *d,
                                 output("  if(");
                                 dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
                                 output(") {\n"
-                                       "    data_repo_unref_entry( %s_repo, e%s->key );\n"
-                                       "    data_repo_unref_entry( %s_repo, e%s->key );\n"
+                                       "    data_repo_entry_used_once( %s_repo, e%s->key );\n"
                                        "  }\n",
-                                       d->inout[i]->dep_in[k]->dplasma->name,
-                                       d->inout[i]->name,
                                        d->inout[i]->dep_in[k]->dplasma->name,
                                        d->inout[i]->name);
                             } else {
-                                output("  data_repo_unref_entry( %s_repo, e%s->key );\n"
-                                       "  data_repo_unref_entry( %s_repo, e%s->key );\n",
-                                       d->inout[i]->dep_in[k]->dplasma->name,
-                                       d->inout[i]->name,
+                                output("  data_repo_entry_used_once( %s_repo, e%s->key );\n",
                                        d->inout[i]->dep_in[k]->dplasma->name,
                                        d->inout[i]->name);
                             }

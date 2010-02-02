@@ -3,6 +3,12 @@
 
 #include "atomic.h"
 
+#if 1
+#define GC_DEBUG(toto...) do {} while(0)
+#else
+#define GC_DEBUG(toto...) printf(toto)
+#endif
+
 static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {
     while( !dplasma_atomic_cas( atomic_lock, 0, 1) )
@@ -17,7 +23,8 @@ static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
 typedef struct data_repo_entry {
     long int key;
     struct data_repo_entry *next_entry;
-    unsigned int refcount;
+    volatile uint32_t usagecnt;
+    volatile uint32_t usagelmt;
     void *data[1];
 } data_repo_entry_t;
 
@@ -50,21 +57,52 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
         e != NULL;
         e = e->next_entry)
         if( e->key == key ) {
-            dplasma_atomic_inc_32b(&e->refcount);
-            break;
+            data_repo_atomic_unlock(&repo->heads[h].lock);
+            return e;
         }
-    if( (NULL == e) && (create != 0) ) {
+
+    if( create != 0 ) {
         e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(void*));
+        GC_DEBUG("%p datarepo alloc\n", e);
         e->next_entry = repo->heads[h].first_entry;
         repo->heads[h].first_entry = e;
-        dplasma_atomic_inc_32b(&e->refcount);
         e->key = key;
     }
     data_repo_atomic_unlock(&repo->heads[h].lock);
     return e;
 }
 
-static inline void data_repo_unref_entry(data_repo_t *repo, long int key)
+static inline void data_repo_entry_used_once(data_repo_t *repo, long int key)
+{
+    data_repo_entry_t *e, *p;
+    int h = key % repo->nbentries;
+    uint32_t r = 0xffffffff;
+
+    data_repo_atomic_lock(&repo->heads[h].lock);
+    p = NULL;
+    for(e = repo->heads[h].first_entry;
+        e != NULL;
+        p = e, e = e->next_entry)
+        if( e->key == key ) {
+            r = dplasma_atomic_inc_32b(&e->usagecnt);
+            break;
+        }
+
+    if( /*(NULL != e) &&*/ (e->usagelmt == r) ) {
+        if( NULL != p ) {
+            p->next_entry = e->next_entry;
+        } else {
+            repo->heads[h].first_entry = e->next_entry;
+        }
+        data_repo_atomic_unlock(&repo->heads[h].lock);
+        GC_DEBUG("%p datarepo free\n", e);
+        free(e);
+    } else {
+        data_repo_atomic_unlock(&repo->heads[h].lock);
+    }
+}
+
+static inline void data_repo_entry_set_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt)
 {
     data_repo_entry_t *e, *p;
     int h = key % repo->nbentries;
@@ -75,18 +113,22 @@ static inline void data_repo_unref_entry(data_repo_t *repo, long int key)
         e != NULL;
         p = e, e = e->next_entry)
         if( e->key == key ) {
-            dplasma_atomic_dec_32b(&e->refcount);
+            e->usagelmt = usagelmt;
             break;
         }
-    if( (NULL != e) && (0 == e->refcount) ) {
+
+    if( /*(NULL != e) &&*/ (usagelmt == e->usagecnt) ) {
         if( NULL != p ) {
             p->next_entry = e->next_entry;
         } else {
             repo->heads[h].first_entry = e->next_entry;
         }
+        data_repo_atomic_unlock(&repo->heads[h].lock);
+        GC_DEBUG("%p datarepo free\n", e);
         free(e);
-    } 
-    data_repo_atomic_unlock(&repo->heads[h].lock);
+    } else {
+        data_repo_atomic_unlock(&repo->heads[h].lock);
+    }
 }
 
 static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
