@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,12 +13,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-/*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
- *                         of Tennessee Research Foundation.  All rights
- *                         reserved.
- */
-
 #include <string.h>
 
 #include <cblas.h>
@@ -177,6 +171,7 @@ int main(int argc, char ** argv){
     {
         /* warm the cache for the first tile */
         dplasma_execution_context_t exec_context;
+#if defined(POTRF_CACHE_WARMUP)
         int i, j;
         double useless = 0.0;
         for( i = 0; i < descA.nb; i++ ) {
@@ -184,7 +179,7 @@ int main(int argc, char ** argv){
                 useless += ((double*)descA.mat)[i*descA.nb+j];
             }
         }
-
+#endif 
         /* Ok, now get ready for the same thing again. */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
