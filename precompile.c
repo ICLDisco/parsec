@@ -716,9 +716,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                     }
 
-                    output("    new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* placeholder for %s */\n" 
-                           "    assert( strcmp( new_context.function->name, \"%s\") == 0 );\n",
-                           i, j, dep->dplasma->name, dep->dplasma->name);
+                    output("    assert( strcmp( exec_context->function->inout[%d]->dep_out[%d]->dplasma->name, \"%s\") == 0 );\n",
+                            i, j, dep->dplasma->name);
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL != dep->call_params[k] ) {
@@ -734,13 +733,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                 dump_inline_c_expression(dep->call_params[k]);
                                 output(";\n");
                             }
-                            output("%s  new_context.locals[%d].value = _p%d;\n"
-                                   "%s  new_context.locals[%d].min   = _p%d;\n"
-                                   "%s  new_context.locals[%d].max   = _p%d;\n", 
-                                   spaces, k, k,
-                                   spaces, k, k,
-                                   spaces, k, k);
-                            output("%s  new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
                         }
                     }
 
@@ -786,6 +778,18 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                     }
                     output(") ) {\n");
+
+                    output("%s      new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* %s */\n",
+                           spaces, i, j, dep->dplasma->name);
+                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                        output("%s      new_context.locals[%d].value = _p%d;\n"
+                               "%s      new_context.locals[%d].min   = _p%d;\n"
+                               "%s      new_context.locals[%d].max   = _p%d;\n", 
+                               spaces, k, k,
+                               spaces, k, k,
+                               spaces, k, k);
+                        output("%s      new_context.locals[%d].sym = new_context.function->locals[%d];\n", spaces, k, k);
+                    }
 
                     output( "%s      dplasma_atomic_inc_32b(&e%s->refcount);\n",
                             spaces, d->name);
