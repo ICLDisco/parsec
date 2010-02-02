@@ -137,9 +137,11 @@ int main(int argc, char ** argv){
 
 # if defined(DO_THE_NASTY_VALIDATIONS)
     data_dist_verif(&local_desc, &descA);
+#   if defined(PRINT_ALL_BLOCKS)
     if(rank == 0)
         plasma_dump(&local_desc);
     data_dump(&descA);
+#   endif
 # endif
 
 #else /* NO MPI */

@@ -67,12 +67,19 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
 int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n);
 
+
+/* get a pointer to a specific LOCAL tile */
+static inline void* dplasma_get_local_tile(DPLASMA_desc* Ddesc, int m, int n)
+{    
+    return &((double*)Ddesc->mat)[Ddesc->bsiz * (m + Ddesc->lmt * n)];
+}
+
 /* get a pointer to a specific tile 
  * if the tile is remote, it is downloaded first */
 void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n);
 
-/* get a pointer to a specific LOCAL tile */
-void * dplasma_get_local_tile(DPLASMA_desc * Ddesc, int m, int n);
+/* get a pointer to a specific LOCAL tile, with supertile management. */
+void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
 
 
 /* set new data to tile

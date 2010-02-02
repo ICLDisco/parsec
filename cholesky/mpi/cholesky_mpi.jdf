@@ -14,7 +14,7 @@ extern PLASMA_desc local_desc;
 int PLASMA_INFO;
 
 #ifdef USE_MPI
-#define A(m,n) dplasma_get_tile(&descA, m, n)
+#define A(m,n) dplasma_get_local_tile(&descA, m, n)
 #else
 #define A(m,n) &(((double*)local_desc.mat)[local_desc.bsiz*(m)+local_desc.bsiz*local_desc.lmt*(n)])
 #endif

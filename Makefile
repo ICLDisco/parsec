@@ -62,6 +62,8 @@ QR/dgels: $(patsubst %.o, %-single.o, $(OBJECTS) $(QR_OBJECTS)) dplasma-single.a
 DPC = $(realpath dpc)
 
 ifeq "$(strip $(findstring -DUSE_MPI , $(CFLAGS)))" ""
+MPICC = $(CC)
+MPIF77 = $(F77)
 MPICLINKER = $(CLINKER)
 MPILINKER = $(LINKER)
 else
