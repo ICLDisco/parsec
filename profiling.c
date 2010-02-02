@@ -337,9 +337,9 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 
     scale = WIDTH / (double)diff_time(relative, latest);
 
-    fprintf(tracefile, "    <rect x=\"0.00\" y=\"18.0\" width=\"%l.2f\" height=\"1.0\" />\n", WIDTH);
+    fprintf(tracefile, "    <rect x=\"0.00\" y=\"18.0\" width=\"%.2lf\" height=\"1.0\" />\n", WIDTH);
     for( i = 0; i <= WIDTH; i += WIDTH/20 ) {
-        fprintf(tracefile, "    <rect x=\"%l.2f\" y=\"14.0\" width=\"1.0\" height=\"8.0\" />\n", (double)i);
+        fprintf(tracefile, "    <rect x=\"%.2lf\" y=\"14.0\" width=\"1.0\" height=\"8.0\" />\n", (double)i);
                 
         fprintf(tracefile,
                 "    <text x=\"%.2lf\" y=\"12.0\">%.2lf</text>\n",
