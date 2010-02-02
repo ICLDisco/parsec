@@ -33,7 +33,7 @@ int dplasma_profiling_del_dictionary_keyword( int key );
 
 int dplasma_profiling_reset( dplasma_execution_unit_t* context );
 
-int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key );
+int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key, unsigned long id );
 
 int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename );
 

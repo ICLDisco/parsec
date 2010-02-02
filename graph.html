@@ -23,20 +23,21 @@
 
     </style>
 
-    <title>DPOSV Gantt-Like Observer</title>
-    <script id="dposv_script">
-var graphwindow = null;
+    <title>DPOSV Graph-Like Observer</title>
+    <script>
+var ganttwindow = null;
 function opened() {
-        opera.postError(" dposv.html: child window opened ");
+        opera.postError(" graph.html: child window opened ");
 }
 var Opened = this.opened;
+
 function prepare(){
         if( opener != undefined ) {
-          graphwindow = opener;
-          graphwindow.Opened();
+           ganttwindow = opener;
+           ganttwindow.Opened();
         }
 
-       if (document.all){
+        if (document.all){
 		rightedge=document.body.clientWidth-100
 		bottomedge=document.body.clientHeight-50
 	}else{
@@ -47,7 +48,7 @@ function prepare(){
 	svgright=rightedge;
 	midx=Math.ceil(svgright/2);
 	high=bottomedge-T1H;
-	E="<EMBED name='sv' src='dposv.svg' width='"+svgright+"' height='"+high+"'></EMBED>"
+	E="<EMBED name='sv' src='dposv-graph.svg' width='"+svgright+"' height='"+high+"'></EMBED>"
         document.getElementById("gee").innerHTML=E
 	document.getElementById("gee").style.top=T1H
 }
@@ -55,32 +56,32 @@ function ready(){
 	svgdoc = document.sv.getSVGDocument();
 	svgRoot = svgdoc.documentElement;
 }
-function mouseMove(t, d) {
-        document.f.title.value = t;
-        document.f.desc.value = d;
-}
 function zoom() {
         v = document.f.zoom.value;
         svgzoom( v/10 );
 }
-function translate() {
-        v = document.f.translate.value;
-        svgtranslate( v );
+function translatex() {
+        v = document.f.translatex.value;
+        svgtranslatex( 100*v );
+}
+function translatey() {
+        v = document.f.translatey.value;
+        svgtranslatey( 100*v );
 }
 function error( x ) {
         opera.postError( x );
 }
 function select_function( x ) {
          error(x);
-         if( graphwindow == null && x != undefined ) {
-           graphwindow = window.open("graph.html", "dposv");
+         if( ganttwindow == null && x != undefined ) {
+           ganttwindow = window.open("dposv.html", "graph");           
          } else {
-           graphwindow.SF( x );
-         }
+           ganttwindow.SF(x);
+        }
 }
 function sf(x) {
-  opera.postError("dposv.html: outside asks me to select " + x);
-  svg_outside_select(x);
+    opera.postError( "graph.html: outside asks me to select " + x);
+    svg_outside_select(x);
 }
 var SF=this.sf;
     </script>
@@ -92,14 +93,15 @@ var SF=this.sf;
       <b>DPOSV Gantt-Like Observer</b>
       <form name="f">
         <table>
-	  <tr><td>Function Name</td><td><input name=title size=12 /></td><td>Stats</td><td><input name=desc size=48 /></td></tr>
 	  <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td><td>&nbsp;</td></tr>
-	  <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td><td>&nbsp;</td></tr>
+	  <tr><td>Translate X</td><td id='slider_translatex'></td><td><input type="text" name="translatex" size="3" value="0" onchange="translatex()"></td><td>&nbsp;</td></tr>
+	  <tr><td>Translate Y</td><td id='slider_translatey'></td><td><input type="text" name="translatey" size="3" value="0" onchange="translatey()"></td><td>&nbsp;</td></tr>
 	</table>
       </form>
 <script type="text/javascript">
-form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 1000, "zoom()");
-form_widget_amount_slider('slider_translate',document.f.translate, 200, 0, 800, "translate()");
+form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 40, "zoom()");
+form_widget_amount_slider('slider_translatex',document.f.translatex, 200, 0, 100, "translatex()");
+form_widget_amount_slider('slider_translatey',document.f.translatey, 200, -100, 100, "translatey()");
 </script>
     </div>
     <DIV id="gee" style="position:absolute;top:300;left:50" />

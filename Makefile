@@ -58,6 +58,10 @@ cholesky/timeenumerator: $(patsubst %.o, %-single.o, $(OBJECTS) $(ENUMERATOR_OBJ
 QR/dgels: $(patsubst %.o, %-single.o, $(OBJECTS) $(QR_OBJECTS)) dplasma-single.a
 	$(LINKER) -o $@ $^ $(LDFLAGS) $(LIB)
 
+dposv-graph.svg: dposv.dot xslt-is-hard.sh
+	dot -Tsvg dposv.dot > dposv-tmp.svg
+	./xslt-is-hard.sh ./dposv-tmp.svg ./dposv-graph.svg
+	@rm -f dposv-tmp.svg
 
 DPC = $(realpath dpc)
 

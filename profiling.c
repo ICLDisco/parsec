@@ -108,6 +108,7 @@ typedef struct dplasma_profiling_key_t {
 
 typedef struct dplasma_profiling_output_t {
     int key;
+    unsigned long id;
     dplasma_time_t timestamp;
 } dplasma_profiling_output_t;
 
@@ -229,7 +230,7 @@ int dplasma_profiling_reset( dplasma_execution_unit_t* context )
     return 0;
 }
 
-int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key )
+int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key, unsigned long id )
 {
     int my_event = context->eu_profile->events_count++;
 
@@ -237,6 +238,7 @@ int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key )
         return -1;
     }
     context->eu_profile->events[my_event].key = key;
+    context->eu_profile->events[my_event].id  = id;
     context->eu_profile->events[my_event].timestamp = take_time();
     
     return 0;
@@ -269,14 +271,52 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "var scale=1;\n"
             "var translate=1;\n"
             "var xmlns=\"http://www.w3.org/2000/svg\"\n"
+            "var cursel=undefined;\n"
+            "var oldSelStyle=\"\";\n"
             "function startup(evt){\n"
             "  O=evt.target\n"
             "  svgDoc=O.ownerDocument;\n"
             "  Root=svgDoc.documentElement;\n"
             "  O.setAttribute(\"onmousemove\",\"adjust(evt)\")\n"
+            "  O.setAttribute(\"onmousedown\",\"recolor(evt)\")\n"
             "  top.svgzoom = svgzoom\n"
             "  top.svgtranslate = svgtranslate\n"
+            "  top.svg_outside_select = outsideSelect\n"
             "  top.ready()\n"
+            "}\n"
+            "function outsideSelect(x){\n"
+            "  if( cursel != undefined ) {\n"
+            "      cursel.setAttribute(\"style\", oldSelStyle);\n"
+            "      cursel = undefined;\n"
+            "      oldSelStyle = \"\";\n"
+            "  }\n"
+            "  cursel = svgDoc.getElementById(x);\n"
+            "  if( !cursel ) {\n"
+            "    opera.postError(\"dposv.svg warning: unable to find the element named \" + x);\n"
+            "  } else {\n"
+            "    oldSelStyle = cursel.getAttribute(\"style\");\n"
+            "    cursel.setAttribute(\"style\", \"fill:#FFCC00\");\n"
+            "  }\n"
+            "}\n"
+            "function recolor(evt){\n"
+            "  if( cursel != undefined ) {\n"
+            "      cursel.setAttribute(\"style\", oldSelStyle);\n"
+            "      cursel = undefined;\n"
+            "      oldSelStyle = \"\";\n"
+            "  }\n"
+            "\n"
+            "  if( evt.target.getElementsByTagName('FID').item(0) &&\n"
+            "      evt.target.getElementsByTagName('FID').item(0).firstChild &&\n"
+            "      evt.target.getElementsByTagName('FID').item(0).firstChild.nodeValue != \"\" ) {\n"
+            "      \n"
+            "      cursel = evt.target;\n"
+            "      oldSelStyle = cursel.getAttribute(\"style\");\n"
+            "      cursel.setAttribute(\"style\", \"fill:#FFCC00\");\n"
+            "      top.select_function(evt.target.getElementsByTagName('FName').item(0).firstChild.nodeValue +\n"
+            "                          evt.target.getElementsByTagName('FID').item(0).firstChild.nodeValue);\n"
+            "  } else {\n"
+            "      top.select_function("");\n"
+            "  }\n"
             "}\n"
             "function adjust(evt){\n"
             "  if( evt.target.getElementsByTagName('FName').item(0) &&\n"
@@ -363,9 +403,10 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             if( last < end ) last = end;
             
             fprintf(tracefile,
-                    "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\">\n"
+                    "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\" id='%s%d'>\n"
                     "       <FName>%s</FName>\n"
                     "       <FDesc>%.0lf time units (%.2lf%% of time)</FDesc>\n"
+                    "       <FID>%lu</FID>\n"
                     "    </rect>\n",                
                     start * scale,
                     thread_id * CORE_STRIDE + 25.0,
@@ -373,8 +414,11 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                     CORE_STRIDE,
                     dplasma_prof_keys[tag].attributes,
                     dplasma_prof_keys[tag].name,
+                    profile->events[i].id,
+                    dplasma_prof_keys[tag].name,
                     (double)end-(double)start,
-                    100.0 * ( (double)end-(double)start) / (double)total_time);
+                    100.0 * ( (double)end-(double)start) / (double)total_time,
+                    profile->events[i].id);
         }
         if( 0 != i ) {
             printf("Found %lu ticks gaps out of %lu (%.2lf%%)\n", (unsigned long)gaps,

@@ -27,7 +27,6 @@
 
 static const char *colors[COLORS_SIZE] = { 
   "#E52B50", 
-  "#FFBF00", 
   "#7FFFD4", 
   "#007FFF", 
   "#000000", 
@@ -1037,26 +1036,46 @@ static char *dplasma_dump_c(const dplasma_t *d,
             output("\n");
         }
 
+        output( "  TAKE_TIME(context, %s_start_key, %s_hash(",
+                d->name, d->name);
+        for(j = 0; j < d->nb_locals; j++) {
+            output("%s", d->locals[j]->name );
+            if( j == d->nb_locals - 1 ) 
+                output("));\n");
+            else
+                output(", ");
+        }
         body_lines = nblines(d->body);
-        output( "  TAKE_TIME(context, %s_start_key);\n"
-                "\n"
-                "  %s\n"
+        output( "  %s\n"
                 "#line %d \"%s\"\n"
                 "\n"
-                "  TAKE_TIME(context, %s_end_key);\n"
-                "\n", d->name, d->body, body_lines+3+current_line, out_name, d->name);
+                "  TAKE_TIME(context, %s_end_key, %s_hash(",
+                d->body, body_lines+1+current_line, out_name, d->name, d->name);
+        for(j = 0; j < d->nb_locals; j++) {
+            output("%s", d->locals[j]->name );
+            if( j == d->nb_locals - 1 ) 
+                output("));\n");
+            else
+                output(", ");
+        }
 
         output( "#if defined(DPLASMA_GRAPHER)\n"
                 "if( NULL != __dplasma_graph_file ) {\n"
                 "  char tmp[128];\n"
                 "  dplasma_service_to_string(exec_context, tmp, 128);\n"
                 "  fprintf(__dplasma_graph_file,\n"
-                "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\"];\\n\",\n"
-                "          tmp, colors[context->eu_id], tmp);\n"
-                "  fflush(__dplasma_graph_file);\n"
-                "}\n"
-                "#endif /* defined(DPLASMA_GRAPHER) */\n",
-                shapes[next_shape_idx++ % SHAPES_SIZE]);
+                "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%d\\\"];\\n\",\n"
+                "          tmp, colors[context->eu_id], tmp, %s_hash(",
+                shapes[next_shape_idx++ % SHAPES_SIZE], d->name, d->name);
+        for(j = 0; j < d->nb_locals; j++) {
+            output("%s", d->locals[j]->name );
+            if( j == d->nb_locals - 1 ) 
+                output("));\n");
+            else
+                output(", ");
+        }
+        output("}\n"
+               "#endif /* defined(DPLASMA_GRAPHER) */\n");
 
         cpt = 0;
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
@@ -1214,9 +1233,9 @@ int dplasma_dump_all_c(char *filename)
         object = dplasma_element_at(i);
         output("int %s_start_key, %s_end_key;\n", object->name, object->name);
     }
-    output( "#define TAKE_TIME(EU_CONTEXT, KEY)  dplasma_profiling_trace((EU_CONTEXT), (KEY))\n"
+    output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT), (KEY), (ID))\n"
             "#else\n"
-            "#define TAKE_TIME(EU_CONTEXT, KEY)\n"
+            "#define TAKE_TIME(EU_CONTEXT, KEY, ID)\n"
             "#endif  /* DPLASMA_PROFILING */\n"
             "\n"
             "#include \"scheduling.h\"\n"
