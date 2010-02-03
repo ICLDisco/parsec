@@ -12,6 +12,8 @@
 #include "dequeue.h"
 #include "barrier.h"
 
+#define PLACEHOLDER_SIZE 32
+
 typedef struct dplasma_context_t dplasma_context_t;
 
 typedef struct dplasma_execution_unit_t {
@@ -22,7 +24,9 @@ typedef struct dplasma_execution_unit_t {
     dplasma_atomic_lifo_t* eu_task_queue;
 #else
     dplasma_dequeue_t* eu_task_queue;
-    void* placeholder;
+    struct dplasma_execution_context_t* placeholder[PLACEHOLDER_SIZE];
+    int placeholder_pop;
+    int placeholder_push;
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)

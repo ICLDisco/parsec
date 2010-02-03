@@ -236,7 +236,8 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #else
         eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
         dplasma_dequeue_construct( eu->eu_task_queue );
-        eu->placeholder = NULL;
+        eu->placeholder_pop  = 0;
+        eu->placeholder_push = 0;
 #endif  /* DPLASMA_USE_LIFO */
         eu->eu_id = i;
         eu->master_context = context;
