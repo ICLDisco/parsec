@@ -159,7 +159,7 @@ static int __remote_dep_mpi_fini(dplasma_context_t* context)
 
 
 static void remote_dep_put_data(void* data, int to, int i);
-static void remote_dep_get_data(const dplasma_execution_context_t* task, int from, int i);
+static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int i);
 
 static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 {
@@ -214,14 +214,16 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 
 static void remote_dep_put_data(void* data, int to, int i)
 {
+    DEBUG(("Put data\tto REMOTE process %d from address %p\n", to, data));
     MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_snd_req[i]);
 }
 
-static void remote_dep_get_data(const dplasma_execution_context_t* task, int from, int i)
+static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int i)
 {
-    MPI_Send(&dep_activate_buff[i].list_item.cache_friendly_emptiness, 1, data_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
-    dep_activate_buff[i].list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
-    MPI_Irecv(dep_activate_buff[i].list_item.cache_friendly_emptiness, TILE_SIZE, 
+    DEBUG(("Get data\tfrom REMOTE process %d at remote address %p\n", from, task->list_item.cache_friendly_emptiness));
+    MPI_Send(&task->list_item.cache_friendly_emptiness, 1, data_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
+    task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
+    MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_rcv_req[i]);
 }
 
@@ -229,6 +231,7 @@ static void remote_dep_get_data(const dplasma_execution_context_t* task, int fro
 /* Send the activate tag */
 static int __remote_dep_send(dplasma_execution_context_t* task, int rank, void **data)
 {
+    DEBUG(("Activate\tto REMOTE process %d with data at %p\n", rank, data[0]));
     task->list_item.cache_friendly_emptiness = data[0];
     return MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
 }
@@ -543,7 +546,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         switch(cmd->cmd)
         {                
             case DEP_ACTIVATE:
-                __remote_dep_send(&cmd->u.activate.origin, cmd->u.activate.rank, cmd->u.activate.data);
+                __remote_dep_send(&cmd->u.activate.origin, cmd->u.activate.rank, &cmd->u.activate.data);
                 break;
             case DEP_PROGRESS:
                 __remote_dep_progress(cmd->u.progress.unit);
