@@ -42,12 +42,12 @@ int NRHS = 1;
 int LDB = 0;
 
 
-/* int asprintf(char **strp, const char *fmt, ...);*/
-
-static void dague_fini(dplasma_context_t* context);
+static void dague_fini(void);
 static void dague_init(int argc, char **argv);
 static void cleanup_exit(int ret);
 static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[]);
+static void dispose_dplasma(dplasma_context_t* context);
+
 
 #ifdef DO_THE_NASTY_VALIDATIONS
 static int check_factorization(int, double*, double*, int, int , double);
@@ -198,6 +198,8 @@ int main(int argc, char ** argv){
     dplasma_progress(dplasma);
     TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
+    dispose_dplasma(dplasma);
+    
 # ifdef USE_MPI    
     TIME_START();
     gather_data(&local_desc, &descA);
@@ -249,26 +251,30 @@ int main(int argc, char ** argv){
 #endif
         free(A2);
     }
-
-    dague_fini(dplasma);
+    
+    dague_fini();
     return 0;
 }
 
-static void dague_fini(dplasma_context_t* dplasma)
+static void dispose_dplasma(dplasma_context_t* dplasma)
 {
 #ifdef DPLASMA_PROFILING
     char* filename = NULL;
-        
+    
     asprintf( &filename, "%s-%d.svg", "dposv-mpi", rank );
     dplasma_profiling_dump_svg(dplasma, filename);
     free(filename);
 #endif  /* DPLASMA_PROFILING */
     
     dplasma_fini(&dplasma);
+}
+
+static void dague_fini(void)
+{
     PLASMA_Finalize();
 #ifdef USE_MPI
     MPI_Finalize();
-#endif
+#endif    
 }
 
 static void dague_init(int argc, char **argv)
