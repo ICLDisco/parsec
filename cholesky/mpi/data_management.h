@@ -45,6 +45,8 @@ typedef struct dplasma_desc_t {
     int GRIDcols;       // number of processes cols in the process grid
     int colRANK;        // process column rank in the process grid - derived parameter
     int rowRANK;        // process row rank in the process grid - derived parameter
+    int nb_elem_r;      // number of tiles per row
+    int nb_elem_c;      // number of tiles per column 
 } DPLASMA_desc;
 
 /************************************************
@@ -67,12 +69,15 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
 int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n);
 
-
+#if 0
 /* get a pointer to a specific LOCAL tile */
 static inline void* dplasma_get_local_tile(DPLASMA_desc* Ddesc, int m, int n)
 {    
     return &((double*)Ddesc->mat)[Ddesc->bsiz * (m + Ddesc->lmt * n)];
 }
+#else 
+#define dplasma_get_local_tile(d, m, n) dplasma_get_local_tile_s(d, m, n)
+#endif
 
 /* get a pointer to a specific tile 
  * if the tile is remote, it is downloaded first */

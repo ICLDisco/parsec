@@ -47,9 +47,7 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
     }
     /* affect colRANK */
     Ddesc->colRANK = i;
-    
-    printf("mpi rank %d is map to P(%d,%d)\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK);
-    
+        
     /* computing the number of rows of super-tile */
     nbstile_r = Ddesc->lmt / Ddesc->nrst;
     if((Ddesc->lmt % Ddesc->nrst) != 0)
@@ -60,54 +58,50 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
     if((Ddesc->lnt % Ddesc->ncst) != 0)
         nbstile_c++;
     
-    if (Ddesc->mpi_rank == 0) 
-        printf("matrix is super-tiled in (%d, %d)", nbstile_r, nbstile_c);
-    /* allocate memory for tiles data */
-    
+     printf("matrix is super-tiled in (%d, %d); ", nbstile_r, nbstile_c);
+
     /*  nbt = Ddesc->lmt * Ddesc->lnt;  total number of tiles */ 
     if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
     {
         printf("The process grid chosen is %dx%d, supertiling is %d, %d\n", Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
         return -1;
     }
+    
+    /* find the number of tiles this process will handle */
+    Ddesc->nb_elem_r = 0;
+    i = Ddesc->rowRANK * Ddesc->nrst;
+    while ( i < Ddesc->lmt)
+    {
+        if ( (i  + (Ddesc->nrst)) < Ddesc->lmt)
+        {
+            Ddesc->nb_elem_r += (Ddesc->nrst);
+            i += (Ddesc->GRIDrows) * (Ddesc->nrst);
+            continue;
+        }
+        Ddesc->nb_elem_r += ((Ddesc->lmt) - i);
+        break;
+    }
+    
+    Ddesc->nb_elem_c = 0;
+    i = Ddesc->colRANK * Ddesc->ncst;
+    while ( i < Ddesc->lnt)
+    {
+        if ( (i  + (Ddesc->ncst)) < Ddesc->lnt)
+        {
+            Ddesc->nb_elem_c += (Ddesc->ncst);
+            i += (Ddesc->GRIDcols) * (Ddesc->ncst);
+            continue;
+        }
+        Ddesc->nb_elem_c += ((Ddesc->lnt) - i);
+        break;
+    }
+    printf("process %d(%d,%d) handles %d x %d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);
     return 0;
 }
 
 static int ddesc_allocate( DPLASMA_desc * Ddesc ) 
 {
-    int nb_elem_r, nb_elem_c, j;
-    
-    /* find the number of tiles this process will handle */
-    nb_elem_r = 0;
-    j = Ddesc->rowRANK * Ddesc->nrst;
-    while ( j < Ddesc->lmt)
-    {
-        if ( (j  + (Ddesc->nrst)) < Ddesc->lmt)
-        {
-            nb_elem_r += (Ddesc->nrst);
-            j += (Ddesc->GRIDrows) * (Ddesc->nrst);
-            continue;
-        }
-        nb_elem_r += ((Ddesc->lmt) - j);
-        break;
-    }
-    
-    nb_elem_c = 0;
-    j = Ddesc->colRANK * Ddesc->ncst;
-    while ( j < Ddesc->lnt)
-    {
-        if ( (j  + (Ddesc->ncst)) < Ddesc->lnt)
-        {
-            nb_elem_c += (Ddesc->ncst);
-            j += (Ddesc->GRIDcols) * (Ddesc->ncst);
-            continue;
-        }
-        nb_elem_c += ((Ddesc->lnt) - j);
-        break;
-    }
-    printf("process %d(%d,%d) handles %d x %d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, nb_elem_r, nb_elem_c);
-    
-    Ddesc->mat = malloc(sizeof(double) * nb_elem_c * nb_elem_r * Ddesc->bsiz);
+    Ddesc->mat = malloc(sizeof(double) * Ddesc->nb_elem_c * Ddesc->nb_elem_r * Ddesc->bsiz);
     return 0;
 }
 
@@ -387,7 +381,7 @@ void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n)
 }
 
 #else 
-/*#define dplasma_get_local_tile_s dplasma_get_tile*/
+/*#define dplasma_get_local_tile_s dplasma_get_local_tile*/
 #endif
 
 void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
@@ -519,7 +513,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
     pos = 0;
     k = 0;
     *req_count = nb_request(Ddesc, Ddesc->mpi_rank);
-    printf("number of request for proc %d: %d\n", Ddesc->mpi_rank, *req_count);
+    /*printf("number of request for proc %d: %d\n", Ddesc->mpi_rank, *req_count);*/
     *reqs = (MPI_Request *)malloc((*req_count) * sizeof(MPI_Request));
     if (NULL == *reqs)
     {
@@ -678,7 +672,7 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 {
                     if(buff[k] != buff2[k])
                     {
-                        DEBUG(("WARNING: tile(%d, %d) differ !\n", m, n));
+                        printf("WARNING: tile(%d, %d) differ !\n", m, n);
                         break;
                     }
                 }
