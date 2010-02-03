@@ -32,9 +32,12 @@ MPILIB        = -L$(MPI_DIR)/lib -lmpi
 PLASMA_DIR    = $(HOME)/dague/plasma/build/plasma_2.1.0
 DPLASMA_DIR   = $(HOME)/dague/dplasma
 LIBBLAS       = -L/opt/mkl/lib/em64t -lmkl_core -lmkl_sequential -lmkl_gf_lp64
-# Include directory
-INC          += -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src -I$(DPLASMA_DIR)
-#INC       += -I/home/bsheely/papi-4.0/papi/src
+
+# Location of the PAPI library
+PAPIDIR       =
+PAPIINC       =
+PAPILIB       =
+
 # Location of the libraries.
 LIBDIR       += -L$(PLASMA_DIR)/lib/
 #LIBDIR    += -L/home/bsheely/papi-4.0/papi/src
@@ -44,8 +47,11 @@ LIBDIR       += -L$(PLASMA_DIR)/lib/
 #LIBCOREBLAS   = $(PLASMA_DIR)/lib/libcoreblas.a
 #LIBPLASMA     = $(PLASMA_DIR)/lib/libplasma.a
 
+# Include directory
+INC          += -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src -I$(DPLASMA_DIR) $(PAPIINC)
+
 #  All libraries required by the tester.
-LIB          += $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpthread -lm
+LIB          += $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpthread -lm $(PAPILIB)
 #LIB       += -lpapi
 
 
