@@ -472,7 +472,7 @@ static int remote_dep_dequeue_init(dplasma_context_t* context)
 
 static int remote_dep_dequeue_fini(dplasma_context_t* context)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_t));
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     dplasma_context_t *ret;
 
     cmd->cmd = DEP_FINI;
@@ -489,7 +489,7 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
 
 static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, void** data)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_t));
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     
     cmd->cmd = DEP_ACTIVATE;
     cmd->u.activate.origin = *task;
@@ -502,14 +502,14 @@ static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int 
 
 static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_t));
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     
     enable_self_progress = 1;
     
     cmd->cmd = DEP_PROGRESS;
     cmd->u.progress.unit = eu_context;
     
-    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
+/*    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);*/
     return 1;
 }
 
@@ -524,20 +524,17 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
 
     np = __remote_dep_mpi_init(context);
         
+    ts.tv_sec = 0;
+    ts.tv_nsec = YIELD_TIME;
+    
     do {
         while(dplasma_dequeue_is_empty(&dep_cmd_queue)) 
         {
-            int waited = 0;
-            
             if(enable_self_progress)
             {
                 __remote_dep_progress(&context->execution_units[0]);
             }
-#if 0
-            waited++;
-            if(waited > 100) sched_yield();
-            else if(waited > 1000) nanosleep(YIELD_TIME);
-#endif
+            nanosleep(&ts, NULL);
         }
         
         cmd = (dep_cmd_item_t*) dplasma_dequeue_pop_front(&dep_cmd_queue);
