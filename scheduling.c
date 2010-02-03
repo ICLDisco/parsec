@@ -202,11 +202,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             /* Release the execution context */
             free( exec_context );
         } else {
-#if defined(USE_MPI)
-            /* check for remote deps completion */
-            if(dplasma_remote_dep_progress(eu_context) > 0)
-                continue;
-#endif  /* defined(USE_MPI) */
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
             /* Work stealing from the other workers */
@@ -235,6 +230,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 }
             }
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
+#if defined(DISTRIBUTED)
+            /* there's really nothing to do, check for remote deps completion */
+            dplasma_remote_dep_progress(eu_context);
+#endif
         }
     }
 
