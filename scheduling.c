@@ -67,19 +67,25 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     char tmp[128];
 # endif
     dplasma_execution_context_t* new_context;
+    dplasma_execution_context_t* task = NULL;
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #else
-    if( NULL == eu_context->placeholder ) {
-        eu_context->placeholder = (void*)new_context;
-    } else {
+    if( ((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) == eu_context->placeholder_pop ) {
+        task = eu_context->placeholder[eu_context->placeholder_pop];
+        eu_context->placeholder_pop  = (eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE;
+    }
+    eu_context->placeholder[eu_context->placeholder_push] = new_context;
+    eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
+
+    if( NULL != task ) {
         if( exec_context->function->flags & DPLASMA_HIGH_PRIORITY_TASK ) {
-            dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
+            dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)task);
         } else {
-            dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
+            dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)task);
         }
     }
 #endif  /* DPLASMA_USE_LIFO */
@@ -182,9 +188,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
         exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
 #else
-        if( NULL != eu_context->placeholder ) {
-            exec_context = (dplasma_execution_context_t*)eu_context->placeholder;
-            eu_context->placeholder = NULL;
+        if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
+            exec_context = eu_context->placeholder[eu_context->placeholder_pop];
+            eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
         } else {
             /* extract the first execution context from the ready list */
             exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(eu_context->eu_task_queue);
