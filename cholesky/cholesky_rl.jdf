@@ -135,7 +135,7 @@ k = 0..SIZE-1
 n = k+1..SIZE-1
 
 // Parallel partitioning
-: k % GRIDrows == rowRANK
+: n % GRIDrows == rowRANK
 : k % GRIDcols == colRANK
 
 //Parameters
@@ -189,8 +189,8 @@ m = k+2..SIZE-1
 n = k+1..m-1
 
 // Parallel partitioning
-: m % GRIDrows == rowRANK
-: k % GRIDcols == colRANK
+: n % GRIDrows == rowRANK
+: m % GRIDcols == colRANK
 
 // Parameters
 IN    A <- C TRSM(k, n)
