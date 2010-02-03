@@ -136,13 +136,26 @@ static void __do_some_computations( void )
 
 #define gettid() syscall(__NR_gettid)
 
+#define TIME_STEP 5410
+#define MIN(x, y) ( (x)<(y)?(x):(y) )
+static inline unsigned long exponential_backoff(uint64_t k)
+{
+    unsigned int n = MIN( 64, k );
+    unsigned int r = (unsigned int) ((double)n * ((double)rand()/(double)RAND_MAX));
+    return r * TIME_STEP;
+}
+
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim;
+    uint64_t misses_in_a_row;
     dplasma_context_t* master_context = eu_context->master_context;
     int32_t my_barrier_counter = master_context->__dplasma_internal_finalization_counter;
     dplasma_execution_context_t* exec_context;
     int nbiterations = 0;
+    struct timespec rqtp;
+
+    rqtp.tv_sec = 0;
 
     if( 0 != eu_context->eu_id ) {
 #ifdef HAVE_CPU_SET_T
@@ -183,8 +196,15 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     }
 
     found_local = miss_local = found_victim = miss_victim = 0;
+    misses_in_a_row = 1;
 
     while( !all_tasks_done(master_context) ) {
+
+        if( misses_in_a_row > 1 ) {
+            rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+            nanosleep(&rqtp, NULL);
+        }
+
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
         exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
 #else
@@ -198,6 +218,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_LIFO */
 
         if( exec_context != NULL ) {
+            misses_in_a_row = 0;
             found_local++;
         do_some_work:
             /* Update the number of remaining tasks before the execution */
@@ -208,11 +229,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             /* Release the execution context */
             free( exec_context );
         } else {
-#if defined(USE_MPI)
-            /* check for remote deps completion */
-            if(dplasma_remote_dep_progress(eu_context) > 0)
-                continue;
-#endif  /* defined(USE_MPI) */
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
             /* Work stealing from the other workers */
@@ -234,6 +250,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(victim->eu_task_queue);
 #endif  /* DPLASMA_USE_LIFO */
                 if( NULL != exec_context ) {
+                    misses_in_a_row = 0;
                     found_victim++;
                     goto do_some_work;
                 } else {
@@ -241,7 +258,12 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 }
             }
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
+#if defined(DISTRIBUTED)
+            /* there's really nothing to do, check for remote deps completion */
+            dplasma_remote_dep_progress(eu_context);
+#endif
         }
+        misses_in_a_row++;
     }
 
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
