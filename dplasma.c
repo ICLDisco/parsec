@@ -24,11 +24,19 @@
 #ifdef DISTRIBUTED
 #include "remote_dep.h"
 #endif
+#ifdef USE_PAPI
+#include "papi.h"
+#endif
 
 FILE *__dplasma_graph_file = NULL;
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
+#ifdef USE_PAPI
+int eventSet = PAPI_NULL;
+int num_events = 0;
+char* event_names[MAX_EVENTS];
+#endif
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
@@ -209,7 +217,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
-    dplasma_profiling_init( context, 8*4096 );
+    dplasma_profiling_init( context, 4096 );
 #endif  /* DPLASMA_PROFILING */
 
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -317,6 +325,26 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     dplasma_remote_dep_init(context);
 #endif
 
+#ifdef USE_PAPI
+    if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
+      printf("PAPI library initialization error! \n");
+    else {
+      if (PAPI_create_eventset(&eventSet) != PAPI_OK)
+        printf("PAPI unable to create event set! \n");
+      else {
+        int i;
+
+	for (i=0; i<num_events; ++i) {
+          int event;
+          PAPI_event_name_to_code(event_names[i], &event);
+
+	  if (PAPI_add_event(eventSet, event) != PAPI_OK) 
+	    printf("PAPI unable to add event: %s \n", event_names[i]);
+	}
+      }
+    }
+#endif
+
     return context;
 }
 
@@ -327,6 +355,10 @@ int dplasma_fini( dplasma_context_t** pcontext )
 {
     dplasma_context_t* context = *pcontext;
     int i;
+
+#ifdef USE_PAPI
+    PAPI_shutdown();
+#endif
 
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
@@ -1071,3 +1103,4 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     return 0;
 }
+

@@ -25,7 +25,10 @@ int asprintf(char **strp, const char *fmt, ...);
 #include "dplasma.h"
 #include "scheduling.h"
 #include "profiling.h"
-
+#ifdef USE_PAPI
+extern int num_events;
+extern char* event_names[];
+#endif
 double time_elapsed, GFLOPS;
 
 PLASMA_desc descA;
@@ -209,11 +212,36 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
 
 int main (int argc, char **argv)
 {
+   int i,j;
+   int required_args = 6;
+   int max_args;
+
    /* Check for number of arguments*/
-   if (argc < 6){
+#ifdef USE_PAPI
+   max_args = 11;
+
+   if (argc < required_args || argc > max_args){
+       printf(" Proper Usage is : ./%s ncores N LDA NRHS LDB [-dot <output.dot>] [event1] [event2] [event3] with \n - ncores : number of cores \n - N : the size of the matrix \n - LDA : leading dimension of the matrix A \n - NRHS : number of RHS \n - LDB : leading dimension of the RHS B \n - event1 : event to count (optional)\n - event2 : event to count (optional)\n - event3 : event to count (optional) \n", (char*)argv[0]);
+       exit(1);
+   }
+
+   if(argc > required_args) {
+     int dot_args = 0;
+
+     if(strcmp((argv)[required_args], "-dot") == 0)
+       dot_args = 2;
+
+     num_events = argc - (required_args + dot_args);
+
+     for(i=0, j=required_args + dot_args; i<num_events; ++i, ++j)
+       event_names[i] = argv[j];
+   }
+#else
+   if (argc < required_args){
        printf(" Proper Usage is : ./%s ncores N LDA NRHS LDB [-dot <output.dot>] with \n - ncores : number of cores \n - N : the size of the matrix \n - LDA : leading dimension of the matrix A \n - NRHS : number of RHS \n - LDB : leading dimension of the RHS B \n", (char*)argv[0]);
        exit(1);
    }
+#endif
 
    int cores = atoi(argv[1]);
    int N     = atoi(argv[2]);
@@ -223,7 +251,6 @@ int main (int argc, char **argv)
    double eps;
    int info;
    int info_solution, info_factorization;
-   int i,j;
    int NminusOne = N-1;
    int LDBxNRHS = LDB*NRHS;
 

@@ -37,6 +37,9 @@ typedef struct dplasma_t dplasma_t;
 #else
 #define DEBUG(ARG)
 #endif
+#ifdef USE_PAPI
+#define MAX_EVENTS 3
+#endif
 
 /* There is another loop after this one. */
 #define DPLASMA_DEPENDENCIES_FLAG_NEXT       0x01

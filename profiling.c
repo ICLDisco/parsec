@@ -110,6 +110,9 @@ typedef struct dplasma_profiling_output_t {
     int key;
     unsigned long id;
     dplasma_time_t timestamp;
+#if defined(USE_PAPI)
+    long long counter_value;
+#endif /* defined(USE_PAPI) */
 } dplasma_profiling_output_t;
 
 int dplasma_prof_events_number;

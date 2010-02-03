@@ -1037,6 +1037,12 @@ static char *dplasma_dump_c(const dplasma_t *d,
             output("\n");
         }
 
+        output( "\n"
+                "#ifdef USE_PAPI\n"
+                "  PAPI_start(eventSet);\n"
+                "#endif\n"
+                "\n");
+
         output( "  TAKE_TIME(context, %s_start_key, %s_hash(",
                 d->name, d->name);
         for(j = 0; j < d->nb_locals; j++) {
@@ -1046,7 +1052,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
             else
                 output(", ");
         }
-        body_lines = nblines(d->body);
+       body_lines = nblines(d->body);
         output( "  %s\n"
                 "#line %d \"%s\"\n"
                 "\n"
@@ -1059,6 +1065,25 @@ static char *dplasma_dump_c(const dplasma_t *d,
             else
                 output(", ");
         }
+
+        output( "\n"
+                "#ifdef USE_PAPI\n"
+                "  int i, num_events;\n"
+                "  int events[MAX_EVENTS];\n"
+                "  PAPI_list_events(eventSet, &events, &num_events);\n"
+                "  long long values[num_events];\n"
+                "  PAPI_stop(eventSet, &values);\n"
+                "  if(num_events > 0) {\n"
+                "    printf(\"PAPI counter values from %5s (thread=%%ld): \", context->eu_id);\n"  
+                "    for(i=0; i<num_events; ++i) {\n"
+                "      char event_name[PAPI_MAX_STR_LEN];\n"
+                "      PAPI_event_code_to_name(events[i], &event_name);\n"
+                "      printf(\"   %%s  %%lld \", event_name, values[i]);\n"
+                "    }\n"
+                "    printf(\"\\n\");\n"
+                "  }\n"
+                "#endif\n"
+                "\n", d->name);
 
         output( "#if defined(DPLASMA_GRAPHER)\n"
                 "if( NULL != __dplasma_graph_file ) {\n"
@@ -1215,6 +1240,11 @@ int dplasma_dump_all_c(char *filename)
             "#include <string.h>\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
+            "#ifdef USE_PAPI\n"
+            "#include \"papi.h\"\n"
+            "extern int eventSet;\n"
+            "#endif\n"
+            "\n"
             "#if defined(DPLASMA_GRAPHER)\n"
             "#include <stdio.h>\n"
             "extern FILE *__dplasma_graph_file;\n"
@@ -1330,3 +1360,7 @@ int dplasma_dump_all_c(char *filename)
 
     return 0;
 }
+
+
+
+

@@ -6,9 +6,9 @@
 # Add -DDPLASMA_GENERATE_DOT to generate the dot output. This should be added
 #     in addition to the DPLASMA_EXECUTE.
 # Add -DDPLASMA_PROFILING to generate a profiling svg output.
+# Add -DUSE_PAPI to use the PAPI performance counter interface
 
-
-CFLAGS      += -g -DADD_ -DDPLASMA_EXECUTE -DUSE_MPI -DNO_DEBUG
+CFLAGS      += -g -DADD_ -DDPLASMA_EXECUTE -DUSE_MPI -DNO_DEBUG -DUSE_PAPI
 LDFLAGS     += -g
 
 #
@@ -34,8 +34,10 @@ DPLASMA_DIR   = $(HOME)/dague/dplasma
 LIBBLAS       = -L/opt/mkl/lib/em64t -lmkl_core -lmkl_sequential -lmkl_gf_lp64
 # Include directory
 INC          += -I$(PLASMA_DIR)/include -I$(PLASMA_DIR)/src -I$(DPLASMA_DIR)
+#INC       += -I/home/bsheely/papi-4.0/papi/src
 # Location of the libraries.
 LIBDIR       += -L$(PLASMA_DIR)/lib/
+#LIBDIR    += -L/home/bsheely/papi-4.0/papi/src
 # Location and name of the static PLASMA libraries.
 #LIBCBLAS      = $(PLASMA_DIR)/lib/libcblas.a
 #LIBCORELAPACK = $(PLASMA_DIR)/lib/libcorelapack.a
@@ -44,5 +46,6 @@ LIBDIR       += -L$(PLASMA_DIR)/lib/
 
 #  All libraries required by the tester.
 LIB          += $(LIBDIR) -lplasma -lcoreblas -lcorelapack -lcblas $(LIBBLAS) -lpthread -lm
+#LIB       += -lpapi
 
 

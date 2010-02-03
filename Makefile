@@ -75,6 +75,15 @@ $(MPI_OBJECTS): %.o: %.c $(wildcard *.h) $(wildcard $(dir $(realpath %.o))/*.h) 
 	$(MPICC) -o $@ $(CFLAGS) -c $<
 endif
 
+lex.yy.c: dplasma.l
+	$(LEX) dplasma.l
+
+%.tab.h %.tab.c: %.y
+	$(YACC) -o $(*F).tab.c $<
+
+lex.yy.o: lex.yy.c dplasma.tab.h $(wildcard *.h)
+	$(CC) -o lex.yy.o $(CFLAGS) -c lex.yy.c
+	
 %-single.o: %.c $(wildcard *.h) $(wildcard $(dir $(realpath %.o))/*.h) make.inc
 	$(CC) -o $@ $(subst -DUSE_MPI,-UDUSE_MPI, $(CFLAGS)) -c $<
 
