@@ -403,7 +403,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             if( last < end ) last = end;
             
             fprintf(tracefile,
-                    "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\" id='%s%d'>\n"
+                    "    <rect x=\"%.2lf\" y=\"%.0lf\" width=\"%.2lf\" height=\"%.0lf\" style=\"%s\" id='%s%lu'>\n"
                     "       <FName>%s</FName>\n"
                     "       <FDesc>%.0lf time units (%.2lf%% of time)</FDesc>\n"
                     "       <FID>%lu</FID>\n"
@@ -453,7 +453,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             }
             
             avg = (double) sum / (double) nb;
-            var = (double) sqsum - (double) nb * avg * avg;
+            var = ((double) sqsum - (double)sum * avg) / ((double)nb - 1.0);
 
             if( !keyplotted && (sum > 0)) {
                 int ptid;
