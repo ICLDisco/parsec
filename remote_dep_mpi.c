@@ -415,8 +415,6 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
 
 #include "dequeue.h"
 
-#define YIELD_TIME 50000
-
 typedef enum dep_cmd_t
 {
     DEP_ACTIVATE,
@@ -505,18 +503,21 @@ static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int 
 
 static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
+    enable_self_progress = 1;
+
+/*    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     
     enable_self_progress = 1;
     
     cmd->cmd = DEP_PROGRESS;
     cmd->u.progress.unit = eu_context;
     
-/*    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);*/
+    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);*/
     return 1;
 }
 
 
+#define YIELD_TIME 5000
 
 static void* remote_dep_dequeue_main(dplasma_context_t* context)
 {
@@ -531,7 +532,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
     ts.tv_nsec = YIELD_TIME;
     
     do {
-        while(dplasma_dequeue_is_empty(&dep_cmd_queue)) 
+        while(NULL == (cmd = (dep_cmd_item_t*) dplasma_dequeue_pop_front(&dep_cmd_queue)))
         {
             if(enable_self_progress)
             {
@@ -539,9 +540,6 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
             }
             nanosleep(&ts, NULL);
         }
-        
-        cmd = (dep_cmd_item_t*) dplasma_dequeue_pop_front(&dep_cmd_queue);
-        assert(NULL != cmd);
         
         switch(cmd->cmd)
         {                
