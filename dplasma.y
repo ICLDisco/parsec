@@ -92,12 +92,35 @@ prog:
     |
 ;
 
+flags_list:
+    DPLASMA_VAR {
+                    if( 0 == strcasecmp("high_priority", $1) ) {
+                        global_dplasma->flags |= DPLASMA_HIGH_PRIORITY_TASK;
+                    } else {
+                        printf( "Ignore unknown DPLASMA flag %s.\n", $1 );
+                    }
+                } DPLASMA_COMMA flags_list
+    | DPLASMA_VAR {
+                      if( 0 == strcasecmp("high_priority", $1) ) {
+                          global_dplasma->flags |= DPLASMA_HIGH_PRIORITY_TASK;
+                      } else {
+                          printf( "Ignore unknown DPLASMA flag %s.\n", $1 );
+                      }
+                  }
+    |
+    ;
+
+dplasma_flags: 
+    DPLASMA_OPEN_PAR flags_list DPLASMA_CLOSE_PAR 
+    |
+    ;
+
 dplasma:
      DPLASMA_VAR {
                      global_dplasma = dplasma_find_or_create($1);
                      global_lists_index = 0;
                  }
-     DPLASMA_OPEN_PAR varlist DPLASMA_CLOSE_PAR
+     DPLASMA_OPEN_PAR varlist DPLASMA_CLOSE_PAR dplasma_flags
      execution_space  {
                           global_lists_index = 0;
                       }
@@ -109,7 +132,7 @@ dplasma:
             } 
      DPLASMA_BODY
                 {
-                    global_dplasma->body = $12;
+                    global_dplasma->body = $13;
                 }
 ;
 

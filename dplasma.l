@@ -101,8 +101,8 @@ OUT            { yylval.operand = (char)SYM_OUT;
                  return DPLASMA_ARROW; }
 min           { yylval.operand = 'm'; return DPLASMA_OP; }
 max           { yylval.operand = 'M'; return DPLASMA_OP; }
-[a-zA-Z]+[a-zA-Z0-9]* { yylval.string = strdup(yytext);
-                        return DPLASMA_VAR; }
+[a-zA-Z_]+[a-zA-Z0-9_]* { yylval.string = strdup(yytext);
+                          return DPLASMA_VAR; }
 "("            { return DPLASMA_OPEN_PAR; }
 ")"            { return DPLASMA_CLOSE_PAR; }
 "=="           { return DPLASMA_EQUAL; }
