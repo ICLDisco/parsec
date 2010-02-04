@@ -24,9 +24,11 @@ typedef struct dplasma_execution_unit_t {
     dplasma_atomic_lifo_t* eu_task_queue;
 #else
     dplasma_dequeue_t* eu_task_queue;
+#if PLACEHOLDER_SIZE
     struct dplasma_execution_context_t* placeholder[PLACEHOLDER_SIZE];
     int placeholder_pop;
     int placeholder_push;
+#endif  /* PLACEHOLDER_SIZE */
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)

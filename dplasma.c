@@ -242,8 +242,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #else
         eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
         dplasma_dequeue_construct( eu->eu_task_queue );
+#if PLACEHOLDER_SIZE
         eu->placeholder_pop  = 0;
         eu->placeholder_push = 0;
+#endif  /* PLACEHOLDER_SIZE */
 #endif  /* DPLASMA_USE_LIFO */
         eu->eu_id = i;
         eu->master_context = context;
@@ -686,7 +688,8 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                                             const param_t* restrict origin_param,
                                             dplasma_execution_context_t* restrict exec_context,
                                             const param_t* restrict dest_param,
-                                            dplasma_dependencies_t **deps_location )
+                                            dplasma_dependencies_t **deps_location,
+                                            dplasma_execution_context_t** pready_list )
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, *last_deps;
@@ -805,10 +808,26 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
             } while (0);
         }
 #endif  /* !defined(NDEBUG) */
-        /* This service is ready to be executed as all dependencies are solved. Let the
-         * scheduler knows about this and keep going.
+        /* This service is ready to be executed as all dependencies
+         * are solved.  Queue it into the ready_list passed as an
+         * argument.
          */
-        __dplasma_schedule(eu_context, exec_context);
+        {
+            dplasma_execution_context_t* new_context;
+            new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+            memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+
+            if( NULL == *pready_list ) {
+                new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
+                new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
+                *pready_list = new_context;
+            } else {
+                new_context->list_item.list_next = (dplasma_list_item_t*)*pready_list;
+                new_context->list_item.list_prev = (*pready_list)->list_item.list_prev;
+                new_context->list_item.list_next->list_prev = (dplasma_list_item_t*)new_context;
+                new_context->list_item.list_prev->list_next = (dplasma_list_item_t*)new_context;
+            }
+        }
     } else {
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
