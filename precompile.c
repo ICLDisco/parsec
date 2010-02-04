@@ -1093,7 +1093,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "  char tmp[128];\n"
                 "  dplasma_service_to_string(exec_context, tmp, 128);\n"
                 "  fprintf(__dplasma_graph_file,\n"
-                "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%d\\\"];\\n\",\n"
+                "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
                 "          tmp, colors[context->eu_id], tmp, %s_hash(",
                 shapes[next_shape_idx++ % SHAPES_SIZE], d->name, d->name);
         for(j = 0; j < d->nb_locals; j++) {
