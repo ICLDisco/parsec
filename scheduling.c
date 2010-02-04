@@ -152,7 +152,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
-    uint64_t found_local, miss_local, found_victim, miss_victim;
+    uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
     uint64_t misses_in_a_row;
     dplasma_context_t* master_context = eu_context->master_context;
     int32_t my_barrier_counter = master_context->__dplasma_internal_finalization_counter;
@@ -192,6 +192,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     /* Wait until all threads are here and the main thread signal the begining of the work */
     dplasma_barrier_wait( &(master_context->barrier) );
 
+    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
+    misses_in_a_row = 1;
+        
     if( master_context->__dplasma_internal_finalization_in_progress ) {
         my_barrier_counter++;
         for(; my_barrier_counter <= master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
@@ -199,9 +202,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         }
         goto finalize_progress;
     }
-
-    found_local = miss_local = found_victim = miss_victim = 0;
-    misses_in_a_row = 1;
 
     while( !all_tasks_done(master_context) ) {
 
@@ -268,7 +268,12 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
 #if defined(DISTRIBUTED)
             /* there's really nothing to do, check for remote deps completion */
-            dplasma_remote_dep_progress(eu_context);
+            if(dplasma_remote_dep_progress(eu_context) > 0)
+            {
+                misses_in_a_row = 0;
+                found_remote++;
+                continue;
+            }
 #endif
         }
         misses_in_a_row++;
@@ -303,8 +308,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
-    printf("# th <%3d> done %d local %llu stolen %llu miss %llu failed %llu\n",
+    printf("# th <%3d> done %d local %llu remote %llu stolen %llu miss %llu failed %llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
+           (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
