@@ -246,7 +246,6 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
                     /* We finished sending the data, allow for more requests 
                      * to be processed */
                     i -= DEP_NB_CONCURENT;
-                      
                     MPI_Start(&dep_get_req[i]);
                     /* Allow for termination if needed */
                     dplasma_atomic_dec_32b( &(eu_context->master_context->taskstodo) );

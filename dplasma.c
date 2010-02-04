@@ -712,8 +712,10 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
         deps = *deps_location;
         last_deps = NULL;
 
+#ifdef DPLASMA_PROFILING
         dplasma_profiling_trace(eu_context, MEMALLOC_start_key, 0);
-
+#endif
+        
         for( i = 0; i < function->nb_locals; i++ ) {
             if( NULL == (*deps_location) ) {
                 int min, max, number;
@@ -750,8 +752,9 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
             deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
             last_deps = deps;
         }
-
+#ifdef DPLASMA_PROFILING
         dplasma_profiling_trace(eu_context, MEMALLOC_end_key, 0);
+#endif
     }
 
     i = function->nb_locals - 1;
