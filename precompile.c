@@ -679,7 +679,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
         }
     }
 
-    output("  struct dplasma_dependencies_t *placeholder = NULL;\n"
+    output("  struct dplasma_dependencies_t* placeholder = NULL;\n"
+           "  dplasma_execution_context_t*   ready_list = NULL;\n"
            "  uint32_t usage = 0;\n"
            "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
     for(j = 0; j < MAX_LOCAL_COUNT; j++) {
@@ -801,7 +802,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             "%s                     exec_context->function->inout[%d/*i*/],\n"
                             "%s                     &new_context,\n"
                             "%s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
-                            "%s                     &placeholder);\n",
+                            "%s                     &placeholder, &ready_list);\n",
                             spaces, spaces, i, spaces, spaces, i, j, spaces);
 
 #ifdef DISTRIBUTED
@@ -887,7 +888,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             }
         }
     }
-    output("  data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"
+    output("  if( NULL != ready_list )\n"
+           "    __dplasma_schedule(context, ready_list);\n"
+           "  data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"
            "  return ret;\n"
            "}\n",
            d->name, d->name);

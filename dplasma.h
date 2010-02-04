@@ -185,7 +185,8 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                                             const param_t* restrict origin_param,
                                             dplasma_execution_context_t* restrict exec_context,
                                             const param_t* restrict dest_param,
-                                            struct dplasma_dependencies_t **deps_location );
+                                            struct dplasma_dependencies_t **deps_location,
+                                            dplasma_execution_context_t** pready_list );
 
 /**
  * Release all OUT dependencies for this particular instance of the service.
