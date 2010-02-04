@@ -1042,6 +1042,10 @@ static char *dplasma_dump_c(const dplasma_t *d,
 
         output( "\n"
                 "#ifdef USE_PAPI\n"
+                "  int i, num_events;\n"
+                "  int events[MAX_EVENTS];\n"
+                "  PAPI_list_events(eventSet, &events, &num_events);\n"
+                "  long long values[num_events];\n"
                 "  PAPI_start(eventSet);\n"
                 "#endif\n"
                 "\n");
@@ -1113,10 +1117,6 @@ static char *dplasma_dump_c(const dplasma_t *d,
 
         output( "\n"
                 "#ifdef USE_PAPI\n"
-                "  int i, num_events;\n"
-                "  int events[MAX_EVENTS];\n"
-                "  PAPI_list_events(eventSet, &events, &num_events);\n"
-                "  long long values[num_events];\n"
                 "  PAPI_stop(eventSet, &values);\n"
                 "  if(num_events > 0) {\n"
                 "    printf(\"PAPI counter values from %5s (thread=%%ld): \", context->eu_id);\n"  
