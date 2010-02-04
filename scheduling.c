@@ -217,12 +217,13 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
             exec_context = eu_context->placeholder[eu_context->placeholder_pop];
             eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
-        } else
+        } 
+        else
 #endif  /* PLACEHOLDER_SIZE */
-            {
-                /* extract the first execution context from the ready list */
-                exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(eu_context->eu_task_queue);
-            }
+        {
+            /* extract the first execution context from the ready list */
+            exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(eu_context->eu_task_queue);
+        }
 #endif  /* DPLASMA_USE_LIFO */
 
         if( exec_context != NULL ) {
@@ -239,6 +240,31 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         } else {
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
+#if defined(DISTRIBUTED)
+            /* check for remote deps completion */
+            if(dplasma_remote_dep_progress(eu_context) > 0)
+            {
+                found_remote++;
+#if defined(DPLASMA_USE_LIFO)
+                exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
+#else
+#if PLACEHOLDER_SIZE
+                if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
+                    exec_context = eu_context->placeholder[eu_context->placeholder_pop];
+                    eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
+                } 
+                else
+#endif  /* PLACEHOLDER_SIZE */
+                {
+                    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue);                    
+                }                
+#endif  /* DPLASMA_USE_LIFO */
+                if( NULL != exec_context ) {
+                    misses_in_a_row = 0;
+                    goto do_some_work;
+                }
+            }
+#endif
             /* Work stealing from the other workers */
 #if defined(HAVE_HWLOC)
             int i = 1;
@@ -266,17 +292,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 }
             }
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
-#if defined(DISTRIBUTED)
-            /* there's really nothing to do, check for remote deps completion */
-            if(dplasma_remote_dep_progress(eu_context) > 0)
-            {
-                misses_in_a_row = 0;
-                found_remote++;
-                continue;
-            }
-#endif
+            misses_in_a_row++;
         }
-        misses_in_a_row++;
     }
 
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -308,7 +325,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
-    printf("# th <%3d> done %d local %llu remote %llu stolen %llu miss %llu failed %llu\n",
+    printf("# th <%3d> done %d local %llu remote %llu stolen %llu probe %llu miss %llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,

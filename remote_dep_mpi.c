@@ -235,6 +235,7 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
                 i -= DEP_NB_CONCURENT; /* shift i */
+                assert(i >= 0);
                 remote_dep_put_data(dep_get_buff[i], status.MPI_SOURCE, i);
             }
             else 
