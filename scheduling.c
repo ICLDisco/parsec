@@ -71,6 +71,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+    new_context->list_item.list_prev = new_context;
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #else

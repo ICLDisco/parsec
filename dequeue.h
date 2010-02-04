@@ -90,28 +90,32 @@ static inline dplasma_list_item_t* dplasma_dequeue_pop_front( dplasma_dequeue_t*
     return item;
 }
 
-static inline void dplasma_dequeue_push_back(dplasma_dequeue_t* dequeue, dplasma_list_item_t* item )
+static inline void dplasma_dequeue_push_back(dplasma_dequeue_t* dequeue, dplasma_list_item_t* items )
 {
-    item->list_next = &(dequeue->ghost_element);
+    dplasma_list_item_t* tail = (dplasma_list_item_t*)items->list_prev;
+
+    tail->list_next = &(dequeue->ghost_element);
 
     dplasma_atomic_lock(&(dequeue->atomic_lock));
 
-    item->list_prev = dequeue->ghost_element.list_prev;
-    item->list_prev->list_next = item;
-    dequeue->ghost_element.list_prev = item;
+    items->list_prev = dequeue->ghost_element.list_prev;
+    items->list_prev->list_next = items;
+    dequeue->ghost_element.list_prev = tail;
 
     dplasma_atomic_unlock(&(dequeue->atomic_lock));
 }
 
-static inline void dplasma_dequeue_push_front(dplasma_dequeue_t* dequeue, dplasma_list_item_t* item )
+static inline void dplasma_dequeue_push_front(dplasma_dequeue_t* dequeue, dplasma_list_item_t* items )
 {
-    item->list_prev = &(dequeue->ghost_element);
+    dplasma_list_item_t* tail = (dplasma_list_item_t*)items->list_prev;
+
+    items->list_prev = &(dequeue->ghost_element);
 
     dplasma_atomic_lock(&(dequeue->atomic_lock));
 
-    item->list_next = dequeue->ghost_element.list_next;
-    item->list_next->list_prev = item;
-    dequeue->ghost_element.list_next = item;
+    tail->list_next = dequeue->ghost_element.list_next;
+    tail->list_next->list_prev = tail;
+    dequeue->ghost_element.list_next = items;
 
     dplasma_atomic_unlock(&(dequeue->atomic_lock));
 }

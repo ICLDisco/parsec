@@ -12,7 +12,7 @@
 #include "dequeue.h"
 #include "barrier.h"
 
-#define PLACEHOLDER_SIZE 32
+#define PLACEHOLDER_SIZE 4
 
 typedef struct dplasma_context_t dplasma_context_t;
 

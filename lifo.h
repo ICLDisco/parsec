@@ -24,32 +24,34 @@ typedef struct dplasma_atomic_lifo_t {
     dplasma_list_item_t  lifo_ghost;
 } dplasma_atomic_lifo_t;
 
-/* The ghost pointer will never change. The head will change via an atomic
- * compare-and-swap. On most architectures the reading of a pointer is an
- * atomic operation so we don't have to protect it.
+/* The ghost pointer will never change. The head will change via an
+ * atomic compare-and-swap. On most architectures the reading of a
+ * pointer is an atomic operation so we don't have to protect it.
  */
 static inline int dplasma_atomic_lifo_is_empty( dplasma_atomic_lifo_t* lifo )
 {
     return (lifo->lifo_head == &(lifo->lifo_ghost) ? 1 : 0);
 }
 
-/* Add one element to the LIFO. We will return the last head of the list
- * to allow the upper level to detect if this element is the first one in the
- * list (if the list was empty before this operation).
+/* Add double-linked element to the LIFO. We will return the last head
+ * of the list to allow the upper level to detect if this element is
+ * the first one in the list (if the list was empty before this
+ * operation).
  */
 static inline dplasma_list_item_t* dplasma_atomic_lifo_push( dplasma_atomic_lifo_t* lifo,
-                                                             dplasma_list_item_t* item )
+                                                             dplasma_list_item_t* items )
 {
+    dplasma_list_item_t* tail = (dplasma_list_item_t*)items->list_prev;
 #ifdef DPLASMA_DEBUG
     item->refcount++;
     item->belong_to_list = (struct dplasma_list_t*)lifo;
 #endif  /* DPLASMA_DEBUG */
     do {
-        item->list_next = lifo->lifo_head;
+        tail->list_next = lifo->lifo_head;
         if( dplasma_atomic_cas( &(lifo->lifo_head),
-                                (void*)item->list_next,
-                                item ) ) {
-            return (dplasma_list_item_t*)item->list_next;
+                                (void*)tail->list_next,
+                                items ) ) {
+            return (dplasma_list_item_t*)tail->list_next;
         }
         /* DO some kind of pause to release the bus */
     } while( 1 );
