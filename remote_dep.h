@@ -10,7 +10,7 @@
 
 #if defined(USE_MPI)
 #   define ALLOW_REMOTE_DEP
-#else 
+#else
 #   undef ALLOW_REMOTE_DEP
 #endif
 
@@ -83,10 +83,10 @@ static inline int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_
 }
 
 #else 
-#   define dplasma_remote_dep_progress(ctx)
+#   define dplasma_remote_dep_progress(ctx) (0)
 #   define dplasma_remote_dep_reset_forwarded(ctx)
 #   define dplasma_remote_dep_mark_forwarded(ctx, rk)
-#   define dplasma_remote_dep_is_forwarded(ctx, rk)
+#   define dplasma_remote_dep_is_forwarded(ctx, rk) (0)
 #endif /* ALLOW_REMOTE_DEP */
 
 #endif /* __USE_REMOTE_DEP_H__ */
