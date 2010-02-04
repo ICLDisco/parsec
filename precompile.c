@@ -1058,9 +1058,51 @@ static char *dplasma_dump_c(const dplasma_t *d,
        body_lines = nblines(d->body);
         output( "  %s\n"
                 "#line %d \"%s\"\n"
-                "\n"
-                "  TAKE_TIME(context, %s_end_key, %s_hash(",
-                d->body, body_lines+1+current_line, out_name, d->name, d->name);
+                "\n",
+                d->body, body_lines+1+current_line, out_name);
+
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_OUT ) {
+                for(k = 0; k < MAX_DEP_OUT_COUNT; k++) {
+                    if( d->inout[i]->dep_out[k] != NULL ) {
+                        if( d->inout[i]->dep_out[k]->dplasma->nb_locals == 0 ) {
+                            if( NULL != d->inout[i]->dep_out[k]->cond ) {
+                                output("  if(");
+                                dump_inline_c_expression(d->inout[i]->dep_out[k]->cond);
+                                output(") {\n  ");
+                            }
+                            output("  if( %s(", d->inout[i]->dep_out[k]->dplasma->name);
+                            for( j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
+                                dump_inline_c_expression(d->inout[i]->dep_out[k]->call_params[j]);
+                                if( NULL == d->inout[i]->dep_out[k]->call_params[j+1] ) {
+                                    break;
+                                } else {
+                                    output(", ");
+                                }
+                            }
+                            output(")");
+                            output(" != %s) memcpy( %s(", d->inout[i]->name, d->inout[i]->dep_out[k]->dplasma->name);
+                            for( j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
+                                dump_inline_c_expression(d->inout[i]->dep_out[k]->call_params[j]);
+                                if( NULL == d->inout[i]->dep_out[k]->call_params[j+1] ) {
+                                    break;
+                                } else {
+                                    output(", ");
+                                }
+                            }
+                            output(")");
+                            output(", %s, TILE_SIZE);\n", d->inout[i]->name);
+                            if( NULL != d->inout[i]->dep_out[k]->cond ) {
+                                output(  "}\n");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        output( "  TAKE_TIME(context, %s_end_key, %s_hash(",
+                d->name, d->name);
         for(j = 0; j < d->nb_locals; j++) {
             output("%s", d->locals[j]->name );
             if( j == d->nb_locals - 1 ) 
@@ -1243,6 +1285,7 @@ int dplasma_dump_all_c(char *filename)
             "#include <string.h>\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
+            "#define TILE_SIZE (120*120*sizeof(double))\n"
             "#ifdef USE_PAPI\n"
             "#include \"papi.h\"\n"
             "extern int eventSet;\n"

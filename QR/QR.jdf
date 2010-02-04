@@ -103,7 +103,7 @@ DGEQRT(k)
 
   IN RV1 <- (k==0) ? A(k,k) : C2 DSSMQR(k-1,k,k)
 
-  OUT RV1 -> (k==MT-1) ? OUT(k,k) : R DTSQRT(k,k+1)
+  OUT RV1 -> (k==MT-1) ? A(k,k) : R DTSQRT(k,k+1)
   OUT T   -> T DORMQR(k, k+1..NT-1)
 
 BODY
@@ -220,12 +220,12 @@ DSSMQR(k,n,m)
   IN T  <- T DTSQRT(k,m)
   IN C1 <- (m==k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
 
-  OUT C2 -> ((m==k+1) & (n==k+1)) ? RV1 DGEQRT(k+1) : OUT(1,1)
-  OUT C2 -> ((m==k+1) & (n!=k+1))  ? C1 DORMQR(k+1,n) : OUT(1,1)
-  OUT C2 -> ((m!=k+1) & (n==k+1)) ? V2 DTSQRT(k+1,m) : OUT(1,1)
-  OUT C2 -> ((m!=k+1) & (n!=k+1))  ? C2 DSSMQR(k+1,n,m) : OUT(1,1)
+  OUT C2 -> ((m==k+1) & (n==k+1)) ? RV1 DGEQRT(k+1) : A(1,1)
+  OUT C2 -> ((m==k+1) & (n!=k+1))  ? C1 DORMQR(k+1,n) : A(1,1)
+  OUT C2 -> ((m!=k+1) & (n==k+1)) ? V2 DTSQRT(k+1,m) : A(1,1)
+  OUT C2 -> ((m!=k+1) & (n!=k+1))  ? C2 DSSMQR(k+1,n,m) : A(1,1)
 
-  OUT C1 -> (m==MT-1) ? OUT(k,n) : C1 DSSMQR(k,n,m+1)
+  OUT C1 -> (m==MT-1) ? A(k,n) : C1 DSSMQR(k,n,m+1)
 
 BODY
 #ifdef DPLASMA_EXECUTE
