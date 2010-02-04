@@ -26,6 +26,7 @@ static inline dplasma_time_t take_time(void)
     return ret;
 }
 
+#define TIMER_UNIT "nanosecond"
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     uint64_t diff;
@@ -49,6 +50,7 @@ static inline dplasma_time_t take_time(void)
     __asm__ __volatile__ ("mov %0=ar.itc" : "=r"(ret));
     return ret;
 }
+#define TIMER_UNIT "cycles"
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     return (end - start);
@@ -66,6 +68,7 @@ static inline dplasma_time_t take_time(void)
     __asm__ __volatile__("rdtsc" : "=A"(ret));
     return ret;
 }
+#define TIMER_UNIT "cycles"
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     return (end - start);
@@ -85,6 +88,7 @@ static inline dplasma_time_t take_time(void)
     gettimeofday( &tv, NULL );
     return tv;
 }
+#define TIMER_UNIT "microseconds"
 static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
 {
     uint64_t diff;
@@ -114,6 +118,9 @@ typedef struct dplasma_profiling_output_t {
     long long counter_value;
 #endif /* defined(USE_PAPI) */
 } dplasma_profiling_output_t;
+
+#define START_KEY(key)  ( (key) * 2 )
+#define END_KEY(key)    ( (key) * 2 + 1 )
 
 int dplasma_prof_events_number;
 int dplasma_prof_keys_count, dplasma_prof_keys_number;
@@ -197,8 +204,8 @@ int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* 
             continue;
         }
         if( 0 == strcmp(dplasma_prof_keys[i].name, key_name) ) {
-            *key_start = 2 * i;
-            *key_end = 2 * i + 1;
+            *key_start = START_KEY(i);
+            *key_end = END_KEY(i);
             return 0;
         }
     }
@@ -209,8 +216,8 @@ int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* 
     dplasma_prof_keys[pos].name = strdup(key_name);
     dplasma_prof_keys[pos].attributes = strdup(attributes);
 
-    *key_start = 2 * pos;
-    *key_end = 2 * pos + 1;
+    *key_start = START_KEY(pos);
+    *key_end = END_KEY(pos);
     dplasma_prof_keys_count++;
     return 0;
 }
@@ -501,6 +508,139 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 
     fprintf(tracefile,
             "</svg>\n");
+    fclose(tracefile);
+    
+    return 0;
+}
+
+static int dplasma_profiling_dump_one_xml( const dplasma_eu_profiling_t *profile, 
+                                           FILE *out,
+                                           dplasma_time_t relative )
+{
+    int key, start_idx, end_idx, displayed_key;
+    uint64_t start, end;
+    
+    for( key = 0; key < dplasma_prof_keys_count; key++ ) {
+        displayed_key = 0;
+        for( start_idx = 0; start_idx < min(profile->events_count, dplasma_prof_events_number); start_idx++ ) {
+            /* if not my current start_idx key, ignore */
+            if( profile->events[start_idx].key != START_KEY(key) )
+                continue;
+            
+            /* find the end_idx event */
+            for( end_idx = start_idx+1; end_idx < min(profile->events_count, dplasma_prof_events_number); end_idx++) {
+                if( (profile->events[end_idx].key == END_KEY(key)) &&
+                    (profile->events[end_idx].id == profile->events[start_idx].id) )
+                    break;
+            }
+            if( end_idx == min(profile->events_count, dplasma_prof_events_number) ) {
+                for(end_idx = 0; end_idx < start_idx; end_idx++) {
+                    if( (profile->events[end_idx].key == END_KEY(key)) &&
+                        (profile->events[end_idx].id == profile->events[start_idx].id) ) {
+                        fprintf(stderr, "Profiling warning: end_idx event of key %d id %lu was found before the corresponding start event\n",
+                                key, profile->events[end_idx].id);
+                        break;
+                    }
+                }
+                if( end_idx == start_idx ) {
+                    fprintf(stderr, "Profiling error: end event of key %d id %lu was not found\n", key, profile->events[end_idx].id);
+                    return -1;
+                }
+            }
+
+            start = diff_time( relative, profile->events[start_idx].timestamp );
+            end = diff_time( relative, profile->events[end_idx].timestamp );
+
+            if( displayed_key == 0 ) {
+                fprintf(out, "    <KEY ID=\"%d\">\n", key);
+                displayed_key = 1;
+            }
+            
+            fprintf(out, "     <EVENT>\n");
+
+            fprintf(out, "       <ID>%lu</ID>\n"
+                         "       <START>%llu</START>\n"
+                         "       <END>%llu</END>\n",
+                    profile->events[start_idx].id,
+                    start, end);
+#ifdef USE_PAPI
+            fprintf(out, "       <PAPI_START>%ld</PAPI_START>\n"
+                         "       <PAPI_END>%ld</PAPI_END>\n",
+                    profile->events[start_idx].counter_value,
+                    profile->events[end_idx].counter_value);
+#endif
+            fprintf(out, "     </EVENT>\n");
+        }
+        if( displayed_key ) {
+            fprintf(out, "    </KEY>\n");
+        }
+    }
+    return 0;
+}
+
+int dplasma_profiling_dump_xml( dplasma_context_t* context, const char* filename )
+{
+    int i, thread_id, last_timestamp, foundone;
+    dplasma_time_t relative = ZERO_TIME, latest = ZERO_TIME;
+    dplasma_eu_profiling_t* profile;
+    FILE* tracefile;
+
+    tracefile = fopen(filename, "w");
+    if( NULL == tracefile ) {
+        return -1;
+    }
+
+    fprintf(tracefile,
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<PROFILING>\n"
+            " <DICTIONARY>\n");
+
+    for(i = 0; i < dplasma_prof_keys_count; i++) {
+        fprintf(tracefile,
+                "   <KEY ID=\"%d\">\n"
+                "    <NAME>%s</NAME>\n"
+                "    <ATTRIBUTES><![CDATA[%s]]></ATTRIBUTES>\n"
+                "   </KEY>\n",
+                i, dplasma_prof_keys[i].name, dplasma_prof_keys[i].attributes);
+    }
+    fprintf(tracefile, " </DICTIONNARY>\n");
+
+    foundone = 0;
+    for( thread_id = 0; thread_id < context->nb_cores + EXTRA_CTX; thread_id++ ) {
+        profile = context->execution_units[thread_id].eu_profile;
+
+        if( profile->events_count == 0 ) {
+            continue;
+        }
+
+        if( !foundone ) {
+            relative = profile->events[0].timestamp;
+            last_timestamp = min(profile->events_count, dplasma_prof_events_number) - 1;
+            latest   = profile->events[last_timestamp].timestamp;
+            foundone = 1;
+        } else {
+            if( time_less(profile->events[0].timestamp, relative) ) {
+                relative = profile->events[0].timestamp;
+            }
+            last_timestamp = min(profile->events_count, dplasma_prof_events_number) - 1;
+            if( time_less( latest, profile->events[last_timestamp].timestamp) ) {
+                latest = profile->events[last_timestamp].timestamp;
+            }
+        }
+    }
+
+    fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%llu\" TIME_UNIT=\""TIMER_UNIT"\">\n",
+            diff_time(relative, latest));
+
+    for( thread_id = 0; thread_id < context->nb_cores + EXTRA_CTX; thread_id++) {
+        fprintf(tracefile, "   <THREAD ID=\"%d\">\n", thread_id);
+        dplasma_profiling_dump_one_xml(context->execution_units[thread_id].eu_profile, tracefile, relative);
+        fprintf(tracefile, "   </THREAD>\n");
+    }
+
+    fprintf(tracefile, 
+            " </PROFILES>\n"
+            "</PROFILING>\n");
     fclose(tracefile);
     
     return 0;
