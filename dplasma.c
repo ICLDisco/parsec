@@ -30,6 +30,10 @@
 
 FILE *__dplasma_graph_file = NULL;
 
+#ifdef DPLASMA_PROFILING
+int MEMALLOC_start_key, MEMALLOC_end_key;
+#endif  /* DPLASMA_PROFILING */
+
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
 #ifdef USE_PAPI
@@ -224,6 +228,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( context, 4096 );
+
+    dplasma_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#555555",
+                                              &MEMALLOC_start_key, &MEMALLOC_end_key);
 #endif  /* DPLASMA_PROFILING */
 
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -705,6 +712,8 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
         deps = *deps_location;
         last_deps = NULL;
 
+        dplasma_profiling_trace(eu_context, MEMALLOC_start_key, 0);
+
         for( i = 0; i < function->nb_locals; i++ ) {
             if( NULL == (*deps_location) ) {
                 int min, max, number;
@@ -718,17 +727,16 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                        number, function->locals[i]->name, min, max));
                 deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                        number * sizeof(dplasma_dependencies_union_t));
-                if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
-                    /* Some other thread manage to set it before us. Not a big deal. */
-                    free(deps);
-                    goto deps_created_by_another_thread;
-                }
                 deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
                 deps->symbol = function->locals[i];
                 deps->min = min;
                 deps->max = max;
                 deps->prev = last_deps; /* chain them backward */
-                *deps_location = deps;  /* store the deps in the right location */
+                if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
+                    /* Some other thread manage to set it before us. Not a big deal. */
+                    free(deps);
+                    goto deps_created_by_another_thread;
+                }
                 if( NULL != last_deps ) {
                     last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
                 }
@@ -742,6 +750,8 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
             deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
             last_deps = deps;
         }
+
+        dplasma_profiling_trace(eu_context, MEMALLOC_end_key, 0);
     }
 
     i = function->nb_locals - 1;
@@ -920,17 +930,16 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    number, function->locals[i]->name, min, max));
             deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                    number * sizeof(dplasma_dependencies_union_t));
-            if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
-                /* Some other thread manage to set it before us. Not a big deal. */
-                free(deps);
-                goto deps_created_by_another_thread;
-            }
             deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;
             deps->max = max;
             deps->prev = last_deps; /* chain them backward */
-            *deps_location = deps;  /* store the deps in the right location */
+            if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
+                /* Some other thread manage to set it before us. Not a big deal. */
+                free(deps);
+                goto deps_created_by_another_thread;
+            }
             if( NULL != last_deps ) {
                 last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
             }
@@ -1083,18 +1092,16 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                            exec_context->locals[actual_loop].value, min, max));
                     deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                            number * sizeof(dplasma_dependencies_union_t));
+                    deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
+                    deps->symbol = function->locals[actual_loop];
+                    deps->min = min;
+                    deps->max = max;
+                    deps->prev = last_deps; /* chain them backward */
                     /**
                      * If we fail then the dependencies array has been allocated by another
                      * thread. Keep going.
                      */
-                    if( dplasma_atomic_cas(deps_location, NULL, deps) ) {
-                        deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
-                        deps->symbol = function->locals[actual_loop];
-                        deps->min = min;
-                        deps->max = max;
-                        deps->prev = last_deps; /* chain them backward */
-                        *deps_location = deps;
-                    } else {
+                    if( !dplasma_atomic_cas(deps_location, NULL, deps) ) {
                         free(deps);
                     }
                 }
