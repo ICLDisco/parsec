@@ -1078,7 +1078,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             output("  if( %s(", d->inout[i]->dep_out[k]->dplasma->name);
                             for( j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
                                 dump_inline_c_expression(d->inout[i]->dep_out[k]->call_params[j]);
-                                if( NULL == d->inout[i]->dep_out[k]->call_params[j+1] ) {
+                                if( (j == MAX_CALL_PARAM_COUNT - 1) || (NULL == d->inout[i]->dep_out[k]->call_params[j+1]) ) {
                                     break;
                                 } else {
                                     output(", ");
@@ -1088,7 +1088,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             output(" != %s) memcpy( %s(", d->inout[i]->name, d->inout[i]->dep_out[k]->dplasma->name);
                             for( j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
                                 dump_inline_c_expression(d->inout[i]->dep_out[k]->call_params[j]);
-                                if( NULL == d->inout[i]->dep_out[k]->call_params[j+1] ) {
+                                if( (j == MAX_CALL_PARAM_COUNT - 1) || (NULL == d->inout[i]->dep_out[k]->call_params[j+1]) ) {
                                     break;
                                 } else {
                                     output(", ");
