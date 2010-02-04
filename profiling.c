@@ -124,6 +124,13 @@ typedef struct dplasma_eu_profiling_t {
     dplasma_profiling_output_t events[1];
 } dplasma_eu_profiling_t;
 
+
+#ifdef USE_MPI
+#define EXTRA_CTX 1
+#else 
+#define EXTRA_CTX 0
+#endif
+
 int dplasma_profiling_init( dplasma_context_t* context, size_t length )
 {
     dplasma_eu_profiling_t* prof;
@@ -131,7 +138,7 @@ int dplasma_profiling_init( dplasma_context_t* context, size_t length )
 
     dplasma_prof_events_number = length;
 
-    for( i = 0; i < context->nb_cores; i++ ) {
+    for( i = 0; i < (context->nb_cores + EXTRA_CTX); i++ ) {
         prof = (dplasma_eu_profiling_t*)malloc(sizeof(dplasma_eu_profiling_t) +
                                                sizeof(dplasma_profiling_output_t) * length);
         prof->events_count = 0;
@@ -169,7 +176,7 @@ int dplasma_profiling_fini( dplasma_context_t* context )
     dplasma_prof_keys_count = 0;
     dplasma_prof_keys_number = 0;
 
-    for( i = 0; i < context->nb_cores; i++ ) {
+    for( i = 0; i < (context->nb_cores + EXTRA_CTX); i++ ) {
         free(context->execution_units[i].eu_profile);
         context->execution_units[i].eu_profile = NULL;
     }
@@ -352,7 +359,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
             "    </rect>\n"
             "    <g id=\"gantt\" transform=\"scale(1) translate(1, 0)\">\n",
             WIDTH,
-            context->nb_cores * CORE_STRIDE +  dplasma_prof_keys_count*20);
+            (context->nb_cores + EXTRA_CTX) * CORE_STRIDE +  dplasma_prof_keys_count*20);
 
     foundone = 0;
     for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
@@ -389,7 +396,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                 (double)i, i*scale);
     }
 
-    for( thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
+    for( thread_id = 0; thread_id < context->nb_cores + EXTRA_CTX; thread_id++ ) {
         profile = context->execution_units[thread_id].eu_profile;
         gaps = 0.0;
         gaps_last = 0.0;
@@ -438,7 +445,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
 
         keyplotted = 0;
 
-        for(  thread_id = 0; thread_id < context->nb_cores; thread_id++ ) {
+        for(  thread_id = 0; thread_id < context->nb_cores + EXTRA_CTX; thread_id++ ) {
             uint64_t time, sum = 0, sqsum = 0;
             double avg, var;
             int nb = 0;
@@ -464,19 +471,19 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                         "  <rect x='%d' y='%d' width='20' height='10' style='%s' />\n"
                         "  <text x='%d' y='%d'>%s",
                         (nplot /  dplasma_prof_keys_count) * 400 + 10,
-                        (nplot %  dplasma_prof_keys_count) * 15 + 33 + context->nb_cores * (int)CORE_STRIDE,
+                        (nplot %  dplasma_prof_keys_count) * 15 + 33 + (context->nb_cores + EXTRA_CTX) * (int)CORE_STRIDE,
                         dplasma_prof_keys[key].attributes,
                         (nplot /  dplasma_prof_keys_count) * 400 + 35,
-                        (nplot %  dplasma_prof_keys_count) * 15 + 43 + context->nb_cores * (int)CORE_STRIDE,
+                        (nplot %  dplasma_prof_keys_count) * 15 + 43 + (context->nb_cores + EXTRA_CTX) * (int)CORE_STRIDE,
                         dplasma_prof_keys[key].name);
                 for( ptid = 0; ptid < thread_id; ptid++) {
-                    fprintf(tracefile, "nan(nan)%c", (ptid + 1 == context->nb_cores) ? ' ' : '/');
+                    fprintf(tracefile, "nan(nan)%c", (ptid + 1 == (context->nb_cores + EXTRA_CTX)) ? ' ' : '/');
                 }
                 fprintf(tracefile,
                         "  %.2lf(%.2lf)%c",
                         avg,
                         sqrt(var),
-                        (thread_id + 1 == context->nb_cores) ? ' ' : '/');
+                        (thread_id + 1 == (context->nb_cores + EXTRA_CTX)) ? ' ' : '/');
                 keyplotted = 1;
                 nplot++;
             } else if( keyplotted ) {
@@ -484,7 +491,7 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
                         "  %.2lf(%.2lf)%c",
                         avg,
                         sqrt(var),
-                        (thread_id + 1 == context->nb_cores) ? ' ' : '/');
+                        (thread_id + 1 == (context->nb_cores + EXTRA_CTX)) ? ' ' : '/');
             }
         }
         if( keyplotted ) {

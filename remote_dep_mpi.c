@@ -9,6 +9,7 @@
  */
 
 #include <mpi.h>
+#include "profiling.h"
 
 #define USE_MPI_THREAD_NOMUTEX
 
@@ -42,9 +43,32 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context);
 #   define remote_dep_progress(ctx) __remote_dep_progress(ctx)
 #endif 
 
+#ifdef DPLASMA_PROFILING
+dplasma_execution_unit_t *mpi_ctx;
+int MPI_Activate_sk, MPI_Activate_ek;
+int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
+int MPI_Data_pld_sk, MPI_Data_pld_ek;
+int MPI_Test_any_sk, MPI_Test_any_ek;
+
+#define TAKE_TIME(KEY)  dplasma_profiling_trace(mpi_ctx, (KEY), 0)
+#else
+#define TAKE_TIME(KEY)
+#endif  /* DPLASMA_PROFILING */
 
 int __remote_dep_init(dplasma_context_t* context)
 {
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#40826D",
+                                             &MPI_Activate_sk, &MPI_Activate_ek);
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#EE82EE",
+                                             &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD", "fill:#FFE0D0",
+                                             &MPI_Data_pld_sk, &MPI_Data_pld_ek);
+    dplasma_profiling_add_dictionary_keyword( "MPI_TEST_ANY", "fill:#040ED0",
+                                             &MPI_Test_any_sk, &MPI_Test_any_ek);
+
+    mpi_ctx = &context->execution_units[context->nb_cores];
+#endif /* DPLASMA_PROFILING */
     return remote_dep_mpi_init(context);
 }
 
@@ -171,7 +195,9 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
     int i, flag;
     
     do {
+/*        TAKE_TIME(MPI_Test_any_sk);*/
         MPI_Testany(4 * DEP_NB_CONCURENT, dep_req, &i, &flag, &status);
+/*        TAKE_TIME(MPI_Test_any_ek);*/
         if(flag)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
@@ -214,26 +240,35 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
 
 static void remote_dep_put_data(void* data, int to, int i)
 {
+    TAKE_TIME(MPI_Data_pld_sk);
     DEBUG(("Put data\tto REMOTE process %d from address %p\n", to, data));
     MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_snd_req[i]);
+    TAKE_TIME(MPI_Data_pld_ek);
 }
 
 static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int i)
 {
+    TAKE_TIME(MPI_Data_ctl_sk);
     DEBUG(("Get data\tfrom REMOTE process %d at remote address %p\n", from, task->list_item.cache_friendly_emptiness));
-    MPI_Send(&task->list_item.cache_friendly_emptiness, 1, data_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
+    void* data = task->list_item.cache_friendly_emptiness;
     task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
     MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_rcv_req[i]);
+    
+    MPI_Bsend(&data, 1, data_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
+    TAKE_TIME(MPI_Data_ctl_ek);
 }
 
 
 /* Send the activate tag */
 static int __remote_dep_send(dplasma_execution_context_t* task, int rank, void **data)
 {
+    TAKE_TIME(MPI_Activate_sk);
     DEBUG(("Activate\tto REMOTE process %d with data at %p\n", rank, data[0]));
     task->list_item.cache_friendly_emptiness = data[0];
-    return MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+    MPI_Bsend((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+    TAKE_TIME(MPI_Activate_ek);
+    return 1;
 }
 
 
@@ -476,6 +511,7 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     dplasma_context_t *ret;
 
+    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_FINI;
     
     dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
@@ -492,44 +528,45 @@ static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int 
 {
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
     
+    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
     cmd->u.activate.origin = *task;
     cmd->u.activate.data = data[0];
     cmd->u.activate.rank = rank;
     
-    dplasma_dequeue_push_front(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
+    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
     return 1;
 }
-
-static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
-{
-    enable_self_progress = 1;
-
-/*    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
-    
-    enable_self_progress = 1;
-    
-    cmd->cmd = DEP_PROGRESS;
-    cmd->u.progress.unit = eu_context;
-    
-    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);*/
-    return 1;
-}
-
 
 #define YIELD_TIME 5000
 
+static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
+{
+ /*   struct timespec ts;
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
+   */ 
+    enable_self_progress = 1;
+/*
+    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
+    cmd->cmd = DEP_PROGRESS;
+    cmd->u.progress.unit = eu_context;
+    
+    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
+    ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
+    nanosleep(&ts, NULL);*/
+    return 1;
+}
+
+
 static void* remote_dep_dequeue_main(dplasma_context_t* context)
 {
-    int ret;
     int keep_probing = 1;
     struct timespec ts;
     dep_cmd_item_t* cmd;
 
     np = __remote_dep_mpi_init(context);
         
-    ts.tv_sec = 0;
-    ts.tv_nsec = YIELD_TIME;
+    ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
     
     do {
         while(NULL == (cmd = (dep_cmd_item_t*) dplasma_dequeue_pop_front(&dep_cmd_queue)))

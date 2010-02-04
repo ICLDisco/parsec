@@ -187,10 +187,16 @@ dplasma_atomic_lifo_t ready_list;
 
 #define gettid() syscall(__NR_gettid)
 
+#ifdef USE_MPI
+#define EXTRA_CTX 1
+#else 
+#define EXTRA_CTX 0
+#endif 
+
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t)+
-                                                            nb_cores * sizeof(dplasma_execution_unit_t));
+                                                            (nb_cores + EXTRA_CTX) * sizeof(dplasma_execution_unit_t));
     int i;
 
     context->nb_cores = (int32_t) nb_cores;

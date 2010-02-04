@@ -61,7 +61,7 @@ BODY
                  &PLASMA_INFO); 
 #else
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
-             (uplo == PlasmaLower) ? "PlasmaLower" " "PlasmaUpper",
+             (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
              k, k, NB /*A.nb,*/));
 #endif  /* DPLASMA_EXECUTE */
