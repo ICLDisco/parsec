@@ -40,7 +40,7 @@ rowRANK = 0
  *                      POTRF                     *
  **************************************************/
 // Name
-POTRF(k)
+POTRF(k) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
@@ -72,7 +72,7 @@ END
  *                      TRSM                      *
  **************************************************/
 // Name
-TRSM(k, m)
+TRSM(k, m) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
@@ -128,7 +128,7 @@ END
  *                      SYRK                      *
  **************************************************/
 // Name
-SYRK(k, n)
+SYRK(k, n) (high_priority)
 
 // Execution space
 k = 1..SIZE-1
