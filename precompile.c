@@ -962,8 +962,8 @@ static char *dplasma_dump_c(const dplasma_t *d,
             output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
         }
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-            output("  void *%s;\n", d->inout[i]->name);
-            output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
+            output("  void *%s = NULL;\n", d->inout[i]->name);
+            output("  data_repo_entry_t *e%s = NULL;\n", d->inout[i]->name);
         }
 
         output("  /* remove warnings in case the variable is not used later */\n");
