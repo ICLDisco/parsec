@@ -29,6 +29,10 @@
 #include "profiling.h"
 #include "data_management.h"
 
+//#ifdef VTRACE
+//#include "vt_user.h"
+//#endif
+
 /* globals and argv set values */
 PLASMA_desc local_desc;
 DPLASMA_desc descA;
@@ -76,6 +80,7 @@ printf print; \
 
 int main(int argc, char ** argv){
     /* local variables*/
+  
     double eps;
     double flops, gflops;
     PLASMA_enum uplo;
@@ -95,7 +100,9 @@ int main(int argc, char ** argv){
     int req_count;
 #endif
     dplasma_context_t* dplasma;
-    
+    //#ifdef VTRACE
+      // VT_OFF();
+    //#endif
     dague_init(argc, argv);
     
     /* Matrix creation, tiling and distribution */
@@ -125,6 +132,10 @@ int main(int argc, char ** argv){
         }
 #endif
         tiling(&uplo, N, A2, LDA, &local_desc);
+	//#ifdef VTRACE 
+	//    VT_ON();
+	//#endif
+
     }
 #ifdef USE_MPI
     TIME_START();
@@ -161,6 +172,7 @@ int main(int argc, char ** argv){
         dplasma_schedule(dplasma, &exec_context);
     }
     TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
+
 
 #if defined(DPLASMA_WARM_UP)
     TIME_START();
@@ -430,6 +442,11 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( descA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
+	constant = expr_new_int( descA.nrst );
+        dplasma_assign_global_symbol( "stileSIZE", constant );
+
+
+	
     }
     load_dplasma_hooks(dplasma);
     enumerate_dplasma_tasks(dplasma);
