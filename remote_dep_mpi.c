@@ -183,6 +183,24 @@ static int __remote_dep_mpi_fini(dplasma_context_t* context)
 
 #define TILE_SIZE (120 * 120)
 
+#ifdef CRC_CHECK
+#define CRC_PRINT(data, pos) do \
+{ \
+    double _crc = 0.0f; \
+    int _i; \
+    for(_i = 0; _i < TILE_SIZE; _i++) \
+    { \
+        _crc += ((double*) (data))[_i] * _i; \
+    } \
+    MPI_Comm_rank(MPI_COMM_WORLD, &_i); \
+    printf("[%g:" pos "] on %d\n", _crc, _i); \
+} while(0)
+#else
+#define CRC_PRINT(data, pos)
+#endif 
+
+
+
 static void remote_dep_put_data(void* data, int to, int i);
 static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int i);
 
@@ -218,20 +236,7 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
                 assert(i >= 0);
                 if(i < DEP_NB_CONCURENT)
                 {
-                    dplasma_execution_context_t* new_context = &dep_activate_buff[i];
-                    
-                    {
-                        double crc = 0.0f;
-                        int i;
-                        void* data = new_context->list_item.cache_friendly_emptiness;
-                        for(i = 0; i < TILE_SIZE; i++)
-                        {
-                            crc += ((double*) data)[i] * i;
-                        }
-                        MPI_Comm_rank(MPI_COMM_WORLD, &i);
-                        printf("[%g:PR] from %d to %d\n", crc, status.MPI_SOURCE, i);
-                    }
-                    
+                    CRC_PRINT(dep_activate_buff[i].list_item.cache_friendly_emptiness, "R");
                     dep_activate_buff[i].function->release_deps(eu_context, &dep_activate_buff[i], 0, &dep_activate_buff[i].list_item.cache_friendly_emptiness);
                     MPI_Start(&dep_activate_req[i]);
                     ret++;
@@ -279,18 +284,8 @@ static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int
 static int __remote_dep_send(dplasma_execution_context_t* task, int rank, void **data)
 {
     TAKE_TIME(MPI_Activate_sk);
-    DEBUG(("Activate\tto REMOTE process %d with data at %p\n", rank, data[0]));
-    
-    {
-        double crc = 0.0f;
-        int i;
-        for(i = 0; i < TILE_SIZE; i++)
-        {
-            crc += ((double**) data)[0][i] * i;
-        }
-        MPI_Comm_rank(MPI_COMM_WORLD, &i);
-        printf("[%g:AS] from %d to %d\n", crc, i, rank);
-    }
+    DEBUG(("Activate\tto REMOTE process %d with data at %p\n", rank, data[0]));    
+    CRC_PRINT(((double**) data)[0], "S");
     
     task->list_item.cache_friendly_emptiness = data[0];
     MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
