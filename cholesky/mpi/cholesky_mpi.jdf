@@ -68,6 +68,43 @@ BODY
 
 END
 
+
+// Name
+TRSM(k, m)
+
+// Execution space
+k = 0..SIZE-1
+m = k+1..SIZE-1
+
+// Parallel partitioning
+: m % GRIDrows == rowRANK
+: k % GRIDcols == colRANK
+
+// Parameters
+IN    T <- T POTRF(k)
+INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
+        -> A SYRK(m, k)
+        -> A GEMM(m, m+1..SIZE-1, k)
+        -> B GEMM(k+1..m-1, m, k)
+        -> A(m, k)
+
+BODY
+#ifdef DPLASMA_EXECUTE
+    CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                C /*A(m, k)*/, NB /*A.nb*/);
+#endif  /* DPLASMA_EXECUTE */
+    OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+             "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+             NB, /*A.nb,*/
+             1.0, k, k, NB, /*A.nb,*/
+             m, k, NB /*A.nb*/));
+
+END
+
 // Name
 SYRK(k, n)
 
@@ -89,8 +126,8 @@ BODY
     CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, T /*A(k, n)*/, NB, /*A.nb,*/
-                1.0, A /*A(k, k)*/, NB /*A.nb*/);
+                -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                1.0, T /*A(k, k)*/, NB /*A.nb*/);
 #endif  /* DPLASMA_EXECUTE */
 
     OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
@@ -141,40 +178,3 @@ BODY
             1.0, m, k, NB /*A.nb*/));
 
 END
-
-// Name
-TRSM(k, m)
-
-// Execution space
-k = 0..SIZE-1
-m = k+1..SIZE-1
-
-// Parallel partitioning
-: m % GRIDrows == rowRANK
-: k % GRIDcols == colRANK
-
-// Parameters
-IN    T <- T POTRF(k)
-INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
-        -> A GEMM(m, m+1..SIZE-1, k)
-        -> B GEMM(k+1..m-1, m, k)
-        -> A SYRK(m, k)
-        -> A(k, m)
-
-BODY
-#ifdef DPLASMA_EXECUTE
-    CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
-                C /*A(m, k)*/, NB /*A.nb*/);
-#endif  /* DPLASMA_EXECUTE */
-    OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-             "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
-             NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-             NB, /*A.nb,*/
-             1.0, k, k, NB, /*A.nb,*/
-             m, k, NB /*A.nb*/));
-
-END
-
