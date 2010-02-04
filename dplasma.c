@@ -713,18 +713,6 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                  */
                 dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
                 dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
-                /* Make sure we stay in the expected ranges */
-                if( exec_context->locals[i].min < min ) {
-                    DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
-                           function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, min));
-                    exec_context->locals[i].min = min;
-                }
-                if( exec_context->locals[i].max > max ) {
-                    DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
-                           function->name, exec_context->locals[i].sym->name, exec_context->locals[i].max, max));
-                    exec_context->locals[i].max = max;
-                }
-                assert( (min <= exec_context->locals[i].value) && (max >= exec_context->locals[i].value) );
                 number = max - min;
                 DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
                        number, function->locals[i]->name, min, max));
