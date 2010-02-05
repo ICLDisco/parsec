@@ -148,12 +148,10 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
         it = dplasma_progress(dplasma);
         time_elapsed = get_cur_time() - time_elapsed;
         printf("Warming up: DPOTRF %d %d %d %f %f\n",ncores,N,NB,time_elapsed, (N/1e3*N/1e3*N/1e3/3.0)/time_elapsed );
-#endif  /* DPLASMA_WARM_UP */
-
-        /*printf("NBTASKS to run: %d\n", nbtasks);*/
 
         /* And now that everything is warmed up, do the real test */
         nbtasks = enumerate_dplasma_tasks(dplasma);
+#endif  /* DPLASMA_WARM_UP */
 
         dplasma_schedule(dplasma, &exec_context);
 
