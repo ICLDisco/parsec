@@ -773,13 +773,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     }
 
                     for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                        if( 0 == k ) {
-                            output("%s  struct dplasma_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
-                                   spaces, target->locals[0]->name);
-                        } else {
-                            output("%s  struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[_p%d - (*%s_placeholder)->min]);\n",
-                                   spaces, target->locals[k]->name, target->locals[k-1]->name, k-1, target->locals[k-1]->name);
-                        }
                         output("%s    int %s = _p%d;\n", spaces, target->locals[k]->name, k);
                     }
 
@@ -796,6 +789,16 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                     }
                     output(") ) {\n");
+
+                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                        if( 0 == k ) {
+                            output("%s      struct dplasma_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
+                                   spaces, target->locals[0]->name);
+                        } else {
+                            output("%s      struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[_p%d - (*%s_placeholder)->min]);\n",
+                                   spaces, target->locals[k]->name, target->locals[k-1]->name, k-1, target->locals[k-1]->name);
+                        }
+                    }
 
                     for(k = 0; k < target->nb_locals; k++) {
                         output("%s      new_context.locals[%d].sym = new_context.function->locals[%d]; /* task %s */\n",
