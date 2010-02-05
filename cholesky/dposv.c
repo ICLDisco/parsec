@@ -109,6 +109,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
                            PLASMA_desc, descA);
 
     /* Init DPLASMA */
+    /*sleep(20);*/
 #ifdef DPLASMA_EXECUTE
     dplasma = dplasma_init(ncores, pargc, pargv );
     load_dplasma_objects(dplasma);
@@ -126,6 +127,7 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
 
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
+    printf("Total number of tasks %d\n", nbtasks );
     time_elapsed = get_cur_time() - time_elapsed;
     /*printf("DPLASMA initialization %d %d %d %f\n",ncores,N,NB,time_elapsed);*/
 

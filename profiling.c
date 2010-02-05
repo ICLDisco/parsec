@@ -582,7 +582,7 @@ int dplasma_profiling_dump_xml( const char* filename )
                 "   </KEY>\n",
                 i, dplasma_prof_keys[i].name, dplasma_prof_keys[i].attributes);
     }
-    fprintf(tracefile, " </DICTIONNARY>\n");
+    fprintf(tracefile, " </DICTIONARY>\n");
 
     foundone = 0;
    
