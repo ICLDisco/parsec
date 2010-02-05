@@ -1236,6 +1236,7 @@ static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int 
         dump_inline_c_expression(d->locals[s]->max); 
         output(";\n");
         output("%s%s_min = 0x7fffffff;\n", spaces, d->locals[s]->name);
+        output("%s%s_max = -1;\n", spaces, d->locals[s]->name);
         if( 0 == s ) {
             output("%s%s_deps_location = &(function->deps);\n",
                    spaces, d->locals[s]->name);
