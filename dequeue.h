@@ -38,6 +38,11 @@ static inline void dplasma_dequeue_construct( dplasma_dequeue_t* dequeue )
     dequeue->atomic_lock = 0;
 }
 
+static inline void dplamsa_dequeue_item_construct( dplasma_list_item_t *item )
+{
+    item->list_prev = item;
+}
+
 static inline int dplasma_dequeue_is_empty( dplasma_dequeue_t * dequeue )
 {
     int res;

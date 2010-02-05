@@ -274,7 +274,7 @@ static void dispose_dplasma(dplasma_context_t* dplasma)
     char* filename = NULL;
     
     asprintf( &filename, "%s-%d.svg", "dposv-mpi", rank );
-    dplasma_profiling_dump_svg(dplasma, filename);
+    dplasma_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DPLASMA_PROFILING */
     

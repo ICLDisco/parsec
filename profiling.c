@@ -8,107 +8,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include "atomic.h"
-
-#define WIDTH 800.0
-#define CORE_STRIDE 25.0
-
 #define min(a, b) ((a)<(b)?(a):(b))
-#if defined(__gnu_linux__) && !defined INTEL 
-#include <unistd.h>
-#include <time.h>
-typedef struct timespec dplasma_time_t;
-static inline dplasma_time_t take_time(void)
-{
-    dplasma_time_t ret;
-    clock_gettime(CLOCK_REALTIME, &ret);
-    return ret;
-}
 
-#define TIMER_UNIT "nanosecond"
-static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
-{
-    uint64_t diff;
-    diff = (end.tv_sec - start.tv_sec) * 1000000000 +
-           (end.tv_nsec - start.tv_nsec);
-    return diff;
-}
-
-static int time_less( dplasma_time_t start, dplasma_time_t end )
-{
-    return start.tv_sec < end.tv_sec ||
-        (start.tv_sec == end.tv_sec &&
-         start.tv_nsec < end.tv_nsec);
-}
-#define ZERO_TIME {0,0}
-#elif defined(__IA64)
-typedef uint64_t dplasma_time_t;
-static inline dplasma_time_t take_time(void)
-{
-    dplasma_time_t ret;
-    __asm__ __volatile__ ("mov %0=ar.itc" : "=r"(ret));
-    return ret;
-}
-#define TIMER_UNIT "cycles"
-static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
-{
-    return (end - start);
-}
-static int time_less( dplasma_time_t start, dplasma_time_t end )
-{
-    return start < end;
-}
-#define ZERO_TIME 0
-#elif defined(__X86)
-typedef uint64_t dplasma_time_t;
-static inline dplasma_time_t take_time(void)
-{
-    dplasma_time_t ret;
-    __asm__ __volatile__("rdtsc" : "=A"(ret));
-    return ret;
-}
-#define TIMER_UNIT "cycles"
-static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
-{
-    return (end - start);
-}
-static int time_less( dplasma_time_t start, dplasma_time_t end )
-{
-    return start < end;
-}
-#define ZERO_TIME 0
-#else
-#include <sys/time.h>
-typedef struct timeval dplasma_time_t;
-static inline dplasma_time_t take_time(void)
-{
-    struct timeval tv;
-
-    gettimeofday( &tv, NULL );
-    return tv;
-}
-#define TIMER_UNIT "microseconds"
-static inline uint64_t diff_time( dplasma_time_t start, dplasma_time_t end )
-{
-    uint64_t diff;
-    diff = (end.tv_sec - start.tv_sec) * 1000000 +
-           (end.tv_usec - start.tv_usec);
-    return diff;
-}
-static int time_less( dplasma_time_t start, dplasma_time_t end )
-{
-    return start.tv_sec < end.tv_sec ||
-        (start.tv_sec == end.tv_sec &&
-         start.tv_usec < end.tv_usec);
-}
-#define ZERO_TIME {0,0}
-#endif
-
-typedef struct dplasma_profiling_key_t {
-    char* name;
-    char* attributes;
-} dplasma_profiling_key_t;
+#include "os-spec-timing.h"
+#include "dequeue.h"
 
 typedef struct dplasma_profiling_output_t {
     int key;
@@ -119,74 +26,147 @@ typedef struct dplasma_profiling_output_t {
 #endif /* defined(USE_PAPI) */
 } dplasma_profiling_output_t;
 
+struct dplasma_thread_profiling_t {
+    dplasma_list_item_t list;
+    unsigned int events_count;
+    unsigned int events_limit;
+    char *hr_id;
+    dplasma_profiling_output_t events[1];
+};
+
+typedef struct dplasma_profiling_key_t {
+    char* name;
+    char* attributes;
+} dplasma_profiling_key_t;
+
 #define START_KEY(key)  ( (key) * 2 )
 #define END_KEY(key)    ( (key) * 2 + 1 )
 
-int dplasma_prof_events_number;
-int dplasma_prof_keys_count, dplasma_prof_keys_number;
-dplasma_profiling_key_t* dplasma_prof_keys;
+/* Process-global dictionnary */
+static int dplasma_prof_keys_count, dplasma_prof_keys_number;
+static dplasma_profiling_key_t* dplasma_prof_keys;
 
-typedef struct dplasma_eu_profiling_t {
-    int events_count;
-    dplasma_profiling_output_t events[1];
-} dplasma_eu_profiling_t;
+/* Process-global profiling list */
+static dplasma_dequeue_t threads;
+static char *hr_id = NULL;
 
-
-#ifdef USE_MPI
-#define EXTRA_CTX 1
-#else 
-#define EXTRA_CTX 0
-#endif
-
-int dplasma_profiling_init( dplasma_context_t* context, size_t length )
+static char *dplasma_profiling_last_error = NULL;
+static void ERROR(const char *format, ...)
 {
-    dplasma_eu_profiling_t* prof;
-    int i;
+    va_list ap;
 
-    dplasma_prof_events_number = length;
+    if( dplasma_profiling_last_error != NULL ) {
+        free(dplasma_profiling_last_error);
+    }
+    va_start(ap, format);
+    vasprintf(&dplasma_profiling_last_error, format, ap);
+    va_end(ap);
+}
 
-    for( i = 0; i < (context->nb_cores + EXTRA_CTX); i++ ) {
-        prof = (dplasma_eu_profiling_t*)malloc(sizeof(dplasma_eu_profiling_t) +
-                                               sizeof(dplasma_profiling_output_t) * length);
-        prof->events_count = 0;
-        context->execution_units[i].eu_profile = prof;
+char *dplasma_profiling_strerror(void)
+{
+    return dplasma_profiling_last_error;
+}
+
+int dplasma_profiling_change_profile_attribute( const char *format, ... )
+{
+    va_list ap;
+
+    if( hr_id != NULL ) {
+        free(hr_id);
     }
 
-    dplasma_prof_keys = (dplasma_profiling_key_t*)malloc(128 * sizeof(dplasma_profiling_key_t));
-    dplasma_prof_keys_count = 0;
-    dplasma_prof_keys_number = 128;
-    for( i = 0; i < dplasma_prof_keys_number; i++ ) {
-        dplasma_prof_keys[i].name = NULL;
-        dplasma_prof_keys[i].attributes = NULL;
-    }
+    va_start(ap, format);
+    vasprintf(&hr_id, format, ap);
+    va_end(ap);
+
     return 0;
 }
 
-/**
- * Release all resources for the tracing. If threads are enabled only
- * the resources related to this thread are released.
- */
-int dplasma_profiling_fini( dplasma_context_t* context )
+int dplasma_profiling_init( const char *format, ... )
 {
-    int i;
+    va_list ap;
 
-    dplasma_prof_events_number = 0;
-
-    for( i = 0; i < dplasma_prof_keys_number; i++ ) {
-        if( NULL != dplasma_prof_keys[i].name ) {
-            free(dplasma_prof_keys[i].name);
-            free(dplasma_prof_keys[i].attributes);
-        }
+    if( hr_id != NULL ) {
+        ERROR("dplasma_profiling_init: profiling already initialized");
+        return -1;
     }
-    free(dplasma_prof_keys);
-    dplasma_prof_keys = NULL;
+
+    va_start(ap, format);
+    vasprintf(&hr_id, format, ap);
+    va_end(ap);
+
+    dplasma_dequeue_construct( &threads );
+
+    dplasma_prof_keys = (dplasma_profiling_key_t*)calloc(128, sizeof(dplasma_profiling_key_t));
     dplasma_prof_keys_count = 0;
+    dplasma_prof_keys_number = 128;
+
+    return 0;
+}
+
+dplasma_thread_profiling_t *dplasma_profiling_thread_init( unsigned int length, const char *format, ...)
+{
+    va_list ap;
+    dplasma_thread_profiling_t *res;
+
+    /** Remark: maybe calloc would be less perturbing for the measurements,
+     *  if we consider that we don't care about the _init phase, but only
+     *  about the measurement phase that happens later.
+     */
+    res = (dplasma_thread_profiling_t*)malloc( sizeof(dplasma_thread_profiling_t) + (length-1) * sizeof(dplasma_profiling_output_t) );
+    if( NULL == res ) {
+        ERROR("dplasma_profiling_thread_init: unable to allocate %u output elements", length);
+        return NULL;
+    }
+
+    va_start(ap, format);
+    vasprintf(&res->hr_id, format, ap);
+    va_end(ap);
+
+    res->events_limit = length;
+    res->events_count = 0;
+
+    dplamsa_dequeue_item_construct( (dplasma_list_item_t*)res );
+    dplasma_dequeue_push_back( &threads, (dplasma_list_item_t*)res );
+
+    return res;
+}
+
+int dplasma_profiling_fini( void )
+{
+    dplasma_thread_profiling_t *t;
+    
+    while( !dplasma_dequeue_is_empty( &threads ) ) {
+        t = (dplasma_thread_profiling_t*)dplasma_dequeue_pop_front( &threads );
+        if( NULL == t ) 
+            continue;
+        free(t->hr_id);
+        free(t);
+    }
+
+    free(hr_id);
+
+    dplasma_profiling_dictionary_flush();
+    free(dplasma_prof_keys);
     dplasma_prof_keys_number = 0;
 
-    for( i = 0; i < (context->nb_cores + EXTRA_CTX); i++ ) {
-        free(context->execution_units[i].eu_profile);
-        context->execution_units[i].eu_profile = NULL;
+    return 0;
+}
+
+int dplasma_profiling_reset( void )
+{
+    dplasma_thread_profiling_t *t;
+    dplasma_list_item_t *it;
+    
+    dplasma_atomic_lock( &threads.atomic_lock );
+    for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
+         it != &threads.ghost_element; 
+         it = (dplasma_list_item_t*)it->list_next ) {
+        t = (dplasma_thread_profiling_t*)it;
+        t->events_count = 0;
     }
+    dplasma_atomic_unlock( &threads.atomic_lock );
 
     return 0;
 }
@@ -210,6 +190,10 @@ int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* 
         }
     }
     if( -1 == pos ) {
+        if( dplasma_prof_keys_count == dplasma_prof_keys_number ) {
+            ERROR("dplasma_profiling_add_dictionary_keyword: Number of keyword limits reached");
+            return -1;
+        }
         pos = dplasma_prof_keys_count;
     }
 
@@ -222,45 +206,36 @@ int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* 
     return 0;
 }
 
-int dplasma_profiling_del_dictionary_keyword( int key )
+int dplasma_profiling_dictionary_flush( void )
 {
     int i;
 
-    free(dplasma_prof_keys[key].name);
-    dplasma_prof_keys[key].name = NULL;
-    free(dplasma_prof_keys[key].attributes);
-    dplasma_prof_keys[key].attributes = NULL;
-
-    /* Update the number of active/registered keys */
-    for( i = key; i < dplasma_prof_keys_count; i++ )
+    for( i = 0; i < dplasma_prof_keys_count; i++ ) {
         if( NULL != dplasma_prof_keys[i].name ) {
-            return 0;
+            free(dplasma_prof_keys[i].name);
+            free(dplasma_prof_keys[i].attributes);
         }
-    dplasma_prof_keys_count = key;
+    }
+    dplasma_prof_keys_count = 0;
 
     return 0;
 }
 
-int dplasma_profiling_reset( dplasma_execution_unit_t* context )
+int dplasma_profiling_trace( dplasma_thread_profiling_t* context, int key, unsigned long id )
 {
-    context->eu_profile->events_count = 0;
-    return 0;
-}
+    int my_event = context->events_count++;
 
-int dplasma_profiling_trace( dplasma_execution_unit_t* context, int key, unsigned long id )
-{
-    int my_event = context->eu_profile->events_count++;
-
-    if( my_event >= dplasma_prof_events_number ) {
+    if( my_event >= context->events_limit ) {
         return -1;
     }
-    context->eu_profile->events[my_event].key = key;
-    context->eu_profile->events[my_event].id  = id;
-    context->eu_profile->events[my_event].timestamp = take_time();
+    context->events[my_event].key = key;
+    context->events[my_event].id  = id;
+    context->events[my_event].timestamp = take_time();
     
     return 0;
 }
 
+#if 0
 int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename )
 {
     int i, thread_id, tag, last_timestamp, key, keyplotted, nplot, foundone;
@@ -512,8 +487,9 @@ int dplasma_profiling_dump_svg( dplasma_context_t* context, const char* filename
     
     return 0;
 }
+#endif
 
-static int dplasma_profiling_dump_one_xml( const dplasma_eu_profiling_t *profile, 
+static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *profile, 
                                            FILE *out,
                                            dplasma_time_t relative )
 {
@@ -522,18 +498,18 @@ static int dplasma_profiling_dump_one_xml( const dplasma_eu_profiling_t *profile
     
     for( key = 0; key < dplasma_prof_keys_count; key++ ) {
         displayed_key = 0;
-        for( start_idx = 0; start_idx < min(profile->events_count, dplasma_prof_events_number); start_idx++ ) {
+        for( start_idx = 0; start_idx < min(profile->events_count, profile->events_limit); start_idx++ ) {
             /* if not my current start_idx key, ignore */
             if( profile->events[start_idx].key != START_KEY(key) )
                 continue;
             
             /* find the end_idx event */
-            for( end_idx = start_idx+1; end_idx < min(profile->events_count, dplasma_prof_events_number); end_idx++) {
+            for( end_idx = start_idx+1; end_idx < min(profile->events_count, profile->events_limit); end_idx++) {
                 if( (profile->events[end_idx].key == END_KEY(key)) &&
                     (profile->events[end_idx].id == profile->events[start_idx].id) )
                     break;
             }
-            if( end_idx == min(profile->events_count, dplasma_prof_events_number) ) {
+            if( end_idx == min(profile->events_count, profile->events_limit) ) {
                 for(end_idx = 0; end_idx < start_idx; end_idx++) {
                     if( (profile->events[end_idx].key == END_KEY(key)) &&
                         (profile->events[end_idx].id == profile->events[start_idx].id) ) {
@@ -578,13 +554,14 @@ static int dplasma_profiling_dump_one_xml( const dplasma_eu_profiling_t *profile
     return 0;
 }
 
-int dplasma_profiling_dump_xml( dplasma_context_t* context, const char* filename )
+int dplasma_profiling_dump_xml( const char* filename )
 {
-    int i, thread_id, last_timestamp, foundone;
+    int i, last_timestamp, foundone;
     dplasma_time_t relative = ZERO_TIME, latest = ZERO_TIME;
-    dplasma_eu_profiling_t* profile;
+    dplasma_list_item_t *it;
+    dplasma_thread_profiling_t* profile;
     FILE* tracefile;
-
+ 
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
         return -1;
@@ -593,7 +570,9 @@ int dplasma_profiling_dump_xml( dplasma_context_t* context, const char* filename
     fprintf(tracefile,
             "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
             "<PROFILING>\n"
-            " <DICTIONARY>\n");
+            " <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n"
+            " <DICTIONARY>\n",
+            hr_id);
 
     for(i = 0; i < dplasma_prof_keys_count; i++) {
         fprintf(tracefile,
@@ -606,8 +585,12 @@ int dplasma_profiling_dump_xml( dplasma_context_t* context, const char* filename
     fprintf(tracefile, " </DICTIONNARY>\n");
 
     foundone = 0;
-    for( thread_id = 0; thread_id < context->nb_cores + EXTRA_CTX; thread_id++ ) {
-        profile = context->execution_units[thread_id].eu_profile;
+   
+    dplasma_atomic_lock( &threads.atomic_lock );
+    for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
+         it != &threads.ghost_element; 
+         it = (dplasma_list_item_t*)it->list_next ) {
+        profile = (dplasma_thread_profiling_t*)it;
 
         if( profile->events_count == 0 ) {
             continue;
@@ -615,28 +598,37 @@ int dplasma_profiling_dump_xml( dplasma_context_t* context, const char* filename
 
         if( !foundone ) {
             relative = profile->events[0].timestamp;
-            last_timestamp = min(profile->events_count, dplasma_prof_events_number) - 1;
+            last_timestamp = min(profile->events_count, profile->events_limit) - 1;
             latest   = profile->events[last_timestamp].timestamp;
             foundone = 1;
         } else {
             if( time_less(profile->events[0].timestamp, relative) ) {
                 relative = profile->events[0].timestamp;
             }
-            last_timestamp = min(profile->events_count, dplasma_prof_events_number) - 1;
+            last_timestamp = min(profile->events_count, profile->events_limit) - 1;
             if( time_less( latest, profile->events[last_timestamp].timestamp) ) {
                 latest = profile->events[last_timestamp].timestamp;
             }
         }
+
     }
 
     fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%llu\" TIME_UNIT=\""TIMER_UNIT"\">\n",
             diff_time(relative, latest));
 
-    for( thread_id = 0; thread_id < context->nb_cores + EXTRA_CTX; thread_id++) {
-        fprintf(tracefile, "   <THREAD ID=\"%d\">\n", thread_id);
-        dplasma_profiling_dump_one_xml(context->execution_units[thread_id].eu_profile, tracefile, relative);
-        fprintf(tracefile, "   </THREAD>\n");
+    for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
+         it != &threads.ghost_element; 
+         it = (dplasma_list_item_t*)it->list_next ) {
+        profile = (dplasma_thread_profiling_t*)it;
+
+        fprintf(tracefile, 
+                "   <THREAD>\n"
+                "    <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n", profile->hr_id);
+        dplasma_profiling_dump_one_xml(profile, tracefile, relative);
+        fprintf(tracefile, 
+                "   </THREAD>\n");
     }
+    dplasma_atomic_unlock( &threads.atomic_lock );
 
     fprintf(tracefile, 
             " </PROFILES>\n"

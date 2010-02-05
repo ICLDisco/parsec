@@ -1310,7 +1310,7 @@ int dplasma_dump_all_c(char *filename)
         object = dplasma_element_at(i);
         output("int %s_start_key, %s_end_key;\n", object->name, object->name);
     }
-    output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT), (KEY), (ID))\n"
+    output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT)->eu_profile, (KEY), (ID))\n"
             "#else\n"
             "#define TAKE_TIME(EU_CONTEXT, KEY, ID)\n"
             "#endif  /* DPLASMA_PROFILING */\n"

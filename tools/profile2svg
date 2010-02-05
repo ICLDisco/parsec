@@ -1,0 +1,178 @@
+#!/usr/bin/php -q
+<?php
+if( !file_exists( $argv[1] ) ) {
+    echo "File `$argv[1]' does not exists!\n";
+    exit;
+}
+
+$xml = simplexml_load_file( $argv[1] );
+if( !$xml ) {
+    echo "Parse Error in $argv[1]\n";
+    exit;
+ }
+
+$WIDTH=800;
+$HEIGHT=170;
+
+echo '<?xml version="1.0" encoding="utf-8"?>';
+?>
+<!DOCTYPE svg PUBLIC "-_W3C_DTD SVG 1.0_EN" "http://www.w3.org/TR/SVG/DTD/svg10.dtd">
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' 
+ onload="startup(evt)"
+ width='<?php echo "$WIDTH"; ?>'
+ height='<?php echo "$HEIGHT"; ?>'>
+  <script><![CDATA[
+var svgDoc;
+var Root;
+var scale=1;
+var translate=1;
+var xmlns="http://www.w3.org/2000/svg"
+var cursel=undefined;
+var oldSelStyle="";
+function startup(evt){
+  O=evt.target
+  svgDoc=O.ownerDocument;
+  Root=svgDoc.documentElement;
+  O.setAttribute("onmousemove","adjust(evt)")
+  O.setAttribute("onmousedown","recolor(evt)")
+  top.svgzoom = svgzoom
+  top.svgtranslate = svgtranslate
+  top.svg_outside_select = outsideSelect
+  top.ready()
+}
+function outsideSelect(x){
+  if( cursel != undefined ) {
+      cursel.setAttribute("style", oldSelStyle);
+      cursel = undefined;
+      oldSelStyle = "";
+  }
+  cursel = svgDoc.getElementById(x);
+  if( !cursel ) {
+    opera.postError("dposv.svg warning: unable to find the element named " + x);
+  } else {
+    oldSelStyle = cursel.getAttribute("style");
+    cursel.setAttribute("style", "fill:#FFCC00");
+  }
+}
+function recolor(evt){
+  if( cursel != undefined ) {
+      cursel.setAttribute("style", oldSelStyle);
+      cursel = undefined;
+      oldSelStyle = "";
+  }
+
+  if( evt.target.getElementsByTagName('FID').item(0) &&
+      evt.target.getElementsByTagName('FID').item(0).firstChild &&
+      evt.target.getElementsByTagName('FID').item(0).firstChild.nodeValue != "" ) {
+      
+      cursel = evt.target;
+      oldSelStyle = cursel.getAttribute("style");
+      cursel.setAttribute("style", "fill:#FFCC00");
+      top.select_function(evt.target.getElementsByTagName('FName').item(0).firstChild.nodeValue +
+                          evt.target.getElementsByTagName('FID').item(0).firstChild.nodeValue);
+  } else {
+      top.select_function();
+  }
+}
+function adjust(evt){
+  if( evt.target.getElementsByTagName('FName').item(0) &&
+      evt.target.getElementsByTagName('FName').item(0).firstChild ) {
+    targetFName = evt.target.getElementsByTagName('FName').item(0).firstChild.nodeValue;
+  } else {
+    targetFName = "";
+  }
+  if( evt.target.getElementsByTagName('FDesc').item(0) &&
+      evt.target.getElementsByTagName('FDesc').item(0).firstChild ) {
+    targetFDesc = evt.target.getElementsByTagName('FDesc').item(0).firstChild.nodeValue;
+  } else {
+    targetFDesc = "";
+  }
+  top.mouseMove(targetFName, targetFDesc)
+}
+function svgzoom( x ) {
+  scale=x;
+  svgDoc.getElementById('gantt').setAttribute("transform", "scale(" + scale + ", 1) translate(" + translate + ", 0)");
+}
+function svgtranslate( x ) {
+  translate=-x;
+  svgDoc.getElementById('gantt').setAttribute("transform", "scale(" + scale + ", 1) translate(" + translate + ", 0)");
+}
+//]]>
+  </script>
+    <rect x='0' y='0' width='100%' height='100%' fill='white'>
+      <FName><![CDATA[]]></FName>
+      <FDesc><![CDATA[]]></FDesc>
+    </rect>
+    <g id="gantt" transform="scale(1) translate(0, 0)">
+     <g id="hrule">
+      <rect x="0.00" y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
+<?php
+$totaltime = $xml->PROFILES['TOTAL_DURATION'];
+$timeunit = $xml->PROFILES['TIME_UNIT'];
+
+$scale = $WIDTH / $totaltime;
+
+if( $timeunit == "microseconds" ) 
+    $shorttimeunit = "µs";
+ else if ( $timeunit == "nanoseconds" )
+     $shorttimeunit = "ns";
+ else if ( $timeunit == "cycles" )
+     $shorttimenunit = "cy";
+ else
+     $shorttimeunit = $timeunit;
+
+for( $i = 0; $i < 20; $i++) {
+    $x = $i * $WIDTH/20.0;
+    $time = sprintf("%.1lf %s", $i * $totaltime / 20.0, $shorttimeunit);
+    echo "      <rect x='$x' y='63.00' width='1.0' height='8.0' />\n";
+    echo "      <g transform='rotate(-45 $x 65)'>\n";
+    echo "       <text x='$x' y='63.00'>$time</text>\n";
+    echo "      </g>\n";
+}
+?>
+     </g><!-- hrule -->
+     <g id="drawingarea">
+<?php
+$THREAD_HEIGHT = 25.0;
+$i = 0;
+foreach ( $xml->PROFILES->THREAD as $th ) {
+    echo "      <g id='T$i'>\n";
+    
+    $y = $i * $THREAD_HEIGHT + 75;
+    $h = $THREAD_HEIGHT;
+
+    foreach ( $th->KEY as $key ) {
+        $my_dk = null;
+        foreach ( $xml->DICTIONARY->KEY as $dk ) {
+            if( ($dk['ID'] . "") == ($key['ID'] . "") ) {
+                $my_dk = $dk;
+                break;
+            }
+        }
+        if( $my_dk == null ) {
+            echo "Malformed dictionary: unable to find key " . $key['ID'] . "\n";
+            continue;
+        }
+        $name = $my_dk->NAME;
+        $attributes = $my_dk->ATTRIBUTES;
+
+        foreach ( $key->EVENT as $event ) {
+            $duration = ($event->END - $event->START);
+            $x = $event->START * $scale;
+            $w = $duration * $scale;
+            $id = $event->ID;
+            echo "       <rect x='$x' y='$y' width='$w' height='$h' style='$attributes' id='$name$id'>\n";
+            echo "        <FName>$name</FName>\n";
+            echo "        <FDesc>$duration $timeunit</FDesc>\n";
+            echo "        <FID>$id</FID>\n";
+            echo "       </rect>\n";
+        }
+    }
+
+    echo "      </g><!-- T$i -->\n";
+    $i++;
+}
+?>
+     </g><!-- drawingarea -->
+    </g><!-- gantt -->
+</svg>

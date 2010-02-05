@@ -49,13 +49,13 @@ static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_ex
 #endif 
 
 #ifdef DPLASMA_PROFILING
-dplasma_execution_unit_t *mpi_ctx;
-int MPI_Activate_sk, MPI_Activate_ek;
-int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
-int MPI_Data_pld_sk, MPI_Data_pld_ek;
-int MPI_Test_any_sk, MPI_Test_any_ek;
+static dplasma_thread_profiling_t *MPI_prof;
+static int MPI_Activate_sk, MPI_Activate_ek;
+static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
+static int MPI_Data_pld_sk, MPI_Data_pld_ek;
+static int MPI_Test_any_sk, MPI_Test_any_ek;
 
-#define TAKE_TIME(KEY)  dplasma_profiling_trace(mpi_ctx, (KEY), 0)
+#define TAKE_TIME(KEY)  dplasma_profiling_trace(MPI_prof, (KEY), 0)
 #else
 #define TAKE_TIME(KEY)
 #endif  /* DPLASMA_PROFILING */
@@ -63,6 +63,10 @@ int MPI_Test_any_sk, MPI_Test_any_ek;
 int __remote_dep_init(dplasma_context_t* context)
 {
 #ifdef DPLASMA_PROFILING
+    int rank;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#40826D",
                                              &MPI_Activate_sk, &MPI_Activate_ek);
     dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#EE82EE",
@@ -72,7 +76,7 @@ int __remote_dep_init(dplasma_context_t* context)
     dplasma_profiling_add_dictionary_keyword( "MPI_TEST_ANY", "fill:#040ED0",
                                              &MPI_Test_any_sk, &MPI_Test_any_ek);
 
-    mpi_ctx = &context->execution_units[context->nb_cores];
+    MPI_prof = dplasma_profiling_thread_init( 4096, "MPI Thread of rank %d", rank);
 #endif /* DPLASMA_PROFILING */
     return remote_dep_mpi_init(context);
 }

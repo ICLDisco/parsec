@@ -191,8 +191,8 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T, int*
     {
         char* filename = NULL;
 
-        asprintf( &filename, "%s.svg", "dgels" );
-        dplasma_profiling_dump_svg(dplasma, filename);
+        asprintf( &filename, "%s.profile", "dgels" );
+        dplasma_profiling_dump_xml(filename);
         free(filename);
     }
 #endif  /* DPLASMA_PROFILING */

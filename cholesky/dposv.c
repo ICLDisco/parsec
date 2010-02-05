@@ -180,8 +180,8 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
     {
         char* filename = NULL;
 
-        asprintf( &filename, "%s.svg", "dposv" );
-        dplasma_profiling_dump_svg(dplasma, filename);
+        asprintf( &filename, "%s.profile", "dposv" );
+        dplasma_profiling_dump_xml(filename);
         free(filename);
     }
 #endif  /* DPLASMA_PROFILING */

@@ -191,16 +191,10 @@ dplasma_atomic_lifo_t ready_list;
 
 #define gettid() syscall(__NR_gettid)
 
-#ifdef USE_MPI
-#define EXTRA_CTX 1
-#else 
-#define EXTRA_CTX 0
-#endif 
-
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t)+
-                                                            (nb_cores + EXTRA_CTX) * sizeof(dplasma_execution_unit_t));
+                                                            nb_cores * sizeof(dplasma_execution_unit_t));
     int i;
 
     context->nb_cores = (int32_t) nb_cores;
@@ -227,7 +221,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
-    dplasma_profiling_init( context, 4096 );
+    dplasma_profiling_init( "%s", (*pargv)[0] );
 
     dplasma_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#555555",
                                               &MEMALLOC_start_key, &MEMALLOC_end_key);
@@ -240,6 +234,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     /* Prepare the LIFO task queue for each execution unit */
     for( i = 0; i < nb_cores; i++ ) {
         dplasma_execution_unit_t* eu = &(context->execution_units[i]);
+#ifdef DPLASMA_PROFILING
+        eu->eu_profile = dplasma_profiling_thread_init( 4096, "DPLASMA Computation Thread %d", i );
+#endif
 #ifdef DPLASMA_USE_LIFO
         eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
         dplasma_atomic_lifo_construct( eu->eu_task_queue );
@@ -397,7 +394,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
 #endif
     
 #ifdef DPLASMA_PROFILING
-    dplasma_profiling_fini( context );
+    dplasma_profiling_fini( );
 #endif  /* DPLASMA_PROFILING */
 
     /* Destroy all resources allocated for the barrier */
@@ -713,7 +710,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
         last_deps = NULL;
 
 #ifdef DPLASMA_PROFILING
-        dplasma_profiling_trace(eu_context, MEMALLOC_start_key, 0);
+        dplasma_profiling_trace(eu_context->eu_profile, MEMALLOC_start_key, 0);
 #endif
         
         for( i = 0; i < function->nb_locals; i++ ) {
@@ -753,7 +750,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
             last_deps = deps;
         }
 #ifdef DPLASMA_PROFILING
-        dplasma_profiling_trace(eu_context, MEMALLOC_end_key, 0);
+        dplasma_profiling_trace(eu_context->eu_profile, MEMALLOC_end_key, 0);
 #endif
     }
 

@@ -115,9 +115,7 @@ void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
         
 #if defined(DPLASMA_PROFILING)
         /* Reset the profiling information */
-        for( i = 0; i < context->nb_cores; i++ ) {
-            dplasma_profiling_reset( &context->execution_units[i] );
-        }
+        dplasma_profiling_reset();
 #endif  /* defined(DPLASMA_PROFILING) */
     }
         

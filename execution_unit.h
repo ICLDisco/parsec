@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include "dequeue.h"
 #include "barrier.h"
+#include "profiling.h"
 
 #define PLACEHOLDER_SIZE 4
 
@@ -19,7 +20,9 @@ typedef struct dplasma_context_t dplasma_context_t;
 typedef struct dplasma_execution_unit_t {
     int32_t eu_id;
     pthread_t pthread_id;
-    struct dplasma_eu_profiling_t* eu_profile;
+#if defined(DPLASMA_PROFILING)
+    dplasma_thread_profiling_t* eu_profile;
+#endif /* DPLASMA_PROFILING */
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_t* eu_task_queue;
 #else
