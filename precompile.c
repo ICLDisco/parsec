@@ -641,7 +641,7 @@ static void dplasma_dump_context_holder(const dplasma_t *d,
            d->name);
     snprintf(init_func_body + strlen(init_func_body),
              init_func_body_size - strlen(init_func_body),
-             "  %s_repo = data_repo_create_nothreadsafe(256, %d);\n",
+             "  %s_repo = data_repo_create_nothreadsafe(4*4096, %d);\n",
              d->name, k);
 }
 
@@ -651,7 +651,10 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
 {
     int i, j, cpt;
 
-    output("static int %s_release_dependencies(dplasma_execution_unit_t *context, const dplasma_execution_context_t *exec_context, int propagate_remote_dep, void **data)\n"
+    output("static int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
+           "                                   const dplasma_execution_context_t *exec_context,\n"
+           "                                   int propagate_remote_dep,\n"
+           "                                   void **data)\n"
            "{\n"
            "  int ret = 0;\n"
            "  data_repo_entry_t *e%s;\n", 
@@ -697,6 +700,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     output("  if(propagate_remote_dep) {\n"
            "    dplasma_remote_dep_reset_forwarded(context);\n"
            "  }\n");
+#else
+    output("  (void)propagate_remote_dep;  /* silence a warning */\n");
 #endif  /* DISTRIBUTED */
     
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
@@ -716,9 +721,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
 
                     output("%snew_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* %s */\n",
                            spaces, i, j, dep->dplasma->name);
-                    output("%s{ /** iterate now on the params and dependencies to release OUT dependencies */\n"
-                           "%s  struct dplasma_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
-                           spaces, spaces, target->locals[0]->name);
+                    output("%s{ /** iterate now on the params and dependencies to release OUT dependencies */\n", spaces);
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL != dep->call_params[k] ) {
@@ -742,10 +745,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                 output("%s  _p%d = ", spaces, k);
                                 dump_inline_c_expression(dep->call_params[k]);
                                 output(";\n");
-                            }
-                            if( 0 < k ) {
-                                output("%s  struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[_p%d - (*%s_placeholder)->min]);\n",
-                                       spaces, target->locals[k]->name, target->locals[k-1]->name, k-1, target->locals[k-1]->name);
                             }
                         }
                     }
@@ -772,12 +771,20 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     } else {
                         output("%s   {\n", spaces);
                     }
+
                     for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                        output("%s    int %s = _p%d;\n", spaces, dep->dplasma->locals[k]->name, k);
+                        if( 0 == k ) {
+                            output("%s  struct dplasma_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
+                                   spaces, target->locals[0]->name);
+                        } else {
+                            output("%s  struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[_p%d - (*%s_placeholder)->min]);\n",
+                                   spaces, target->locals[k]->name, target->locals[k-1]->name, k-1, target->locals[k-1]->name);
+                        }
+                        output("%s    int %s = _p%d;\n", spaces, target->locals[k]->name, k);
                     }
 
                     for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                        output("%s    (void)%s;\n", spaces, dep->dplasma->locals[k]->name);
+                        output("%s    (void)%s;\n", spaces, target->locals[k]->name);
                     }
                     /******************************************************/
                     /* Compute predicates                                 */
@@ -785,7 +792,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     for(k = 0; k < MAX_PRED_COUNT; k++) {
                         if( NULL != dep->dplasma->preds[k] ) {
                             output(") && (");
-                            dump_inline_c_expression(dep->dplasma->preds[k]);
+                            dump_inline_c_expression(target->preds[k]);
                         }
                     }
                     output(") ) {\n");

@@ -13,7 +13,7 @@
 #include "barrier.h"
 #include "profiling.h"
 
-#define PLACEHOLDER_SIZE 4
+#define PLACEHOLDER_SIZE 2
 
 typedef struct dplasma_context_t dplasma_context_t;
 
