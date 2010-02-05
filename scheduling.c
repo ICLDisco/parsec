@@ -108,10 +108,10 @@ void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
     {
         int i, upto = dplasma_nb_elements();
         
-        for( i = 0; i < upto; i++ ) {
+        /*for( i = 0; i < upto; i++ ) {
             dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
             object->deps = NULL;
-        }
+            }*/
         
 #if defined(DPLASMA_PROFILING)
         /* Reset the profiling information */
