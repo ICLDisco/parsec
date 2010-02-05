@@ -6,8 +6,9 @@ $THREAD_HEIGHT = 25.0;
 $BASE_HEIGHT = 75.0;
 $PROC_SEP_HEIGHT = 5.0;
 
-$HEIGHT=$BASEHEIGHT;
+$HEIGHT=$BASE_HEIGHT;
 
+$totaltime = 0;
 $ALLXML = array();
 for( $fileidx = 1; $fileidx < $argc; $fileidx++ ) {
     
