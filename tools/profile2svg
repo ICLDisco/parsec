@@ -1,18 +1,35 @@
 #!/usr/bin/php -q
 <?php
-if( !file_exists( $argv[1] ) ) {
-    echo "File `$argv[1]' does not exists!\n";
-    exit;
+
+$WIDTH=800;
+$THREAD_HEIGHT = 25.0;
+$BASE_HEIGHT = 75.0;
+$PROC_SEP_HEIGHT = 5.0;
+
+$HEIGHT=$BASEHEIGHT;
+
+$ALLXML = array();
+for( $fileidx = 1; $fileidx < $argc; $fileidx++ ) {
+    
+    $xml = simplexml_load_file( $argv[$fileidx] );
+    if( !$xml ) {
+        echo "<!-- Parse Error in $argv[$fileidx] -->\n";
+        continue;
+    }
+    $ALLXML[] = $xml;
+    if( $xml->PROFILES['TOTAL_DURATION'] > $totaltime )
+        $totaltime = $xml->PROFILES['TOTAL_DURATION'];
+    $timeunit = $xml->PROFILES['TIME_UNIT'];
+
+    $HEIGHT += $THREAD_HEIGHT * count($xml->PROFILES->THREAD) + $PROC_SEP_HEIGHT;
 }
 
-$xml = simplexml_load_file( $argv[1] );
-if( !$xml ) {
-    echo "Parse Error in $argv[1]\n";
+if( $HEIGHT == $BASE_HEIGHT ) {
+    echo "No data to display\n";
     exit;
  }
 
-$WIDTH=800;
-$HEIGHT=170;
+$scale = $WIDTH / $totaltime;
 
 echo '<?xml version="1.0" encoding="utf-8"?>';
 ?>
@@ -106,14 +123,11 @@ function svgtranslate( x ) {
     <g id="gantt" transform="scale(1) translate(0, 0)">
      <g id="hrule">
       <rect x="0.00" y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
-<?php
-$totaltime = $xml->PROFILES['TOTAL_DURATION'];
-$timeunit = $xml->PROFILES['TIME_UNIT'];
 
-$scale = $WIDTH / $totaltime;
+<?php
 
 if( $timeunit == "microseconds" ) 
-    $shorttimeunit = "µs";
+    $shorttimeunit = "&#181;s";
  else if ( $timeunit == "nanoseconds" )
      $shorttimeunit = "ns";
  else if ( $timeunit == "cycles" )
@@ -129,50 +143,57 @@ for( $i = 0; $i < 20; $i++) {
     echo "       <text x='$x' y='63.00'>$time</text>\n";
     echo "      </g>\n";
 }
-?>
-     </g><!-- hrule -->
-     <g id="drawingarea">
-<?php
-$THREAD_HEIGHT = 25.0;
-$i = 0;
-foreach ( $xml->PROFILES->THREAD as $th ) {
-    echo "      <g id='T$i'>\n";
-    
-    $y = $i * $THREAD_HEIGHT + 75;
-    $h = $THREAD_HEIGHT;
 
-    foreach ( $th->KEY as $key ) {
-        $my_dk = null;
-        foreach ( $xml->DICTIONARY->KEY as $dk ) {
-            if( ($dk['ID'] . "") == ($key['ID'] . "") ) {
-                $my_dk = $dk;
-                break;
+echo "     </g><!-- hrule -->\n";
+
+$proc = 0;
+$y = $BASE_HEIGHT;
+foreach ($ALLXML as $xml) {
+    echo "     <g id='drawingarea$proc'>\n";
+    
+    $i = 0;
+    foreach ( $xml->PROFILES->THREAD as $th ) {
+        echo "      <g id='P${proc}T$i'>\n";
+        
+        $y += $THREAD_HEIGHT;
+        $h = $THREAD_HEIGHT;
+        
+        foreach ( $th->KEY as $key ) {
+            $my_dk = null;
+            foreach ( $xml->DICTIONARY->KEY as $dk ) {
+                if( ($dk['ID'] . "") == ($key['ID'] . "") ) {
+                    $my_dk = $dk;
+                    break;
+                }
+            }
+            if( $my_dk == null ) {
+                echo "Malformed dictionary: unable to find key " . $key['ID'] . "\n";
+                continue;
+            }
+            $name = $my_dk->NAME;
+            $attributes = $my_dk->ATTRIBUTES;
+            
+            foreach ( $key->EVENT as $event ) {
+                $duration = ($event->END - $event->START);
+                $x = $event->START * $scale;
+                $w = $duration * $scale;
+                $id = $event->ID;
+                echo "       <rect x='$x' y='$y' width='$w' height='$h' style='$attributes' id='$name$id'>\n";
+                echo "        <FName>$name</FName>\n";
+                echo "        <FDesc>$duration $timeunit</FDesc>\n";
+                echo "        <FID>$id</FID>\n";
+                echo "       </rect>\n";
             }
         }
-        if( $my_dk == null ) {
-            echo "Malformed dictionary: unable to find key " . $key['ID'] . "\n";
-            continue;
-        }
-        $name = $my_dk->NAME;
-        $attributes = $my_dk->ATTRIBUTES;
-
-        foreach ( $key->EVENT as $event ) {
-            $duration = ($event->END - $event->START);
-            $x = $event->START * $scale;
-            $w = $duration * $scale;
-            $id = $event->ID;
-            echo "       <rect x='$x' y='$y' width='$w' height='$h' style='$attributes' id='$name$id'>\n";
-            echo "        <FName>$name</FName>\n";
-            echo "        <FDesc>$duration $timeunit</FDesc>\n";
-            echo "        <FID>$id</FID>\n";
-            echo "       </rect>\n";
-        }
+        
+        echo "      </g><!-- P${proc}T$i -->\n";
+        $i++;
     }
 
-    echo "      </g><!-- T$i -->\n";
-    $i++;
-}
+    echo "     </g><!-- drawingarea of process $proc -->\n";
+    $proc++;
+    $y += $PROC_SEP_HEIGHT;
+ }
 ?>
-     </g><!-- drawingarea -->
     </g><!-- gantt -->
 </svg>
