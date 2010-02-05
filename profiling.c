@@ -10,6 +10,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "atomic.h"
 #define min(a, b) ((a)<(b)?(a):(b))
@@ -534,9 +535,9 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
             
             fprintf(out, "     <EVENT>\n");
 
-            fprintf(out, "       <ID>%lu</ID>\n"
-                         "       <START>%llu</START>\n"
-                         "       <END>%llu</END>\n",
+            fprintf(out, "       <ID>%"PRIu64"</ID>\n"
+                         "       <START>%"PRIu64"</START>\n"
+                         "       <END>%"PRIu64"</END>\n",
                     profile->events[start_idx].id,
                     start, end);
 #ifdef USE_PAPI
@@ -613,7 +614,7 @@ int dplasma_profiling_dump_xml( const char* filename )
 
     }
 
-    fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%llu\" TIME_UNIT=\""TIMER_UNIT"\">\n",
+    fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%"PRIu64"\" TIME_UNIT=\""TIMER_UNIT"\">\n",
             diff_time(relative, latest));
 
     for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
