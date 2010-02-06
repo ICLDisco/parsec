@@ -32,6 +32,16 @@ if( $HEIGHT == $BASE_HEIGHT ) {
 
 $scale = $WIDTH / $totaltime;
 
+
+if( $timeunit == "microseconds" ) 
+    $shorttimeunit = "us";
+ else if ( $timeunit == "nanoseconds" )
+     $shorttimeunit = "ns";
+ else if ( $timeunit == "cycles" )
+     $shorttimenunit = "cy";
+ else
+     $shorttimeunit = $timeunit;
+
 echo '<?xml version="1.0" encoding="utf-8"?>';
 ?>
 <!DOCTYPE svg PUBLIC "-_W3C_DTD SVG 1.0_EN" "http://www.w3.org/TR/SVG/DTD/svg10.dtd">
@@ -47,6 +57,9 @@ var translate=1;
 var xmlns="http://www.w3.org/2000/svg"
 var cursel=undefined;
 var oldSelStyle="";
+var pixelpertime=<?php echo "$scale" ?>;
+var timeunit="<?php echo "$shorttimeunit"; ?>";
+var width=<?php echo "$WIDTH"; ?>;
 function startup(evt){
   O=evt.target
   svgDoc=O.ownerDocument;
@@ -107,13 +120,21 @@ function adjust(evt){
   }
   top.mouseMove(targetFName, targetFDesc)
 }
+function updateRule() {
+  for(i = 0; i < 20; i++) {
+      x = (i * (width / 20) / pixelpertime) /scale - (translate / pixelpertime);
+      svgDoc.getElementById('ruleText' + i).firstChild.nodeValue = x.toPrecision(6) + " " + timeunit;
+  }
+}
 function svgzoom( x ) {
   scale=x;
   svgDoc.getElementById('gantt').setAttribute("transform", "scale(" + scale + ", 1) translate(" + translate + ", 0)");
+  updateRule();
 }
 function svgtranslate( x ) {
   translate=-x;
   svgDoc.getElementById('gantt').setAttribute("transform", "scale(" + scale + ", 1) translate(" + translate + ", 0)");
+  updateRule();
 }
 //]]>
   </script>
@@ -121,31 +142,20 @@ function svgtranslate( x ) {
       <FName><![CDATA[]]></FName>
       <FDesc><![CDATA[]]></FDesc>
     </rect>
-    <g id="gantt" transform="scale(1) translate(0, 0)">
-     <g id="hrule">
-      <rect x="0.00" y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
-
+    <g id="hrule">
+     <rect x="0.00" y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
 <?php
-
-if( $timeunit == "microseconds" ) 
-    $shorttimeunit = "&#181;s";
- else if ( $timeunit == "nanoseconds" )
-     $shorttimeunit = "ns";
- else if ( $timeunit == "cycles" )
-     $shorttimenunit = "cy";
- else
-     $shorttimeunit = $timeunit;
-
 for( $i = 0; $i < 20; $i++) {
     $x = $i * $WIDTH/20.0;
     $time = sprintf("%.1lf %s", $i * $totaltime / 20.0, $shorttimeunit);
-    echo "      <rect x='$x' y='63.00' width='1.0' height='8.0' />\n";
-    echo "      <g transform='rotate(-45 $x 65)'>\n";
-    echo "       <text x='$x' y='63.00'>$time</text>\n";
-    echo "      </g>\n";
+    echo "     <rect x='$x' y='63.00' width='1.0' height='8.0' />\n";
+    echo "     <g transform='rotate(-45 $x 65)'>\n";
+    echo "      <text x='$x' y='63.00' id='ruleText$i'>$time</text>\n";
+    echo "     </g>\n";
 }
 
-echo "     </g><!-- hrule -->\n";
+echo "    </g><!-- hrule -->\n";
+echo "    <g id='gantt' transform='scale(1) translate(0, 0)'>\n";
 
 $proc = 0;
 $y = $BASE_HEIGHT;
