@@ -58,12 +58,14 @@ struct dplasma_context_t {
     dplasma_dequeue_t* fwd_OUT_dep_queue;
 #endif /*DPLASMA_USE_LIFO */
 
+    pthread_t* pthreads;
+
     /* This field should always be the last one in the structure. Even if the
      * declared number of execution units is 1 when we allocate the memory
      * we will allocate more (as many as we need), so everything after this
      * field might be overwritten.
      */
-    dplasma_execution_unit_t execution_units[1];
+    dplasma_execution_unit_t* execution_units[1];
   
 };
 

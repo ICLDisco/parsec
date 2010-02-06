@@ -191,10 +191,119 @@ dplasma_atomic_lifo_t ready_list;
 
 #define gettid() syscall(__NR_gettid)
 
+typedef struct __dplasma_temporary_thread_initialization_t {
+    dplasma_context_t* master_context;
+    int th_id;
+    int nb_cores;
+} __dplasma_temporary_thread_initialization_t;
+
+static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
+{
+    dplasma_execution_unit_t* eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
+
+    if( NULL == eu ) {
+        return NULL;
+    }
+    eu->eu_id          = startup->th_id;
+    eu->master_context = startup->master_context;
+    (startup->master_context)->execution_units[startup->th_id] = eu;
+
+#ifdef DPLASMA_PROFILING
+    eu->eu_profile = dplasma_profiling_thread_init( 4096, "DPLASMA Computation Thread %d", eu->eu_id );
+#endif
+#ifdef DPLASMA_USE_LIFO
+    eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
+    if( NULL == eu->eu_task_queue ) {
+        free(eu);
+        return NULL;
+    }
+    dplasma_atomic_lifo_construct( eu->eu_task_queue );
+#elif defined(DPLASMA_USE_GLOBAL_LIFO)
+    /* Everybody share the same global LIFO */
+    eu->eu_task_queue = &ready_list;
+#else
+    eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
+    if( NULL == eu->eu_task_queue ) {
+        free(eu);
+        return NULL;
+    }
+    dplasma_dequeue_construct( eu->eu_task_queue );
+#if PLACEHOLDER_SIZE
+    eu->placeholder_pop  = 0;
+    eu->placeholder_push = 0;
+#endif  /* PLACEHOLDER_SIZE */
+#endif  /* DPLASMA_USE_LIFO */
+
+#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
+    eu->eu_steal_from = (int8_t*)malloc(startup->nb_cores * sizeof(int8_t));
+    {
+        int j;
+#if defined(ON_ZOOT)
+        int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
+        int8_t placement[] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                1,  0,  3,  2,  5,  4,  7,  6,  9,  8, 11, 10, 13, 12, 15, 14,
+                                2,  3,  0,  1,  6,  7,  4,  5, 10, 11,  8,  9, 14, 15, 12, 13,
+                                3,  2,  1,  0,  7,  6,  5,  4, 11, 10,  9,  8, 15, 14, 13, 12,
+                                4,  5,  6,  7,  0,  1,  2,  3, 12, 13, 14, 15,  8,  9, 10, 11,
+                                5,  4,  7,  6,  1,  0,  3,  2, 13, 12, 15, 14,  9,  8, 11, 10,
+                                6,  7,  4,  5,  2,  3,  0,  1, 14, 15, 12, 13, 10, 11,  8,  9,
+                                7,  6,  5,  4,  3,  2,  1,  0, 15, 14, 13, 12, 11, 10,  9,  8,
+                                8,  9, 10, 11, 12, 13, 14, 15,  0,  1,  2,  3,  4,  5,  6,  7,
+                                9,  8, 11, 10, 13, 12, 15, 14,  1,  0,  3,  2,  5,  4,  7,  6,
+                                10, 11,  8,  9, 14, 15, 12, 13,  2,  3,  0,  1,  6,  7,  4,  5,
+                                11, 10,  9,  8, 15, 14, 13, 12,  3,  2,  1,  0,  7,  6,  5,  4,
+                                8,  9, 10, 11, 12, 13, 14, 15,  4,  5,  6,  7,  0,  1,  2,  3,
+                                9,  8, 11, 10, 13, 12, 15, 14,  5,  4,  7,  6,  1,  0,  3,  2,
+                                10, 11,  8,  9, 14, 15, 12, 13,  6,  7,  4,  5,  2,  3,  0,  1,
+                                11, 10,  9,  8, 15, 14, 13, 12,  7,  6,  5,  4,  3,  2,  1,  0 };
+
+        for( j = 0; j < startup->nb_cores; j++ ) {
+            eu->eu_steal_from[j] = placement[eu->eu_id * 16 + j];
+        }
+        eu->eu_steal_from[0] = distance[eu->eu_id];
+#else
+        int k;
+        eu->eu_steal_from[0] = (int8_t)eu->eu_id;
+        for( j = 0, k = 1; j < startup->nb_cores; j++ ) {
+            if( eu->eu_id != j ) {
+                eu->eu_steal_from[k] = (int8_t)j;
+                k++;
+            }
+        }
+#endif
+    }
+#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
+
+#ifdef HAVE_CPU_SET_T
+    {
+        cpu_set_t cpuset;
+
+        CPU_ZERO(&cpuset);
+#if defined(HAVE_HWLOC)
+        CPU_SET(eu->eu_steal_from[0], &cpuset);
+#else
+        CPU_SET(eu->eu_id, &cpuset);
+#endif  /* defined(HAVE_HWLOC) */
+
+        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
+            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+        }
+    }
+#endif  /* HAVE_CPU_SET_T */
+
+    /* The main thread will go back to the user level */
+    if( 0 == eu->eu_id )
+        return NULL;
+
+    return __dplasma_progress(eu);
+}
+
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t)+
-                                                            nb_cores * sizeof(dplasma_execution_unit_t));
+    dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t) +
+                                                            nb_cores * sizeof(dplasma_execution_unit_t*));
+    __dplasma_temporary_thread_initialization_t* startup = 
+        (__dplasma_temporary_thread_initialization_t*)malloc(nb_cores * sizeof(__dplasma_temporary_thread_initialization_t));
     int i;
 
     context->nb_cores = (int32_t) nb_cores;
@@ -233,65 +342,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Prepare the LIFO task queue for each execution unit */
     for( i = 0; i < nb_cores; i++ ) {
-        dplasma_execution_unit_t* eu = &(context->execution_units[i]);
-#ifdef DPLASMA_PROFILING
-        eu->eu_profile = dplasma_profiling_thread_init( 4096, "DPLASMA Computation Thread %d", i );
-#endif
-#ifdef DPLASMA_USE_LIFO
-        eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
-        dplasma_atomic_lifo_construct( eu->eu_task_queue );
-#elif defined(DPLASMA_USE_GLOBAL_LIFO)
-        /* Everybody share the same global LIFO */
-        eu->eu_task_queue = &ready_list;
-#else
-        eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
-        dplasma_dequeue_construct( eu->eu_task_queue );
-#if PLACEHOLDER_SIZE
-        eu->placeholder_pop  = 0;
-        eu->placeholder_push = 0;
-#endif  /* PLACEHOLDER_SIZE */
-#endif  /* DPLASMA_USE_LIFO */
-        eu->eu_id = i;
-        eu->master_context = context;
-#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-        eu->eu_steal_from = (int8_t*)malloc(nb_cores * sizeof(int8_t));
-        {
-            int j;
-#if defined(ON_ZOOT)
-            int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
-            int8_t placement[] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-                                    1,  0,  3,  2,  5,  4,  7,  6,  9,  8, 11, 10, 13, 12, 15, 14,
-                                    2,  3,  0,  1,  6,  7,  4,  5, 10, 11,  8,  9, 14, 15, 12, 13,
-                                    3,  2,  1,  0,  7,  6,  5,  4, 11, 10,  9,  8, 15, 14, 13, 12,
-                                    4,  5,  6,  7,  0,  1,  2,  3, 12, 13, 14, 15,  8,  9, 10, 11,
-                                    5,  4,  7,  6,  1,  0,  3,  2, 13, 12, 15, 14,  9,  8, 11, 10,
-                                    6,  7,  4,  5,  2,  3,  0,  1, 14, 15, 12, 13, 10, 11,  8,  9,
-                                    7,  6,  5,  4,  3,  2,  1,  0, 15, 14, 13, 12, 11, 10,  9,  8,
-                                    8,  9, 10, 11, 12, 13, 14, 15,  0,  1,  2,  3,  4,  5,  6,  7,
-                                    9,  8, 11, 10, 13, 12, 15, 14,  1,  0,  3,  2,  5,  4,  7,  6,
-                                   10, 11,  8,  9, 14, 15, 12, 13,  2,  3,  0,  1,  6,  7,  4,  5,
-                                   11, 10,  9,  8, 15, 14, 13, 12,  3,  2,  1,  0,  7,  6,  5,  4,
-                                    8,  9, 10, 11, 12, 13, 14, 15,  4,  5,  6,  7,  0,  1,  2,  3,
-                                    9,  8, 11, 10, 13, 12, 15, 14,  5,  4,  7,  6,  1,  0,  3,  2,
-                                   10, 11,  8,  9, 14, 15, 12, 13,  6,  7,  4,  5,  2,  3,  0,  1,
-                                   11, 10,  9,  8, 15, 14, 13, 12,  7,  6,  5,  4,  3,  2,  1,  0 };
-
-            for( j = 0; j < nb_cores; j++ ) {
-                eu->eu_steal_from[j] = placement[eu->eu_id*16 + j];
-            }
-            eu->eu_steal_from[0] = distance[eu->eu_id];
-#else
-            int k;
-            eu->eu_steal_from[0] = (int8_t)eu->eu_id;
-            for( j = 0, k = 1; j < nb_cores; j++ ) {
-                if( eu->eu_id != j ) {
-                    eu->eu_steal_from[k] = (int8_t)j;
-                    k++;
-                }
-            }
-#endif
-        }
-#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
+        startup[i].th_id = i;
+        startup[i].master_context = context;
+        startup[i].nb_cores = nb_cores;
     }
 
     if( nb_cores > 1 ) {
@@ -303,35 +356,25 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
         pthread_setconcurrency(nb_cores);
 #endif  /* __linux */
 
+        context->pthreads = (pthread_t*)malloc(nb_cores * sizeof(pthread_t));
+
         /* The first execution unit is for the master thread */
         for( i = 1; i < context->nb_cores; i++ ) {
-            pthread_create( &((context)->execution_units[i].pthread_id),
+            pthread_create( &((context)->pthreads[i]),
                             &thread_attr,
-                            (void* (*)(void*))__dplasma_progress,
-                            (void*)&(context->execution_units[i]));
+                            (void* (*)(void*))__dplasma_thread_init,
+                            (void*)&(startup[i]));
         }
     }
 
-#ifdef HAVE_CPU_SET_T
-    {
-        cpu_set_t cpuset;
-
-        CPU_ZERO(&cpuset);
-#if defined(HAVE_HWLOC)
-        CPU_SET(context->execution_units[0].eu_steal_from[0], &cpuset);
-#else
-        CPU_SET(context->execution_units[0].eu_id, &cpuset);
-#endif  /* defined(HAVE_HWLOC) */
-
-        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
-        }
-    }
-#endif  /* HAVE_CPU_SET_T */
+    __dplasma_thread_init( &startup[0] );
 
     /* Wait until all threads are done binding themselves */
     dplasma_barrier_wait( &(context->barrier) );
     context->__dplasma_internal_finalization_counter++;
+
+    /* Release the temporary array used for starting up the threads */
+    free(startup);
 
 #ifdef DISTRIBUTED
     /* Wait until threads are bound before introducing progress threads */
@@ -340,21 +383,19 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 
 #ifdef USE_PAPI
     if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
-      printf("PAPI library initialization error! \n");
+        printf("PAPI library initialization error! \n");
     else {
-      if (PAPI_create_eventset(&eventSet) != PAPI_OK)
-        printf("PAPI unable to create event set! \n");
-      else {
-        int i;
+        if (PAPI_create_eventset(&eventSet) != PAPI_OK)
+            printf("PAPI unable to create event set! \n");
+        else {
+            for( i = 0; i < num_events; ++i ) {
+                int event;
+                PAPI_event_name_to_code(event_names[i], &event);
 
-	for (i=0; i<num_events; ++i) {
-          int event;
-          PAPI_event_name_to_code(event_names[i], &event);
-
-	  if (PAPI_add_event(eventSet, event) != PAPI_OK) 
-	    printf("PAPI unable to add event: %s \n", event_names[i]);
-	}
-      }
+                if (PAPI_add_event(eventSet, event) != PAPI_OK) 
+                    printf("PAPI unable to add event: %s \n", event_names[i]);
+            }
+        }
     }
 #endif
 
@@ -379,14 +420,14 @@ int dplasma_fini( dplasma_context_t** pcontext )
 
     /* The first execution unit is for the master thread */
     for(i = 1; i < context->nb_cores; i++) {
-        pthread_join( context->execution_units[i].pthread_id, NULL );
+        pthread_join( context->pthreads[i], NULL );
 #if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
-        free( context->execution_units[i].eu_task_queue );
-        context->execution_units[i].eu_task_queue = NULL;
+        free( context->execution_units[i]->eu_task_queue );
+        context->execution_units[i]->eu_task_queue = NULL;
 #endif  /* defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-        free(context->execution_units[i].eu_steal_from);
-        context->execution_units[i].eu_steal_from = NULL;
+        free(context->execution_units[i]->eu_steal_from);
+        context->execution_units[i]->eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
 #ifdef DISTRIBUTED
@@ -399,6 +440,8 @@ int dplasma_fini( dplasma_context_t** pcontext )
 
     /* Destroy all resources allocated for the barrier */
     dplasma_barrier_destroy( &(context->barrier) );
+
+    free(context->pthreads);
 
 #ifdef DPLASMA_GRAPHER
     if( NULL != __dplasma_graph_file ) {
@@ -975,10 +1018,10 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
         if( 0 != dplasma_is_valid(exec_context) ) {
             char tmp[128], tmp1[128];
-
+            dplasma_service_to_string(origin, tmp, 128);
+            dplasma_service_to_string(exec_context, tmp1, 128);
             fprintf( stderr, "Output dependencies of %s generate an invalid call to %s for param %s\n",
-                     dplasma_service_to_string(origin, tmp, 128),
-                     dplasma_service_to_string(exec_context, tmp1, 128), dest_param->name );
+                     tmp, tmp1, dest_param->name );
             goto next_value;
         }
 
