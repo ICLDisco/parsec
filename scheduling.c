@@ -51,7 +51,7 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
         dplasma_execution_context_t* new_context;
         dplasma_execution_unit_t* eu_context;
 
-        eu_context = &(context->execution_units[0]);
+        eu_context = context->execution_units[0];
 
         new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
         memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
@@ -105,19 +105,18 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
     /* Dirty workaround or how to deliberaty generate memory leaks */
-    {
-        int i, upto = dplasma_nb_elements();
-        
-        /*for( i = 0; i < upto; i++ ) {
-            dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
-            object->deps = NULL;
-            }*/
-        
+    /*{
+      int i, upto = dplasma_nb_elements();
+      
+      for( i = 0; i < upto; i++ ) {
+      dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
+      object->deps = NULL;
+      }
+      }*/
 #if defined(DPLASMA_PROFILING)
-        /* Reset the profiling information */
-        dplasma_profiling_reset();
+    /* Reset the profiling information */
+    dplasma_profiling_reset();
 #endif  /* defined(DPLASMA_PROFILING) */
-    }
         
     set_tasks_todo(context, (uint32_t)n);
 }
@@ -161,21 +160,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     rqtp.tv_sec = 0;
 
     if( 0 != eu_context->eu_id ) {
-#ifdef HAVE_CPU_SET_T
-        cpu_set_t cpuset;
-
-        CPU_ZERO(&cpuset);
-#if defined(HAVE_HWLOC)
-        CPU_SET(eu_context->eu_steal_from[0], &cpuset);
-#else
-        CPU_SET(eu_context->eu_id, &cpuset);
-#endif  /* defined(HAVE_HWLOC) */
-
-        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
-        }
-#endif  /* HAVE_CPU_SET_T */
-
         /* Force the kernel to bind me to the expected core */
         __do_some_computations();
 
@@ -190,9 +174,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     /* Wait until all threads are here and the main thread signal the begining of the work */
     dplasma_barrier_wait( &(master_context->barrier) );
 
-    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
-    misses_in_a_row = 1;
-        
     if( master_context->__dplasma_internal_finalization_in_progress ) {
         my_barrier_counter++;
         for(; my_barrier_counter <= master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
@@ -201,6 +182,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         goto finalize_progress;
     }
 
+    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
+    misses_in_a_row = 1;
+        
     while( !all_tasks_done(master_context) ) {
 
         if( misses_in_a_row > 1 ) {
@@ -272,9 +256,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             for( ; i < master_context->nb_cores; i++ ) {
                 dplasma_execution_unit_t* victim;
 #if defined(HAVE_HWLOC)
-                victim = &(master_context->execution_units[eu_context->eu_steal_from[i]]);
+                victim = master_context->execution_units[eu_context->eu_steal_from[i]];
 #else
-                victim = &(master_context->execution_units[i]);
+                victim = master_context->execution_units[i];
 #endif  /* defined(HAVE_HWLOC) */
 #if defined(DPLASMA_USE_LIFO)
                 exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(victim->eu_task_queue);
@@ -285,9 +269,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                     misses_in_a_row = 0;
                     found_victim++;
                     goto do_some_work;
-                } else {
-                    miss_victim++;
                 }
+                miss_victim++;
             }
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
             misses_in_a_row++;
@@ -323,7 +306,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
-    printf("# th <%3d> done %d local %llu remote %llu stolen %llu probe %llu miss %llu\n",
+    printf("# th <%3d> done %6d local %6llu remote %6llu stolen %6llu probe %6llu miss %6llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
@@ -337,7 +320,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
 int dplasma_progress(dplasma_context_t* context)
 {
-    int ret = (int)(long)__dplasma_progress( &(context->execution_units[0]) );
+    int ret = (int)(long)__dplasma_progress( context->execution_units[0] );
 
     context->__dplasma_internal_finalization_counter++;
     return ret;
