@@ -1,7 +1,7 @@
 #!/usr/bin/php -q
 <?php
 
-$WIDTH=800;
+$WIDTH=1600;
 $THREAD_HEIGHT = 25.0;
 $BASE_HEIGHT = 75.0;
 $PROC_SEP_HEIGHT = 5.0;
@@ -69,6 +69,7 @@ function startup(evt){
   top.svgzoom = svgzoom
   top.svgtranslate = svgtranslate
   top.svg_outside_select = outsideSelect
+  Root.width.baseVal.value = top.innerWidth - 100;
   top.ready()
 }
 function outsideSelect(x){
