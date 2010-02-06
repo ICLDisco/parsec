@@ -199,8 +199,30 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
-    dplasma_execution_unit_t* eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
+    dplasma_execution_unit_t* eu;
+    int bind_to_proc = startup->th_id;
 
+#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
+#if defined(ON_ZOOT)
+    int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
+    bind_to_proc = distance[startup->th_id];
+#endif
+#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
+
+#ifdef HAVE_CPU_SET_T 
+    {
+        cpu_set_t cpuset;
+
+        CPU_ZERO(&cpuset);
+        CPU_SET(bind_to_proc, &cpuset);
+
+        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
+            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+        }
+    }
+#endif  /* HAVE_CPU_SET_T */
+
+    eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
     }
@@ -273,23 +295,6 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #endif
     }
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
-
-#ifdef HAVE_CPU_SET_T
-    {
-        cpu_set_t cpuset;
-
-        CPU_ZERO(&cpuset);
-#if defined(HAVE_HWLOC)
-        CPU_SET(eu->eu_steal_from[0], &cpuset);
-#else
-        CPU_SET(eu->eu_id, &cpuset);
-#endif  /* defined(HAVE_HWLOC) */
-
-        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
-        }
-    }
-#endif  /* HAVE_CPU_SET_T */
 
     /* The main thread will go back to the user level */
     if( 0 == eu->eu_id )
