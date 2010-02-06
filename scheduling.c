@@ -104,20 +104,22 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
+#if 0 /* TODO: remove this when tested, this is done somewhere else now */
     /* Dirty workaround or how to deliberaty generate memory leaks */
     {
         int i, upto = dplasma_nb_elements();
         
-        /*for( i = 0; i < upto; i++ ) {
+        for( i = 0; i < upto; i++ ) {
             dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
             object->deps = NULL;
-            }*/
-        
-#if defined(DPLASMA_PROFILING)
-        /* Reset the profiling information */
-        dplasma_profiling_reset();
-#endif  /* defined(DPLASMA_PROFILING) */
+        }
     }
+#endif
+
+#if defined(DPLASMA_PROFILING)
+    /* Reset the profiling information */
+    dplasma_profiling_reset();
+#endif  /* defined(DPLASMA_PROFILING) */
         
     set_tasks_todo(context, (uint32_t)n);
 }
@@ -323,7 +325,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
-    printf("# th <%3d> done %d local %llu remote %llu stolen %llu probe %llu miss %llu\n",
+    printf("# th <%3d> done %d local %llu remote %llu stolen %llu starve %llu miss %llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
