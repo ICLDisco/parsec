@@ -29,6 +29,7 @@ static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_ex
 #   define remote_dep_send(task, rank, data) remote_dep_thread_send(task, rank, data)
 #   define remote_dep_progress(ctx) remote_dep_thread_progress(ctx)
 #   define remote_dep_release(ctx, task, data) __remote_dep_release(ctx, task, data);
+
 #elif defined(USE_MPI_THREAD_NOMUTEX)
     static int remote_dep_dequeue_init(dplasma_context_t* context);
     static int remote_dep_dequeue_fini(dplasma_context_t* context);
@@ -40,6 +41,7 @@ static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_ex
 #   define remote_dep_send(task, rank, data) remote_dep_dequeue_send(task, rank, data)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
 #   define remote_dep_release(ctx, task, data) remote_dep_dequeue_release(ctx, task, data)
+
 #else
 #   define remote_dep_mpi_init(ctx) __remote_dep_mpi_init(ctx)
 #   define remote_dep_mpi_fini(ctx) __remote_dep_mpi_fini(ctx)
@@ -67,13 +69,13 @@ int __remote_dep_init(dplasma_context_t* context)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#40826D",
+    dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#40B080",
                                              &MPI_Activate_sk, &MPI_Activate_ek);
-    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#EE82EE",
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#8080B0",
                                              &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
-    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD", "fill:#FFE0D0",
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD", "fill:#B08080",
                                              &MPI_Data_pld_sk, &MPI_Data_pld_ek);
-    dplasma_profiling_add_dictionary_keyword( "MPI_TEST_ANY", "fill:#040ED0",
+    dplasma_profiling_add_dictionary_keyword( "MPI_TEST_ANY", "fill:#FF0000",
                                              &MPI_Test_any_sk, &MPI_Test_any_ek);
 
     MPI_prof = dplasma_profiling_thread_init( 4096, "MPI Thread of rank %d", rank);
@@ -164,10 +166,10 @@ static int __remote_dep_mpi_init(dplasma_context_t* context)
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     MPI_Comm_size(dep_comm, &np);
 
-#if defined(DPLASMA_PROFILING)
+#ifdef DPLASMA_PROFILING
+    TAKE_TIME(MPI_Test_any_sk);
     MPI_Barrier(dep_comm);
-    TAKE_TIME(MPI_Activate_sk);
-    TAKE_TIME(MPI_Activate_ek);
+    TAKE_TIME(MPI_Test_any_ek);
 #endif
     
     

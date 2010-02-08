@@ -34,11 +34,11 @@ if( $HEIGHT == $BASE_HEIGHT ) {
 $scale = $WIDTH / $totaltime;
 
 
-if( $timeunit == "microseconds" ) 
+if( $timeunit == "microseconds" || $timeunit == "microsecond" ) 
     $shorttimeunit = "us";
- else if ( $timeunit == "nanoseconds" )
+ else if ( $timeunit == "nanoseconds" || $timeunit == "nanosecond" )
      $shorttimeunit = "ns";
- else if ( $timeunit == "cycles" )
+ else if ( $timeunit == "cycles" || $timeunit == "cycle" )
      $shorttimenunit = "cy";
  else
      $shorttimeunit = $timeunit;
