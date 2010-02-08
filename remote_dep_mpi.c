@@ -630,7 +630,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         {
             if(enable_self_progress)
             {
-                __remote_dep_progress(&context->execution_units[0]);
+                __remote_dep_progress(context->execution_units[0]);
             }
             nanosleep(&ts, NULL);
         }
@@ -639,9 +639,6 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         {                
             case DEP_ACTIVATE:
                 __remote_dep_send(&cmd->u.activate.origin, cmd->u.activate.rank, &cmd->u.activate.data);
-                break;
-            case DEP_PROGRESS:
-                __remote_dep_progress(cmd->u.progress.unit);
                 break;
             case DEP_FINI:
                 keep_probing = 0;
