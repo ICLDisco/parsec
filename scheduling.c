@@ -309,7 +309,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
-    printf("# th <%3d> done %6d local %6llu remote %6llu stolen %6llu starve %6llu miss %6llu\n",
+    printf("# th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
