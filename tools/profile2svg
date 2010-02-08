@@ -169,7 +169,6 @@ foreach ($ALLXML as $xml) {
     foreach ( $xml->PROFILES->THREAD as $th ) {
         echo "       <g id='P${proc}T$i'>\n";
         
-        $y += $THREAD_HEIGHT;
         $h = $THREAD_HEIGHT;
         
         foreach ( $th->KEY as $key ) {
@@ -200,6 +199,7 @@ foreach ($ALLXML as $xml) {
             }
         }
         
+        $y += $THREAD_HEIGHT;
         echo "       </g><!-- P${proc}T$i -->\n";
         $i++;
     }
@@ -217,16 +217,16 @@ foreach ($ALLXML as $xml) {
        <FDesc><![CDATA[]]></FDesc>
      </rect>
 <?php
-$y = $BASE_HEIGHT + 30;
+$y = $BASE_HEIGHT + 5;
 $proc = 0;
 foreach ($ALLXML as $xml) {
     
     foreach ( $xml->PROFILES->THREAD as $th ) {
         $words = explode(" ", "Proc $proc: $th->IDENTIFIER");
-        echo "      <text x='0.0' y='$y' font-size='10'>\n";
+        echo "      <text x='0.0' y='$y' font-size='11'>\n";
         $line = "";
         foreach($words as $w) {
-            if( strlen($line) + strlen($w) > 30 ) {
+            if( strlen($line) + strlen($w) > 25 ) {
                 if( strlen($line) > 0 ) {
                     echo "       <tspan x='0.0' dy='8'>$line</tspan>\n";
                 }
