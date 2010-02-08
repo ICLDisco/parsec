@@ -125,7 +125,7 @@ function adjust(evt){
 function updateRule() {
   for(i = 0; i < 20; i++) {
       x = (i * (width / 20) / pixelpertime) /scale - (translate / pixelpertime);
-      svgDoc.getElementById('ruleText' + i).firstChild.nodeValue = x.toPrecision(6) + " " + timeunit;
+      svgDoc.getElementById('ruleText' + i).firstChild.nodeValue = x.toPrecision(3) + " " + timeunit;
   }
 }
 function svgzoom( x ) {
@@ -149,7 +149,7 @@ function svgtranslate( x ) {
 <?php
 for( $i = 0; $i < 20; $i++) {
     $x = $i * $WIDTH/20.0 + $X_OFFSET;
-    $time = sprintf("%.1lf %s", $i * $totaltime / 20.0, $shorttimeunit);
+    $time = sprintf("%.2le %s", $i * $totaltime / 20.0, $shorttimeunit);
     echo "     <rect x='$x' y='63.00' width='1.0' height='8.0' />\n";
     echo "     <g transform='rotate(-45 $x 65)'>\n";
     echo "      <text x='$x' y='63.00' id='ruleText$i'>$time</text>\n";
