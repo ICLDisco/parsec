@@ -164,6 +164,13 @@ static int __remote_dep_mpi_init(dplasma_context_t* context)
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     MPI_Comm_size(dep_comm, &np);
 
+#if defined(DPLASMA_PROFILING)
+    MPI_Barrier(dep_comm);
+    TAKE_TIME(MPI_Activate_sk);
+    TAKE_TIME(MPI_Activate_ek);
+#endif
+    
+    
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {        
         MPI_Recv_init(&dep_activate_buff[i], dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
