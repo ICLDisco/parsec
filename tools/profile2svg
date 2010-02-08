@@ -4,6 +4,7 @@
 $WIDTH=1600;
 $THREAD_HEIGHT = 25.0;
 $BASE_HEIGHT = 75.0;
+$X_OFFSET = 150.0;
 $PROC_SEP_HEIGHT = 5.0;
 
 $HEIGHT=$BASE_HEIGHT;
@@ -144,28 +145,29 @@ function svgtranslate( x ) {
       <FDesc><![CDATA[]]></FDesc>
     </rect>
     <g id="hrule">
-     <rect x="0.00" y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
+     <rect x='<?php echo "$X_OFFSET";?>' y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
 <?php
 for( $i = 0; $i < 20; $i++) {
-    $x = $i * $WIDTH/20.0;
+    $x = $i * $WIDTH/20.0 + $X_OFFSET;
     $time = sprintf("%.1lf %s", $i * $totaltime / 20.0, $shorttimeunit);
     echo "     <rect x='$x' y='63.00' width='1.0' height='8.0' />\n";
     echo "     <g transform='rotate(-45 $x 65)'>\n";
     echo "      <text x='$x' y='63.00' id='ruleText$i'>$time</text>\n";
     echo "     </g>\n";
 }
-
-echo "    </g><!-- hrule -->\n";
-echo "    <g id='gantt' transform='scale(1) translate(0, 0)'>\n";
-
+?>
+    </g><!-- hrule -->
+    <g id='drawingarea' transform='translate(<?php echo "$X_OFFSET";?>, 0)'>
+     <g id='gantt' transform='scale(1) translate(0, 0)'>
+<?php
 $proc = 0;
 $y = $BASE_HEIGHT;
 foreach ($ALLXML as $xml) {
-    echo "     <g id='drawingarea$proc'>\n";
+    echo "      <g id='drawingarea$proc'>\n";
     
     $i = 0;
     foreach ( $xml->PROFILES->THREAD as $th ) {
-        echo "      <g id='P${proc}T$i'>\n";
+        echo "       <g id='P${proc}T$i'>\n";
         
         $y += $THREAD_HEIGHT;
         $h = $THREAD_HEIGHT;
@@ -190,22 +192,58 @@ foreach ($ALLXML as $xml) {
                 $x = $event->START * $scale;
                 $w = $duration * $scale;
                 $id = $event->ID;
-                echo "       <rect x='$x' y='$y' width='$w' height='$h' style='$attributes' id='$name$id'>\n";
-                echo "        <FName>$name</FName>\n";
-                echo "        <FDesc>$duration $timeunit</FDesc>\n";
-                echo "        <FID>$id</FID>\n";
-                echo "       </rect>\n";
+                echo "        <rect x='$x' y='$y' width='$w' height='$h' style='$attributes' id='$name$id'>\n";
+                echo "         <FName>$name</FName>\n";
+                echo "         <FDesc>$duration $timeunit</FDesc>\n";
+                echo "         <FID>$id</FID>\n";
+                echo "        </rect>\n";
             }
         }
         
-        echo "      </g><!-- P${proc}T$i -->\n";
+        echo "       </g><!-- P${proc}T$i -->\n";
         $i++;
     }
 
-    echo "     </g><!-- drawingarea of process $proc -->\n";
+    echo "      </g><!-- drawingarea of process $proc -->\n";
     $proc++;
     $y += $PROC_SEP_HEIGHT;
  }
 ?>
-    </g><!-- gantt -->
+     </g><!-- gantt -->
+    </g><!-- drawingarea -->
+    <g id="vrule">
+      <rect x='0' y='0' width='<?php echo "$X_OFFSET";?>' height='100%' fill='white'>
+       <FName><![CDATA[]]></FName>
+       <FDesc><![CDATA[]]></FDesc>
+     </rect>
+<?php
+$y = $BASE_HEIGHT + 30;
+$proc = 0;
+foreach ($ALLXML as $xml) {
+    
+    foreach ( $xml->PROFILES->THREAD as $th ) {
+        $words = explode(" ", "Proc $proc: $th->IDENTIFIER");
+        echo "      <text x='0.0' y='$y' font-size='10'>\n";
+        $line = "";
+        foreach($words as $w) {
+            if( strlen($line) + strlen($w) > 30 ) {
+                if( strlen($line) > 0 ) {
+                    echo "       <tspan x='0.0' dy='8'>$line</tspan>\n";
+                }
+                $line = "$w";
+            } else {
+                $line = "$line $w";
+            }
+        }
+        if( strlen($line) > 0 ) {
+            echo "       <tspan x='0.0' dy='8'>$line</tspan>\n";
+        }
+        echo "      </text>\n";
+        $y += $THREAD_HEIGHT;
+    }
+    $y += $PROC_SEP_HEIGHT;
+    $proc++;
+ }
+?>        
+    </g>
 </svg>

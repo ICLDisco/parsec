@@ -231,7 +231,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
 #ifdef DPLASMA_PROFILING
-    eu->eu_profile = dplasma_profiling_thread_init( 4096, "DPLASMA Computation Thread %d", eu->eu_id );
+    eu->eu_profile = dplasma_profiling_thread_init( 4096, "DPLASMA Thread %d", eu->eu_id );
 #endif
 #ifdef DPLASMA_USE_LIFO
     eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
