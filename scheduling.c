@@ -104,15 +104,18 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
+#if 0 /* TODO: remove this when tested, this is done somewhere else now */
     /* Dirty workaround or how to deliberaty generate memory leaks */
-    /*{
-      int i, upto = dplasma_nb_elements();
-      
-      for( i = 0; i < upto; i++ ) {
-      dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
-      object->deps = NULL;
-      }
-      }*/
+    {
+        int i, upto = dplasma_nb_elements();
+        
+        for( i = 0; i < upto; i++ ) {
+            dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
+            object->deps = NULL;
+        }
+    }
+#endif
+
 #if defined(DPLASMA_PROFILING)
     /* Reset the profiling information */
     dplasma_profiling_reset();
@@ -174,6 +177,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     /* Wait until all threads are here and the main thread signal the begining of the work */
     dplasma_barrier_wait( &(master_context->barrier) );
 
+    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
+    misses_in_a_row = 1;
+
     if( master_context->__dplasma_internal_finalization_in_progress ) {
         my_barrier_counter++;
         for(; my_barrier_counter <= master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
@@ -181,9 +187,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         }
         goto finalize_progress;
     }
-
-    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
-    misses_in_a_row = 1;
         
     while( !all_tasks_done(master_context) ) {
 
@@ -306,7 +309,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
-    printf("# th <%3d> done %6d local %6llu remote %6llu stolen %6llu probe %6llu miss %6llu\n",
+    printf("# th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,

@@ -7,6 +7,7 @@
 #define __USE_REMOTE_DEP_H__
 
 #include "dplasma.h"
+#include "execution_unit.h"
 
 #if defined(USE_MPI)
 #   define ALLOW_REMOTE_DEP

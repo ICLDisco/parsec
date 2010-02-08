@@ -87,11 +87,11 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
     context->nb_nodes = (int32_t) __remote_dep_init(context);
     if(context->nb_nodes > 1)
     {
-        context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(char) - 1) / sizeof(char);
+        context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(uint8_t) - 1) / sizeof(uint8_t);
         for(i = 0; i < context->nb_cores; i++)
         {
-            dplasma_execution_unit_t *eu = &context->execution_units[i];
-            eu->remote_dep_fw_mask = (char *) malloc(context->remote_dep_fw_mask_sizeof);
+            dplasma_execution_unit_t *eu = context->execution_units[i];
+            eu->remote_dep_fw_mask = (uint8_t*) malloc(context->remote_dep_fw_mask_sizeof);
             dplasma_remote_dep_reset_forwarded(eu);
         }
     }
@@ -110,7 +110,7 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
     {
         for(i = 0; i < context->nb_cores; i++)
         {
-            free(context->execution_units[i].remote_dep_fw_mask);
+            free(context->execution_units[i]->remote_dep_fw_mask);
         }
     }
     return __remote_dep_fini(context);

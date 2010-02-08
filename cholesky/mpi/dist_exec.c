@@ -210,6 +210,8 @@ int main(int argc, char ** argv){
     dplasma_progress(dplasma);
     TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
+    /* A most probably useless barrier */
+    MPI_Barrier(MPI_COMM_WORLD);
     dispose_dplasma(dplasma);
     
 # ifdef USE_MPI    
@@ -273,7 +275,7 @@ static void dispose_dplasma(dplasma_context_t* dplasma)
 #ifdef DPLASMA_PROFILING
     char* filename = NULL;
     
-    asprintf( &filename, "%s-%d.svg", "dposv-mpi", rank );
+    asprintf( &filename, "%s.%d.profile", "dposv", rank );
     dplasma_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DPLASMA_PROFILING */
