@@ -1,7 +1,7 @@
 #!/usr/bin/php -q
 <?php
 
-$WIDTH=1600;
+$WIDTH= 1600;
 $THREAD_HEIGHT = 25.0;
 $BASE_HEIGHT = 75.0;
 $X_OFFSET = 150.0;
@@ -48,8 +48,10 @@ echo '<?xml version="1.0" encoding="utf-8"?>';
 <!DOCTYPE svg PUBLIC "-_W3C_DTD SVG 1.0_EN" "http://www.w3.org/TR/SVG/DTD/svg10.dtd">
 <svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' 
  onload="startup(evt)"
- width='<?php echo "$WIDTH"; ?>'
- height='<?php echo "$HEIGHT"; ?>'>
+ width="attr(width)"
+ height='<?php echo "$HEIGHT"; ?>'
+ font-family="Sans-serif"
+ font-size="10pt">
   <script><![CDATA[
 var svgDoc;
 var Root;
