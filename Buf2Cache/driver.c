@@ -50,28 +50,38 @@ void *thread_main(void *arg){
         dplasma_hwloc_insert_buffer(A[indx+2], tile_size, mytid);
 
         n += checkAll(A[indx+1], mytid);
+        n += checkAll(A[indx+2], mytid);
 
         dplasma_hwloc_insert_buffer(A[indx+3], tile_size, mytid);
         dplasma_hwloc_insert_buffer(A[indx+4], tile_size, mytid);
 
         n += checkAll(A[indx], mytid);
-
         n += checkAll(A[indx+6], mytid);
         n += checkAll(A[indx+5], mytid);
+        n += checkAll(A[indx+10], mytid);
+        n += checkAll(A[indx+2], mytid);
+        n += checkAll(A[indx+8], mytid);
 
         dplasma_hwloc_insert_buffer(A[indx+7], tile_size, mytid);
         dplasma_hwloc_insert_buffer(A[indx+8], tile_size, mytid);
+
+        n += checkAll(A[indx+1], mytid);
+        n += checkAll(A[indx+3], mytid);
+        n += checkAll(A[indx+8], mytid);
+        n += checkAll(A[indx], mytid);
+
         dplasma_hwloc_insert_buffer(A[indx+9], tile_size, mytid);
         dplasma_hwloc_insert_buffer(A[indx+10], tile_size, mytid);
 
         n += checkAll(A[indx+10], mytid);
         n += checkAll(A[indx+2], mytid);
-        n += checkAll(A[indx+8], mytid);
+        n += checkAll(A[indx+7], mytid);
+        n += checkAll(A[indx+4], mytid);
 
     }
     t2 = getticks();
     double dt = elapsed(t2,t1);
-    printf("[tid:%d] time per operation = %.3lf (usec)\n",mytid, dt/(16*N));
+    printf("[tid:%d] time per operation = %.3lf (usec)\n",mytid, dt/(25*N));
     return NULL;
 }
 

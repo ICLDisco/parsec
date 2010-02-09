@@ -16,6 +16,7 @@ struct _arrayInfo_t{
 typedef struct{
     uint32_t available;
     pthread_mutex_t mutex;
+    arrayInfo_t *arrays_start;
     arrayInfo_t *arrays_head;
     arrayInfo_t *arrays_tail;
 } cacheInfo_t;
@@ -30,6 +31,7 @@ static int cache_count[3] = {0,0,0};
 // Number of processing units per node
 static int pu_count = 0;
 
+static int cache_tile_capacity[3];
 
 ////////////////////////////////////////////////////////////////////////////////
 // Function code
@@ -45,10 +47,12 @@ void dplasma_hwloc_init_cache(int npu, int level, int npu_per_cache, int cache_s
         cache_info[level-1] = (cacheInfo_t *)calloc(count, sizeof(cacheInfo_t));
         cache_count[level-1] = count;
 
+        cache_tile_capacity[level-1] = tile_count;
         for(i=0; i<count; ++i){
             cache_info[level-1][i].available = cache_size;
             pthread_mutex_init( &(cache_info[level-1][i].mutex), NULL );
-            cache_info[level-1][i].arrays_head = calloc( tile_count, sizeof(arrayInfo_t) );
+            cache_info[level-1][i].arrays_start = calloc( tile_count, sizeof(arrayInfo_t) );
+            cache_info[level-1][i].arrays_head = cache_info[level-1][i].arrays_start;
             // The following shouldn't be necessary since we calloc()ed, but let's be paranoid.
             cache_info[level-1][i].arrays_tail = NULL;
         }
@@ -59,7 +63,6 @@ void dplasma_hwloc_init_cache(int npu, int level, int npu_per_cache, int cache_s
 
 
 
-// FIXME: use mutexes or atomics to avoid race conditions
 void dplasma_hwloc_insert_buffer(void *array_ptr, int bufSize, int myPUID){
     cacheInfo_t *curr;
     arrayInfo_t *ptr, *new_array;
@@ -90,7 +93,9 @@ void dplasma_hwloc_insert_buffer(void *array_ptr, int bufSize, int myPUID){
 
         // if the array is already in the cache (and it's not already the head), 
         // just move the pointers around.
-        for(ptr = curr->arrays_head; ptr != curr->arrays_tail; ptr = ptr->next){
+//        for(ptr = curr->arrays_head; ptr != curr->arrays_tail; ptr = ptr->next){
+        int i=0;
+        for(ptr = curr->arrays_start; i<cache_tile_capacity[level] ; ++i, ++ptr){
             if( ptr->array == array_ptr )
                 break;
         }
@@ -150,8 +155,9 @@ void dplasma_hwloc_insert_buffer(void *array_ptr, int bufSize, int myPUID){
 }
 
 int dplasma_hwloc_isLocal(void *array_ptr, int cacheLevel, int myPUID){
+    int i;
     cacheInfo_t *curr;
-    arrayInfo_t *tmp, *end;
+    arrayInfo_t *tmp;// *end;
 
     if( cache_count[cacheLevel-1] == 0 )
         return 0;
@@ -159,22 +165,23 @@ int dplasma_hwloc_isLocal(void *array_ptr, int cacheLevel, int myPUID){
     int indx = (myPUID*cache_count[cacheLevel-1])/pu_count;
     curr = &cache_info[cacheLevel-1][indx];
 
-    pthread_mutex_lock( &(curr->mutex) );
-    for(tmp = curr->arrays_head; tmp != curr->arrays_tail; tmp = tmp->next){
+//    pthread_mutex_lock( &(curr->mutex) );
+//    for(tmp = curr->arrays_head; tmp != curr->arrays_tail; tmp = tmp->next){
+    for(i=0, tmp = curr->arrays_start; i<cache_tile_capacity[cacheLevel-1] ; ++i, ++tmp){
         if( tmp->array == array_ptr ){
-            pthread_mutex_unlock( &(curr->mutex) );
+//            pthread_mutex_unlock( &(curr->mutex) );
             return 1;
         }
     }
     // Compare against the tail as well
-    if( end != NULL ){
-        if( tmp->array == array_ptr ){
-            pthread_mutex_unlock( &(curr->mutex) );
-            return 1;
-        }
-    }
-
-    pthread_mutex_unlock( &(curr->mutex) );
+//    if( end != NULL ){
+//        if( tmp->array == array_ptr ){
+//            pthread_mutex_unlock( &(curr->mutex) );
+//            return 1;
+//        }
+//    }
+//
+//    pthread_mutex_unlock( &(curr->mutex) );
     return 0;
 }
 
