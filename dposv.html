@@ -3,9 +3,10 @@
   <head>
     <style type="text/css">
 	body{
-		height:100%;
+		font-family:Sans-serif;
+                height:100%;
 		width:100%;
-		margin:10px;
+		margin:00px;
 		padding-left:0px;
 		text-align:left;
 	}
@@ -20,7 +21,7 @@
 		position:absolute;
 		bottom:0px;
 	}
-
+    
     </style>
 
     <title>DPOSV Gantt-Like Observer</title>
@@ -37,13 +38,13 @@ function prepare(){
         }
 
        if (document.all){
-		rightedge=document.body.clientWidth-100
+		rightedge=document.body.clientWidth-040
 		bottomedge=1400
 	}else{
-		rightedge=window.innerWidth-100
+		rightedge=window.innerWidth-040
 		bottomedge=1400
 	}
-	T1H=100
+	T1H=000
 	svgright=rightedge;
 	midx=Math.ceil(svgright/2);
 	high=bottomedge-T1H;
@@ -87,8 +88,8 @@ var SF=this.sf;
     <script src="html/dhtmlgoodies_slider.js"></script>
   </head>
 
-  <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="10">
-    <div align=center>
+  <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="00">
+    <div align=center style="position:relative;top:10;">
       <b>DPOSV Gantt-Like Observer</b>
       <form name="f">
         <table>
@@ -102,6 +103,6 @@ form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 1000, "zoom()")
 form_widget_amount_slider('slider_translate',document.f.translate, 200, 0, 1600, "translate()");
 </script>
     </div>
-    <DIV id="gee" style="position:absolute;top:300;left:50" />
+    <DIV id="gee" style="margin:10px;position:relative;top:0;left:00" />
   </body>
 </html>
