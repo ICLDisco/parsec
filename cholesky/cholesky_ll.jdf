@@ -58,7 +58,7 @@ BODY
 #ifdef DPLASMA_EXECUTE
     CORE_dpotrf( uplo,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                 T, NB, /*A.nb,*/
+                 T /* A(k,k) */, NB, /*A.nb,*/
                  &PLASMA_INFO ); 
 #else
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
