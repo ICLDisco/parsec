@@ -1,5 +1,5 @@
 # - Find PLASMA library
-# This module finds an installed  lirary that implements the PLASMA
+# This module finds an installed  library that implements the PLASMA
 # linear-algebra interface (see http://icl.cs.utk.edu/plasma/).
 # The list of libraries searched for is taken
 # from the autoconf macro file, acx_blas.m4 (distributed at
@@ -20,38 +20,48 @@
 get_property(_LANGUAGES_ GLOBAL PROPERTY ENABLED_LANGUAGES)
 if(NOT _LANGUAGES_ MATCHES Fortran)
   if(PLASMA_FIND_REQUIRED)
-    message(FATAL_ERROR "FindPLASMA requires Fortran support so Fortran must be enabled.")
+    message(FATAL_ERROR "Find PLASMA requires Fortran support so Fortran must be enabled.")
   else(PLASMA_FIND_REQUIRED)
     message(STATUS "Looking for PLASMA... - NOT found (Fortran not enabled)") #
     return()
   endif(PLASMA_FIND_REQUIRED)
 endif(NOT _LANGUAGES_ MATCHES Fortran)
 
-#FIND_PACKAGE(BLAS REQUIRED)
-FIND_PACKAGE(LAPACK REQUIRED)
+set(PLASMA_INCLUDE_DIR)
+set(PLASMA_LIBRARIES)
+set(PLASMA_LINKER_FLAGS)
+
+if(PLASMA_FIND_QUIETLY OR NOT PLASMA_FIND_REQUIRED)
+  find_package(LAPACK)
+else(PLASMA_FIND_QUIETLY OR NOT PLASMA_FIND_REQUIRED)
+  find_package(LAPACK REQUIRED)
+endif(PLASMA_FIND_QUIETLY OR NOT PLASMA_FIND_REQUIRED)
+#message("Found BLAS library in ${BLAS_LIBRARIES}")
+#message("Found LAPACK library in ${LAPACK_LIBRARIES}")
 
 include(CheckFortranFunctionExists)
-include(CheckIncludeFiles)
+include(CheckIncludeFile)
 
-if(PLASMA_DIR)
-  set(PLASMA_INCLUDE_PATH "${PLASMA_DIR}/include;${PLASMA_DIR}/src")
-  set(PLASMA_LIBRARY_PATH "${PLASMA_DIR}/lib")
-endif(PLASMA_DIR)
-
-set(CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_PATH})
-check_include_files(plasma.h FOUND_PLASMA_INCLUDE)
-if(FOUND_PLASMA_INCLUDE)
-  check_library_exists("plasma;coreblas" PLASMA_Init ${PLASMA_LIBRARY_PATH} FOUND_PLASMA_LIB)
-  if( FOUND_PLASMA_LIB )
-    set(PLASMA_LIBRARY "${PLASMA_LIBRARY_PATH}/libplasma.a;${PLASMA_LIBRARY_PATH}/libcoreblas.a")
-  endif( FOUND_PLASMA_LIB )
-endif(FOUND_PLASMA_INCLUDE)
-
-if(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
-  set(PLASMA_FOUND TRUE)
-else(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
-  set(PLASMA_FOUND FALSE)
-endif(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
+if(LAPACK_FOUND)
+  set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES};${PLASMA_INCLUDE_DIR}")
+  #  message(STATUS "Looking for plasma.h in ${PLASMA_INCLUDE_DIR}")
+  check_include_file(plasma.h FOUND_PLASMA_INCLUDE)
+  if(FOUND_PLASMA_INCLUDE)
+    if(PLASMA_LIBRARIES)
+      check_library_exists("cblas;plasma;coreblas;corelapack" PLASMA_Init ${PLASMA_LIBRARIES} FOUND_PLASMA_LIB)
+    else(PLASMA_LIBRARIES)
+      if( FOUND_PLASMA_LIB )
+        set(PLASMA_LIBRARIES "-lplasma -lcoreblas")
+      endif( FOUND_PLASMA_LIB )
+    endif(PLASMA_LIBRARIES)
+  endif(FOUND_PLASMA_INCLUDE)
+  
+  if(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
+    set(PLASMA_FOUND TRUE)
+  else(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
+    set(PLASMA_FOUND FALSE)
+  endif(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
+endif(LAPACK_FOUND)
 
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_FOUND)

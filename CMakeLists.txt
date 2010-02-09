@@ -85,9 +85,15 @@ ELSE (CMAKE_SYSTEM_NAME MATCHES "Darwin")
 ENDIF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 find_package(Threads)
-check_function_exists(pthread_create HAVE_PTHREAD)
+if(Threads_FOUND)
+  check_function_exists(pthread_create HAVE_PTHREAD)
+  if(HAVE_PTHREAD)
+    set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CMAKE_THREAD_LIBS_INIT}")
+  endif(HAVE_PTHREAD)
+endif(Threads_FOUND)
+
 check_function_exists(sched_setaffinity HAVE_SCHED_SETAFFINITY)
-set(CMAKE_REQUIRED_LIBRARIES "rt")
+set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};rt")
 check_function_exists(clock_gettime HAVE_CLOCK_GETTIME)
 
 find_package(PLASMA REQUIRED)
