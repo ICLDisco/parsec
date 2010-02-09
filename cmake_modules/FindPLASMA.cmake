@@ -47,13 +47,28 @@ if(LAPACK_FOUND)
   #  message(STATUS "Looking for plasma.h in ${PLASMA_INCLUDE_DIR}")
   check_include_file(plasma.h FOUND_PLASMA_INCLUDE)
   if(FOUND_PLASMA_INCLUDE)
-    if(PLASMA_LIBRARIES)
-      check_library_exists("cblas;plasma;coreblas;corelapack" PLASMA_Init ${PLASMA_LIBRARIES} FOUND_PLASMA_LIB)
-    else(PLASMA_LIBRARIES)
-      if( FOUND_PLASMA_LIB )
-        set(PLASMA_LIBRARIES "-lplasma -lcoreblas")
-      endif( FOUND_PLASMA_LIB )
-    endif(PLASMA_LIBRARIES)
+    find_library(PLASMA_cblas_LIB cblas
+      PATHS ${PLASMA_LIBRARIES}
+      DOC "Where the PLASMA cblas libraries are"
+      NO_DEFAULT_PATH)
+    if( NOT PLASMA_cblas_LIB )
+      find_library(PLASMA_cblas_LIB cblas
+        PATHS ${PLASMA_LIBRARIES}
+        DOC "Where the PLASMA cblas libraries are")
+    endif( NOT PLASMA_cblas_LIB )
+    find_library(PLASMA_coreblas_LIB coreblas
+      PATHS ${PLASMA_LIBRARIES}
+      DOC "Where the PLASMA coreblas libraries are")
+    find_library(PLASMA_corelapack_LIB corelapack
+      PATHS ${PLASMA_LIBRARIES}
+      DOC "Where the PLASMA corelapack libraries are")
+    find_library(PLASMA_plasma_LIB plasma
+      PATHS ${PLASMA_LIBRARIES}
+      DOC "Where the PLASMA plasma libraries are")
+    if( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
+      set( PLASMA_LIBRARIES "${PLASMA_cblas_LIB};${PLASMA_coreblas_LIB};${PLASMA_corelapack_LIB};${PLASMA_plasma_LIB}")
+      set( FOUND_PLASMA_LIB 1)
+    endif( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
   endif(FOUND_PLASMA_INCLUDE)
   
   if(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
@@ -62,6 +77,10 @@ if(LAPACK_FOUND)
     set(PLASMA_FOUND FALSE)
   endif(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
 endif(LAPACK_FOUND)
+
+include(FindPackageMessage)
+find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
+  "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
 
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_FOUND)

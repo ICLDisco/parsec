@@ -24,11 +24,6 @@ set (DPLASMA_VERSION_MAJOR 0)
 set (DPLASMA_VERSION_MINOR 1)
 
 set( PROJECT_INCLUDE_DIR ./)
-# Configuration header
-configure_file (
-  "${PROJECT_INCLUDE_DIR}/dplasma_config.h.in"
-  "${PROJECT_INCLUDE_DIR}/dplasma_config.h"
-  )
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
@@ -61,28 +56,35 @@ FLEX_TARGET(dplasma_flex dplasma.l  ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
 ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-MESSAGE("-- Check if the compiler provides atomic operations directives")
-IF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  SET( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
+message("-- Check if the compiler provides atomic operations directives")
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap64 HAVE_COMPARE_AND_SWAP_64)
-  IF( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
-    ERROR( "64 bits pointers without 64 bits atomic compare and swap")
-  ENDIF( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
-  MESSAGE("--  Mac OS X detected")
-ELSE (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  IF(NOT HAVE_COMPARE_AND_SWAP_32)
+  if( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
+    error( "64 bits pointers without 64 bits atomic compare and swap")
+  endif( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
+  message("--  Mac OS X detected")
+else (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  if(NOT HAVE_COMPARE_AND_SWAP_32)
     check_symbol_exists( __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 ""
       HAVE_COMPARE_AND_SWAP_32)
-    IF(NOT HAVE_COMPARE_AND_SWAP_32)
+    if(NOT HAVE_COMPARE_AND_SWAP_32)
       #  icc doesn't have the define but it still have the intrinsic function
       CHECK_FUNCTION_EXISTS(__sync_bool_compare_and_swap  HAVE_COMPARE_AND_SWAP_32)
-    ELSE (NOT HAVE_COMPARE_AND_SWAP_32)
+    endif (NOT HAVE_COMPARE_AND_SWAP_32)
+
+    if( CMAKE_SIZEOF_VOID_P MATCHES "8" AND HAVE_COMPARE_AND_SWAP_32 )
       CHECK_FUNCTION_EXISTS(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 "" HAVE_COMPARE_AND_SWAP_64)
-    ENDIF (NOT HAVE_COMPARE_AND_SWAP_32)
-    
-  ENDIF(NOT HAVE_COMPARE_AND_SWAP_32)
-ENDIF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+      if( NOT HAVE_COMPARE_AND_SWAP_64 )
+        CHECK_FUNCTION_EXISTS(__sync_bool_compare_and_swap  HAVE_COMPARE_AND_SWAP_64)
+      endif( NOT HAVE_COMPARE_AND_SWAP_64 )
+      if( NOT HAVE_COMPARE_AND_SWAP_64 )
+        error( "64 bits pointers without 64 bits atomic compare and swap")
+      endif( NOT HAVE_COMPARE_AND_SWAP_64 )
+    endif( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
+  endif(NOT HAVE_COMPARE_AND_SWAP_32)
+endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 find_package(Threads)
 if(Threads_FOUND)
@@ -92,9 +94,9 @@ if(Threads_FOUND)
   endif(HAVE_PTHREAD)
 endif(Threads_FOUND)
 
-check_function_exists(sched_setaffinity HAVE_SCHED_SETAFFINITY)
 set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};rt")
-check_function_exists(clock_gettime HAVE_CLOCK_GETTIME)
+check_function_exists(sched_setaffinity HAVE_SCHED_SETAFFINITY)
+check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
 
 find_package(PLASMA REQUIRED)
 
@@ -147,3 +149,9 @@ endif (DPLASMA_DISTRIBUTED)
 #
 add_subdirectory(cholesky)
 add_subdirectory(QR)
+
+# Configuration header
+configure_file (
+  "${PROJECT_INCLUDE_DIR}/dplasma_config.h.in"
+  "${PROJECT_INCLUDE_DIR}/dplasma_config.h")
+
