@@ -191,8 +191,10 @@ static int __remote_dep_mpi_fini(dplasma_context_t* context)
     
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
-        MPI_Request_free(&dep_activate_req[i]);
-        MPI_Request_free(&dep_req[i]);        
+        MPI_Cancel(&dep_activate_req[i]); MPI_Request_free(&dep_activate_req[i]);
+        MPI_Cancel(&dep_get_req[i]); MPI_Request_free(&dep_get_req[i]);
+        assert(MPI_REQUEST_NULL == dep_put_rcv_req[i]);
+        assert(MPI_REQUEST_NULL == dep_put_snd_req[i]);
     }
     
     MPI_Comm_free(&dep_comm);
