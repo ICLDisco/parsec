@@ -161,7 +161,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
-
+    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
+    misses_in_a_row = 1;
+    
     if( 0 != eu_context->eu_id ) {
         /* Force the kernel to bind me to the expected core */
         __do_some_computations();
@@ -177,9 +179,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     /* Wait until all threads are here and the main thread signal the begining of the work */
     dplasma_barrier_wait( &(master_context->barrier) );
 
-    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
-    misses_in_a_row = 1;
-
     if( master_context->__dplasma_internal_finalization_in_progress ) {
         my_barrier_counter++;
         for(; my_barrier_counter <= master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
@@ -187,6 +186,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         }
         goto finalize_progress;
     }
+
+    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
+    misses_in_a_row = 1;
         
     while( !all_tasks_done(master_context) ) {
 
