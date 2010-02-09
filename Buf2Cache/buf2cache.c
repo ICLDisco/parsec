@@ -1,187 +1,254 @@
-#include <pthread.h>
-#include "buf2cache.h"
+#include "buf2cache2.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// Types
+///////////////////////////////////////////////////////////////////////////////////////////////
+// function forward declarations
 
-// TODO: Pad the following structs appropriately 
-typedef struct _arrayInfo_t arrayInfo_t;
-struct _arrayInfo_t{
-    void *array;
-    size_t size;
-    arrayInfo_t *next;
-    arrayInfo_t *prev;
-};
+static void *do_cache_buf_referenced(cache_t *cache, void *tile_ptr, int *succeeded);
 
-typedef struct{
-    uint32_t available;
-    pthread_mutex_t mutex;
-    arrayInfo_t *arrays_start;
-    arrayInfo_t *arrays_head;
-    arrayInfo_t *arrays_tail;
-} cacheInfo_t;
 
-////////////////////////////////////////////////////////////////////////////////
-// Global variables
+///////////////////////////////////////////////////////////////////////////////////////////////
+// function code
 
-// This is the actual structure with the info about the tiles that are cached
-static cacheInfo_t *cache_info[3] = {NULL,NULL,NULL};
-// Number of caches of each level per node 
-static int cache_count[3] = {0,0,0};
-// Number of processing units per node
-static int pu_count = 0;
+//--------------------------------------------------------------------------------
+cache_t *cache_create(int core_count, cache_t *parent, int tile_capacity){
 
-static int cache_tile_capacity[3];
+    cache_t *cache = (cache_t *)calloc( 1, sizeof(cache_t) );
 
-////////////////////////////////////////////////////////////////////////////////
-// Function code
+    cache->tile_capacity = tile_capacity;
+    cache->parent = parent;
+    cache->entries = (cache_entry_t *)calloc( tile_capacity, sizeof(cache_entry_t) );
 
-void dplasma_hwloc_init_cache(int npu, int level, int npu_per_cache, int cache_size, int tile_size){
-    int count = npu/npu_per_cache, tile_count, i;
-
-    pu_count = npu;
-
-    tile_count = cache_size/tile_size;
-
-    if( count > 0 && cache_size > tile_size ){
-        cache_info[level-1] = (cacheInfo_t *)calloc(count, sizeof(cacheInfo_t));
-        cache_count[level-1] = count;
-
-        cache_tile_capacity[level-1] = tile_count;
-        for(i=0; i<count; ++i){
-            cache_info[level-1][i].available = cache_size;
-            pthread_mutex_init( &(cache_info[level-1][i].mutex), NULL );
-            cache_info[level-1][i].arrays_start = calloc( tile_count, sizeof(arrayInfo_t) );
-            cache_info[level-1][i].arrays_head = cache_info[level-1][i].arrays_start;
-            // The following shouldn't be necessary since we calloc()ed, but let's be paranoid.
-            cache_info[level-1][i].arrays_tail = NULL;
-        }
-    }
-
-    return;
+    return cache;
 }
 
 
+//--------------------------------------------------------------------------------
+// This function returns the element we evicted (the tile pointer) or NULL if nothing was evicted.
+void *cache_buf_referenced(cache_t *cache, void *tile_ptr){
+    int succeeded = 0;
+    void *old_tile_ptr;
 
-void dplasma_hwloc_insert_buffer(void *array_ptr, int bufSize, int myPUID){
-    cacheInfo_t *curr;
-    arrayInfo_t *ptr, *new_array;
+    if( cache == NULL )
+        return NULL;
 
-    int level;
+    do{
+        old_tile_ptr = do_cache_buf_referenced(cache, tile_ptr, &succeeded);
+    }while(!succeeded);
 
-    for(level=0; level<3; ++level){
-        // If this cache can't fit nuten, skip it.
-        if( cache_count[level] == 0 )
-            continue;
+    // Update all the parent caches as well
+    cache_buf_referenced(cache->parent, tile_ptr);
 
-        int indx = (myPUID*cache_count[level])/pu_count;
-        curr = &cache_info[level][indx];
-        pthread_mutex_lock( &(curr->mutex) );
-
-        // If we haven't inserted any element already
-        if( curr->arrays_head->array == NULL ){
-            curr->arrays_head->array = array_ptr;
-            curr->arrays_head->size = bufSize;
-            curr->arrays_head->next = NULL;
-            curr->arrays_head->prev = NULL;
-            curr->arrays_tail = curr->arrays_head;
-            curr->available -= bufSize;
-            // jump to the next iteration
-            pthread_mutex_unlock( &(curr->mutex) );
-            continue;
-        }
-
-        // if the array is already in the cache (and it's not already the head), 
-        // just move the pointers around.
-//        for(ptr = curr->arrays_head; ptr != curr->arrays_tail; ptr = ptr->next){
-        int i=0;
-        for(ptr = curr->arrays_start; i<cache_tile_capacity[level] ; ++i, ++ptr){
-            if( ptr->array == array_ptr )
-                break;
-        }
-        if( (ptr->array == array_ptr) && (ptr != curr->arrays_head) ){
-            if( ptr->next != NULL ){
-                ptr->next->prev = ptr->prev;
-            }else{
-                if( ptr->prev != NULL )
-                    curr->arrays_tail = ptr->prev;
-            }
-
-            if( ptr->prev != NULL ){
-                ptr->prev->next = ptr->next;
-            }
-            ptr->prev = NULL;
-            ptr->next = curr->arrays_head;
-            curr->arrays_head->prev = ptr;
-            curr->arrays_head = ptr;
-            // jump to the next iteration
-            pthread_mutex_unlock( &(curr->mutex) );
-            continue;
-        }
-
-        if( curr->available > bufSize ){
-            // If the cache is not full, just add the new array at the first empty spot
-            // (let the compiler do the pointer arithmetic).
-            for(ptr = curr->arrays_head; ptr->array != NULL; ++ptr);
-
-            new_array = ptr;
-            curr->available -= bufSize;
-        }else{
-            // If the cache is full, we will evict the tail by putting the new element there
-            new_array = curr->arrays_tail;
-            // The element before the tail (if there is such an element) is pointing to the tail
-            // as its "next" element.  Now that we are evicting the tail element, we should clean
-            // that "next" pointer.
-            curr->arrays_tail->prev->next = NULL;
-            // Make the element we just cleaned the new tail (since it was the "prev" of the
-            // old tail). Don't worry about losing the pointer, we have it in "new_array".
-            curr->arrays_tail = curr->arrays_tail->prev;
-        }
-
-        new_array->array = array_ptr;
-        new_array->size = bufSize;
-        // Since the new element is the new head, what used to be the head
-        // becomes the new head's next element.
-        new_array->next = curr->arrays_head;
-        // The new head becomes the old head's previous element.
-        curr->arrays_head->prev = new_array;;
-        // No element is before the head, so no "prev" pointer.
-        new_array->prev = NULL;
-        // Update the head pointer (we updated the tail already).
-        curr->arrays_head = new_array;
-
-        pthread_mutex_unlock( &(curr->mutex) );
-    }
+    return old_tile_ptr;
 }
 
-int dplasma_hwloc_isLocal(void *array_ptr, int cacheLevel, int myPUID){
-    int i;
-    cacheInfo_t *curr;
-    arrayInfo_t *tmp;// *end;
 
-    if( cache_count[cacheLevel-1] == 0 )
-        return 0;
-
-    int indx = (myPUID*cache_count[cacheLevel-1])/pu_count;
-    curr = &cache_info[cacheLevel-1][indx];
-
-//    pthread_mutex_lock( &(curr->mutex) );
-//    for(tmp = curr->arrays_head; tmp != curr->arrays_tail; tmp = tmp->next){
-    for(i=0, tmp = curr->arrays_start; i<cache_tile_capacity[cacheLevel-1] ; ++i, ++tmp){
-        if( tmp->array == array_ptr ){
-//            pthread_mutex_unlock( &(curr->mutex) );
-            return 1;
-        }
-    }
-    // Compare against the tail as well
-//    if( end != NULL ){
-//        if( tmp->array == array_ptr ){
-//            pthread_mutex_unlock( &(curr->mutex) );
-//            return 1;
-//        }
-//    }
+//--------------------------------------------------------------------------------
+// This function does the actual job. It sets its last argument, "succeeded", to "0" if
+// it can get the lock (or if the queue changes in the middle of a search) so it can be
+// called again by the caller "cache_buf_referenced()".
 //
-//    pthread_mutex_unlock( &(curr->mutex) );
+// The ordering of the elements is defined by their age. The smaller the age value, the
+// younger the element.  Therefore when we add a new (or reference again an existing)
+// element, we set its age value to the minimum age value minus one. Ages are always
+// negative numbers.
+//
+static void *do_cache_buf_referenced(cache_t *cache, void *tile_ptr, int *succeeded){
+    cache_entry_t *cur, *oldest_elem = NULL, *found_elem = NULL;
+    int i, N;
+    int64_t oldest_age, youngest_age;
+
+    N = cache->tile_capacity;
+    oldest_age = 1;
+    youngest_age = 0;
+
+    // First find the youngest and oldest elements, and maybe the element we are looking for
+    for( i=0, cur = cache->entries; i<N; ++cur, ++i){
+        // If the element is locked, wait until the change has finished.
+        while( cur->lock == 1 );
+
+        // if we hit an empty element, stop looking
+        if( cur->tile_ptr == NULL ){
+            break;
+        }
+
+        // keep track of the oldest element, we might need to evict it.
+        if( (oldest_age == 1) || (cur->age > oldest_age) ){
+            oldest_age = cur->age;
+            oldest_elem = cur;
+        }
+
+        // remember the age of the youngest element.
+        if( cur->age < youngest_age ){
+            youngest_age = cur->age;
+        }
+
+        // We do not break when we find the element because we are also looking for the overall
+        // youngest and oldest elements.
+        if( cur->tile_ptr == tile_ptr ){
+            found_elem = cur;
+        }
+    }
+
+    // if the element already exists and nobody changed it, just make it the youngest.
+    if( found_elem && (found_elem->tile_ptr == tile_ptr) ){
+        if( dplasma_atomic_cas_xxb(&(found_elem->lock), 0, 1, sizeof(found_elem->lock)) ){
+            // Ok we got the lock, now we have to make sure that no other thread changed
+            // the pointer between if(found_elem->tile_ptr == tile_ptr) and the atomic
+            if( found_elem->tile_ptr == tile_ptr ){
+                // Here I can safely update the age, because every other thread has lost the race.
+                // If another thread updated some other element to youngest_age-1 between
+                // setting the variable "youngest" and here, more than one elements will have
+                // the same age.  That makes the replacement policy an imperfect LRU, but reduces
+                // waiting on locks, which should speed up performance.
+                found_elem->age = youngest_age-1;
+                // release the lock
+                found_elem->lock = 0;
+                // notify success to the caller
+                *succeeded = 1;
+                return NULL;
+            }else{
+                // If the pointer was changed, release the lock and go search the queue again
+                found_elem->lock = 0;
+                // notify failure to the caller
+                *succeeded = 0;
+                return NULL;
+            }
+        }else{
+            // I couldn't get a lock, so somebody is changing the queue, so I must
+            // traverse it again.
+            // notify failure to the caller
+            *succeeded = 0;
+            return NULL;
+        }
+    }
+
+    // If we didn't find it, but there is still room in the queue, append the info at the end
+    if( i<N ){
+        if( dplasma_atomic_cas_xxb(&(cur->lock), 0, 1, sizeof(cur->lock)) ){
+            // If this element is still empty
+            if( cur->tile_ptr == NULL ){
+                cur->age = youngest_age-1;
+                cur->tile_ptr = tile_ptr;
+                // release the lock
+                cur->lock = 0;
+                // notify success to the caller
+                *succeeded = 1;
+                return NULL;
+            }else{
+                // release the lock
+                cur->lock = 0;
+                // notify failure to the caller
+                *succeeded = 0;
+                return NULL;
+            }
+        }else{ // otherwise the queue has changed, so we need to search all over again.
+            // notify failure to the caller
+            *succeeded = 0;
+            return NULL;
+        }
+    }
+
+    // If the queue is full, replace (evict) the oldest element, unless some other thread
+    // has changed it already.
+    if( dplasma_atomic_cas_xxb(&(oldest_elem->lock), 0, 1, sizeof(oldest_elem->lock)) ){
+        // If the element hasn't changed, evict it.
+        if( oldest_elem->age == oldest_age ){
+            void *old_ptr = oldest_elem->tile_ptr;
+            oldest_elem->tile_ptr = tile_ptr;
+            oldest_elem->age = youngest_age-1;
+            // release the lock
+            oldest_elem->lock = 0;
+            // notify success to the caller
+            *succeeded = 1;
+            return old_ptr;
+        }else{
+            // release the lock
+            oldest_elem->lock = 0;
+            // notify failure to the caller
+            *succeeded = 0;
+            return NULL;
+        }
+    }
+
+    // notify failure to the caller
+    *succeeded = 0;
+    return NULL;
+}
+
+
+//--------------------------------------------------------------------------------
+int cache_buf_isLocal(cache_t *cache, void *tile_ptr){
+    int i, N;
+    cache_entry_t *cur;
+    N = cache->tile_capacity;
+
+    for( i=0, cur = cache->entries; i<N; ++cur, ++i){
+        // If the element is locked, wait until the change has finished.
+        while( cur->lock == 1 );
+
+        if( cur->tile_ptr == tile_ptr )
+            return 1;
+
+        // if we hit an empty element, stop looking
+        if( cur->tile_ptr == NULL )
+            break;
+    }
     return 0;
 }
 
+
+//--------------------------------------------------------------------------------
+int cache_buf_distance(cache_t *cache, void *tile_ptr){
+    int i=0;
+    cache_t *cur_cache;
+    for(cur_cache=cache; cur_cache != NULL; cur_cache=cur_cache->parent ){ 
+        if( cache_buf_isLocal(cur_cache, tile_ptr) )
+            break;
+        ++i;
+    }
+    return i;
+}
+
+
+//--------------------------------------------------------------------------------
+// Return the age of a tile.  "Age" in this context means a relative ordering
+// of the element in comparison to other elements.  That is, the number of
+// elements that are younger than this element.
+// If the element is not found, the function returns "-1"
+int cache_buf_age(cache_t *cache, void *tile_ptr){
+    int64_t abs_age=1;
+    int i, N, ret_val=0;
+    cache_entry_t *cur;
+    N = cache->tile_capacity;
+
+    for( i=0, cur = cache->entries; i<N; ++cur, ++i){
+        // If the element is locked, wait until the change has finished.
+        while( cur->lock == 1 );
+
+        if( cur->tile_ptr == tile_ptr )
+            abs_age = cur->age;
+
+        // if we hit an empty element, stop looking
+        if( cur->tile_ptr == NULL )
+            break;
+    }
+
+    // If we didn't find the element, return an error value
+    if( abs_age == 1 )
+        return -1;
+
+    ret_val = 0;
+    for( i=0, cur = cache->entries; i<N; ++cur, ++i){
+        // If the element is locked, wait until the change has finished.
+        while( cur->lock == 1 );
+
+        if( cur->age < abs_age )
+            ret_val++;
+
+        // if we hit an empty element, stop looking
+        if( cur->tile_ptr == NULL )
+            break;
+    }
+
+    return ret_val;
+}
