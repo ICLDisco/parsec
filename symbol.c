@@ -1,15 +1,16 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "dplasma.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "symbol.h"
-#include "dplasma.h"
 
 static symbol_t** dplasma_symbol_array = NULL;
 static int dplasma_symbol_array_count = 0,

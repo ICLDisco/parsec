@@ -4,6 +4,8 @@
  *                         reserved.
  */
 
+#include "dplasma.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,7 +16,6 @@
 #endif  /* HAVE_CPU_SET_T */
 #include <errno.h>
 
-#include "dplasma.h"
 #include "scheduling.h"
 #include "dequeue.h"
 #include "barrier.h"
@@ -24,7 +25,7 @@
 #ifdef DISTRIBUTED
 #include "remote_dep.h"
 #endif
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
 #include "papi.h"
 #endif
 
@@ -36,7 +37,7 @@ int MEMALLOC_start_key, MEMALLOC_end_key;
 
 static const dplasma_t** dplasma_array = NULL;
 static int dplasma_array_size = 0, dplasma_array_count = 0;
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
 int eventSet = PAPI_NULL;
 int num_events = 0;
 char* event_names[MAX_EVENTS];
@@ -200,7 +201,9 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
+#if defined(HAVE_HWLOC)
     int bind_to_proc = startup->th_id;
+#endif  /* defined(HAVE_HWLOC) */
 
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
 #if defined(ON_ZOOT)
@@ -386,7 +389,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     dplasma_remote_dep_init(context);
 #endif
 
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
     if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
         printf("PAPI library initialization error! \n");
     else {
@@ -415,7 +418,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
     dplasma_context_t* context = *pcontext;
     int i;
 
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
     PAPI_shutdown();
 #endif
 

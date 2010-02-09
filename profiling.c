@@ -22,9 +22,9 @@ typedef struct dplasma_profiling_output_t {
     int key;
     unsigned long id;
     dplasma_time_t timestamp;
-#if defined(USE_PAPI)
+#if defined(HAVE_PAPI)
     long long counter_value;
-#endif /* defined(USE_PAPI) */
+#endif /* defined(HAVE_PAPI) */
 } dplasma_profiling_output_t;
 
 struct dplasma_thread_profiling_t {
@@ -535,12 +535,12 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
             
             fprintf(out, "     <EVENT>\n");
 
-            fprintf(out, "       <ID>%"PRIu64"</ID>\n"
+            fprintf(out, "       <ID>%lu</ID>\n"
                          "       <START>%"PRIu64"</START>\n"
                          "       <END>%"PRIu64"</END>\n",
                     profile->events[start_idx].id,
                     start, end);
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
             fprintf(out, "       <PAPI_START>%ld</PAPI_START>\n"
                          "       <PAPI_END>%ld</PAPI_END>\n",
                     profile->events[start_idx].counter_value,

@@ -9,8 +9,8 @@
 
 typedef struct dep dep_t;
 
-#include "expr.h"
 #include "dplasma.h"
+#include "expr.h"
 
 #define MAX_CALL_PARAM_COUNT    MAX_PARAM_COUNT
 

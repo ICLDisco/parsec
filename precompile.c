@@ -4,13 +4,14 @@
  *                         reserved.
  */
 
+#include "dplasma.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
 #include "precompile.h"
-#include "dplasma.h"
 #include "symbol.h"
 #include "expr.h"
 
@@ -1045,7 +1046,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         }
 
         output( "\n"
-                "#ifdef USE_PAPI\n"
+                "#ifdef HAVE_PAPI\n"
                 "  int i, num_events;\n"
                 "  int events[MAX_EVENTS];\n"
                 "  PAPI_list_events(eventSet, &events, &num_events);\n"
@@ -1120,7 +1121,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         }
 
         output( "\n"
-                "#ifdef USE_PAPI\n"
+                "#ifdef HAVE_PAPI\n"
                 "  PAPI_stop(eventSet, &values);\n"
                 "  if(num_events > 0) {\n"
                 "    printf(\"PAPI counter values from %5s (thread=%%ld): \", context->eu_id);\n"  
@@ -1354,7 +1355,7 @@ int dplasma_dump_all_c(char *filename)
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
             "#define TILE_SIZE (120*120*sizeof(double))\n"
-            "#ifdef USE_PAPI\n"
+            "#ifdef HAVE_PAPI\n"
             "#include \"papi.h\"\n"
             "extern int eventSet;\n"
             "#endif\n"

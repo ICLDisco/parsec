@@ -1,10 +1,16 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dplasma.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <errno.h>
 
-#include "dplasma.h"
 #include "precompile.h"
 
 extern int yyparse();

@@ -7,6 +7,8 @@
 #ifndef _dplasma_h
 #define _dplasma_h
 
+#include "dplasma_config.h"
+
 typedef struct dplasma_t dplasma_t;
 
 #define MAX_LOCAL_COUNT  5
@@ -37,7 +39,7 @@ typedef struct dplasma_t dplasma_t;
 #else
 #define DEBUG(ARG)
 #endif
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
 #define MAX_EVENTS 3
 #endif
 
