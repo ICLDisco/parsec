@@ -1,0 +1,31 @@
+Parameter designation:
+* IN, INOUT, SCRATCH, VALUE
+* 2D issues: rectangular matrices, leading dimension
+* Triangular upper/lower, diagonal
+* banded
+* more from BLAS and LAPACK
+
+Function decorations:
+* pragmas
+* fake function declaration beefore:
+static BFR_FUNC foo(IN a, OUT b);
+int foo(double *a, double *b) { }
+* fake function call inside:
+int foo(double *a, double *b) {
+  BFR_declare( IN, a, OUT b );
+}
+
+Language parsing:
+* Complex numbers
+* long long int
+* mixing of declarations and code
+
+Indexing:
+* A[i, j] comma operator is already used in C/C++ so A[i, j] <=> A[j]
+* A[i ; j] this introduces new syntax
+* A(i, j) feels more like Fortran so maybe the user will expect indices starting with 1 not 0
+* A(i, j, k, l) to select a tile and an item within a tile
+* A({i, j}) almost legal C99: A((struct {int i, j;}){I, J})
+* A({i, j, k, l}) almost legal C99: A((struct ijkl){I, J})
+
+_Thread_local storage class in C and thread_local in C++
