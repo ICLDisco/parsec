@@ -1,10 +1,32 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include "atomic.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// Forward declarations
+///////////////////////////////////////////////////////////////////////////////////////////////
+// types
 
-void dplasma_hwloc_init_cache(int npu, int level, int npu_per_cache, int cache_size, int tile_size);
-void dplasma_hwloc_insert_buffer(void *array_ptr, int bufSize, int myPUID);
-int dplasma_hwloc_isLocal(void *array_ptr, int cacheLevel, int myPUID);
+typedef struct{
+    void *tile_ptr;
+    int64_t age;
+    volatile int lock;
+} cache_entry_t;
+
+
+typedef struct _cache_t cache_t;
+
+struct _cache_t{
+    cache_t *parent;
+    int tile_capacity;
+    cache_entry_t *entries;
+};
+     
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// function forward declarations
+
+cache_t *cache_create(int core_count, cache_t *parent, int tile_capacity);
+void *cache_buf_referenced(cache_t *cache, void *ptr);
+int cache_buf_isLocal(cache_t *cache, void *tile_ptr);
+int cache_buf_distance(cache_t *cache, void *tile_ptr);
+int cache_buf_age(cache_t *cache, void *tile_ptr);
