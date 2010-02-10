@@ -201,7 +201,7 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) || defined(HAVE_CPU_SET_T)
     int bind_to_proc = startup->th_id;
 #endif  /* defined(HAVE_HWLOC) */
 

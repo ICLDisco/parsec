@@ -66,7 +66,7 @@ if(LAPACK_FOUND)
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA plasma libraries are")
     if( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
-      set( PLASMA_LIBRARIES "${PLASMA_cblas_LIB};${PLASMA_coreblas_LIB};${PLASMA_corelapack_LIB};${PLASMA_plasma_LIB}")
+      set( PLASMA_LIBRARIES "${PLASMA_plasma_LIB};${PLASMA_coreblas_LIB};${PLASMA_corelapack_LIB};${PLASMA_cblas_LIB}")
       set( FOUND_PLASMA_LIB 1)
     endif( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
   endif(FOUND_PLASMA_INCLUDE)

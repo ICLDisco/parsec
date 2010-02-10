@@ -18,6 +18,8 @@ option(DPLASMA_DISTRIBUTED
   "If DPLASMA support distributed memory systems (i.e. remote dependencies tracking)" ON)
 option(CHECK_PAPI
   "If PAPI support is expected or not. Default OFF" OFF)
+option(BUILD_64bits
+  "Build 64 bits mode (default on)" ON)
 
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)
@@ -26,6 +28,48 @@ set (DPLASMA_VERSION_MINOR 1)
 set( PROJECT_INCLUDE_DIR ./)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
+
+#
+# check for the CPU we build for
+#
+EXECUTE_PROCESS(
+    COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+    OUTPUT_VARIABLE MACHINE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+MESSAGE(STATUS "Building for target ${MACHINE}")
+
+STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${MACHINE})
+IF (_mach_x86)
+    MESSAGE(STATUS "Found target for X86")
+    SET(ARCH_X86 1)
+ENDIF (_mach_x86)
+
+STRING(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${MACHINE})
+IF (_mach_x86_64)
+    MESSAGE(STATUS "Found target X86_64")
+    SET(ARCH_X86_64 1)
+ENDIF (_mach_x86_64)
+
+STRING(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${MACHINE})
+IF (_mach_ppc)
+    MESSAGE(STATUS "Found target for PPC")
+    SET(ARCH_PPC 1)
+ENDIF (_mach_ppc)
+
+ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+#
+# If we are on a 64 bits machine make sure to compile in 64 bits mode.
+#
+if (BUILD_64bits)
+  include(${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
+  check_c_compiler_flag("-m64" C_M64)
+  if (C_M64)
+    message(STATUS "Add -m64 to the compiler flags")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
+    set(CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} -m64")
+  endif (C_M64)
+endif (BUILD_64bits)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
@@ -67,35 +111,43 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   message("--  Mac OS X detected")
 else (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   if(NOT HAVE_COMPARE_AND_SWAP_32)
-    check_symbol_exists( __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 ""
-      HAVE_COMPARE_AND_SWAP_32)
+    check_symbol_exists( __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 "" HAVE_COMPARE_AND_SWAP_32)
     if(NOT HAVE_COMPARE_AND_SWAP_32)
       #  icc doesn't have the define but it still have the intrinsic function
       CHECK_FUNCTION_EXISTS(__sync_bool_compare_and_swap  HAVE_COMPARE_AND_SWAP_32)
     endif (NOT HAVE_COMPARE_AND_SWAP_32)
 
     if( CMAKE_SIZEOF_VOID_P MATCHES "8" AND HAVE_COMPARE_AND_SWAP_32 )
-      CHECK_FUNCTION_EXISTS(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 "" HAVE_COMPARE_AND_SWAP_64)
+      check_symbol_exists(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 "" HAVE_COMPARE_AND_SWAP_64)
       if( NOT HAVE_COMPARE_AND_SWAP_64 )
         CHECK_FUNCTION_EXISTS(__sync_bool_compare_and_swap  HAVE_COMPARE_AND_SWAP_64)
       endif( NOT HAVE_COMPARE_AND_SWAP_64 )
       if( NOT HAVE_COMPARE_AND_SWAP_64 )
-        error( "64 bits pointers without 64 bits atomic compare and swap")
+        message(FATAL_ERROR "64 bits pointers without 64 bits atomic compare and swap")
       endif( NOT HAVE_COMPARE_AND_SWAP_64 )
-    endif( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
+    endif( CMAKE_SIZEOF_VOID_P MATCHES "8" AND HAVE_COMPARE_AND_SWAP_32 )
   endif(NOT HAVE_COMPARE_AND_SWAP_32)
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 find_package(Threads)
 if(Threads_FOUND)
+  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CMAKE_THREAD_LIBS_INIT}")
   check_function_exists(pthread_create HAVE_PTHREAD)
   if(HAVE_PTHREAD)
-    set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CMAKE_THREAD_LIBS_INIT}")
+    set(EXTRA_LIBS "${EXTRA_LIBS};${CMAKE_THREAD_LIBS_INIT}")
   endif(HAVE_PTHREAD)
 endif(Threads_FOUND)
 
 set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};rt")
 check_function_exists(sched_setaffinity HAVE_SCHED_SETAFFINITY)
+
+include(CheckStructHasMember)
+check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
+if( NOT HAVE_TIMESPEC_TV_NSEC )
+  add_definitions(-D_GNU_SOURCE)
+  #  set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
+  check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
+endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
 
 find_package(PLASMA REQUIRED)
@@ -117,7 +169,7 @@ if (CHECK_PAPI)
   endif (PAPI_FOUND)
 endif (CHECK_PAPI)
 
-add_library(dplasma dplasma.c symbol.c assignment.c expr.c params.c dep.c
+add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c remote_dep.c barrier.c precompile.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 
@@ -132,7 +184,7 @@ target_link_libraries(grapher dplasma ${EXTRA_LIBS})
 
 if (DPLASMA_DISTRIBUTED)
   if (MPI_FOUND)
-    add_library(dplasma-dm dplasma.c symbol.c assignment.c expr.c params.c dep.c
+    add_library(dplasma-dm STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
       scheduling.c profiling.c remote_dep.c barrier.c precompile.c
       ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
     set_target_properties(dplasma-dm PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")

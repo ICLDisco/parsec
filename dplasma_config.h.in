@@ -8,10 +8,12 @@
 #cmakedefine HAVE_HWLOC
 #cmakedefine HAVE_PAPI
 #cmakedefine HAVE_CPU_SET_T
-
+#cmakedefine HAVE_CLOCK_GETTIME
 #cmakedefine HAVE_COMPARE_AND_SWAP_32
 #cmakedefine HAVE_COMPARE_AND_SWAP_64
 
+#cmakedefine ARCH_X86
+#cmakedefine ARCH_X86_64
 #cmakedefine MAC_OS_X
 #cmakedefine DPLASMA_PROFILING
 #cmakedefine DPLASMA_GRAPHER
