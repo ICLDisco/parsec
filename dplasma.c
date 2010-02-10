@@ -429,6 +429,13 @@ int dplasma_fini( dplasma_context_t** pcontext )
     /* The first execution unit is for the master thread */
     for(i = 1; i < context->nb_cores; i++) {
         pthread_join( context->pthreads[i], NULL );
+    }
+
+#ifdef DISTRIBUTED
+    dplasma_remote_dep_fini( context );
+#endif
+    
+    for(i = 1; i < context->nb_cores; i++) {
 #if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
         context->execution_units[i]->eu_task_queue = NULL;
@@ -438,9 +445,6 @@ int dplasma_fini( dplasma_context_t** pcontext )
         context->execution_units[i]->eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
-#ifdef DISTRIBUTED
-    dplasma_remote_dep_fini( context );
-#endif
     
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( );

@@ -1231,7 +1231,7 @@ static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int 
     }
     output("%sfunction = (dplasma_t*)dplasma_find( \"%s\" );\n"
            "%sfunction->deps = NULL;\n", spaces, d->name, spaces);
-    DEBUG(("%sprintf(\"Prepare dependencies tracking for %s\\n\");\n", spaces, d->name ));
+    output("%sDEBUG((\"Prepare dependencies tracking for %s\\n\"));\n", spaces, d->name );
     for(s = 0; s < d->nb_locals; s++) {
         output("%s%s_start = ", spaces, d->locals[s]->name);
         dump_inline_c_expression(d->locals[s]->min); 
