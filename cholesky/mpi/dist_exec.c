@@ -210,8 +210,6 @@ int main(int argc, char ** argv){
     dplasma_progress(dplasma);
     TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
 
-    /* A most probably useless barrier */
-    MPI_Barrier(MPI_COMM_WORLD);
     dispose_dplasma(dplasma);
     
 # ifdef USE_MPI    
@@ -444,11 +442,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( descA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
-	constant = expr_new_int( descA.nrst );
+        constant = expr_new_int( descA.nrst );
         dplasma_assign_global_symbol( "stileSIZE", constant );
-
-
-	
     }
     load_dplasma_hooks(dplasma);
     enumerate_dplasma_tasks(dplasma);
