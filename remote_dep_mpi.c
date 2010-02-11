@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "profiling.h"
 
-#define USE_MPI_THREAD
+#define USE_MPI
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -146,6 +146,7 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
     MPI_Barrier(dep_comm);
     TAKE_TIME(MPI_Activate_ek, 0);
 
+    
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {        
         MPI_Recv_init(&dep_activate_buff[i], dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
@@ -155,13 +156,13 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
         dep_put_rcv_req[i] = MPI_REQUEST_NULL;
         dep_put_snd_req[i] = MPI_REQUEST_NULL;
     }
-    return np;
+    return 4;
 }
 
 static int remote_dep_mpi_fini(dplasma_context_t* context)
 {
     int i;
-    
+
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
         MPI_Cancel(&dep_activate_req[i]); MPI_Request_free(&dep_activate_req[i]);
@@ -169,7 +170,6 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
         assert(MPI_REQUEST_NULL == dep_put_rcv_req[i]);
         assert(MPI_REQUEST_NULL == dep_put_snd_req[i]);
     }
-
     MPI_Barrier(dep_comm);
     MPI_Comm_free(&dep_comm);
     return 0;
@@ -177,7 +177,6 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
 
 #define TILE_SIZE (120 * 120)
 
-#define CRC_CHECK
 #ifdef CRC_CHECK
 #define CRC_PRINT(data, pos) do \
 { \
@@ -210,6 +209,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
     MPI_Status status;
     int ret = 0;
     int i, flag;
+    
+    if(eu_context->eu_id != 0) return 0;
     
     do {
 /*        TAKE_TIME(MPI_Test_any_sk);*/

@@ -66,9 +66,9 @@ static inline double get_cur_time(){
 #define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(print) do { \
-time_elapsed = get_cur_time() - time_elapsed; \
-printf("TIMED %f doing\t", time_elapsed); \
-printf print; \
+  time_elapsed = get_cur_time() - time_elapsed; \
+  printf("[%d] TIMED %f doing\t", rank, time_elapsed); \
+  printf print; \
 } while(0)
 
 
@@ -77,7 +77,10 @@ printf print; \
 #   define exit(ret) MPI_Abort(MPI_COMM_WORLD, ret)
 #endif
 
-
+typedef enum {
+    DO_PLASMA,
+    DO_DPLASMA
+} backend_argv_t;
 
 /* globals and argv set values */
 PLASMA_desc descA;
@@ -93,6 +96,7 @@ int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
 PLASMA_enum uplo = PlasmaLower;
+backend_argv_t backend = DO_DPLASMA;
 
 int main(int argc, char ** argv)
 {
@@ -113,42 +117,70 @@ int main(int argc, char ** argv)
     
     if(0 == rank)
         create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &WORK, &D, LDA, NRHS, LDB, &descA);
-    scatter_matrix(&descA, &ddescA);
 
-    //#ifdef VTRACE 
-	//    VT_ON();
-	//#endif
-    
-    /*** THIS IS THE DPLASMA COMPUTATION ***/
-    TIME_START();
-    dplasma = setup_dplasma(&argc, &argv);
-    if(0 == rank)
+    switch(backend)
     {
-        dplasma_execution_context_t exec_context;
-            
-        /* I know what I'm doing ;) */
-        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-        dplasma_set_initial_execution_context(&exec_context);
-        dplasma_schedule(dplasma, &exec_context);
-    }
-    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, N, NB));
+        case DO_PLASMA: {
+            plasma_context_t* plasma = plasma_context_self();
 
-    if(do_warmup)
-        warmup_dplasma(dplasma);
+            if(do_warmup)
+            {
+                TIME_START();
+                plasma_parallel_call_2(plasma_pdpotrf, 
+                                       PLASMA_enum, uplo, 
+                                       PLASMA_desc, descA);
+                TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, NB,
+                            (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+            }
+            TIME_START();
+            plasma_parallel_call_2(plasma_pdpotrf,
+                                   PLASMA_enum, uplo,
+                                   PLASMA_desc, descA);
+            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, NB, 
+                        gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+            break;
+        }
+        case DO_DPLASMA: {
+            scatter_matrix(&descA, &ddescA);
+
+            //#ifdef VTRACE 
+            //    VT_ON();
+            //#endif
     
-    /* lets rock! */
-    TIME_START();
-    dplasma_progress(dplasma);
-    TIME_PRINT(("Execute on rank %d:\t%d %d %f Gflops\n", rank, N, NB, gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
+            /*** THIS IS THE DPLASMA COMPUTATION ***/
+            TIME_START();
+            dplasma = setup_dplasma(&argc, &argv);
+            if(0 == rank)
+            {
+                dplasma_execution_context_t exec_context;
 
-    cleanup_dplasma(dplasma);
-    /*** END OF DPLASMA COMPUTATION ***/
+                /* I know what I'm doing ;) */
+                exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+                dplasma_set_initial_execution_context(&exec_context);
+                dplasma_schedule(dplasma, &exec_context);
+            }
+            TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
+
+            if(do_warmup)
+                warmup_dplasma(dplasma);
+    
+            /* lets rock! */
+            TIME_START();
+            dplasma_progress(dplasma);
+            TIME_PRINT(("Dplasma computation:\t%d %d %f Gflops\n", N, NB, 
+                        gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
+
+            cleanup_dplasma(dplasma);
+            /*** END OF DPLASMA COMPUTATION ***/
 
 #ifdef USE_MPI
-    MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+            MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
-    
-    gather_matrix(&descA, &ddescA);
+            gather_matrix(&descA, &ddescA);
+            break;
+        }
+    }
+
     if(0 == rank)
         check_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &descA, gflops);
 
@@ -170,6 +202,8 @@ static void runtime_init(int argc, char **argv)
         {"stile-size",  required_argument,  0, 's'},
         {"xcheck",      no_argument,        0, 'x'},
         {"warmup",      optional_argument,  0, 'w'},
+        {"dplasma",     no_argument,        0, 'd'},
+        {"plasma",      no_argument,        0, 'p'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -193,7 +227,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "c:n:a:r:b:g:s:x:w::h",
+        c = getopt_long (argc, argv, "dpc:n:a:r:b:g:s:x:w::h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -202,30 +236,28 @@ static void runtime_init(int argc, char **argv)
         
         switch (c)
         {
-            case 'a':
-                LDA = atoi(optarg);
-                printf("LDA set to %d\n", LDA);
+            case 'p': 
+                backend = DO_PLASMA;
+                break; 
+            case 'd':
+                backend = DO_DPLASMA;
                 break;
-                
+
+            case 'c':
+                cores = atoi(optarg);
+                if(cores<= 0)
+                    cores=1;
+                //printf("Number of cores (computing threads) set to %d\n", cores);
+                break;
+
             case 'n':
                 N = atoi(optarg);
-                printf("matrix size set to %d\n", N);
+                //printf("matrix size set to %d\n", N);
                 break;
-                
-            case 'r':
-                NRHS  = atoi(optarg);
-                printf("number of RHS set to %d\n", NRHS);
-                break;
-                
-            case 'b':
-                LDB  = atoi(optarg);
-                printf("LDB set to %d\n", LDB);
-                break;
-                
+
             case 'g':
                 ddescA.GRIDrows = atoi(optarg);
                 break;
-                
             case 's':
                 ddescA.ncst = ddescA.nrst = atoi(optarg);
                 if(ddescA.ncst <= 0)
@@ -233,14 +265,20 @@ static void runtime_init(int argc, char **argv)
                     fprintf(stderr, "select a positive value for super tile size\n");
                     exit(2);
                 }                
-                printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
+                //printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
                 break;
                 
-            case 'c':
-                cores = atoi(optarg);
-                if(cores<= 0)
-                    cores=1;
-                printf("Number of cores (computing threads) set to %d\n", cores);
+            case 'r':
+                NRHS  = atoi(optarg);
+                printf("number of RHS set to %d\n", NRHS);
+                break;
+            case 'a':
+                LDA = atoi(optarg);
+                printf("LDA set to %d\n", LDA);
+                break;                
+            case 'b':
+                LDB  = atoi(optarg);
+                printf("LDB set to %d\n", LDB);
                 break;
                 
             case 'x':
@@ -260,11 +298,13 @@ static void runtime_init(int argc, char **argv)
                         "   -n, --matrix-size : the size of the matrix\n"
                         "Optional arguments:\n"
                         "   -c --nb-cores : number of computing threads to use\n"
+                        "   -d --dplasma : use DPLASMA backend (default)\n"
+                        "   -p --plasma : use PLASMA backend\n"
+                        "   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
+                        "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
                         "   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n"
                         "   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n"
                         "   -r --nrhs : number of RHS (default: 1)\n"
-                        "   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-                        "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
                         "   -x --xcheck : do extra nasty result validations"
                         "   -w --warmup : do some warmup, if > 1 also preload cache"
                         );
@@ -275,18 +315,26 @@ static void runtime_init(int argc, char **argv)
         }
     } while(1);
     
+    if((DO_PLASMA == backend) && (nodes > 1))
+    {
+        fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
+        exit(2);
+    }
+    
     if(N == 0)
     {
         fprintf(stderr, "must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
         exit(2);
     } 
+
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
         fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
         exit(2);
     }
-    printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
+    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
+
     if(LDA <= 0) 
     {
         LDA = N;
@@ -296,7 +344,15 @@ static void runtime_init(int argc, char **argv)
         LDB = N;        
     }
     
-    PLASMA_Init(cores);
+    switch(backend)
+    {
+        case DO_PLASMA:
+            PLASMA_Init(cores);
+            break;
+        case DO_DPLASMA:
+            PLASMA_Init(1);
+            break;
+    }
 }
 
 static void runtime_fini(void)
@@ -388,7 +444,6 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 
 #undef N
 #undef NB
-#undef rank
 
 
 
@@ -537,12 +592,13 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
         printf("****************************************************\n");
         printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
         printf("****************************************************\n");
-        printf(" ---- n= %d np= %d nc= %d g= %d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, gflops);
+        printf(" ---- n= %d np= %d nc= %d %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
         printf("****************************************************\n");
     }
     free(A2);
 }
 
+#undef rank
 
 /*------------------------------------------------------------------------
  * *  Check the factorization of the matrix A2
