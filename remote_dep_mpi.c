@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "profiling.h"
 
-#define USE_MPI
+#define USE_MPI_THREAD__
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);

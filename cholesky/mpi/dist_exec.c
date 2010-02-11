@@ -129,14 +129,14 @@ int main(int argc, char ** argv)
                 plasma_parallel_call_2(plasma_pdpotrf, 
                                        PLASMA_enum, uplo, 
                                        PLASMA_desc, descA);
-                TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, NB,
+                TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             }
             TIME_START();
             plasma_parallel_call_2(plasma_pdpotrf,
                                    PLASMA_enum, uplo,
                                    PLASMA_desc, descA);
-            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, NB, 
+            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
                         gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
         }
