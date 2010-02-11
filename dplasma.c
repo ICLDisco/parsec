@@ -306,6 +306,11 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     return __dplasma_progress(eu);
 }
 
+#ifdef USE_PAPI
+extern int num_events;
+extern char* event_names[];
+#endif
+
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t) +
@@ -318,6 +323,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
 
+#ifdef USE_PAPI
+    num_events = 0;
+#endif
+    
     for( i = 0; i < *pargc; i++ ) {
         if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
 #ifdef DPLASMA_GRAPHER
@@ -327,7 +336,29 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
             }      
 #endif  /* DPLASMA_GRAPHER */
         }
+        else if( 0 == strcmp( (*pargv)[i], "-papi" ) ) {
+#ifdef USE_PAPI
+            char* dup;
+            char* ptr;
+            ptr = dup = strdup((*pargv)[i+1]);
+            while(NULL != (ptr = strrchr(dup, ',')))
+            {
+                if(num_events >= 2)
+                {
+                    fprintf(stderr, "-papi accepts only up to 3 events\n");
+                    break;
+                }
+                *ptr = '\0';
+                events_names[num_events] = strdup(ptr + 1);
+                num_events++;
+            }
+            free(dup);
+#else 
+            fprintf(stderr, "-papi is pointless for this PAPI disabled build\n");
+#endif
+        }
     }
+    
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
