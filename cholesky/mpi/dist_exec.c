@@ -244,7 +244,6 @@ static void runtime_init(int argc, char **argv)
                 printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
                 
-            case '?': /* getopt_long already printed an error message. */
             case 'h':
                 printf(
                        "Mandatory argument:\n"
@@ -258,6 +257,7 @@ static void runtime_init(int argc, char **argv)
                        "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
                        );
                 exit(0);
+            case '?': /* getopt_long already printed an error message. */
             default:
                 break; /* Assume anything else is dplasma/mpi stuff */
         }
