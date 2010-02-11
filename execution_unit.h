@@ -38,7 +38,7 @@ typedef struct dplasma_execution_unit_t {
     int8_t*  eu_steal_from;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO) */
 
-    uint8_t* remote_dep_fw_mask;
+    uint32_t* remote_dep_fw_mask;
 } dplasma_execution_unit_t;
 
 struct dplasma_context_t {

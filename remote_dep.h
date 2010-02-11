@@ -10,15 +10,14 @@
 #include "execution_unit.h"
 
 #if defined(USE_MPI)
-#   define ALLOW_REMOTE_DEP
+# define DISTRIBUTED
 #else
-#   undef ALLOW_REMOTE_DEP
+# undef DISTRIBUTED
 #endif
 
 
-int dplasma_remote_dep_init(dplasma_context_t* context);
-int dplasma_remote_dep_fini(dplasma_context_t* context);
-
+#if defined(DISTRIBUTED) || defined(_DEBUG)
+# ifdef DEPRECATED
 /* Activate all the dependencies of origin on the rank hosting exec_context
  */
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
@@ -26,24 +25,34 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const param_t* origin_param,
                                 const dplasma_execution_context_t* exec_context,
                                 const param_t* dest_param );
+# endif
 
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param, 
                                      int rank, void** data);
 
-/* Gives pointers to expr_t allowing for evaluation of GRID predicates */
+#else
+# ifdef DEPRECATED
+#   define dplasma_remote_dep_activate(eu, o, op, e, ep) (0)
+# endif
+# ifndef _DEBUG
+#   define dplasma_remote_dep_activate_rank(eu, o, op, r, d) (0)
+# endif
+#endif
+
+/* Gives pointers to expr_t allowing for evaluation of GRID predicates, needed 
+ * by the precompiler only */
 int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
                                       expr_t **rowpred,
                                       expr_t **colpred, 
                                       symbol_t **rowsize,
                                       symbol_t **colsize);
 
-/* Compute the flat rank of the node hosting exec_context in the process grid */
-int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
-                                         const dplasma_execution_context_t* origin,
-                                         const dplasma_execution_context_t* exec_context);
-#if defined(ALLOW_REMOTE_DEP)
+#if defined(DISTRIBUTED)
+
+int dplasma_remote_dep_init(dplasma_context_t* context);
+int dplasma_remote_dep_fini(dplasma_context_t* context);
 
 /* Poll for remote completion of tasks that would enable some work locally */
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context);
@@ -53,7 +62,7 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context);
 /* Clear the already forwarded remote dependency matrix */
 static inline void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
 {
-    DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));
+    /*DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));*/
     memset(eu_context->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
 }
 
@@ -61,11 +70,11 @@ static inline void dplasma_remote_dep_reset_forwarded( dplasma_execution_unit_t*
 static inline void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
 {
     int boffset;
-    uint8_t mask = 1;
+    uint32_t mask;
     
-    DEBUG(("fw mark\tREMOTE rank %d\n", rank));
-    boffset = rank / sizeof(uint8_t);
-    mask = ((uint8_t)1) << (rank % sizeof(uint8_t));
+    /*DEBUG(("fw mark\tREMOTE rank %d\n", rank));*/
+    boffset = rank / sizeof(uint32_t);
+    mask = ((uint32_t)1) << (rank % sizeof(uint32_t));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
     eu_context->remote_dep_fw_mask[boffset] |= mask;
 }
@@ -74,21 +83,23 @@ static inline void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* 
 static inline int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
 {
     int boffset;
-    uint8_t mask = 1;
+    uint32_t mask;
     
-    boffset = rank / sizeof(uint8_t);
-    mask = ((uint8_t)1) << (rank % sizeof(uint8_t));
+    boffset = rank / sizeof(uint32_t);
+    mask = ((uint32_t)1) << (rank % sizeof(uint32_t));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
-    DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
+    /*DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));*/
     return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
 }
 
 #else 
-#   define dplasma_remote_dep_progress(ctx) (0)
-#   define dplasma_remote_dep_reset_forwarded(ctx)
-#   define dplasma_remote_dep_mark_forwarded(ctx, rk)
-#   define dplasma_remote_dep_is_forwarded(ctx, rk) (0)
-#endif /* ALLOW_REMOTE_DEP */
+# define dplasma_remote_dep_init(ctx) (1)
+# define dplasma_remote_dep_fini(ctx) (0)
+# define dplasma_remote_dep_progress(ctx) (0)
+# define dplasma_remote_dep_reset_forwarded(ctx)
+# define dplasma_remote_dep_mark_forwarded(ctx, rk)
+# define dplasma_remote_dep_is_forwarded(ctx, rk) (0)
+#endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */
 

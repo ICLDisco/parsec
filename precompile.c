@@ -595,9 +595,7 @@ static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_b
     return dname;
 }
 
-#ifdef DISTRIBUTED
 #include "remote_dep.h"
-#endif
 
 static void dplasma_dump_context_holder(const dplasma_t *d,
                                         char *init_func_body,
@@ -664,7 +662,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
         output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
     }
-    
     output("  e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
            d->name, d->name, d->name);
     for(j = 0; j < d->nb_locals; j++) {
@@ -674,15 +671,26 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
         else
             output(", ");
     }
+    output("  if(data) {\n");
     cpt = 0;
     for( i = 0; i < MAX_PARAM_COUNT; i++) {
         if( d->inout[i] != NULL &&
             d->inout[i]->sym_type & SYM_OUT ) {
-            output("  e%s->data[%d] = data[%d];\n", d->name, cpt, cpt);
+            output("    e%s->data[%d] = data[%d];\n", d->name, cpt, cpt);
             cpt++;
         }
     }
-
+    output("  } else {\n");
+    cpt = 0;
+    for( i = 0; i < MAX_PARAM_COUNT; i++) {
+        if( d->inout[i] != NULL &&
+           d->inout[i]->sym_type & SYM_OUT ) {
+            output("    e%s->data[%d] = NULL;\n", d->name, cpt, cpt);
+            cpt++;
+        }
+    }
+    output("  }\n\n");
+    
     output("  dplasma_execution_context_t*   ready_list = NULL;\n"
            "  uint32_t usage = 0;\n"
            "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
@@ -697,13 +705,13 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
         output("  (void)%s;\n", d->locals[i]->name);
     }
 
-#ifdef DISTRIBUTED
-    output("  if(propagate_remote_dep) {\n"
+    output("#ifdef DISTRIBUTED\n"
+           "  if(propagate_remote_dep) {\n"
            "    dplasma_remote_dep_reset_forwarded(context);\n"
-           "  }\n");
-#else
-    output("  (void)propagate_remote_dep;  /* silence a warning */\n");
-#endif  /* DISTRIBUTED */
+           "  }\n"
+           "#else\n"
+           "  (void)propagate_remote_dep;  /* silence a warning */\n"
+           "#endif\n");
     
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
@@ -820,7 +828,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             spaces, i, j,
                             spaces, target->locals[target->nb_locals-1]->name);
 
-#ifdef DISTRIBUTED
                     /* If predicates don't verify, this is remote, compute 
                      * target rank from predicate values
                      */
@@ -866,16 +873,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                         "%s    }\n",
                                         spaces, spaces, spaces, spaces, spaces, i, spaces, spaces);
                             }
-                    }
-#else
-                    {
-                        output("%s    } else  {\n"
-                               "%s      DEBUG((\"This build does not support distributed runs, but some of your predicates didn't verified\\n\"));\n"
-                               "%s    }\n", 
-                               spaces, spaces, spaces);
-                    }
-#endif
-                    
+                    }                    
                     output("%s  }\n", spaces);
                     
                     for(k = MAX_PARAM_COUNT-1; k >= 0; k--) {

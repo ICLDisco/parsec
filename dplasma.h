@@ -190,6 +190,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                                             struct dplasma_dependencies_t **deps_location,
                                             dplasma_execution_context_t** pready_list );
 
+#ifdef DEPRECATED
 /**
  * Release all OUT dependencies for this particular instance of the service.
  * @param [IN] The execution context which just completed
@@ -204,6 +205,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                                       dplasma_execution_context_t* restrict exec_context,
                                       const param_t* restrict dest_param, 
                                       int forward_remote );
+#endif
 
 /**
  * Check is there is any of the input parameters that do depend on some

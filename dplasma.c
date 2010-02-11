@@ -22,9 +22,7 @@
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
-#ifdef DISTRIBUTED
 #include "remote_dep.h"
-#endif
 #ifdef HAVE_PAPI
 #include "papi.h"
 #endif
@@ -415,11 +413,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     /* Release the temporary array used for starting up the threads */
     free(startup);
 
-#ifdef DISTRIBUTED
     /* Wait until threads are bound before introducing progress threads */
-    dplasma_remote_dep_init(context);
-#endif
-
+    context->nb_nodes = dplasma_remote_dep_init(context);
+    
 #ifdef HAVE_PAPI
     if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
         printf("PAPI library initialization error! \n");
@@ -462,9 +458,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
         pthread_join( context->pthreads[i], NULL );
     }
 
-#ifdef DISTRIBUTED
-    dplasma_remote_dep_fini( context );
-#endif
+    (void) dplasma_remote_dep_fini( context );
     
     for(i = 1; i < context->nb_cores; i++) {
 #if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -733,39 +727,6 @@ static int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exe
     return mask;
 }
 
-/**
- * Check if a particular instance of the service can be executed based on the
- * values of the arguments and the ranges specified.
- */
-static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
-{
-    dplasma_t* function = exec_context->function;
-    int i, rc, min, max;
-
-    for( i = 0; i < function->nb_locals; i++ ) {
-        symbol_t* symbol = function->locals[i];
-
-        rc = expr_eval( symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
-        if( EXPR_SUCCESS != rc ) {
-            fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-        rc = expr_eval( symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
-        if( EXPR_SUCCESS != rc ) {
-            fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-        if( (exec_context->locals[i].value < min) ||
-            (exec_context->locals[i].value > max) ) {
-            char tmp[128];
-            fprintf( stderr, "Function %s is not a valid instance.\n",
-                     dplasma_service_to_string(exec_context, tmp, 128) );
-            return -1;
-        }
-    }
-    return 0;
-}
-
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
 /**
@@ -922,6 +883,51 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     return 0;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+#ifdef DEPRECATED
+
+/**
+ * Check if a particular instance of the service can be executed based on the
+ * values of the arguments and the ranges specified.
+ */
+static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    int i, rc, min, max;
+    
+    for( i = 0; i < function->nb_locals; i++ ) {
+        symbol_t* symbol = function->locals[i];
+        
+        rc = expr_eval( symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
+        if( EXPR_SUCCESS != rc ) {
+            fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+        rc = expr_eval( symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
+        if( EXPR_SUCCESS != rc ) {
+            fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+        if( (exec_context->locals[i].value < min) ||
+           (exec_context->locals[i].value > max) ) {
+            char tmp[128];
+            fprintf( stderr, "Function %s is not a valid instance.\n",
+                    dplasma_service_to_string(exec_context, tmp, 128) );
+            return -1;
+        }
+    }
+    return 0;
+}
 
 /**
  * Release all OUT dependencies for this particular instance of the service.
@@ -1210,4 +1216,4 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     return 0;
 }
-
+#endif /* DEPRECATED */
