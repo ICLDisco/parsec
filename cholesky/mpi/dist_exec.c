@@ -84,13 +84,13 @@ printf print; \
 
 
 /* globals and argv set values */
-PLASMA_desc local_desc;
-DPLASMA_desc descA;
+PLASMA_desc descA;
+DPLASMA_desc ddescA;
 int cores = 1;
 int nodes = 1;
-#define N (descA.n)
-#define NB (descA.nb)
-#define rank (descA.mpi_rank)
+#define N (ddescA.n)
+#define NB (ddescA.nb)
+#define rank (ddescA.mpi_rank)
 int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
@@ -113,8 +113,8 @@ int main(int argc, char ** argv){
     runtime_init(argc, argv);
     
     if(0 == rank)
-        create_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &local_desc);
-    scatter_matrix(&local_desc, &descA);
+        create_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &descA);
+    scatter_matrix(&descA, &ddescA);
 
     //#ifdef VTRACE 
 	//    VT_ON();
@@ -132,7 +132,7 @@ int main(int argc, char ** argv){
         dplasma_set_initial_execution_context(&exec_context);
         dplasma_schedule(dplasma, &exec_context);
     }
-    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, descA.n, descA.nb));
+    TIME_PRINT(("dplasma initialization %d %d %d\n", 1, N, NB));
 
 #ifdef DPLASMA_WARM_UP
     warmup_dplasma(dplasma);
@@ -150,9 +150,9 @@ int main(int argc, char ** argv){
     MPI_Reduce(&flops, &gflops, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
     
-    gather_matrix(&local_desc, &descA);
+    gather_matrix(&descA, &ddescA);
     if(0 == rank)
-        check_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &local_desc, gflops);
+        check_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &descA, gflops);
 
     runtime_fini();
     return 0;
@@ -186,8 +186,8 @@ static void runtime_init(int argc, char **argv)
 #endif
     
     /* parse arguments */
-    descA.GRIDrows = 1;
-    descA.nrst = descA.ncst = 1;
+    ddescA.GRIDrows = 1;
+    ddescA.nrst = ddescA.ncst = 1;
     printf("parsing arguments\n");
     do
     {
@@ -224,17 +224,17 @@ static void runtime_init(int argc, char **argv)
                 break;
                 
             case 'g':
-                descA.GRIDrows = atoi(optarg);
+                ddescA.GRIDrows = atoi(optarg);
                 break;
                 
             case 's':
-                descA.ncst = descA.nrst = atoi(optarg);
-                if(descA.ncst <= 0)
+                ddescA.ncst = ddescA.nrst = atoi(optarg);
+                if(ddescA.ncst <= 0)
                 {
                     printf("select a positive value for super tile size\n");
                     exit(2);
                 }                
-                printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
+                printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
                 break;
                 
             case 'c':
@@ -246,7 +246,6 @@ static void runtime_init(int argc, char **argv)
                 
             case '?': /* getopt_long already printed an error message. */
             case 'h':
-            default:
                 printf(
                        "Mandatory argument:\n"
                        "   -n, --matrix-size : the size of the matrix\n"
@@ -259,6 +258,8 @@ static void runtime_init(int argc, char **argv)
                        "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
                        );
                 exit(0);
+            default:
+                break; /* Assume anything else is dplasma/mpi stuff */
         }
     } while(1);
     
@@ -267,13 +268,13 @@ static void runtime_init(int argc, char **argv)
         printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
         exit(2);
     } 
-    descA.GRIDcols = nodes / descA.GRIDrows ;
-    if((nodes % descA.GRIDrows) != 0)
+    ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
+    if((nodes % ddescA.GRIDrows) != 0)
     {
-        printf("GRIDrows %d does not divide the total number of nodes %d\n", descA.GRIDrows, nodes);
+        printf("GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
         exit(2);
     }
-    printf("Grid is %dx%d\n", descA.GRIDrows, descA.GRIDcols);
+    printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
     if(LDA <= 0) 
     {
         LDA = N;
@@ -305,19 +306,19 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     {
         expr_t* constant;
         
-        constant = expr_new_int( descA.nb );
+        constant = expr_new_int( ddescA.nb );
         dplasma_assign_global_symbol( "NB", constant );
-        constant = expr_new_int( descA.nt );
+        constant = expr_new_int( ddescA.nt );
         dplasma_assign_global_symbol( "SIZE", constant );
-        constant = expr_new_int( descA.GRIDrows );
+        constant = expr_new_int( ddescA.GRIDrows );
         dplasma_assign_global_symbol( "GRIDrows", constant );
-        constant = expr_new_int( descA.GRIDcols );
+        constant = expr_new_int( ddescA.GRIDcols );
         dplasma_assign_global_symbol( "GRIDcols", constant );
-        constant = expr_new_int( descA.rowRANK );
+        constant = expr_new_int( ddescA.rowRANK );
         dplasma_assign_global_symbol( "rowRANK", constant );
-        constant = expr_new_int( descA.colRANK );
+        constant = expr_new_int( ddescA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
-        constant = expr_new_int( descA.nrst );
+        constant = expr_new_int( ddescA.nrst );
         dplasma_assign_global_symbol( "stileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
@@ -355,9 +356,9 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 #if defined(POTRF_CACHE_WARMUP)
         int i, j;
         double useless = 0.0;
-        for( i = 0; i < descA.nb; i++ ) {
-            for( j = 0; j < descA.nb; j++ ) {
-                useless += ((double*)descA.mat)[i*descA.nb+j];
+        for( i = 0; i < ddescA.nb; i++ ) {
+            for( j = 0; j < ddescA.nb; j++ ) {
+                useless += ((double*)ddescA.mat)[i*ddescA.nb+j];
             }
         }
 #endif 
@@ -479,7 +480,7 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
     printf(" The relative machine precision (eps) is to be %e \n", eps);
     printf(" Computational tests pass if scaled residuals are less than 10.\n");        
 #if defined(DO_THE_NASTY_VALIDATIONS)
-    untiling(uplo, N, A2, LDA, &local_desc);
+    untiling(uplo, N, A2, LDA, &descA);
     PLASMA_dpotrs(*uplo, N, NRHS, A2, LDA, B2, LDB);
 
     /* Check the factorization and the solution */
@@ -506,7 +507,7 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
     printf("****************************************************\n");
     printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
     printf("****************************************************\n");
-    printf(" ---- n= %d np= %d nc= %d g= %d\t %.4f GFLOPS\n", N, nodes, cores, descA.GRIDrows, gflops);
+    printf(" ---- n= %d np= %d nc= %d g= %d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, gflops);
     printf("****************************************************\n");
 #endif
     free(A2);
