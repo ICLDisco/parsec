@@ -749,11 +749,10 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             }
                         }
                     }
-
-#if defined(_DEBUG)
+#if 0
                     {
                         int l;
-                        output("%s  fprintf(stderr, \"%s(", spaces, d->name);
+                        output("%s  DEBUG((\"%s(", spaces, d->name);
                         for(l = 0; l < d->nb_locals; l++) {
                             output(" %s = %%d", d->locals[l]->name);
                         }
@@ -761,10 +760,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         for(l = 0; l < d->nb_locals; l++) {
                             output(", %s", d->locals[l]->name);
                         }
-                        output(");\n");
+                        output("));\n");
                     }
 #endif
-
                     if( NULL != dep->cond ) {
                         output("%s  if(", spaces);
                         dump_inline_c_expression(dep->cond);
