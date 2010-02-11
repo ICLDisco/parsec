@@ -37,12 +37,10 @@ static void runtime_fini(void);
 
 static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[]);
 static void cleanup_dplasma(dplasma_context_t* context);
-#ifdef DPLASMA_WARM_UP
-static void warmup_dplasma(dplasma_context_t* dplasma)
-#endif 
+static void warmup_dplasma(dplasma_context_t* dplasma);
 
-static void create_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2, 
-                          double* B1, double* B2, double* WORK, double* D, 
+static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2, 
+                          double** pB1, double** pB2, double** pWORK, double** pD, 
                           int LDA, int NRHS, int LDB, PLASMA_desc* local);
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
@@ -51,10 +49,8 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
                          int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops);
 
-#ifdef DO_THE_NASTY_VALIDATIONS
 static int check_factorization(int, double*, double*, int, int , double);
 static int check_solution(int, int, double*, int, double*, double*, int, double);
-#endif
 
 
 /* timing profiling etc */
@@ -86,6 +82,8 @@ printf print; \
 /* globals and argv set values */
 PLASMA_desc descA;
 DPLASMA_desc ddescA;
+int do_warmup = 0;
+int do_nasty_validations = 0;
 int cores = 1;
 int nodes = 1;
 #define N (ddescA.n)
@@ -96,7 +94,8 @@ int NRHS = 1;
 int LDB = 0;
 PLASMA_enum uplo = PlasmaLower;
 
-int main(int argc, char ** argv){
+int main(int argc, char ** argv)
+{
     double flops, gflops;
     double *A1;
     double *A2;
@@ -113,7 +112,7 @@ int main(int argc, char ** argv){
     runtime_init(argc, argv);
     
     if(0 == rank)
-        create_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &descA);
+        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &WORK, &D, LDA, NRHS, LDB, &descA);
     scatter_matrix(&descA, &ddescA);
 
     //#ifdef VTRACE 
@@ -134,9 +133,8 @@ int main(int argc, char ** argv){
     }
     TIME_PRINT(("dplasma initialization %d %d %d\n", 1, N, NB));
 
-#ifdef DPLASMA_WARM_UP
-    warmup_dplasma(dplasma);
-#endif 
+    if(do_warmup)
+        warmup_dplasma(dplasma);
     
     /* lets rock! */
     TIME_START();
@@ -170,6 +168,8 @@ static void runtime_init(int argc, char **argv)
         {"ldb",         required_argument,  0, 'b'},
         {"grid-rows",   required_argument,  0, 'g'},
         {"stile-size",  required_argument,  0, 's'},
+        {"xcheck",      no_argument,        0, 'x'},
+        {"warmup",      optional_argument,  0, 'w'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -188,13 +188,12 @@ static void runtime_init(int argc, char **argv)
     /* parse arguments */
     ddescA.GRIDrows = 1;
     ddescA.nrst = ddescA.ncst = 1;
-    printf("parsing arguments\n");
     do
     {
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "c:n:a:r:b:g:s:h",
+        c = getopt_long (argc, argv, "c:n:a:r:b:g:s:x:w::h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -231,7 +230,7 @@ static void runtime_init(int argc, char **argv)
                 ddescA.ncst = ddescA.nrst = atoi(optarg);
                 if(ddescA.ncst <= 0)
                 {
-                    printf("select a positive value for super tile size\n");
+                    fprintf(stderr, "select a positive value for super tile size\n");
                     exit(2);
                 }                
                 printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
@@ -244,18 +243,31 @@ static void runtime_init(int argc, char **argv)
                 printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
                 
+            case 'x':
+                do_nasty_validations = 1;
+                break; 
+                
+            case 'w':
+                if(optarg)
+                    do_warmup = atoi(optarg);
+                else
+                    do_warmup = 1;
+                break;
+                
             case 'h':
-                printf(
-                       "Mandatory argument:\n"
-                       "   -n, --matrix-size : the size of the matrix\n"
-                       "Optional arguments:\n"
-                       "   -c --nb-cores : number of computing threads to use\n"
-                       "   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n"
-                       "   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n"
-                       "   -r --nrhs : number of RHS (default: 1)\n"
-                       "   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-                       "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
-                       );
+                fprintf(stderr, 
+                        "Mandatory argument:\n"
+                        "   -n, --matrix-size : the size of the matrix\n"
+                        "Optional arguments:\n"
+                        "   -c --nb-cores : number of computing threads to use\n"
+                        "   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n"
+                        "   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n"
+                        "   -r --nrhs : number of RHS (default: 1)\n"
+                        "   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
+                        "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
+                        "   -x --xcheck : do extra nasty result validations"
+                        "   -w --warmup : do some warmup, if > 1 also preload cache"
+                        );
                 exit(0);
             case '?': /* getopt_long already printed an error message. */
             default:
@@ -265,13 +277,13 @@ static void runtime_init(int argc, char **argv)
     
     if(N == 0)
     {
-        printf("must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
+        fprintf(stderr, "must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
         exit(2);
     } 
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
-        printf("GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
+        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
         exit(2);
     }
     printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
@@ -340,7 +352,6 @@ static void cleanup_dplasma(dplasma_context_t* dplasma)
     dplasma_fini(&dplasma);
 }
 
-#if defined(DPLASMA_WARM_UP)
 static void warmup_dplasma(dplasma_context_t* dplasma)
 {
     TIME_START();
@@ -353,15 +364,17 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
     {
         /* warm the cache for the first tile */
         dplasma_execution_context_t exec_context;
-#if defined(POTRF_CACHE_WARMUP)
-        int i, j;
-        double useless = 0.0;
-        for( i = 0; i < ddescA.nb; i++ ) {
-            for( j = 0; j < ddescA.nb; j++ ) {
-                useless += ((double*)ddescA.mat)[i*ddescA.nb+j];
+        if(do_warmup > 1)
+        {
+            int i, j;
+            double useless = 0.0;
+            for( i = 0; i < ddescA.nb; i++ ) {
+                for( j = 0; j < ddescA.nb; j++ ) {
+                    useless += ((double*)ddescA.mat)[i*ddescA.nb+j];
+                }
             }
         }
-#endif 
+
         /* Ok, now get ready for the same thing again. */
         exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
@@ -372,7 +385,6 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
     MPI_Barrier(MPI_COMM_WORLD);
 # endif    
 }
-#endif  /* DPLASMA_WARM_UP */
 
 #undef N
 #undef NB
@@ -380,51 +392,65 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 
 
 
-static void create_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2, 
-                          double* B1, double* B2, double* WORK, double* D, 
+static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2, 
+                          double** pB1, double** pB2, double** pWORK, double** pD, 
                           int LDA, int NRHS, int LDB, PLASMA_desc* local)
 {
-#if defined(DO_THE_NASTY_VALIDATIONS)
-    int NminusOne;
-    int LDBxNRHS;
+#define A1      (*pA1)
+#define A2      (*pA2)
+#define B1      (*pB1)
+#define B2      (*pB2)
+#define WORK    (*pWORK)
+#define D       (*pD)
     
-    NminusOne = N-1;
-    LDBxNRHS = LDB*NRHS;
-    A1   = (double *)malloc(LDA*N*sizeof(double));
-    A2   = (double *)malloc(LDA*N*sizeof(double));
-    B1   = (double *)malloc(LDBxNRHS*sizeof(double));
-    B2   = (double *)malloc(LDBxNRHS*sizeof(double));
-    WORK = (double *)malloc(2*LDA*sizeof(double));
-    D    = (double *)malloc(LDA*sizeof(double));
-    /* Check if unable to allocate memory */
-    if ((!A1)||(!A2)||(!B1)||(!B2)){
-        printf("Out of Memory \n ");
-        exit(1);
-    }
-
-    /* generating a random matrix */
-    generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
-#else
-    /* Only need A2 */
-    A2   = (double *)malloc(LDA*N*sizeof(double));
-    /* Check if unable to allocate memory */
-    if (!A2){
-        printf("Out of Memory \n ");
-        exit(1);
-    }
-    
-    /* generating a random matrix */
-    int i, j;
-    for ( i = 0; i < N; i++)
-        for ( j = i; j < N; j++) {
-            A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
+    if(do_nasty_validations)
+    {
+        int LDBxNRHS = LDB*NRHS;
+        A1   = (double *)malloc(LDA*N*sizeof(double));
+        A2   = (double *)malloc(LDA*N*sizeof(double));
+        B1   = (double *)malloc(LDBxNRHS*sizeof(double));
+        B2   = (double *)malloc(LDBxNRHS*sizeof(double));
+        WORK = (double *)malloc(2*LDA*sizeof(double));
+        D    = (double *)malloc(LDA*sizeof(double));
+        /* Check if unable to allocate memory */
+        if ((!pA1)||(!pA2)||(!pB1)||(!pB2)){
+            printf("Out of Memory \n ");
+            exit(1);
         }
-    for ( i = 0; i < N; i++) {
-        A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+
+        /* generating a random matrix */
+        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
     }
-#endif
+    else
+    {
+        int i, j;
+        
+        /* Only need A2 */
+        A1 = B1 = B2 = WORK = D = NULL;
+        A2   = (double *)malloc(LDA*N*sizeof(double));
+        /* Check if unable to allocate memory */
+        if (!A2){
+            printf("Out of Memory \n ");
+            exit(1);
+        }
+    
+        /* generating a random matrix */
+        for ( i = 0; i < N; i++)
+            for ( j = i; j < N; j++) {
+                A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
+            }
+        for ( i = 0; i < N; i++) {
+            A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+        }
+    }
     
     tiling(uplo, N, A2, LDA, local);
+#undef A1
+#undef A2 
+#undef B1 
+#undef B2 
+#undef WORK
+#undef D
 }
 
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
@@ -441,14 +467,16 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     is_data_distributed(dist, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));
     
-# if defined(DO_THE_NASTY_VALIDATIONS)
-    data_dist_verif(local, dist);
-#   if defined(PRINT_ALL_BLOCKS)
-    if(rank == 0)
-        plasma_dump(local);
-    data_dump(dist);
-#   endif
-# endif
+    if(do_nasty_validations)
+    {
+        data_dist_verif(local, dist);
+#       if defined(PRINT_ALL_BLOCKS)
+            if(rank == 0)
+                plasma_dump(local);
+            data_dump(dist);
+#       endif
+    }
+
 #else /* NO MPI */
     dplasma_desc_init(local, dist);
 #endif
@@ -479,42 +507,43 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
     printf("============\n");
     printf(" The relative machine precision (eps) is to be %e \n", eps);
     printf(" Computational tests pass if scaled residuals are less than 10.\n");        
-#if defined(DO_THE_NASTY_VALIDATIONS)
-    untiling(uplo, N, A2, LDA, &descA);
-    PLASMA_dpotrs(*uplo, N, NRHS, A2, LDA, B2, LDB);
+    if(do_nasty_validations)
+    {
+        untiling(uplo, N, A2, LDA, &descA);
+        PLASMA_dpotrs(*uplo, N, NRHS, A2, LDA, B2, LDB);
 
-    /* Check the factorization and the solution */
-    info_factorization = check_factorization(N, A1, A2, LDA, *uplo, eps);
-    info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
+        /* Check the factorization and the solution */
+        info_factorization = check_factorization(N, A1, A2, LDA, *uplo, eps);
+        info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
 
-    if((info_solution == 0) && (info_factorization == 0)) 
+        if((info_solution == 0) && (info_factorization == 0)) 
+        {
+            printf("****************************************************\n");
+            printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED ! \n");
+            printf("****************************************************\n");
+            printf(" ---- GFLOPS ............................. %.4f\n", gflops);
+            printf("****************************************************\n");
+        }
+        else 
+        {
+            printf("*****************************************************\n");
+            printf(" ---- TESTING DPOTRF + DPOTRS ............ FAILED !  \n");
+            printf("*****************************************************\n");
+        }
+        free(A1); free(B1); free(B2); free(WORK); free(D);
+    }
+    else
     {
         printf("****************************************************\n");
-        printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED ! \n");
+        printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
         printf("****************************************************\n");
-        printf(" ---- GFLOPS ............................. %.4f\n", gflops);
+        printf(" ---- n= %d np= %d nc= %d g= %d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, gflops);
         printf("****************************************************\n");
     }
-    else 
-    {
-        printf("*****************************************************\n");
-        printf(" ---- TESTING DPOTRF + DPOTRS ............ FAILED !  \n");
-        printf("*****************************************************\n");
-    }
-    free(A1); free(B1); free(B2); free(WORK); free(D);
-#else
-    info_solution = info_factorization = 0;
-    printf("****************************************************\n");
-    printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
-    printf("****************************************************\n");
-    printf(" ---- n= %d np= %d nc= %d g= %d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, gflops);
-    printf("****************************************************\n");
-#endif
     free(A2);
 }
 
 
-#ifdef DO_THE_NASTY_VALIDATIONS
 /*------------------------------------------------------------------------
  * *  Check the factorization of the matrix A2
  * */
@@ -614,5 +643,3 @@ static int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, doub
     
     return info_solution;
 }
-
-#endif

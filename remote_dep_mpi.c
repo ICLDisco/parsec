@@ -117,7 +117,7 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 
 
 /* TODO: smart use of dplasma context instead of ugly globals */
-#define DEP_NB_CONCURENT 16
+#define DEP_NB_CONCURENT 1
 static MPI_Comm dep_comm;
 static MPI_Request dep_req[4 * DEP_NB_CONCURENT];
 static MPI_Request* dep_activate_req = &dep_req[0];
