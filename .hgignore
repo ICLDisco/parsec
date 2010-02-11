@@ -1,12 +1,16 @@
+\._.*
 .*\.o
 \..*\.swp
 .*\.output
 .*\.tab\.c
 .*\.tab\.h
+.*\.profile
 lex\.yy\.c
+CMakeCache.txt
 parser
 cholesky/dposv
 tools/buildDAG
+results
 plasma
 dpc
 make.inc
@@ -17,6 +21,7 @@ QR/dgels
 cholesky/timeenumerator
 dposv.svg
 dposv-graph.svg
+cholesky/cholesky_ll.c
+cholesky/cholesky_rl.c
 cholesky/mpi/cholesky_mpi.c
 cholesky/mpi/dist_exec
-dposv.profile
