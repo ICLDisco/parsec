@@ -94,10 +94,10 @@ int nodes = 1;
 int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
+PLASMA_enum uplo = PlasmaLower;
 
 int main(int argc, char ** argv){
     double flops, gflops;
-    PLASMA_enum uplo;
     double *A1;
     double *A2;
     double *B1;
@@ -163,14 +163,14 @@ static void runtime_init(int argc, char **argv)
 {
     struct option long_options[] =
     {
-        {"lda", required_argument,  0, 'a'},
-        {"matrix-size", required_argument, 0, 'n'},
-        {"nrhs", required_argument,       0, 'r'},
-        {"ldb",  required_argument,       0, 'b'},
-        {"grid-rows",  required_argument, 0, 'g'},
-        {"stile-size",  required_argument, 0, 's'},
-        {"help",  no_argument, 0, 'h'},
-        {"nb-cores", required_argument, 0, 'c'},
+        {"nb-cores",    required_argument,  0, 'c'},
+        {"matrix-size", required_argument,  0, 'n'},
+        {"lda",         required_argument,  0, 'a'},
+        {"nrhs",        required_argument,  0, 'r'},
+        {"ldb",         required_argument,  0, 'b'},
+        {"grid-rows",   required_argument,  0, 'g'},
+        {"stile-size",  required_argument,  0, 's'},
+        {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
 
@@ -194,7 +194,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "a:n:r:b:g:s:c:h",
+        c = getopt_long (argc, argv, "c:n:a:r:b:g:s:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -226,6 +226,7 @@ static void runtime_init(int argc, char **argv)
             case 'g':
                 descA.GRIDrows = atoi(optarg);
                 break;
+                
             case 's':
                 descA.ncst = descA.nrst = atoi(optarg);
                 if(descA.ncst <= 0)
@@ -235,25 +236,28 @@ static void runtime_init(int argc, char **argv)
                 }                
                 printf("processes receives tiles by blocks of %dx%d\n", descA.nrst, descA.ncst);
                 break;
+                
             case 'c':
                 cores = atoi(optarg);
                 if(cores<= 0)
                     cores=1;
                 printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
+                
             case '?': /* getopt_long already printed an error message. */
             case 'h':
             default:
-                printf("\
-Mandatory argument:\n\
-   -n, --matrix-size : the size of the matrix\n\
-Optional arguments:\n\
-   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n\
-   -r --nrhs : number of RHS (default: 1)\n\
-   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n\
-   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n\
-   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n\
-   -c --nb-cores : number of computing threads to use\n");
+                printf(
+                       "Mandatory argument:\n"
+                       "   -n, --matrix-size : the size of the matrix\n"
+                       "Optional arguments:\n"
+                       "   -c --nb-cores : number of computing threads to use\n"
+                       "   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n"
+                       "   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n"
+                       "   -r --nrhs : number of RHS (default: 1)\n"
+                       "   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
+                       "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
+                       );
                 exit(0);
         }
     } while(1);
@@ -391,12 +395,22 @@ static void create_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
     B2   = (double *)malloc(LDBxNRHS*sizeof(double));
     WORK = (double *)malloc(2*LDA*sizeof(double));
     D    = (double *)malloc(LDA*sizeof(double));
-    
+    /* Check if unable to allocate memory */
+    if ((!A1)||(!A2)||(!B1)||(!B2)){
+        printf("Out of Memory \n ");
+        exit(1);
+    }
+
     /* generating a random matrix */
     generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
 #else
     /* Only need A2 */
     A2   = (double *)malloc(LDA*N*sizeof(double));
+    /* Check if unable to allocate memory */
+    if (!A2){
+        printf("Out of Memory \n ");
+        exit(1);
+    }
     
     /* generating a random matrix */
     int i, j;
