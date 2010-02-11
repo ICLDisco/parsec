@@ -47,12 +47,11 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
     np = (int32_t) remote_dep_transport_init(context);
     if(np > 1)
     {
-        context->remote_dep_fw_mask_sizeof = (np + sizeof(uint32_t) - 1) / sizeof(uint32_t);
+        context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
         for(i = 0; i < context->nb_cores; i++)
         {
             dplasma_execution_unit_t *eu = context->execution_units[i];
-            eu->remote_dep_fw_mask = (uint32_t*) malloc(context->remote_dep_fw_mask_sizeof);
-            dplasma_remote_dep_reset_forwarded(eu);
+            eu->remote_dep_fw_mask = (uint32_t*) calloc(1, context->remote_dep_fw_mask_sizeof);
         }
     }
     else 
