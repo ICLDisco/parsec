@@ -478,7 +478,9 @@ int dplasma_fini( dplasma_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dplasma_barrier_destroy( &(context->barrier) );
 
-    free(context->pthreads);
+    if( context->nb_cores > 1 ) {
+        free(context->pthreads);
+    }
 
 #ifdef DPLASMA_GRAPHER
     if( NULL != __dplasma_graph_file ) {

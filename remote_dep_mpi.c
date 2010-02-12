@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "profiling.h"
 
-#define USE_MPI_THREAD__
+#define USE_MPI_THREAD
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -122,7 +122,7 @@ enum {
 } dplasma_remote_dep_tag_t;
 
 /* TODO: smart use of dplasma context instead of ugly globals */
-#define DEP_NB_CONCURENT 1
+#define DEP_NB_CONCURENT 8
 static MPI_Comm dep_comm;
 static MPI_Request dep_req[4 * DEP_NB_CONCURENT];
 static MPI_Request* dep_activate_req = &dep_req[0];
@@ -156,7 +156,7 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
         dep_put_rcv_req[i] = MPI_REQUEST_NULL;
         dep_put_snd_req[i] = MPI_REQUEST_NULL;
     }
-    return 4;
+    return np;
 }
 
 static int remote_dep_mpi_fini(dplasma_context_t* context)

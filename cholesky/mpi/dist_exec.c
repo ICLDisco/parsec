@@ -114,7 +114,7 @@ int main(int argc, char ** argv)
     //#endif
 
     runtime_init(argc, argv);
-    
+
     if(0 == rank)
         create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &WORK, &D, LDA, NRHS, LDB, &descA);
 
