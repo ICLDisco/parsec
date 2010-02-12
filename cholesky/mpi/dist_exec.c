@@ -262,8 +262,11 @@ static void runtime_init(int argc, char **argv)
                 ddescA.ncst = ddescA.nrst = atoi(optarg);
                 if(ddescA.ncst <= 0)
                 {
-                    fprintf(stderr, "select a positive value for super tile size\n");
-                    exit(2);
+                    if(0 == rank)
+                    {
+                        fprintf(stderr, "select a positive value for super tile size\n");
+                        exit(2);
+                    }
                 }                
                 //printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
                 break;
@@ -293,22 +296,24 @@ static void runtime_init(int argc, char **argv)
                 break;
                 
             case 'h':
-                fprintf(stderr, 
-                        "Mandatory argument:\n"
-                        "   -n, --matrix-size : the size of the matrix\n"
-                        "Optional arguments:\n"
-                        "   -c --nb-cores : number of computing threads to use\n"
-                        "   -d --dplasma : use DPLASMA backend (default)\n"
-                        "   -p --plasma : use PLASMA backend\n"
-                        "   -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-                        "   -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n"
-                        "   -a --lda : leading dimension of the matrix A (equal matrix size by default)\n"
-                        "   -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n"
-                        "   -r --nrhs : number of RHS (default: 1)\n"
-                        "   -x --xcheck : do extra nasty result validations"
-                        "   -w --warmup : do some warmup, if > 1 also preload cache"
-                        );
-                exit(0);
+                if(0 == rank)
+                {
+                    fprintf(stderr, 
+                            "Mandatory argument:\n"
+                            "   -n, --matrix-size : the size of the matrix\n"
+                            "Optional arguments:\n"
+                            "   -c --nb-cores    : number of computing threads to use\n"
+                            "   -d --dplasma     : use DPLASMA backend (default)\n"
+                            "   -p --plasma      : use PLASMA backend\n"
+                            "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
+                            "   -s --stile-size  : number of tile per row (col) in a super tile (default: 1)\n"
+                            "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
+                            "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
+                            "   -r --nrhs        : number of RHS (default: 1)\n"
+                            "   -x --xcheck      : do extra nasty result validations"
+                            "   -w --warmup      : do some warmup, if > 1 also preload cache");
+                    exit(0);
+                }
             case '?': /* getopt_long already printed an error message. */
             default:
                 break; /* Assume anything else is dplasma/mpi stuff */
@@ -317,21 +322,30 @@ static void runtime_init(int argc, char **argv)
     
     if((DO_PLASMA == backend) && (nodes > 1))
     {
-        fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
-        exit(2);
+        if(0 == rank)
+        {
+            fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
+            exit(2);
+        }
     }
     
     if(N == 0)
     {
-        fprintf(stderr, "must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
-        exit(2);
+        if(0 == rank)
+        {
+            fprintf(stderr, "must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
+            exit(2);
+        }
     } 
 
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
-        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
-        exit(2);
+        if(0 == rank)
+        {
+            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
+            exit(2);
+        }
     }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
 
