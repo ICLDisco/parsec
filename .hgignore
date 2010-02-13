@@ -7,6 +7,8 @@
 .*\.profile
 lex\.yy\.c
 CMakeCache.txt
+CMakeScripts
+CMakeFiles
 parser
 cholesky/dposv
 tools/buildDAG
