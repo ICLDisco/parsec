@@ -11,6 +11,11 @@ PLY, unpacking and then do:
 env PYTHONPATH=/path/to/ply-3.2 python cparse.py tilelu.c
 
 =========
+For parsing Petit/Omega files:
+
+env PYTHONPATH=/path/to/ply-3.2 python petitparse.py knm.omega
+
+=========
 
 Parameter designation:
 * IN, INOUT, SCRATCH, VALUE
