@@ -14,10 +14,7 @@
 #include "scheduling.h"
 #include "dequeue.h"
 #include "profiling.h"
-
-#ifdef DISTRIBUTED
 #include "remote_dep.h"
-#endif
 
 static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
@@ -251,7 +248,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                     goto do_some_work;
                 }
             }
-#endif
+#endif /* DISTRIBUTED */
             /* Work stealing from the other workers */
 #if defined(HAVE_HWLOC)
             int i = 1;
@@ -331,6 +328,28 @@ int dplasma_progress(dplasma_context_t* context)
     return ret;
 }
 
+static int dplasma_execute( dplasma_execution_unit_t* eu_context,
+                           const dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+#ifdef _DEBUG
+    char tmp[128];
+#endif
+    
+    DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
+    
+    if( NULL != function->hook ) {
+        function->hook( eu_context, exec_context );
+    }
+#ifdef DEPRECATED
+    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+#else
+    return 0; 
+#endif
+}
+
+
+#ifdef DEPRECATED
 int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* exec_context,
                                 int forward_remote )
@@ -407,19 +426,4 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
     }
     return 0;
 }
-
-static int dplasma_execute( dplasma_execution_unit_t* eu_context,
-                            const dplasma_execution_context_t* exec_context )
-{
-    dplasma_t* function = exec_context->function;
-#ifdef _DEBUG
-    char tmp[128];
 #endif
-    
-    DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
-    
-    if( NULL != function->hook ) {
-        function->hook( eu_context, exec_context );
-    }
-    return 0; /*dplasma_trigger_dependencies( eu_context, exec_context, 1 );*/
-}

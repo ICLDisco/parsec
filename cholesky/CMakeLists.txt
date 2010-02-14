@@ -1,20 +1,19 @@
 if( PLASMA_FOUND )
-  include_directories( ${PLASMA_INCLUDE_PATH} )
+  include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
   
   add_executable(dposv_rl dposv.c cholesky_rl.c)
   set_target_properties(dposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dposv_rl PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
+  target_link_libraries(dposv_rl dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
 
   add_executable(dposv_ll dposv.c cholesky_ll.c)
   set_target_properties(dposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dposv_ll PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
+  target_link_libraries(dposv_ll dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
 
   add_executable(dposv.plasma dposv.c)
   set_target_properties(dposv.plasma PROPERTIES LINKER_LANGUAGE Fortran)
-
-  target_link_libraries(dposv_ll dplasma ${PLASMA_LIBRARY} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES})
-  target_link_libraries(dposv_rl dplasma ${PLASMA_LIBRARY} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES})
-  target_link_libraries(dposv.plasma ${PLASMA_LIBRARY} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES})
+  target_link_libraries(dposv.plasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
 endif( PLASMA_FOUND )
 
 # add the command to generate the source code

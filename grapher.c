@@ -3,7 +3,6 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
 #include "dplasma.h"
 #include "scheduling.h"
 #include <stdio.h>
@@ -52,7 +51,11 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
     } else {
         printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
     }
+#ifdef DEPRECATED
     return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+#else
+    return exec_context->function->release_deps(eu_context, exec_context, 1, NULL);
+#endif
 }
 
 int main(int argc, char *argv[])

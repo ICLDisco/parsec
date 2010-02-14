@@ -22,9 +22,7 @@
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
-#ifdef DISTRIBUTED
 #include "remote_dep.h"
-#endif
 #ifdef HAVE_PAPI
 #include "papi.h"
 #endif
@@ -201,7 +199,7 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) || defined(HAVE_CPU_SET_T)
     int bind_to_proc = startup->th_id;
 #endif  /* defined(HAVE_HWLOC) */
 
@@ -306,6 +304,11 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     return __dplasma_progress(eu);
 }
 
+#ifdef USE_PAPI
+extern int num_events;
+extern char* event_names[];
+#endif
+
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t) +
@@ -318,6 +321,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
 
+#ifdef USE_PAPI
+    num_events = 0;
+#endif
+    
     for( i = 0; i < *pargc; i++ ) {
         if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
 #ifdef DPLASMA_GRAPHER
@@ -327,7 +334,29 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
             }      
 #endif  /* DPLASMA_GRAPHER */
         }
+        else if( 0 == strcmp( (*pargv)[i], "-papi" ) ) {
+#ifdef USE_PAPI
+            char* dup;
+            char* ptr;
+            ptr = dup = strdup((*pargv)[i+1]);
+            while(NULL != (ptr = strrchr(dup, ',')))
+            {
+                if(num_events >= 2)
+                {
+                    fprintf(stderr, "-papi accepts only up to 3 events\n");
+                    break;
+                }
+                *ptr = '\0';
+                events_names[num_events] = strdup(ptr + 1);
+                num_events++;
+            }
+            free(dup);
+#else 
+            fprintf(stderr, "-papi is pointless for this PAPI disabled build\n");
+#endif
+        }
     }
+    
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
@@ -384,11 +413,9 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
     /* Release the temporary array used for starting up the threads */
     free(startup);
 
-#ifdef DISTRIBUTED
     /* Wait until threads are bound before introducing progress threads */
-    dplasma_remote_dep_init(context);
-#endif
-
+    context->nb_nodes = dplasma_remote_dep_init(context);
+    
 #ifdef HAVE_PAPI
     if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
         printf("PAPI library initialization error! \n");
@@ -429,6 +456,11 @@ int dplasma_fini( dplasma_context_t** pcontext )
     /* The first execution unit is for the master thread */
     for(i = 1; i < context->nb_cores; i++) {
         pthread_join( context->pthreads[i], NULL );
+    }
+
+    (void) dplasma_remote_dep_fini( context );
+    
+    for(i = 1; i < context->nb_cores; i++) {
 #if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
         context->execution_units[i]->eu_task_queue = NULL;
@@ -438,9 +470,6 @@ int dplasma_fini( dplasma_context_t** pcontext )
         context->execution_units[i]->eu_steal_from = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
-#ifdef DISTRIBUTED
-    dplasma_remote_dep_fini( context );
-#endif
     
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_fini( );
@@ -449,7 +478,9 @@ int dplasma_fini( dplasma_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dplasma_barrier_destroy( &(context->barrier) );
 
-    free(context->pthreads);
+    if( context->nb_cores > 1 ) {
+        free(context->pthreads);
+    }
 
 #ifdef DPLASMA_GRAPHER
     if( NULL != __dplasma_graph_file ) {
@@ -698,39 +729,6 @@ static int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exe
     return mask;
 }
 
-/**
- * Check if a particular instance of the service can be executed based on the
- * values of the arguments and the ranges specified.
- */
-static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
-{
-    dplasma_t* function = exec_context->function;
-    int i, rc, min, max;
-
-    for( i = 0; i < function->nb_locals; i++ ) {
-        symbol_t* symbol = function->locals[i];
-
-        rc = expr_eval( symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
-        if( EXPR_SUCCESS != rc ) {
-            fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-        rc = expr_eval( symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
-        if( EXPR_SUCCESS != rc ) {
-            fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-        if( (exec_context->locals[i].value < min) ||
-            (exec_context->locals[i].value > max) ) {
-            char tmp[128];
-            fprintf( stderr, "Function %s is not a valid instance.\n",
-                     dplasma_service_to_string(exec_context, tmp, 128) );
-            return -1;
-        }
-    }
-    return 0;
-}
-
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
 /**
@@ -887,6 +885,51 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     return 0;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+#ifdef DEPRECATED
+
+/**
+ * Check if a particular instance of the service can be executed based on the
+ * values of the arguments and the ranges specified.
+ */
+static int dplasma_is_valid( dplasma_execution_context_t* exec_context )
+{
+    dplasma_t* function = exec_context->function;
+    int i, rc, min, max;
+    
+    for( i = 0; i < function->nb_locals; i++ ) {
+        symbol_t* symbol = function->locals[i];
+        
+        rc = expr_eval( symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
+        if( EXPR_SUCCESS != rc ) {
+            fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+        rc = expr_eval( symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
+        if( EXPR_SUCCESS != rc ) {
+            fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
+            return rc;
+        }
+        if( (exec_context->locals[i].value < min) ||
+           (exec_context->locals[i].value > max) ) {
+            char tmp[128];
+            fprintf( stderr, "Function %s is not a valid instance.\n",
+                    dplasma_service_to_string(exec_context, tmp, 128) );
+            return -1;
+        }
+    }
+    return 0;
+}
 
 /**
  * Release all OUT dependencies for this particular instance of the service.
@@ -1175,4 +1218,4 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     return 0;
 }
-
+#endif /* DEPRECATED */

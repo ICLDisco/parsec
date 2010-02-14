@@ -25,7 +25,14 @@
 int dplasma_schedule( dplasma_context_t*, const dplasma_execution_context_t* );
 int __dplasma_schedule( dplasma_execution_unit_t*, dplasma_execution_context_t* );
 
+int dplasma_progress(dplasma_context_t* context);
+void* __dplasma_progress(dplasma_execution_unit_t* eu_context);
 
+void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
+
+
+
+#ifdef DEPRECATED
 /**
  * Signal the termination of the execution context to all dependencies of 
  * its dependencies.  
@@ -40,11 +47,7 @@ int __dplasma_schedule( dplasma_execution_unit_t*, dplasma_execution_context_t* 
 int dplasma_trigger_dependencies( dplasma_execution_unit_t*,
                                  const dplasma_execution_context_t*,
                                  int forward_remote );
-
-int dplasma_progress(dplasma_context_t* context);
-void* __dplasma_progress(dplasma_execution_unit_t* eu_context);
-
-void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
+#endif /* DEPRECATED */
 
 #endif  /* _dplasma_scheduling_h */
 

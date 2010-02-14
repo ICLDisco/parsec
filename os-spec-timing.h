@@ -3,7 +3,7 @@
 
 /** TIMING SYSTEM-SPECIFICS **/
 
-#if defined(__gnu_linux__) && !defined INTEL 
+#if defined(HAVE_CLOCK_GETTIME)
 #include <unistd.h>
 #include <time.h>
 typedef struct timespec dplasma_time_t;

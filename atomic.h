@@ -13,9 +13,9 @@
 #include "atomic-gcc.h"
 #elif defined(MAC_OS_X)
 #include "atomic-macosx.h"
-#elif defined(X86)
+#elif defined(ARCH_X86)
 #include "atomic-x86_32.h"
-#elif defined(X86_64)
+#elif defined(ARCH_X86_64)
 #include "atomic-x86_64.h"
 #else
 #error "Using unsafe atomics"

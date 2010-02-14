@@ -8,49 +8,11 @@
 #include "scheduling.h"
 #include <stdio.h>
 
-enum {
-    REMOTE_DEP_ACTIVATE_TAG,
-    REMOTE_DEP_GET_DATA_TAG,
-    REMOTE_DEP_PUT_DATA_TAG,
-} dplasma_remote_dep_tag_t;
-
-static int __remote_dep_init(dplasma_context_t* context);
-static int __remote_dep_fini(dplasma_context_t* context);
-
-
 #ifdef USE_MPI
-
 #include "remote_dep_mpi.c" 
 
 #else 
-/* This is just failsafe, to compile when no transport is selected.
- *  In this mode, remote dependencies don't work, 
- *  use it only for single node shared memory multicore
- */
-
-static int __remote_dep_init(dplasma_context_t* context)
-{
-    return 1;
-}
-
-static int __remote_dep_fini(dplasma_context_t* context)
-{
-    return 1;
-}
-
-int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
-                                const dplasma_execution_context_t* origin,
-                                const param_t* origin_param,
-                                const dplasma_execution_context_t* exec_context,
-                                const param_t* dest_param )
-{
-    int rank;
-    
-    rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
-    return dplasma_remote_dep_activate_rank(eu_context, origin, origin_param, 
-                                            rank, NULL);
-}
-
+#   ifdef _DEBUG
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param,
@@ -72,34 +34,31 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     symbol_dump_all("\tGLOBAL SYMBOLS:\t");
     return -1;
 }
-
-#endif
+#   endif /* _DEBUG */
+#endif /* NO TRANSPORT */
 
 
 #ifdef DISTRIBUTED
-/* Note for Pierre: this is not MPI specific and should not go to 
- * remote_dep_mpi.c. I fixed the warnings and legitimate concerns about dirty 
- * tricks with nb_nodes another way */
 int dplasma_remote_dep_init(dplasma_context_t* context)
 {
     int i;
+    int np;
     
-    context->nb_nodes = (int32_t) __remote_dep_init(context);
-    if(context->nb_nodes > 1)
+    np = (int32_t) remote_dep_transport_init(context);
+    if(np > 1)
     {
-        context->remote_dep_fw_mask_sizeof = (context->nb_nodes + sizeof(uint8_t) - 1) / sizeof(uint8_t);
+        context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
         for(i = 0; i < context->nb_cores; i++)
         {
             dplasma_execution_unit_t *eu = context->execution_units[i];
-            eu->remote_dep_fw_mask = (uint8_t*) malloc(context->remote_dep_fw_mask_sizeof);
-            dplasma_remote_dep_reset_forwarded(eu);
+            eu->remote_dep_fw_mask = (uint32_t*) calloc(1, context->remote_dep_fw_mask_sizeof);
         }
     }
     else 
     {
-        context->remote_dep_fw_mask_sizeof = 0;
+        context->remote_dep_fw_mask_sizeof = 0; /* hoping memset(0b) is fast */
     }
-    return context->nb_nodes;
+    return np;
 }
 
 int dplasma_remote_dep_fini(dplasma_context_t* context)
@@ -113,9 +72,9 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
             free(context->execution_units[i]->remote_dep_fw_mask);
         }
     }
-    return __remote_dep_fini(context);
+    return remote_dep_transport_fini(context);
 }
-#endif
+#endif /* DISTRIBUTED */
 
 #define HEAVY_DEBUG
 #if defined(_DEBUG) && defined(HEAVY_DEBUG)
@@ -124,6 +83,8 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 #define HDEBUG( args ) do {} while(0)
 #endif 
 
+/* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
+ * requires it to genrerate correct precompiled code */
 int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
                                       expr_t **rowpred,
                                       expr_t **colpred, 
@@ -188,9 +149,10 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
     return 0;
 }
 
-int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
-                                         const dplasma_execution_context_t* origin,
-                                         const dplasma_execution_context_t* exec_context)
+#ifdef DEPRECATED
+static int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
+                                                const dplasma_execution_context_t* origin,
+                                                const dplasma_execution_context_t* exec_context)
 {
     int i, pred_index;
     int rank;
@@ -259,3 +221,18 @@ HDEBUG(     DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n")));
     
     return rank;
 }
+
+int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
+                                const dplasma_execution_context_t* origin,
+                                const param_t* origin_param,
+                                const dplasma_execution_context_t* exec_context,
+                                const param_t* dest_param )
+{
+    int rank;
+    
+    rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
+    return dplasma_remote_dep_activate_rank(eu_context, origin, origin_param, 
+                                            rank, NULL);
+}
+
+#endif 

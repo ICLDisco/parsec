@@ -13,11 +13,11 @@
 
 #define USE_MPI_THREAD
 
-static int __remote_dep_mpi_init(dplasma_context_t* context);
-static int __remote_dep_mpi_fini(dplasma_context_t* context);
-static int __remote_dep_send(dplasma_execution_context_t* task, int rank, void **data);
-static int __remote_dep_progress(dplasma_execution_unit_t* eu_context);
-static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data);
+static int remote_dep_mpi_init(dplasma_context_t* context);
+static int remote_dep_mpi_fini(dplasma_context_t* context);
+static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, void** data);
+static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context);
+static int remote_dep_mpi_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data);
 
 #if defined(USE_MPI_THREAD)
     static int remote_dep_dequeue_init(dplasma_context_t* context);
@@ -25,8 +25,8 @@ static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_ex
     static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, void** data);
     static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context);
     static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data);
-#   define remote_dep_mpi_init(ctx) remote_dep_dequeue_init(ctx)
-#   define remote_dep_mpi_fini(ctx) remote_dep_dequeue_fini(ctx)
+#   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
+#   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_send(task, rank, data) remote_dep_dequeue_send(task, rank, data)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
 #   define remote_dep_release(ctx, task, data) remote_dep_dequeue_release(ctx, task, data)
@@ -34,20 +34,20 @@ static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_ex
 #elif defined(USE_MPI_THREAD_MUTEX) /* Deprecated, do not use */
     static int remote_dep_thread_init(dplasma_context_t* context);
     static int remote_dep_thread_fini(dplasma_context_t* fini);
-    static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank, void **data);
+    static int remote_dep_thread_send(const dplasma_execution_context_t* task, int rank, void** data);
     static int remote_dep_thread_progress(dplasma_execution_unit_t* eu_context);
-#   define remote_dep_mpi_init(ctx) remote_dep_thread_init(ctx)
-#   define remote_dep_mpi_fini(ctx) remote_dep_thread_fini(ctx)
+#   define remote_dep_init(ctx) remote_dep_thread_init(ctx)
+#   define remote_dep_fini(ctx) remote_dep_thread_fini(ctx)
 #   define remote_dep_send(task, rank, data) remote_dep_thread_send(task, rank, data)
 #   define remote_dep_progress(ctx) remote_dep_thread_progress(ctx)
-#   define remote_dep_release(ctx, task, data) __remote_dep_release(ctx, task, data);
+#   define remote_dep_release(ctx, task, data) remote_dep_mpi_release(ctx, task, data);
 
 #else
-#   define remote_dep_mpi_init(ctx) __remote_dep_mpi_init(ctx)
-#   define remote_dep_mpi_fini(ctx) __remote_dep_mpi_fini(ctx)
-#   define remote_dep_send(task, rank, data) __remote_dep_send(task, rank, data)
-#   define remote_dep_progress(ctx) __remote_dep_progress(ctx)
-#   define remote_dep_release(ctx, task, data) __remote_dep_release(ctx, task, data)
+#   define remote_dep_init(ctx) remote_dep_mpi_init(ctx)
+#   define remote_dep_fini(ctx) remote_dep_mpi_fini(ctx)
+#   define remote_dep_send(task, rank, data) remote_dep_mpi_send(task, rank, data)
+#   define remote_dep_progress(ctx) remote_dep_mpi_progress(ctx)
+#   define remote_dep_release(ctx, task, data) remote_dep_mpi_release(ctx, task, data)
 #endif 
 
 #ifdef DPLASMA_PROFILING
@@ -62,13 +62,9 @@ static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 #define TAKE_TIME(KEY, I)
 #endif  /* DPLASMA_PROFILING */
 
-int __remote_dep_init(dplasma_context_t* context)
+int remote_dep_transport_init(dplasma_context_t* context)
 {
 #ifdef DPLASMA_PROFILING
-    int rank;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
     dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#40B080",
                                              &MPI_Activate_sk, &MPI_Activate_ek);
     dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#8080B0",
@@ -78,14 +74,14 @@ int __remote_dep_init(dplasma_context_t* context)
     dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#FF0000",
                                              &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
 
-    MPI_prof = dplasma_profiling_thread_init( 4096, "MPI thread on %d", rank);
+    MPI_prof = dplasma_profiling_thread_init( 4096, "MPI thread");
 #endif /* DPLASMA_PROFILING */
-    return remote_dep_mpi_init(context);
+    return remote_dep_init(context);
 }
 
-int __remote_dep_fini(dplasma_context_t* context)
+int remote_dep_transport_fini(dplasma_context_t* context)
 {
-    return remote_dep_mpi_fini(context);
+    return remote_dep_fini(context);
 }
 
 
@@ -119,9 +115,14 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 
 
 
+enum {
+    REMOTE_DEP_ACTIVATE_TAG,
+    REMOTE_DEP_GET_DATA_TAG,
+    REMOTE_DEP_PUT_DATA_TAG,
+} dplasma_remote_dep_tag_t;
 
 /* TODO: smart use of dplasma context instead of ugly globals */
-#define DEP_NB_CONCURENT 1
+#define DEP_NB_CONCURENT 8
 static MPI_Comm dep_comm;
 static MPI_Request dep_req[4 * DEP_NB_CONCURENT];
 static MPI_Request* dep_activate_req = &dep_req[0];
@@ -135,18 +136,16 @@ static dplasma_execution_context_t dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG_LONG
 static void* dep_get_buff[DEP_NB_CONCURENT];
 
-static int __remote_dep_mpi_init(dplasma_context_t* context)
+static int remote_dep_mpi_init(dplasma_context_t* context)
 {
     int i, np;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     MPI_Comm_size(dep_comm, &np);
 
-#ifdef DPLASMA_PROFILING
     TAKE_TIME(MPI_Activate_sk, 0);
     MPI_Barrier(dep_comm);
     TAKE_TIME(MPI_Activate_ek, 0);
-#endif
-    
+
     
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {        
@@ -160,10 +159,10 @@ static int __remote_dep_mpi_init(dplasma_context_t* context)
     return np;
 }
 
-static int __remote_dep_mpi_fini(dplasma_context_t* context)
+static int remote_dep_mpi_fini(dplasma_context_t* context)
 {
     int i;
-    
+
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
         MPI_Cancel(&dep_activate_req[i]); MPI_Request_free(&dep_activate_req[i]);
@@ -171,7 +170,7 @@ static int __remote_dep_mpi_fini(dplasma_context_t* context)
         assert(MPI_REQUEST_NULL == dep_put_rcv_req[i]);
         assert(MPI_REQUEST_NULL == dep_put_snd_req[i]);
     }
-    
+    MPI_Barrier(dep_comm);
     MPI_Comm_free(&dep_comm);
     return 0;
 }
@@ -194,15 +193,15 @@ static int __remote_dep_mpi_fini(dplasma_context_t* context)
 #define CRC_PRINT(data, pos)
 #endif 
 
-static int __remote_dep_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data)
+static int remote_dep_mpi_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data)
 {
     return exec_context->function->release_deps(eu_context, exec_context, 0, data);
 }
 
-static void remote_dep_put_data(void* data, int to, int i);
-static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int i);
+static void remote_dep_mpi_put_data(void* data, int to, int i);
+static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from, int i);
 
-static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
+static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
 {
 #ifdef _DEBUG
     char tmp[128];
@@ -210,6 +209,8 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
     MPI_Status status;
     int ret = 0;
     int i, flag;
+    
+    if(eu_context->eu_id != 0) return 0;
     
     do {
 /*        TAKE_TIME(MPI_Test_any_sk);*/
@@ -219,14 +220,14 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
             {
-                DEBUG(("%s\tFROM REMOTE process rank %d (concurent %d)\n", dplasma_service_to_string(&dep_activate_buff[i], tmp, 128), status.MPI_SOURCE, i));
-                remote_dep_get_data(&dep_activate_buff[i], status.MPI_SOURCE, i);
+                DEBUG(("%s\tFROM REMOTE process rank %d (i=%d)\n", dplasma_service_to_string(&dep_activate_buff[i], tmp, 128), status.MPI_SOURCE, i));
+                remote_dep_mpi_get_data(&dep_activate_buff[i], status.MPI_SOURCE, i);
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
                 i -= DEP_NB_CONCURENT; /* shift i */
                 assert(i >= 0);
-                remote_dep_put_data(dep_get_buff[i], status.MPI_SOURCE, i);
+                remote_dep_mpi_put_data(dep_get_buff[i], status.MPI_SOURCE, i);
             }
             else 
             {
@@ -235,8 +236,9 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
                 assert(i >= 0);
                 if(i < DEP_NB_CONCURENT)
                 {
+                    DEBUG(("Put data\tRCVD (i=%d)\n", i));
                     CRC_PRINT(dep_activate_buff[i].list_item.cache_friendly_emptiness, "R");
-                    TAKE_TIME(MPI_Data_pldr_ek, i);
+                    //TAKE_TIME(MPI_Data_pldr_ek, i);
                     remote_dep_release(eu_context, &dep_activate_buff[i], &dep_activate_buff[i].list_item.cache_friendly_emptiness);
                     MPI_Start(&dep_activate_req[i]);
                     ret++;
@@ -245,35 +247,36 @@ static int __remote_dep_progress(dplasma_execution_unit_t* eu_context)
                 {
                     /* We finished sending the data, allow for more requests 
                      * to be processed */
-                    TAKE_TIME(MPI_Data_plds_ek, i);
+                    //TAKE_TIME(MPI_Data_plds_ek, i);
                     i -= DEP_NB_CONCURENT;
+                    DEBUG(("Put data\tSENT (i=%d)\n", i));
                     MPI_Start(&dep_get_req[i]);
                     /* Allow for termination if needed */
                     dplasma_atomic_dec_32b( &(eu_context->master_context->taskstodo) );
                 }
             }
         }
-    } while(flag);
+    } while(0/*flag*/);
     return ret;
 }
 
 
-static void remote_dep_put_data(void* data, int to, int i)
+static void remote_dep_mpi_put_data(void* data, int to, int i)
 {
-    TAKE_TIME(MPI_Data_plds_sk, i);
-    DEBUG(("Put data\tto REMOTE process %d from address %p\n", to, data));
+    //TAKE_TIME(MPI_Data_plds_sk, i);
+    DEBUG(("Put data\tTO REMOTE process %d from address %p (i=%d)\n", to, data, i));
     MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_snd_req[i]);
 }
 
 static int get = 0;
 
-static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int i)
+static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from, int i)
 {
     void* datakey = task->list_item.cache_friendly_emptiness;
     
-    DEBUG(("Get data\tfrom REMOTE process %d at remote address %p\n", from, task->list_item.cache_friendly_emptiness));
+    DEBUG(("Get data\tfrom REMOTE process %d at remote address %p (i=%d)\n", from, task->list_item.cache_friendly_emptiness, i));
     task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
-    TAKE_TIME(MPI_Data_pldr_sk, i);
+    //TAKE_TIME(MPI_Data_pldr_sk, i);
     MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_rcv_req[i]);
 
@@ -282,17 +285,18 @@ static void remote_dep_get_data(dplasma_execution_context_t* task, int from, int
     TAKE_TIME(MPI_Data_ctl_ek, get++);
 }
 
+static int activate = 1;
 
 /* Send the activate tag */
-static int __remote_dep_send(dplasma_execution_context_t* task, int rank, void **data)
+static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, void **data)
 {
-    TAKE_TIME(MPI_Activate_sk, 0);
+    TAKE_TIME(MPI_Activate_sk, activate);
     DEBUG(("Activate\tto REMOTE process %d with data at %p\n", rank, data[0]));    
     CRC_PRINT(((double**) data)[0], "S");
     
-    task->list_item.cache_friendly_emptiness = data[0];
+    ((dplasma_execution_context_t*) task)->list_item.cache_friendly_emptiness = data[0];
     MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
-    TAKE_TIME(MPI_Activate_ek, 0);
+    TAKE_TIME(MPI_Activate_ek, activate++);
     return 1;
 }
 
@@ -365,7 +369,7 @@ static int remote_dep_dequeue_init(dplasma_context_t* context)
 
 static int remote_dep_dequeue_fini(dplasma_context_t* context)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     dplasma_context_t *ret;
     
     cmd->super.list_prev = (dplasma_list_item_t*) cmd;
@@ -383,7 +387,7 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
 
 static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, void** data)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     
     cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
@@ -398,7 +402,7 @@ static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int 
 
 static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     
     cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
@@ -420,7 +424,7 @@ static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
     /* don't while, the thread is starving, let it go right away */
     if(NULL != (cmd = (dep_cmd_item_t*) dplasma_dequeue_pop_front(&dep_activate_queue)))
     {
-        __remote_dep_release(eu_context, &cmd->u.activate.origin, &cmd->u.activate.data);
+        remote_dep_mpi_release(eu_context, &cmd->u.activate.origin, &cmd->u.activate.data);
         free(cmd);
         return 1;
     }
@@ -435,7 +439,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
     struct timespec ts;
     dep_cmd_item_t* cmd;
     
-    np = __remote_dep_mpi_init(context);
+    np = remote_dep_mpi_init(context);
     
     ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
     
@@ -444,7 +448,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         {
             if(enable_self_progress)
             {
-                __remote_dep_progress(context->execution_units[0]);
+                remote_dep_mpi_progress(context->execution_units[0]);
             }
             nanosleep(&ts, NULL);
         }
@@ -452,7 +456,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         switch(cmd->cmd)
         {                
             case DEP_ACTIVATE:
-                __remote_dep_send(&cmd->u.activate.origin, cmd->u.activate.rank, &cmd->u.activate.data);
+                remote_dep_mpi_send(&cmd->u.activate.origin, cmd->u.activate.rank, &cmd->u.activate.data);
                 break;
             case DEP_FINI:
                 keep_probing = 0;
@@ -463,7 +467,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         free(cmd);
     } while(keep_probing);
     
-    __remote_dep_mpi_fini(context);    
+    remote_dep_mpi_fini(context);
     return context;
 }
 
@@ -631,7 +635,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
     int keep_probing = 1;
     struct timespec ts;
     
-    np = __remote_dep_mpi_init(context);
+    np = remote_dep_mpi_init(context);
     
     init_ts(&ts);
     
@@ -640,10 +644,10 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
         switch(dep_signal_reason)
         {                
             case WANT_SEND:
-                dep_ret = __remote_dep_send(dep_send_context, dep_send_rank, dep_send_data);
+                dep_ret = remote_dep_mpi_send(dep_send_context, dep_send_rank, dep_send_data);
                 break;
             case WANT_RECV:
-                dep_ret = __remote_dep_progress(dep_recv_eu_context);
+                dep_ret = remote_dep_mpi_progress(dep_recv_eu_context);
                 break;
             case WANT_FINI:
                 keep_probing = 0;
@@ -651,7 +655,7 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
             case WANT_ZERO:
                 if(enable_self_progress)
                 {
-                    __remote_dep_progress(&context->execution_units[0]);
+                    remote_dep_mpi_progress(&context->execution_units[0]);
                 }
                 update_ts(&ts, YIELD_TIME);
                 ret = pthread_cond_timedwait(&dep_msg_cond, &dep_msg_mutex, &ts);
@@ -662,14 +666,14 @@ static void* remote_dep_thread_main(dplasma_context_t* context)
     } while(keep_probing);
     pthread_mutex_unlock(&dep_msg_mutex);
     
-    __remote_dep_mpi_fini(context);    
+    remote_dep_mpi_fini(context);    
     return context;
 }
 
 
 #endif
 
-
+#ifdef DEPRECATED
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* origin,
                                 const param_t* origin_param,
@@ -693,4 +697,4 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     DEBUG(("%s -> %s\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp2, 128), dplasma_service_to_string(exec_context, tmp, 128), rank ));
     return remote_dep_send(origin, rank, NULL);
 }
-
+#endif
