@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#include "dplasma_config.h"
 #include "dplasma.h"
 
 #include <stdio.h>
@@ -11,9 +12,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
-#ifdef HAVE_CPU_SET_T
+#ifdef HAVE_SCHED_SETAFFINITY
 #include <linux/unistd.h>
-#endif  /* HAVE_CPU_SET_T */
+#endif  /* HAVE_SCHED_SETAFFINITY */
 #include <errno.h>
 
 #include "scheduling.h"
@@ -199,9 +200,9 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
-#if defined(HAVE_HWLOC) || defined(HAVE_CPU_SET_T)
+#if defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY)
     int bind_to_proc = startup->th_id;
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY) */
 
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
 #if defined(ON_ZOOT)
@@ -210,7 +211,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #endif
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
 
-#ifdef HAVE_CPU_SET_T 
+#ifdef HAVE_SCHED_SETAFFINITY
     {
         cpu_set_t cpuset;
 
@@ -221,7 +222,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
         }
     }
-#endif  /* HAVE_CPU_SET_T */
+#endif  /* HAVE_SCHED_SETAFFINITY */
 
     eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
     if( NULL == eu ) {

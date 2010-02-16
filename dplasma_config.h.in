@@ -7,7 +7,7 @@
 #cmakedefine HAVE_PTHREAD
 #cmakedefine HAVE_HWLOC
 #cmakedefine HAVE_PAPI
-#cmakedefine HAVE_CPU_SET_T
+#cmakedefine HAVE_SCHED_SETAFFINITY
 #cmakedefine HAVE_CLOCK_GETTIME
 #cmakedefine HAVE_COMPARE_AND_SWAP_32
 #cmakedefine HAVE_COMPARE_AND_SWAP_64
