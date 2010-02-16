@@ -128,8 +128,9 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
 #ifdef USE_MPI
     int * tmp_ints;
+
         
-    tmp_ints = malloc(sizeof(int)*18);
+    tmp_ints = malloc(sizeof(int)*20);
     if (tmp_ints == NULL)
         {
             printf("memory allocation failed\n");
@@ -155,13 +156,15 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             tmp_ints[15] = Ddesc->ncst;            
             tmp_ints[16] = Ddesc->GRIDrows ;
             tmp_ints[17] = Ddesc->GRIDcols ;
-
-            MPI_Bcast(tmp_ints, 18, MPI_INT, 0, MPI_COMM_WORLD);
+            tmp_ints[18] = Ddesc->cores ;
+            tmp_ints[19] = Ddesc->nodes ;
+            
+            MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
 
         }
     else /* rank != 0, receive data */
         {
-            MPI_Bcast(tmp_ints, 18, MPI_INT, 0, MPI_COMM_WORLD);
+            MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
 
             Ddesc->dtyp= tmp_ints[0];
             Ddesc->mb = tmp_ints[1];
@@ -181,16 +184,49 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             Ddesc->ncst  = tmp_ints[15];
             Ddesc->GRIDrows  = tmp_ints[16];
             Ddesc->GRIDcols  = tmp_ints[17];
+            Ddesc->cores  = tmp_ints[18];
+            Ddesc->nodes  = tmp_ints[19];
+            
         }
+
+    
+        
+
+        
     free(tmp_ints);
 
-    if( -1 == ddesc_compute_vals(Ddesc) )
-    {
-        MPI_Abort(MPI_COMM_WORLD, 2);
-    }
+    printf( "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+            Ddesc->dtyp,
+            Ddesc->mb,
+            Ddesc->nb,
+            Ddesc->bsiz,
+            Ddesc->lm,
+            Ddesc->ln,
+            Ddesc->lmt,
+            Ddesc->lnt,
+            Ddesc->i,
+            Ddesc->j,
+            Ddesc->m,
+            Ddesc->n,
+            Ddesc->mt,
+            Ddesc->nt,
+            Ddesc->nrst,
+            Ddesc->ncst,
+            Ddesc->GRIDrows,
+            Ddesc->GRIDcols,
+            Ddesc->cores,
+            Ddesc->nodes);
+
+    sleep(10);
+        if( -1 == ddesc_compute_vals(Ddesc) )
+            {
+                MPI_Abort(MPI_COMM_WORLD, 2);
+            }
+        
     ddesc_allocate(Ddesc);
     return 0;
 #else
+    
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
     return -1;
 #endif
@@ -761,3 +797,90 @@ int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 
 }
 #endif    
+
+int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, double precision)
+{
+    int i;
+    double * a;
+    double * b;
+    double c;
+
+    /* check memory locality of the tiles */
+    if (   (A->mpi_rank != dplasma_get_rank_for_tile(A, row, col))
+        || (B->mpi_rank != dplasma_get_rank_for_tile(B, row, col))
+        || (A->mpi_rank != B->mpi_rank))
+        {
+            printf("Compare tile failed: (%d, %d) is not local to process %d\n", row, col, A->mpi_rank);
+            return 0;
+        }
+    
+    /* assign values */
+    a = (double *)dplasma_get_local_tile_s(A, row, col);
+    b = (double *)dplasma_get_local_tile_s(B, row, col);
+    /* compare each value*/
+    for(i = 0 ; i < A->bsiz ; i++)
+        {
+            c = a[i] - b[i];
+            if(0.0-precision < c && c < precision)
+                continue;
+            else
+                {
+                    printf("difference discovered in matrix. Tile: (%d, %d), position: %d, difference: %f\n", row, col, i, c);
+                    return 0;
+                }
+        }
+    return 1;
+}
+
+int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, double precision)
+{
+    int i, j, mt, nt, rank;
+    int res = 1;
+    mt = (A->mt < B->mt) ? A->mt : B->mt;
+    nt = (A->nt < B->nt) ? A->nt : B->nt;
+    for (i = 0 ; i < mt ; i++)
+        for( j = 0 ; i < nt ; j++)
+            {
+                rank = dplasma_get_rank_for_tile(A, i, j);
+                if (rank == A->mpi_rank)
+                    {
+                        res &= compare_distributed_tiles(A, B, i, j, precision);
+                    }
+                if (res == 0)
+                    return 0;
+            }
+    return res;
+}
+
+int compare_plasma_matrices(PLASMA_desc * A, PLASMA_desc * B, double precision)
+{
+    int i, j, k, mt, nt;
+    double * a;
+    double * b;
+    double c;
+
+    mt = (A->mt < B->mt) ? A->mt : B->mt;
+    nt = (A->nt < B->nt) ? A->nt : B->nt;
+    printf("compare matrices of size %d x %d\n", mt, nt);
+    for (i = 0 ; i < mt ; i++)
+        for( j = 0 ; j < nt ; j++)
+            {
+                a = (double *)plasma_A(A, i, j);
+                b = (double *)plasma_A(B, i, j);
+                /* compare each value*/
+                for(k = 0 ; k < A->bsiz ; k++)
+                    {
+                        c = a[k] - b[k];
+                        if(0.0-precision < c && c < precision)
+                            continue;
+                        else
+                            {
+                                printf("difference discovered in matrix. Tile: (%d, %d), position: %d, difference: %f\n", i, j, k, c);
+                                return 0;
+                            }
+                    }
+                printf("tile (%d, %d) passed  (bsiz == %d)\n", i, j, A->bsiz);
+            }
+    printf("Matrices almost identical\n");
+    return 1;
+}
