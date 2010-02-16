@@ -27,3 +27,9 @@ cholesky/cholesky_ll.c
 cholesky/cholesky_rl.c
 cholesky/mpi/cholesky_mpi.c
 cholesky/mpi/dist_exec
+QR/Makefile
+QR/cmake_install.cmake
+buildDAG
+cholesky/Makefile
+cmake_install.cmake
+Makefile
