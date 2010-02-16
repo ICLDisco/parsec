@@ -20,6 +20,8 @@ option(CHECK_PAPI
   "If PAPI support is expected or not. Default OFF" OFF)
 option(BUILD_64bits
   "Build 64 bits mode (default on)" ON)
+option(DPLASMA_CACHE_AWARENESS
+  "Enable cache awareness in the scheduling - default activated iff HWLOC is detected" ON)
 
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)

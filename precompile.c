@@ -1051,6 +1051,12 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "#endif\n"
                 "\n");
 
+        output( "#if defined(DPLASMA_CACHE_AWARENESS)\n");
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            output("  cache_buf_reference(eu->closest_cache, %s);\n", d->inout[i]->name);
+        }
+        output( "#endif /* DPLASMA_CACHE_AWARENESS */\n");
+
         output( "  TAKE_TIME(context, %s_start_key, %s_hash(",
                 d->name, d->name);
         for(j = 0; j < d->nb_locals; j++) {
@@ -1130,7 +1136,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "  }\n"
                 "#endif\n"
                 "\n", d->name);
-
+        
         output( "#if defined(DPLASMA_GRAPHER)\n"
                 "if( NULL != __dplasma_graph_file ) {\n"
                 "  char tmp[128];\n"
