@@ -100,7 +100,8 @@ ENDIF( HAVE_STD_C99 )
 BISON_TARGET(dplasma_yacc dplasma.y ${CMAKE_CURRENT_BINARY_DIR}/dplasma.tab.c)
 FLEX_TARGET(dplasma_flex dplasma.l  ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
 ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
 message("-- Check if the compiler provides atomic operations directives")
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
@@ -172,7 +173,7 @@ if (CHECK_PAPI)
 endif (CHECK_PAPI)
 
 add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-  scheduling.c profiling.c remote_dep.c barrier.c precompile.c
+  scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 
 add_executable(dpc dpc.c)
@@ -187,7 +188,7 @@ target_link_libraries(grapher dplasma ${EXTRA_LIBS})
 if (DPLASMA_DISTRIBUTED)
   if (MPI_FOUND)
     add_library(dplasma-dm STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-      scheduling.c profiling.c remote_dep.c barrier.c precompile.c
+      scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
       ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
     set_target_properties(dplasma-dm PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
     set_target_properties(dplasma-dm PROPERTIES COMPILER MPI_COMPILER)

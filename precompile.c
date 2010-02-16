@@ -1053,7 +1053,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
 
         output( "#if defined(DPLASMA_CACHE_AWARENESS)\n");
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-            output("  cache_buf_reference(eu->closest_cache, %s);\n", d->inout[i]->name);
+            output("  cache_buf_referenced(context->closest_cache, %s);\n", d->inout[i]->name);
         }
         output( "#endif /* DPLASMA_CACHE_AWARENESS */\n");
 
@@ -1376,7 +1376,6 @@ int dplasma_dump_all_c(char *filename)
     output( "#endif /* defined(DPLASMA_GRAPHER) */\n"
             "#ifdef DPLASMA_PROFILING\n"
             "#include \"profiling.h\"\n");
-
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
         output("int %s_start_key, %s_end_key;\n", object->name, object->name);

@@ -39,7 +39,7 @@ typedef struct dplasma_execution_unit_t {
     int8_t*  eu_steal_from;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if defined(DPLASMA_CACHE_AWARENESS)
-    chache_t *closest_cache;
+    cache_t *closest_cache;
 #endif
 
     uint32_t* remote_dep_fw_mask;
