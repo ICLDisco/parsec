@@ -154,6 +154,7 @@ endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
 
 find_package(PLASMA REQUIRED)
+find_package(HWLOC)
 
 #
 # If we want support for MPI based DPLASMA.

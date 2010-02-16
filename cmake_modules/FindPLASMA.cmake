@@ -47,6 +47,7 @@ if(LAPACK_FOUND)
   #  message(STATUS "Looking for plasma.h in ${PLASMA_INCLUDE_DIR}")
   check_include_file(plasma.h FOUND_PLASMA_INCLUDE)
   if(FOUND_PLASMA_INCLUDE)
+    #  message(STATUS "Found plasma.h in ${PLASMA_INCLUDE_DIR}")
     find_library(PLASMA_cblas_LIB cblas
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA cblas libraries are"
