@@ -43,10 +43,12 @@ typedef struct dplasma_desc_t {
     int mpi_rank;       // well... mpi rank...
     int GRIDrows;       // number of processes rows in the process grid
     int GRIDcols;       // number of processes cols in the process grid
+    int cores;          // number of cores used for computation per node
+    int nodes;          // number of nodes involved in the computation
     int colRANK;        // process column rank in the process grid - derived parameter
     int rowRANK;        // process row rank in the process grid - derived parameter
     int nb_elem_r;      // number of tiles per row
-    int nb_elem_c;      // number of tiles per column 
+    int nb_elem_c;      // number of tiles per column
 } DPLASMA_desc;
 
 /************************************************
@@ -93,13 +95,13 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
 int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
 
 
-/****************************************************************
- * matrix generation, tiling and distribution
- ****************************************************************/
+/************************************************************************
+ * matrix distribution (single tiled matrix to distributed tiled matrix)
+ ************************************************************************/
 #ifdef USE_MPI
 
 /* distribute the matrix to the different mpi ranks 
- * matrix -> pointer to matrix data on mpi rank 0 // NULL for other ranks
+ * 
  */
 int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count);
 
@@ -108,25 +110,38 @@ int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc, MPI_Request ** r
  */
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count);
 
-#endif  /* !defined(USE_MPI) */
-
 /* regroup the distributed tiles to the rank 0 */
 /* Pdesc is NULL except on rank 0 */
 int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
+#endif  /* !defined(USE_MPI) */
 
+/*********************************************************************
+ *  matrix generation, Lapack/Plasma format conversion, shared memory
+ ********************************************************************/
 
 /* generate a random matrix  */
 int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D,int LDA, int NRHS, int LDB);
 
-/* convert to plasma desc and tiling format */
+/* Convert Lapack format to Plasma tiled description format (shared memory) */
 int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+
+/* Convert Plasma tiled description format to Lapack format (shared memory) */
 int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+
+/**********************************************************************
+ * Distributed matrix generation
+ **********************************************************************/
+
 
 
 /* debugging print of blocks */
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );
 int data_dump(DPLASMA_desc * Ddesc);
 int plasma_dump(PLASMA_desc * Pdesc);
+int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, double precision);
+int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, double precision);
+int compare_plasma_matrices(PLASMA_desc * A, PLASMA_desc * B, double precision);
+
 
 #endif
