@@ -27,9 +27,26 @@ if(NOT _LANGUAGES_ MATCHES Fortran)
   endif(PLASMA_FIND_REQUIRED)
 endif(NOT _LANGUAGES_ MATCHES Fortran)
 
-set(PLASMA_INCLUDE_DIR)
-set(PLASMA_LIBRARIES)
-set(PLASMA_LINKER_FLAGS)
+# If we only have the main PLASMA directory componse the include and
+# libraries path based on it.
+if( PLASMA_DIR )
+  if( NOT PLASMA_INCLUDE_DIR )
+    set(PLASMA_INCLUDE_DIR "${PLASMA_DIR}/include")
+  endif( NOT PLASMA_INCLUDE_DIR )
+  if( NOT PLASMA_LIBRARIES )
+    set(PLASMA_LIBRARIES "${PLASMA_DIR}/lib")
+  endif( NOT PLASMA_LIBRARIES )
+endif( PLASMA_DIR )
+
+if( NOT PLASMA_INCLUDE_DIR )
+  set(PLASMA_INCLUDE_DIR)
+endif( NOT PLASMA_INCLUDE_DIR )
+if( NOT PLASMA_LIBRARIES )
+  set(PLASMA_LIBRARIES)
+endif( NOT PLASMA_LIBRARIES )
+if( NOT PLASMA_LINKER_FLAGS )
+  set(PLASMA_LINKER_FLAGS)
+endif( NOT PLASMA_LINKER_FLAGS )
 
 if(PLASMA_FIND_QUIETLY OR NOT PLASMA_FIND_REQUIRED)
   find_package(LAPACK)
@@ -47,7 +64,7 @@ if(LAPACK_FOUND)
   #  message(STATUS "Looking for plasma.h in ${PLASMA_INCLUDE_DIR}")
   check_include_file(plasma.h FOUND_PLASMA_INCLUDE)
   if(FOUND_PLASMA_INCLUDE)
-    #  message(STATUS "Found plasma.h in ${PLASMA_INCLUDE_DIR}")
+    #    message(STATUS "Found plasma.h in ${PLASMA_INCLUDE_DIR}")
     find_library(PLASMA_cblas_LIB cblas
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA cblas libraries are"

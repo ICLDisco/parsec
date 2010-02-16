@@ -12,9 +12,26 @@
 #  HWLOC_STATIC  if set on this determines what kind of linkage we do (static)
 ##########
 
-set(HWLOC_INCLUDE_DIR)
-set(HWLOC_LIBRARIES)
-set(HWLOC_LINKER_FLAGS)
+# If we only have the main PLASMA directory componse the include and
+# libraries path based on it.
+if( HWLOC_DIR )
+  if( NOT HWLOC_INCLUDE_DIR )
+    set(HWLOC_INCLUDE_DIR "${HWLOC_DIR}/include")
+  endif( NOT HWLOC_INCLUDE_DIR )
+  if( NOT HWLOC_LIBRARIES )
+    set(HWLOC_LIBRARIES "${HWLOC_DIR}/lib")
+  endif( NOT HWLOC_LIBRARIES )
+endif( HWLOC_DIR )
+
+if( NOT HWLOC_INCLUDE_DIR )
+  set(HWLOC_INCLUDE_DIR)
+endif( NOT HWLOC_INCLUDE_DIR )
+if( NOT HWLOC_LIBRARIES )
+  set(HWLOC_LIBRARIES)
+endif( NOT HWLOC_LIBRARIES )
+if( NOT HWLOC_LINKER_FLAGS )
+  set(HWLOC_LINKER_FLAGS)
+endif( NOT HWLOC_LINKER_FLAGS )
 
 include(CheckIncludeFile)
 

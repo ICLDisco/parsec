@@ -15,17 +15,35 @@
 
 include(CheckIncludeFiles)
 
-if(PAPI_DIR)
-  set(PAPI_INCLUDE_PATH "${PAPI_DIR}/include")
-  set(PAPI_LIBRARY_PATH "${PAPI_DIR}/lib")
-endif(PAPI_DIR)
+# If we only have the main PLASMA directory componse the include and
+# libraries path based on it.
+if( PAPI_DIR )
+  if( NOT PAPI_INCLUDE_DIR )
+    set(PAPI_INCLUDE_DIR "${PAPI_DIR}/include")
+  endif( NOT PAPI_INCLUDE_DIR )
+  if( NOT PAPI_LIBRARIES )
+    set(PAPI_LIBRARIES "${PAPI_DIR}/lib")
+  endif( NOT PAPI_LIBRARIES )
+endif( PAPI_DIR )
 
-set(CMAKE_REQUIRED_INCLUDES ${PAPI_INCLUDE_PATH}) 
-check_include_files(papi.h FOUND_PAPI_INCLUDE)
+if( NOT PAPI_INCLUDE_DIR )
+  set(PAPI_INCLUDE_DIR)
+endif( NOT PAPI_INCLUDE_DIR )
+if( NOT PAPI_LIBRARIES )
+  set(PAPI_LIBRARIES)
+endif( NOT PAPI_LIBRARIES )
+if( NOT PAPI_LINKER_FLAGS )
+  set(PAPI_LINKER_FLAGS)
+endif( NOT PAPI_LINKER_FLAGS )
+
+set(CMAKE_REQUIRED_INCLUDES "${PAPI_INCLUDE_DIR};${CMAKE_REQUIRED_INCLUDES}")
+message(STATUS "Looking for papi.h in ${CMAKE_REQUIRED_INCLUDES}")
+check_include_file(papi.h FOUND_PAPI_INCLUDE)
 if(FOUND_PAPI_INCLUDE)
-  check_library_exists("papi" PAPI_Init ${PAPI_LIBRARY_PATH} FOUND_PAPI_LIB)
+  message(STATUS "PAPI include files found at ${PAPI_INCLUDE_DIR}")
+  check_library_exists("papi" PAPI_Init ${PAPI_LIBRARIES} FOUND_PAPI_LIB)
   if( FOUND_PAPI_LIB )
-    set(PAPI_LIBRARY "${PAPI_LIBRARY_PATH}/libpapi.a")
+    set(PAPI_LIBRARY "${PAPI_LIBRARIES}/libpapi.a")
   endif( FOUND_PAPI_LIB )
 endif(FOUND_PAPI_INCLUDE)
 
@@ -42,11 +60,13 @@ if(NOT PAPI_FIND_QUIETLY)
     if(PAPI_FIND_REQUIRED)
       message(FATAL_ERROR
         "A required library with PAPI API not found. Please specify library location"
-        "using PAPI_DIR or a combination of PAPI_INCLUDE_PATH and PAPI_LIBRARY_PATH")
+        "using PAPI_DIR or a combination of PAPI_INCLUDE_DIR and PAPI_LIBRARIES"
+        "or by setting PAPI_DIR")
     else(PAPI_FIND_REQUIRED)
       message(STATUS
         "A required library with PAPI API not found. Please specify library location"
-        "using PAPI_DIR or a combination of PAPI_INCLUDE_PATH and PAPI_LIBRARY_PATH")
+        "using PAPI_DIR or a combination of PAPI_INCLUDE_DIR and PAPI_LIBRARIES"
+        "or by setting PAPI_DIR")
     endif(PAPI_FIND_REQUIRED)
   endif(PAPI_FOUND)
 endif(NOT PAPI_FIND_QUIETLY)
