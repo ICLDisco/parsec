@@ -47,8 +47,8 @@ typedef struct dplasma_desc_t {
     int nodes;          // number of nodes involved in the computation
     int colRANK;        // process column rank in the process grid - derived parameter
     int rowRANK;        // process row rank in the process grid - derived parameter
-    int nb_elem_r;      // number of tiles per row
-    int nb_elem_c;      // number of tiles per column
+    int nb_elem_r;      // number of tiles per row handled by this process
+    int nb_elem_c;      // number of tiles per column handled by this process
 } DPLASMA_desc;
 
 /************************************************
@@ -83,7 +83,7 @@ static inline void* dplasma_get_local_tile(DPLASMA_desc* Ddesc, int m, int n)
 
 /* get a pointer to a specific tile 
  * if the tile is remote, it is downloaded first */
-void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n);
+/* void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n); */
 
 /* get a pointer to a specific LOCAL tile, with supertile management. */
 void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
@@ -124,7 +124,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D,int LDA, int NRHS, int LDB);
 
 /* Convert Lapack format to Plasma tiled description format (shared memory) */
-int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
+int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc * descA);
 
 /* Convert Plasma tiled description format to Lapack format (shared memory) */
 int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA);
@@ -132,7 +132,7 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
 /**********************************************************************
  * Distributed matrix generation
  **********************************************************************/
-
+int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
 
 
 /* debugging print of blocks */
