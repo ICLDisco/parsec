@@ -309,7 +309,7 @@ static void runtime_init(int argc, char **argv)
                             "   -s --stile-size  : number of tile per row (col) in a super tile (default: 1)\n"
                             "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
                             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
-                            "   -r --nrhs        : number of RHS (default: 1)\n"
+                            "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
                             "   -x --xcheck      : do extra nasty result validations"
                             "   -w --warmup      : do some warmup, if > 1 also preload cache");
                     exit(0);
@@ -513,7 +513,7 @@ static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2,
         }
     }
     
-    tiling(uplo, N, A2, LDA, local);
+    tiling(uplo, N, A2, LDA, NRHS, local);
 #undef A1
 #undef A2 
 #undef B1 
