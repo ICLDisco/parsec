@@ -14,6 +14,6 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT QR.c
-  COMMAND ../dpc QR.jdf QR.c
+  COMMAND ../../tools/dpc QR.jdf QR.c
   DEPENDS dpc
   )

@@ -177,22 +177,13 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 
-add_executable(dpc dpc.c)
-target_link_libraries(dpc dplasma ${EXTRA_LIBS})
-
-add_executable(buildDAG tools/buildDAG.c)
-target_link_libraries(buildDAG dplasma ${EXTRA_LIBS})
-
-add_executable(grapher grapher.c)
-target_link_libraries(grapher dplasma ${EXTRA_LIBS})
-
 if (DPLASMA_DISTRIBUTED)
   if (MPI_FOUND)
-    add_library(dplasma-dm STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
+    add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
       scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
       ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-    set_target_properties(dplasma-dm PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
-    set_target_properties(dplasma-dm PROPERTIES COMPILER MPI_COMPILER)
+    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE -DUSE_MPI")
+    set_target_properties(dplasma-mpi PROPERTIES COMPILER MPI_COMPILER)
   else (MPI_FOUND)
     message("MPI support is required in order to build the distributed version of DPLASMA."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
@@ -203,8 +194,8 @@ endif (DPLASMA_DISTRIBUTED)
 #
 # Now continue with compiling the tests.
 #
-add_subdirectory(cholesky)
-add_subdirectory(QR)
+add_subdirectory(tests)
+add_subdirectory(tools)
 
 # Configuration header
 configure_file (

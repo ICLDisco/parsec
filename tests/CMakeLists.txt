@@ -1,0 +1,3 @@
+Add_Subdirectory(cholesky)
+Add_Subdirectory(QR)
+Add_Subdirectory(LU)

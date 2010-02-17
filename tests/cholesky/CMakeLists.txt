@@ -19,13 +19,13 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT cholesky_rl.c
-  COMMAND ../dpc cholesky_rl.jdf cholesky_rl.c
+  COMMAND ../../tools/dpc cholesky_rl.jdf cholesky_rl.c
   DEPENDS dpc
   )
  
 add_custom_command (
   OUTPUT cholesky_ll.c
-  COMMAND ../dpc cholesky_ll.jdf cholesky_ll.c
+  COMMAND ../../tools/dpc cholesky_ll.jdf cholesky_ll.c
   DEPENDS dpc
   )
  
