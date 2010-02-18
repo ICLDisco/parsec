@@ -195,7 +195,7 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         
     free(tmp_ints);
 
-    printf( "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+
             Ddesc->dtyp,
             Ddesc->mb,
             Ddesc->nb,
