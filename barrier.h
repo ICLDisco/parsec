@@ -34,7 +34,7 @@ typedef struct dplasma_barrier_t {
     pthread_cond_t      cond;
 } dplasma_barrier_t;
 
-int dplasma_barrier_init(dplasma_barrier_t*, const void*, unsigned int);
+int dplasma_barrier_init(dplasma_barrier_t *barrier, const void *pthread_mutex_attr, unsigned int count);
 int dplasma_barrier_wait(dplasma_barrier_t*);
 int dplasma_barrier_destroy(dplasma_barrier_t*);
 #define DPLASMA_IMPLEMENT_BARRIERS 1

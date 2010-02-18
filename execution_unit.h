@@ -36,7 +36,12 @@ typedef struct dplasma_execution_unit_t {
 #endif  /* DPLASMA_USE_LIFO */
     dplasma_context_t* master_context;
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-    int8_t*  eu_steal_from;
+#if defined(DPLASMA_USE_LIFO)
+    dplasma_atomic_lifo_t **eu_shared_queue;
+#else
+    dplasma_dequeue_t     **eu_shared_queue;
+#endif
+    uint32_t  nb_shared_queues;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if defined(DPLASMA_CACHE_AWARENESS)
     cache_t *closest_cache;

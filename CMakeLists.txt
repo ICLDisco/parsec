@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # should we use our own math functions
 option(DPLASMA_PROFILING
@@ -21,7 +21,7 @@ option(CHECK_PAPI
 option(BUILD_64bits
   "Build 64 bits mode (default on)" ON)
 option(DPLASMA_CACHE_AWARENESS
-  "Enable cache awareness in the scheduling - default activated iff HWLOC is detected" ON)
+  "Enable cache awareness in the scheduling - default activated iff HWLOC is detected" OFF)
 
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)

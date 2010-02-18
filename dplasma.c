@@ -42,6 +42,30 @@ int num_events = 0;
 char* event_names[MAX_EVENTS];
 #endif
 
+#if defined(HAVE_HWLOC)
+#define TILE_SIZE (192*192*sizeof(double))
+
+static int dplasma_hwlock_nb_levels(const dplasma_context_t *context)
+{
+    return 1;
+}
+
+static int dplasma_hwlock_master_id(const dplasma_context_t *context, int level, int id)
+{
+    return 0;
+}
+
+static int dplasma_hwlock_nb_cores(const dplasma_context_t *context, int level, int master)
+{
+    return context->nb_cores;
+}
+
+static size_t dplasma_hwlock_cache_size(const dplasma_context_t *context, int level, int master)
+{
+    return 4*1024*1024;
+}
+#endif
+
 void dplasma_dump(const dplasma_t *d, const char *prefix)
 {
     char *pref2 = malloc(strlen(prefix)+3);
@@ -259,42 +283,49 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #endif  /* DPLASMA_USE_LIFO */
 
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-    eu->eu_steal_from = (int8_t*)malloc(startup->nb_cores * sizeof(int8_t));
     {
-        int j;
-#if defined(ON_ZOOT)
-        int8_t distance[] = {0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15};
-        int8_t placement[] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-                                1,  0,  3,  2,  5,  4,  7,  6,  9,  8, 11, 10, 13, 12, 15, 14,
-                                2,  3,  0,  1,  6,  7,  4,  5, 10, 11,  8,  9, 14, 15, 12, 13,
-                                3,  2,  1,  0,  7,  6,  5,  4, 11, 10,  9,  8, 15, 14, 13, 12,
-                                4,  5,  6,  7,  0,  1,  2,  3, 12, 13, 14, 15,  8,  9, 10, 11,
-                                5,  4,  7,  6,  1,  0,  3,  2, 13, 12, 15, 14,  9,  8, 11, 10,
-                                6,  7,  4,  5,  2,  3,  0,  1, 14, 15, 12, 13, 10, 11,  8,  9,
-                                7,  6,  5,  4,  3,  2,  1,  0, 15, 14, 13, 12, 11, 10,  9,  8,
-                                8,  9, 10, 11, 12, 13, 14, 15,  0,  1,  2,  3,  4,  5,  6,  7,
-                                9,  8, 11, 10, 13, 12, 15, 14,  1,  0,  3,  2,  5,  4,  7,  6,
-                                10, 11,  8,  9, 14, 15, 12, 13,  2,  3,  0,  1,  6,  7,  4,  5,
-                                11, 10,  9,  8, 15, 14, 13, 12,  3,  2,  1,  0,  7,  6,  5,  4,
-                                8,  9, 10, 11, 12, 13, 14, 15,  4,  5,  6,  7,  0,  1,  2,  3,
-                                9,  8, 11, 10, 13, 12, 15, 14,  5,  4,  7,  6,  1,  0,  3,  2,
-                                10, 11,  8,  9, 14, 15, 12, 13,  6,  7,  4,  5,  2,  3,  0,  1,
-                                11, 10,  9,  8, 15, 14, 13, 12,  7,  6,  5,  4,  3,  2,  1,  0 };
+        int level, master, idx;
+        eu->nb_shared_queues = dplasma_hwlock_nb_levels(startup->master_context);
 
-        for( j = 0; j < startup->nb_cores; j++ ) {
-            eu->eu_steal_from[j] = placement[eu->eu_id * 16 + j];
-        }
-        eu->eu_steal_from[0] = distance[eu->eu_id];
+#if defined(DPLASMA_USE_LIFO)
+        eu->eu_shared_queue = (dplasma_atomic_lifo_t **)malloc(eu->nb_shared_queues * sizeof(dplasma_atomic_lifo_t*) );
 #else
-        int k;
-        eu->eu_steal_from[0] = (int8_t)eu->eu_id;
-        for( j = 0, k = 1; j < startup->nb_cores; j++ ) {
-            if( eu->eu_id != j ) {
-                eu->eu_steal_from[k] = (int8_t)j;
-                k++;
+        eu->eu_shared_queue = (dplasma_dequeue_t **)malloc(eu->nb_shared_queues * sizeof(dplasma_dequeue_t*) );
+#endif
+        for(level = 0; level < eu->nb_shared_queues; level++) {
+            idx = eu->nb_shared_queues - 1 - level;
+            master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
+            if( eu->eu_id == master ) {
+                /* The master(s) create the shared queues */
+#if defined(DPLASMA_USE_LIFO)
+                eu->eu_shared_queue[idx] = (dplasma_atomic_lifo_t*)malloc(sizeof(dplasma_atomic_lifo_t));
+                dplasma_atomic_lifo_construct(eu->eu_shared_queue[idx]);
+#else
+                eu->eu_shared_queue[idx] = (dplasma_dequeue_t*)malloc(sizeof(dplasma_dequeue_t));
+                dplasma_dequeue_construct(eu->eu_shared_queue[idx]);
+#endif
+
+#if defined(DPLASMA_CACHE_AWARENESS)
+                /* The master(s) create the cache explorer, using their current closest cache as its father */
+                eu->closest_cache = cache_create( dplasma_hwlock_nb_cores(startup->master_context, level, master), eu->closest_cache, 
+                                                  (dplasma_hwlock_cache_size(startup->master_context, level, master) / TILE_SIZE)-1 );
+#endif
+
+                /* The master(s) unblock all waiting slaves */
+                dplasma_barrier_wait( &startup->master_context->barrier );
+            } else {
+                /* Be a slave: wait that the master(s) unblock me */
+                dplasma_barrier_wait( &startup->master_context->barrier );
+                
+                /* The slaves take their queue for this level from their master */
+                eu->eu_shared_queue[idx] = startup->master_context->execution_units[master]->eu_shared_queue[idx];
+
+#if defined(DPLASMA_CACHE_AWARENESS)
+                /* The closest cache has been created by my master. Thank you, master */
+                eu->closest_cache = startup->master_context->execution_units[master]->closest_cache;
+#endif
             }
         }
-#endif
     }
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
 
@@ -467,8 +498,13 @@ int dplasma_fini( dplasma_context_t** pcontext )
         context->execution_units[i]->eu_task_queue = NULL;
 #endif  /* defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-        free(context->execution_units[i]->eu_steal_from);
-        context->execution_units[i]->eu_steal_from = NULL;
+        /**
+         * TODO: use HWLOC to know who is responsible to free this, 
+         * and free the inside too 
+         */
+        free(context->execution_units[i]->eu_shared_queue);
+        context->execution_units[i]->eu_shared_queue = NULL;
+        context->execution_units[i]->nb_shared_queues = 0;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
     

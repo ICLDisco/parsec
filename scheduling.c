@@ -224,55 +224,57 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         } else {
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
-#if defined(DISTRIBUTED)
+#  if defined(DISTRIBUTED)
             /* check for remote deps completion */
             if(dplasma_remote_dep_progress(eu_context) > 0)
             {
                 found_remote++;
-#if defined(DPLASMA_USE_LIFO)
+#    if defined(DPLASMA_USE_LIFO)
                 exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
-#else
-#if PLACEHOLDER_SIZE
+#    else
+#      if PLACEHOLDER_SIZE
                 if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
                     exec_context = eu_context->placeholder[eu_context->placeholder_pop];
                     eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
                 } 
                 else
-#endif  /* PLACEHOLDER_SIZE */
+#      endif  /* PLACEHOLDER_SIZE */
                 {
                     exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue);                    
                 }                
-#endif  /* DPLASMA_USE_LIFO */
+#    endif  /* !DPLASMA_USE_LIFO */
                 if( NULL != exec_context ) {
                     misses_in_a_row = 0;
                     goto do_some_work;
                 }
             }
-#endif /* DISTRIBUTED */
+#  endif /* DISTRIBUTED */
+
             /* Work stealing from the other workers */
-#if defined(HAVE_HWLOC)
-            int i = 1;
-#else
-            int i = 0;
-#endif  /* defined(HAVE_HWLOC) */
-            for( ; i < master_context->nb_cores; i++ ) {
-                dplasma_execution_unit_t* victim;
-#if defined(HAVE_HWLOC)
-                victim = master_context->execution_units[eu_context->eu_steal_from[i]];
-#else
-                victim = master_context->execution_units[i];
-#endif  /* defined(HAVE_HWLOC) */
-#if defined(DPLASMA_USE_LIFO)
-                exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(victim->eu_task_queue);
-#else
-                exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(victim->eu_task_queue);
-#endif  /* DPLASMA_USE_LIFO */
-                if( NULL != exec_context ) {
-                    misses_in_a_row = 0;
-                    found_victim++;
-                    goto do_some_work;
+            {
+                int i;
+#  if defined(HAVE_HWLOC) /* && !defined(DPLASMA_USE_GLOBAL_LIFO) */
+                for(i = 0; i < eu_context->nb_shared_queues; i++ ) {
+#    if defined(DPLASMA_USE_LIFO)
+                    exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop( eu_context->eu_shared_queue[i] );
+#    else
+                    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back( eu_context->eu_shared_queue[i] );
+#    endif
+#  else /* (!HAVE_HWLOC) */
+                for(i = 0; i < master_context->nb_cores; i++ ) {
+#    if defined(DPLASMA_USE_LIFO)
+                    exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(master_context->execution_units[i]->eu_task_queue));
+#    else
+                    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(master_context->execution_units[i]->eu_task_queue);
+#    endif  /* DPLASMA_USE_LIFO */
+#  endif /* HAVE_HWLOC */
+                    if( NULL != exec_context ) {
+                        misses_in_a_row = 0;
+                        found_victim++;
+                        goto do_some_work;
+                    }
+                    miss_victim++;
                 }
-                miss_victim++;
             }
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
             misses_in_a_row++;
