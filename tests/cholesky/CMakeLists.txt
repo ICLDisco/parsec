@@ -1,12 +1,13 @@
 if( PLASMA_FOUND )
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
   
-  if( MPI_FOUND )
-    add_executable(dposv_ll_mpi dist_exec.c cholesky_mpi.c)
+  if( DPLASMA_MPI AND MPI_FOUND )
+    add_executable(dposv_ll_mpi dist_exec.c cholesky_mpi.c data_management.c)
     set_target_properties(dposv_ll_mpi PROPERTIES LINKER_LANGUAGE Fortran)
-    set_target_properties(dposv_ll_mpi PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE -DUSE_MPI")  
-    target_link_libraries(dposv_ll_mpi dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
-  endif( MPI_FOUND )
+    set_target_properties(dposv_ll_mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} ${COMPILE_FLAGS} -DADD_ -DDPLASMA_EXECUTE -DUSE_MPI")
+    set_target_properties(dposv_ll_mpi PROPERTIES LINK_FLAGS "${LINK_FLAGS} ${MPI_LINK_FLAGS}")
+    target_link_libraries(dposv_ll_mpi dplasma-mpi ${PLASMA_LIBRARIES} ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+  endif( DPLASMA_MPI AND MPI_FOUND )
 
   add_executable(dposv_rl dposv.c cholesky_rl.c)
   set_target_properties(dposv_rl PROPERTIES LINKER_LANGUAGE Fortran)

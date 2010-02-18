@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
-set(CMAKE_VERBOSE_MAKEFILE OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # should we use our own math functions
 option(DPLASMA_PROFILING
@@ -14,8 +14,8 @@ option(DO_THE_NASTY_VALIDATIONS
   "Do the validity checks at the end of each test" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries by default" OFF)
-set(DPLASMA_DISTRIBUTED "none" CACHE STRING
-  "Choose DPLASMA distributed memory backend, options are none, mpi." FORCE)
+option(DPLASMA_MPI
+  "Build DPLASMA for distributed memory with MPI backend" OFF)
 option(CHECK_PAPI
   "If PAPI support is expected or not. Default OFF" OFF)
 option(BUILD_64bits
@@ -159,9 +159,9 @@ find_package(HWLOC)
 #
 # If we want support for MPI based DPLASMA.
 #
-if (DPLASMA_DISTRIBUTED MATCHES ^.*mpi.*$)
+if (DPLASMA_MPI)
   find_package(MPI)
-endif (DPLASMA_DISTRIBUTED)
+endif (DPLASMA_MPI)
 
 #
 # If support for PAPI should be enabled.
@@ -177,19 +177,20 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 
-if (DPLASMA_DISTRIBUTED MATCHES ^.*mpi.*$)
+if (DPLASMA_MPI)
   if (MPI_FOUND)
+    include_directories( ${MPI_INCLUDE_DIR} ) 
     add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
       scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
       ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE -DUSE_MPI")
-    set_target_properties(dplasma-mpi PROPERTIES COMPILER MPI_COMPILER)
+    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DDPLASMA_EXECUTE -DUSE_MPI")
+    #set_target_properties(dplasma-mpi PROPERTIES COMPILER MPI_COMPILER)
   else (MPI_FOUND)
     message("MPI support is required in order to build the distributed version of DPLASMA."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
-endif (DPLASMA_DISTRIBUTED)
+endif (DPLASMA_MPI)
 
 #
 # Now continue with compiling the tests.
