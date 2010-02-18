@@ -1,6 +1,13 @@
 if( PLASMA_FOUND )
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
   
+  if( MPI_FOUND )
+    add_executable(dposv_ll_mpi dist_exec.c cholesky_mpi.c)
+    set_target_properties(dposv_ll_mpi PROPERTIES LINKER_LANGUAGE Fortran)
+    set_target_properties(dposv_ll_mpi PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE -DUSE_MPI")  
+    target_link_libraries(dposv_ll_mpi dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${BLAS_cblas_LIBRARY} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
+  endif( MPI_FOUND )
+
   add_executable(dposv_rl dposv.c cholesky_rl.c)
   set_target_properties(dposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dposv_rl PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
@@ -17,6 +24,12 @@ if( PLASMA_FOUND )
 endif( PLASMA_FOUND )
 
 # add the command to generate the source code
+add_custom_command (
+  OUTPUT cholesky_mpi.c
+  COMMAND ../../tools/dpc cholesky_mpi.jdf cholesky_mpi.c
+  DEPENDS dpc
+  )
+
 add_custom_command (
   OUTPUT cholesky_rl.c
   COMMAND ../../tools/dpc cholesky_rl.jdf cholesky_rl.c

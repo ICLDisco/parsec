@@ -14,8 +14,8 @@ option(DO_THE_NASTY_VALIDATIONS
   "Do the validity checks at the end of each test" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries by default" OFF)
-option(DPLASMA_DISTRIBUTED
-  "If DPLASMA support distributed memory systems (i.e. remote dependencies tracking)" ON)
+set(DPLASMA_DISTRIBUTED "none" CACHE STRING
+  "Choose DPLASMA distributed memory backend, options are none, mpi." FORCE)
 option(CHECK_PAPI
   "If PAPI support is expected or not. Default OFF" OFF)
 option(BUILD_64bits
@@ -159,7 +159,7 @@ find_package(HWLOC)
 #
 # If we want support for MPI based DPLASMA.
 #
-if (DPLASMA_DISTRIBUTED)
+if (DPLASMA_DISTRIBUTED MATCHES ^.*mpi.*$)
   find_package(MPI)
 endif (DPLASMA_DISTRIBUTED)
 
@@ -177,7 +177,7 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 
-if (DPLASMA_DISTRIBUTED)
+if (DPLASMA_DISTRIBUTED MATCHES ^.*mpi.*$)
   if (MPI_FOUND)
     add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
       scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
