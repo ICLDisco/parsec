@@ -195,29 +195,6 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         
     free(tmp_ints);
 
-
-            Ddesc->dtyp,
-            Ddesc->mb,
-            Ddesc->nb,
-            Ddesc->bsiz,
-            Ddesc->lm,
-            Ddesc->ln,
-            Ddesc->lmt,
-            Ddesc->lnt,
-            Ddesc->i,
-            Ddesc->j,
-            Ddesc->m,
-            Ddesc->n,
-            Ddesc->mt,
-            Ddesc->nt,
-            Ddesc->nrst,
-            Ddesc->ncst,
-            Ddesc->GRIDrows,
-            Ddesc->GRIDcols,
-            Ddesc->cores,
-            Ddesc->nodes);
-
-    sleep(10);
         if( -1 == ddesc_compute_vals(Ddesc) )
             {
                 MPI_Abort(MPI_COMM_WORLD, 2);
