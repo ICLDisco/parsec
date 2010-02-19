@@ -227,7 +227,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpc:n:a:r:b:g:s:x:w::h",
+        c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:s:w::h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -554,9 +554,12 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
 # ifdef USE_MPI
-    TIME_START();
-    gather_data(local, dist);
-    TIME_PRINT(("data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
+    if(do_nasty_validations)
+    {
+        TIME_START();
+        gather_data(local, dist);
+        TIME_PRINT(("data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
+    }
 # endif
 }
 
