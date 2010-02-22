@@ -64,8 +64,8 @@ if(NOT PAPI_FIND_QUIETLY)
         "or by setting PAPI_DIR")
     else(PAPI_FIND_REQUIRED)
       message(STATUS
-        "A required library with PAPI API not found. Please specify library location"
-        "using PAPI_DIR or a combination of PAPI_INCLUDE_DIR and PAPI_LIBRARIES"
+        "A required library with PAPI API not found. Please specify library location "
+        "using PAPI_DIR or a combination of PAPI_INCLUDE_DIR and PAPI_LIBRARIES "
         "or by setting PAPI_DIR")
     endif(PAPI_FIND_REQUIRED)
   endif(PAPI_FOUND)
