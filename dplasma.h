@@ -15,15 +15,6 @@ typedef struct dplasma_t dplasma_t;
 #define MAX_PRED_COUNT   5
 #define MAX_PARAM_COUNT  5
 
-#include <stdint.h>
-#include <stdlib.h>
-#include "symbol.h"
-#include "expr.h"
-#include "params.h"
-#include "dep.h"
-#include "execution_unit.h"
-#include "lifo.h"
-
 #ifdef _DEBUG
 #   ifdef USE_MPI
 #include <mpi.h>
@@ -39,6 +30,16 @@ typedef struct dplasma_t dplasma_t;
 #else
 #define DEBUG(ARG)
 #endif
+
+#include <stdint.h>
+#include <stdlib.h>
+#include "symbol.h"
+#include "expr.h"
+#include "params.h"
+#include "dep.h"
+#include "execution_unit.h"
+#include "lifo.h"
+
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
 #endif

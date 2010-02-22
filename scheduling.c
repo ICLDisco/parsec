@@ -71,6 +71,8 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+#elif defined(HAVE_HWLOC)
+    dplasma_hbbuffer_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #else
 #if PLACEHOLDER_SIZE
     while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
@@ -84,7 +86,6 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
         new_context = (dplasma_execution_context_t*)new_context->list_item.list_next;
     }
 #endif  /* PLACEHOLDER_SIZE */
-
     if( new_context->function->flags & DPLASMA_HIGH_PRIORITY_TASK ) {
         dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     } else {
@@ -147,6 +148,60 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
+#if defined( HAVE_HWLOC )
+#  if defined(DPLASMA_CACHE_AWARENESS)
+static  unsigned int ranking_function_bycache(void *elt, void *param)
+{
+    unsigned int value;
+    cache_t *cache = (cache_t*)param;
+    dplasma_execution_context_t *exec = (dplasma_execution_context_t*)elt;
+    
+    return 1;
+}
+#  else
+static  unsigned int ranking_function_firstfound(void *elt, void *_)
+{
+    return 1;
+}
+#  endif
+#endif
+
+#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+#  define DPLASMA_POP(eu_context, queue_name) \
+    (dplasma_execution_context_t*)dplasma_atomic_lifo_pop( (eu_context)->queue_name )
+#elif defined(HAVE_HWLOC) 
+#  if defined(DPLASMA_CACHE_AWARENESS)
+#    define DPLASMA_POP(eu_context, queue_name) \
+    (dplasma_execution_context_t*)dplasma_hbbuffer_pop_best((eu_context)->queue_name, \
+                                                            ranking_function_bycache, \
+                                                            (eu_context)->closest_cache)
+#  else
+#    define DPLASMA_POP(eu_context, queue_name) \
+    (dplasma_execution_context_t*)dplasma_hbbuffer_pop_best((eu_context)->queue_name, \
+                                                            ranking_function_firstfound, \
+                                                            NULL)
+#  endif /* DPLASMA_CACHE_AWARENESS */
+#  define DPLASMA_SYSTEM_POP(eu_context, queue_name) (dplasma_execution_context_t*)dplasma_dequeue_pop_front( (eu_context)->queue_name )
+#else /* Don't use LIFO, Global LIFO or HWLOC (hbbuffer): use dequeue */
+#  define DPLASMA_POP(eu_context, queue_name) \
+    (dplasma_execution_context_t*)dplasma_dequeue_pop_front( (eu_context)->queue_name )
+#endif
+
+static inline dplasma_execution_context_t *choose_local_job( dplasma_execution_unit_t *eu_context )
+{
+    dplasma_execution_context_t *exec_context = NULL;
+
+#if !defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO) && !defined(HAVE_HWLOC) && PLACEHOLDER_SIZE
+    if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
+        exec_context = eu_context->placeholder[eu_context->placeholder_pop];
+        eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
+    } 
+    else
+#endif
+        exec_context = DPLASMA_POP(eu_context, eu_task_queue);
+    return exec_context;
+}
+
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
@@ -194,21 +249,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
         }
 
-#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
-        exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
-#else
-#if PLACEHOLDER_SIZE
-        if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
-            exec_context = eu_context->placeholder[eu_context->placeholder_pop];
-            eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
-        } 
-        else
-#endif  /* PLACEHOLDER_SIZE */
-        {
-            /* extract the first execution context from the ready list */
-            exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front(eu_context->eu_task_queue);
-        }
-#endif  /* DPLASMA_USE_LIFO */
+        exec_context = choose_local_job(eu_context);
 
         if( exec_context != NULL ) {
             misses_in_a_row = 0;
@@ -224,50 +265,28 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         } else {
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
-#  if defined(DISTRIBUTED)
+#endif
+#if defined(DISTRIBUTED)
             /* check for remote deps completion */
-            if(dplasma_remote_dep_progress(eu_context) > 0)
-            {
+            if(dplasma_remote_dep_progress(eu_context) > 0)  {
                 found_remote++;
-#    if defined(DPLASMA_USE_LIFO)
-                exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue);
-#    else
-#      if PLACEHOLDER_SIZE
-                if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
-                    exec_context = eu_context->placeholder[eu_context->placeholder_pop];
-                    eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
-                } 
-                else
-#      endif  /* PLACEHOLDER_SIZE */
-                {
-                    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue);                    
-                }                
-#    endif  /* !DPLASMA_USE_LIFO */
+                
+                exec_context = choose_local_job(eu_context);
+                
                 if( NULL != exec_context ) {
                     misses_in_a_row = 0;
                     goto do_some_work;
                 }
             }
-#  endif /* DISTRIBUTED */
+#endif /* DISTRIBUTED */
 
+#if !defined(DPLASMA_USE_GLOBAL_LIFO)
             /* Work stealing from the other workers */
             {
                 int i;
-#  if defined(HAVE_HWLOC) /* && !defined(DPLASMA_USE_GLOBAL_LIFO) */
-                for(i = 0; i < eu_context->nb_shared_queues; i++ ) {
-#    if defined(DPLASMA_USE_LIFO)
-                    exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop( eu_context->eu_shared_queue[i] );
-#    else
-                    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back( eu_context->eu_shared_queue[i] );
-#    endif
-#  else /* (!HAVE_HWLOC) */
-                for(i = 0; i < master_context->nb_cores; i++ ) {
-#    if defined(DPLASMA_USE_LIFO)
-                    exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(master_context->execution_units[i]->eu_task_queue));
-#    else
-                    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(master_context->execution_units[i]->eu_task_queue);
-#    endif  /* DPLASMA_USE_LIFO */
-#  endif /* HAVE_HWLOC */
+#  if defined(HAVE_HWLOC) 
+                for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++ ) {
+                    exec_context = DPLASMA_POP( eu_context, eu_hierarch_queues[i] );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;
                         found_victim++;
@@ -275,6 +294,24 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                     }
                     miss_victim++;
                 }
+                exec_context = DPLASMA_SYSTEM_POP( eu_context, eu_system_queue );
+                if( NULL != exec_context ) {
+                    misses_in_a_row = 0;
+                    found_victim++;
+                    goto do_some_work;
+                }
+                miss_victim++;
+#  else 
+                for(i = 0; i < master_context->nb_cores; i++ ) {
+                    exec_context = DPLASMA_POP( master_context->execution_units[i], eu_task_queue );
+                    if( NULL != exec_context ) {
+                        misses_in_a_row = 0;
+                        found_victim++;
+                        goto do_some_work;
+                    }
+                    miss_victim++;
+                }
+#  endif
             }
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
             misses_in_a_row++;
@@ -282,18 +319,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     }
 
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
-    while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop(eu_context->eu_task_queue)) ) {
-        char tmp[128];
-        dplasma_service_to_string( exec_context, tmp, 128 );
-        printf( "[iteration %d: th %d] Pending task: %s\n", my_barrier_counter, eu_context->eu_id, tmp );
-    }
     assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
+#elif defined(HAVE_HWLOC)
+    assert(dplasma_hbbuffer_is_empty(eu_context->eu_task_queue));
 #else
-    while( NULL != (exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_back(eu_context->eu_task_queue)) ) {
-        char tmp[128];
-        dplasma_service_to_string( exec_context, tmp, 128 );
-        printf( "[iteration %d: th %d] Pending task: %s\n", my_barrier_counter, eu_context->eu_id, tmp );
-    }
     assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
 #endif  /* defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO) */
 
