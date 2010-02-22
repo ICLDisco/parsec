@@ -911,7 +911,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                 deps->min = min;
                 deps->max = max;
                 deps->prev = last_deps; /* chain them backward */
-                if( 0 == dplasma_atomic_cas(deps_location, NULL, deps) ) {
+                if( 0 == dplasma_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
                     /* Some other thread manage to set it before us. Not a big deal. */
                     free(deps);
                     goto deps_created_by_another_thread;

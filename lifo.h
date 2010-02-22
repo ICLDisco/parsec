@@ -49,8 +49,8 @@ static inline dplasma_list_item_t* dplasma_atomic_lifo_push( dplasma_atomic_lifo
     do {
         tail->list_next = lifo->lifo_head;
         if( dplasma_atomic_cas( &(lifo->lifo_head),
-                                (void*)tail->list_next,
-                                items ) ) {
+                                (uintptr_t) tail->list_next,
+                                (uintptr_t) items ) ) {
             return (dplasma_list_item_t*)tail->list_next;
         }
         /* DO some kind of pause to release the bus */
@@ -67,8 +67,8 @@ static inline dplasma_list_item_t* dplasma_atomic_lifo_pop( dplasma_atomic_lifo_
     while((item = lifo->lifo_head) != &(lifo->lifo_ghost))
     {
         if( dplasma_atomic_cas( &(lifo->lifo_head),
-                                item,
-                                (void*)item->list_next ) )
+                                (uintptr_t) item,
+                                (uintptr_t) item->list_next ) )
             break;
         /* Do some kind of pause to release the bus */
     }

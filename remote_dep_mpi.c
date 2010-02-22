@@ -213,9 +213,9 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
     if(eu_context->eu_id != 0) return 0;
     
     do {
-/*        TAKE_TIME(MPI_Test_any_sk);*/
+ //        TAKE_TIME(MPI_Test_any_sk);
         MPI_Testany(4 * DEP_NB_CONCURENT, dep_req, &i, &flag, &status);
-/*        TAKE_TIME(MPI_Test_any_ek);*/
+ //        TAKE_TIME(MPI_Test_any_ek);
         if(flag)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
@@ -352,34 +352,40 @@ static int remote_dep_dequeue_init(dplasma_context_t* context)
     pthread_attr_init(&thread_attr);
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
     
-    enable_self_progress = 0;
-    np = 0;
     
     dplasma_dequeue_construct(&dep_cmd_queue);
     dplasma_dequeue_construct(&dep_activate_queue);
     
-    pthread_create(&dep_thread_id,
-                   &thread_attr,
-                   (void* (*)(void*))remote_dep_dequeue_main,
-                   (void*)context);
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    if(1 < np)
+    {
+        enable_self_progress = 0;
+        np = 0;
+        pthread_create(&dep_thread_id,
+                       &thread_attr,
+                       (void* (*)(void*))remote_dep_dequeue_main,
+                       (void*)context);
     
-    while(0 == np); /* wait until the thread inits MPI */
+        while(0 == np); /* wait until the thread inits MPI */
+    }
     return np;
 }
 
 static int remote_dep_dequeue_fini(dplasma_context_t* context)
 {
-    dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-    dplasma_context_t *ret;
+    if(1 < context->nb_nodes)
+    {        
+        dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+        dplasma_context_t *ret;
     
-    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
-    cmd->cmd = DEP_FINI;
+        cmd->super.list_prev = (dplasma_list_item_t*) cmd;
+        cmd->cmd = DEP_FINI;
     
-    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
+        dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
     
-    pthread_join(dep_thread_id, (void**) &ret);
-    assert(ret == context);
-    
+        pthread_join(dep_thread_id, (void**) &ret);
+        assert(ret == context);
+    }
     return 0;
 }
 
@@ -388,7 +394,7 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
 static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, void** data)
 {
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-    
+
     cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
     cmd->u.activate.origin = *task;

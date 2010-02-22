@@ -188,6 +188,23 @@ int main(int argc, char ** argv)
     return 0;
 }
 
+static void print_usage(void)
+{
+    fprintf(stderr,
+            "Mandatory argument:\n"
+            "   -n, --matrix-size : the size of the matrix\n"
+            "Optional arguments:\n"
+            "   -c --nb-cores    : number of computing threads to use\n"
+            "   -d --dplasma     : use DPLASMA backend (default)\n"
+            "   -p --plasma      : use PLASMA backend\n"
+            "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
+            "   -s --stile-size  : number of tile per row (col) in a super tile (default: 1)\n"
+            "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
+            "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
+            "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
+            "   -x --xcheck      : do extra nasty result validations\n"
+            "   -w --warmup      : do some warmup, if > 1 also preload cache\n");
+}
 
 static void runtime_init(int argc, char **argv)
 {
@@ -227,7 +244,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpc:n:a:r:b:g:s:x:w::h",
+        c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:s:w::h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -298,20 +315,7 @@ static void runtime_init(int argc, char **argv)
             case 'h':
                 if(0 == rank)
                 {
-                    fprintf(stderr, 
-                            "Mandatory argument:\n"
-                            "   -n, --matrix-size : the size of the matrix\n"
-                            "Optional arguments:\n"
-                            "   -c --nb-cores    : number of computing threads to use\n"
-                            "   -d --dplasma     : use DPLASMA backend (default)\n"
-                            "   -p --plasma      : use PLASMA backend\n"
-                            "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-                            "   -s --stile-size  : number of tile per row (col) in a super tile (default: 1)\n"
-                            "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
-                            "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
-                            "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
-                            "   -x --xcheck      : do extra nasty result validations"
-                            "   -w --warmup      : do some warmup, if > 1 also preload cache");
+                    print_usage();
                     exit(0);
                 }
             case '?': /* getopt_long already printed an error message. */
@@ -333,7 +337,7 @@ static void runtime_init(int argc, char **argv)
     {
         if(0 == rank)
         {
-            fprintf(stderr, "must provide : -n, --matrix-size : the size of the matrix \n Optional arguments are:\n -a --lda : leading dimension of the matrix A (equal matrix size by default) \n -r --nrhs : number of RHS (default: 1) \n -b --ldb : leading dimension of the RHS B (equal matrix size by default)\n -g --grid-rows : number of processes row in the process grid (must divide the total number of processes (default: 1) \n -s --stile-size : number of tile per row (col) in a super tile (default: 1)\n");
+            print_usage(); 
             exit(2);
         }
     } 
@@ -554,9 +558,12 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
 # ifdef USE_MPI
-    TIME_START();
-    gather_data(local, dist);
-    TIME_PRINT(("data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
+    if(do_nasty_validations)
+    {
+        TIME_START();
+        gather_data(local, dist);
+        TIME_PRINT(("data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
+    }
 # endif
 }
 
