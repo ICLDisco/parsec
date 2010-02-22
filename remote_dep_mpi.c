@@ -356,7 +356,7 @@ static int remote_dep_dequeue_init(dplasma_context_t* context)
     dplasma_dequeue_construct(&dep_cmd_queue);
     dplasma_dequeue_construct(&dep_activate_queue);
     
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
     if(1 < np)
     {
         enable_self_progress = 0;
