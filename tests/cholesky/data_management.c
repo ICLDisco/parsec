@@ -848,33 +848,75 @@ int compare_plasma_matrices(PLASMA_desc * A, PLASMA_desc * B, double precision)
     return 1;
 }
 
+/*
+ Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
+ generating threads only read Rnd64seed. It is safe to set Rnd64seed before
+ and after any calls to create_tile(). The only problem can be caused if
+ Rnd64seed is changed during the matrix generation time.
+ */
+unsigned long long int Rnd64seed = 100;
+#define Rnd64_A 6364136223846793005ULL
+#define Rnd64_C 1ULL
 
+unsigned long long int
+Rnd64_jump(unsigned long long int n) {
+  unsigned long long int a_k, c_k, ran;
+  int i;
 
+  a_k = Rnd64_A;
+  c_k = Rnd64_C;
 
+  ran = Rnd64seed;
+  for (i = 0; n; n >>= 1, ++i) {
+    if (n & 1)
+      ran = a_k * ran + c_k;
+    c_k *= (a_k + 1);
+    a_k *= a_k;
+  }
+
+  return ran;
+}
 
 /************************************************************
  *distributed matrix generation
  ************************************************************/
-/* fake tile creation used until peter's code */
+/* tile creation */
 static void create_tile(DPLASMA_desc * Ddesc, double * position, int LDA, int NRHS, int LDB, int row, int col, PLASMA_enum uplo)
 {
-    int i;
-    
-    for(i = 0 ; i < Ddesc->bsiz ; i++)
-        position[i] = (double) row*(Ddesc->lnt)+col;
-        
+    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    double *x = position;
+    unsigned long long int ran;
+
+    /* These are global values of first row and column of the tile counting from 0 */
+    first_row = row * nb;
+    first_col = col * nb;
+
+    for (j = 0; j < nb; ++j) {
+      ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
+
+      for (i = 0; i < nb; ++i) {
+        x[0] = 0.5 - ran * 5.4210108624275222e-20;
+        ran = Rnd64_A * ran + Rnd64_C;
+        x += 1;
+      }
+    }
+    /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
+    if (row == col) {
+      for (i = 0; i < nb; ++i)
+        position[i + i * nb] += mn_max;
+    }
 }
 
 
 int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo)
 {
-    
+
     int i, j, status;
     plasma_context_t *plasma;
     int nbstile_r;
     int nbstile_c;
     double * target;
-    
+
     plasma = plasma_context_self();
     if (plasma == NULL) {
         plasma_fatal_error("PLASMA_dpotrf", "PLASMA not initialized");
@@ -928,18 +970,18 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
     // Submatrix derived parameters
     Ddesc->mt = ((Ddesc->i)+(Ddesc->m)-1)/(Ddesc->nb) - (Ddesc->i)/(Ddesc->nb) + 1;
     Ddesc->nt = ((Ddesc->j)+(Ddesc->n)-1)/(Ddesc->nb) - (Ddesc->j)/(Ddesc->nb) + 1;
-    
+
 
     /* computing colRANK and rowRANK */
     Ddesc->rowRANK = (Ddesc->mpi_rank)/(Ddesc->GRIDcols);
     Ddesc->colRANK = (Ddesc->mpi_rank)%(Ddesc->GRIDcols);
-    
-        
+
+
     /* computing the number of rows of super-tile */
     nbstile_r = Ddesc->lmt / Ddesc->nrst;
     if((Ddesc->lmt % Ddesc->nrst) != 0)
         nbstile_r++;
-    
+
     /* computing the number of colums of super-tile*/
     nbstile_c = Ddesc->lnt / Ddesc->ncst;
     if((Ddesc->lnt % Ddesc->ncst) != 0)
@@ -967,7 +1009,7 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
             Ddesc->nb_elem_r += ((Ddesc->lmt) - i);
             break;
         }
-    
+
     Ddesc->nb_elem_c = 0;
     i = Ddesc->colRANK * Ddesc->ncst;
     while ( i < Ddesc->lnt)
@@ -985,7 +1027,7 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
            Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);
 
 
-    
+
     /* Allocate memory for matrices in block layout */
     Ddesc->mat =(double *)plasma_shared_alloc(plasma, Ddesc->nb_elem_r*Ddesc->nb_elem_c * Ddesc->bsiz, PlasmaRealDouble);
     if (Ddesc->mat == NULL)
@@ -993,7 +1035,7 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
             plasma_error("PLASMA_dpotrf", "plasma_shared_alloc() failed");
             return PLASMA_ERR_OUT_OF_RESOURCES;
         }
-    
+
     /* DPLASMA_desc Ddesc is filled, no filling matrix with random values */
     for(i = 0 ; i < Ddesc->lmt ; i++)
         for (j = 0 ; j < Ddesc->lnt ; j++)
@@ -1002,7 +1044,7 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
                         target = dplasma_get_local_tile_s(Ddesc, i, j);
                         create_tile(Ddesc, target, LDA,  NRHS,  LDB, i, j, uplo);
                     }
-            
+
     return 0;
-    
+
 }
