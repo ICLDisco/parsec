@@ -57,6 +57,7 @@ endif(FOUND_PAPI_INCLUDE AND FOUND_PAPI_LIB)
 if(NOT PAPI_FIND_QUIETLY)
   if(PAPI_FOUND)
     message(STATUS "A library with PAPI API found.")
+    set(HAVE_PAPI 1)
   else(PAPI_FOUND)
     if(PAPI_FIND_REQUIRED)
       message(FATAL_ERROR

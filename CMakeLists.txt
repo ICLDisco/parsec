@@ -106,7 +106,7 @@ ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
-message("-- Check if the compiler provides atomic operations directives")
+message(STATUS "-- Check if the compiler provides atomic operations directives")
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)
@@ -167,7 +167,13 @@ endif (DPLASMA_SCHED_HWLOC)
 
 if (DPLASMA_MPI)
   find_package(MPI)
-  message("MPI FOUND: ${MPI_INCLUDE_PATH}, ${MPI_COMPILE_FLAGS}, ${MPI_LINK_FLAGS}, ${MPI_LIBRARIES}")
+  if (MPI_FOUND)
+    include_directories( ${MPI_INCLUDE_PATH} ) 
+  else (MPI_FOUND)
+    message("MPI support is required in order to build the distributed version of DPLASMA."
+      "Unfortunately, MPI does not seem to be properly installed on this system, at least"
+      "not on the default path.")
+  endif (MPI_FOUND)
 endif (DPLASMA_MPI)
 
 if (DPLASMA_PAPI)
@@ -185,19 +191,12 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 
-if (DPLASMA_MPI)
-  if (MPI_FOUND)
-    include_directories( ${MPI_INCLUDE_PATH} ) 
+if (DPLASMA_MPI AND MPI_FOUND)
     add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
       scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
       ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DDPLASMA_EXECUTE -DUSE_MPI")
-  else (MPI_FOUND)
-    message("MPI support is required in order to build the distributed version of DPLASMA."
-      "Unfortunately, MPI does not seem to be properly installed on this system, at least"
-      "not on the default path.")
-  endif (MPI_FOUND)
-endif (DPLASMA_MPI)
+    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+endif (DPLASMA_MPI AND MPI_FOUND)
 
 #
 # Now continue with compiling the tests.
