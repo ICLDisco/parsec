@@ -268,6 +268,17 @@ string trim(string in){
     return in.substr(i);
 }
 
+string trimAll(string str){
+    unsigned int s,e;
+    for(s=0; s<str.length(); ++s){
+        if( str[s] != ' ' ) break;
+    }
+    for(e=s; e<str.length(); ++e){
+        if( str[e] == ' ' ) break;
+    }
+    return str.substr(s,e-s);
+}
+
 list<string> stringToVarList( string str ){
     list<string> result;
     stringstream ss;
@@ -282,6 +293,97 @@ list<string> stringToVarList( string str ){
 
     return result;
 }
+
+
+//{0 <= k <= n-2, m-2 && n < BB && m < BB}
+string expressionToRange(string var, string condStr){
+    string lb, ub, off;
+    list<string> conditions;
+
+    // split the condition string into a list of strings
+    // each of which holding only a simple expression
+    while( !condStr.empty() ){
+        unsigned int pos = condStr.find_first_of("&|");
+        if( pos != string::npos && pos ){
+            conditions.push_back( condStr.substr(0,pos) );
+            condStr = condStr.substr(pos+1);
+        }else{
+            conditions.push_back( condStr );
+            break;
+        }
+        conditions.push_back( condStr );
+    }
+
+    // For every expression in the list, find the variable and then
+    // look for a "<" or "<=" left and/or right of the variable.
+    list<string>::iterator cnd_itr=conditions.begin();
+    for (; cnd_itr!=conditions.end(); ++cnd_itr){
+        unsigned int pos;
+        string cond = *cnd_itr;
+        pos = cond.find(var);
+        // if we found the var, split the string in "left" and "right" around the var
+        if( pos != string::npos ){
+            string left = cond.substr(0,pos);
+            string right = cond.substr(pos+var.length());
+
+            // Process the "left" string looking for the lower bound "lb"
+            pos = left.find_last_of("<");
+            if( pos != string::npos ){
+                // check if the comparison operator is "<=".  If so the expression to the left of the
+                // operator is the lower bound, otherwise we need to offset the expression by "+1"
+                if( (left.length() > pos+1) && (left[pos+1] == '=') ){
+                    off = "";
+                }else{
+                    off = "+1";
+                }
+
+                // take the part of the string up to the "<" symbol. This should contain
+                // the lower bound, probably preceeded by other stuff ending in "<" or "="
+                string tmp = left.substr(0,pos);
+                // find the last occurrence of "<" or "=" (left of the lower bound)
+                unsigned int l_pos = tmp.find_last_of("<=");
+                if( l_pos != string::npos ){
+                    lb = trimAll(tmp.substr(l_pos+1));
+                }else{ // if no such symbol, then the whole thing is the lower bound.
+                    lb = trimAll(tmp);
+                }
+
+                lb = lb.append(off);
+            }
+
+            // Process the "right" string looking for the upper bound "ub"
+            int op_len=1;
+            // assume it's "<". If it ends up being "<=" we will overwrite it.
+            off = "-1";
+            pos = right.find("<=");
+            if( pos != string::npos ){
+                    off = "";
+                    op_len = 2;
+            }else{
+                pos = right.find("<");
+            }
+            if( pos != string::npos ){
+                // take the part of the string after the "<" or "<=" symbol. This should contain
+                // the upper bound, probably followed by other stuff starting with "<".
+                string tmp = right.substr(pos+op_len);
+
+                // find the first occurrence of "<" (right of the upper bound)
+                unsigned int r_pos = tmp.find("<");
+                if( r_pos != string::npos ){
+                    ub = trimAll(tmp.substr(0,r_pos));
+                }else{ // if no such symbol, then the whole thing is the upper bound.
+                    ub = trimAll(tmp);
+                }
+
+                ub = ub.append(off);
+            }
+
+        }
+    }
+
+    return (lb+".."+ub);
+}
+
 
 void dumpDep(dep_t dep, string iv_set){
     stringstream ss;
@@ -354,15 +456,8 @@ void dumpDep(dep_t dep, string iv_set){
     string sink = dep.sink.substr(0,posLB);
     
 
-//DEBUG: {[k,k+1,m] -> [k+1,m] : 0 <= k <= m-2 && m < BB}
-//DSSSSM(k,n,m)(k,k+1,m) A(m,n) -> A(m,k) DTSTRF(k,m)(k+1,m)  {0 <= k <= m-2 && m < BB}
-
-//DEBUG: {[k,m] -> [k,n,m] : 0 <= k < m,n < BB}
-//DTSTRF(k,m)(k,m) IPIV(m,k) -> IPIV(m,k) DSSSSM(k,n,m)(k,n,m)  {0 <= k < m,n < BB}
-
-//    list<string> srcFormals, dstFormals, srcActuals, dstActuals
     if( srcFormals.size() != srcActuals.size() ){
-        cerr << "ERROR: source formals != source actuals" << endl;
+        cerr << "ERROR: source formal count != source actual count" << endl;
     }
 
     // For every source actual that is not the same variable as the formal
@@ -403,7 +498,8 @@ void dumpDep(dep_t dep, string iv_set){
         }
         // if we didn't find the formal, check if the actual is the same as the formal
         if( !dstaParam.compare(dstfParam) ){
-            actual_parameter_list.push_back("lb..ub");
+            string range = expressionToRange(dstaParam, cond);
+            actual_parameter_list.push_back(range);
         }else{ // in this case it's probably an expression of source actuals
             actual_parameter_list.push_back(dstaParam);
         }
@@ -424,9 +520,6 @@ void dumpDep(dep_t dep, string iv_set){
 
     cout << "  OUT " << dep.srcArray << " -> ";
     cout << dep.dstArray << " ";
-// HERE
-//    cout << dep.sink << "(" << dstParams << ")  ";
-//    cout << sink << "(" << dstParams << ")  ";
     cout << sink << "(" << dstTaskParams << ")  ";
     cout << "{" << cond << "}" << endl;
 }
@@ -481,12 +574,9 @@ void mergeLists(void){
             cout << "\nTASK: " << current_source << " {" << endl;
             prev_source = current_source;
         }
-/*
-        if( (fd_itr=rlvnt_flow_deps.begin()) != rlvnt_flow_deps.end() ) {
-            dep_t f_dep = static_cast<dep_t>(*fd_itr);
-            cout << "\nTASK: " << f_dep.source << " {" << endl;
-        }
-*/
+
+        // Iterate over all the relevant flow dependencies, apply the output dependencies
+        // to them and print the result.
         for(fd_itr=rlvnt_flow_deps.begin(); fd_itr != rlvnt_flow_deps.end(); ++fd_itr) {
             dep_t f_dep = static_cast<dep_t>(*fd_itr);
             int fd_srcLine = f_dep.srcLine;
@@ -525,12 +615,12 @@ void mergeLists(void){
                 }
             }
             string sets_for_omega = setIntersector.subtract();
-//            cout << sets_for_omega << endl;
             fstream filestr ("/tmp/oc_in.txt", fstream::out);
             filestr << sets_for_omega << endl;
             filestr.close();
 
-            FILE *pfp = popen("/Users/adanalis/Desktop/Research/PLASMA_Distributed/Omega/omega_calc/obj/oc /tmp/oc_in.txt", "r");
+            string omegaHome="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Omega";
+            FILE *pfp = popen( (omegaHome+"/omega_calc/obj/oc /tmp/oc_in.txt").c_str(), "r");
             stringstream data;
             char buffer[256];
             while (!feof(pfp)){
