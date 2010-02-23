@@ -27,59 +27,59 @@
 #define COLORS_SIZE           54
 
 static const char *colors[COLORS_SIZE] = { 
-  "#E52B50", 
-  "#7FFFD4", 
-  "#007FFF", 
-  "#000000", 
-  "#0000FF", 
-  "#0095B6", 
-  "#8A2BE2", 
-  "#A52A2A", 
-  "#702963", 
-  "#960018", 
-  "#DE3163", 
-  "#007BA7", 
-  "#7FFF00", 
-  "#F88379", 
-  "#DC143C", 
-  "#00FFFF", 
-  "#7DF9FF", 
-  "#FFD700", 
-  "#808080", 
-  "#00CC00", 
-  "#3FFF00", 
-  "#4B0082", 
-  "#00A86B", 
-  "#B57EDC", 
-  "#C8A2C8", 
-  "#BFFF00", 
-  "#FF00FF", 
-  "#800000", 
-  "#E0B0FF", 
-  "#000080", 
-  "#808000", 
-  "#FFA500", 
-  "#FF4500", 
-  "#FFE5B4", 
-  "#1C39BB", 
-  "#FFC0CB", 
-  "#843179", 
-  "#FF7518", 
-  "#800080", 
-  "#FF0000", 
-  "#C71585", 
-  "#FF007F", 
-  "#FA8072", 
-  "#FF2400", 
-  "#C0C0C0", 
-  "#708090", 
-  "#00FF7F", 
-  "#483C32", 
-  "#008080", 
-  "#40E0D0", 
-  "#EE82EE", 
-  "#40826D", 
-  "#FFFF00" 
+    "#E52B50", 
+    "#7FFFD4", 
+    "#007FFF", 
+    "#000000", 
+    "#0000FF", 
+    "#0095B6", 
+    "#8A2BE2", 
+    "#A52A2A", 
+    "#702963", 
+    "#960018", 
+    "#DE3163", 
+    "#007BA7", 
+    "#7FFF00", 
+    "#F88379", 
+    "#DC143C", 
+    "#00FFFF", 
+    "#7DF9FF", 
+    "#FFD700", 
+    "#808080", 
+    "#00CC00", 
+    "#3FFF00", 
+    "#4B0082", 
+    "#00A86B", 
+    "#B57EDC", 
+    "#C8A2C8", 
+    "#BFFF00", 
+    "#FF00FF", 
+    "#800000", 
+    "#E0B0FF", 
+    "#000080", 
+    "#808000", 
+    "#FFA500", 
+    "#FF4500", 
+    "#FFE5B4", 
+    "#1C39BB", 
+    "#FFC0CB", 
+    "#843179", 
+    "#FF7518", 
+    "#800080", 
+    "#FF0000", 
+    "#C71585", 
+    "#FF007F", 
+    "#FA8072", 
+    "#FF2400", 
+    "#C0C0C0", 
+    "#708090", 
+    "#00FF7F", 
+    "#483C32", 
+    "#008080", 
+    "#40E0D0", 
+    "#EE82EE", 
+    "#40826D", 
+    "#FFFF00" 
 };
 
 #define SHAPES_SIZE 14
@@ -266,9 +266,9 @@ static char *dump_c_expression_inline(const expr_t *e,
         expr_idx++;
 
         output(
-                "static int inline_expr%d( const  assignment_t *assignments )\n"
-                "{\n",
-                my_id);
+               "static int inline_expr%d( const  assignment_t *assignments )\n"
+               "{\n",
+               my_id);
 
         for(i = 0; i < nbsymbols; i++) {
             if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
@@ -276,20 +276,20 @@ static char *dump_c_expression_inline(const expr_t *e,
             } 
         }
         /*
-        for(i = 0; i < nbsymbols; i++) {
-            if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
-                   output("  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
-            } 
-        }
+          for(i = 0; i < nbsymbols; i++) {
+          if( (NULL != symbols[i]) && ( EXPR_SUCCESS == expr_depend_on_symbol( e, symbols[i] ) ) ) {
+          output("  assert( (assignments[%d].sym != NULL) && (strcmp(assignments[%d].sym->name, \"%s\") == 0) );\n", i, i, symbols[i]->name);
+          } 
+          }
         */
 
         output("  return ");
         dump_inline_c_expression(e);
         output(
-                ";\n"
-                "}\n"
-                "static expr_t inline%d = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr%d }; /* ",
-                my_id, my_id);
+               ";\n"
+               "}\n"
+               "static expr_t inline%d = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr%d }; /* ",
+               my_id, my_id);
         dump_inline_c_expression(e);
         output(" */\n");
 
@@ -312,7 +312,7 @@ static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_f
 
         if( EXPR_OP_CONST_INT == e->op ) {
             output("static expr_t expr%d = { .op = EXPR_OP_CONST_INT, .flags = %d, .value = %d }; /* ",
-                    my_id, e->flags, e->value);
+                   my_id, e->flags, e->value);
             expr_dump(out, e);
             output(" */\n");
         } 
@@ -321,12 +321,12 @@ static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_f
             snprintf(sname, FNAME_SIZE, "%s", dump_c_symbol(e->var, init_func_body, init_func_body_size));
             if( e->flags & EXPR_FLAG_CONSTANT ) {
                 output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s, .value = %d }; /* ",
-                        my_id, e->flags, sname, e->value);
+                       my_id, e->flags, sname, e->value);
                 expr_dump(out, e);
                 output(" */\n");
             } else {
                 output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s }; /* ",
-                        my_id, e->flags, sname);
+                       my_id, e->flags, sname);
                 expr_dump(out, e);
                 output(" */\n");
             }
@@ -335,12 +335,12 @@ static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_f
             snprintf(sn, FNAME_SIZE, "%s", dump_c_expression(e->uop1, init_func_body, init_func_body_size));
             if( e->flags & EXPR_FLAG_CONSTANT ) {
                 output("static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s, .value = %d }; /* ", 
-                        my_id, e->op, e->flags, sn, e->value);
+                       my_id, e->op, e->flags, sn, e->value);
                 expr_dump(out, e);
                 output(" */\n");
             } else {
                 output("static expr_t expr%d = { .op = %d, .flags = %d, .uop1 = %s }; /* ", 
-                        my_id, e->op, e->flags, sn);
+                       my_id, e->op, e->flags, sn);
                 expr_dump(out, e);
                 output(" */\n");
             }
@@ -433,7 +433,7 @@ static char *dump_c_dep(const dplasma_t *dplasma, const dep_t *d, char *init_fun
         snprintf(name, FNAME_SIZE, "&dep%u", my_idx);
     }
      
-   return name;
+    return name;
 }
 
 static char *dump_c_param(const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
@@ -520,8 +520,8 @@ static char *dump_c_symbol(const symbol_t *s, char *init_func_body, int init_fun
     snprintf(mm, FNAME_SIZE, "%s", dump_c_expression(s->max, init_func_body, init_func_body_size));
     
     output("static symbol_t symb%d = { .flags = 0x%08x, .name = \"%s\", .min = %s, .max = %s };\n",
-            i,
-            s->flags, s->name, mn, mm);
+           i,
+           s->flags, s->name, mn, mm);
 
     return e->c_name;
 }
@@ -684,7 +684,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     cpt = 0;
     for( i = 0; i < MAX_PARAM_COUNT; i++) {
         if( d->inout[i] != NULL &&
-           d->inout[i]->sym_type & SYM_OUT ) {
+            d->inout[i]->sym_type & SYM_OUT ) {
             output("    e%s->data[%d] = NULL;\n", d->name, cpt, cpt);
             cpt++;
         }
@@ -897,6 +897,110 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            d->name, d->name);
 }
 
+#if defined(DPLASMA_CACHE_AWARENESS)
+static char *dplasma_dump_cache_evaluation_function(const dplasma_t *d,
+                                                    char *init_func_body,
+                                                    int init_func_body_size)
+{
+    int i, j, k, cpt;
+    output( "static unsigned int %s_cache_rank(const dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward)\n"
+            "{\n"
+            "  int result = 0;\n",
+            d->name);
+
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+        output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
+    }
+    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) 
+        if( d->inout[i]->sym_type & SYM_IN ) {
+            output("  void *%s = NULL;\n", d->inout[i]->name);
+            output("  data_repo_entry_t *e%s = NULL;\n", d->inout[i]->name);
+        }
+
+    output("  /* remove warnings in case the variable is not used later */\n");
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++)
+        output("  (void)%s;\n", d->locals[i]->name);
+
+    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+        if( d->inout[i]->sym_type & SYM_IN ) {
+            for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
+                if( d->inout[i]->dep_in[k] != NULL ) {
+                       
+                    if( NULL != d->inout[i]->dep_in[0]->cond ) {
+                        output("  if(");
+                        dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
+                        output(") {\n");
+                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                            output("    e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+                                   d->inout[i]->name,
+                                   d->inout[i]->dep_in[k]->dplasma->name,
+                                   d->inout[i]->dep_in[k]->dplasma->name);
+                            for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
+                                dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
+                                if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
+                                    output("), 0 );\n");
+                                else
+                                    output(", ");
+                            }
+                        }
+                        output("    %s = ", d->inout[i]->name);
+                    } else {
+                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                            output("  e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+                                   d->inout[i]->name,
+                                   d->inout[i]->dep_in[k]->dplasma->name,
+                                   d->inout[i]->dep_in[k]->dplasma->name);
+                            for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
+                                dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
+                                if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
+                                    output("), 0 );\n");
+                                else
+                                    output(", ");
+                            }
+                        }
+                        output("  %s = ", d->inout[i]->name);
+                    }
+                    if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                        cpt = 0;
+                        for(j = 0; j < MAX_PARAM_COUNT; j++) {
+                            if( d->inout[i]->dep_in[k]->dplasma->inout[j] == d->inout[i]->dep_in[k]->param )
+                                break;
+                            if( d->inout[i]->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
+                                cpt++;
+                        }
+                        output("e%s->data[%d];\n", d->inout[i]->name, cpt);
+                    } else {
+                        output("%s", d->inout[i]->dep_in[k]->dplasma->name);
+                        for(j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
+                            if( NULL != d->inout[i]->dep_in[k]->call_params[j] ) {
+                                output("%c ", j == 0 ? '(' : ',' );
+                                dump_inline_c_expression(d->inout[i]->dep_in[k]->call_params[j]);
+                            }
+                        }
+                        output(" );\n");
+                    }
+                    if( NULL != d->inout[i]->dep_in[k]->cond ) {
+                        output("  }\n");
+                    }
+                }
+            }
+        } 
+        output("\n");
+    }
+
+    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+        if( d->inout[i]->sym_type & SYM_IN ) {
+            output("  if( cache_buf_isLocal(cache, %s) ) {\n"
+                   "    result += reward;\n"
+                   "  }\n", d->inout[i]->name);
+        }
+    }
+
+    output("  return result;\n"
+           "}\n");
+}
+#endif
+
 static char *dplasma_dump_c(const dplasma_t *d,
                             char *init_func_body,
                             int init_func_body_size)
@@ -912,6 +1016,14 @@ static char *dplasma_dump_c(const dplasma_t *d,
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .dependencies_mask = 0x%02x,\n", d->dependencies_mask);
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .nb_locals = %d,\n", d->nb_locals);
     
+#if defined(DPLASMA_CACHE_AWARENESS)
+    if( NULL != d->body ) {
+        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .cache_rank_function = %s_cache_rank,\n", d->name);
+    } else {
+        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .cache_rank_function = NULL,\n");
+    }
+#endif
+
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .locals = {");
     for(i = 0; i < d->nb_locals; i++) {
         if( symbol_c_index_lookup(d->locals[i]) > -1 ) {
@@ -953,6 +1065,10 @@ static char *dplasma_dump_c(const dplasma_t *d,
         int body_lines;
 
         dplasma_dump_dependency_helper(d, init_func_body, init_func_body_size);
+
+#if defined(DPLASMA_CACHE_AWARENESS)
+        dplasma_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
+#endif
 
         output( "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
                 "{\n"
@@ -1066,7 +1182,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
             else
                 output(", ");
         }
-       body_lines = nblines(d->body);
+        body_lines = nblines(d->body);
         output( "  %s\n"
                 "#line %d \"%s\"\n"
                 "\n",
@@ -1441,7 +1557,7 @@ int dplasma_dump_all_c(char *filename)
             output("  object = (dplasma_t*)dplasma_find(\"%s\");\n"
                    "  object->hook = %s_hook;\n"
                    "  object->release_deps = %s_release_dependencies;\n\n",
-                    object->name, object->name, object->name);
+                   object->name, object->name, object->name);
         }
     }
 

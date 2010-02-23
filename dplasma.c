@@ -55,7 +55,7 @@ static int dplasma_hwlock_nb_levels(const dplasma_context_t *context)
 #elif defined(ON_ZOOT)
     return 2;
 #else
-    return 1;
+    return 2;
 #endif
 }
 
@@ -124,7 +124,7 @@ static size_t dplasma_hwlock_cache_size(const dplasma_context_t *context, int le
     }
     return 32*1024;
 #else
-    return 4*1024*1024;
+    return 6144*1024;
 #endif
 }
 #endif

@@ -75,6 +75,9 @@ struct dplasma_dependencies_t {
 typedef struct dplasma_execution_context_t dplasma_execution_context_t;
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*);
 typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, void **);
+#if defined(DPLASMA_CACHE_AWARENESS)
+typedef unsigned int (dplasma_cache_rank_function_t)(const dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
+#endif
 
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
@@ -92,6 +95,9 @@ struct dplasma_t {
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                inout[MAX_PARAM_COUNT];
     dplasma_dependencies_t* deps;
+#if defined(DPLASMA_CACHE_AWARENESS)
+    dplasma_cache_rank_function_t *cache_rank_function;
+#endif
     dplasma_hook_t*         hook;
     dplasma_release_deps_t* release_deps;
     char*                   body;

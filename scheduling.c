@@ -152,11 +152,20 @@ static inline unsigned long exponential_backoff(uint64_t k)
 #  if defined(DPLASMA_CACHE_AWARENESS)
 static  unsigned int ranking_function_bycache(void *elt, void *param)
 {
-    unsigned int value;
+    unsigned int maxvalue = 0, value, reward;
     cache_t *cache = (cache_t*)param;
     dplasma_execution_context_t *exec = (dplasma_execution_context_t*)elt;
     
-    return 1;
+    reward = 128; /* TODO: fix this, depends on the depth */
+    while(cache) {
+        value = exec->function->cache_rank_function(exec, cache, reward);
+        if( value > maxvalue ) 
+            maxvalue = value;
+        reward = reward / 2;
+        cache = cache->parent;
+    }
+    DEBUG(("maxvalue of this choice is %u\n", maxvalue));
+    return maxvalue;
 }
 #  else
 static  unsigned int ranking_function_firstfound(void *elt, void *_)
