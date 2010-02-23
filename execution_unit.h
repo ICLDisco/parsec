@@ -13,6 +13,7 @@
 #include "barrier.h"
 #include "profiling.h"
 #include "Buf2Cache/buf2cache.h"
+#include "hbbuffer.h"
 
 #define PLACEHOLDER_SIZE 2
 
@@ -26,26 +27,27 @@ typedef struct dplasma_execution_unit_t {
 #endif /* DPLASMA_PROFILING */
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_t* eu_task_queue;
+#elif defined(HAVE_HWLOC)
+    dplasma_hbbuffer_t   *eu_task_queue;
 #else
-    dplasma_dequeue_t* eu_task_queue;
-#if PLACEHOLDER_SIZE
+    dplasma_dequeue_t    *eu_task_queue;
+#  if PLACEHOLDER_SIZE
     struct dplasma_execution_context_t* placeholder[PLACEHOLDER_SIZE];
     int placeholder_pop;
     int placeholder_push;
-#endif  /* PLACEHOLDER_SIZE */
+#  endif  /* PLACEHOLDER_SIZE */
 #endif  /* DPLASMA_USE_LIFO */
+
     dplasma_context_t* master_context;
-#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-#if defined(DPLASMA_USE_LIFO)
-    dplasma_atomic_lifo_t **eu_shared_queue;
-#else
-    dplasma_dequeue_t     **eu_shared_queue;
-#endif
-    uint32_t  nb_shared_queues;
-#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO) */
-#if defined(DPLASMA_CACHE_AWARENESS)
+
+#if defined(HAVE_HWLOC)
+    dplasma_hbbuffer_t    **eu_hierarch_queues; 
+    uint32_t                eu_nb_hierarch_queues;
+    dplasma_dequeue_t      *eu_system_queue;
+#  if defined(DPLASMA_CACHE_AWARENESS)
     cache_t *closest_cache;
-#endif
+#  endif
+#endif /* HAVE_HWLOC */
 
     uint32_t* remote_dep_fw_mask;
 } dplasma_execution_unit_t;
