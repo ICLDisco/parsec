@@ -3,7 +3,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // function forward declarations
 
-static void *do_cache_buf_referenced(cache_t *cache, void *tile_ptr, int *succeeded);
+static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr, int *succeeded);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -24,9 +24,9 @@ cache_t *cache_create(int core_count, cache_t *parent, int tile_capacity){
 
 //--------------------------------------------------------------------------------
 // This function returns the element we evicted (the tile pointer) or NULL if nothing was evicted.
-void *cache_buf_referenced(cache_t *cache, void *tile_ptr){
+const void *cache_buf_referenced(cache_t *cache, const void *tile_ptr){
     int succeeded = 0;
-    void *old_tile_ptr;
+    const void *old_tile_ptr;
 
     if( cache == NULL )
         return NULL;
@@ -52,7 +52,7 @@ void *cache_buf_referenced(cache_t *cache, void *tile_ptr){
 // element, we set its age value to the minimum age value minus one. Ages are always
 // negative numbers.
 //
-static void *do_cache_buf_referenced(cache_t *cache, void *tile_ptr, int *succeeded){
+static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr, int *succeeded){
     cache_entry_t *cur, *oldest_elem = NULL, *found_elem = NULL;
     int i, N;
     int64_t oldest_age, youngest_age;
@@ -153,7 +153,7 @@ static void *do_cache_buf_referenced(cache_t *cache, void *tile_ptr, int *succee
     if( dplasma_atomic_cas_xxb(&(oldest_elem->lock), 0, 1, sizeof(oldest_elem->lock)) ){
         // If the element hasn't changed, evict it.
         if( oldest_elem->age == oldest_age ){
-            void *old_ptr = oldest_elem->tile_ptr;
+            const void *old_ptr = oldest_elem->tile_ptr;
             oldest_elem->tile_ptr = tile_ptr;
             oldest_elem->age = youngest_age-1;
             // release the lock
@@ -177,7 +177,7 @@ static void *do_cache_buf_referenced(cache_t *cache, void *tile_ptr, int *succee
 
 
 //--------------------------------------------------------------------------------
-int cache_buf_isLocal(cache_t *cache, void *tile_ptr){
+int cache_buf_isLocal(const cache_t *cache, const void *tile_ptr){
     int i, N;
     cache_entry_t *cur;
     N = cache->tile_capacity;
@@ -198,9 +198,9 @@ int cache_buf_isLocal(cache_t *cache, void *tile_ptr){
 
 
 //--------------------------------------------------------------------------------
-int cache_buf_distance(cache_t *cache, void *tile_ptr){
+int cache_buf_distance(const cache_t *cache, const void *tile_ptr){
     int i=0;
-    cache_t *cur_cache;
+    const cache_t *cur_cache;
     for(cur_cache=cache; cur_cache != NULL; cur_cache=cur_cache->parent ){ 
         if( cache_buf_isLocal(cur_cache, tile_ptr) )
             break;
@@ -215,7 +215,7 @@ int cache_buf_distance(cache_t *cache, void *tile_ptr){
 // of the element in comparison to other elements.  That is, the number of
 // elements that are younger than this element.
 // If the element is not found, the function returns "-1"
-int cache_buf_age(cache_t *cache, void *tile_ptr){
+int cache_buf_age(const cache_t *cache, const void *tile_ptr){
     int64_t abs_age=1;
     int i, N, ret_val=0;
     cache_entry_t *cur;

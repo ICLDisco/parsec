@@ -15,15 +15,6 @@ typedef struct dplasma_t dplasma_t;
 #define MAX_PRED_COUNT   5
 #define MAX_PARAM_COUNT  5
 
-#include <stdint.h>
-#include <stdlib.h>
-#include "symbol.h"
-#include "expr.h"
-#include "params.h"
-#include "dep.h"
-#include "execution_unit.h"
-#include "lifo.h"
-
 #ifdef _DEBUG
 #   ifdef USE_MPI
 #include <mpi.h>
@@ -39,6 +30,16 @@ typedef struct dplasma_t dplasma_t;
 #else
 #define DEBUG(ARG)
 #endif
+
+#include <stdint.h>
+#include <stdlib.h>
+#include "symbol.h"
+#include "expr.h"
+#include "params.h"
+#include "dep.h"
+#include "execution_unit.h"
+#include "lifo.h"
+
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
 #endif
@@ -74,6 +75,9 @@ struct dplasma_dependencies_t {
 typedef struct dplasma_execution_context_t dplasma_execution_context_t;
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*);
 typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, void **);
+#if defined(DPLASMA_CACHE_AWARENESS)
+typedef unsigned int (dplasma_cache_rank_function_t)(const dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
+#endif
 
 #define DPLASMA_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DPLASMA_HAS_OUT_OUT_DEPENDENCIES   0x0002
@@ -91,6 +95,9 @@ struct dplasma_t {
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                inout[MAX_PARAM_COUNT];
     dplasma_dependencies_t* deps;
+#if defined(DPLASMA_CACHE_AWARENESS)
+    dplasma_cache_rank_function_t *cache_rank_function;
+#endif
     dplasma_hook_t*         hook;
     dplasma_release_deps_t* release_deps;
     char*                   body;
