@@ -15,10 +15,11 @@
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
 #cmakedefine MAC_OS_X
+#cmakedefine DPLASMA_DRY_RUN
 #cmakedefine DPLASMA_PROFILING
 #cmakedefine DPLASMA_GRAPHER
 #cmakedefine DPLASMA_WARM_UP
 #cmakedefine DO_THE_NASTY_VALIDATIONS
-#cmakedefine DPLASMA_CACHE_AWARENESS
+#cmakedefine DPLASMA_SCHED_HWLOC
 
 #endif  /*DPLASMA_CONFIG_H_HAS_BEEN_INCLUDED */
