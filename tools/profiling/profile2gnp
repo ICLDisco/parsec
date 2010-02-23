@@ -1,14 +1,49 @@
 #!/usr/bin/php -q
 <?php
+libxml_use_internal_errors(true);
 
 $proc = 0;
 $XML = array();
 $keys = null;
 
+function display_xml_error($error, $xml)
+{
+    $return  = $xml[$error->line - 1] . "\n";
+    $return .= str_repeat('-', $error->column) . "^\n";
+
+    switch ($error->level) {
+        case LIBXML_ERR_WARNING:
+            $return .= "Warning $error->code: ";
+            break;
+         case LIBXML_ERR_ERROR:
+            $return .= "Error $error->code: ";
+            break;
+        case LIBXML_ERR_FATAL:
+            $return .= "Fatal Error $error->code: ";
+            break;
+    }
+
+    $return .= trim($error->message) .
+               "\n  Line: $error->line" .
+               "\n  Column: $error->column";
+
+    if ($error->file) {
+        $return .= "\n  File: $error->file";
+    }
+
+    return "$return\n\n--------------------------------------------\n\n";
+}
+
 for($fileidx = 1; $fileidx < $argc; $fileidx++ ) {
     $xml = simplexml_load_file( $argv[$fileidx] );
     if( !$xml ) {
-        error_log("Parse Error in $argv[$fileidx]\n");
+        error_log("Parse Error in $argv[$fileidx]:\n");
+        $errors = libxml_get_errors();
+        error_log(" There was " . count($errors) . " errors\n");
+        foreach ($errors as $error) {
+           error_log( " - " . display_xml_error($error, $xml) . "\n");
+        }
+        libxml_clear_errors();
         continue;
     }
 

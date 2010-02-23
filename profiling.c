@@ -257,18 +257,8 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
                     break;
             }
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
-                for(end_idx = 0; end_idx < start_idx; end_idx++) {
-                    if( (profile->events[end_idx].key == END_KEY(key)) &&
-                        (profile->events[end_idx].id == profile->events[start_idx].id) ) {
-                        fprintf(stderr, "Profiling warning: end_idx event of key %d id %lu was found before the corresponding start event\n",
-                                key, profile->events[end_idx].id);
-                        break;
-                    }
-                }
-                if( end_idx == start_idx ) {
-                    fprintf(stderr, "Profiling error: end event of key %d id %lu was not found\n", key, profile->events[end_idx].id);
-                    return -1;
-                }
+                fprintf(stderr, "Profiling error: end event of key %d id %lu was not found\n", key, profile->events[end_idx].id);
+                continue;
             }
 
             start = diff_time( relative, profile->events[start_idx].timestamp );
