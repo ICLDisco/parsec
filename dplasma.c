@@ -66,7 +66,7 @@ static int dplasma_hwlock_master_id(const dplasma_context_t *context, int level,
         return 0;
     }
     if( level == 1 ) {
-        return id / 6;
+        return 6 * (id / 6);
     }
     return id;
 #elif defined(ON_ZOOT)
@@ -392,7 +392,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                 /* The master(s) create the shared queues */
                 DEBUG(("creating hbbuffer with parent of level %d = %p\n",
                        level, level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]));
-                eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( 64,
+                eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( 128,
                                                                     level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                                                     level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
                 
@@ -585,10 +585,10 @@ int dplasma_fini( dplasma_context_t** pcontext )
     (void) dplasma_remote_dep_fini( context );
     
     for(i = 1; i < context->nb_cores; i++) {
-#if defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO)
+#if defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
         context->execution_units[i]->eu_task_queue = NULL;
-#endif  /* defined(DPLASMA_USE_LIFO) || !defined(DPLASMA_USE_GLOBAL_LIFO) */
+#endif  /* defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if defined(HAVE_HWLOC)
         /**
          * TODO: use HWLOC to know who is responsible to free this, 
@@ -597,7 +597,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
         free(context->execution_units[i]->eu_hierarch_queues);
         context->execution_units[i]->eu_hierarch_queues = NULL;
         context->execution_units[i]->eu_nb_hierarch_queues = 0;
-        free(context->execution_units[i]->eu_system_queue);
+        //free(context->execution_units[i]->eu_system_queue);
         context->execution_units[i]->eu_system_queue = NULL;
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
