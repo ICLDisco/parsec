@@ -35,6 +35,8 @@ FILE *__dplasma_graph_file = NULL;
 
 #ifdef DPLASMA_PROFILING
 int MEMALLOC_start_key, MEMALLOC_end_key;
+int schedule_poll_begin, schedule_poll_end;
+int schedule_push_begin, schedule_push_end;
 #endif  /* DPLASMA_PROFILING */
 
 static const dplasma_t** dplasma_array = NULL;
@@ -495,6 +497,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 
     dplasma_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#555555",
                                               &MEMALLOC_start_key, &MEMALLOC_end_key);
+    dplasma_profiling_add_dictionary_keyword( "Sched POLL", "fill:#43FF43",
+                                              &schedule_poll_begin, &schedule_poll_end);
+    dplasma_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#FF4343",
+                                              &schedule_push_begin, &schedule_push_end);
 #endif  /* DPLASMA_PROFILING */
 
 #if defined(DPLASMA_USE_GLOBAL_LIFO)

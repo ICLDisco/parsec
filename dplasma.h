@@ -109,6 +109,11 @@ struct dplasma_execution_context_t {
     assignment_t locals[MAX_LOCAL_COUNT];
 };
 
+#if defined(DPLASMA_PROFILING)
+extern int schedule_poll_begin, schedule_poll_end;
+extern int schedule_push_begin, schedule_push_end;
+#endif
+
 /**
  *
  */

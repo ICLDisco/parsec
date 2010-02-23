@@ -16,6 +16,12 @@
 #include "profiling.h"
 #include "remote_dep.h"
 
+#if defined(DPLASMA_PROFILING)
+#define TAKE_TIME(EU_PROFILE, KEY, ID)  dplasma_profiling_trace((EU_PROFILE), (KEY), (ID))
+#else
+#define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
+#endif
+
 static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
 
 #define DEPTH_FIRST_SCHEDULE 0
@@ -69,32 +75,39 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     char tmp[128];
 # endif
 
-#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
+    TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
+
+#  if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
-#elif defined(HAVE_HWLOC)
+#  elif defined(HAVE_HWLOC)
     dplasma_hbbuffer_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
-#else
-#if PLACEHOLDER_SIZE
+#  else
+#    if PLACEHOLDER_SIZE
     while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
         eu_context->placeholder[eu_context->placeholder_push] = new_context;
         eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
         if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context ) {
+            TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
             return 0;
         }
         new_context->list_item.list_next->list_prev = new_context->list_item.list_prev;
         new_context->list_item.list_prev->list_next = new_context->list_item.list_next;
         new_context = (dplasma_execution_context_t*)new_context->list_item.list_next;
     }
-#endif  /* PLACEHOLDER_SIZE */
+#    endif  /* PLACEHOLDER_SIZE */
     if( new_context->function->flags & DPLASMA_HIGH_PRIORITY_TASK ) {
         dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     } else {
         dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     }
-#endif  /* DPLASMA_USE_LIFO */
+#  endif  /* DPLASMA_USE_LIFO */
+    TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+
     DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
     return 0;
-#else
+#else /* !DEPTH_FIRST_SCHEDULE */
+    TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+
     printf( "This internal version of the dplasma_schedule is not supposed to be called\n");
     return -1;
 #endif  /* !DEPTH_FIRST_SCHEDULE */
@@ -251,13 +264,15 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             nanosleep(&rqtp, NULL);
         }
-
+        
+        TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
         exec_context = choose_local_job(eu_context);
 
         if( exec_context != NULL ) {
             misses_in_a_row = 0;
             found_local++;
         do_some_work:
+            TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
             /* Update the number of remaining tasks before the execution */
             done_task(master_context);
             /* We're good to go ... */
@@ -319,6 +334,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #endif  /* DPLASMA_USE_GLOBAL_LIFO */
             misses_in_a_row++;
         }
+
+        TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
     }
 
 #if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
