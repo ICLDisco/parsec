@@ -109,7 +109,7 @@ DGEQRT(k)
   OUT T   -> T DORMQR(k, k+1..NT-1)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     void* work = dplasma_private_memory_pop(work_pool);
     void* tau = dplasma_private_memory_pop(tau_pool);
     CORE_dgeqrt(
@@ -123,7 +123,7 @@ BODY
     dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dgeqrt"));
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /*****************************************
@@ -147,7 +147,7 @@ DTSQRT(k,m)
   OUT T  -> T DSSMQR(k,k+1..NT-1,m)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     void* work = dplasma_private_memory_pop(work_pool);
     void* tau = dplasma_private_memory_pop(tau_pool);
     CORE_dtsqrt(
@@ -162,7 +162,7 @@ BODY
     dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dtsqrt"));
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /*****************************************
@@ -185,7 +185,7 @@ DORMQR(k,n)
   OUT C1 -> C1 DSSMQR(k,n,k+1)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     void* work = dplasma_private_memory_pop(work_pool);
     CORE_dormqr(
         PlasmaLeft, PlasmaTrans,
@@ -200,7 +200,7 @@ BODY
     dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dormqr"));
-#endif  /* DPLASMA_EXECUTE */ 
+#endif  /* DPLASMA_DRY_RUN */ 
 END
 
 /*****************************************
@@ -230,7 +230,7 @@ DSSMQR(k,n,m)
   OUT C1 -> (m==MT-1) ? A(k,n) : C1 DSSMQR(k,n,m+1)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     void* work = dplasma_private_memory_pop(work_pool);
     CORE_dssmqr(
         PlasmaLeft, PlasmaTrans,
@@ -247,6 +247,6 @@ BODY
     dplasma_private_memory_push(work_pool, work);
 #else
     OUTPUT(( "CORE_dssmqr"));
-#endif  /* DPLASMA_EXECUTE */ 
+#endif  /* DPLASMA_DRY_RUN */ 
 END
 
