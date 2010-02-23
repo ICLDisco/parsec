@@ -112,6 +112,7 @@ struct dplasma_execution_context_t {
 #if defined(DPLASMA_PROFILING)
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
+extern int schedule_sleep_begin, schedule_sleep_end;
 #endif
 
 /**
