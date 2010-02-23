@@ -56,12 +56,12 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
         -> A(k, k)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     CORE_dpotrf( PlasmaLower,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  T /*A(k, k)*/, NB, /*A.nb,*/
                  &PLASMA_INFO); 
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
              "PlasmaLower",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
@@ -90,13 +90,13 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> A(m, k)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, T /*A(k, k)*/, NB, /*A.nb,*/
                 C /*A(m, k)*/, NB /*A.nb*/);
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
     OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
              "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
              NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -123,13 +123,13 @@ INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
                 1.0, T /*A(k, k)*/, NB /*A.nb*/);
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 
     OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
             "PlasmaLower", "PlasmaNoTrans",
@@ -158,7 +158,7 @@ IN    B <- C TRSM(n, m)
 INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -166,7 +166,7 @@ BODY
                 -1.0, B /*A(m, n)*/, NB, /*A.nb,*/
                 A /*A(k, n)*/, NB, /*A.nb,*/
                 1.0, C /*A(m, k)*/, NB /*A.nb*/);
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 
     OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
             "PlasmaNoTrans", "PlasmaTrans",
