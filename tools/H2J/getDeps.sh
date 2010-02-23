@@ -1,4 +1,3 @@
-#!/bin/bash
 # -g ignore Entry/Exit
 # -o calculate killed dependencies
 # -s ignore scalar deps
@@ -10,5 +9,5 @@ file=$1
 
 /Users/adanalis/Desktop/Research/PLASMA_Distributed/Omega/petit/obj/petit ${flags} ${file} > /tmp/out.$$
 
-perl prettyPrint.pl < /tmp/out.$$
+perl prettyPrint.pl ${file} /tmp/out.$$
 rm /tmp/out.$$

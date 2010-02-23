@@ -6,6 +6,7 @@ real v100, v101, v102, v201, v202, v203
 
 for ii=0 to BB-1 do
     for jj=0 to BB-1 do
+!!    IN()
       A(ii,jj) = v100
       IPIV(ii,jj) = v101
       L(ii,jj) = v102
@@ -13,15 +14,15 @@ for ii=0 to BB-1 do
 endfor
 
 for k = 0 to BB-1 do
-!           INOUT    OUT
-!   DGETRF( A(k, k), IPIV(k, k));
+!           INOUT           OUT
+!!  DGETRF( A(k, k, 0+1+2), IPIV(k, k));
     v1 = A(k,k)
     A(k,k) = v2
     IPIV(k,k) = v3
 
     for m = k+1 to BB-1 do
-!               INOUT    INOUT    OUT      OUT
-!       DTSTRF( A(k, k), A(m, k), L(m, k), IPIV(m, k));
+!               INOUT         INOUT    OUT      OUT
+!!      DTSTRF( A(k, k, 0+1), A(m, k), L(m, k), IPIV(m, k));
         v4     = A(k,k)
         v6     = A(m,k)
         A(k,k) = v5
@@ -31,8 +32,8 @@ for k = 0 to BB-1 do
     endfor
 
     for n = k+1 to BB-1 do
-!               IN          IN       INOUT
-!       DGESSM( IPIV(k, k), A(k, k), A(k, n));
+!               IN          IN          INOUT
+!!      DGESSM( IPIV(k, k), A(k, k, 2), A(k, n));
         v10 = IPIV(k, k)
         v11 = A(k, k)
         v12 = A(k, n)
@@ -40,7 +41,7 @@ for k = 0 to BB-1 do
 
         for m = k+1 to BB-1 do
 !                   INOUT    INOUT    IN       IN       IN           
-!           DSSSSM( A(k, n), A(m, n), L(m, k), A(m, k), IPIV(m, k));
+!!          DSSSSM( A(k, n), A(m, n), L(m, k), A(m, k), IPIV(m, k));
             v14 = A(k, n)
             v16 = A(m,n)
             v18 = L(m, k)
@@ -54,6 +55,7 @@ endfor
 
 for ii=0 to BB-1 do
     for jj=0 to BB-1 do
+!!    OUT()      
       v201 += A(ii,jj)
       v202 += IPIV(ii,jj)
       v203 += L(ii,jj)

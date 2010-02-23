@@ -13,6 +13,7 @@ using namespace std;
 
 int var_counter=1;
 void parse_SMPSS(std::ifstream &ifs);
+set<string> arrays;
 
 int main(int argc, char **argv){
     char *fName;
@@ -100,6 +101,9 @@ class Task{
                if( str.empty() )
                    continue;
                actual_args.push_back(str);
+               unsigned int pos = str.find("(");
+               if( pos != string::npos )
+                   arrays.insert(str.substr(0,pos));
             }
         }
 
@@ -154,7 +158,7 @@ class Task{
             argument_types.clear();
             result << "!" << string(offset,' ') << pragma << endl;
             result << "!" << string(offset,' ') << func_decl << endl;
-            result << "!" << line << endl;
+            result << "!!" << line << endl;
 
             parse_pragma(pragma);
             parse_func_decl(func_decl);
@@ -252,6 +256,10 @@ void parse_SMPSS(ifstream &ifs){
         if( i>1 )
             cout << ", ";
         cout << "v" <<i;
+    }
+    set<string>::iterator ar_itr;
+    for(ar_itr = arrays.begin(); ar_itr!= arrays.end(); ++ar_itr){
+        cout << ", " << (string)*ar_itr << "[200][200]";
     }
     cout << endl << result.str();
 }
