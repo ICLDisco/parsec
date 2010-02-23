@@ -988,15 +988,18 @@ static char *dplasma_dump_cache_evaluation_function(const dplasma_t *d,
         output("\n");
     }
 
+    output("  while( NULL != cache ) {\n");
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         if( d->inout[i]->sym_type & SYM_IN ) {
-            output("  if( cache_buf_isLocal(cache, %s) ) {\n"
-                   "    result += reward;\n"
-                   "  }\n", d->inout[i]->name);
-        }
+            output("    if( cache_buf_isLocal(cache, %s) ) {\n"
+                   "      result += reward;\n"
+                   "    }\n", d->inout[i]->name);
+        }        
     }
-
-    output("  return result;\n"
+    output("    cache = cache->parent;\n"
+           "    reward = reward / 2;\n"
+           "  }\n"
+           "  return result;\n"
            "}\n");
 }
 #endif

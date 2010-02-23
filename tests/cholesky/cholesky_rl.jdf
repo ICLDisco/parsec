@@ -15,9 +15,6 @@ int PLASMA_INFO;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 
-/* Define it to shortcut the lookup for the local variables. */
-#define DPLASMA_HOOK_OPTIMIZED
-
 #if 0
 #define OUTPUT(ARG)  printf ARG
 #else
@@ -39,7 +36,7 @@ rowRANK = 0
  *                      POTRF                     *
  **************************************************/
 // Name
-POTRF(k)
+POTRF(k) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
@@ -57,7 +54,7 @@ BODY
 #if !defined(DPLASMA_DRY_RUN)
     CORE_dpotrf( uplo,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                 A(k, k), NB, /*A.nb,*/
+                 T /*A(k, k)*/, NB, /*A.nb,*/
                  &PLASMA_INFO); 
 #else
     OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
@@ -71,7 +68,7 @@ END
  *                      TRSM                      *
  **************************************************/
 // Name
-TRSM(k, n)
+TRSM(k, n) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
@@ -95,14 +92,14 @@ BODY
         CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                     NB, /*A.nb,*/
-                    1.0, A(k, k), NB, /*A.nb,*/
-                    A(n, k), NB /*A.nb*/);
+                    1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                    C /*A(n, k)*/, NB /*A.nb*/);
     } else {
         CORE_dtrsm( PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                     NB, /*A.nb,*/
-                    1.0, A(k, k), NB, /*A.nb,*/
-                    A(k, n), NB /*A.nb*/);
+                    1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                    C /*A(k, n)*/, NB /*A.nb*/);
     }
 #else
     if( uplo == PlasmaLower ) {
@@ -128,7 +125,7 @@ END
  *                      SYRK                      *
  **************************************************/
 // Name
-SYRK(k, n)
+SYRK(k, n) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
@@ -149,14 +146,14 @@ BODY
         CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
                     NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                     NB, /*A.nb,*/
-                    -1.0, A(n, k), NB, /*A.nb,*/
-                     1.0, A(n, n), NB /*A.nb*/);
+                    -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
+                     1.0, T /*A(n, n)*/, NB /*A.nb*/);
     } else {
         CORE_dsyrk( PlasmaUpper, PlasmaTrans,
                     NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                     NB, /*A.nb,*/
-                    -1.0, A(k, n), NB, /*A.nb,*/
-                     1.0, A(n, n), NB /*A.nb*/);
+                    -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                     1.0, T /*A(n, n)*/, NB /*A.nb*/);
     }
 #else
     if( uplo == PlasmaLower ) {
@@ -195,7 +192,7 @@ n = k+1..m-1
 // Parameters
 IN    A <- C TRSM(k, n)
 IN    B <- C TRSM(k, m)
-INOUT C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, n-1)
+INOUT C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
 BODY
@@ -205,17 +202,17 @@ BODY
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                     NB, /*A.nb,*/
                     NB, /*A.nb,*/
-                    -1.0, A(m, k), NB, /*A.nb,*/
-                          A(n, k), NB, /*A.nb,*/
-                     1.0, A(m, n), NB /*A.nb*/);
+                    -1.0, C /*A(m, k)*/, NB, /*A.nb,*/
+                          A /*A(n, k)*/, NB, /*A.nb,*/
+                     1.0, B /*A(m, n)*/, NB /*A.nb*/);
     } else {
         CORE_dgemm( PlasmaTrans, PlasmaNoTrans,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                     NB, /*A.nb,*/
                     NB, /*A.nb,*/
-                    -1.0, A(k, n), NB, /*A.nb,*/
-                          A(k, m), NB, /*A.nb,*/
-                     1.0, A(n, m), NB /*A.nb*/);
+                    -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                          C /*A(k, m)*/, NB, /*A.nb,*/
+                     1.0, B /*A(n, m)*/, NB /*A.nb*/);
     }
 #else
     if( uplo == PlasmaLower ) {

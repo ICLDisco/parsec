@@ -12,6 +12,14 @@ static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr,
 //--------------------------------------------------------------------------------
 cache_t *cache_create(int core_count, cache_t *parent, int tile_capacity){
 
+    if( tile_capacity <= 1 ) {
+        /** Ignore this level of cache: it's empty anyway...
+         *  Let the system believe that we created a cache for this stupid call,
+         *  by giving it back its own parent
+         */
+        return parent;
+    }
+
     cache_t *cache = (cache_t *)calloc( 1, sizeof(cache_t) );
 
     cache->tile_capacity = tile_capacity;

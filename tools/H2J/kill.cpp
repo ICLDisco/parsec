@@ -28,7 +28,6 @@ string SetIntersector::itos(int num){
 
 void SetIntersector::setFD1(dep_t fd){
     f_dep = fd;
-//    o_deps.clear();
     composed_deps.clear();
     cmpsd_counter = 0;
 }
@@ -85,52 +84,6 @@ string SetIntersector::subtract(){
 
     return ret_val.str();
 }
-
-#if 0
-void SetIntersector::addOD(dep_t od){
-    o_deps.push_back(od);
-}
-
-string SetIntersector::intersect(){
-    stringstream ret_val;
-    ret_val << "symbolic ";
-    set<string>::iterator sym_itr;
-    for(sym_itr=symbolic_vars.begin(); sym_itr != symbolic_vars.end(); ++sym_itr) {
-        string sym_var = *sym_itr;
-        if( sym_itr!=symbolic_vars.begin() )
-            ret_val << ", ";
-        ret_val << sym_var;
-    }
-    ret_val << ";" << endl;
-
-    ret_val << "fd := " << rel_to_set(f_dep.sets) << ";" << endl;
-
-    list<dep_t>::iterator od_itr;
-    int counter = 0;
-    for(od_itr=o_deps.begin(); od_itr != o_deps.end(); ++od_itr) {
-        dep_t od = *od_itr;
-        ret_val << "od" << counter << " := " << rel_to_set(od.sets) << ";" << endl;
-        ++counter;
-    }
-
-    ret_val << "R := fd";
-    for(int i=0; i<counter; i++){
-        if( i )
-            ret_val << " union ";
-        else
-            ret_val << " - ( ";
-
-        ret_val << "od" << i;
-
-        if( i == counter-1 )
-            ret_val << " )";
-    }
-    ret_val << ";" << endl;
-    ret_val << "R;" << endl;
-    return ret_val.str();
-
-}
-#endif
 
 
 
@@ -306,13 +259,6 @@ string skipToNext(ifstream &ifs){
     return line;
 }
 
-/*
-f DSSSSM(k,n,m) -> DSSSSM(k',n,m)
-    50 A(m,n) -> 45 A(m,n) {[k,n,m] -> [k',n,m] : 0 <= k < k' < n,m < BB} (+,0,0)
-
-{[k,n,m] -> [k+1,n,m] : 0 <= k <= n-2, m-2 && n < BB && m < BB}
-*/
-
 string trim(string in){
     int i;
     for(i=0; i<in.length(); ++i){
@@ -322,6 +268,123 @@ string trim(string in){
     return in.substr(i);
 }
 
+string trimAll(string str){
+    unsigned int s,e;
+    for(s=0; s<str.length(); ++s){
+        if( str[s] != ' ' ) break;
+    }
+    for(e=s; e<str.length(); ++e){
+        if( str[e] == ' ' ) break;
+    }
+    return str.substr(s,e-s);
+}
+
+list<string> stringToVarList( string str ){
+    list<string> result;
+    stringstream ss;
+
+    ss << str;
+
+    while (!ss.eof()) {
+        string token;    
+        getline(ss, token, ',');
+        result.push_back(token);
+    }
+
+    return result;
+}
+
+
+//{0 <= k <= n-2, m-2 && n < BB && m < BB}
+string expressionToRange(string var, string condStr){
+    string lb, ub, off;
+    list<string> conditions;
+
+    // split the condition string into a list of strings
+    // each of which holding only a simple expression
+    while( !condStr.empty() ){
+        unsigned int pos = condStr.find_first_of("&|");
+        if( pos != string::npos && pos ){
+            conditions.push_back( condStr.substr(0,pos) );
+            condStr = condStr.substr(pos+1);
+        }else{
+            conditions.push_back( condStr );
+            break;
+        }
+        conditions.push_back( condStr );
+    }
+
+    // For every expression in the list, find the variable and then
+    // look for a "<" or "<=" left and/or right of the variable.
+    list<string>::iterator cnd_itr=conditions.begin();
+    for (; cnd_itr!=conditions.end(); ++cnd_itr){
+        unsigned int pos;
+        string cond = *cnd_itr;
+        pos = cond.find(var);
+        // if we found the var, split the string in "left" and "right" around the var
+        if( pos != string::npos ){
+            string left = cond.substr(0,pos);
+            string right = cond.substr(pos+var.length());
+
+            // Process the "left" string looking for the lower bound "lb"
+            pos = left.find_last_of("<");
+            if( pos != string::npos ){
+                // check if the comparison operator is "<=".  If so the expression to the left of the
+                // operator is the lower bound, otherwise we need to offset the expression by "+1"
+                if( (left.length() > pos+1) && (left[pos+1] == '=') ){
+                    off = "";
+                }else{
+                    off = "+1";
+                }
+
+                // take the part of the string up to the "<" symbol. This should contain
+                // the lower bound, probably preceeded by other stuff ending in "<" or "="
+                string tmp = left.substr(0,pos);
+                // find the last occurrence of "<" or "=" (left of the lower bound)
+                unsigned int l_pos = tmp.find_last_of("<=");
+                if( l_pos != string::npos ){
+                    lb = trimAll(tmp.substr(l_pos+1));
+                }else{ // if no such symbol, then the whole thing is the lower bound.
+                    lb = trimAll(tmp);
+                }
+
+                lb = lb.append(off);
+            }
+
+            // Process the "right" string looking for the upper bound "ub"
+            int op_len=1;
+            // assume it's "<". If it ends up being "<=" we will overwrite it.
+            off = "-1";
+            pos = right.find("<=");
+            if( pos != string::npos ){
+                    off = "";
+                    op_len = 2;
+            }else{
+                pos = right.find("<");
+            }
+            if( pos != string::npos ){
+                // take the part of the string after the "<" or "<=" symbol. This should contain
+                // the upper bound, probably followed by other stuff starting with "<".
+                string tmp = right.substr(pos+op_len);
+
+                // find the first occurrence of "<" (right of the upper bound)
+                unsigned int r_pos = tmp.find("<");
+                if( r_pos != string::npos ){
+                    ub = trimAll(tmp.substr(0,r_pos));
+                }else{ // if no such symbol, then the whole thing is the upper bound.
+                    ub = trimAll(tmp);
+                }
+
+                ub = ub.append(off);
+            }
+
+        }
+    }
+
+    return (lb+".."+ub);
+}
+
+
 void dumpDep(dep_t dep, string iv_set){
     stringstream ss;
     string srcParams, dstParams, junk;
@@ -330,58 +393,137 @@ void dumpDep(dep_t dep, string iv_set){
     if( iv_set.find("FALSE") != string::npos )
         return;
 
+    // Get the list of formal parameters of the source task (k,m,n,...)
+    posLB = dep.source.find("(");
+    posRB = dep.source.find(")");
+    if( posLB == string::npos || posRB == string::npos){
+       cerr << "Malformed dependency source: \"" << dep.source << "\"" << endl; 
+       return;
+    }
+    string srcFrmlStr = dep.source.substr(posLB+1,posRB-posLB-1);
+    list<string> srcFormals = stringToVarList( srcFrmlStr );
+
+    // Get the list of formal parameters of the destination task (k,m,n,...)
+    posLB = dep.sink.find("(");
+    posRB = dep.sink.find(")");
+    if( posLB == string::npos || posRB == string::npos){
+       cerr << "Malformed dependency sink: \"" << dep.sink << "\"" << endl; 
+       return;
+    }
+    string dstFrmlStr = dep.sink.substr(posLB+1,posRB-posLB-1);
+    list<string> dstFormals = stringToVarList( dstFrmlStr );
+
+    // Process the sets of actual parameters
     ss << iv_set;
     ss >> srcParams >> junk >> dstParams;
+
+    // Get the list of actual parameters of the source task
     posLB = srcParams.find("[");
     posRB = srcParams.find("]");
     if( posLB == string::npos || posRB == string::npos){
        cerr << "Malformed set: \"" << iv_set << "\"" << endl; 
        return;
     }
-    srcParams = srcParams.substr(posLB+1,posRB-2);
+    srcParams = srcParams.substr(posLB+1,posRB-posLB-1);
+    list<string> srcActuals = stringToVarList(srcParams);
 
+    // Get the list of actual parameters of the destination task
     posLB = dstParams.find("[");
     posRB = dstParams.find("]");
     if( posLB == string::npos || posRB == string::npos){
        cerr << "Malformed set: \"" << iv_set << "\"" << endl; 
        return;
     }
+    dstParams = dstParams.substr(posLB+1,posRB-posLB-1);
+    list<string> dstActuals = stringToVarList(dstParams);
 
-    dstParams = dstParams.substr(posLB+1,posRB-1);
+    // Get the conditions that Omega told us and clean up the string
     string cond = ss.str();
     posCOL = cond.find(":");
-    if( posCOL == string::npos ){
+    posRB = cond.find("}");
+    if( posCOL == string::npos || posRB == string::npos ){
        cerr << "Malformed conditions: \"" << iv_set << "\"" << endl; 
        return;
     }
+    cond = trim(cond.substr(posCOL+1, posRB-posCOL-1));
 
-    cout << dep.source << "(" << srcParams << ") ";
-    cout << dep.srcArray << " -> ";
-    cout << dep.dstArray << " ";
-    cout << dep.sink << "(" << dstParams << ")  ";
-    cout << "{" << trim(cond.substr(posCOL+1)) << endl;
-/*
-    cout << dep.source << "(" << srcParams << ") -> ";
-    cout << dep.sink << "(" << dstParams << ")" << endl;
-    cout << "    " << dep.srcLine << " ";
-    cout << dep.srcArray << " -> ";
-    cout << dep.dstLine << " ";
-    cout << dep.dstArray << " ";
-    cout << dep.sets << " ";
-    cout << dep.loop << endl;
-*/
-}
-
-#if 0
-void dumpList(list<dep_t> depList){
-    list<dep_t>::iterator itr;
-
-    for(itr=depList.begin(); itr != depList.end(); ++itr) {
-        dep_t dep = *itr;
-        dumpDep(dep);
+    // Remove the formals from the dep.sink string
+    posLB = dep.sink.find("(");
+    if( posLB == string::npos ){
+       cerr << "Malformed dependency sink: \"" << dep.sink << "\"" << endl; 
+       return;
     }
+    string sink = dep.sink.substr(0,posLB);
+    
+
+    if( srcFormals.size() != srcActuals.size() ){
+        cerr << "ERROR: source formal count != source actual count" << endl;
+    }
+
+    // For every source actual that is not the same variable as the formal
+    // (i.e. it's an expression) add the condition (formal_variable=actual_expression)
+    list<string>::iterator srcF_itr=srcFormals.begin();
+    list<string>::iterator srcA_itr=srcActuals.begin();
+    for (; srcF_itr!=srcFormals.end(); ++srcF_itr, ++srcA_itr){
+        string fParam = *srcF_itr;
+        string aParam = *srcA_itr;
+        if( fParam.compare(aParam) != 0 ){ // if they are different
+            cond = cond.append(" && ("+fParam+"="+aParam+") ");
+        }
+    }
+
+    list<string> actual_parameter_list;
+
+    // For every destination formal, check if it exists among the source formals.
+    // If it doesn't and the corresponding destination actual is not an expression
+    // (i.e. the actual is the same as the formal) replace it with a lb..ub expression.
+    list<string>::iterator dstF_itr=dstFormals.begin();
+    list<string>::iterator dstA_itr=dstActuals.begin();
+    for (; dstF_itr!=dstFormals.end(); ++dstF_itr, ++dstA_itr){
+        bool found=false;
+        string dstfParam = *dstF_itr;
+        string dstaParam = *dstA_itr;
+        // look through the source formals to see if it's there
+        list<string>::iterator srcF_itr=srcFormals.begin();
+        for (; srcF_itr!=srcFormals.end(); ++srcF_itr){
+            string srcfParam = *srcF_itr;
+            if( !srcfParam.compare(dstfParam) ){
+                found = true;
+                break;
+            }
+        }
+        if( found ){
+            actual_parameter_list.push_back(dstaParam);
+            continue;
+        }
+        // if we didn't find the formal, check if the actual is the same as the formal
+        if( !dstaParam.compare(dstfParam) ){
+            string range = expressionToRange(dstaParam, cond);
+            actual_parameter_list.push_back(range);
+        }else{ // in this case it's probably an expression of source actuals
+            actual_parameter_list.push_back(dstaParam);
+        }
+    }
+
+    // iterate over the newly created list of actual destination parameters and
+    // create a comma separeted list in a string, so we can print it.
+    string dstTaskParams;
+    list<string>::iterator a_itr=actual_parameter_list.begin();
+    for (; a_itr!=actual_parameter_list.end(); ++a_itr){
+        string dstActualParam = *a_itr;
+        if( a_itr != actual_parameter_list.begin() ){
+            dstTaskParams = dstTaskParams.append(",");
+        }
+        dstTaskParams = dstTaskParams.append(dstActualParam);
+    }
+
+
+    cout << "  OUT " << dep.srcArray << " -> ";
+    cout << dep.dstArray << " ";
+    cout << sink << "(" << dstTaskParams << ")  ";
+    cout << "{" << cond << "}" << endl;
 }
-#endif
+
 
 void mergeLists(void){
     bool found;
@@ -391,8 +533,16 @@ void mergeLists(void){
     set<int> srcSet;
     set<int>::iterator src_itr;
     set<string> fake_it;
+    string current_source, prev_source;
 
     fake_it.insert("BB");
+    fake_it.insert("step");
+    fake_it.insert("NT");
+    fake_it.insert("ip");
+    fake_it.insert("proot");
+    fake_it.insert("P");
+    fake_it.insert("B");
+
     SetIntersector setIntersector(fake_it);
 
     // Insert every source of flow deps in a set (srcSet).
@@ -405,73 +555,94 @@ void mergeLists(void){
     // For every source of a flow dep
     for (src_itr=srcSet.begin(); src_itr!=srcSet.end(); ++src_itr){
         int source = static_cast<int>(*src_itr);
+        list<dep_t> rlvnt_flow_deps;
         // Find all flow deps that flow from this source
         for(fd_itr=flow_deps.begin(); fd_itr != flow_deps.end(); ++fd_itr) {
             dep_t f_dep = static_cast<dep_t>(*fd_itr);
             int fd_srcLine = f_dep.srcLine;
             int fd_dstLine = f_dep.dstLine;
             if( fd_srcLine == source ){
-                setIntersector.setFD1(f_dep);
-                // Find and print every output dep that has the same source as this flow
-                // dep and its destination is either a) the same as the source, or
-                // b) the source of a second flow dep which has the same destination
-                // as "fd_dstLine"
-                for(od_itr=output_deps.begin(); od_itr != output_deps.end(); ++od_itr) {
-                    dep_t o_dep = *od_itr;
-                    int od_srcLine = o_dep.srcLine;
-                    int od_dstLine = o_dep.dstLine;
+                rlvnt_flow_deps.push_back(f_dep);
+                current_source = f_dep.source;
+            }
+        }
 
-                    if( fd_srcLine != od_srcLine ){
-                        continue;
-                    }
+        // Print the source and the parameter space
+        if( current_source.compare(prev_source) ){
+            if( !prev_source.empty() )
+                cout << "}" << endl;
+            cout << "\nTASK: " << current_source << " {" << endl;
+            prev_source = current_source;
+        }
 
-                    setIntersector.setOD(o_dep);
+        // Iterate over all the relevant flow dependencies, apply the output dependencies
+        // to them and print the result.
+        for(fd_itr=rlvnt_flow_deps.begin(); fd_itr != rlvnt_flow_deps.end(); ++fd_itr) {
+            dep_t f_dep = static_cast<dep_t>(*fd_itr);
+            int fd_srcLine = f_dep.srcLine;
+            int fd_dstLine = f_dep.dstLine;
+            setIntersector.setFD1(f_dep);
+            // Find and print every output dep that has the same source as this flow
+            // dep and its destination is either a) the same as the source, or
+            // b) the source of a second flow dep which has the same destination
+            // as "fd_dstLine"
+            for(od_itr=output_deps.begin(); od_itr != output_deps.end(); ++od_itr) {
+                dep_t o_dep = *od_itr;
+                int od_srcLine = o_dep.srcLine;
+                int od_dstLine = o_dep.dstLine;
 
-                    // case (a)
-                    if( od_srcLine == od_dstLine ){
-                        // Yes, the same as the original fd because the od is (cyclic) on myself.
-                        setIntersector.setFD2(f_dep);
-                        setIntersector.compose_FD2_OD();
-                    }else{ // case (b)
-                        for(fd2_itr=flow_deps.begin(); fd2_itr != flow_deps.end(); ++fd2_itr) {
-                            dep_t f2_dep = *fd2_itr;
-                            int fd2_srcLine = f2_dep.srcLine;
-                            int fd2_dstLine = f2_dep.dstLine;
-                            if( fd2_srcLine == od_dstLine && fd2_dstLine == fd_dstLine ){
-                                setIntersector.setFD2(f2_dep);
-                                setIntersector.compose_FD2_OD();
-                            }
+                if( fd_srcLine != od_srcLine ){
+                    continue;
+                }
+
+                setIntersector.setOD(o_dep);
+
+                // case (a)
+                if( od_srcLine == od_dstLine ){
+                    // Yes, the same as the original fd because the od is (cyclic) on myself.
+                    setIntersector.setFD2(f_dep);
+                    setIntersector.compose_FD2_OD();
+                }else{ // case (b)
+                    for(fd2_itr=flow_deps.begin(); fd2_itr != flow_deps.end(); ++fd2_itr) {
+                        dep_t f2_dep = *fd2_itr;
+                        int fd2_srcLine = f2_dep.srcLine;
+                        int fd2_dstLine = f2_dep.dstLine;
+                        if( fd2_srcLine == od_dstLine && fd2_dstLine == fd_dstLine ){
+                            setIntersector.setFD2(f2_dep);
+                            setIntersector.compose_FD2_OD();
                         }
                     }
                 }
-                string sets_for_omega = setIntersector.subtract();
-//                cout << sets_for_omega << endl;
-                fstream filestr ("/tmp/oc_in.txt", fstream::out);
-                filestr << sets_for_omega << endl;
-                filestr.close();
-
-                FILE *pfp = popen("/Users/adanalis/Desktop/Research/PLASMA_Distributed/Omega/omega_calc/obj/oc /tmp/oc_in.txt", "r");
-                stringstream data;
-                char buffer[256];
-                while (!feof(pfp)){
-                    if (fgets(buffer, 256, pfp) != NULL){
-                        data << buffer;
-                    }
-                }
-                pclose(pfp);
-                string line;
-                while( getline(data, line) ){
-                    if( line.find("#") && !line.empty() ){
-//                        cout << line << endl;
-                        break;
-                    }
-                }
-//                cout << endl;
-                dumpDep(f_dep, line);
             }
+            string sets_for_omega = setIntersector.subtract();
+            fstream filestr ("/tmp/oc_in.txt", fstream::out);
+            filestr << sets_for_omega << endl;
+            filestr.close();
+
+            string omegaHome="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Omega";
+            FILE *pfp = popen( (omegaHome+"/omega_calc/obj/oc /tmp/oc_in.txt").c_str(), "r");
+            stringstream data;
+            char buffer[256];
+            while (!feof(pfp)){
+                if (fgets(buffer, 256, pfp) != NULL){
+                    data << buffer;
+                }
+            }
+            pclose(pfp);
+            string line;
+            while( getline(data, line) ){
+                if( line.find("#") && !line.empty() ){
+//                    cout << line << endl;
+                    break;
+                }
+            }
+//            cout << endl;
+            dumpDep(f_dep, line);
         }
-        cout << "-------------------------------" << endl;
+//        cout << "-------------------------------" << endl;
     }
+    // cap the last TASK
+    cout << "}" << endl;
 
     return;
 }

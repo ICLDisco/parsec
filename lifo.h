@@ -43,8 +43,14 @@ static inline dplasma_list_item_t* dplasma_atomic_lifo_push( dplasma_atomic_lifo
 {
     dplasma_list_item_t* tail = (dplasma_list_item_t*)items->list_prev;
 #ifdef DPLASMA_DEBUG
-    item->refcount++;
-    item->belong_to_list = (struct dplasma_list_t*)lifo;
+    {
+        dplasma_list_item_t* item = items;
+        do {
+            item->refcount++;
+            item->belong_to_list = (struct dplasma_list_t*)lifo;
+            item = (dplasma_list_item_t*)item->list_next;
+        } while (item != items);
+    }
 #endif  /* DPLASMA_DEBUG */
     do {
         tail->list_next = lifo->lifo_head;
