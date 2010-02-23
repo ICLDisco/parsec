@@ -30,18 +30,21 @@ endif( PLASMA_FOUND )
 add_custom_command (
   OUTPUT cholesky_mpi.c
   COMMAND ../../tools/dpc cholesky_mpi.jdf cholesky_mpi.c
+  MAIN_DEPENDENCY cholesky_mpi.jdf
   DEPENDS dpc
   )
 
 add_custom_command (
   OUTPUT cholesky_rl.c
   COMMAND ../../tools/dpc cholesky_rl.jdf cholesky_rl.c
+  MAIN_DEPENDENCY cholesky_rl.jdf
   DEPENDS dpc
   )
  
 add_custom_command (
   OUTPUT cholesky_ll.c
   COMMAND ../../tools/dpc cholesky_ll.jdf cholesky_ll.c
+  MAIN_DEPENDENCY cholesky_ll.jdf
   DEPENDS dpc
   )
  
