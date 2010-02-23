@@ -37,6 +37,7 @@ FILE *__dplasma_graph_file = NULL;
 int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
+int schedule_sleep_begin, schedule_sleep_end;
 #endif  /* DPLASMA_PROFILING */
 
 static const dplasma_t** dplasma_array = NULL;
@@ -343,7 +344,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
 #ifdef DPLASMA_PROFILING
-    eu->eu_profile = dplasma_profiling_thread_init( 4096, "DPLASMA Thread %d", eu->eu_id );
+    eu->eu_profile = dplasma_profiling_thread_init( 8192, "DPLASMA Thread %d", eu->eu_id );
 #endif
 #ifdef DPLASMA_USE_LIFO
     eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
@@ -495,12 +496,14 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( "%s", (*pargv)[0] );
 
-    dplasma_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#555555",
+    dplasma_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
                                               &MEMALLOC_start_key, &MEMALLOC_end_key);
-    dplasma_profiling_add_dictionary_keyword( "Sched POLL", "fill:#43FF43",
+    dplasma_profiling_add_dictionary_keyword( "Sched POLL", "fill:#8A0886",
                                               &schedule_poll_begin, &schedule_poll_end);
-    dplasma_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#FF4343",
+    dplasma_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#F781F3",
                                               &schedule_push_begin, &schedule_push_end);
+    dplasma_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
+                                              &schedule_sleep_begin, &schedule_sleep_end);
 #endif  /* DPLASMA_PROFILING */
 
 #if defined(DPLASMA_USE_GLOBAL_LIFO)

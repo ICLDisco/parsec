@@ -262,7 +262,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+            TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
+            TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
         }
         
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
