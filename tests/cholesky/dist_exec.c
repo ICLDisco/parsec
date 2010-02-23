@@ -192,7 +192,7 @@ static void print_usage(void)
 {
     fprintf(stderr,
             "Mandatory argument:\n"
-            "   -n, --matrix-size : the size of the matrix\n"
+            "   number           : the size of the matrix\n"
             "Optional arguments:\n"
             "   -c --nb-cores    : number of computing threads to use\n"
             "   -d --dplasma     : use DPLASMA backend (default)\n"
@@ -333,8 +333,13 @@ static void runtime_init(int argc, char **argv)
         }
     }
     
-    if(N == 0)
+    while(N == 0)
     {
+        if(optind < argc)
+        {
+            N = atoi(argv[optind++]);
+            continue;
+        }
         if(0 == rank)
         {
             print_usage(); 

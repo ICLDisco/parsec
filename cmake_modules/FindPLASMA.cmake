@@ -95,9 +95,9 @@ if(BLAS_FOUND)
   endif(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
 endif(BLAS_FOUND)
 
-include(FindPackageMessage)
-find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
-  "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
+#include(FindPackageMessage)
+#find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
+#  "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
 
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_FOUND)

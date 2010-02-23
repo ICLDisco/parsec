@@ -2,24 +2,28 @@ cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
 # should we use our own math functions
+option(DPLASMA_MPI
+  "Build DPLASMA for distributed memory with MPI backend" ON)
+option(DPLASMA_SCHED_HWLOC
+  "Enable cache awareness in the scheduling" OFF)
+option(DPLASMA_PAPI
+  "Enable PAPI performance hardware counters" OFF)
 option(DPLASMA_PROFILING
-  "Generate the profiling information during execution" OFF)
+  "Enable the generation of the profiling information during execution" OFF)
 option(DPLASMA_GRAPHER
-  "Generate the dot output during execution" OFF)
+  "Enable the generation of the dot output during execution" OFF)
+option(DPLASMA_CALL_TRACE
+  "Enable the output of the BLAS kernels call trace during execution" OFF)
+option(DPLASMA_DRY_RUN
+  "Disable call to actual BLAS kernels; unfold the dependencies only" OFF)
 option(DPLASMA_WARM_UP
   "Execute a round of warmup for all tests" ON)
 option(DO_THE_NASTY_VALIDATIONS
   "Do the validity checks at the end of each test" OFF)
 option(BUILD_SHARED_LIBS
-  "Build shared libraries by default" OFF)
-option(DPLASMA_MPI
-  "Build DPLASMA for distributed memory with MPI backend" OFF)
-option(CHECK_PAPI
-  "If PAPI support is expected or not. Default OFF" OFF)
+  "Build shared libraries" OFF)
 option(BUILD_64bits
-  "Build 64 bits mode (default on)" ON)
-option(DPLASMA_CACHE_AWARENESS
-  "Enable cache awareness in the scheduling - default activated iff HWLOC is detected" OFF)
+  "Build 64 bits mode" ON)
 
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)
@@ -86,6 +90,9 @@ include (${CMAKE_ROOT}/Modules/FindFLEX.cmake)
 include (${CMAKE_ROOT}/Modules/FindBISON.cmake)
 include (${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
 include (${CMAKE_ROOT}/Modules/CMakeDetermineSystem.cmake)
+include (${CMAKE_ROOT}/Modules/FindMPI.cmake)
+include (${CMAKE_ROOT}/Modules/FindBLAS.cmake)
+include (${CMAKE_ROOT}/Modules/FindLAPACK.cmake)
 
 find_package(BISON)
 find_package(FLEX)
@@ -101,7 +108,7 @@ ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
-message("-- Check if the compiler provides atomic operations directives")
+message(STATUS "-- Check if the compiler provides atomic operations directives")
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)
@@ -109,7 +116,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   if( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
     error( "64 bits pointers without 64 bits atomic compare and swap")
   endif( CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT HAVE_COMPARE_AND_SWAP_64 )
-  message("--  Mac OS X detected")
+  message(STATUS "--  Mac OS X detected")
 else (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   if(NOT HAVE_COMPARE_AND_SWAP_32)
     check_symbol_exists( __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 "" HAVE_COMPARE_AND_SWAP_32)
@@ -152,43 +159,46 @@ endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
 
 find_package(PLASMA REQUIRED)
-find_package(HWLOC)
 
 #
-# If we want support for MPI based DPLASMA.
+# Find optional packages
 #
+if (DPLASMA_SCHED_HWLOC) 
+  find_package(HWLOC REQUIRED)
+endif (DPLASMA_SCHED_HWLOC)
+
 if (DPLASMA_MPI)
   find_package(MPI)
-endif (DPLASMA_MPI)
-
-#
-# If support for PAPI should be enabled.
-#
-if (CHECK_PAPI)
-  find_package(PAPI)
-  if (PAPI_FOUND)
-    set(HAVE_PAPI 1 CACHE BOOL "Compile PAPI support")
-  endif (PAPI_FOUND)
-endif (CHECK_PAPI)
-
-add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-  scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-  ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-
-if (DPLASMA_MPI)
   if (MPI_FOUND)
-    include_directories( ${MPI_INCLUDE_DIR} ) 
-    add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-      scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-      ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DDPLASMA_EXECUTE -DUSE_MPI")
-    #set_target_properties(dplasma-mpi PROPERTIES COMPILER MPI_COMPILER)
+    include_directories( ${MPI_INCLUDE_PATH} ) 
   else (MPI_FOUND)
     message("MPI support is required in order to build the distributed version of DPLASMA."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
 endif (DPLASMA_MPI)
+
+if (DPLASMA_PAPI)
+  find_package(PAPI REQUIRED)
+  if (PAPI_FOUND)
+    list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
+    include_directories( ${PAPI_INCLUDE_DIR} )
+  endif (PAPI_FOUND)
+endif (DPLASMA_PAPI)
+
+#
+# Setup targets
+#
+add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
+  scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+  ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
+
+if (DPLASMA_MPI AND MPI_FOUND)
+    add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
+      scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+      ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
+    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+endif (DPLASMA_MPI AND MPI_FOUND)
 
 #
 # Now continue with compiling the tests.

@@ -54,7 +54,7 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
         -> A(k, k)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     CORE_dpotrf( uplo,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  A(k, k), NB, /*A.nb,*/
@@ -64,7 +64,7 @@ BODY
              (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
              k, k, NB /*A.nb,*/));
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /**************************************************
@@ -90,7 +90,7 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> A(n, k)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
         CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -120,7 +120,7 @@ BODY
                  1.0, k, k, NB, /*A.nb,*/
                  k, n, NB /*A.nb*/));
     }
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 
@@ -144,7 +144,7 @@ INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
         -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
         CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
                     NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
@@ -174,7 +174,7 @@ BODY
                 -1.0, k, n, NB, /*A.nb,*/
                 1.0, n, n, NB /*A.nb*/));
     }
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /**************************************************
@@ -199,7 +199,7 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, n-1)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
         CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -237,5 +237,5 @@ BODY
                       k, m, NB, /*A.nb,*/
                  1.0, n, m, NB /*A.nb*/));
     }
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END

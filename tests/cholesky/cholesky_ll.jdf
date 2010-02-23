@@ -55,7 +55,7 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
         -> A(k, k)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     CORE_dpotrf( uplo,
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  T /* A(k,k) */, NB, /*A.nb,*/
@@ -65,7 +65,7 @@ BODY
              (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
              k, k, NB /*A.nb,*/));
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /**************************************************
@@ -91,7 +91,7 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> A(m, k)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
         CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -121,7 +121,7 @@ BODY
                  1.0, k, k, NB, /*A.nb,*/
                  k, m, NB /*A.nb*/));
     }
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /**************************************************
@@ -144,7 +144,7 @@ INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
         CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
                     NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
@@ -174,7 +174,7 @@ BODY
                 -1.0, n, k, NB, /*A.nb,*/
                 1.0, k, k, NB /*A.nb*/));
     }
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
 
 /**************************************************
@@ -199,7 +199,7 @@ INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
 BODY
-#ifdef DPLASMA_EXECUTE
+#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
         CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
                     NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
@@ -237,5 +237,5 @@ BODY
                       n, m, NB, /*A.nb,*/
                  1.0, k, m, NB /*A.nb*/));
     }
-#endif  /* DPLASMA_EXECUTE */
+#endif  /* DPLASMA_DRY_RUN */
 END
