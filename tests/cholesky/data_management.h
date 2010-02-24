@@ -47,8 +47,8 @@ typedef struct dplasma_desc_t {
     int nodes;          // number of nodes involved in the computation
     int colRANK;        // process column rank in the process grid - derived parameter
     int rowRANK;        // process row rank in the process grid - derived parameter
-    int nb_elem_r;      // number of tiles per row handled by this process
-    int nb_elem_c;      // number of tiles per column handled by this process
+    int nb_elem_r;      // number of row tiles  handled by this process
+    int nb_elem_c;      // number of column tiles handled by this process
 } DPLASMA_desc;
 
 /************************************************
@@ -132,9 +132,18 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
 /**********************************************************************
  * Distributed matrix generation
  **********************************************************************/
-int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
+
+/* set values of the DPLASMA_desc structure and allocate memory for matrix data
+ */
+int dplasma_description_init(DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
+
+/* affecting the complete local view of a distributed matrix with random values */
+int rand_dist_matrix(DPLASMA_desc * Ddesc);
 
 
+/*********************************************************************
+ * Debugging functions
+ *********************************************************************/
 /* debugging print of blocks */
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );
 int data_dump(DPLASMA_desc * Ddesc);

@@ -4,9 +4,9 @@
  *                         reserved.
  */
 
-#ifdef HAVE_CPU_SET_T
+#ifdef  HAVE_SCHED_SETAFFINITY
 #include <linux/unistd.h>
-#endif  /* HAVE_CPU_SET_T */
+#endif  /* HAVE_SCHED_SETAFFINITY */
 #include <string.h>
 #include <sched.h>
 #include <sys/types.h>
@@ -162,7 +162,9 @@ static void __do_some_computations( void )
     free(A);
 }
 
+#ifdef  HAVE_SCHED_SETAFFINITY
 #define gettid() syscall(__NR_gettid)
+#endif /* HAVE_SCHED_SETAFFINITY */
 
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )

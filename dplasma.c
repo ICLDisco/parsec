@@ -279,7 +279,9 @@ int dplasma_nb_elements( void )
 dplasma_atomic_lifo_t ready_list;
 #endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
 
+#ifdef HAVE_SCHED_SETAFFINITY
 #define gettid() syscall(__NR_gettid)
+#endif /* HAVE_SCHED_SETAFFINITY */
 
 typedef struct __dplasma_temporary_thread_initialization_t {
     dplasma_context_t* master_context;

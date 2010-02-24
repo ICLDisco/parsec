@@ -10,8 +10,12 @@
 #include <string.h>
 #include <assert.h>
 
+
 #include "cblas.h"
 #include <math.h>
+#include <pthread.h>
+
+#include <errno.h>
 
 #include "plasma.h"
 #include "../src/common.h"
@@ -20,6 +24,12 @@
 #include "../src/allocate.h"
 #include "data_management.h"
 #include "dplasma.h"
+
+#ifdef HAVE_SCHED_SETAFFINITY
+#include <unistd.h>
+#include <linux/unistd.h>
+#include <sys/syscall.h>
+#endif  /* HAVE_SCHED_SETAFFINITY */
 
 //#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
@@ -880,8 +890,8 @@ Rnd64_jump(unsigned long long int n) {
 /************************************************************
  *distributed matrix generation
  ************************************************************/
-/* tile creation */
-static void create_tile(DPLASMA_desc * Ddesc, double * position, int LDA, int NRHS, int LDB, int row, int col, PLASMA_enum uplo)
+/* affect one tile with random values  */
+static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int col)
 {
     int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     double *x = position;
@@ -907,15 +917,153 @@ static void create_tile(DPLASMA_desc * Ddesc, double * position, int LDA, int NR
     }
 }
 
+typedef struct tile_coordinate{
+    int row;
+    int col;
+} tile_coordinate_t;
 
-int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo)
+typedef struct dist_tiles{
+    DPLASMA_desc * Ddesc;
+    int th_id;
+    int nb_elements;
+    double * starting_position;
+} dist_tiles_t;
+
+
+/*
+  given a position in the matrix array, retrieve to which tile it belongs
+
+ */
+static void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile) 
+{ 
+    int nb_tiles;
+    int shift;
+    int erow;
+    int ecol;
+    int rst;
+    int cst;
+    erow = Ddesc->rowRANK * Ddesc->nrst; /* row of the first tile in memory */ 
+    ecol = Ddesc->colRANK * Ddesc->ncst; /* col of the first tile in memory */
+    nb_tiles = position - ((double*)Ddesc->mat); /* how many element (double) in the array before the looked up one */
+    nb_tiles = nb_tiles / Ddesc->bsiz; /* how many tiles before this position */
+    shift = Ddesc->ncst * Ddesc->nb_elem_r; /* nb tiles per colum of super-tile */
+    ecol += (nb_tiles / shift) * (Ddesc->GRIDcols * Ddesc->ncst);
+    nb_tiles = nb_tiles % shift;
+
+    cst = ((Ddesc->lnt - ecol) < Ddesc->ncst) ? (Ddesc->lnt - ecol) : Ddesc->ncst; /* last super-tile column of the matrix ? */
+    shift = cst * Ddesc->nrst; /* super-tile size for the colum where resides the element */
+
+    erow += (nb_tiles / shift) * (Ddesc->GRIDrows * Ddesc->nrst); /* elements in the super-tile starting by tile (erow,ecol) */
+    nb_tiles = nb_tiles % shift;
+    rst = ((Ddesc->lmt - erow) < Ddesc->nrst) ? (Ddesc->lmt - erow) : Ddesc->nrst; /* last super-tile of the matrix ? */
+    ecol += nb_tiles / rst;
+    erow += nb_tiles % rst;
+    tile->row = erow;
+    tile->col = ecol;
+}
+
+#ifdef HAVE_SCHED_SETAFFINITY
+#define gettid() syscall(__NR_gettid)
+#endif
+
+/* thread function for affecting multiple tiles with random values
+ * @param : tiles : of type dist_tiles_t
+
+ */
+static void * rand_dist_tiles(void * tiles)
+{
+    int i;
+    double * pos;
+    tile_coordinate_t current_tile;
+    /* bind thread to cpu */
+#if defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY)
+    int bind_to_proc = ((dist_tiles_t *)tiles)->th_id;
+#endif  /* defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY) */
+#ifdef HAVE_SCHED_SETAFFINITY
+    {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(bind_to_proc, &cpuset);
+
+        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
+            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
+        }
+    }
+#endif  /* HAVE_SCHED_SETAFFINITY */
+    printf("generating matrix on process %d, thread %d: %d tiles\n",
+           ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
+           ((dist_tiles_t*)tiles)->th_id,
+           ((dist_tiles_t*)tiles)->nb_elements);
+    
+    pos = ((dist_tiles_t*)tiles)->starting_position;
+    for (i = 0 ; i < ((dist_tiles_t*)tiles)->nb_elements ; i++)
+        {
+            pos_to_coordinate(((dist_tiles_t*)tiles)->Ddesc, pos, &current_tile);
+            create_tile(((dist_tiles_t*)tiles)->Ddesc, pos, current_tile.row, current_tile.col);
+            pos += ((dist_tiles_t*)tiles)->Ddesc->bsiz;
+        }
+    return NULL;
+}
+
+/* affecting the complete local view of a distributed matrix with random values */
+int rand_dist_matrix(DPLASMA_desc * Ddesc)
+{
+    dist_tiles_t * tiles;
+    int i;
+    double * pos = Ddesc->mat;
+    pthread_t *threads;
+    pthread_attr_t thread_attr;
+    if (Ddesc->cores > 1)
+        {
+            pthread_attr_init(&thread_attr);
+            pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
+#ifdef __linux
+            pthread_setconcurrency(Ddesc->cores);
+#endif  /* __linux */
+        }
+    tiles = malloc(sizeof(dist_tiles_t) * Ddesc->cores);
+    for ( i = 0 ; i < Ddesc->cores ; i++ )
+        {
+            tiles[i].th_id = i;
+            tiles[i].Ddesc = Ddesc;
+            tiles[i].nb_elements = (Ddesc->nb_elem_r * Ddesc->nb_elem_c) / Ddesc->cores;
+            tiles[i].starting_position = pos;
+            pos += tiles[i].nb_elements * Ddesc->bsiz;
+        }
+    tiles[i -1].nb_elements+= (Ddesc->nb_elem_r * Ddesc->nb_elem_c) % Ddesc->cores;
+
+    if (Ddesc->cores > 1)
+        {
+            threads = malloc(Ddesc->cores * sizeof(pthread_t));
+            for ( i = 1 ; i < Ddesc->cores ; i++)
+                {
+                    pthread_create( &(threads[i-1]),
+                                    &thread_attr,
+                                    (void* (*)(void*))rand_dist_tiles,
+                                    (void*)&(tiles[i]));
+                }
+        }
+
+    rand_dist_tiles((void*) &(tiles[0]));
+
+    if (Ddesc->cores > 1)
+        {
+            for(i = 0 ; i < Ddesc->cores - 1 ; i++)
+                pthread_join(threads[i],NULL);
+            free (threads);
+        }
+    free (tiles);
+    return 0;
+}
+
+
+int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo)
 {
 
-    int i, j, status;
+    int i,  status;
     plasma_context_t *plasma;
     int nbstile_r;
     int nbstile_c;
-    double * target;
 
     plasma = plasma_context_self();
     if (plasma == NULL) {
@@ -1026,8 +1174,6 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
     printf("process %d(%d,%d) handles %d x %d tiles\n",
            Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);
 
-
-
     /* Allocate memory for matrices in block layout */
     Ddesc->mat =(double *)plasma_shared_alloc(plasma, Ddesc->nb_elem_r*Ddesc->nb_elem_c * Ddesc->bsiz, PlasmaRealDouble);
     if (Ddesc->mat == NULL)
@@ -1035,16 +1181,6 @@ int create_distributed_matrix( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS,
             plasma_error("PLASMA_dpotrf", "plasma_shared_alloc() failed");
             return PLASMA_ERR_OUT_OF_RESOURCES;
         }
-
-    /* DPLASMA_desc Ddesc is filled, no filling matrix with random values */
-    for(i = 0 ; i < Ddesc->lmt ; i++)
-        for (j = 0 ; j < Ddesc->lnt ; j++)
-            if (Ddesc->mpi_rank == dplasma_get_rank_for_tile(Ddesc, i, j))
-                    {
-                        target = dplasma_get_local_tile_s(Ddesc, i, j);
-                        create_tile(Ddesc, target, LDA,  NRHS,  LDB, i, j, uplo);
-                    }
-
     return 0;
 
 }
