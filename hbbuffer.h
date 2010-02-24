@@ -3,6 +3,7 @@
 
 #include "dplasma.h"
 #include "atomic.h"
+#include "lifo.h"
 
 /**
  * Hierarchical Bounded Buffers:
@@ -17,7 +18,7 @@
  * pop_best will pop the first element it finds in the bounded buffer
  * that has the highest score with this ranking function
  */
-typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(void *elt, void *param);
+typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(dplasma_list_item_t *elt, void *param);
 
 /** 
  * parent push function: takes a pointer to the parent store object, and
@@ -25,7 +26,7 @@ typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(void *elt, void *param);
  * of a push. elt must be stored in the parent store (linked list, hbbuffer, or
  * dequeue, etc...) before the function returns
  */
-typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, void *elt);
+typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_item_t *elt);
 
 typedef struct dplasma_hbbuffer_t {
     size_t size;       /**< the size of the buffer, in number of void* */
@@ -34,7 +35,7 @@ typedef struct dplasma_hbbuffer_t {
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dplasma_hbbuffer_parent_push_fct_t parent_push_fct;
-    void    *items[1]; /**< array of elements */
+    dplasma_list_item_t *items[1]; /**< array of elements */
 } dplasma_hbbuffer_t;
 
 static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size, 
@@ -42,7 +43,7 @@ static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size,
                                                        void *parent_store)
 {
     /** Must use calloc to ensure that all ites are set to NULL */
-    dplasma_hbbuffer_t *n = (dplasma_hbbuffer_t*)calloc(1, sizeof(dplasma_hbbuffer_t) + (size-1)*sizeof(void*));
+    dplasma_hbbuffer_t *n = (dplasma_hbbuffer_t*)calloc(1, sizeof(dplasma_hbbuffer_t) + (size-1)*sizeof(dplasma_list_item_t*));
     n->size = size;
     /** Not needed since using calloc 
      *  n->w_pos = 0;
@@ -58,40 +59,43 @@ static inline void dplasma_hbbuffer_destroy(dplasma_hbbuffer_t *b)
     free(b);
 }
 
-static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, volatile dplasma_list_item_t *elt)
+static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, dplasma_list_item_t *elt)
 {
-    void *victim;
-    volatile dplasma_list_item_t *n;
-    int i = 0;
+    dplasma_list_item_t *n;
+    int i, nbelt;
 
-    while( elt ) {
-        n = elt->list_next;
-        if( n == elt ) {
+    nbelt = 0;
+    n = elt;
+    dplasma_atomic_lock(&b->lock);
+    for(i = 0; i < b->size; i++) {
+        if( NULL != b->items[b->w_pos] ) {
+            break;
+        }
+        n = (dplasma_list_item_t *)elt->list_next;
+        if(n == elt) {
             n = NULL;
         }
-
         elt->list_next->list_prev = elt->list_prev;
         elt->list_prev->list_next = elt->list_next;
-
         elt->list_prev = elt;
         elt->list_next = elt;
-
-        DEBUG(("trying to push %p in %p\n", elt, b));
-
-        dplasma_atomic_lock(&b->lock);
-        victim = b->items[b->w_pos];
-        b->items[b->w_pos] = (dplasma_list_item_t*)elt;
+        DEBUG(("Pushing %p in %p\n", elt, b));
+        b->items[b->w_pos] = elt;
+        nbelt++;
         b->w_pos = (b->w_pos + 1) % b->size;
-        dplasma_atomic_unlock(&b->lock);
-        if( NULL != victim ) {
-            DEBUG(("%p is full -> moving %p to %p\n", b, victim, b->parent_store));
-            b->parent_push_fct(b->parent_store, victim);
-        }
 
+        if( NULL == n ) {
+            break;
+        }
         elt = n;
-        i++;
     }
-    DEBUG(("pushed %d elements\n", i));
+    dplasma_atomic_unlock(&b->lock);
+
+    DEBUG(("pushed %d elements\n", nbelt));
+
+    if( NULL != n ) {
+        b->parent_push_fct(b->parent_store, n);
+    }
 }
 
 static inline int dplasma_hbbuffer_is_empty(dplasma_hbbuffer_t *b)
@@ -108,12 +112,12 @@ static inline int dplasma_hbbuffer_is_empty(dplasma_hbbuffer_t *b)
     return ret;
 }
 
-static inline void *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t *b, 
-                                              dplasma_hbbuffer_ranking_fct_t rank_function, 
-                                              void *rank_function_param)
+static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t *b, 
+                                                             dplasma_hbbuffer_ranking_fct_t rank_function, 
+                                                             void *rank_function_param)
 {
     int idx;
-    void *best_elt = NULL;
+    dplasma_list_item_t *best_elt = NULL;
     int best_idx = 0;   
     unsigned int best_rank = 0, rank;
 

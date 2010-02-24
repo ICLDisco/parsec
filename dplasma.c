@@ -291,19 +291,19 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
-static void push_in_buffer_wrapper(void *store, void *elt)
+static void push_in_buffer_wrapper(void *store, dplasma_list_item_t *elt)
 { 
     /* Store is a hbbbuffer */
     dplasma_hbbuffer_push( (dplasma_hbbuffer_t*)store, elt );
 }
 
-static void push_in_queue_wrapper(void *store, void *elt)
+static void push_in_queue_wrapper(void *store, dplasma_list_item_t *elt)
 {
     /* Store is a lifo or a dequeue */
 #if defined(DPLASMA_USE_LIFO)
-    dplasma_atomic_lifo_push( (dplasma_atomic_lifo_t*)store, (dplasma_list_item_t*)elt );
+    dplasma_atomic_lifo_push( (dplasma_atomic_lifo_t*)store, elt );
 #else
-    dplasma_dequeue_push_back( (dplasma_dequeue_t*)store, (dplasma_list_item_t*)elt );
+    dplasma_dequeue_push_back( (dplasma_dequeue_t*)store, elt );
 #endif
 }
 #endif
@@ -392,17 +392,23 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             idx = eu->eu_nb_hierarch_queues - 1 - level;
             master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
             if( eu->eu_id == master ) {
+#if defined(DPLASMA_CACHE_AWARENESS)
+                int nbtiles = (dplasma_hwlock_cache_size(startup->master_context, level, master) / TILE_SIZE)-1;
+                int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
+                int queue_size = (nbtiles >= 1) ? (3 * nbtiles * nbcores) : (3 * nbcores);
+#else
+                int queue_size = 32;
+#endif
                 /* The master(s) create the shared queues */
                 DEBUG(("creating hbbuffer with parent of level %d = %p\n",
                        level, level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]));
-                eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( 128,
+                eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( queue_size,
                                                                     level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                                                     level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
                 
 #if defined(DPLASMA_CACHE_AWARENESS)
                 /* The master(s) create the cache explorer, using their current closest cache as its father */
-                eu->closest_cache = cache_create( dplasma_hwlock_nb_cores(startup->master_context, level, master), eu->closest_cache, 
-                                                  (dplasma_hwlock_cache_size(startup->master_context, level, master) / TILE_SIZE)-1 );
+                eu->closest_cache = cache_create( nbcores, eu->closest_cache, nbtiles);
 #endif
                 
                 /* The master(s) unblock all waiting slaves */
