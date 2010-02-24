@@ -30,7 +30,8 @@ typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_ite
 
 typedef struct dplasma_hbbuffer_t {
     size_t size;       /**< the size of the buffer, in number of void* */
-    uint32_t lock;     /**< lock on the buffer */
+	size_t nbelt;      /**< Number of elemnts in the buffer currently */
+    volatile uint32_t lock;     /**< lock on the buffer */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dplasma_hbbuffer_parent_push_fct_t parent_push_fct;
@@ -44,6 +45,7 @@ static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size,
     /** Must use calloc to ensure that all ites are set to NULL */
     dplasma_hbbuffer_t *n = (dplasma_hbbuffer_t*)calloc(1, sizeof(dplasma_hbbuffer_t) + (size-1)*sizeof(dplasma_list_item_t*));
     n->size = size;
+	/** n->nbelt = 0; <not needed because callc */
     n->parent_push_fct = parent_push_fct;
     n->parent_store = parent_store;
     DEBUG(("Created a new hierarchical buffer of %d elements\n", size));
@@ -81,6 +83,7 @@ static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, dplasma_list_ite
 
         elt = next;
     }
+	b->nbelt += nbelt;
     dplasma_atomic_unlock(&b->lock);
 
     DEBUG(("pushed %d elements. %s\n", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done"));
@@ -94,12 +97,7 @@ static inline int dplasma_hbbuffer_is_empty(dplasma_hbbuffer_t *b)
 {
     int ret = 1, i;
     dplasma_atomic_lock(&b->lock);
-    for(i = 0; i < b->size; i++) {
-        if( NULL != b->items[i] ) {
-            ret = 0;
-            break;
-        }
-    }
+	ret = (b->nbelt == 0);
     dplasma_atomic_unlock(&b->lock);
     return ret;
 }
@@ -127,9 +125,11 @@ static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t 
             best_idx  = idx;
         }
     }
-    /** Removes the element from the buffer.
-     *  If no element is found, b->items[0] == NULL already */
-    b->items[best_idx] = NULL;
+    /** Removes the element from the buffer. */
+	if( best_elt != NULL ) {
+      b->items[best_idx] = NULL;
+	  b->nbelt--;
+	}
     dplasma_atomic_unlock(&b->lock);
 
     DEBUG(("pop best %p from %p\n", best_elt, b));
