@@ -387,8 +387,8 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
         }
 
-        eu->eu_nb_hierarch_queues = dplasma_hwlock_nb_levels(startup->master_context) - 1;
-        assert(eu->eu_nb_hierarch_queues > 0 /* Must have at least a system queue and a socket queue to work with hwloc */ );
+        eu->eu_nb_hierarch_queues = dplasma_hwlock_nb_levels(startup->master_context);
+        assert(eu->eu_nb_hierarch_queues > 1 /* Must have at least a system queue and a socket queue to work with hwloc */ );
 
         eu->eu_hierarch_queues = (dplasma_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dplasma_hbbuffer_t*) );
 
@@ -399,7 +399,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #if defined(DPLASMA_CACHE_AWARENESS)
                 int nbtiles = (dplasma_hwlock_cache_size(startup->master_context, level, master) / TILE_SIZE)-1;
                 int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
-                int queue_size = (nbtiles >= 1) ? (3 * nbtiles * nbcores) : (3 * nbcores);
+                int queue_size = (nbtiles >= 1) ? (2 * nbtiles / nbcores) : (2 * nbcores);
 #else
                 int queue_size = 32;
 #endif
