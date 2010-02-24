@@ -1002,7 +1002,7 @@ static char *dplasma_dump_cache_evaluation_function(const dplasma_t *d,
                    d->inout[i]->name);
         }
     }
-    output "  return result;\n"
+    output("  return result;\n"
            "}\n");
 }
 #endif
