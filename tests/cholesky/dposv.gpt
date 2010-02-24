@@ -1,8 +1,0 @@
-
-set title "Single Core Performance (Intel Core2 Duo) 2.53 GHz Goto 1.26"
-set key bottom
-
-plot "< grep ^PLASMA dposv.out" using 4:7 title "PLASMA DPOTRF" with linespoints, \
- "< grep ^DPLASMA dposv.out" using 4:7 title "DPLASMA DPOTRF" with linespoints
-
-pause -1 "Press Enter"
