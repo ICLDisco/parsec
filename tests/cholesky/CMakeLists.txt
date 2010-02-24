@@ -11,18 +11,24 @@ if( PLASMA_FOUND )
     target_link_libraries(dposv_ll_mpi dplasma-mpi ${PLASMA_LIBRARIES} ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
   endif( DPLASMA_MPI AND MPI_FOUND )
 
+  add_executable(dposv_ll_nmpi dist_exec.c cholesky_mpi.c data_management.c)
+  set_target_properties(dposv_ll_nmpi PROPERTIES LINKER_LANGUAGE Fortran)
+  set_target_properties(dposv_ll_nmpi PROPERTIES COMPILE_FLAGS "-DADD_")
+  target_link_libraries(dposv_ll_nmpi dplasma ${PLASMA_LIBRARIES} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
+
   add_executable(dposv_rl dposv.c cholesky_rl.c)
   set_target_properties(dposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
-  set_target_properties(dposv_rl PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
+  set_target_properties(dposv_rl PROPERTIES COMPILE_FLAGS "-DADD_ -DDPLASMA_EXECUTE")
   target_link_libraries(dposv_rl dplasma ${PLASMA_LIBRARIES} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
 
   add_executable(dposv_ll dposv.c cholesky_ll.c)
   set_target_properties(dposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
-  set_target_properties(dposv_ll PROPERTIES COMPILE_FLAGS "-DDPLASMA_EXECUTE")
+  set_target_properties(dposv_ll PROPERTIES COMPILE_FLAGS "-DADD_ -DDPLASMA_EXECUTE")
   target_link_libraries(dposv_ll dplasma ${PLASMA_LIBRARIES} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
 
   add_executable(dposv.plasma dposv.c)
   set_target_properties(dposv.plasma PROPERTIES LINKER_LANGUAGE Fortran)
+  set_target_properties(dposv.plasma PROPERTIES COMPILE_FLAGS "-DADD_")
   target_link_libraries(dposv.plasma ${PLASMA_LIBRARIES} ${LAPACK_LIBRARIES} ${EXTRA_LIBS})
 endif( PLASMA_FOUND )
 

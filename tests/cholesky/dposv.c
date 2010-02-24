@@ -260,7 +260,7 @@ int main (int argc, char **argv)
    double *B1   = (double *)malloc(LDB*NRHS*sizeof(double));
    double *B2   = (double *)malloc(LDB*NRHS*sizeof(double));
    double *WORK = (double *)malloc(2*LDA*sizeof(double));
-   double *D                = (double *)malloc(LDA*sizeof(double));
+   double *D    = (double *)malloc(LDA*sizeof(double));
    /* Check if unable to allocate memory */
    if ((!A1)||(!B1)||(!B2)){
        printf("Out of Memory \n ");
@@ -285,20 +285,21 @@ int main (int argc, char **argv)
    *  TESTING DPOTRF + DPOTRS
    */
    /* Initialize A1 and A2 for Symmetric Positive Matrix */
-#if 0
-   dlarnv(&IONE, ISEED, &LDA, D);
-   dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
-#endif
 #if defined(DO_THE_NASTY_VALIDATIONS)
-   for ( i = 0; i < N; i++)
+# if 1
+    dlarnv(&IONE, ISEED, &LDA, D);
+    dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
+# else
+    for ( i = 0; i < N; i++)
        for ( j = i; j < N; j++) {
            A2[LDA*j+i] = A1[LDA*j+i] = (double)rand() / RAND_MAX;
            A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
        }
-   for ( i = 0; i < N; i++){
-       A1[LDA*i+i] = A1[LDA*i+i] + 10*N;
-       A2[LDA*i+i] = A1[LDA*i+i];
-   }
+    for ( i = 0; i < N; i++){
+        A1[LDA*i+i] = A1[LDA*i+i] + 10*N;
+        A2[LDA*i+i] = A1[LDA*i+i];
+    }
+# endif
 #else
    for ( i = 0; i < N; i++)
        for ( j = i; j < N; j++) {
