@@ -289,6 +289,9 @@ int main (int argc, char **argv)
 # if 1
     dlarnv(&IONE, ISEED, &LDA, D);
     dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
+    memcpy(A2, A1, LDA*N*sizeof(double));
+    dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
+    memcpy(B2, B1, LDB*NRHS*sizeof(double));
 # else
     for ( i = 0; i < N; i++)
        for ( j = i; j < N; j++) {
@@ -299,6 +302,10 @@ int main (int argc, char **argv)
         A1[LDA*i+i] = A1[LDA*i+i] + 10*N;
         A2[LDA*i+i] = A1[LDA*i+i];
     }
+    /* Initialize B1 and B2 */
+    for ( i = 0; i < N; i++)
+        for ( j = 0; j < NRHS; j++)
+            B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
 # endif
 #else
    for ( i = 0; i < N; i++)
@@ -308,16 +315,6 @@ int main (int argc, char **argv)
    for ( i = 0; i < N; i++){
        A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
    }
-#endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
-
-   /* Initialize B1 and B2 */
-#if 0
-   dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
-#endif
-#if defined(DO_THE_NASTY_VALIDATIONS)
-   for ( i = 0; i < N; i++)
-       for ( j = 0; j < NRHS; j++)
-           B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
 #endif  /* defined(DO_THE_NASTY_VALIDATIONS) */
 
    /* Plasma routines */
@@ -339,7 +336,7 @@ int main (int argc, char **argv)
    info_factorization = check_factorization( N, A1, A2, LDA, uplo, eps);
    info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
 
-   if ((info_solution == 0)&(info_factorization == 0)){
+   if ((info_solution == 0)&&(info_factorization == 0)){
        printf("***************************************************\n");
        printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED !\n");
        printf("***************************************************\n");
