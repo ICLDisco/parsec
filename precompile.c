@@ -905,7 +905,8 @@ static char *dplasma_dump_cache_evaluation_function(const dplasma_t *d,
     int i, j, k, cpt;
     output( "static unsigned int %s_cache_rank(const dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward)\n"
             "{\n"
-            "  int result = 0;\n",
+            "  int result = 0, r;\n"
+            "  const cache_t *c;\n",
             d->name);
 
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
@@ -988,18 +989,20 @@ static char *dplasma_dump_cache_evaluation_function(const dplasma_t *d,
         output("\n");
     }
 
-    output("  while( NULL != cache ) {\n");
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         if( d->inout[i]->sym_type & SYM_IN ) {
-            output("    if( cache_buf_isLocal(cache, %s) ) {\n"
-                   "      result += reward;\n"
-                   "    }\n", d->inout[i]->name);
-        }        
+            output("  r = reward;\n"
+                   "  for( c = cache; NULL != c; c = c->parent ) {\n"
+                   "    if( cache_buf_isLocal(c, %s) ) {\n"
+                   "      result += r;\n"
+                   "      break;\n"
+                   "    }\n"
+                   "    r = r / 2;\n"
+                   "  }\n",
+                   d->inout[i]->name);
+        }
     }
-    output("    cache = cache->parent;\n"
-           "    reward = reward / 2;\n"
-           "  }\n"
-           "  return result;\n"
+    output "  return result;\n"
            "}\n");
 }
 #endif
