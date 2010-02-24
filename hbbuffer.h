@@ -30,7 +30,6 @@ typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_ite
 
 typedef struct dplasma_hbbuffer_t {
     size_t size;       /**< the size of the buffer, in number of void* */
-    uint32_t w_pos;    /**< the position to push the next element in the buffer */
     uint32_t lock;     /**< lock on the buffer */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
@@ -45,12 +44,9 @@ static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size,
     /** Must use calloc to ensure that all ites are set to NULL */
     dplasma_hbbuffer_t *n = (dplasma_hbbuffer_t*)calloc(1, sizeof(dplasma_hbbuffer_t) + (size-1)*sizeof(dplasma_list_item_t*));
     n->size = size;
-    /** Not needed since using calloc 
-     *  n->w_pos = 0;
-     *  n->version = 0;
-     */
     n->parent_push_fct = parent_push_fct;
     n->parent_store = parent_store;
+    DEBUG(("Created a new hierarchical buffer of %d elements\n", size));
     return n;
 }
 
@@ -61,40 +57,36 @@ static inline void dplasma_hbbuffer_destroy(dplasma_hbbuffer_t *b)
 
 static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, dplasma_list_item_t *elt)
 {
-    dplasma_list_item_t *n;
-    int i, nbelt;
+    dplasma_list_item_t *next;
+    int nbelt, i;
 
     nbelt = 0;
-    n = elt;
+    next = elt;
     dplasma_atomic_lock(&b->lock);
-    for(i = 0; i < b->size; i++) {
-        if( NULL != b->items[b->w_pos] ) {
-            break;
-        }
-        n = (dplasma_list_item_t *)elt->list_next;
-        if(n == elt) {
-            n = NULL;
+    for(i = 0; (i < b->size) && (NULL != elt); i++) {
+        if( NULL != b->items[i] )
+            continue;
+
+        next = (dplasma_list_item_t *)elt->list_next;
+        if(next == elt) {
+            next = NULL;
         }
         elt->list_next->list_prev = elt->list_prev;
         elt->list_prev->list_next = elt->list_next;
         elt->list_prev = elt;
         elt->list_next = elt;
         DEBUG(("Pushing %p in %p\n", elt, b));
-        b->items[b->w_pos] = elt;
+        b->items[i] = elt;
         nbelt++;
-        b->w_pos = (b->w_pos + 1) % b->size;
 
-        if( NULL == n ) {
-            break;
-        }
-        elt = n;
+        elt = next;
     }
     dplasma_atomic_unlock(&b->lock);
 
-    DEBUG(("pushed %d elements\n", nbelt));
+    DEBUG(("pushed %d elements. %s\n", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done"));
 
-    if( NULL != n ) {
-        b->parent_push_fct(b->parent_store, n);
+    if( NULL != next ) {
+        b->parent_push_fct(b->parent_store, next);
     }
 }
 
@@ -122,13 +114,14 @@ static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t 
     unsigned int best_rank = 0, rank;
 
     dplasma_atomic_lock(&b->lock);
-    for(idx = 0; idx != b->size; idx++) {
+    for(idx = 0; idx < b->size; idx++) {
         if( NULL == b->items[idx] )
             continue;
 
+        DEBUG(("Found non NULL element in %p at position %d/%d\n", b, idx, (int)b->size));
+
         rank = rank_function(b->items[idx], rank_function_param);
-        if( NULL == best_elt ||
-            rank > best_rank ) {
+        if( (NULL == best_elt) || (rank > best_rank) ) {
             best_rank = rank;
             best_elt  =  b->items[idx];
             best_idx  = idx;
