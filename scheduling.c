@@ -80,7 +80,19 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 #  if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
-    dplasma_hbbuffer_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+    {
+        int i;
+        for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++) {
+            /* Be nice: share. Push in the closest buffer that is not totally empty (mine if I'm starving) */
+            if( dplasma_hbbuffer_is_empty( eu_context->eu_hierarch_queues[i] ) ) {
+                dplasma_hbbuffer_push( eu_context->eu_hierarch_queues[i], (dplasma_list_item_t*)new_context );
+                break;
+            }
+        }
+        if( i == eu_context->eu_nb_hierarch_queues ) {
+            dplasma_hbbuffer_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+        }
+    }
 #  else
 #    if PLACEHOLDER_SIZE
     while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
@@ -163,19 +175,19 @@ static inline unsigned long exponential_backoff(uint64_t k)
 
 #if defined( HAVE_HWLOC )
 #  if defined(DPLASMA_CACHE_AWARENESS)
-static  unsigned int ranking_function_bycache(void *elt, void *param)
+static  unsigned int ranking_function_bycache(dplasma_list_item_t *elt, void *param)
 {
     unsigned int value;
     cache_t *cache = (cache_t*)param;
     dplasma_execution_context_t *exec = (dplasma_execution_context_t*)elt;
     
-     /* TODO: fix this, depends on the depth */
-     value = exec->function->cache_rank_function(exec, cache, 128);
+    /* TODO: fix this, depends on the depth */
+    value = exec->function->cache_rank_function(exec, cache, 128);
     DEBUG(("maxvalue of this choice is %u\n", value));
     return value;
 }
 #  else
-static  unsigned int ranking_function_firstfound(void *elt, void *_)
+static  unsigned int ranking_function_firstfound(dplasma_list_item_t *elt, void *_)
 {
     return 1;
 }
