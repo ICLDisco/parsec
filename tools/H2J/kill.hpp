@@ -1,6 +1,7 @@
 #include <string>
 #include <list>
 #include <set>
+#include <map>
 #include <sstream>
 #include <iostream>
 #include <fstream>
@@ -21,6 +22,12 @@ typedef struct{
     string sets;
 } dep_t;
 
+typedef struct{
+    string name;
+    list<string> outDeps;
+    list<string> inDeps;
+} task_t;
+
 
 class SetIntersector{
     private:
@@ -35,7 +42,7 @@ class SetIntersector{
         int token_type(string token);
         string cleanAndOffsetVariables(string var_sequence);
         string offset_var( string var );
-        bool isVarGood( string var);
+//        bool isVarGood( string var);
         string rel_to_set(string rel);
         string itos(int num);
 

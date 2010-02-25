@@ -2,6 +2,14 @@
 #include <stdio.h>
 
 list<dep_t> flow_deps, output_deps, merged_deps;
+map<string,task_t> taskMap;
+/*
+typedef struct{
+    string name;
+    list<string> outDeps;
+    list<string> inDeps;
+} task_t;
+*/
 
 // Forward Function Declarations
 int parse_petit_output(std::ifstream &ifs);
@@ -403,6 +411,7 @@ string expressionToRange(string var, string condStr){
 
 
 
+/*
 string invertDepSet(string orgSet){
     fstream filestr ("/tmp/oc_in.txt", fstream::out);
     filestr << orgSet << endl;
@@ -419,6 +428,7 @@ string invertDepSet(string orgSet){
     }
     return data.str();
 }
+*/
 
 string processDep(dep_t dep, string iv_set, bool isInversed){
     stringstream ss;
@@ -631,7 +641,7 @@ void mergeLists(void){
     set<int> srcSet;
     set<int>::iterator src_itr;
     set<string> fake_it;
-    string current_source, prev_source;
+//    string current_source, prev_source;
 
     fake_it.insert("BB");
     fake_it.insert("step");
@@ -661,10 +671,11 @@ void mergeLists(void){
             int fd_dstLine = f_dep.dstLine;
             if( fd_srcLine == source ){
                 rlvnt_flow_deps.push_back(f_dep);
-                current_source = f_dep.source;
+//                current_source = f_dep.source;
             }
         }
 
+/*
         // Print the source and the parameter space
         if( current_source.compare(prev_source) ){
             if( !prev_source.empty() )
@@ -672,6 +683,7 @@ void mergeLists(void){
             cout << "\nTASK: " << current_source << " {" << endl;
             prev_source = current_source;
         }
+*/
 
         // Iterate over all the relevant flow dependencies, apply the output dependencies
         // to them and print the result.
@@ -741,14 +753,26 @@ void mergeLists(void){
             string outDep = processDep(f_dep, line, false);
             if( outDep.empty() )
                 continue;
-            cout << outDep << endl;
+//            cout << outDep << endl;
+
+            // Find the task in the map (if it exists) and add the new OUT dep to it's outDeps
+            task_t task;
+            map<string,task_t>::iterator it;
+            it = taskMap.find(f_dep.source);
+            if ( it != taskMap.end() ){
+                task = it->second;
+            }
+            task.name = f_dep.source;
+            task.outDeps.push_back(outDep);
+            taskMap[f_dep.source] = task;
+
+            // If this new OUT dep does not come from/go to the entry/exit, invert it to get an IN dep
             if( (f_dep.source.find("IN") == string::npos) && (f_dep.sink.find("OUT") == string::npos) ){
-                // If it was a real dependency, ask Omega to reverse it
+                // If it was a real dependency, ask Omega to revert it
                 string rev_set_for_omega = setIntersector.inverse(line);
                 filestr.open("/tmp/oc_in.txt", fstream::out);
                 filestr << rev_set_for_omega << endl;
                 filestr.close();
-//                cout << "   For Omega:\n" << rev_set_for_omega << endl;
 
                 data.clear();
                 pfp = popen( (omegaHome+"/omega_calc/obj/oc /tmp/oc_in.txt").c_str(), "r");
@@ -766,12 +790,46 @@ void mergeLists(void){
                 }
                 // format the reversed dependency in JDF format and print it
                 string inDep = processDep(f_dep, line, true);
-                cout << inDep << endl;
+//                cout << inDep << endl;
+
+                // Find the task in the map (if it exists) and add the new OUT dep to it's outDeps
+                task_t task;
+                map<string,task_t>::iterator it;
+                it = taskMap.find(f_dep.sink);
+                if ( it != taskMap.end() ){
+                    task = it->second;
+                }
+                task.name = f_dep.sink;
+                task.inDeps.push_back(inDep);
+                taskMap[f_dep.sink] = task;
             }
         }
     }
-    // cap the last TASK
-    cout << "}" << endl;
+
+    // Print all the tasks
+    map<string,task_t>::iterator it=taskMap.begin();
+    for ( ; it != taskMap.end(); it++ ){
+        task_t task = (*it).second;
+
+        // Print the task name and its parameter space
+        if( it != taskMap.begin() )
+            cout << endl;
+        cout << "TASK: " << task.name << "{" << endl;
+
+        // Print the OUT dependencies
+        list<string>::iterator od_itr = task.outDeps.begin();
+        for(; od_itr != task.outDeps.end(); ++od_itr)
+            cout << *od_itr << endl;
+
+        // Print the IN dependencies
+        list<string>::iterator id_itr = task.inDeps.begin();
+        for(; id_itr != task.inDeps.end(); ++id_itr)
+            cout << *id_itr << endl;
+        
+        cout << "}" << endl;
+    }
+
+
 
     return;
 }
