@@ -199,10 +199,6 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             
         }
 
-    
-        
-
-        
     free(tmp_ints);
 
         if( -1 == ddesc_compute_vals(Ddesc) )
@@ -225,7 +221,7 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
 {
     
     int i, j;
-#if 0 
+#if USE_LAPACK_RANDOM_MATRIX 
     int IONE=1;
     int info;
     int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
@@ -244,9 +240,8 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
             A2[LDA*j+i] = A1[LDA*j+i] = (double)rand() / RAND_MAX;
             A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
         }
-    for ( i = 0; i < N; i++){
-        A1[LDA*i+i] += 10*N;
-        A2[LDA*i+i] = A1[LDA*i+i];
+    for ( i = 0; i < N; i++) {
+        A2[LDA*i+i] = A1[LDA*i+i] += 10*N;
     }
     /* Initialize B1 and B2 */
     for ( i = 0; i < N; i++)
