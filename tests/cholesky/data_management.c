@@ -221,33 +221,38 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 
 
 
-int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D,int LDA, int NRHS, int LDB)
+int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D, int LDA, int NRHS, int LDB)
 {
     
     int i, j;
+#if 0 
     int IONE=1;
     int info;
     int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
-    int LDBxNRHS = LDB*NRHS;
-    
+    int LDBxNRHS = LDB*NRHS;    
     int NminusOne = N-1;
-    /* Initialize A1 and A2 for Symmetric Positive Matrix */
+    
     dlarnv(&IONE, ISEED, &LDA, D);
     dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
+    for (i = 0; i < N; i++) A1[LDA*i+i] += 10*N;
+    memcpy(A2, A1, LDA*N*sizeof(double));
+    dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
+    memcpy(B2, B1, LDB*NRHS*sizeof(double));
+#else
     for ( i = 0; i < N; i++)
-        for (  j = 0; j < N; j++)
-            A2[LDA*j+i] = A1[LDA*j+i];
-    
+        for ( j = i; j < N; j++) {
+            A2[LDA*j+i] = A1[LDA*j+i] = (double)rand() / RAND_MAX;
+            A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
+        }
     for ( i = 0; i < N; i++){
-        A1[LDA*i+i] = A1[LDA*i+i]+ N ;
+        A1[LDA*i+i] += 10*N;
         A2[LDA*i+i] = A1[LDA*i+i];
     }
-    
     /* Initialize B1 and B2 */
-    dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
     for ( i = 0; i < N; i++)
         for ( j = 0; j < NRHS; j++)
-            B2[LDB*j+i] = B1[LDB*j+i];
+            B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
+#endif    
     return 0;
 }
 

@@ -187,9 +187,11 @@ int DPLASMA_dpotrf(int ncores, PLASMA_enum uplo, int N, double *A, int LDA, int*
 #endif  /* DPLASMA_PROFILING */
     dplasma_fini(&dplasma);
 #else
+#ifdef DPLASMA_WARM_UP
     plasma_parallel_call_2(plasma_pdpotrf,
                            PLASMA_enum, uplo,
                            PLASMA_desc, descA);
+#endif
     time_elapsed = get_cur_time();
     plasma_parallel_call_2(plasma_pdpotrf,
                            PLASMA_enum, uplo,
@@ -286,9 +288,10 @@ int main (int argc, char **argv)
    */
    /* Initialize A1 and A2 for Symmetric Positive Matrix */
 #if defined(DO_THE_NASTY_VALIDATIONS)
-# if 1
+# if 0
     dlarnv(&IONE, ISEED, &LDA, D);
     dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
+    for (i = 0; i < N; i++) A1[LDA*i+i] += 10*N;
     memcpy(A2, A1, LDA*N*sizeof(double));
     dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
     memcpy(B2, B1, LDB*NRHS*sizeof(double));
