@@ -14,6 +14,8 @@ string skipToNext(std::ifstream &ifs);
 //void dumpList(list<dep_t> depList);
 void mergeLists(void);
 string processDep(dep_t dep, string dep_set, bool isInversed);
+int readNextTaskInfo(string line);
+list<string> parseTaskParamSpace(string params);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -130,12 +132,18 @@ int main(int argc, char **argv){
 }
 
 int parse_petit_output(ifstream &ifs){
-    int i;
     string line, source;
 
     flow_deps.clear();
     output_deps.clear();
-    i=0;
+
+    // First read the task name and parameter space information
+    while( getline(ifs,line) ){
+        if( readNextTaskInfo(line) < 0 )
+            break;
+    }
+
+    // Then read the body of the file with the actual dependencies
     while( getline(ifs,line) ){
 
         if( readNextSource(line, source, ifs) ){ return -1; }
@@ -152,9 +160,81 @@ int parse_petit_output(ifstream &ifs){
     return 0;
 }
 
+int readNextTaskInfo(string line){
+    static bool in_task_section=false;
+
+    if( !line.compare("TASK SECTION START") ){
+        in_task_section=true;
+        return 0;
+    }
+
+    if( !in_task_section )
+        return 0;
+
+    if( !line.compare("TASK SECTION END") ){
+        in_task_section=false;
+        return -1;
+    }
+// DSSSSM(k,n,m) {k=0..BB-1,n=k+1..BB-1,m=k+1..BB-1}
+
+    unsigned int ws_pos = line.find(" ");
+    if( ws_pos == string::npos){
+        cerr << "ERROR: Malformed Task Info entry: \"" << line << "\"" << endl; 
+        return -1;
+    }
+    string taskName = line.substr(0,ws_pos);
+    string taskParamSpace = line.substr(ws_pos+1);
+
+    task_t task;
+    task.name = taskName;
+    task.paramSpace = parseTaskParamSpace(taskParamSpace);
+    taskMap[taskName] = task;
+
+    return 1;
+}
+
+
+list<string> parseTaskParamSpace(string params){
+    list<string> paramSpace;
+
+    // Verify that the string starts with a left bracket and then get rid of it.
+    unsigned int pos = params.find("{");
+    if( pos == string::npos ){
+        cerr << "ERROR: Malformed Task parameter space entry: \"" << params << "\"" << endl; 
+        return paramSpace;
+    }
+    params = params.substr(pos+1);
+
+    // Verify that the string ends with a right bracket and then get rid of it.
+    pos = params.find("}");
+    if( pos == string::npos ){
+        cerr << "ERROR: Malformed Task parameter space entry: \"" << params << "\"" << endl; 
+        return paramSpace;
+    }
+    params = params.substr(0,pos);
+
+    // Split the string at the commas and put the parts into a list
+    pos = params.find(",");
+    while( pos != string::npos ){
+        // Take the string before the comma and put it in the list
+        paramSpace.push_back(params.substr(0,pos));
+        // Get rid of the part of the string before the comma
+        params = params.substr(pos+1);
+        // Look for another comma and start all over again
+        pos = params.find(",");
+    }
+    // Take the last part of the string (if any) and put it in the list
+    if(!params.empty())
+    paramSpace.push_back(params);
+    
+    return paramSpace;
+}
+
+
 int readNextSource(string line, string &source, ifstream &ifs){
     unsigned int pos;
 
+    // Keep reading input lines until you hit one that matches the pattern
     pos = line.find("### SOURCE:");
     while( pos == string::npos ){
         if( !getline(ifs,line) ) return 0;
@@ -711,7 +791,11 @@ void mergeLists(void){
             if ( it != taskMap.end() ){
                 task = it->second;
             }
-            task.name = f_dep.source;
+            if( task.name.compare(f_dep.source) ){
+                cerr << "FATAL ERROR: Task name in taskMap does not match task name in flow dependency: ";
+                cerr << "\"" <<task.name << "\" != \"" << f_dep.source << "\"" << endl;
+                exit(-1);
+            }
             task.outDeps.push_back(outDep);
             taskMap[f_dep.source] = task;
 
@@ -762,19 +846,26 @@ void mergeLists(void){
         // Print the task name and its parameter space
         if( it != taskMap.begin() )
             cout << endl;
-        cout << "TASK: " << task.name << "{\n" << endl;
+        cout << "TASK: " << task.name << "{" << "\n";
+
+        // Print the parameter space bounds
+        list<string>::iterator ps_itr = task.paramSpace.begin();
+        for(; ps_itr != task.paramSpace.end(); ++ps_itr)
+            cout << "  " << *ps_itr << "\n";
+
+        cout << "\n";
 
         // Print the OUT dependencies
         list<string>::iterator od_itr = task.outDeps.begin();
         for(; od_itr != task.outDeps.end(); ++od_itr)
-            cout << *od_itr << endl;
+            cout << *od_itr << "\n";
 
-        cout << endl;
+        cout << "\n";
 
         // Print the IN dependencies
         list<string>::iterator id_itr = task.inDeps.begin();
         for(; id_itr != task.inDeps.end(); ++id_itr)
-            cout << *id_itr << endl;
+            cout << *id_itr << "\n";
         
         cout << "}" << endl;
     }
