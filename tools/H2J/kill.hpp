@@ -24,6 +24,7 @@ typedef struct{
 
 typedef struct{
     string name;
+    list<string> paramSpace;
     list<string> outDeps;
     list<string> inDeps;
 } task_t;

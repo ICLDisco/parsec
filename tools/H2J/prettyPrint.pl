@@ -13,15 +13,24 @@ if( $num <= 1 ) {
 }
 
 my @stack;
+my @paramSpaceStack;
+
+print "TASK SECTION START\n";
 open PETITFILE, "<", $ARGV[0];
 while(my $line=<PETITFILE>){
     $lineno++;
-    if( $line =~ /for *(\w*) *=.*to.*do/ ){
+    if( $line =~ /for *(\w*) *= *([^ ]+) *to *([^ ]+) *do/ ){
         push (@stack, $1);
+        my $bounds = $1."=".$2."..".$3;
+        push (@paramSpaceStack, $bounds);
     }
     if( $line =~ /endfor/ ){
         pop @stack;
+        pop @paramSpaceStack;
     }
+
+    # If we found the commend with the kernel name, parse it and keep
+    # it for future use.
     if( $line =~ /\!\! *(\w*) *\(.*\)/ ){
         my $string = $1."(";
         my $i=0;
@@ -33,29 +42,25 @@ while(my $line=<PETITFILE>){
             $i++;
         }
         $string .= ")";
-#        print "$lineno: $string\n";
         $linesToNames{$lineno}  = $string;
+
+        # also print the kernel name and the parameter space on the
+        # top of the output for the next stage to use.
+        my $full_string = $string." {";
+        my $i=0;
+        foreach my $var (@paramSpaceStack){
+            if( $i>0 ){
+                $full_string .= ",";
+            }
+            $full_string .= $var;
+            $i++;
+        }
+        $full_string .= "}";
+        print "$full_string\n";
     }
 }
 close PETITFILE;
-
-#foreach my $var (sort {$a <=> $b} keys %linesToNames){
-#    print "$var $linesToNames{$var}\n";
-#}
-
-# LU.t
-#$linesToNames{0}  = 'ENTRY';
-#$linesToNames{7}  = 'IN';
-#$linesToNames{17} = 'DGETRF';
-#$linesToNames{24} = 'DTSTRF';
-#$linesToNames{35} = 'DGESSM';
-#$linesToNames{43} = 'DSSSSM';
-#$linesToNames{55} = 'OUT';
-#$linesToNames{61} = 'EXIT';
-
-# min.t
-#$linesToNames{5}  = 'FRST';
-#$linesToNames{9}  = 'SCND';
+print "TASK SECTION END\n";
 
 open DEPSFILE, "<", $ARGV[1];
 while(<DEPSFILE>){
