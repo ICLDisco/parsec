@@ -24,13 +24,8 @@ typedef struct{
 
 class SetIntersector{
     private:
-//        static const int OPERATOR = 0x1;
-//        static const int LOGICAL  = 0x2;
-//        static const int VARIABLE = 0x3;
         dep_t f_dep, f_dep2, o_dep;
         list<string> composed_deps;
-//        list<dep_t> o_deps;
-//        set<string> good_vars;
         set<string> symbolic_vars;
         string var;
         int offset;
@@ -48,12 +43,11 @@ class SetIntersector{
 
     public:
         void setFD1(dep_t fd);
-//        void addOD(dep_t od);
         void setFD2(dep_t fd);
         void setOD(dep_t od);
         void compose_FD2_OD();
         string subtract();
-//        string intersect(void);
+        string inverse(string set);
         SetIntersector(set<string> sym_vars){
             symbolic_vars = sym_vars;
             cmpsd_counter = 0;

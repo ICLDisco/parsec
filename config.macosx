@@ -1,5 +1,5 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
 # the above line is necessary only when using gcc and gfortran 4.4 from fink. If using stock gcc and hpc gfortran, or port, it is not necessary. 
-export CC=gcc-4
+export CC=gcc-mp-4.3
 cmake -DPLASMA_DIR=$HOME/dague/plasma -DDPLASMA_MPI=ON

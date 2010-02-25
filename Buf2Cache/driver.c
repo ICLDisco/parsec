@@ -1,7 +1,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <unistd.h>
-#include "buf2cache2.h"
+#include "buf2cache.h"
 #include "timer.h"
 
 int tile_size = 120*120*8;
