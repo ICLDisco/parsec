@@ -1018,6 +1018,12 @@ int rand_dist_matrix(DPLASMA_desc * Ddesc)
     double * pos = Ddesc->mat;
     pthread_t *threads;
     pthread_attr_t thread_attr;
+    Ddesc->lm = Ddesc->lmt * Ddesc->mb;
+    Ddesc->ln = Ddesc->lnt * Ddesc->nb;
+    Ddesc->m = Ddesc->lm;
+    Ddesc->n = Ddesc->ln;
+    printf("generated matrix size: %d x %d\n", Ddesc->lm, Ddesc->ln);
+    
     if (Ddesc->cores > 1)
         {
             pthread_attr_init(&thread_attr);
