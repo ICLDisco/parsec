@@ -291,11 +291,10 @@ int main (int argc, char **argv)
 # if 0
     dlarnv(&IONE, ISEED, &LDA, D);
     dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
+    for (i = 0; i < N; i++) A1[LDA*i+i] += 10*N;
     memcpy(A2, A1, LDA*N*sizeof(double));
     dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
     memcpy(B2, B1, LDB*NRHS*sizeof(double));
-    for ( i = 0; i < N; i++){
-        A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
 # else
     for ( i = 0; i < N; i++)
        for ( j = i; j < N; j++) {
