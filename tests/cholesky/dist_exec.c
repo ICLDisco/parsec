@@ -544,10 +544,9 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     int req_count;
     
     TIME_START();
-    /* prepare data for block reception  */
-    dplasma_desc_bcast(local, dist);
+    dplasma_desc_init(local, dist);
+    dplasma_desc_workspace_allocate(dist);
     distribute_data(local, dist, &requests, &req_count);
-    /* wait for data distribution to finish before continuing */
     is_data_distributed(dist, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));
     

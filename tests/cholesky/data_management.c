@@ -109,7 +109,7 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
     return 0;
 }
 
-static int ddesc_allocate( DPLASMA_desc * Ddesc ) 
+int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc ) 
 {
     Ddesc->mat = malloc(sizeof(double) * Ddesc->nb_elem_c * Ddesc->nb_elem_r * Ddesc->bsiz);
     return 0;
@@ -206,7 +206,7 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 MPI_Abort(MPI_COMM_WORLD, 2);
             }
         
-    ddesc_allocate(Ddesc);
+    dplasma_desc_workspace_allocate(Ddesc);
     return 0;
 #else
     
@@ -445,7 +445,7 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
     pos += ((n % Ddesc->ncst) * last_c_size); /* pos is at (B, n)*/
     pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
 
-    //    printf("get tile (%d, %d) is at pos %d\n", m, n,  pos*Ddesc->bsiz);
+    //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
     /************************************/
     return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
 }

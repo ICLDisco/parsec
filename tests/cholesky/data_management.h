@@ -64,6 +64,10 @@ typedef struct dplasma_desc_t {
 /* initialize Ddesc from Pdesc */
 int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
 
+/* allocate the inner storage */
+int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc );
+
+
 /* initialize and bcast Ddesc from Pdesc */
 int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
 
