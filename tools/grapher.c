@@ -18,7 +18,7 @@ extern int dplasma_lineno;
 static int generate_dots = 1;
 
 static int generic_hook( dplasma_execution_unit_t* eu_context,
-                         const dplasma_execution_context_t* exec_context )
+                         dplasma_execution_context_t* exec_context )
 {
     char tmp[128];
     if( generate_dots ) {
