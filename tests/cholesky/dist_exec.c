@@ -280,11 +280,8 @@ static void runtime_init(int argc, char **argv)
                 ddescA.ncst = ddescA.nrst = atoi(optarg);
                 if(ddescA.ncst <= 0)
                 {
-                    if(0 == rank)
-                    {
-                        fprintf(stderr, "select a positive value for super tile size\n");
-                        exit(2);
-                    }
+                    fprintf(stderr, "select a positive value for super tile size\n");
+                    exit(2);
                 }                
                 //printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
                 break;
@@ -324,11 +321,8 @@ static void runtime_init(int argc, char **argv)
                 break;
                 
             case 'h':
-                if(0 == rank)
-                {
-                    print_usage();
-                    exit(0);
-                }
+                print_usage();
+                exit(0);
             case '?': /* getopt_long already printed an error message. */
             default:
                 break; /* Assume anything else is dplasma/mpi stuff */
@@ -337,14 +331,7 @@ static void runtime_init(int argc, char **argv)
     
     if((DO_PLASMA == backend) && (nodes > 1))
     {
-        if(0 == rank)
-        {
-            fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
-        }
-#ifdef USE_MPI
-        /* make sure the printf makes it through the io forwarding */
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif USE_MPI
+        fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
         exit(2);
     }
     
@@ -355,21 +342,15 @@ static void runtime_init(int argc, char **argv)
             N = atoi(argv[optind++]);
             continue;
         }
-        if(0 == rank)
-        {
-            print_usage(); 
-            exit(2);
-        }
+        print_usage(); 
+        exit(2);
     } 
 
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
-        if(0 == rank)
-        {
-            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
-            exit(2);
-        }
+        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
+        exit(2);
     }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
 
