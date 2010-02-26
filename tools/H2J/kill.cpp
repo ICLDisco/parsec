@@ -8,15 +8,19 @@ map<string,task_t> taskMap;
 int parse_petit_output(std::ifstream &ifs);
 int readNextSource(string line, string &source, std::ifstream &ifs);
 int readNextDestination(string line, string source, std::ifstream &ifs);
-bool isEOR(string line);
-void store_dep(list<dep_t> &depList, dep_t dep);
-string skipToNext(std::ifstream &ifs);
-//void dumpList(list<dep_t> depList);
-void mergeLists(void);
-string processDep(dep_t dep, string dep_set, bool isInversed);
 int readNextTaskInfo(string line);
 list<string> parseTaskParamSpace(string params);
+map<string,string> parseSymbolicVars(string vars);
+string skipToNext(std::ifstream &ifs);
+bool isEOR(string line);
+void store_dep(list<dep_t> &depList, dep_t dep);
+void mergeLists(void);
+string processDep(dep_t dep, string dep_set, bool isInversed);
+void dumpDep(dep_t dep, string iv_set, bool isInversed);
+bool isFakeVariable(string var);
 
+string trimAll(string str);
+string removeWS(string str);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -160,6 +164,7 @@ int parse_petit_output(ifstream &ifs){
     return 0;
 }
 
+//DSSSSM(k,n,m) {k=0..BB-1,n=k+1..BB-1,m=k+1..BB-1} A:A(k, n),B:A(m, n),C:L(m, k),D:A(m, k),E:IPIV(m, k)
 int readNextTaskInfo(string line){
     static bool in_task_section=false;
 
@@ -175,24 +180,67 @@ int readNextTaskInfo(string line){
         in_task_section=false;
         return -1;
     }
-// DSSSSM(k,n,m) {k=0..BB-1,n=k+1..BB-1,m=k+1..BB-1}
 
-    unsigned int ws_pos = line.find(" ");
-    if( ws_pos == string::npos){
+    unsigned int lb_pos, rb_pos;
+    lb_pos = line.find(" {");
+    rb_pos = line.find("} ");
+    if( lb_pos == string::npos || rb_pos == string::npos ){
         cerr << "ERROR: Malformed Task Info entry: \"" << line << "\"" << endl; 
         return -1;
     }
-    string taskName = line.substr(0,ws_pos);
-    string taskParamSpace = line.substr(ws_pos+1);
+    string taskName = line.substr(0,lb_pos);
+    string taskParamSpace = line.substr(lb_pos+1,rb_pos-lb_pos);
+    string symVars = line.substr(rb_pos+2);
 
     task_t task;
     task.name = taskName;
     task.paramSpace = parseTaskParamSpace(taskParamSpace);
+    task.symbolicVars = parseSymbolicVars(symVars);
     taskMap[taskName] = task;
 
     return 1;
 }
 
+
+//A:A(k, n)|B:A(m, n)|C:L(m, k)|D:A(m, k)|E:IPIV(m, k)
+map<string,string> parseSymbolicVars(string vars){
+    map<string, string> sVars;
+    string var;
+    unsigned int cm_pos, cl_pos;
+
+    // Tasks IN() and OUT() will not have symbolic variables
+    if( vars.empty() ) return sVars;
+
+    cm_pos = vars.find("|");
+    while( cm_pos != string::npos ){
+
+        string var = vars.substr(0,cm_pos);
+        cl_pos = var.find(":");
+        if( cl_pos == string::npos ){
+            cerr << "ERROR: Malformed Task symbolic variables: \"" << vars << "\"" << endl; 
+            exit(-1);
+        }
+        string arrayName = removeWS(var.substr(cl_pos+1));
+        string symbolic  = var.substr(0,cl_pos);
+        sVars[arrayName] = symbolic;
+
+        // skip the part of the string we just processed and start over again.
+        vars = vars.substr(cm_pos+1);
+        cm_pos = vars.find("|");
+    }
+
+    var = vars;
+    cl_pos = var.find(":");
+    if( cl_pos == string::npos ){
+        cerr << "ERROR: Malformed Task symbolic variables: \"" << vars << "\"" << endl; 
+        exit(-1);
+    }
+    string arrayName = removeWS(var.substr(cl_pos+1));
+    string symbolic  = var.substr(0,cl_pos);
+    sVars[arrayName] = symbolic;
+
+    return sVars;
+}
 
 list<string> parseTaskParamSpace(string params){
     list<string> paramSpace;
@@ -375,6 +423,22 @@ string trimAll(string str){
     return str.substr(s,e-s);
 }
 
+
+string removeWS(string str){
+    unsigned int s,e;
+    string rslt;
+
+    for(s=0; s<str.length(); ++s){
+        if( str[s] != ' ' ) break;
+    }
+    for(e=s; e<str.length(); ++e){
+        if( str[e] == ' ' ) continue;
+        rslt += str[e];
+    }
+    return rslt;
+}
+
+
 list<string> stringToVarList( string str ){
     list<string> result;
     stringstream ss;
@@ -480,6 +544,26 @@ string expressionToRange(string var, string condStr){
 }
 
 
+void dumpDep(dep_t dep, string iv_set, bool isInversed){
+    if( isInversed ){
+        cout << dep.sink << " " << dep.dstArray;
+        cout << " <- " << dep.source << " " << dep.srcArray;
+        cout << " " << iv_set << endl;
+    }else{
+        cout << dep.source << " " << dep.srcArray;
+        cout << " -> " << dep.sink << " " << dep.dstArray;
+        cout << " " << iv_set << endl;
+    }
+    return;
+}
+
+void dumpMap(stringstream &ss, map<string,string> sV){
+    map<string,string>::iterator it;
+    for(it=sV.begin(); it!=sV.end(); ++it){
+        ss << (*it).first << "==" << (*it).second << "\n";
+    }
+    ss << endl;
+}
 
 string processDep(dep_t dep, string iv_set, bool isInversed){
     stringstream ss;
@@ -573,31 +657,36 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
         cerr << "ERROR: source formal count != source actual count" << endl;
     }
 
-    // For every source actual that is an "In_1" type variable (i.e. "In_" followed by number)
-    // which is what Omega will introduce when we inverse the sets, replace it with the
-    // corresponding formal, in the source and destination sets as well as in the conditions.
-    list<string>::iterator srcF_itr=srcFormals.begin();
-    list<string>::iterator srcA_itr=srcActuals.begin();
-    for (; srcF_itr!=srcFormals.end(); ++srcF_itr, ++srcA_itr){
-        string fParam = *srcF_itr;
-        string aParam = *srcA_itr;
-        if( aParam.find("In_") == 0 && fParam.compare(aParam) != 0 ){
-            // Replace the variable in the actual parameter with the one from the formal
-            *srcA_itr = fParam;
-            // Do the same for all the destination actuals
-            list<string>::iterator dstA_itr=dstActuals.begin();
-            for (; dstA_itr!=dstActuals.end(); ++dstA_itr){
-                string dstaParam = *dstA_itr;
-                unsigned int pos = dstaParam.find(aParam);
-                if( pos != string::npos ){
-                    (*dstA_itr).replace(pos,aParam.length(), fParam);
+    list<string>::iterator srcF_itr;
+    list<string>::iterator srcA_itr;
+
+    if(isInversed){
+        // For every source actual that is an "In_1" type variable (i.e. "In_" followed by number)
+        // which is what Omega will introduce when we inverse the sets, replace it with the
+        // corresponding formal, in the source and destination sets as well as in the conditions.
+        srcF_itr=srcFormals.begin();
+        srcA_itr=srcActuals.begin();
+        for (; srcF_itr!=srcFormals.end(); ++srcF_itr, ++srcA_itr){
+            string fParam = *srcF_itr;
+            string aParam = *srcA_itr;
+            if( isFakeVariable(aParam) && fParam.compare(aParam) != 0 ){
+                // Replace the variable in the actual parameter with the one from the formal
+                *srcA_itr = fParam;
+                // Do the same for all the destination actuals
+                list<string>::iterator dstA_itr=dstActuals.begin();
+                for (; dstA_itr!=dstActuals.end(); ++dstA_itr){
+                    string dstaParam = *dstA_itr;
+                    unsigned int pos = dstaParam.find(aParam);
+                    if( pos != string::npos ){
+                        (*dstA_itr).replace(pos,aParam.length(), fParam);
+                    }
                 }
-            }
-            // Do the same for all the occurances of the variable in the condition
-            unsigned int pos = cond.find(aParam);
-            while( pos != string::npos ){
-                cond.replace(pos,aParam.length(), fParam);
-                pos = cond.find(aParam);
+                // Do the same for all the occurances of the variable in the condition
+                unsigned int pos = cond.find(aParam);
+                while( pos != string::npos ){
+                    cond.replace(pos,aParam.length(), fParam);
+                    pos = cond.find(aParam);
+                }
             }
         }
     }
@@ -619,6 +708,8 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     // For every destination formal, check if it exists among the source formals.
     // If it doesn't and the corresponding destination actual is not an expression
     // (i.e. the actual is the same as the formal) replace it with a lb..ub expression.
+    // However, if the source task is the special task "IN()", just replace the actuals
+    // with the actuals of the destination array.
     list<string>::iterator dstF_itr=dstFormals.begin();
     list<string>::iterator dstA_itr=dstActuals.begin();
     for (; dstF_itr!=dstFormals.end(); ++dstF_itr, ++dstA_itr){
@@ -638,13 +729,17 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             actual_parameter_list.push_back(dstaParam);
             continue;
         }
-        // if we didn't find the formal, check if the actual is the same as the formal
-        if( !dstaParam.compare(dstfParam) ){
+        // if we didn't find the destination formal among the source formals, check if the
+        // destination actual is the same as the destination formal.  If it is, convert it
+        // to a range.
+        if( !dstaParam.compare(dstfParam) && !isInversed ){
             string range = expressionToRange(dstaParam, cond);
             actual_parameter_list.push_back(range);
-        }else{ // in this case it's probably an expression of source actuals
+        }else{ // if formal!=actual then it's probably an expression of source actuals
             actual_parameter_list.push_back(dstaParam);
         }
+    }
+    if( !isInversed ){
     }
 
     // iterate over the newly created list of actual destination parameters and
@@ -660,13 +755,49 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     }
 
 
+    task_t thisTask;
+    task_t peerTask;
+
+    if( isInversed ){
+        thisTask = taskMap[dep.sink];
+        peerTask = taskMap[dep.source];
+    }else{
+        thisTask = taskMap[dep.source];
+        peerTask = taskMap[dep.sink];
+    }
+
     ss.str("");
     if( isInversed ){
-        ss << "  IN " << dep.dstArray << " <- ";
-        ss << dep.srcArray << " " << source << "("<< dstTaskParams <<") ";
+        map<string,string> lcl_sV = thisTask.symbolicVars;
+        map<string,string> rmt_sV = peerTask.symbolicVars;
+
+        ss << "\n  /*" << lcl_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
+        if( dep.source.find("IN") == string::npos )
+            ss << "  /*" << rmt_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
+
+        ss << "  IN " << lcl_sV[dep.dstArray] << " <- ";
+        // If it's input we don't care about the fake array assignment in the petit file,
+        // rather we use the fact that the dstArray has a literal meaning and it is an
+        // actual array that exists in memory.
+        if( dep.source.find("IN") != string::npos ){
+            ss << dep.dstArray;
+        }else{
+            ss << rmt_sV[dep.srcArray];
+        }
+        ss << " " << source << "("<< dstTaskParams <<") ";
     }else{
-        ss << "  OUT " << dep.srcArray << " -> ";
-        ss << dep.dstArray << " ";
+        map<string,string> lcl_sV = thisTask.symbolicVars;
+        map<string,string> rmt_sV = peerTask.symbolicVars;
+
+        ss << "\n  /*" << lcl_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
+        if( dep.sink.find("OUT") == string::npos )
+            ss << "  /*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
+
+        ss << "  OUT " << lcl_sV[dep.srcArray] << " -> ";
+        if( dep.sink.find("OUT") != string::npos )
+            ss << dep.dstArray << " ";
+        else
+            ss << rmt_sV[dep.dstArray] << " ";
         ss << sink << "(" << dstTaskParams << ")  ";
     }
     ss << "{" << cond << "}";
@@ -674,6 +805,13 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     return ss.str();
 }
 
+bool isFakeVariable(string var){
+    if( var.find("In_") != string::npos ) return true;
+    if( !var.compare("ii") ) return true;
+    if( !var.compare("jj") ) return true;
+
+    return false;
+}
 
 void mergeLists(void){
     bool found;
@@ -788,9 +926,11 @@ void mergeLists(void){
             task_t task;
             map<string,task_t>::iterator it;
             it = taskMap.find(f_dep.source);
-            if ( it != taskMap.end() ){
-                task = it->second;
+            if ( it == taskMap.end() ){
+                cerr << "FATAL ERROR: Task \""<< f_dep.source <<"\" does not exist in the taskMap" << endl;
+                exit(-1);
             }
+            task = it->second;
             if( task.name.compare(f_dep.source) ){
                 cerr << "FATAL ERROR: Task name in taskMap does not match task name in flow dependency: ";
                 cerr << "\"" <<task.name << "\" != \"" << f_dep.source << "\"" << endl;
@@ -799,8 +939,8 @@ void mergeLists(void){
             task.outDeps.push_back(outDep);
             taskMap[f_dep.source] = task;
 
-            // If this new OUT dep does not come from/go to the entry/exit, invert it to get an IN dep
-            if( (f_dep.source.find("IN") == string::npos) && (f_dep.sink.find("OUT") == string::npos) ){
+            // If this new OUT dep does not go to the exit, invert it to get an IN dep
+            if( f_dep.sink.find("OUT") == string::npos ){
                 // If it was a real dependency, ask Omega to revert it
                 string rev_set_for_omega = setIntersector.inverse(line);
                 filestr.open("/tmp/oc_in.txt", fstream::out);
@@ -825,13 +965,17 @@ void mergeLists(void){
                 string inDep = processDep(f_dep, line, true);
 
                 // Find the task in the map (if it exists) and add the new OUT dep to it's outDeps
-                task_t task;
-                map<string,task_t>::iterator it;
                 it = taskMap.find(f_dep.sink);
-                if ( it != taskMap.end() ){
-                    task = it->second;
+                if ( it == taskMap.end() ){
+                    cerr << "FATAL ERROR: Task \""<< f_dep.sink <<"\" does not exist in the taskMap" << endl;
+                    exit(-1);
                 }
-                task.name = f_dep.sink;
+                task = it->second;
+                if( task.name.compare(f_dep.sink) ){
+                    cerr << "FATAL ERROR: Task name in taskMap does not match task name in flow dependency: ";
+                    cerr << "\"" <<task.name << "\" != \"" << f_dep.sink << "\"" << endl;
+                    exit(-1);
+                }
                 task.inDeps.push_back(inDep);
                 taskMap[f_dep.sink] = task;
             }
@@ -843,17 +987,18 @@ void mergeLists(void){
     for ( ; it != taskMap.end(); it++ ){
         task_t task = (*it).second;
 
+        if( task.name.find("IN(") != string::npos || task.name.find("OUT(") != string::npos )
+            continue;
+
         // Print the task name and its parameter space
         if( it != taskMap.begin() )
-            cout << endl;
+            cout << "\n\n";
         cout << "TASK: " << task.name << "{" << "\n";
 
         // Print the parameter space bounds
         list<string>::iterator ps_itr = task.paramSpace.begin();
         for(; ps_itr != task.paramSpace.end(); ++ps_itr)
             cout << "  " << *ps_itr << "\n";
-
-        cout << "\n";
 
         // Print the OUT dependencies
         list<string>::iterator od_itr = task.outDeps.begin();

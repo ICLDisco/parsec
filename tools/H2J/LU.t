@@ -15,14 +15,14 @@ endfor
 
 for k = 0 to BB-1 do
 !           INOUT           OUT
-!!  DGETRF( A(k, k, 0+1+2), IPIV(k, k));
+!!  DGETRF( A(k, k), IPIV(k, k));
     v1 = A(k,k)
     A(k,k) = v2
     IPIV(k,k) = v3
 
     for m = k+1 to BB-1 do
 !               INOUT         INOUT    OUT      OUT
-!!      DTSTRF( A(k, k, 0+1), A(m, k), L(m, k), IPIV(m, k));
+!!      DTSTRF( A(k, k), A(m, k), L(m, k), IPIV(m, k));
         v4     = A(k,k)
         v6     = A(m,k)
         A(k,k) = v5
@@ -33,7 +33,7 @@ for k = 0 to BB-1 do
 
     for n = k+1 to BB-1 do
 !               IN          IN          INOUT
-!!      DGESSM( IPIV(k, k), A(k, k, 2), A(k, n));
+!!      DGESSM( IPIV(k, k), A(k, k), A(k, n));
         v10 = IPIV(k, k)
         v11 = A(k, k)
         v12 = A(k, n)

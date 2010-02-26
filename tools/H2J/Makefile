@@ -2,7 +2,7 @@ CXX=g++-4.2
 CXXFLAGS=-g
 LDFLAGS=-L/opt/local/lib -lboost_regex-mt
 
-all:	s2p kill
+all:	kill
 
 s2p:	smpss_to_petit.cpp
 	$(CXX) $(CXXFLAGS) smpss_to_petit.cpp -o smpss_to_petit -I/opt/local/include $(LDFLAGS)
