@@ -46,7 +46,7 @@ PLASMA_desc descA;
 PLASMA_desc descT;
 
 #ifdef DPLASMA_EXECUTE
-    double *work, *tau;
+double *work, *tau;
 #endif
 
 static inline double get_cur_time(){
@@ -68,7 +68,8 @@ int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
 extern int dgels_private_memory_initialization(plasma_context_t*);
 struct dplasma_memory_pool_t *work_pool = NULL, *tau_pool = NULL;
 
-int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T, int* pargc, char** pargv[])
+int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T,
+                   int* pargc, char** pargv[])
 {
     int NB, MT, NT, nbtasks;
     int status;
