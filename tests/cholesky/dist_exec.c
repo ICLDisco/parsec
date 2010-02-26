@@ -340,8 +340,12 @@ static void runtime_init(int argc, char **argv)
         if(0 == rank)
         {
             fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
-            exit(2);
         }
+#ifdef USE_MPI
+        /* make sure the printf makes it through the io forwarding */
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif USE_MPI
+        exit(2);
     }
     
     while(N == 0)
