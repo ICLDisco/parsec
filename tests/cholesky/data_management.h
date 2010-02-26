@@ -121,7 +121,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
  ********************************************************************/
 
 /* generate a random matrix  */
-int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D,int LDA, int NRHS, int LDB);
+int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, int LDA, int NRHS, int LDB);
 
 /* Convert Lapack format to Plasma tiled description format (shared memory) */
 int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc * descA);

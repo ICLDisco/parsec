@@ -217,7 +217,7 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 
 
 
-int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, double * WORK, double * D, int LDA, int NRHS, int LDB)
+int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, int LDA, int NRHS, int LDB)
 {
     
     int i, j;
@@ -227,6 +227,10 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
     int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
     int LDBxNRHS = LDB*NRHS;    
     int NminusOne = N-1;
+    double* D; double* WORK;
+    
+    WORK = (double*) malloc(2*LDA*sizeof(double));
+    D = (double*) malloc(LDA*sizeof(double));
     
     dlarnv(&IONE, ISEED, &LDA, D);
     dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
@@ -234,6 +238,7 @@ int generate_matrix(int N, double * A1, double * A2, double * B1, double * B2, d
     memcpy(A2, A1, LDA*N*sizeof(double));
     dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
     memcpy(B2, B1, LDB*NRHS*sizeof(double));
+    free(WORK); free(D);
 #else
     for ( i = 0; i < N; i++)
         for ( j = i; j < N; j++) {

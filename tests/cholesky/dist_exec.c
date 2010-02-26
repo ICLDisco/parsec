@@ -39,13 +39,15 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[]);
 static void cleanup_dplasma(dplasma_context_t* context);
 static void warmup_dplasma(dplasma_context_t* dplasma);
 
-static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2, 
-                          double** pB1, double** pB2, double** pWORK, double** pD, 
+static void create_matrix(int N, PLASMA_enum* uplo, 
+                          double** pA1, double** pA2, 
+                          double** pB1, double** pB2, 
                           int LDA, int NRHS, int LDB, PLASMA_desc* local);
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
-static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2, 
-                         double* B1, double* B2, double* WORK, double* D, 
+static void check_matrix(int N, PLASMA_enum* uplo, 
+                         double* A1, double* A2, 
+                         double* B1, double* B2,
                          int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops);
 
@@ -105,8 +107,6 @@ int main(int argc, char ** argv)
     double *A2;
     double *B1;
     double *B2;
-    double *WORK;
-    double *D;
     dplasma_context_t* dplasma;
 
     //#ifdef VTRACE
@@ -116,7 +116,7 @@ int main(int argc, char ** argv)
     runtime_init(argc, argv);
 
     if(0 == rank)
-        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &WORK, &D, LDA, NRHS, LDB, &descA);
+        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, LDA, NRHS, LDB, &descA);
 
     switch(backend)
     {
@@ -182,7 +182,7 @@ int main(int argc, char ** argv)
     }
 
     if(0 == rank)
-        check_matrix(N, &uplo, A1, A2, B1, B2, WORK, D, LDA, NRHS, LDB, &descA, gflops);
+        check_matrix(N, &uplo, A1, A2, B1, B2, LDA, NRHS, LDB, &descA, gflops);
 
     runtime_fini();
     return 0;
@@ -481,26 +481,23 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 
 
 
-static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2, 
-                          double** pB1, double** pB2, double** pWORK, double** pD, 
+static void create_matrix(int N, PLASMA_enum* uplo, 
+                          double** pA1, double** pA2, 
+                          double** pB1, double** pB2, 
                           int LDA, int NRHS, int LDB, PLASMA_desc* local)
 {
 #define A1      (*pA1)
 #define A2      (*pA2)
 #define B1      (*pB1)
 #define B2      (*pB2)
-#define WORK    (*pWORK)
-#define D       (*pD)
     
     if(do_nasty_validations)
     {
         int LDBxNRHS = LDB*NRHS;
         A1   = (double *)malloc(LDA*N*sizeof(double));
         A2   = (double *)malloc(LDA*N*sizeof(double));
-        B1   = (double *)malloc(LDBxNRHS*sizeof(double));
-        B2   = (double *)malloc(LDBxNRHS*sizeof(double));
-        WORK = (double *)malloc(2*LDA*sizeof(double));
-        D    = (double *)malloc(LDA*sizeof(double));
+        B1   = (double *)malloc(LDB*NRHS*sizeof(double));
+        B2   = (double *)malloc(LDB*NRHS*sizeof(double));
         /* Check if unable to allocate memory */
         if ((!pA1)||(!pA2)||(!pB1)||(!pB2)){
             printf("Out of Memory \n ");
@@ -508,21 +505,21 @@ static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2,
         }
 
         /* generating a random matrix */
-        generate_matrix(N, A1, A2,  B1, B2,  WORK, D, LDA, NRHS, LDB);
+        generate_matrix(N, A1, A2, B1, B2, LDA, NRHS, LDB);
     }
     else
     {
         int i, j;
         
         /* Only need A2 */
-        A1 = B1 = B2 = WORK = D = NULL;
+        A1 = B1 = B2 = NULL;
         A2   = (double *)malloc(LDA*N*sizeof(double));
         /* Check if unable to allocate memory */
         if (!A2){
             printf("Out of Memory \n ");
             exit(1);
         }
-    
+
         /* generating a random matrix */
         for ( i = 0; i < N; i++)
             for ( j = i; j < N; j++) {
@@ -538,8 +535,6 @@ static void create_matrix(int N, PLASMA_enum* uplo, double** pA1, double** pA2,
 #undef A2 
 #undef B1 
 #undef B2 
-#undef WORK
-#undef D
 }
 
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
@@ -583,8 +578,9 @@ static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 # endif
 }
 
-static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2, 
-                         double* B1, double* B2, double* WORK, double* D, 
+static void check_matrix(int N, PLASMA_enum* uplo, 
+                         double* A1, double* A2, 
+                         double* B1, double* B2,  
                          int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops)
 {    
@@ -601,7 +597,7 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
     printf(" Computational tests pass if scaled residuals are less than 10.\n");        
     if(do_nasty_validations)
     {
-        untiling(uplo, N, A2, LDA, &descA);
+        untiling(uplo, N, A2, LDA, local);
         PLASMA_dpotrs(*uplo, N, NRHS, A2, LDA, B2, LDB);
 
         /* Check the factorization and the solution */
@@ -622,7 +618,7 @@ static void check_matrix(int N, PLASMA_enum* uplo, double* A1, double* A2,
             printf(" ---- TESTING DPOTRF + DPOTRS ............ FAILED !  \n");
             printf("*****************************************************\n");
         }
-        free(A1); free(B1); free(B2); free(WORK); free(D);
+        free(A1); free(B1); free(B2);
     }
     else
     {
