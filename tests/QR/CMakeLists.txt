@@ -16,5 +16,6 @@ endif( PLASMA_FOUND )
 add_custom_command (
   OUTPUT QR.c
   COMMAND ../../tools/dpc QR.jdf QR.c
+  MAIN_DEPENDENCY QR.jdf
   DEPENDS dpc
   )
