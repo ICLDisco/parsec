@@ -304,6 +304,11 @@ static void runtime_init(int argc, char **argv)
                 
             case 'x':
                 do_nasty_validations = 1;
+                if(do_warmup)
+                {
+                    fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
+                    exit(2);
+                }
                 break; 
                 
             case 'w':
@@ -311,6 +316,11 @@ static void runtime_init(int argc, char **argv)
                     do_warmup = atoi(optarg);
                 else
                     do_warmup = 1;
+                if(do_nasty_validations)
+                {
+                    fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
+                    exit(2);
+                }
                 break;
                 
             case 'h':
