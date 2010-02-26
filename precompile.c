@@ -902,92 +902,113 @@ static char *dplasma_dump_cache_evaluation_function(const dplasma_t *d,
                                                     char *init_func_body,
                                                     int init_func_body_size)
 {
-    int i, j, k, cpt;
-    output( "static unsigned int %s_cache_rank(const dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward)\n"
+    int i, j, k, cpt, pointers_cpt;
+    output( "static unsigned int %s_cache_rank(dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward)\n"
             "{\n"
             "  int result = 0, r;\n"
             "  const cache_t *c;\n",
             d->name);
-
     for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
-        output("  int %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
+        output("  int %s;\n", d->locals[i]->name);
     }
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) 
         if( d->inout[i]->sym_type & SYM_IN ) {
-            output("  void *%s = NULL;\n", d->inout[i]->name);
-            output("  data_repo_entry_t *e%s = NULL;\n", d->inout[i]->name);
+            output("  void *%s;\n", d->inout[i]->name);
+            output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
         }
 
-    output("  /* remove warnings in case the variable is not used later */\n");
-    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++)
-        output("  (void)%s;\n", d->locals[i]->name);
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+        output("  %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
+    }
 
-    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-        if( d->inout[i]->sym_type & SYM_IN ) {
-            for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
-                if( d->inout[i]->dep_in[k] != NULL ) {
-                       
-                    if( NULL != d->inout[i]->dep_in[0]->cond ) {
-                        output("  if(");
-                        dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
-                        output(") {\n");
+    output("  if( NULL == exec_context->pointers[1] ) {\n"
+           "    /* remove warnings in case the variable is not used later */\n");
+    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++)
+        output("    (void)%s;\n", d->locals[i]->name);
+
+        pointers_cpt = 0;
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_IN ) {
+                for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
+                    if( d->inout[i]->dep_in[k] != NULL ) {
+                        if( NULL != d->inout[i]->dep_in[0]->cond ) {
+                            output("    if(");
+                            dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
+                            output(") {\n");
+                            if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                                output("      e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+                                       d->inout[i]->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name);
+                                for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
+                                    dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
+                                    if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
+                                        output("), 0 );\n");
+                                    else
+                                        output(", ");
+                                }
+                                output("      exec_context->pointers[%d] = e%s;\n", 2*pointers_cpt, d->inout[i]->name);
+                            } else {
+                                output("      exec_context->pointers[%d] = NULL;\n", 2*pointers_cpt);
+                            }
+                            output("      exec_context->pointers[%d] = ", 2*pointers_cpt + 1);
+                        } else {
+                            if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                                output("    e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+                                       d->inout[i]->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name);
+                                for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
+                                    dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
+                                    if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
+                                        output("), 0 );\n");
+                                    else
+                                        output(", ");
+                                }
+                                output("    exec_context->pointers[%d] = e%s;\n", 2 * pointers_cpt, d->inout[i]->name);
+                            } else {
+                                output("    exec_context->pointers[%d] = NULL;\n", 2 * pointers_cpt);
+                            }
+                            output("    exec_context->pointers[%d] = ", 2 * pointers_cpt + 1);
+                        }
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
-                            output("    e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
-                                   d->inout[i]->name,
-                                   d->inout[i]->dep_in[k]->dplasma->name,
-                                   d->inout[i]->dep_in[k]->dplasma->name);
-                            for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
-                                dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
-                                if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
-                                    output("), 0 );\n");
-                                else
-                                    output(", ");
+                            cpt = 0;
+                            for(j = 0; j < MAX_PARAM_COUNT; j++) {
+                                if( d->inout[i]->dep_in[k]->dplasma->inout[j] == d->inout[i]->dep_in[k]->param )
+                                    break;
+                                if( d->inout[i]->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
+                                    cpt++;
                             }
-                        }
-                        output("    %s = ", d->inout[i]->name);
-                    } else {
-                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
-                            output("  e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
-                                   d->inout[i]->name,
-                                   d->inout[i]->dep_in[k]->dplasma->name,
-                                   d->inout[i]->dep_in[k]->dplasma->name);
-                            for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
-                                dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
-                                if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
-                                    output("), 0 );\n");
-                                else
-                                    output(", ");
+                            output("e%s->data[%d];\n", d->inout[i]->name, cpt);
+                        } else {
+                            output("%s", d->inout[i]->dep_in[k]->dplasma->name);
+                            for(j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
+                                if( NULL != d->inout[i]->dep_in[k]->call_params[j] ) {
+                                    output("%c ", j == 0 ? '(' : ',' );
+                                    dump_inline_c_expression(d->inout[i]->dep_in[k]->call_params[j]);
+                                }
                             }
+                            output(" );\n");
                         }
-                        output("  %s = ", d->inout[i]->name);
-                    }
-                    if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
-                        cpt = 0;
-                        for(j = 0; j < MAX_PARAM_COUNT; j++) {
-                            if( d->inout[i]->dep_in[k]->dplasma->inout[j] == d->inout[i]->dep_in[k]->param )
-                                break;
-                            if( d->inout[i]->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
-                                cpt++;
+                        if( NULL != d->inout[i]->dep_in[k]->cond ) {
+                            output("    }\n");
                         }
-                        output("e%s->data[%d];\n", d->inout[i]->name, cpt);
-                    } else {
-                        output("%s", d->inout[i]->dep_in[k]->dplasma->name);
-                        for(j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
-                            if( NULL != d->inout[i]->dep_in[k]->call_params[j] ) {
-                                output("%c ", j == 0 ? '(' : ',' );
-                                dump_inline_c_expression(d->inout[i]->dep_in[k]->call_params[j]);
-                            }
-                        }
-                        output(" );\n");
-                    }
-                    if( NULL != d->inout[i]->dep_in[k]->cond ) {
-                        output("  }\n");
                     }
                 }
+                pointers_cpt++;
+            }         
+        }
+        
+        output("  }\n");
+        
+        pointers_cpt = 0;
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_IN ) {
+                output("  e%s = exec_context->pointers[%d];\n", d->inout[i]->name, 2 * pointers_cpt);
+                output("  %s = exec_context->pointers[%d];\n", d->inout[i]->name, 2 * pointers_cpt + 1);
+                pointers_cpt++;
             }
-        } 
-        output("\n");
-    }
+        }
 
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         if( d->inout[i]->sym_type & SYM_IN ) {
@@ -1013,8 +1034,10 @@ static char *dplasma_dump_c(const dplasma_t *d,
 {
     static char dp_txt[DPLASMA_SIZE];
     static int next_shape_idx = 0;
-    int i, j, k, cpt;
+    int i, j, k, cpt, pointers_cpt;
     int p = 0;
+
+    (void)pointers_cpt;
 
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    {\n");
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .name   = \"%s\",\n", d->name);
@@ -1074,9 +1097,116 @@ static char *dplasma_dump_c(const dplasma_t *d,
 
 #if defined(DPLASMA_CACHE_AWARENESS)
         dplasma_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
-#endif
 
-        output( "static int %s_hook(dplasma_execution_unit_t* context, const dplasma_execution_context_t *exec_context)\n"
+        output( "static int %s_hook(dplasma_execution_unit_t* context, dplasma_execution_context_t *exec_context)\n"
+                "{\n"
+				"  (void)context;\n",
+                d->name);
+
+        for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+            output("  int %s;\n", d->locals[i]->name);
+        }
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++)  {
+            output("  void *%s;\n", d->inout[i]->name);
+            output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
+        }
+        
+        for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
+            output("  %s = exec_context->locals[%d].value;\n", d->locals[i]->name, i);
+        }
+        
+        output("  if( NULL == exec_context->pointers[1] ) {\n"
+               "    /* remove warnings in case the variable is not used later */\n");
+        for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++)
+            output("    (void)%s;\n", d->locals[i]->name);
+        
+        pointers_cpt = 0;
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_IN ) {
+                for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
+                    if( d->inout[i]->dep_in[k] != NULL ) {
+                        if( NULL != d->inout[i]->dep_in[0]->cond ) {
+                            output("    if(");
+                            dump_inline_c_expression(d->inout[i]->dep_in[k]->cond);
+                            output(") {\n");
+                            if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                                output("      e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+                                       d->inout[i]->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name);
+                                for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
+                                    dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
+                                    if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
+                                        output("), 0 );\n");
+                                    else
+                                        output(", ");
+                                }
+                                output("      exec_context->pointers[%d] = e%s;\n", 2*pointers_cpt, d->inout[i]->name);
+                            } else {
+                                output("      exec_context->pointers[%d] = NULL;\n", 2*pointers_cpt);
+                            }
+                            output("      exec_context->pointers[%d] = ", 2*pointers_cpt + 1);
+                        } else {
+                            if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                                output("    e%s = data_repo_lookup_entry( %s_repo, %s_hash(",
+                                       d->inout[i]->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name,
+                                       d->inout[i]->dep_in[k]->dplasma->name);
+                                for(j = 0; j < d->inout[i]->dep_in[k]->dplasma->nb_locals; j++) {
+                                    dump_inline_c_expression( d->inout[i]->dep_in[k]->call_params[j] );
+                                    if( j == d->inout[i]->dep_in[k]->dplasma->nb_locals - 1 ) 
+                                        output("), 0 );\n");
+                                    else
+                                        output(", ");
+                                }
+                                output("    exec_context->pointers[%d] = e%s;\n", 2 * pointers_cpt, d->inout[i]->name);
+                            } else {
+                                output("    exec_context->pointers[%d] = NULL;\n", 2 * pointers_cpt);
+                            }
+                            output("    exec_context->pointers[%d] = ", 2 * pointers_cpt + 1);
+                        }
+                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                            cpt = 0;
+                            for(j = 0; j < MAX_PARAM_COUNT; j++) {
+                                if( d->inout[i]->dep_in[k]->dplasma->inout[j] == d->inout[i]->dep_in[k]->param )
+                                    break;
+                                if( d->inout[i]->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
+                                    cpt++;
+                            }
+                            output("e%s->data[%d];\n", d->inout[i]->name, cpt);
+                        } else {
+                            output("%s", d->inout[i]->dep_in[k]->dplasma->name);
+                            for(j = 0; j < MAX_CALL_PARAM_COUNT; j++) {
+                                if( NULL != d->inout[i]->dep_in[k]->call_params[j] ) {
+                                    output("%c ", j == 0 ? '(' : ',' );
+                                    dump_inline_c_expression(d->inout[i]->dep_in[k]->call_params[j]);
+                                }
+                            }
+                            output(" );\n");
+                        }
+                        if( NULL != d->inout[i]->dep_in[k]->cond ) {
+                            output("    }\n");
+                        }
+                    }
+                }
+                pointers_cpt++;
+            } else {
+                output("    (void)%s;\n", d->inout[i]->name);
+            }            
+        }
+        
+        output("  }\n");
+        
+        pointers_cpt = 0;
+        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+            if( d->inout[i]->sym_type & SYM_IN ) {
+                output("  e%s = exec_context->pointers[%d];\n", d->inout[i]->name, 2 * pointers_cpt);
+                output("  %s = exec_context->pointers[%d];\n", d->inout[i]->name, 2 * pointers_cpt + 1);
+                pointers_cpt++;
+            }
+        }
+#else
+        output( "static int %s_hook(dplasma_execution_unit_t* context, dplasma_execution_context_t *exec_context)\n"
                 "{\n"
 				"  (void)context;\n",
                 d->name);
@@ -1162,6 +1292,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
             }
             output("\n");
         }
+#endif
 
         output( "\n"
                 "#ifdef HAVE_PAPI\n"

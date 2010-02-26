@@ -1026,6 +1026,9 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
             dplasma_execution_context_t* new_context;
             new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
             memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+#if defined(DPLASMA_CACHE_AWARENESS)
+            new_context->pointers[1] = NULL;
+#endif
 
             if( NULL == *pready_list ) {
                 new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;

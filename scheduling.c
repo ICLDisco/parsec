@@ -22,7 +22,7 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-static int dplasma_execute( dplasma_execution_unit_t*, const dplasma_execution_context_t* );
+static int dplasma_execute( dplasma_execution_unit_t*, dplasma_execution_context_t* );
 
 #define DEPTH_FIRST_SCHEDULE 0
 
@@ -58,6 +58,9 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
 
         new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
         memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+#if defined(DPLASMA_CACHE_AWARENESS)
+        new_context->pointers[1] = NULL;
+#endif
         new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
         new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
         return __dplasma_schedule( eu_context, new_context );
@@ -295,6 +298,9 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             dplasma_execute( eu_context, exec_context );
             nbiterations++;
             /* Release the execution context */
+#if defined(DPLASMA_CACHE_AWARENESS)
+            exec_context->pointers[1] = NULL;
+#endif
             free( exec_context );
         } else {
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -396,7 +402,7 @@ int dplasma_progress(dplasma_context_t* context)
 }
 
 static int dplasma_execute( dplasma_execution_unit_t* eu_context,
-                           const dplasma_execution_context_t* exec_context )
+                            dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
 #ifdef _DEBUG
