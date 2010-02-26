@@ -137,82 +137,70 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
 #ifdef USE_MPI
-    int * tmp_ints;
+    int tmp_ints[20];
 
-        
-    tmp_ints = malloc(sizeof(int)*20);
-    if (tmp_ints == NULL)
-        {
-            printf("memory allocation failed\n");
-            MPI_Abort(MPI_COMM_WORLD, 2);
-        }
     if (Ddesc->mpi_rank == 0) /* send data */
-        {
-            Ddesc->dtyp= tmp_ints[0] = Pdesc->dtyp;
-            Ddesc->mb = tmp_ints[1] = Pdesc->mb;
-            Ddesc->nb = tmp_ints[2] = Pdesc->nb;
-            Ddesc->bsiz  = tmp_ints[3] = Pdesc->bsiz ;
-            Ddesc->lm  = tmp_ints[4] = Pdesc->lm ;
-            Ddesc->ln  = tmp_ints[5] = Pdesc->ln ;
-            Ddesc->lmt  = tmp_ints[6] = Pdesc->lmt ;
-            Ddesc->lnt  = tmp_ints[7] = Pdesc->lnt ;
-            Ddesc->i = tmp_ints[8] = Pdesc->i ;
-            Ddesc->j = tmp_ints[9] = Pdesc->j ;
-            Ddesc->m = tmp_ints[10] = Pdesc->m  ;
-            Ddesc->n = tmp_ints[11] = Pdesc->n ;
-            Ddesc->mt  = tmp_ints[12] = Pdesc->mt ;
-            Ddesc->nt  = tmp_ints[13] = Pdesc->nt ;
-            tmp_ints[14] = Ddesc->nrst;
-            tmp_ints[15] = Ddesc->ncst;            
-            tmp_ints[16] = Ddesc->GRIDrows ;
-            tmp_ints[17] = Ddesc->GRIDcols ;
-            tmp_ints[18] = Ddesc->cores ;
-            tmp_ints[19] = Ddesc->nodes ;
-            
-            MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
-
-        }
+    {
+        Ddesc->dtyp= tmp_ints[0] = Pdesc->dtyp;
+        Ddesc->mb = tmp_ints[1] = Pdesc->mb;
+        Ddesc->nb = tmp_ints[2] = Pdesc->nb;
+        Ddesc->bsiz  = tmp_ints[3] = Pdesc->bsiz ;
+        Ddesc->lm  = tmp_ints[4] = Pdesc->lm ;
+        Ddesc->ln  = tmp_ints[5] = Pdesc->ln ;
+        Ddesc->lmt  = tmp_ints[6] = Pdesc->lmt ;
+        Ddesc->lnt  = tmp_ints[7] = Pdesc->lnt ;
+        Ddesc->i = tmp_ints[8] = Pdesc->i ;
+        Ddesc->j = tmp_ints[9] = Pdesc->j ;
+        Ddesc->m = tmp_ints[10] = Pdesc->m  ;
+        Ddesc->n = tmp_ints[11] = Pdesc->n ;
+        Ddesc->mt  = tmp_ints[12] = Pdesc->mt ;
+        Ddesc->nt  = tmp_ints[13] = Pdesc->nt ;
+        tmp_ints[14] = Ddesc->nrst;
+        tmp_ints[15] = Ddesc->ncst;            
+        tmp_ints[16] = Ddesc->GRIDrows ;
+        tmp_ints[17] = Ddesc->GRIDcols ;
+        tmp_ints[18] = Ddesc->cores ;
+        tmp_ints[19] = Ddesc->nodes ;
+        
+        MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
+    }
     else /* rank != 0, receive data */
-        {
-            MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
-
-            Ddesc->dtyp= tmp_ints[0];
-            Ddesc->mb = tmp_ints[1];
-            Ddesc->nb = tmp_ints[2];
-            Ddesc->bsiz  = tmp_ints[3];
-            Ddesc->lm  = tmp_ints[4];
-            Ddesc->ln  = tmp_ints[5];
-            Ddesc->lmt  = tmp_ints[6];
-            Ddesc->lnt  = tmp_ints[7];
-            Ddesc->i = tmp_ints[8];
-            Ddesc->j = tmp_ints[9];
-            Ddesc->m = tmp_ints[10];
-            Ddesc->n = tmp_ints[11];
-            Ddesc->mt  = tmp_ints[12];
-            Ddesc->nt  = tmp_ints[13];
-            Ddesc->nrst  = tmp_ints[14];
-            Ddesc->ncst  = tmp_ints[15];
-            Ddesc->GRIDrows  = tmp_ints[16];
-            Ddesc->GRIDcols  = tmp_ints[17];
-            Ddesc->cores  = tmp_ints[18];
-            Ddesc->nodes  = tmp_ints[19];
-            
-        }
-
-    free(tmp_ints);
+    {
+        MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
+        
+        Ddesc->dtyp= tmp_ints[0];
+        Ddesc->mb = tmp_ints[1];
+        Ddesc->nb = tmp_ints[2];
+        Ddesc->bsiz  = tmp_ints[3];
+        Ddesc->lm  = tmp_ints[4];
+        Ddesc->ln  = tmp_ints[5];
+        Ddesc->lmt  = tmp_ints[6];
+        Ddesc->lnt  = tmp_ints[7];
+        Ddesc->i = tmp_ints[8];
+        Ddesc->j = tmp_ints[9];
+        Ddesc->m = tmp_ints[10];
+        Ddesc->n = tmp_ints[11];
+        Ddesc->mt  = tmp_ints[12];
+        Ddesc->nt  = tmp_ints[13];
+        Ddesc->nrst  = tmp_ints[14];
+        Ddesc->ncst  = tmp_ints[15];
+        Ddesc->GRIDrows  = tmp_ints[16];
+        Ddesc->GRIDcols  = tmp_ints[17];
+        Ddesc->cores  = tmp_ints[18];
+        Ddesc->nodes  = tmp_ints[19];
 
         if( -1 == ddesc_compute_vals(Ddesc) )
-            {
-                MPI_Abort(MPI_COMM_WORLD, 2);
-            }
-        
-    dplasma_desc_workspace_allocate(Ddesc);
-    return 0;
-#else
+        {
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+    }
+    
+    return dplasma_desc_workspace_allocate(Ddesc);
+#else /* USE_MPI */
     
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
     return -1;
-#endif
+#endif /* USE_MPI */
 }
 
 
@@ -315,7 +303,7 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
                            int, LDA,
                            PLASMA_desc, *descA);
 
-    printf("matrix tiled in %dx%d\n", descA->lmt, descA->lnt);
+    //printf("matrix tiled in %dx%d\n", descA->lmt, descA->lnt);
     return 0;
     
 }
@@ -351,7 +339,7 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
                            double*, A,
                            int, LDA);
     
-    printf("matrix untiled from %dx%d\n", descA->lmt, descA->lnt);
+    //printf("matrix untiled from %dx%d\n", descA->lmt, descA->lnt);
     return PLASMA_SUCCESS;
     
 }
