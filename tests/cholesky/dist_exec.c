@@ -493,7 +493,6 @@ static void create_matrix(int N, PLASMA_enum* uplo,
     
     if(do_nasty_validations)
     {
-        int LDBxNRHS = LDB*NRHS;
         A1   = (double *)malloc(LDA*N*sizeof(double));
         A2   = (double *)malloc(LDA*N*sizeof(double));
         B1   = (double *)malloc(LDB*NRHS*sizeof(double));
@@ -544,22 +543,27 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     int req_count;
     
     TIME_START();
-    dplasma_desc_init(local, dist);
-    dplasma_desc_workspace_allocate(dist);
+    if(0 == rank)
+    {
+        dplasma_desc_init(local, dist);
+    }
+    dplasma_desc_bcast(local, dist);
     distribute_data(local, dist, &requests, &req_count);
     is_data_distributed(dist, requests, req_count);
     TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));
     
+#if defined(DATA_VERIFICATIONS)
     if(do_nasty_validations)
     {
         data_dist_verif(local, dist);
-#       if defined(PRINT_ALL_BLOCKS)
-            if(rank == 0)
-                plasma_dump(local);
-            data_dump(dist);
-#       endif
+#if defined(PRINT_ALL_BLOCKS)
+        if(rank == 0)
+            plasma_dump(local);
+        data_dump(dist);
+#endif /* PRINT_ALL_BLOCKS */
     }
-
+#endif /* DATA_VERIFICATIONS */
+    
 #else /* NO MPI */
     dplasma_desc_init(local, dist);
 #endif
