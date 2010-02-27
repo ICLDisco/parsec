@@ -405,11 +405,11 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                 eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( queue_size, nbcores,
                                                                     level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                                                     level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
-                printf("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
+                DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
                        eu->eu_id, queue_size, nbcores,
                        level, idx, eu->eu_hierarch_queues[idx],
                        level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1],
-                       level == 0 ? "System queue" : "upper level hhbuffer");
+                       level == 0 ? "System queue" : "upper level hhbuffer"));
                 
                 /* The master(s) unblock all waiting slaves */
                 dplasma_barrier_wait( &startup->master_context->barrier );
@@ -434,10 +434,10 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 
                 /* The master(s) create the cache explorer, using their current closest cache as its father */
                 eu->closest_cache = cache_create( nbcores, eu->closest_cache, nbtiles);
-                printf("%d creates cache of size %d for level %d: %p (parent: %p)\n",
+                DEBUG(("%d creates cache of size %d for level %d: %p (parent: %p)\n",
                        eu->eu_id, nbtiles,
                        level, eu->closest_cache,
-                       eu->closest_cache != NULL ? eu->closest_cache->parent : NULL);
+                       eu->closest_cache != NULL ? eu->closest_cache->parent : NULL));
                 
                 /* The master(s) unblock all waiting slaves */
                 dplasma_barrier_wait( &startup->master_context->barrier );
