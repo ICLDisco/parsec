@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
 # should we use our own math functions
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
@@ -105,7 +107,7 @@ ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
-message(STATUS "-- Check if the compiler provides atomic operations directives")
+message(STATUS "Check if the compiler provides atomic operations directives")
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)
@@ -154,6 +156,12 @@ if( NOT HAVE_TIMESPEC_TV_NSEC )
   check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
 endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
+
+STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
+IF (_match_ifort)
+    MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "-nofor_main")
+ENDIF (_match_ifort)
 
 find_package(PLASMA REQUIRED)
 
