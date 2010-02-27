@@ -120,18 +120,6 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
-#if 0 /* TODO: remove this when tested, this is done somewhere else now */
-    /* Dirty workaround or how to deliberaty generate memory leaks */
-    {
-        int i, upto = dplasma_nb_elements();
-        
-        for( i = 0; i < upto; i++ ) {
-            dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
-            object->deps = NULL;
-        }
-    }
-#endif
-
 #if defined(DPLASMA_PROFILING)
     /* Reset the profiling information */
     dplasma_profiling_reset();
