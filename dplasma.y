@@ -51,7 +51,7 @@ int yywrap()
         char  *code;
         char  *language;
     }          two_strings;
-}
+};
 
 %token DPLASMA_COMMA DPLASMA_OPEN_PAR DPLASMA_CLOSE_PAR DPLASMA_RANGE
 %token DPLASMA_EQUAL DPLASMA_NOT_EQUAL DPLASMA_ASSIGNMENT DPLASMA_QUESTION

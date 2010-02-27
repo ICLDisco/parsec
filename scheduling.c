@@ -16,7 +16,7 @@
 #include "profiling.h"
 #include "remote_dep.h"
 
-#if defined(DPLASMA_PROFILING)
+#if defined(DPLASMA_PROFILING) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dplasma_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
