@@ -240,6 +240,7 @@ static inline dplasma_execution_context_t *choose_local_job( dplasma_execution_u
     return exec_context;
 }
 
+#if defined(HAVE_HWLOC)
 static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
 {
     int i, nb;
@@ -294,6 +295,7 @@ static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
         nb++;
     }
 }
+#endif
 
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
