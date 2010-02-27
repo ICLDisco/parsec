@@ -240,6 +240,61 @@ static inline dplasma_execution_context_t *choose_local_job( dplasma_execution_u
     return exec_context;
 }
 
+static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
+{
+    int i, nb;
+    dplasma_execution_context_t *exec_context;
+    dplasma_list_item_t *item;
+
+    /* Assume that because this is called, the whole hierarchy is empty. 
+     * -- There is a high probability that another thread is doing the same
+     *    thing at the same time, though. So we'll fill up only until ideally_fill
+     *    of each level.
+     */
+
+    nb = 0;
+
+    /* me first */
+    i = 0;
+    for(;;) {
+        /* Don't take the lock to check that: if we overfill, it's allright */
+        while( i < eu_context->eu_nb_hierarch_queues &&
+               eu_context->eu_hierarch_queues[i]->nbelt >= eu_context->eu_hierarch_queues[i]->ideal_fill )
+            i++;
+
+        if(i == eu_context->eu_nb_hierarch_queues) {
+            /* ok, can't do best */
+            DEBUG(("%d force fed all the buffers of its hierarchy: put %d elements in one go\n",
+                   eu_context->eu_id, nb));
+            return nb;
+        }
+
+        /* The current level can take another more */
+        exec_context = DPLASMA_SYSTEM_POP(eu_context, eu_system_queue);
+        if( NULL == exec_context ) {
+            /* Arf, the system queue is empty -- waste of time... */
+#if defined(_DEBUG)
+            if( nb > 0 ) {
+                DEBUG(("%d force fed up to %d elements in one go up to level %d, but now the system is really starving\n",
+                       eu_context->eu_id, nb, i));
+            } else {
+                DEBUG(("%d couldn't force feed the hierarchy: the system is starving\n",
+                       eu_context->eu_id));
+            }
+#endif
+            return nb;
+        }
+        /* Isolate this element */
+        item = (dplasma_list_item_t*)exec_context;
+        item->list_next = item;
+        item->list_prev = item;
+
+        /* And push it in the current queue level */
+        dplasma_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
+        nb++;
+    }
+}
+
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
@@ -287,6 +342,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
+            
+#if defined(HAVE_HWLOC)
+            force_feed_hbbuffers(eu_context);
+#endif
         }
         
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
