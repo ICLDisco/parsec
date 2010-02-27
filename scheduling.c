@@ -24,8 +24,6 @@
 
 static int dplasma_execute( dplasma_execution_unit_t*, dplasma_execution_context_t* );
 
-#define DEPTH_FIRST_SCHEDULE 0
-
 static inline void set_tasks_todo(dplasma_context_t* context, uint32_t n)
 {
     context->taskstodo = n;
@@ -49,31 +47,24 @@ static inline void done_task(dplasma_context_t* context)
  */
 int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_context_t* exec_context )
 {
-#if !DEPTH_FIRST_SCHEDULE
-    {
-        dplasma_execution_context_t* new_context;
-        dplasma_execution_unit_t* eu_context;
+    dplasma_execution_context_t* new_context;
+    dplasma_execution_unit_t* eu_context;
 
-        eu_context = context->execution_units[0];
+    eu_context = context->execution_units[0];
 
-        new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-        memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+    new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+    memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
 #if defined(DPLASMA_CACHE_AWARENESS)
-        new_context->pointers[1] = NULL;
+    new_context->pointers[1] = NULL;
 #endif
-        new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
-        new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
-        return __dplasma_schedule( eu_context, new_context );
-    }
-#else
-    return dplasma_execute(eu_context, exec_context);
-#endif  /* !DEPTH_FIRST_SCHEDULE */
+    new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
+    new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
+    return __dplasma_schedule( eu_context, new_context );
 }
 
 int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
                         dplasma_execution_context_t* new_context )
 {
-#if !DEPTH_FIRST_SCHEDULE
 # ifdef _DEBUG
     char tmp[128];
 # endif
@@ -125,12 +116,6 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
     DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
     return 0;
-#else /* !DEPTH_FIRST_SCHEDULE */
-    TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
-
-    printf( "This internal version of the dplasma_schedule is not supposed to be called\n");
-    return -1;
-#endif  /* !DEPTH_FIRST_SCHEDULE */
 }
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
