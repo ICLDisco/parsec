@@ -31,6 +31,7 @@ typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_ite
 typedef struct dplasma_hbbuffer_t {
     size_t size;       /**< the size of the buffer, in number of void* */
 	size_t nbelt;      /**< Number of elemnts in the buffer currently */
+    size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
     volatile uint32_t lock;     /**< lock on the buffer */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
@@ -38,17 +39,18 @@ typedef struct dplasma_hbbuffer_t {
     dplasma_list_item_t *items[1]; /**< array of elements */
 } dplasma_hbbuffer_t;
 
-static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size, 
+static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size,  size_t ideal_fill,
                                                        dplasma_hbbuffer_parent_push_fct_t parent_push_fct,
                                                        void *parent_store)
 {
     /** Must use calloc to ensure that all ites are set to NULL */
     dplasma_hbbuffer_t *n = (dplasma_hbbuffer_t*)calloc(1, sizeof(dplasma_hbbuffer_t) + (size-1)*sizeof(dplasma_list_item_t*));
     n->size = size;
+    n->ideal_fill = ideal_fill;
 	/** n->nbelt = 0; <not needed because callc */
     n->parent_push_fct = parent_push_fct;
     n->parent_store = parent_store;
-    DEBUG(("Created a new hierarchical buffer of %d elements\n", size));
+    DEBUG(("Created a new hierarchical buffer of %d elements\n", (int)size));
     return n;
 }
 
@@ -57,7 +59,7 @@ static inline void dplasma_hbbuffer_destroy(dplasma_hbbuffer_t *b)
     free(b);
 }
 
-static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, dplasma_list_item_t *elt)
+static inline void dplasma_hbbuffer_push_all(dplasma_hbbuffer_t *b, dplasma_list_item_t *elt)
 {
     dplasma_list_item_t *next;
     int nbelt, i;
@@ -77,7 +79,7 @@ static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, dplasma_list_ite
         elt->list_prev->list_next = elt->list_next;
         elt->list_prev = elt;
         elt->list_next = elt;
-        DEBUG(("Pushing %p in %p\n", elt, b));
+        DEBUG(("Pushing (all) %p in %p\n", elt, b));
         b->items[i] = elt;
         nbelt++;
 
@@ -91,6 +93,41 @@ static inline void dplasma_hbbuffer_push(dplasma_hbbuffer_t *b, dplasma_list_ite
     if( NULL != next ) {
         b->parent_push_fct(b->parent_store, next);
     }
+}
+
+static inline int dplasma_hbbuffer_push_ideal_nonrec(dplasma_hbbuffer_t *b, dplasma_list_item_t **elt)
+{
+    dplasma_list_item_t *next;
+    int i, nbelt;
+
+    next = (*elt);
+    nbelt = 0;
+    dplasma_atomic_lock(&b->lock);
+    for(i = 0; (b->nbelt < b->ideal_fill) && (i < b->size); i++) {
+        if( NULL != b->items[i] )
+            continue;
+
+        next = (dplasma_list_item_t *)(*elt)->list_next;
+        if(next == (*elt)) {
+            next = NULL;
+        }
+        (*elt)->list_next->list_prev = (*elt)->list_prev;
+        (*elt)->list_prev->list_next = (*elt)->list_next;
+        (*elt)->list_prev = (*elt);
+        (*elt)->list_next = (*elt);
+        DEBUG(("Pushing (ideal) %p in %p\n", (*elt), b));
+        b->items[i] = (*elt);
+        b->nbelt++;
+        nbelt++;
+
+        if( next == NULL )
+            break;
+        (*elt) = next;
+    }
+    dplasma_atomic_unlock(&b->lock);
+
+    DEBUG(("pushed %d elements. %s\n", nbelt, NULL != next ? "I'm ideally filled up" : "Everything pushed - I could still take more"));
+    return (NULL == next);
 }
 
 static inline int dplasma_hbbuffer_is_empty(dplasma_hbbuffer_t *b)

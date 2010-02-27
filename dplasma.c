@@ -296,7 +296,7 @@ typedef struct __dplasma_temporary_thread_initialization_t {
 static void push_in_buffer_wrapper(void *store, dplasma_list_item_t *elt)
 { 
     /* Store is a hbbbuffer */
-    dplasma_hbbuffer_push( (dplasma_hbbuffer_t*)store, elt );
+    dplasma_hbbuffer_push_all( (dplasma_hbbuffer_t*)store, elt );
 }
 
 static void push_in_queue_wrapper(void *store, dplasma_list_item_t *elt)
@@ -398,14 +398,15 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             idx = eu->eu_nb_hierarch_queues - 1 - level;
             master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
             if( eu->eu_id == master ) {
-	      int queue_size = startup->master_context->nb_cores * 2 * (level+1);
+                int queue_size = startup->master_context->nb_cores * 2 * (level+1);
+                int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
 
                 /* The master(s) create the shared queues */               
-                eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( queue_size,
+                eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( queue_size, nbcores,
                                                                     level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                                                     level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
-                printf("%d creates hbbuffer of size %d for level %d stored in %d: %p (parent: %p -- %s)\n",
-                       eu->eu_id, queue_size,
+                printf("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
+                       eu->eu_id, queue_size, nbcores,
                        level, idx, eu->eu_hierarch_queues[idx],
                        level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1],
                        level == 0 ? "System queue" : "upper level hhbuffer");

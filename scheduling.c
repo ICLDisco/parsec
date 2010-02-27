@@ -86,14 +86,19 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     {
         int i;
         for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++) {
-            /* Be nice: share. Push in the closest buffer that is not totally empty (mine if I'm starving) */
-            if( dplasma_hbbuffer_is_empty( eu_context->eu_hierarch_queues[i] ) ) {
-                dplasma_hbbuffer_push( eu_context->eu_hierarch_queues[i], (dplasma_list_item_t*)new_context );
+            /** Be nice: share. Push in the closest buffer that is not ideally filled 
+             *  (mine if I'm starving) */
+            if( dplasma_hbbuffer_push_ideal_nonrec( eu_context->eu_hierarch_queues[i], 
+                                                    (dplasma_list_item_t**)&new_context ) ) {
+                /** Every contexts were pushed at this level or below */
                 break;
             }
         }
         if( i == eu_context->eu_nb_hierarch_queues ) {
-            dplasma_hbbuffer_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+            /** We couldn't push more: everybody above me (and myself) are ideally full, so 
+             *  let's overfill, potentially pushing recursively in the system queue
+             */
+            dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
         }
     }
 #  else
