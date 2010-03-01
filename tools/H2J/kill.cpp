@@ -6,13 +6,13 @@ list<dep_t> flow_deps, output_deps, merged_deps;
 map<string,task_t> taskMap;
 
 // Forward Function Declarations
-int parse_petit_output(std::ifstream &ifs);
-int readNextSource(string line, string &source, std::ifstream &ifs);
-int readNextDestination(string line, string source, std::ifstream &ifs);
+int parse_petit_output(std::istream &ifs);
+int readNextSource(string line, string &source, std::istream &ifs);
+int readNextDestination(string line, string source, std::istream &ifs);
 int readNextTaskInfo(string line);
 list<string> parseTaskParamSpace(string params);
 map<string,string> parseSymbolicVars(string vars);
-string skipToNext(std::ifstream &ifs);
+string skipToNext(std::istream &ifs);
 bool isEOR(string line);
 void store_dep(list<dep_t> &depList, dep_t dep);
 void mergeLists(void);
@@ -131,17 +131,22 @@ int main(int argc, char **argv){
     }
 
     fName = argv[1];
-    ifstream ifs( fName );
-    if( !ifs ){
-        cerr << "File \""<< fName <<"\" does not exist" << endl;
-        exit(-1);
+
+    if( !string(fName).compare("-") ){
+        parse_petit_output(cin);
+    }else{
+        ifstream ifs( fName );
+        if( !ifs ){
+            cerr << "File \""<< fName <<"\" does not exist" << endl;
+            exit(-1);
+        }
+        parse_petit_output(ifs);
     }
 
-    parse_petit_output(ifs);
     return 0;
 }
 
-int parse_petit_output(ifstream &ifs){
+int parse_petit_output(istream &ifs){
     string line, source;
 
     flow_deps.clear();
@@ -285,7 +290,7 @@ list<string> parseTaskParamSpace(string params){
 }
 
 
-int readNextSource(string line, string &source, ifstream &ifs){
+int readNextSource(string line, string &source, istream &ifs){
     unsigned int pos;
 
     // Keep reading input lines until you hit one that matches the pattern
@@ -322,7 +327,7 @@ int readNextSource(string line, string &source, ifstream &ifs){
 // {[k] -> [k,m] : 0 <= k < m < BB}
 // exact dd: {[0]}
 //
-int readNextDestination(string line, string source, ifstream &ifs){
+int readNextDestination(string line, string source, istream &ifs){
     stringstream ss;
     string sink, type, srcLine, junk, dstLine;
     dep_t dep;
@@ -397,7 +402,7 @@ bool isEOR(string line){
     return false;
 }
 
-string skipToNext(ifstream &ifs){
+string skipToNext(istream &ifs){
     string line;
     while( 1 ){
         if( !getline(ifs,line) ) return string("");
