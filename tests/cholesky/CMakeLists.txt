@@ -25,7 +25,7 @@ if( PLASMA_FOUND )
   add_executable(dposv_rl dist_exec.c data_management.c cholesky_rl.c)
   set_target_properties(dposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dposv_rl PROPERTIES COMPILE_FLAGS "-DADD_")
-  set_target_properties(dposv_rl PROPERTIES LINK_FLAGS "${LOCAL_FOTRAN_LINK_FLAGS}")
+  set_target_properties(dposv_rl PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
   target_link_libraries(dposv_rl dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
 
 endif( PLASMA_FOUND )
