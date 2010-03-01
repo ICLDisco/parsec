@@ -414,18 +414,19 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             idx = eu->eu_nb_hierarch_queues - 1 - level;
             master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
             if( eu->eu_id == master ) {
-                int queue_size = startup->master_context->nb_cores * 2 * (level+1);
                 int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
+                int queue_size = 96 * (level+1) / nbcores;
+                if( queue_size < nbcores ) queue_size = nbcores;
 
                 /* The master(s) create the shared queues */               
                 eu->eu_hierarch_queues[idx] = dplasma_hbbuffer_new( queue_size, nbcores,
                                                                     level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                                                     level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
                 DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
-                       eu->eu_id, queue_size, nbcores,
-                       level, idx, eu->eu_hierarch_queues[idx],
-                       level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1],
-                       level == 0 ? "System queue" : "upper level hhbuffer"));
+                        eu->eu_id, queue_size, nbcores,
+                        level, idx, eu->eu_hierarch_queues[idx],
+                        level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1],
+                        level == 0 ? "System queue" : "upper level hhbuffer"));
                 
                 /* The master(s) unblock all waiting slaves */
                 dplasma_barrier_wait( &startup->master_context->barrier );
@@ -442,7 +443,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
         eu->eu_task_queue = eu->eu_hierarch_queues[0];
 #else /* Don't USE_HIERARCHICAL_QUEUES: USE_FLAT_QUEUES */
         {
-            int queue_size = startup->master_context->nb_cores * 2;
+            int queue_size = startup->master_context->nb_cores * 4;
             int nq = 0;
             int id;
 
@@ -460,16 +461,16 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             for(level = 0;
                 level <= dplasma_hwlock_nb_levels(startup->master_context); 
                 level++) {
-                for(id = 0; id < startup->master_context->nb_cores; id++) {
+                for(id = (eu->eu_id + 1) % startup->master_context->nb_cores; 
+                    id != eu->eu_id; 
+                    id = (id + 1) %  startup->master_context->nb_cores) {
                     int d;
 
-                    if(id == eu->eu_id)
-                        continue;
                     d = dplasma_hwlock_distance(startup->master_context, eu->eu_id, id);
                     if( d == 2*level || d == 2*level + 1 ) {
                         eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
-                        printf("%d: my %d preferred queue is the task queue of %d (%p)\n",
-                               eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]);
+                        DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
+                                eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]));
                         nq++;
                     }
                 }
