@@ -5,49 +5,59 @@ extern "C" %{
 #include <plasma.h>
 #include <core_dblas.h>
 
-#include "dplasma.h"
-#include <stdlib.h>
-#include <stdio.h>
-
 extern PLASMA_desc descA;
+extern int uplo;
 int PLASMA_INFO;
 
-#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#include "dplasma.h"
+#include "remote_dep.h"
 
-/* Define it to shortcut the lookup for the local variables. */
-#define DPLASMA_HOOK_OPTIMIZED
-
-#if 0
-#define OUTPUT(ARG)  printf ARG
+#ifdef DISTRIBUTED
+#   include "data_management.h"
+    extern DPLASMA_desc ddescA;
+#   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #else
-#define OUTPUT(ARG)
+#   define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #endif
 
-extern int uplo;
+#ifdef DPLASMA_CALL_TRACE
+#   include <stdlib.h>
+#   include <stdio.h>
+#   define OUTPUT(ARG)  printf ARG
+#else
+#   define OUTPUT(ARG)
+#endif
+
+#ifdef DPLASMA_DRY_RUN
+#   define CORE(FN, ARGS)
+#else
+#   define CORE(FN, ARGS) CORE_##FN ARGS
+#endif
 %}
 
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-GRIDrows = 1
-GRIDcols = 1
+GRIDrows
+GRIDcols
 NB
 SIZE
-colRANK = 0
-rowRANK = 0
+colRANK
+rowRANK
+stileSIZE
+
 
 /**************************************************
  *                      POTRF                     *
  **************************************************/
-// Name
 POTRF(k) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
 
 // Parallel partitioning
-: k % GRIDrows == rowRANK
-: k % GRIDcols == colRANK
+: (k / stileSIZE) % GRIDrows == rowRANK
+: (k / stileSIZE) % GRIDcols == colRANK
 
 // Parameters
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
@@ -55,23 +65,25 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
         -> A(k, k)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
-    CORE_dpotrf( uplo,
-                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                 T /* A(k,k) */, NB, /*A.nb,*/
-                 &PLASMA_INFO ); 
-#else
-    OUTPUT(( "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
-             (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
-             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-             k, k, NB /*A.nb,*/));
-#endif  /* DPLASMA_DRY_RUN */
+    CORE(
+        dpotrf, (
+            uplo,
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            T /* A(k, k) */, NB, /*A.nb,*/
+            &PLASMA_INFO )
+        );
+    OUTPUT((
+        "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
+            (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            k, k, NB /*A.nb,*/ )
+        );
 END
+
 
 /**************************************************
  *                      TRSM                      *
  **************************************************/
-// Name
 TRSM(k, m) (high_priority)
 
 // Execution space
@@ -79,8 +91,8 @@ k = 0..SIZE-1
 m = k+1..SIZE-1
 
 // Parallel partitioning
-: m % GRIDrows == rowRANK
-: k % GRIDcols == colRANK
+: (m / stileSIZE) % GRIDrows == rowRANK
+: (k / stileSIZE) % GRIDcols == colRANK
 
 // Parameters
 IN    T <- T POTRF(k)
@@ -91,43 +103,47 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> A(m, k)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
-        CORE_dtrsm( PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
-                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                    NB, /*A.nb,*/
-                    1.0, T, NB, /*A.nb,*/
-                    C, NB /*A.nb*/);
+        CORE(
+            dtrsm, (
+                PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                     C /*A(m, k)*/, NB /*A.nb*/ ) 
+            );
+        OUTPUT(( 
+            "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, k, k, NB, /*A.nb,*/
+                     m, k, NB /*A.nb*/ )
+            );
     } else {
-        CORE_dtrsm( PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
-                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                    NB, /*A.nb,*/
-                    1.0, T, NB, /*A.nb,*/
-                    C, NB /*A.nb*/);
+        CORE(
+            dtrsm, (
+                PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                     C /*A(k, m)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                "PlasmaLeft", "PlasmaUpper", "PlasmaTrans", "PlasmaNonUnit",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, k, k, NB, /*A.nb,*/
+                     k, m, NB /*A.nb*/ )
+            );
     }
-#else
-    if( uplo == PlasmaLower ) {
-        OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                 "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
-                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                 NB, /*A.nb,*/
-                 1.0, k, k, NB, /*A.nb,*/
-                 m, k, NB /*A.nb*/));
-    } else {
-        OUTPUT(( "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                 "PlasmaLeft", "PlasmaUpper", "PlasmaTrans", "PlasmaNonUnit",
-                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                 NB, /*A.nb,*/
-                 1.0, k, k, NB, /*A.nb,*/
-                 k, m, NB /*A.nb*/));
-    }
-#endif  /* DPLASMA_DRY_RUN */
 END
+
 
 /**************************************************
  *                      SYRK                      *
  **************************************************/
-// Name
 SYRK(k, n) (high_priority)
 
 // Execution space
@@ -135,8 +151,8 @@ k = 1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: k % GRIDrows == rowRANK
-: n % GRIDcols == colRANK
+: (k / stileSIZE) % GRIDrows == rowRANK
+: (k / stileSIZE) % GRIDcols == colRANK
 
 //Parameters
 IN    A <- C TRSM(n, k)
@@ -144,43 +160,48 @@ INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
-        CORE_dsyrk( PlasmaLower, PlasmaNoTrans,
-                    NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                    NB, /*A.nb,*/
-                    -1.0, A, NB, /*A.nb,*/
-                    1.0, T, NB /*A.nb*/);
-    } else {
-        CORE_dsyrk( PlasmaUpper, PlasmaTrans,
-                    NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                    NB, /*A.nb,*/
-                    -1.0, A, NB, /*A.nb,*/
-                    1.0, T, NB /*A.nb*/);
-    }
-#else
-    if( uplo == PlasmaLower ) {
-        OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+        CORE(
+            dsyrk, (
+                PlasmaLower, PlasmaNoTrans,
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                 1.0, T /*A(k, k)*/, NB /*A.nb*/ )
+            );
+        OUTPUT(( 
+            "CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, k, n, NB, /*A.nb,*/
-                1.0, k, k, NB /*A.nb*/));
+                 1.0, k, k, NB /*A.nb*/ )
+            );
+
     } else {
-        OUTPUT(("CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+        CORE(
+            dsyrk, (
+                PlasmaUpper, PlasmaTrans,
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
+                 1.0, T /*A(k, k)*/, NB /*A.nb*/ )
+            );
+        OUTPUT(( 
+            "CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaUpper", "PlasmaTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, n, k, NB, /*A.nb,*/
-                1.0, k, k, NB /*A.nb*/));
+                 1.0, k, k, NB /*A.nb*/ )
+            );
     }
-#endif  /* DPLASMA_DRY_RUN */
 END
+
 
 /**************************************************
  *                      GEMM                      *
  **************************************************/
-// Name
 GEMM(k, m, n)
 
 // Execution space
@@ -189,8 +210,8 @@ m = k+1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: m % GRIDrows == rowRANK
-: n % GRIDcols == colRANK
+: (m / stileSIZE) % GRIDrows == rowRANK
+: (k / stileSIZE) % GRIDcols == colRANK
 
 // Parameters
 IN    A <- C TRSM(n, k)
@@ -199,43 +220,47 @@ INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
     if( uplo == PlasmaLower ) {
-        CORE_dgemm( PlasmaNoTrans, PlasmaTrans,
-                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                    NB, /*A.nb,*/
-                    NB, /*A.nb,*/
-                    -1.0, B, NB, /*A.nb,*/
-                          A, NB, /*A.nb,*/
-                     1.0, C, NB /*A.nb*/);
-    } else {
-        CORE_dgemm( PlasmaTrans, PlasmaNoTrans,
-                    NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                    NB, /*A.nb,*/
-                    NB, /*A.nb,*/
-                    -1.0, A, NB, /*A.nb,*/
-                          B, NB, /*A.nb,*/
-                     1.0, C, NB /*A.nb*/);
-    }
-#else
-    if( uplo == PlasmaLower ) {
-        OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+        CORE( 
+            dgemm, (
+                PlasmaNoTrans, PlasmaTrans,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, B /*A(m, n)*/, NB, /*A.nb,*/
+                      A /*A(k, n)*/, NB, /*A.nb,*/
+                 1.0, C /*A(m, k)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, m, n, NB, /*A.nb,*/
                       k, n, NB, /*A.nb,*/
-                 1.0, m, k, NB /*A.nb*/));
+                 1.0, m, k, NB /*A.nb*/ )
+            );
     } else {
-        OUTPUT(("CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+        CORE(
+            dgemm, (
+                PlasmaTrans, PlasmaNoTrans,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
+                      B /*A(n, m)*/, NB, /*A.nb,*/
+                 1.0, C /*A(k, m)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaTrans", "PlasmaNoTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, n, k, NB, /*A.nb,*/
                       n, m, NB, /*A.nb,*/
-                 1.0, k, m, NB /*A.nb*/));
+                 1.0, k, m, NB /*A.nb*/ )
+            );
     }
-#endif  /* DPLASMA_DRY_RUN */
 END
