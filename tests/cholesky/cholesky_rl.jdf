@@ -100,7 +100,7 @@ IN    T <- T POTRF(k)
 INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> A SYRK(k, n)
         -> A GEMM(k, n+1..SIZE-1, n)
-        -> (n > k+1) ? B GEMM(k, n, k+1..n-1) : A(n,k)
+        -> B GEMM(k, n, k+1..n-1)
         -> A(n, k)
 
 BODY
