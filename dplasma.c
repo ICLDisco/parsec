@@ -51,18 +51,18 @@ char* event_names[MAX_EVENTS];
 #if defined(HAVE_HWLOC)
 #define TILE_SIZE (120*120*sizeof(double))
 
-static int dplasma_hwlock_nb_levels(const dplasma_context_t *context)
+static int dplasma_hwloc_nb_levels(const dplasma_context_t *context)
 {
 #if defined(ON_IG)
     return 3;
 #elif defined(ON_ZOOT)
-    return 2;
+    return 4;
 #else
     return 2;
 #endif
 }
 
-static int dplasma_hwlock_master_id(const dplasma_context_t *context, int level, int id)
+static int dplasma_hwloc_master_id(const dplasma_context_t *context, int level, int id)
 {
 #if defined(ON_IG)
     if( level == 0 ) {
@@ -79,13 +79,16 @@ static int dplasma_hwlock_master_id(const dplasma_context_t *context, int level,
     if( level == 1 ) {
         return id % 8;
     }
+    if( level == 2 ) {
+        return id % 4;
+    }
     return id;
 #else
     return 0;
 #endif
 }
 
-static int dplasma_hwlock_nb_cores(const dplasma_context_t *context, int level, int master)
+int dplasma_hwloc_nb_cores(const dplasma_context_t *context, int level, int master)
 {
 #if defined(ON_IG)
     if( level == 0 ) {
@@ -100,6 +103,9 @@ static int dplasma_hwlock_nb_cores(const dplasma_context_t *context, int level, 
         return 16;
     }
     if( level == 1 ) {
+        return 4;
+    }
+    if( level == 2 ) {
         return 2;
     }
     return 1;
@@ -108,7 +114,7 @@ static int dplasma_hwlock_nb_cores(const dplasma_context_t *context, int level, 
 #endif
 }
 
-static size_t dplasma_hwlock_cache_size(const dplasma_context_t *context, int level, int master)
+static size_t dplasma_hwloc_cache_size(const dplasma_context_t *context, int level, int master)
 {
 #if defined(ON_IG)
     if( level == 0 ) {
@@ -123,6 +129,9 @@ static size_t dplasma_hwlock_cache_size(const dplasma_context_t *context, int le
         return 0;
     }
     if( level == 1 ) {
+        return 0;
+    }
+    if( level == 2 ) {
         return 4096*1024;
     }
     return 32*1024;
@@ -131,19 +140,29 @@ static size_t dplasma_hwlock_cache_size(const dplasma_context_t *context, int le
 #endif
 }
 
-static int dplasma_hwlock_distance(const dplasma_context_t *context, int id1, int id2)
+static int dplasma_hwloc_distance(const dplasma_context_t *context, int id1, int id2)
 {
     int m1, m2;
     if( id1 == id2 ) {
         return 0;
     }
 
-    m1 = dplasma_hwlock_master_id(context, 1, id1);
-    m2 = dplasma_hwlock_master_id(context, 1, id2);
+#ifdef ON_ZOOT
+    if( id1 % 8 == id2 % 8 ) {
+        return 2;
+    }
+    if( id1 % 4 == id2 % 4 ) {
+        return 4;
+    }
+    return 6;
+#else
+    m1 = dplasma_hwloc_master_id(context, 1, id1);
+    m2 = dplasma_hwloc_master_id(context, 1, id2);
     if( m1 == m2 ) {
         return 2;
     }
     return 4;
+#endif
 }
 #endif
 
@@ -405,16 +424,16 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
         }
 
 #if defined(USE_HIERARCHICAL_QUEUES)
-        eu->eu_nb_hierarch_queues = dplasma_hwlock_nb_levels(startup->master_context);
+        eu->eu_nb_hierarch_queues = dplasma_hwloc_nb_levels(startup->master_context);
         assert(eu->eu_nb_hierarch_queues > 0 /* Must have at least a system queue and a socket queue to work with hwloc */ );
 
         eu->eu_hierarch_queues = (dplasma_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dplasma_hbbuffer_t*) );
 
         for(level = 0; level < eu->eu_nb_hierarch_queues; level++) {
             idx = eu->eu_nb_hierarch_queues - 1 - level;
-            master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
+            master = dplasma_hwloc_master_id(startup->master_context, level, eu->eu_id);
             if( eu->eu_id == master ) {
-                int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
+                int nbcores = dplasma_hwloc_nb_cores(startup->master_context, level, master);
                 int queue_size = 96 * (level+1) / nbcores;
                 if( queue_size < nbcores ) queue_size = nbcores;
 
@@ -459,14 +478,14 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             /* Then, they know about all other queues, from the closest to the farthest */
             nq = 1;
             for(level = 0;
-                level <= dplasma_hwlock_nb_levels(startup->master_context); 
+                level <= dplasma_hwloc_nb_levels(startup->master_context); 
                 level++) {
                 for(id = (eu->eu_id + 1) % startup->master_context->nb_cores; 
                     id != eu->eu_id; 
                     id = (id + 1) %  startup->master_context->nb_cores) {
                     int d;
 
-                    d = dplasma_hwlock_distance(startup->master_context, eu->eu_id, id);
+                    d = dplasma_hwloc_distance(startup->master_context, eu->eu_id, id);
                     if( d == 2*level || d == 2*level + 1 ) {
                         eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
                         DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
@@ -479,11 +498,11 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #endif
 
 #if defined(DPLASMA_CACHE_AWARENESS)
-        for(level = 0; level < dplasma_hwlock_nb_levels(startup->master_context); level++) {
-        master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
+        for(level = 0; level < dplasma_hwloc_nb_levels(startup->master_context); level++) {
+        master = dplasma_hwloc_master_id(startup->master_context, level, eu->eu_id);
         if( eu->eu_id == master ) {
-                int nbtiles = (dplasma_hwlock_cache_size(startup->master_context, level, master) / TILE_SIZE)-1;
-                int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
+                int nbtiles = (dplasma_hwloc_cache_size(startup->master_context, level, master) / TILE_SIZE)-1;
+                int nbcores = dplasma_hwloc_nb_cores(startup->master_context, level, master);
 
                 /* The master(s) create the cache explorer, using their current closest cache as its father */
                 eu->closest_cache = cache_create( nbcores, eu->closest_cache, nbtiles);

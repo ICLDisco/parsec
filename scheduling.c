@@ -16,6 +16,10 @@
 #include "profiling.h"
 #include "remote_dep.h"
 
+#if defined(HAVE_HWLOC) && !defined(USE_HIERARCHICAL_QUEUES)
+int dplasma_hwloc_nb_cores(const dplasma_context_t *context, int level, int master);
+#endif
+
 #if defined(DPLASMA_PROFILING) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dplasma_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
@@ -321,7 +325,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
             
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) && defined(USE_HIERARCHICAL_QUEUES)
             force_feed_hbbuffers(eu_context);
 #endif
         }
@@ -367,7 +371,17 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             {
                 int i;
 #  if defined(HAVE_HWLOC) 
-                for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++ ) {
+
+                int max = eu_context->eu_nb_hierarch_queues;
+
+#if !defined(USE_HIERARCHICAL_QUEUES)
+                if( master_context->taskstodo < 2 * master_context->nb_cores ) {
+                    int nbc = dplasma_hwloc_nb_cores( master_context, 1, eu_context->eu_id );
+                    max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
+                }
+#endif
+
+                for(i = 0; i < max; i++ ) {
                     exec_context = DPLASMA_POP( eu_context, eu_hierarch_queues[i] );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;
