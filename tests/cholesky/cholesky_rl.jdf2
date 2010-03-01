@@ -1,92 +1,110 @@
 
 
-TASK: task_dgemm(k,m,n){
+TASK: tile_sgemm(k,m,n){
   k=0..BB-1
-  m=k+1..BB-1
+  m=k+2..BB-1
   n=k+1..m-1
 
   /*D == a(m,n)*/
+  /*C == a(n,k)*/
+  OUT D -> C tile_strsm(k+1,m)  {0 <= k <= m-2 && m < BB && (n=k+1) }
+
+  /*D == a(m,n)*/
+  /*D == a(m,n)*/
+  OUT D -> D tile_sgemm(k+1,m,n)  {k+2 <= n < m < BB && 0 <= k}
+
+
+  /*D == a(m,n)*/
+  IN D <- a(m,n)  IN(m,n) {1 <= n < m < BB && (k=0) }
+
+  /*B == a(n,k)*/
+  /*C == a(n,k)*/
+  IN B <- C tile_strsm(k,n) {0 <= k < n < m < BB}
+
   /*C == a(m,k)*/
-  OUT D -> C task_dtrsm(k+1,m)  {0 <= k <= m-2 && m < BB && (n=k+1) }
+  /*C == a(n,k)*/
+  IN C <- C tile_strsm(k,m) {0 <= k < n < m < BB}
 
   /*D == a(m,n)*/
   /*D == a(m,n)*/
-  OUT D -> D task_dgemm(k+1,m,n)  {k+2 <= n < m < BB && 0 <= k}
-
-  /*D == a(m,n)*/
-  /*D == a(m,n)*/
-  OUT D -> D task_dgemm(k+1,m,n)  {k+2 <= n < m < BB && 0 <= k}
-
-
-  /*B == a(k,n)*/
-  IN B <- a(k,n)  IN(k,n) {0 <= k < n < m < BB}
-
-  /*D == a(m,n)*/
-  IN D <- a(m,n)  IN(m,n) {1 <= n < m < BB && (k=0) }
-
-  /*D == a(m,n)*/
-  IN D <- a(m,n)  IN(m,n) {1 <= n < m < BB && (k=0) }
-
-  /*D == a(m,n)*/
-  /*D == a(m,n)*/
-  IN D <- D task_dgemm(k-1,m,n) {1 <= k < n < m < BB}
-
-  /*D == a(m,n)*/
-  /*D == a(m,n)*/
-  IN D <- D task_dgemm(k-1,m,n) {1 <= k < n < m < BB}
+  IN D <- D tile_sgemm(k-1,m,n) {1 <= k < n < m < BB}
 }
 
 
-TASK: task_dpotrf(k){
+TASK: tile_spotrf(k){
   k=0..BB-1
 
   /*B == a(k,k)*/
   /*B == a(k,k)*/
-  OUT B -> B task_dtrsm(k,k+1..BB-1)  {0<=k<BB-1}
+  OUT B -> B tile_strsm(k,k+1..BB-1)  {0<=k<BB-1}
 
   /*B == a(k,k)*/
   OUT B -> a(k,k) OUT(k,k)  {0 <= k < BB}
 
 
   /*B == a(k,k)*/
-  IN B <- a(k,k)  IN(k,k) {0 <= k < BB}
+  IN B <- a(0,0)  IN(0,0) {1 <= BB && (k=0) }
+
+  /*B == a(k,k)*/
+  /*C == a(n,n)*/
+  IN B <- C tile_ssyrk(k-1,k) {1 <= k < BB}
 }
 
 
-TASK: task_dsyrk(k,m){
+TASK: tile_ssyrk(k,n){
   k=0..BB-1
-  m=k+1..BB-1
+  n=k+1..BB-1
 
-  /*C == a(m,k)*/
-  OUT C -> a(m,k) OUT(m,k)  {0 <= k < m < BB}
+  /*C == a(n,n)*/
+  /*B == a(k,k)*/
+  OUT C -> B tile_spotrf(k+1)  {0 <= k <= BB-2 && (n=k+1) }
+
+  /*C == a(n,n)*/
+  /*C == a(n,n)*/
+  OUT C -> C tile_ssyrk(k+1,n)  {0 <= k <= n-2 && n < BB}
 
 
-  /*B == a(m,m)*/
-  IN B <- a(m,m)  IN(m,m) {0 <= k < m < BB}
+  /*C == a(n,n)*/
+  IN C <- a(n,n)  IN(n,n) {1 <= n < BB && (k=0) }
 
-  /*C == a(m,k)*/
-  /*C == a(m,k)*/
-  IN C <- C task_dtrsm(k,m) {0 <= k < m < BB}
+  /*B == a(n,k)*/
+  /*C == a(n,k)*/
+  IN B <- C tile_strsm(k,n) {0 <= k < n < BB}
+
+  /*C == a(n,n)*/
+  /*C == a(n,n)*/
+  IN C <- C tile_ssyrk(k-1,n) {1 <= k < n < BB}
 }
 
 
-TASK: task_dtrsm(k,m){
+TASK: tile_strsm(k,n){
   k=0..BB-1
-  m=k+1..BB-1
+  n=k+1..BB-1
 
+  /*C == a(n,k)*/
+  /*B == a(n,k)*/
+  OUT C -> B tile_ssyrk(k,n)  {0 <= k < n < BB}
+
+  /*C == a(n,k)*/
+  /*B == a(n,k)*/
+  OUT C -> B tile_sgemm(k,n+1..BB-1,n)  {0<=k<n<BB-1}
+
+  /*C == a(n,k)*/
   /*C == a(m,k)*/
-  /*C == a(m,k)*/
-  OUT C -> C task_dsyrk(k,m)  {0 <= k < m < BB}
+  OUT C -> C tile_sgemm(k,n,k+1..n-1)  {0<=k<n-1 < BB-1}
+
+  /*C == a(n,k)*/
+  OUT C -> a(n,k) OUT(n,k)  {0 <= k < n < BB}
 
 
-  /*C == a(m,k)*/
-  IN C <- a(m,0)  IN(m,0) {1 <= m < BB && (k=0) }
+  /*C == a(n,k)*/
+  IN C <- a(n,0)  IN(n,0) {1 <= n < BB && (k=0) }
 
   /*B == a(k,k)*/
   /*B == a(k,k)*/
-  IN B <- B task_dpotrf(k) {0 <= k < m < BB}
+  IN B <- B tile_spotrf(k) {0 <= k < n < BB}
 
-  /*C == a(m,k)*/
+  /*C == a(n,k)*/
   /*D == a(m,n)*/
-  IN C <- D task_dgemm(k-1,m,k) {1 <= k < m < BB}
+  IN C <- D tile_sgemm(k-1,n,k) {1 <= k < n < BB}
 }
