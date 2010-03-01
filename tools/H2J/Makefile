@@ -1,5 +1,5 @@
 CXX=g++-4.2
-CXXFLAGS=-g
+CXXFLAGS=-O3
 LDFLAGS=-L/opt/local/lib -lboost_regex-mt
 
 all:	kill
@@ -9,3 +9,6 @@ s2p:	smpss_to_petit.cpp
 
 kill:	kill.cpp
 	$(CXX) $(CXXFLAGS) kill.cpp -o kill
+
+clean:
+	@rm -rf *.o *.dSYM kill

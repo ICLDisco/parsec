@@ -1,5 +1,6 @@
 #include "kill.hpp"
 #include <stdio.h>
+#include <ctype.h>
 
 list<dep_t> flow_deps, output_deps, merged_deps;
 map<string,task_t> taskMap;
@@ -18,6 +19,11 @@ void mergeLists(void);
 string processDep(dep_t dep, string dep_set, bool isInversed);
 void dumpDep(dep_t dep, string iv_set, bool isInversed);
 bool isFakeVariable(string var);
+string removeVarFromCond(string var, string condStr);
+string removeVarFromSimpleCond(string var, string condStr);
+string expressionToRange(string var, string condStr);
+string offsetVariables( string vars, string off );
+bool isExpressionOrConst(string var);
 
 string trimAll(string str);
 string removeWS(string str);
@@ -455,6 +461,135 @@ list<string> stringToVarList( string str ){
 }
 
 
+string removeVarFromCond(string var, string condStr){
+    string resultCond;
+    int loglOpLen;
+
+    if( condStr.find(var) == string::npos )
+        return condStr;
+
+    // If the condition is a logical combination of multiple simpler
+    // conditions, process each simple condition individually. 
+    unsigned int pos = condStr.find_first_of("&|");
+    while( pos != string::npos ){
+        // See if Omega uses the double symbols "&&" and "||" or the single "&" and "|"
+        if( condStr.find("&&") != string::npos || condStr.find("||") != string::npos ){
+            loglOpLen = 2;
+        }else{
+            loglOpLen = 1;
+        }
+        // Take the first simple condition, clean it and put it in a new string
+        resultCond += removeVarFromSimpleCond( var, condStr.substr(0,pos) );
+        // Add the logical operator to the new string
+        resultCond += " "+condStr.substr(pos,loglOpLen)+" ";
+
+        condStr = condStr.substr(pos+loglOpLen);
+        pos = condStr.find_first_of("&|");
+    }
+    resultCond += removeVarFromSimpleCond( var, condStr );
+
+    // return the new string containing the cleaned condition.
+    return resultCond;
+}
+
+
+/*
+ * Warning: If after removing the variable from the condition, the condition ends up
+ * having no "=" or "<" symbols (i.e. the condition has devolved into a single variable,
+ * or list of variables but no comparison operators), then we return a condition
+ * that is always true (in particular: "1>0").
+ */
+string removeVarFromSimpleCond(string var, string condStr){
+     unsigned int pos;
+
+     // Remove the white spaces to simplify parsing.
+     condStr = removeWS(condStr);
+
+     pos = condStr.find(var);
+     // if we found the var, split the string in "left" and "right" around the var
+     if( pos != string::npos ){
+         string left = condStr.substr(0,pos);
+         string right = condStr.substr(pos+var.length());
+
+         // Check if the variable is part of a comma separated list of variables.
+         unsigned int beforV = pos-1;
+         unsigned int afterV = pos+var.length()+1;
+
+         // if there is a comma before/after the variable remove the variable and the comma
+         // and leave the remaining condition untouched.
+         if( beforV >= 0 && condStr[beforV] == ',' ){
+             left = condStr.substr(0,beforV);
+             string result = left+right;
+             if( result.find_first_of("=<") == string::npos )
+                 return string("1>0");
+             return result;
+         }
+         if( condStr.length() > afterV && condStr[afterV] == ',' ){
+             right = condStr.substr(afterV);
+             string result = left+right;
+             if( result.find_first_of("=<") == string::npos )
+                 return string("1>0");
+             return result;
+         }
+
+         // if the comparison operator to the right of the variable is "<=" then we can just
+         // remove the variable and the operator and leave the rest of the condition untouched.
+         pos = right.find("<=");
+         if( pos != string::npos ){
+             return left+right.substr(pos+2);
+         }
+
+         pos = right.find("<");
+         if( pos != string::npos ){
+             // take the part of the string after the "<" or "<=" symbol. This should contain
+             // the upper bound, probably followed by other stuff starting with "<".
+             right = right.substr(pos+1);
+             string offVar, result;
+
+             unsigned int posS = 0;
+             unsigned int posE = right.find("<");
+             while( posE != string::npos ){
+                 offVar = offsetVariables( right.substr(posS,posE), "-1" );
+                 result += offVar;
+                 if( right.length() > posE+1 && right[posE+1] == '=' ){
+                     result += " <= ";
+                     posS = posE+2;
+                 }else{
+                     result += " < ";
+                     posS = posE+1;
+                 }
+                 posE = right.find("<", posS);
+             }
+             offVar = offsetVariables( right.substr(posS), "-1" );
+             result += offVar;
+
+             return left+result;
+         }else{
+             cerr << "ERROR: condition ends in temp variable: \"" << condStr << "\"" << endl;
+         }
+     }
+     return condStr;
+}
+
+
+// Append to all comma separated variables the string "off"
+string offsetVariables( string vars, string off ){
+    string result;
+
+    vars = removeWS(vars);
+
+    unsigned int pos = vars.find(",");
+    while( pos != string::npos ){
+        string tmp = vars.substr(0,pos);
+        result += tmp+off+",";
+        vars = vars.substr(pos+1);
+        pos = vars.find(",");
+    }
+    result += vars+off;
+   
+    return result;
+}
+
 string expressionToRange(string var, string condStr){
     string lb, ub, off;
     list<string> conditions;
@@ -544,15 +679,15 @@ string expressionToRange(string var, string condStr){
 }
 
 
-void dumpDep(dep_t dep, string iv_set, bool isInversed){
+void dumpDep(stringstream &ss, dep_t dep, string iv_set, bool isInversed){
     if( isInversed ){
-        cout << dep.sink << " " << dep.dstArray;
-        cout << " <- " << dep.source << " " << dep.srcArray;
-        cout << " " << iv_set << endl;
+        ss << dep.sink << " " << dep.dstArray;
+        ss << " <- " << dep.source << " " << dep.srcArray;
+        ss << " " << iv_set << endl;
     }else{
-        cout << dep.source << " " << dep.srcArray;
-        cout << " -> " << dep.sink << " " << dep.dstArray;
-        cout << " " << iv_set << endl;
+        ss << dep.source << " " << dep.srcArray;
+        ss << " -> " << dep.sink << " " << dep.dstArray;
+        ss << " " << iv_set << endl;
     }
     return;
 }
@@ -566,7 +701,7 @@ void dumpMap(stringstream &ss, map<string,string> sV){
 }
 
 string processDep(dep_t dep, string iv_set, bool isInversed){
-    stringstream ss;
+    stringstream ss, ss0;
     string srcParams, dstParams, junk;
     unsigned int posLB, posRB, posCOL;
     list<string> srcFormals, dstFormals;
@@ -602,8 +737,8 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
         dstFormals = stringToVarList( dstFrmlStr );
 
     // Process the sets of actual parameters
-    ss << iv_set;
-    ss >> srcParams >> junk >> dstParams;
+    ss0 << iv_set;
+    ss0 >> srcParams >> junk >> dstParams;
 
     // Get the list of actual parameters of the source task
     posLB = srcParams.find("[");
@@ -626,7 +761,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     list<string> dstActuals = stringToVarList(dstParams);
 
     // Get the conditions that Omega told us and clean up the string
-    string cond = ss.str();
+    string cond = ss0.str();
     posCOL = cond.find(":");
     posRB = cond.find("}");
     if( posCOL == string::npos || posRB == string::npos ){
@@ -652,7 +787,6 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     string sink = dep.sink.substr(0,posLB);
     
     
-
     if( srcFormals.size() != srcActuals.size() ){
         cerr << "ERROR: source formal count != source actual count" << endl;
     }
@@ -660,10 +794,11 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     list<string>::iterator srcF_itr;
     list<string>::iterator srcA_itr;
 
+    // For every source actual that is an "In_1" type variable (i.e. "In_" followed by number)
+    // which is what Omega will introduce when we inverse the sets, replace it with the
+    // corresponding formal, in the source and destination sets as well as in the conditions.
+    // Also do that for the special induction variables "ii" and "jj".
     if(isInversed){
-        // For every source actual that is an "In_1" type variable (i.e. "In_" followed by number)
-        // which is what Omega will introduce when we inverse the sets, replace it with the
-        // corresponding formal, in the source and destination sets as well as in the conditions.
         srcF_itr=srcFormals.begin();
         srcA_itr=srcActuals.begin();
         for (; srcF_itr!=srcFormals.end(); ++srcF_itr, ++srcA_itr){
@@ -691,23 +826,68 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
         }
     }
 
-    // For every source actual that is not the same variable as the formal
-    // (i.e. it's an expression) add the condition (formal_variable=actual_expression)
-    srcF_itr=srcFormals.begin();
-    srcA_itr=srcActuals.begin();
+    // For every source actual that is not the same variable as the formal do the following:
+    // A) If we are looking at an OUT dep, then the actual is an expression and we need to
+    // add the condition (formal_variable=actual_expression) into the conditions.
+    // B) If we are looking at an IN dep, then if:
+    //   i) the actual is a constant, we should do as we do for the OUTs, add the condition
+    //      (formal_variable=actual_expression) into the conditions.
+    //  ii) otherwise, we should (carefully) replace the actual with the formal in the 
+    //      destination actuals and the conditions.  Carefully means that we should replace
+    //      the vars in a copy string, while finding them in the original, so we don't have
+    //      cascading replaces.  To better understand the problem, consider the operations: 
+    //      replace (m) with (k) _AND_ replace (m') with (m) _AND_ replace (k) with (n)
+
+    // create the copies
+    string newCond = cond;
+    list<string>newDstActuals( dstActuals ); 
+
+    srcF_itr   = srcFormals.begin();
+    srcA_itr   = srcActuals.begin();
     for (; srcF_itr!=srcFormals.end(); ++srcF_itr, ++srcA_itr){
         string fParam = *srcF_itr;
         string aParam = *srcA_itr;
         if( fParam.compare(aParam) != 0 ){ // if they are different
-            cond = cond.append(" && ("+fParam+"="+aParam+") ");
+            if( isInversed ){ // if an IN dep
+                if( isExpressionOrConst(aParam) ){
+                    newCond = newCond.append(" && ("+fParam+"="+aParam+") ");
+                }else{
+                    // Fix the destination actuals. Since we are looking at an IN dep
+                    // dstActuals are the actuals of the TASK that sends us this data.
+                    list<string>::iterator newDstA_itr, dstA_itr;
+                    newDstA_itr= newDstActuals.begin();
+                    dstA_itr   = dstActuals.begin();
+                    for (; dstA_itr!=dstActuals.end(); ++dstA_itr, ++newDstA_itr){
+                        // if the original list has this actual, replace it in the copy
+                        if( !(*dstA_itr).compare(aParam) ){
+                            *newDstA_itr = fParam;
+                        }
+                    }
+
+                    // Fix the conditions.
+                    unsigned int pos = cond.find(aParam);
+                    while( pos != string::npos ){
+                        newCond.replace(pos,aParam.length(), fParam);
+                        pos = cond.find(aParam, pos+1);
+                    }
+                }
+            }else{
+                newCond = newCond.append(" && ("+fParam+"="+aParam+") ");
+            }
         }
     }
+    // apply the copies onto the originals
+    cond = newCond;
+    dstActuals = newDstActuals;
+#ifdef DEBUG
+    ss << cond << endl;
+#endif
 
     list<string> actual_parameter_list;
 
-    // For every destination formal, check if it exists among the source formals.
-    // If it doesn't and the corresponding destination actual is not an expression
-    // (i.e. the actual is the same as the formal) replace it with a lb..ub expression.
+    // For every destination actual, check if is exists among the source formals.
+    // If it doesn't and it is not an expression, replace it with a lb..ub expression
+    // and then remove it from the condition.
     // However, if the source task is the special task "IN()", just replace the actuals
     // with the actuals of the destination array.
     list<string>::iterator dstF_itr=dstFormals.begin();
@@ -720,7 +900,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
         list<string>::iterator srcF_itr=srcFormals.begin();
         for (; srcF_itr!=srcFormals.end(); ++srcF_itr){
             string srcfParam = *srcF_itr;
-            if( !srcfParam.compare(dstfParam) ){
+            if( !srcfParam.compare(dstaParam) ){
                 found = true;
                 break;
             }
@@ -729,18 +909,19 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             actual_parameter_list.push_back(dstaParam);
             continue;
         }
-        // if we didn't find the destination formal among the source formals, check if the
-        // destination actual is the same as the destination formal.  If it is, convert it
-        // to a range.
-        if( !dstaParam.compare(dstfParam) && !isInversed ){
-            string range = expressionToRange(dstaParam, cond);
-            actual_parameter_list.push_back(range);
-        }else{ // if formal!=actual then it's probably an expression of source actuals
+
+        if( isExpressionOrConst(dstaParam) ){
             actual_parameter_list.push_back(dstaParam);
+        }else{
+            string range = expressionToRange(dstaParam, cond);
+            cond = removeVarFromCond(dstaParam, cond);
+            actual_parameter_list.push_back(range);
         }
     }
-    if( !isInversed ){
-    }
+
+    //
+    // Manipulation is over, output code follows
+    //
 
     // iterate over the newly created list of actual destination parameters and
     // create a comma separeted list in a string, so we can print it.
@@ -766,7 +947,6 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
         peerTask = taskMap[dep.sink];
     }
 
-    ss.str("");
     if( isInversed ){
         map<string,string> lcl_sV = thisTask.symbolicVars;
         map<string,string> rmt_sV = peerTask.symbolicVars;
@@ -776,11 +956,15 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             ss << "  /*" << rmt_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
 
         ss << "  IN " << lcl_sV[dep.dstArray] << " <- ";
-        // If it's input we don't care about the fake array assignment in the petit file,
-        // rather we use the fact that the dstArray has a literal meaning and it is an
-        // actual array that exists in memory.
+        // If we are receiving from IN, strip the fake array indices that are in the petit file
+        // and put in the actual parameters of the source Task.
+        // Alternatively, we could use the fact that the dstArray has a literal meaning and it
+        // is an actual array that exists in memory.
         if( dep.source.find("IN") != string::npos ){
-            ss << dep.dstArray;
+            string srcArr = dep.srcArray;
+            srcArr = srcArr.substr(0,srcArr.find("("));
+            ss << srcArr << "(" << dstTaskParams << ") ";
+//            ss << dep.dstArray; /* the destination array should be equivalent to the above */
         }else{
             ss << rmt_sV[dep.srcArray];
         }
@@ -794,13 +978,23 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             ss << "  /*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
 
         ss << "  OUT " << lcl_sV[dep.srcArray] << " -> ";
-        if( dep.sink.find("OUT") != string::npos )
-            ss << dep.dstArray << " ";
-        else
+        // If we are sending to OUT, strip the fake array indices that are in the petit file
+        // and put in the actual parameters of the destination Task.
+        if( dep.sink.find("OUT") != string::npos ){
+            string dstArr = dep.dstArray;
+            dstArr = dstArr.substr(0,dstArr.find("("));
+            ss << dstArr << "(" << dstTaskParams << ") ";
+        }else{
             ss << rmt_sV[dep.dstArray] << " ";
+        }
         ss << sink << "(" << dstTaskParams << ")  ";
     }
     ss << "{" << cond << "}";
+
+#ifdef DEBUG
+    ss << endl;
+    dumpDep(ss, dep, iv_set, isInversed);
+#endif
 
     return ss.str();
 }
@@ -809,6 +1003,29 @@ bool isFakeVariable(string var){
     if( var.find("In_") != string::npos ) return true;
     if( !var.compare("ii") ) return true;
     if( !var.compare("jj") ) return true;
+
+    return false;
+}
+
+bool isExpressionOrConst(string var){
+    bool isNumber=true;
+    if( var.find_first_of("+-*/") != string::npos ){
+        return true;
+    }
+
+    for(int i=0; i<var.length(); ++i){
+        if( !isdigit(var[i]) ){
+            isNumber = false;
+            break;
+        }
+    }
+
+    if( isNumber )
+        return true;
+
+    // This is the upper bound of the parameter space, by convention
+    if( !var.compare("BB") )
+        return true;
 
     return false;
 }
