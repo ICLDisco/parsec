@@ -25,18 +25,18 @@ for k = 0 to BB-1 do
 
     for m = k+1 to BB-1 do
         for n = k+1 to m-1 do
-!                        IN      IN      INOUT
+!                        IN      INOUT      IN
 !!            task_dgemm(a(k,n), a(m,k), a(m,n))
             v5 = a(k,n)
             v6 = a(m,n)
             v7 = a(m,n)
-            a(m,n) = v8
+            a(m,k) = v8
         endfor
-!                    IN      INOUT
+!                    INOUT      IN
 !!        task_dsyrk(a(m,m), a(m,k))
         v0 = a(m,m)
         v1 = a(m,k)
-        a(m,k) = v2
+        a(m,m) = v2
     endfor
 endfor
 

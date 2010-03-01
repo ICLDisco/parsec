@@ -1,0 +1,95 @@
+
+
+TASK: task_dgemm(k,m,n){
+  k=0..BB-1
+  m=k+1..BB-1
+  n=k+1..m-1
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  OUT C -> C task_dsyrk(k,m)  {0 <= k <= m-2 && m < BB && (n=m-1) }
+
+  /*C == a(m,k)*/
+  OUT C -> a(m,k) OUT(m,k)  {0 <= k <= m-2 && m < BB && (n=m-1) }
+
+
+  /*B == a(k,n)*/
+  IN B <- a(k,n)  IN(k,n) {0 <= k < n < m < BB}
+
+  /*D == a(m,n)*/
+  IN D <- a(m,n)  IN(m,n) {0 <= k < n < m < BB}
+
+  /*D == a(m,n)*/
+  IN D <- a(m,n)  IN(m,n) {0 <= k < n < m < BB}
+}
+
+
+TASK: task_dpotrf(k){
+  k=0..BB-1
+
+  /*B == a(k,k)*/
+  /*B == a(k,k)*/
+  OUT B -> B task_dtrsm(k,k+1..BB-1)  {0<=k<BB-1}
+
+  /*B == a(k,k)*/
+  OUT B -> a(k,k) OUT(k,k)  {0 <= k < BB}
+
+
+  /*B == a(k,k)*/
+  IN B <- a(0,0)  IN(0,0) {1 <= BB && (k=0) }
+
+  /*B == a(k,k)*/
+  /*B == a(m,m)*/
+  IN B <- B task_dsyrk(k-1,k) {1 <= k < BB}
+}
+
+
+TASK: task_dsyrk(k,m){
+  k=0..BB-1
+  m=k+1..BB-1
+
+  /*B == a(m,m)*/
+  /*B == a(k,k)*/
+  OUT B -> B task_dpotrf(k+1)  {0 <= k <= BB-2 && (m=k+1) }
+
+  /*B == a(m,m)*/
+  /*B == a(m,m)*/
+  OUT B -> B task_dsyrk(k+1,m)  {0 <= k <= m-2 && m < BB}
+
+
+  /*B == a(m,m)*/
+  IN B <- a(m,m)  IN(m,m) {1 <= m < BB && (k=0) }
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  IN C <- C task_dtrsm(k,k+1) {0 <= k <= BB-2 && (m=k+1) }
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  IN C <- C task_dgemm(k,m,m-1) {0 <= k <= m-2 && m < BB}
+
+  /*B == a(m,m)*/
+  /*B == a(m,m)*/
+  IN B <- B task_dsyrk(k-1,m) {1 <= k < m < BB}
+}
+
+
+TASK: task_dtrsm(k,m){
+  k=0..BB-1
+  m=k+1..BB-1
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  OUT C -> C task_dsyrk(k,k+1)  {0 <= k <= BB-2 && (m=k+1) }
+
+  /*C == a(m,k)*/
+  OUT C -> a(k+1,k) OUT(k+1,k)  {0 <= k <= BB-2 && (m=k+1) }
+
+
+  /*C == a(m,k)*/
+  IN C <- a(m,k)  IN(m,k) {0 <= k < m < BB}
+
+  /*B == a(k,k)*/
+  /*B == a(k,k)*/
+  IN B <- B task_dpotrf(k) {0 <= k < m < BB}
+}
