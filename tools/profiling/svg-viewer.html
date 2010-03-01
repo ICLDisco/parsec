@@ -24,11 +24,11 @@
     
     </style>
 
-    <title>DPOSV Gantt-Like Observer</title>
-    <script id="dposv_script">
+    <title> Dplasma Profiling Explorer </title>
+    <script id="svgshow_script">
 var graphwindow = null;
 function opened() {
-        opera.postError(" dposv.html: child window opened ");
+        opera.postError(" child window opened ");
 }
 var Opened = this.opened;
 function prepare(){
@@ -48,7 +48,8 @@ function prepare(){
 	svgright=rightedge;
 	midx=Math.ceil(svgright/2);
 	high=bottomedge-T1H;
-	E="<EMBED name='sv' src='dposv.svg' width='"+svgright+"' height='"+high+"'></EMBED>"
+    svgsrc=document.f.svgsrc.value;
+    E="<EMBED name='sv' src='"+svgsrc+".svg' width='"+svgright+"' height='"+high+"'></EMBED>"
         document.getElementById("gee").innerHTML=E
 	document.getElementById("gee").style.top=T1H
 }
@@ -60,6 +61,17 @@ function mouseMove(t, d) {
         document.f.title.value = t;
         document.f.desc.value = d;
 }
+function nosubmit() 
+{    
+	if (event.keyCode == 13) 
+	{        
+		event.cancelBubble = true;
+		event.returnValue = false;
+	    zoom();
+		translate();
+		source();
+	}
+} 
 function zoom() {
         v = document.f.zoom.value;
         svgzoom( v/10 );
@@ -67,6 +79,10 @@ function zoom() {
 function translate() {
         v = document.f.translate.value;
         svgtranslate( v );
+}
+function source() {
+		svgsrc = document.f.svgsrc.value;
+		ready();
 }
 function error( x ) {
         opera.postError( x );
@@ -80,7 +96,7 @@ function select_function( x ) {
          }
 }
 function sf(x) {
-  opera.postError("dposv.html: outside asks me to select " + x);
+  opera.postError(" outside asks me to select " + x);
   svg_outside_select(x);
 }
 var SF=this.sf;
@@ -90,12 +106,13 @@ var SF=this.sf;
 
   <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="00">
     <div align=center style="position:relative;top:10;">
-      <b>DPOSV Gantt-Like Observer</b>
+      <b>Dplasma Profiling Gantt-Like Observer</b>
       <form name="f">
         <table>
-	  <tr><td>Function Name</td><td><input name=title size=12 /></td><td>Stats</td><td><input name=desc size=48 /></td></tr>
-	  <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td><td>&nbsp;</td></tr>
-	  <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td><td>&nbsp;</td></tr>
+	  <tr><td/><td/><td>Source SVG</td><td><input name=svgsrc size=48 value="../../results/dposv" onkeydown="nosubmit()" onchange="source()" /></td>
+	  <tr><td>Function Name</td><td><input name=title size=12 DISABLED /></td><td>Stats</td><td><input name=desc size=48 DISABLED /></td></tr>
+	  <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onkeydown="nosubmit()" onchange="zoom()"></td><td>&nbsp;</td></tr>
+	  <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onkeydown="nosubmit()" onchange="translate()"></td><td>&nbsp;</td></tr>
 	</table>
       </form>
 <script type="text/javascript">
