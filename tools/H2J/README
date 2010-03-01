@@ -1,6 +1,13 @@
 Instructions on using the JDF generator.
 
 ****************************************
+*** Dependencies:
+
+The toolchain depends on the Omega test, bash, perl and a C++ compiler.
+Please install the Omega test somewhere in your system and set the environment
+variable OMEGA_HOME to the root directory of the installation.
+
+****************************************
 *** Building:
 The toolchain consists of a bash file "getDeps.sh", a perl file "prettyPrint.pl"
 and a binary file "kill".  To generate the binary, just type

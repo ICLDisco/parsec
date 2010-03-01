@@ -4,6 +4,7 @@
 
 list<dep_t> flow_deps, output_deps, merged_deps;
 map<string,task_t> taskMap;
+string omegaHome;
 
 // Forward Function Declarations
 int parse_petit_output(std::istream &ifs);
@@ -130,6 +131,21 @@ int main(int argc, char **argv){
         exit(-1);
     }
 
+    // find Omega
+    char *oH = getenv("OMEGA_HOME");
+    if( !oH ){
+        cerr << "environment variable \"OMEGA_HOME\" is not set" << endl;
+        exit(-1);
+    }
+    omegaHome = string(getenv("OMEGA_HOME"));
+    ifstream test( (omegaHome+"/omega_calc/obj/oc").c_str() );
+    if( !test ){
+        cerr << "ERROR: either environment variable \"OMEGA_HOME\" is wrong, ";
+        cerr << "or the Omega calculator is not in the expected place: ";
+        cerr << omegaHome+"/omega_calc/obj/oc" << endl;
+        exit(-1);
+    }
+  
     fName = argv[1];
 
     if( !string(fName).compare("-") ){
@@ -1122,7 +1138,6 @@ void mergeLists(void){
             filestr << sets_for_omega << endl;
             filestr.close();
 
-            string omegaHome="/Users/adanalis/Desktop/Research/PLASMA_Distributed/Omega";
             FILE *pfp = popen( (omegaHome+"/omega_calc/obj/oc /tmp/oc_in.txt").c_str(), "r");
             stringstream data;
             char buffer[256];
