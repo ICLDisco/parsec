@@ -130,6 +130,21 @@ static size_t dplasma_hwlock_cache_size(const dplasma_context_t *context, int le
     return 6144*1024;
 #endif
 }
+
+static int dplasma_hwlock_distance(const dplasma_context_t *context, int id1, int id2)
+{
+    int m1, m2;
+    if( id1 == id2 ) {
+        return 0;
+    }
+
+    m1 = dplasma_hwlock_master_id(context, 1, id1);
+    m2 = dplasma_hwlock_master_id(context, 1, id2);
+    if( m1 == m2 ) {
+        return 2;
+    }
+    return 4;
+}
 #endif
 
 void dplasma_dump(const dplasma_t *d, const char *prefix)
@@ -389,7 +404,8 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
             eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
         }
 
-        eu->eu_nb_hierarch_queues = dplasma_hwlock_nb_levels(startup->master_context);;
+#if defined(USE_HIERARCHICAL_QUEUES)
+        eu->eu_nb_hierarch_queues = dplasma_hwlock_nb_levels(startup->master_context);
         assert(eu->eu_nb_hierarch_queues > 0 /* Must have at least a system queue and a socket queue to work with hwloc */ );
 
         eu->eu_hierarch_queues = (dplasma_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dplasma_hbbuffer_t*) );
@@ -421,14 +437,48 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                        eu->eu_id, master, level, idx, startup->master_context->execution_units[master]->eu_hierarch_queues[idx]));
                 /* The slaves take their queue for this level from their master */
                 eu->eu_hierarch_queues[idx] = startup->master_context->execution_units[master]->eu_hierarch_queues[idx];
-	    }
+            }
         }
         eu->eu_task_queue = eu->eu_hierarch_queues[0];
+#else /* Don't USE_HIERARCHICAL_QUEUES: USE_FLAT_QUEUES */
+        {
+            int queue_size = startup->master_context->nb_cores * 2;
+            int nq = 0;
+            int id;
+
+            eu->eu_nb_hierarch_queues = startup->master_context->nb_cores;
+            eu->eu_hierarch_queues = (dplasma_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dplasma_hbbuffer_t*) );
+        /* Each thread creates its own "local" queue, connected to the shared dequeue */
+            eu->eu_task_queue = dplasma_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
+                                                      (void*)eu->eu_system_queue);
+            eu->eu_hierarch_queues[0] =  eu->eu_task_queue;
+
+            dplasma_barrier_wait( &startup->master_context->barrier );
+
+            /* Then, they know about all other queues, from the closest to the farthest */
+            nq = 1;
+            for(level = 0;
+                level <= dplasma_hwlock_nb_levels(startup->master_context); 
+                level++) {
+                for(id = 0; id < startup->master_context->nb_cores; id++) {
+                    int d;
+
+                    if(id == eu->eu_id)
+                        continue;
+                    d = dplasma_hwlock_distance(startup->master_context, eu->eu_id, id);
+                    if( d == 2*level || d == 2*level + 1 ) {
+                        eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
+                        nq++;
+                    }
+                }
+            }
+        }
+#endif
 
 #if defined(DPLASMA_CACHE_AWARENESS)
         for(level = 0; level < dplasma_hwlock_nb_levels(startup->master_context); level++) {
-	    master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
-	    if( eu->eu_id == master ) {
+        master = dplasma_hwlock_master_id(startup->master_context, level, eu->eu_id);
+        if( eu->eu_id == master ) {
                 int nbtiles = (dplasma_hwlock_cache_size(startup->master_context, level, master) / TILE_SIZE)-1;
                 int nbcores = dplasma_hwlock_nb_cores(startup->master_context, level, master);
 
