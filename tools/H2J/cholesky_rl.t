@@ -28,7 +28,7 @@ for k = 0 to BB-1 do
 !                        IN      INOUT      IN
 !!            task_dgemm(a(k,n), a(m,k), a(m,n))
             v5 = a(k,n)
-            v6 = a(m,n)
+            v6 = a(m,k)
             v7 = a(m,n)
             a(m,k) = v8
         endfor

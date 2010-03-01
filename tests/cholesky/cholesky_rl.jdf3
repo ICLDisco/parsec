@@ -7,6 +7,10 @@ TASK: task_dgemm(k,m,n){
 
   /*C == a(m,k)*/
   /*C == a(m,k)*/
+  OUT C -> C task_dgemm(k,m,n+1)  {0 <= k < n <= m-2 && m < BB}
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
   OUT C -> C task_dsyrk(k,m)  {0 <= k <= m-2 && m < BB && (n=m-1) }
 
   /*C == a(m,k)*/
@@ -19,8 +23,13 @@ TASK: task_dgemm(k,m,n){
   /*D == a(m,n)*/
   IN D <- a(m,n)  IN(m,n) {0 <= k < n < m < BB}
 
-  /*D == a(m,n)*/
-  IN D <- a(m,n)  IN(m,n) {0 <= k < n < m < BB}
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  IN C <- C task_dtrsm(k,m) {0 <= k <= m-2 && m < BB && (n=k+1) }
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  IN C <- C task_dgemm(k,m,n-1) {k+2 <= n < m < BB && 0 <= k}
 }
 
 
@@ -77,6 +86,10 @@ TASK: task_dsyrk(k,m){
 TASK: task_dtrsm(k,m){
   k=0..BB-1
   m=k+1..BB-1
+
+  /*C == a(m,k)*/
+  /*C == a(m,k)*/
+  OUT C -> C task_dgemm(k,m,k+1)  {0 <= k <= m-2 && m < BB}
 
   /*C == a(m,k)*/
   /*C == a(m,k)*/
