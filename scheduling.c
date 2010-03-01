@@ -16,15 +16,13 @@
 #include "profiling.h"
 #include "remote_dep.h"
 
-#if defined(DPLASMA_PROFILING)
+#if defined(DPLASMA_PROFILING) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dplasma_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
 static int dplasma_execute( dplasma_execution_unit_t*, dplasma_execution_context_t* );
-
-#define DEPTH_FIRST_SCHEDULE 0
 
 static inline void set_tasks_todo(dplasma_context_t* context, uint32_t n)
 {
@@ -49,31 +47,24 @@ static inline void done_task(dplasma_context_t* context)
  */
 int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_context_t* exec_context )
 {
-#if !DEPTH_FIRST_SCHEDULE
-    {
-        dplasma_execution_context_t* new_context;
-        dplasma_execution_unit_t* eu_context;
+    dplasma_execution_context_t* new_context;
+    dplasma_execution_unit_t* eu_context;
 
-        eu_context = context->execution_units[0];
+    eu_context = context->execution_units[0];
 
-        new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-        memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
+    new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+    memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
 #if defined(DPLASMA_CACHE_AWARENESS)
-        new_context->pointers[1] = NULL;
+    new_context->pointers[1] = NULL;
 #endif
-        new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
-        new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
-        return __dplasma_schedule( eu_context, new_context );
-    }
-#else
-    return dplasma_execute(eu_context, exec_context);
-#endif  /* !DEPTH_FIRST_SCHEDULE */
+    new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
+    new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
+    return __dplasma_schedule( eu_context, new_context );
 }
 
 int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
                         dplasma_execution_context_t* new_context )
 {
-#if !DEPTH_FIRST_SCHEDULE
 # ifdef _DEBUG
     char tmp[128];
 # endif
@@ -86,14 +77,19 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     {
         int i;
         for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++) {
-            /* Be nice: share. Push in the closest buffer that is not totally empty (mine if I'm starving) */
-            if( dplasma_hbbuffer_is_empty( eu_context->eu_hierarch_queues[i] ) ) {
-                dplasma_hbbuffer_push( eu_context->eu_hierarch_queues[i], (dplasma_list_item_t*)new_context );
+            /** Be nice: share. Push in the closest buffer that is not ideally filled 
+             *  (mine if I'm starving) */
+            if( dplasma_hbbuffer_push_ideal_nonrec( eu_context->eu_hierarch_queues[i], 
+                                                    (dplasma_list_item_t**)&new_context ) ) {
+                /** Every contexts were pushed at this level or below */
                 break;
             }
         }
         if( i == eu_context->eu_nb_hierarch_queues ) {
-            dplasma_hbbuffer_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+            /** We couldn't push more: everybody above me (and myself) are ideally full, so 
+             *  let's overfill, potentially pushing recursively in the system queue
+             */
+            dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
         }
     }
 #  else
@@ -120,28 +116,10 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 
     DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
     return 0;
-#else /* !DEPTH_FIRST_SCHEDULE */
-    TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
-
-    printf( "This internal version of the dplasma_schedule is not supposed to be called\n");
-    return -1;
-#endif  /* !DEPTH_FIRST_SCHEDULE */
 }
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
 {
-#if 0 /* TODO: remove this when tested, this is done somewhere else now */
-    /* Dirty workaround or how to deliberaty generate memory leaks */
-    {
-        int i, upto = dplasma_nb_elements();
-        
-        for( i = 0; i < upto; i++ ) {
-            dplasma_t* object = (dplasma_t*)dplasma_element_at(i);
-            object->deps = NULL;
-        }
-    }
-#endif
-
 #if defined(DPLASMA_PROFILING)
     /* Reset the profiling information */
     dplasma_profiling_reset();
@@ -235,6 +213,63 @@ static inline dplasma_execution_context_t *choose_local_job( dplasma_execution_u
     return exec_context;
 }
 
+#if defined(HAVE_HWLOC)
+static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
+{
+    int i, nb;
+    dplasma_execution_context_t *exec_context;
+    dplasma_list_item_t *item;
+
+    /* Assume that because this is called, the whole hierarchy is empty. 
+     * -- There is a high probability that another thread is doing the same
+     *    thing at the same time, though. So we'll fill up only until ideally_fill
+     *    of each level.
+     */
+
+    nb = 0;
+
+    /* me first */
+    i = 0;
+    for(;;) {
+        /* Don't take the lock to check that: if we overfill, it's allright */
+        while( i < eu_context->eu_nb_hierarch_queues &&
+               eu_context->eu_hierarch_queues[i]->nbelt >= eu_context->eu_hierarch_queues[i]->ideal_fill )
+            i++;
+
+        if(i == eu_context->eu_nb_hierarch_queues) {
+            /* ok, can't do best */
+            DEBUG(("%d force fed all the buffers of its hierarchy: put %d elements in one go\n",
+                   eu_context->eu_id, nb));
+            return nb;
+        }
+
+        /* The current level can take another more */
+        exec_context = DPLASMA_SYSTEM_POP(eu_context, eu_system_queue);
+        if( NULL == exec_context ) {
+            /* Arf, the system queue is empty -- waste of time... */
+#if defined(_DEBUG)
+            if( nb > 0 ) {
+                DEBUG(("%d force fed up to %d elements in one go up to level %d, but now the system is really starving\n",
+                       eu_context->eu_id, nb, i));
+            } else {
+                DEBUG(("%d couldn't force feed the hierarchy: the system is starving\n",
+                       eu_context->eu_id));
+            }
+#endif
+            return nb;
+        }
+        /* Isolate this element */
+        item = (dplasma_list_item_t*)exec_context;
+        item->list_next = item;
+        item->list_prev = item;
+
+        /* And push it in the current queue level */
+        dplasma_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
+        nb++;
+    }
+}
+#endif
+
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
@@ -282,6 +317,10 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
+            
+#if defined(HAVE_HWLOC)
+            force_feed_hbbuffers(eu_context);
+#endif
         }
         
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
