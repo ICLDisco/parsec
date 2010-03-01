@@ -15,7 +15,7 @@ typedef struct dplasma_t dplasma_t;
 #define MAX_PRED_COUNT   5
 #define MAX_PARAM_COUNT  5
 
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
 #   ifdef USE_MPI
 #include <mpi.h>
 #define DEBUG(ARG)  do { \

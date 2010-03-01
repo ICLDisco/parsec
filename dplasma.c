@@ -971,7 +971,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, *last_deps;
     int i, updated_deps, mask;
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
 
@@ -1170,7 +1170,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 {
     dplasma_t* function = exec_context->function;
     dplasma_dependencies_t *deps, **deps_location, *last_deps;
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
     int i, actual_loop, rc;

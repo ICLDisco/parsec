@@ -16,7 +16,7 @@
 #endif
 
 
-#if defined(DISTRIBUTED) || defined(_DEBUG)
+#if defined(DISTRIBUTED) || defined(DPLASMA_DEBUG)
 # ifdef DEPRECATED
 /* Activate all the dependencies of origin on the rank hosting exec_context
  */
@@ -36,7 +36,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
 # ifdef DEPRECATED
 #   define dplasma_remote_dep_activate(eu, o, op, e, ep) (0)
 # endif
-# ifndef _DEBUG
+# ifndef DPLASMA_DEBUG
 #   define dplasma_remote_dep_activate_rank(eu, o, op, r, d) (0)
 # endif
 #endif

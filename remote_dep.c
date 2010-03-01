@@ -12,7 +12,7 @@
 #include "remote_dep_mpi.c" 
 
 #else 
-#   ifdef _DEBUG
+#   ifdef DPLASMA_DEBUG
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param,
@@ -34,7 +34,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     symbol_dump_all("\tGLOBAL SYMBOLS:\t");
     return -1;
 }
-#   endif /* _DEBUG */
+#   endif /* DPLASMA_DEBUG */
 #endif /* NO TRANSPORT */
 
 
@@ -77,7 +77,7 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 #endif /* DISTRIBUTED */
 
 #define HEAVY_DEBUG
-#if defined(_DEBUG) && defined(HEAVY_DEBUG)
+#if defined(DPLASMA_DEBUG) && defined(HEAVY_DEBUG)
 #define HDEBUG( args ) do { args ; } while(0)
 #else
 #define HDEBUG( args ) do {} while(0)

@@ -65,7 +65,7 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
 int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
                         dplasma_execution_context_t* new_context )
 {
-# ifdef _DEBUG
+# ifdef DPLASMA_DEBUG
     char tmp[128];
 # endif
 
@@ -250,7 +250,7 @@ static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
         exec_context = DPLASMA_SYSTEM_POP(eu_context, eu_system_queue);
         if( NULL == exec_context ) {
             /* Arf, the system queue is empty -- waste of time... */
-#if defined(_DEBUG)
+#if defined(DPLASMA_DEBUG)
             if( nb > 0 ) {
                 DEBUG(("%d force fed up to %d elements in one go up to level %d, but now the system is really starving\n",
                        eu_context->eu_id, nb, i));
@@ -447,7 +447,7 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
                             dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
     
