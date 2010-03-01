@@ -75,6 +75,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
     {
+#    if defined(USE_HIERARCHICAL_QUEUES)
         int i;
         for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++) {
             /** Be nice: share. Push in the closest buffer that is not ideally filled 
@@ -85,12 +86,14 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
                 break;
             }
         }
-        if( i == eu_context->eu_nb_hierarch_queues ) {
-            /** We couldn't push more: everybody above me (and myself) are ideally full, so 
-             *  let's overfill, potentially pushing recursively in the system queue
-             */
-            dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
-        }
+        if( i == eu_context->eu_nb_hierarch_queues )
+#    endif /* USE_HIERARCHICAL_QUEUES */
+            {
+                /** We couldn't push more: everybody above me (and myself) are ideally full, so 
+                 *  let's overfill, potentially pushing recursively in the system queue
+                 */
+                dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+            }
     }
 #  else
 #    if PLACEHOLDER_SIZE

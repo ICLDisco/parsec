@@ -468,6 +468,8 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                     d = dplasma_hwlock_distance(startup->master_context, eu->eu_id, id);
                     if( d == 2*level || d == 2*level + 1 ) {
                         eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
+                        printf("%d: my %d preferred queue is the task queue of %d (%p)\n",
+                               eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]);
                         nq++;
                     }
                 }
