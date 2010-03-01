@@ -90,7 +90,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
                                      const param_t* origin_param,
                                      int rank, void** data)
 {
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
     
@@ -122,7 +122,7 @@ enum {
 } dplasma_remote_dep_tag_t;
 
 /* TODO: smart use of dplasma context instead of ugly globals */
-#define DEP_NB_CONCURENT 8
+#define DEP_NB_CONCURENT 1
 static MPI_Comm dep_comm;
 static MPI_Request dep_req[4 * DEP_NB_CONCURENT];
 static MPI_Request* dep_activate_req = &dep_req[0];
@@ -203,7 +203,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
 
 static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
 {
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
     MPI_Status status;
@@ -687,7 +687,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const param_t* dest_param )
 {
     int rank; 
-#ifdef _DEBUG
+#ifdef DPLASMA_DEBUG
     char tmp[128];
     char tmp2[128];
 #endif
