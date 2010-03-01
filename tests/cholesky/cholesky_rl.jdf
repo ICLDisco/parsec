@@ -217,7 +217,7 @@ n = k+1..m-1
 // Parameters
 IN    A <- C TRSM(k, n)
 IN    B <- C TRSM(k, m)
-INOUT C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, n)
+INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
 BODY
@@ -228,9 +228,9 @@ BODY
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, C /*A(m, k)*/, NB, /*A.nb,*/
+                -1.0, B /*A(m, k)*/, NB, /*A.nb,*/
                       A /*A(n, k)*/, NB, /*A.nb,*/
-                 1.0, B /*A(m, n)*/, NB /*A.nb*/ )
+                 1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
             "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
@@ -250,8 +250,8 @@ BODY
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
-                      C /*A(k, m)*/, NB, /*A.nb,*/
-                 1.0, B /*A(n, m)*/, NB /*A.nb*/ )
+                      B /*A(k, m)*/, NB, /*A.nb,*/
+                 1.0, C /*A(n, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
             "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
