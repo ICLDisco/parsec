@@ -601,12 +601,13 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     int i, j,  rank;
     int req_count;
     MPI_Request * reqs;
+
+    /* we overallocate for rank>0, but who cares ? */ 
+    reqs = malloc(sizeof(MPI_Request) * Ddesc->lmt * Ddesc->lnt);
+    req_count = 0;
     
     if ( Ddesc->mpi_rank == 0)
     {
-        reqs = malloc(sizeof(MPI_Request) * Ddesc->lmt * Ddesc->lnt);
-        req_count = 0;
-
         for (i = 0 ; i < Ddesc->lmt ; i++ )
             for(j = 0; j < Ddesc->lnt ; j++)
             {
@@ -616,8 +617,6 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 else
                     MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &reqs[req_count++] );
             }
-        MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
-        free(reqs);
     }
     else
     {
@@ -626,10 +625,12 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             {
                 rank = dplasma_get_rank_for_tile(Ddesc, i, j);
                 if (rank == Ddesc->mpi_rank)
-                    MPI_Send( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD );
+                    MPI_Isend( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &reqs[req_count++] );
             }
         
     }
+    MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
+    free(reqs);
     return 0;
 #else
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
