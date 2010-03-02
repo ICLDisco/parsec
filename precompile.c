@@ -934,7 +934,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                         "%*s        crank = %s;\n"
                                         "%*s        ncols = %s;\n"
                                         "%*s        rank = crank + rrank * ncols;\n"
-                                        "%*s        DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
+                                        "%*s      //DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
                                         "%*s        ret += dplasma_remote_dep_activate_rank(context,\n"
                                         "%*s                       exec_context,\n"
                                         "%*s                       exec_context->function->inout[%d/*i*/],\n"
