@@ -3,7 +3,6 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
 #include "remote_dep.h"
 #include "scheduling.h"
 #include <stdio.h>

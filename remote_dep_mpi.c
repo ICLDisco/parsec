@@ -89,11 +89,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
                                      const dplasma_execution_context_t* origin,
                                      const param_t* origin_param,
                                      int rank, void** data)
-{
-#ifdef DPLASMA_DEBUG
-    char tmp[128];
-#endif
-    
+{    
     assert(rank >= 0);
     assert(rank < eu_context->master_context->nb_nodes);
     if(dplasma_remote_dep_is_forwarded(eu_context, rank))
@@ -101,7 +97,6 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
         return 0;
     }
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
-    DEBUG(("Realease %s deps\ttrigger REMOTE process rank %d\n", dplasma_service_to_string(origin, tmp, 128), rank ));
     
     /* make sure we don't leave before serving all data deps */
     dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
@@ -220,7 +215,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
             {
-                DEBUG(("%s\tFROM REMOTE process rank %d (i=%d)\n", dplasma_service_to_string(&dep_activate_buff[i], tmp, 128), status.MPI_SOURCE, i));
+                DEBUG(("FROM\t%d\tActivate\ti=%d\t%s\n", status.MPI_SOURCE, i, dplasma_service_to_string(&dep_activate_buff[i], tmp, 128)));
                 remote_dep_mpi_get_data(&dep_activate_buff[i], status.MPI_SOURCE, i);
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
@@ -236,7 +231,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                 assert(i >= 0);
                 if(i < DEP_NB_CONCURENT)
                 {
-                    DEBUG(("Put data\tRCVD (i=%d)\n", i));
+                    DEBUG(("FROM\t%d\tPut data\ti=%d\tunknown \trecv complete\n", status.MPI_SOURCE, i));
                     CRC_PRINT(dep_activate_buff[i].list_item.cache_friendly_emptiness, "R");
                     //TAKE_TIME(MPI_Data_pldr_ek, i);
                     remote_dep_release(eu_context, &dep_activate_buff[i], &dep_activate_buff[i].list_item.cache_friendly_emptiness);
@@ -249,7 +244,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                      * to be processed */
                     //TAKE_TIME(MPI_Data_plds_ek, i);
                     i -= DEP_NB_CONCURENT;
-                    DEBUG(("Put data\tSENT (i=%d)\n", i));
+                    DEBUG(("TO\tna\tPut data\tj=%d\tunknown \tsend complete\n", i));
                     MPI_Start(&dep_get_req[i]);
                     /* Allow for termination if needed */
                     dplasma_atomic_dec_32b( &(eu_context->master_context->taskstodo) );
@@ -264,7 +259,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
 static void remote_dep_mpi_put_data(void* data, int to, int i)
 {
     //TAKE_TIME(MPI_Data_plds_sk, i);
-    DEBUG(("Put data\tTO REMOTE process %d from address %p (i=%d)\n", to, data, i));
+    DEBUG(("TO\t%d\tPut data\tj=%d\tunknown \twith data at %p\n", to, i, data));
     MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_snd_req[i]);
 }
 
@@ -272,9 +267,12 @@ static int get = 0;
 
 static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from, int i)
 {
+#ifdef DPLASMA_DEBUG
+    char tmp[128];
+#endif    
     void* datakey = task->list_item.cache_friendly_emptiness;
     
-    DEBUG(("Get data\tfrom REMOTE process %d at remote address %p (i=%d)\n", from, task->list_item.cache_friendly_emptiness, i));
+    DEBUG(("TO\t%d\tGet data\ti=%d\t%s\twith data at %p\n", from, i, dplasma_service_to_string(task, tmp, 128), task->list_item.cache_friendly_emptiness));
     task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
     //TAKE_TIME(MPI_Data_pldr_sk, i);
     MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
@@ -290,8 +288,12 @@ static int activate = 1;
 /* Send the activate tag */
 static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, void **data)
 {
+#ifdef DPLASMA_DEBUG
+    char tmp[128];
+#endif    
+    
     TAKE_TIME(MPI_Activate_sk, activate);
-    DEBUG(("Activate\tto REMOTE process %d with data at %p\n", rank, data[0]));    
+    DEBUG(("TO\t%d\tActivate\ti=na\t%s\twith data at %p\n", rank, dplasma_service_to_string(task, tmp, 128), data[0]));
     CRC_PRINT(((double**) data)[0], "S");
     
     ((dplasma_execution_context_t*) task)->list_item.cache_friendly_emptiness = data[0];
