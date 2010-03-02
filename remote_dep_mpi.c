@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "profiling.h"
 
-#define USE_MPI_THREAD
+#define USE_MPI_THREAD_NONE
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -283,7 +283,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
     TAKE_TIME(MPI_Data_ctl_ek, get++);
 }
 
-static int activate = 1;
+static int activate_count = 1;
 
 /* Send the activate tag */
 static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, void **data)
@@ -292,13 +292,14 @@ static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank
     char tmp[128];
 #endif    
     
-    TAKE_TIME(MPI_Activate_sk, activate);
+    TAKE_TIME(MPI_Activate_sk, activate_count);
     DEBUG(("TO\t%d\tActivate\ti=na\t%s\twith data at %p\n", rank, dplasma_service_to_string(task, tmp, 128), data[0]));
     CRC_PRINT(((double**) data)[0], "S");
     
     ((dplasma_execution_context_t*) task)->list_item.cache_friendly_emptiness = data[0];
     MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
-    TAKE_TIME(MPI_Activate_ek, activate++);
+    TAKE_TIME(MPI_Activate_ek, activate_count++);
+    
     return 1;
 }
 
