@@ -73,8 +73,8 @@ static inline void dplasma_remote_dep_mark_forwarded( dplasma_execution_unit_t* 
     uint32_t mask;
     
     /*DEBUG(("fw mark\tREMOTE rank %d\n", rank));*/
-    boffset = rank / sizeof(uint32_t);
-    mask = ((uint32_t)1) << (rank % sizeof(uint32_t));
+    boffset = rank / (8 * sizeof(uint32_t));
+    mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
     eu_context->remote_dep_fw_mask[boffset] |= mask;
 }
@@ -85,11 +85,11 @@ static inline int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_
     int boffset;
     uint32_t mask;
     
-    boffset = rank / sizeof(uint32_t);
-    mask = ((uint32_t)1) << (rank % sizeof(uint32_t));
+    boffset = rank / (8 * sizeof(uint32_t));
+    mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
     /*DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));*/
-    return (int) (eu_context->remote_dep_fw_mask[boffset] & mask);
+    return (int) ((eu_context->remote_dep_fw_mask[boffset] & mask) != 0);
 }
 
 #else 

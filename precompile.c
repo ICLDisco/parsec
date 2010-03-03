@@ -913,7 +913,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         symbol_t *rowsize;
                         symbol_t *colsize;
                             
-                        if(dplasma_remote_dep_get_rank_preds((const expr_t **)dep->dplasma->preds, 
+                        if(dplasma_remote_dep_get_rank_preds((const expr_t **)target->preds, 
                                                              &rowpred, 
                                                              &colpred, 
                                                              &rowsize,
@@ -1679,8 +1679,8 @@ int dplasma_dump_all_c(char *filename)
            "  int _vmax = (vMAX); \\\n"
            "  (DEPS) = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) + \\\n"
            "                                           (_vmax - _vmin) * sizeof(dplasma_dependencies_union_t)); \\\n"
-           "  DEBUG((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\", \\\n"
-           "         (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP))); \\\n"
+           "  /*DEBUG((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\", */\\\n"
+           "  /*       (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP))); */\\\n"
            "  (DEPS)->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL; \\\n"
            "  (DEPS)->symbol = (vSYMBOL); \\\n"
            "  (DEPS)->min = _vmin; \\\n"

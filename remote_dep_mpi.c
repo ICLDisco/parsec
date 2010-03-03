@@ -224,12 +224,15 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
+                assert(0);
                 i -= DEP_NB_CONCURENT; /* shift i */
                 assert(i >= 0);
                 remote_dep_mpi_put_data(dep_get_buff[i], status.MPI_SOURCE, i);
             }
             else 
             {
+                assert(0);
+
                 assert(REMOTE_DEP_PUT_DATA_TAG == status.MPI_TAG);
                 i -= DEP_NB_CONCURENT * 2;
                 assert(i >= 0);
@@ -284,10 +287,9 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
 
     TAKE_TIME(MPI_Data_ctl_sk, get);
     MPI_Send(&datakey, 1, datakey_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
- */
-    
     TAKE_TIME(MPI_Data_ctl_ek, get++);
-}
+*/
+ }
 
 static int activate_count = 1;
 
