@@ -14,6 +14,8 @@ extern PLASMA_desc descL;
 int _PLASMA_INFO;
 extern int* _IPIV;
 
+#define OUTPUT(ARGS) printf ARGS
+
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #define L(m,n) &(((double*)descL.mat)[descL.bsiz*(m)+descL.bsiz*descL.lmt*(n)])
 #define IPIV(m,n) &_IPIV[descA.nb*(m)+descA.nb*descA.lmt*(n)]
@@ -103,7 +105,7 @@ BODY
                 if (_PLASMA_INFO == 0 && iinfo > 0 && k == descA.mt-1)
                     _PLASMA_INFO = iinfo + descA.nb*k;
 #else
-        OUTPUT(( "void task_DGETRF(double *A, int *IPIV)" ))
+        OUTPUT(( "void task_DGETRF(double *A, int *IPIV)" ));
 #endif  /* !defined(DPLASMA_DRY_RUN) */
 
 END
@@ -151,7 +153,7 @@ BODY
                     _PLASMA_INFO = iinfo + descA.nb*k;
                 dplasma_private_memory_push(work_pool, work);
 #else
-     OUTPUT(("void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)"))
+     OUTPUT(("void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)"));
 #endif  /* !defined(DPLASMA_DRY_RUN) */
 END
 
@@ -184,7 +186,7 @@ BODY
                     L /*A(k, k)*/, descA.nb,
                     C1 /*A(k, n)*/, descA.nb);
 #else
-     OUTPUT(("void task_DGESSM(int *IPIV, double *L, double *C1)"))
+     OUTPUT(("void task_DGESSM(int *IPIV, double *L, double *C1)"));
 #endif  /* !defined(DPLASMA_DRY_RUN) */
 END
 
@@ -227,7 +229,7 @@ BODY
                     L  /*A(m, k)*/, descA.nb,
                     IPIV /*IPIV(m, k)*/);
  #else
-    OUTPUT(("void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"))
+    OUTPUT(("void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"));
 #endif  /*!defined(DPLASMA_DRY_RUN)*/
 END
 
