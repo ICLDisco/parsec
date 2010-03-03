@@ -91,6 +91,7 @@ int do_warmup = 0;
 int do_nasty_validations = 0;
 int cores = 1;
 int nodes = 1;
+int nbtasks = -1;
 #define N (ddescA.n)
 #define NB (ddescA.nb)
 #define rank (ddescA.mpi_rank)
@@ -169,7 +170,11 @@ int main(int argc, char ** argv)
             dplasma_progress(dplasma);
             TIME_PRINT(("Dplasma computation:\t%d %d %f Gflops\n", N, NB, 
                         gflops = flops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed * nodes)));
-
+            if(0 == nbtasks)
+            {
+                gflops = flops = 0.0f;
+            }
+            
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
@@ -409,7 +414,7 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "stileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
-    enumerate_dplasma_tasks(dplasma);
+    nbtasks = enumerate_dplasma_tasks(dplasma);
     
     return dplasma;
 }
