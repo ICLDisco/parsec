@@ -1019,8 +1019,8 @@ static void malloc_deps(dplasma_execution_unit_t* eu_context,
             deps = *deps_location;
         }
         
-        DEBUG(("Prepare storage for next loop variable at %d\n",
-               CURRENT_DEPS_INDEX(i)));
+        DEBUG(("Prepare storage for next loop variable (value=%d) at %d\n",
+               exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
         deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
         last_deps = deps;
     }
@@ -1072,9 +1072,11 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DPLASMA_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
         mask |= dplasma_check_IN_dependencies( exec_context );
+#ifdef DPLASMA_DEBUG
         if( mask > 0 ) {
             DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
         }
+#endif /* DPLASMA_DEBUG */
     }
 
     updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
