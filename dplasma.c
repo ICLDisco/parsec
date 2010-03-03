@@ -974,6 +974,62 @@ static int dplasma_check_IN_dependencies( const dplasma_execution_context_t* exe
 
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
+static void malloc_deps(dplasma_execution_unit_t* eu_context, 
+                        dplasma_execution_context_t* exec_context, 
+                        dplasma_dependencies_t** deps_location)
+{
+    dplasma_t* function = exec_context->function;
+    deps_location = &(function->deps);
+    dplasma_dependencies_t* deps = *deps_location;
+    dplasma_dependencies_t* last_deps = NULL;
+    int i;
+    
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_trace(eu_context->eu_profile, MEMALLOC_start_key, 0);
+#endif
+    
+    for( i = 0; i < function->nb_locals; i++ ) {
+        if( NULL == (*deps_location) ) {
+            int min, max, number;
+            /* TODO: optimize this section (and the similar one few tens of lines down
+             * the code) to work on local ranges instead of absolute ones.
+             */
+            dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
+            dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
+            number = max - min;
+            DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
+                   number, function->locals[i]->name, min, max));
+            deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
+                                                   number * sizeof(dplasma_dependencies_union_t));
+            deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
+            deps->symbol = function->locals[i];
+            deps->min = min;
+            deps->max = max;
+            deps->prev = last_deps; /* chain them backward */
+            if( 0 == dplasma_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
+                /* Some other thread manage to set it before us. Not a big deal. */
+                free(deps);
+                goto deps_created_by_another_thread;
+            }
+            if( NULL != last_deps ) {
+                last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
+            }
+        } else {
+        deps_created_by_another_thread:
+            deps = *deps_location;
+        }
+        
+        DEBUG(("Prepare storage for next loop variable at %d\n",
+               CURRENT_DEPS_INDEX(i)));
+        deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
+        last_deps = deps;
+    }
+#ifdef DPLASMA_PROFILING
+    dplasma_profiling_trace(eu_context->eu_profile, MEMALLOC_end_key, 0);
+#endif    
+}
+
+
 /**
  * Release the OUT dependencies for a single instance of a task. No ranges are
  * supported and the task is supposed to be valid (no input/output tasks) and
@@ -988,64 +1044,18 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                                             dplasma_execution_context_t** pready_list )
 {
     dplasma_t* function = exec_context->function;
-    dplasma_dependencies_t *deps, *last_deps;
+    dplasma_dependencies_t *deps;
     int i, updated_deps, mask;
 #ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
 
     DEBUG(("Activate dependencies for %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
-    deps = *deps_location;
     if( NULL == *deps_location ) {
-        deps_location = &(function->deps);
-        deps = *deps_location;
-        last_deps = NULL;
-
-#ifdef DPLASMA_PROFILING
-        dplasma_profiling_trace(eu_context->eu_profile, MEMALLOC_start_key, 0);
-#endif
-        
-        for( i = 0; i < function->nb_locals; i++ ) {
-            if( NULL == (*deps_location) ) {
-                int min, max, number;
-                /* TODO: optimize this section (and the similar one few tens of lines down
-                 * the code) to work on local ranges instead of absolute ones.
-                 */
-                dplasma_symbol_get_absolute_minimum_value( function->locals[i], &min );
-                dplasma_symbol_get_absolute_maximum_value( function->locals[i], &max );
-                number = max - min;
-                DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
-                       number, function->locals[i]->name, min, max));
-                deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
-                                                       number * sizeof(dplasma_dependencies_union_t));
-                deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
-                deps->symbol = function->locals[i];
-                deps->min = min;
-                deps->max = max;
-                deps->prev = last_deps; /* chain them backward */
-                if( 0 == dplasma_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
-                    /* Some other thread manage to set it before us. Not a big deal. */
-                    free(deps);
-                    goto deps_created_by_another_thread;
-                }
-                if( NULL != last_deps ) {
-                    last_deps->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;
-                }
-            } else {
-            deps_created_by_another_thread:
-                deps = *deps_location;
-            }
-
-            DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
-                   exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
-            deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
-            last_deps = deps;
-        }
-#ifdef DPLASMA_PROFILING
-        dplasma_profiling_trace(eu_context->eu_profile, MEMALLOC_end_key, 0);
-#endif
+        malloc_deps(eu_context, exec_context, deps_location);
     }
-
+    deps = *deps_location;
+    
     i = function->nb_locals - 1;
 
 #if !defined(NDEBUG)

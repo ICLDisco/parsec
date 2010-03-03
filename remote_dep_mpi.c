@@ -275,11 +275,11 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
     char tmp[128];
 #endif    
     void* datakey = task->list_item.cache_friendly_emptiness;
-    
-    DEBUG(("TO\t%d\tGet data\ti=%d\t%s\twith data at %p\n", from, i, dplasma_service_to_string(task, tmp, 128), task->list_item.cache_friendly_emptiness));
     task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
+    
+/*    DEBUG(("TO\t%d\tGet data\ti=%d\t%s\twith data at %p\n", from, i, dplasma_service_to_string(task, tmp, 128), task->list_item.cache_friendly_emptiness));
     //TAKE_TIME(MPI_Data_pldr_sk, i);
-/*    MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
+    MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_rcv_req[i]);
 
     TAKE_TIME(MPI_Data_ctl_sk, get);
