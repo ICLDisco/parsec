@@ -9,6 +9,9 @@
 
 #include "dplasma_config.h"
 
+#include <stdint.h>
+#include <stdlib.h>
+
 typedef struct dplasma_t dplasma_t;
 
 #define MAX_LOCAL_COUNT  5
@@ -17,12 +20,27 @@ typedef struct dplasma_t dplasma_t;
 
 #ifdef DPLASMA_DEBUG
 #   ifdef USE_MPI
+/* only one printf to avoid line breaks in the middle */
+#include <stdarg.h>
+#include <stdio.h>
+static inline char* arprintf(const char* fmt, ...)
+{
+    char* txt;
+    va_list args;
+    
+    va_start(args, fmt);
+    vasprintf(&txt, fmt, args);
+    va_end(args);
+    return txt;
+}
 #include <mpi.h>
 #define DEBUG(ARG)  do { \
     int __debug_rank; \
+    char* __debug_str; \
     MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
-    printf("[%d]\t", __debug_rank); \
-    printf ARG ;\
+    __debug_str = arprintf ARG ; \
+    fprintf(stderr, "[%d]\t%s", __debug_rank, __debug_str); \
+    free(__debug_str); \
 } while(0)
 #   else
 #define DEBUG(ARG) printf ARG
@@ -31,18 +49,16 @@ typedef struct dplasma_t dplasma_t;
 #define DEBUG(ARG)
 #endif
 
-#include <stdint.h>
-#include <stdlib.h>
+#ifdef HAVE_PAPI
+#define MAX_EVENTS 3
+#endif
+
 #include "symbol.h"
 #include "expr.h"
 #include "params.h"
 #include "dep.h"
 #include "execution_unit.h"
 #include "lifo.h"
-
-#ifdef HAVE_PAPI
-#define MAX_EVENTS 3
-#endif
 
 /* There is another loop after this one. */
 #define DPLASMA_DEPENDENCIES_FLAG_NEXT       0x01

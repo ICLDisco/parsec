@@ -99,7 +99,7 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     dplasma_remote_dep_mark_forwarded(eu_context, rank);
     
     /* make sure we don't leave before serving all data deps */
-    dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
+    //    dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
     return remote_dep_send(origin, rank, data);
 }
 
@@ -117,7 +117,7 @@ enum {
 } dplasma_remote_dep_tag_t;
 
 /* TODO: smart use of dplasma context instead of ugly globals */
-#define DEP_NB_CONCURENT 1
+#define DEP_NB_CONCURENT 128
 static MPI_Comm dep_comm;
 static MPI_Request dep_req[4 * DEP_NB_CONCURENT];
 static MPI_Request* dep_activate_req = &dep_req[0];
@@ -217,6 +217,10 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
             {
                 DEBUG(("FROM\t%d\tActivate\ti=%d\t%s\n", status.MPI_SOURCE, i, dplasma_service_to_string(&dep_activate_buff[i], tmp, 128)));
                 remote_dep_mpi_get_data(&dep_activate_buff[i], status.MPI_SOURCE, i);
+                
+                remote_dep_release(eu_context, &dep_activate_buff[i], &dep_activate_buff[i].list_item.cache_friendly_emptiness);
+                MPI_Start(&dep_activate_req[i]);
+
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
@@ -275,11 +279,13 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
     DEBUG(("TO\t%d\tGet data\ti=%d\t%s\twith data at %p\n", from, i, dplasma_service_to_string(task, tmp, 128), task->list_item.cache_friendly_emptiness));
     task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
     //TAKE_TIME(MPI_Data_pldr_sk, i);
-    MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
+/*    MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_rcv_req[i]);
 
     TAKE_TIME(MPI_Data_ctl_sk, get);
     MPI_Send(&datakey, 1, datakey_dtt, from, REMOTE_DEP_GET_DATA_TAG, dep_comm);
+ */
+    
     TAKE_TIME(MPI_Data_ctl_ek, get++);
 }
 
