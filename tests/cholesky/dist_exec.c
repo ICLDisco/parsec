@@ -71,7 +71,7 @@ static inline double get_cur_time(){
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(print) do { \
   TIME_STOP(); \
-  printf("[%d] TIMED %f doing\t", rank, time_elapsed); \
+  printf("[%d] TIMED %f s :\t", rank, time_elapsed); \
   printf print; \
 } while(0)
 
@@ -88,7 +88,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do { \
     SYNC_TIME_STOP(); \
     if(0 == rank) { \
-      printf("all TIMED %f doing\t", sync_time_elapsed); \
+      printf("### TIMED %f s :\t", sync_time_elapsed); \
       printf print; \
     } \
   } while(0)
@@ -102,7 +102,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do { \
     SYNC_TIME_STOP(); \
     if(0 == rank) { \
-      printf("one TIMED %f doing\t", sync_time_elapsed); \
+      printf("### TIMED %f doing\t", sync_time_elapsed); \
       printf print; \
     } \
   } while(0)
@@ -159,14 +159,14 @@ int main(int argc, char ** argv)
                 plasma_parallel_call_2(plasma_pdpotrf, 
                                        PLASMA_enum, uplo, 
                                        PLASMA_desc, descA);
-                TIME_PRINT(("-- _plasma warmup:\t\t%d %d %f Gflops --\n", N, PLASMA_NB,
+                TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             }
             TIME_START();
             plasma_parallel_call_2(plasma_pdpotrf,
                                    PLASMA_enum, uplo,
                                    PLASMA_desc, descA);
-            TIME_PRINT(("## _plasma computation:\t%d %d %f Gflops ##\n", N, PLASMA_NB, 
+            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
                         gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
         }
@@ -189,7 +189,7 @@ int main(int argc, char ** argv)
                 dplasma_set_initial_execution_context(&exec_context);
                 dplasma_schedule(dplasma, &exec_context);
             }
-            TIME_PRINT(("-- Dplasma initialization:\t%d %d --\n", N, NB));
+            TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
 
             if(do_warmup)
                 warmup_dplasma(dplasma);
@@ -198,8 +198,8 @@ int main(int argc, char ** argv)
             SYNC_TIME_START();
             TIME_START();
             dplasma_progress(dplasma);
-            TIME_PRINT(("-- Dplasma proc doing:\ttasks: %d\t%f task/s--\n", nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("## Dplasma computation:\t%d %d %f gflops ##\n", N, NB, gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
+            TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
+            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
 
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
@@ -459,7 +459,7 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 {
     TIME_START();
     dplasma_progress(dplasma);
-    TIME_PRINT(("-- Warmup on rank %d:\t%d %d\n", rank, N, NB));
+    TIME_PRINT(("Warmup on rank %d:\t%d %d\n", rank, N, NB));
     
     enumerate_dplasma_tasks(dplasma);
     
@@ -563,7 +563,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     dplasma_desc_bcast(local, dist);
     distribute_data(local, dist, &requests, &req_count);
     is_data_distributed(dist, requests, req_count);
-    TIME_PRINT(("-- data distribution on rank %d\n", dist->mpi_rank));
+    TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));
     
 #if defined(DATA_VERIFICATIONS)
     if(do_nasty_validations)
@@ -589,7 +589,7 @@ static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     {
         TIME_START();
         gather_data(local, dist);
-        TIME_PRINT(("-- data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
+        TIME_PRINT(("data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
     }
 # endif
 }
