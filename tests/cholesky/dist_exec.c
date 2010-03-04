@@ -198,7 +198,7 @@ int main(int argc, char ** argv)
             SYNC_TIME_START();
             TIME_START();
             dplasma_progress(dplasma);
-            TIME_PRINT(("-- Dplasma proc doing:\t%d tasks --\n", nbtasks));
+            TIME_PRINT(("-- Dplasma proc doing:\t%d tasks %f task/s--\n", nbtasks, nbtasks/time_elapsed));
             SYNC_TIME_PRINT(("## Dplasma computation:\t%d %d %f gflops ##\n", N, NB, gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
 
             cleanup_dplasma(dplasma);
