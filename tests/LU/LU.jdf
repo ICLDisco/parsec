@@ -74,7 +74,7 @@ int dgesv_private_memory_finalization(void)
 %}
 GRIDrows = 1
 GRIDcols = 1
-NT=4
+NT
 colRANK = 0
 rowRANK = 0
 
@@ -91,6 +91,7 @@ DGETRF(k)
   IN IPIV <- IPIV(k,k)
 
   OUT LU -> (k == NT-1) ? A(k,k) : U DTSTRF(k,k+1)
+  OUT LU -> (k == NT-1) ? A(k,k) : L DGESSM(k,k+1..NT-1)
   OUT IPIV -> IPIV DGESSM(k, k+1..NT-1)
 
 BODY
@@ -127,7 +128,7 @@ DTSTRF(k,m)
   IN dL <- L(m,k)
   IN IPIV <- IPIV(m,k)
 
-  OUT U -> (m == NT-1) ? L DGESSM(k,k+1..NT-1) : U DTSTRF(k,m+1)
+  OUT U -> (m == NT-1) ? A(m,k) : U DTSTRF(k,m+1)
   OUT L -> L DSSSSM(k,k+1..NT-1,m)
   OUT L -> A(m,k)
   OUT dL -> dL DSSSSM(k,k+1..NT-1,m)
@@ -171,7 +172,7 @@ DGESSM(k,n)
 
   IN C1 <- (k == 0) ? A(k,n) : C2 DSSSSM(k-1,n,k)
   IN IPIV <- IPIV DGETRF(k)
-  IN L <- U DTSTRF(k,NT-1) 
+  IN L <- LU DGETRF(k) 
 
   OUT C1 -> C1 DSSSSM(k,n,k+1)
 
