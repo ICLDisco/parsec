@@ -261,7 +261,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                 {
                     DEBUG(("FROM\t%d\tPut data\ti=%d\tunknown \trecv complete\n", status.MPI_SOURCE, i));
                     CRC_PRINT(dep_activate_buff[i].list_item.cache_friendly_emptiness, "R");
-                    //TAKE_TIME(MPI_Data_pldr_ek, i);
+                    TAKE_TIME(MPI_Data_pldr_ek, i);
                     remote_dep_release(eu_context, &dep_activate_buff[i], &dep_activate_buff[i].list_item.cache_friendly_emptiness);
                     MPI_Start(&dep_activate_req[i]);
                     ret++;
@@ -270,8 +270,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                 {
                     /* We finished sending the data, allow for more requests 
                      * to be processed */
-                    //TAKE_TIME(MPI_Data_plds_ek, i);
                     i -= DEP_NB_CONCURENT;
+                    TAKE_TIME(MPI_Data_plds_ek, i);
                     DEBUG(("TO\tna\tPut data\tj=%d\tunknown \tsend complete\n", i));
                     MPI_Start(&dep_get_req[i]);
                     /* Allow for termination if needed */
@@ -287,7 +287,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
 static void remote_dep_mpi_put_data(void* data, int to, int i)
 {
     assert(dep_enabled);
-    //TAKE_TIME(MPI_Data_plds_sk, i);
+    TAKE_TIME(MPI_Data_plds_sk, i);
     DEBUG(("TO\t%d\tPut data\tj=%d\tunknown \twith data at %p\n", to, i, data));
     MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_snd_req[i]);
 }
@@ -304,7 +304,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
     assert(dep_enabled);
     
     DEBUG(("TO\t%d\tGet data\ti=%d\t%s\twith data at %p\n", from, i, dplasma_service_to_string(task, tmp, 128), task->list_item.cache_friendly_emptiness));
-    //TAKE_TIME(MPI_Data_pldr_sk, i);
+    TAKE_TIME(MPI_Data_pldr_sk, i);
     MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, &dep_put_rcv_req[i]);
 

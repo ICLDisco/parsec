@@ -62,15 +62,11 @@ function mouseMove(t, d) {
         document.f.desc.value = d;
 }
 function nosubmit() 
-{    
-	if (event.keyCode == 13) 
-	{        
-		event.cancelBubble = true;
-		event.returnValue = false;
-	    zoom();
+{   
+		zoom();
 		translate();
 		source();
-	}
+		return false;
 } 
 function zoom() {
         v = document.f.zoom.value;
@@ -82,7 +78,7 @@ function translate() {
 }
 function source() {
 		svgsrc = document.f.svgsrc.value;
-		ready();
+		prepare();
 }
 function error( x ) {
         opera.postError( x );
@@ -107,19 +103,19 @@ var SF=this.sf;
   <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="00">
     <div align=center style="position:relative;top:10;">
       <b>Dplasma Profiling Gantt-Like Observer</b>
-      <form name="f">
-        <table>
-	  <tr><td/><td/><td>Source SVG</td><td><input name=svgsrc size=48 value="../../results/dposv" onkeydown="nosubmit()" onchange="source()" /></td>
-	  <tr><td>Function Name</td><td><input name=title size=12 DISABLED /></td><td>Stats</td><td><input name=desc size=48 DISABLED /></td></tr>
-	  <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onkeydown="nosubmit()" onchange="zoom()"></td><td>&nbsp;</td></tr>
-	  <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onkeydown="nosubmit()" onchange="translate()"></td><td>&nbsp;</td></tr>
-	</table>
+      <form name="f" onsubmit="nosubmit();return false;">
+      <table>
+	    <tr><td/><td/><td>Source SVG</td><td><input name=svgsrc size=48 value="../../results/dposv" /></td>
+	    <tr><td>Function</td><td><input name=title size=24 DISABLED /></td><td>Stats</td><td><input name=desc size=48 DISABLED /></td></tr>
+	    <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td><td>&nbsp;</td></tr>
+	    <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td><td>&nbsp;</td></tr>
+	  </table>
       </form>
 <script type="text/javascript">
 form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 1000, "zoom()");
 form_widget_amount_slider('slider_translate',document.f.translate, 200, 0, 1600, "translate()");
 </script>
     </div>
-    <DIV id="gee" style="margin:10px;position:relative;top:0;left:00" />
+    <DIV id="gee" style="margin:10px;position:relative;top:0;left:00"></DIV>
   </body>
 </html>
