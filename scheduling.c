@@ -451,9 +451,13 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
 int dplasma_progress(dplasma_context_t* context)
 {
-    int ret = (int)(long)__dplasma_progress( context->execution_units[0] );
+    int ret;
+    dplasma_remote_dep_on(context);
+    
+    ret = (int)(long)__dplasma_progress( context->execution_units[0] );
 
     context->__dplasma_internal_finalization_counter++;
+    dplasma_remote_dep_off(context);
     return ret;
 }
 
