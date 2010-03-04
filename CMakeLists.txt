@@ -26,7 +26,8 @@ option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
-
+option(CACHE_AWARENESS "Activate the cache awareness support (only if hardware
+locality is enabled and discored" ON)
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)
 set (DPLASMA_VERSION_MINOR 1)
@@ -174,6 +175,13 @@ find_package(PLASMA REQUIRED)
 if (DPLASMA_SCHED_HWLOC) 
   find_package(HWLOC REQUIRED)
 endif (DPLASMA_SCHED_HWLOC)
+if( HAVE_HWLOC )
+  if( CACHE_AWARENESS )
+    SET(DPLASMA_CACHE_AWARENESS 1)
+  else( CACHE_AWARENESS )
+    SET(DPLASMA_CACHE_AWARENESS 0)
+  endif( CACHE_AWARENESS )
+endif( HAVE_HWLOC )
 
 if (DPLASMA_MPI)
   find_package(MPI)

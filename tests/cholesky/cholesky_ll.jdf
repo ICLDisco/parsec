@@ -63,7 +63,7 @@ k = 0..SIZE-1
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
         -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
-
+OUT   F -> F GEMM(k, k+1..SIZE-1, 0)
 BODY
     CORE(
         dpotrf, (
@@ -100,6 +100,7 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> A SYRK(m, k)
         -> A GEMM(m, m+1..SIZE-1, k)
         -> B GEMM(k+1..m-1, m, k)
+        -> (m == k+1) ? F SYRK(m, 0) : A(m,k)
         -> A(m, k)
 
 BODY
@@ -144,18 +145,19 @@ END
 /**************************************************
  *                      SYRK                      *
  **************************************************/
-SYRK(k, n) (high_priority)
+SYRK(k, n)
 
 // Execution space
 k = 1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (k / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (n / stileSIZE) % GRIDrows == rowRANK
+: (n / stileSIZE) % GRIDcols == colRANK
 
 //Parameters
 IN    A <- C TRSM(n, k)
+IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,n)
 INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
@@ -216,6 +218,7 @@ n = 0..k-1
 // Parameters
 IN    A <- C TRSM(n, k)
 IN    B <- C TRSM(n, m)
+IN    F <- (n == 0) ? F POTRF(k) : A(m, k)
 INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
