@@ -53,6 +53,8 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 
 int dplasma_remote_dep_init(dplasma_context_t* context);
 int dplasma_remote_dep_fini(dplasma_context_t* context);
+int dplasma_remote_dep_on(dplasma_context_t* context);
+int dplasma_remote_dep_off(dplasma_context_t* context);
 
 /* Poll for remote completion of tasks that would enable some work locally */
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context);
@@ -95,6 +97,8 @@ static inline int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_
 #else 
 # define dplasma_remote_dep_init(ctx) (1)
 # define dplasma_remote_dep_fini(ctx) (0)
+# define dplasma_remote_dep_on(ctx)   (0)
+# define dplasma_remote_dep_off(ctx)  (0)
 # define dplasma_remote_dep_progress(ctx) (0)
 # define dplasma_remote_dep_reset_forwarded(ctx)
 # define dplasma_remote_dep_mark_forwarded(ctx, rk)
