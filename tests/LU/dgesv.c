@@ -278,7 +278,7 @@ int PLASMA_dgetrf_Tile(PLASMA_desc *A, PLASMA_desc *L, int *IPIV)
 int main (int argc, char **argv)
 {
     /* Check for valid arguments*/
-    if (argc != 6){
+    if (argc < 6){
         printf(" Proper Usage is : ./testing_dgesv ncores N LDA NRHS LDB with \n - ncores : number of cores \n - N : the size of the matrix \n - LDA : leading dimension of the matrix A \n - NRHS : number of RHS \n - LDB : leading dimension of the matrix B \n");
         exit(1);
     }
