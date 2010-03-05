@@ -118,6 +118,7 @@ PLASMA_desc descA;
 DPLASMA_desc ddescA;
 int do_warmup = 0;
 int do_nasty_validations = 0;
+int do_distributed_generation = 0;
 int cores = 1;
 int nodes = 1;
 int nbtasks = -1;
@@ -249,6 +250,7 @@ static void runtime_init(int argc, char **argv)
         {"warmup",      optional_argument,  0, 'w'},
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
+        {"dist-matrix", no_argument,        0, 'm'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -272,7 +274,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:s:w::h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -334,8 +336,20 @@ static void runtime_init(int argc, char **argv)
                     fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
                     exit(2);
                 }
+                if(do_distributed_generation)
+                {
+                    fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
+                    exit(2);
+                }
                 break; 
-                
+            case 'm':
+                do_distributed_generation = 1;
+                if(do_nasty_validations)
+                {
+                    fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
+                    exit(2);
+                }
+                break;
             case 'w':
                 if(optarg)
                     do_warmup = atoi(optarg);
@@ -503,6 +517,11 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 #define A2      (*pA2)
 #define B1      (*pB1)
 #define B2      (*pB2)
+    if(do_distributed_generation) 
+    {
+        A1 = A2 = B1 = B2 = NULL;
+        return;
+    }
     
     if(do_nasty_validations)
     {
@@ -554,6 +573,15 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 #ifdef USE_MPI
     MPI_Request * requests;
     int req_count;
+
+    if(do_distributed_generation)
+    {
+        TIME_START();
+        dplasma_description_init(dist, LDA, LDB, NRHS, uplo);
+        rand_dist_matrix(dist);
+        TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));
+        return;
+    }
     
     TIME_START();
     if(0 == rank)
@@ -584,6 +612,10 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
+    if(do_distributed_generation) 
+    {
+        return;
+    }
 # ifdef USE_MPI
     if(do_nasty_validations)
     {
