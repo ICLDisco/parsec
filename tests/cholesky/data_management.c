@@ -560,7 +560,13 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                     MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
                     k++;
                     target += Ddesc->lmt * Ddesc->bsiz;
+                    if(k % 5) 
+                    {
+                        MPI_Waitall(5, *reqs, MPI_STATUSES_IGNORE);
+                        k = 0;
+                    }
                 }
+                MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
             }
     }
     else /* mpi_rank != 0*/
