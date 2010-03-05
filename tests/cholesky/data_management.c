@@ -560,13 +560,17 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                     MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
                     k++;
                     target += Ddesc->lmt * Ddesc->bsiz;
-                    if(k % 5) 
+                    if(0 == (k % 4)) 
                     {
-                        MPI_Waitall(5, *reqs, MPI_STATUSES_IGNORE);
+                        MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
                         k = 0;
                     }
                 }
-                MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
+		if(k)
+		{
+		    MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
+		    k = 0;
+		}
             }
     }
     else /* mpi_rank != 0*/
@@ -592,10 +596,23 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                         MPI_Irecv(&(((double*)Ddesc->mat)[pos]), tile_size * Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &((*reqs)[k]));
                         pos += tile_size * Ddesc->bsiz;
                         k++;
+			if(0 == (k %4))
+			{
+				MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
+				k = 0;
+			}
                     }
+		    if(k)
+		    {
+			    MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
+			    k = 0;
+		    }
                 }
             }
     }
+    *req_count = 0;
+    free(*reqs);
+    *reqs = NULL;
     return 0;
     
 }
@@ -761,13 +778,11 @@ int plasma_dump(PLASMA_desc * Pdesc){
 #ifdef USE_MPI
 int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
 {
-
-    MPI_Status * stats;
-    
-    stats = malloc(req_count * sizeof(MPI_Status));
-    MPI_Waitall(req_count, reqs, stats);
+    if(req_count)
+    {
+	MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
+    }
     return 1;
-
 }
 #endif    
 
