@@ -6,13 +6,14 @@
 
 
 #ifdef USE_MPI
-#include "mpi.h"
+#include <mpi.h>
 #endif  /* defined(USE_MPI) */
 
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include <cblas.h>
 #include <math.h>
@@ -21,7 +22,6 @@
 #include <../src/lapack.h>
 #include <../src/context.h>
 #include <../src/allocate.h>
-#include <sys/time.h>
 
 #include "dplasma.h"
 #include "scheduling.h"
@@ -114,11 +114,10 @@ typedef enum {
 } backend_argv_t;
 
 /* globals and argv set values */
-PLASMA_desc descA;
-DPLASMA_desc ddescA;
 int do_warmup = 0;
 int do_nasty_validations = 0;
 int do_distributed_generation = 0;
+backend_argv_t backend = DO_DPLASMA;
 int cores = 1;
 int nodes = 1;
 int nbtasks = -1;
@@ -129,7 +128,10 @@ int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
 PLASMA_enum uplo = PlasmaLower;
-backend_argv_t backend = DO_DPLASMA;
+
+PLASMA_desc descA;
+DPLASMA_desc ddescA;
+
 
 int main(int argc, char ** argv)
 {
@@ -232,7 +234,8 @@ static void print_usage(void)
             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
-            "   -w --warmup      : do some warmup, if > 1 also preload cache\n");
+            "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
+            "   -m --dist-matrix : generate tiled matrix in a distributed  way\n");
 }
 
 static void runtime_init(int argc, char **argv)
@@ -507,7 +510,6 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 #undef NB
 
 
-
 static void create_matrix(int N, PLASMA_enum* uplo, 
                           double** pA1, double** pA2, 
                           double** pB1, double** pB2, 
@@ -517,6 +519,8 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 #define A2      (*pA2)
 #define B1      (*pB1)
 #define B2      (*pB2)
+    int i, j;
+
     if(do_distributed_generation) 
     {
         A1 = A2 = B1 = B2 = NULL;
@@ -530,18 +534,28 @@ static void create_matrix(int N, PLASMA_enum* uplo,
         B1   = (double *)malloc(LDB*NRHS*sizeof(double));
         B2   = (double *)malloc(LDB*NRHS*sizeof(double));
         /* Check if unable to allocate memory */
-        if ((!pA1)||(!pA2)||(!pB1)||(!pB2)){
+        if((!pA1) || (!pA2) || (!pB1) || (!pB2))
+        {
             printf("Out of Memory \n ");
             exit(1);
         }
 
         /* generating a random matrix */
-        generate_matrix(N, A1, A2, B1, B2, LDA, NRHS, LDB);
+        for ( i = 0; i < N; i++)
+            for ( j = i; j < N; j++) {
+                A2[LDA*j+i] = A1[LDA*j+i] = (double)rand() / RAND_MAX;
+                A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
+            }
+        for ( i = 0; i < N; i++) {
+            A2[LDA*i+i] = A1[LDA*i+i] += 10*N;
+        }
+        /* Initialize B1 and B2 */
+        for ( i = 0; i < N; i++)
+            for ( j = 0; j < NRHS; j++)
+                B2[LDB*j+i] = B1[LDB*j+i] = (double)rand() / RAND_MAX;
     }
     else
-    {
-        int i, j;
-        
+    {        
         /* Only need A2 */
         A1 = B1 = B2 = NULL;
         A2   = (double *)malloc(LDA*N*sizeof(double));
@@ -557,7 +571,7 @@ static void create_matrix(int N, PLASMA_enum* uplo,
                 A2[LDA*j+i] = A2[LDA*i+j] = (double)rand() / RAND_MAX;
             }
         for ( i = 0; i < N; i++) {
-            A2[LDA*i+i] = A2[LDA*i+i] + 10*N;
+            A2[LDA*i+i] = A2[LDA*i+i] + 10 * N;
         }
     }
     
@@ -589,8 +603,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
         dplasma_desc_init(local, dist);
     }
     dplasma_desc_bcast(local, dist);
-    distribute_data(local, dist, &requests, &req_count);
-    is_data_distributed(dist, requests, req_count);
+    distribute_data(local, dist);
     TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));
     
 #if defined(DATA_VERIFICATIONS)
@@ -681,6 +694,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
 
 #undef rank
 
+
 /*------------------------------------------------------------------------
  * *  Check the factorization of the matrix A2
  * */
@@ -767,7 +781,7 @@ static int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, doub
     printf("Checking the Residual of the solution \n");
     printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));
     
-    if (Rnorm/((Anorm*Xnorm+Bnorm)*N*eps) > 10.0){
+    if ( isnan(Rnorm/((Anorm*Xnorm+Bnorm)*N*eps)) || Rnorm/((Anorm*Xnorm+Bnorm)*N*eps) > 10.0) {
         printf("-- The solution is suspicious ! \n");
         info_solution = 1;
     }
