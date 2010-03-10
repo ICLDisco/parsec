@@ -1490,9 +1490,9 @@ static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int 
                    spaces, "", d->locals[s]->name, d->locals[s-1]->name, d->locals[s-1]->name, d->locals[s-1]->name);
         output("%*sif( NULL == *%s_deps_location ) {\n", spaces, "", d->locals[s]->name);
         if( has_preds ) {
-            output("%*s  for(int _%s = %s_start; _%s <= %s_end; _%s++) {\n"
+            output("%*s  {int _%s; for(_%s = %s_start; _%s <= %s_end; _%s++) {\n"
                    "%*s    int %s = _%s;\n",
-                   spaces, "", d->locals[s]->name, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name,
+                   spaces, "", d->locals[s]->name, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name,
                    spaces, "", d->locals[s]->name, d->locals[s]->name);
             for(p = 0; d->preds[p] != NULL; p++) {
                 if( EXPR_SUCCESS == expr_depend_on_symbol(d->preds[p], d->locals[s]) ) {
@@ -1508,7 +1508,7 @@ static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int 
             output(") ) continue;\n");
             output("%*s    if( _%s < %s_min ) %s_min = %s;\n"
                    "%*s    %s_max = %s;\n"
-                   "%*s  }\n",
+                   "%*s  }}\n",
                    spaces, "", d->locals[s]->name, d->locals[s]->name, d->locals[s]->name, d->locals[s]->name,
                    spaces, "", d->locals[s]->name, d->locals[s]->name,
                    spaces, "" );
