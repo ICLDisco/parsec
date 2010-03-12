@@ -44,18 +44,12 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
             color = "#FFFFFF";
         }
         dplasma_service_to_string(exec_context, tmp, 128);
-#ifdef DPLASMA_GRAPHER
         fprintf( __dplasma_graph_file, "%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
                  tmp, color, tmp );
-#endif  /* DPLASMA_GRAPHER */
     } else {
         printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
     }
-#ifdef DEPRECATED
     return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
-#else
-    return exec_context->function->release_deps(eu_context, exec_context, 1, NULL);
-#endif
 }
 
 int main(int argc, char *argv[])

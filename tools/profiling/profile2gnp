@@ -2,7 +2,7 @@
 <?php
 libxml_use_internal_errors(true);
 
-$sorted = true;
+$sorted = false;
 $cumulated = false;
 $function = "GEMM";
 

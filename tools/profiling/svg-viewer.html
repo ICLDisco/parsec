@@ -86,7 +86,7 @@ function error( x ) {
 function select_function( x ) {
          error(x);
          if( graphwindow == null && x != undefined ) {
-           graphwindow = window.open("graph.html", "dposv");
+           graphwindow = window.open("graph.html", "dgels");
          } else {
            graphwindow.SF( x );
          }
@@ -105,7 +105,7 @@ var SF=this.sf;
       <b>Dplasma Profiling Gantt-Like Observer</b>
       <form name="f" onsubmit="nosubmit();return false;">
       <table>
-	    <tr><td/><td/><td>Source SVG</td><td><input name=svgsrc size=48 value="../../results/dposv" /></td>
+	    <tr><td/><td/><td>Source SVG</td><td><input name=svgsrc size=48 value="dgels" /></td>
 	    <tr><td>Function</td><td><input name=title size=24 DISABLED /></td><td>Stats</td><td><input name=desc size=48 DISABLED /></td></tr>
 	    <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td><td>&nbsp;</td></tr>
 	    <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td><td>&nbsp;</td></tr>

@@ -15,6 +15,7 @@
 #include "dequeue.h"
 #include "profiling.h"
 #include "remote_dep.h"
+#include "dplasma.h"
 
 #if defined(HAVE_HWLOC) && !defined(USE_HIERARCHICAL_QUEUES)
 int dplasma_hwloc_nb_cores(const dplasma_context_t *context, int level, int master);
@@ -482,7 +483,6 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
 }
 
 
-#ifdef DEPRECATED
 int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* exec_context,
                                 int forward_remote )
@@ -559,4 +559,4 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
     }
     return 0;
 }
-#endif
+

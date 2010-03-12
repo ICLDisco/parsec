@@ -68,6 +68,10 @@ READVALS(i,j)
 i = 0 .. SIZE-1
 j = 0 .. SIZE-1
 
+// Parallel partitioning
+: (i / stileSIZE) % GRIDrows == rowRANK
+: (j / stileSIZE) % GRIDcols == colRANK
+
 IN USELESS <- USELESS STARTUP(0)
 INOUT A <- A(i,j)
         -> A GEMM(i,j,0)

@@ -561,12 +561,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
     
     for( i = 0; i < *pargc; i++ ) {
         if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
-#ifdef DPLASMA_GRAPHER
             if( NULL == __dplasma_graph_file ) {
                 __dplasma_graph_file = fopen( (*pargv)[i+1], "w");
                 i++;
             }      
-#endif  /* DPLASMA_GRAPHER */
         }
         else if( 0 == strcmp( (*pargv)[i], "-papi" ) ) {
 #ifdef USE_PAPI
@@ -594,12 +592,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
-#ifdef DPLASMA_GRAPHER
     if( NULL != __dplasma_graph_file ) {
         fprintf(__dplasma_graph_file, "digraph G {\n");
         fflush(__dplasma_graph_file);
     }
-#endif  /* DPLASMA_GRAPHER */
 #ifdef DPLASMA_PROFILING
     dplasma_profiling_init( "%s", (*pargv)[0] );
 
@@ -729,13 +725,11 @@ int dplasma_fini( dplasma_context_t** pcontext )
         free(context->pthreads);
     }
 
-#ifdef DPLASMA_GRAPHER
     if( NULL != __dplasma_graph_file ) {
         fprintf(__dplasma_graph_file, "}\n");
         fclose(__dplasma_graph_file);
         __dplasma_graph_file = NULL;
     }
-#endif  /* DPLASMA_GRAPHER */
 
     free(context);
     *pcontext = NULL;
@@ -1085,7 +1079,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
 
     updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
 
-#ifdef DPLASMA_GRAPHER
+#if defined(DPLASMA_GRAPHER) || 1
     if( NULL != __dplasma_graph_file ) {
         char tmp[128];
         fprintf(__dplasma_graph_file, 
@@ -1094,7 +1088,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                 ((updated_deps & function->dependencies_mask) == function->dependencies_mask) ? "solid" : "dashed");
         fflush(__dplasma_graph_file);
     }
-#endif  /* DPLASMA_GRAPHER */
+#endif  /* defined(DPLASMA_GRAPHER) */
 
     if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
 
@@ -1146,19 +1140,6 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
 
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-#ifdef DEPRECATED
 
 /**
  * Check if a particular instance of the service can be executed based on the
@@ -1227,7 +1208,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                                             (const expr_t**)function->preds,
                                             exec_context->locals );
         if( 0 != rc ) {
-#ifdef DISTRIBUTED
+#if defined(DISTRIBUTED) && 0
             /* This is a valid value for this parameter, but it is executed 
              * on a remote resource according to the data mapping 
              */
@@ -1324,9 +1305,9 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     actual_loop = function->nb_locals - 1;
     while(1) {
-#ifdef DPLASMA_GRAPHER
+#if defined(DPLASMA_GRAPHER) || 1
         int first_encounter = 0;
-#endif  /* DPLASMA_GRAPHER */
+#endif  /* defined(DPLASMA_GRAPHER) */
         int updated_deps, mask;
 
         if( 0 != dplasma_is_valid(exec_context) ) {
@@ -1355,16 +1336,16 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
-#ifdef DPLASMA_GRAPHER
+#if defined(DPLASMA_GRAPHER) || 1
             first_encounter = 1;
-#endif  /* DPLASMA_GRAPHER */
+#endif  /* defined(DPLASMA_GRAPHER) */
         }
 
         updated_deps = dplasma_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
                                            mask);
 
         if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
-#ifdef DPLASMA_GRAPHER
+#if defined(DPLASMA_GRAPHER) || 1
             if( NULL != __dplasma_graph_file ) {
                 char tmp[128];
                 fprintf(__dplasma_graph_file,
@@ -1372,7 +1353,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                         origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
                 fflush(__dplasma_graph_file);
             }
-#endif  /* DPLASMA_GRAPHER */
+#endif  /* defined(DPLASMA_GRAPHER) */
             execution_step++;
 
 #if !defined(NDEBUG)
@@ -1394,13 +1375,13 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             /* This service is ready to be executed as all dependencies are solved. Let the
              * scheduler knows about this and keep going.
              */
-            __dplasma_schedule(eu_context, exec_context);
+            dplasma_schedule(eu_context->master_context, exec_context);
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
                    (int)(updated_deps & (~DPLASMA_DEPENDENCIES_HACK_IN)),
                    (int)(updated_deps)));
-#ifdef DPLASMA_GRAPHER
+#if defined(DPLASMA_GRAPHER) || 1
             if( NULL != __dplasma_graph_file ) {
                 char tmp[128];
                 fprintf(__dplasma_graph_file,
@@ -1408,7 +1389,7 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                         origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
                 fflush(__dplasma_graph_file);
             }
-#endif  /* DPLASMA_GRAPHER */
+#endif  /* defined(DPLASMA_GRAPHER) */
         }
 
     next_value:
@@ -1480,4 +1461,4 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
 
     return 0;
 }
-#endif /* DEPRECATED */
+

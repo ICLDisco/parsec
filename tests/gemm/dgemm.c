@@ -80,7 +80,7 @@ int stileSIZE = 1;
 #include "remote_dep.h"
 #include "datarepo.h"
 
-#define TILE_SIZE (120*120*sizeof(double))
+#define TILE_SIZE (DPLASMA_TILE_SIZE*DPLASMA_TILE_SIZE*sizeof(double))
 #ifdef HAVE_PAPI
 #include "papi.h"
 extern int eventSet;
@@ -241,7 +241,7 @@ static int STARTUP_release_dependencies(dplasma_execution_unit_t *context,
           int j = _p1;
           (void)i;
           (void)j;
-          if( (1) ) {
+          if( (1) && ((((i)/(stileSIZE))%(GRIDrows))==(rowRANK)) && ((((j)/(stileSIZE))%(GRIDcols))==(colRANK)) ) {
             struct dplasma_dependencies_t** i_placeholder = &(new_context.function->deps);
             struct dplasma_dependencies_t** j_placeholder = &((*i_placeholder)->u.next[_p0 - (*i_placeholder)->min]);
             new_context.locals[0].sym = new_context.function->locals[0]; /* task READVALS */
@@ -255,7 +255,16 @@ static int STARTUP_release_dependencies(dplasma_execution_unit_t *context,
                            exec_context->function->inout[0/*i*/]->dep_out[0/*j*/]->param,
                            j_placeholder, &ready_list);
           } else if (propagate_remote_dep) {
-            DEBUG(("GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\n"));
+            int rank, rrank, crank, ncols;
+            rrank = ((i)/(stileSIZE))%(GRIDrows);
+            crank = ((j)/(stileSIZE))%(GRIDcols);
+            ncols = GRIDcols;
+            rank = crank + rrank * ncols;
+          //DEBUG(("gridrank = %d ( %d + %d x %d )\n", rank, crank, rrank, ncols));
+            ret += dplasma_remote_dep_activate_rank(context,
+                           exec_context,
+                           exec_context->function->inout[0/*i*/],
+                           rank, data);
           }
         }
       }
@@ -293,7 +302,7 @@ static int STARTUP_hook(dplasma_execution_unit_t* context, dplasma_execution_con
   #line 63 "gemm.jdf"
   /* Nothing relevant */
 
-#line 297 "dgemm.c"
+#line 306 "dgemm.c"
 
   TAKE_TIME(context, STARTUP_end_key, STARTUP_hash(useless));
 
@@ -337,6 +346,18 @@ static expr_t expr32 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb3 }; /* SIZ
 static expr_t expr33 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr31 = { .op = 25, .flags = 0, .bop1 = &expr32, .bop2 = &expr33, .value = 0 }; /* SIZE - 1 */
 static symbol_t symb9 = { .flags = 0x00000002, .name = "j", .min = &expr30, .max = &expr31 };
+static int inline_expr0( const  assignment_t *assignments )
+{
+  int i = assignments[0].value;
+  return (((i)/(stileSIZE))%(GRIDrows))==(rowRANK);
+}
+static expr_t inline0 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr0 };
+static int inline_expr1( const  assignment_t *assignments )
+{
+  int j = assignments[1].value;
+  return (((j)/(stileSIZE))%(GRIDcols))==(colRANK);
+}
+static expr_t inline1 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr1 };
 static expr_t expr34 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 0 }; /* 0 */
 static dep_t dep2 = { .cond = NULL, .dplasma = NULL,
                        .call_params = {&expr34, NULL, NULL, NULL, NULL}};
@@ -602,10 +623,10 @@ static int READVALS_hook(dplasma_execution_unit_t* context, dplasma_execution_co
   cache_buf_referenced(context->closest_cache, C);
 #endif /* DPLASMA_CACHE_AWARENESS */
   TAKE_TIME(context, READVALS_start_key, READVALS_hash(i, j));
-  #line 78 "gemm.jdf"
+  #line 82 "gemm.jdf"
   /* Emptiness */
 
-#line 609 "dgemm.c"
+#line 630 "dgemm.c"
 
   TAKE_TIME(context, READVALS_end_key, READVALS_hash(i, j));
 
@@ -657,34 +678,34 @@ static expr_t expr60 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb3 }; /* SIZ
 static expr_t expr61 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr59 = { .op = 25, .flags = 0, .bop1 = &expr60, .bop2 = &expr61, .value = 0 }; /* SIZE - 1 */
 static symbol_t symb12 = { .flags = 0x00000002, .name = "k", .min = &expr58, .max = &expr59 };
-static int inline_expr0( const  assignment_t *assignments )
+static int inline_expr2( const  assignment_t *assignments )
 {
   int i = assignments[0].value;
   return (((i)/(stileSIZE))%(GRIDrows))==(rowRANK);
 }
-static expr_t inline0 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr0 };
-static int inline_expr1( const  assignment_t *assignments )
+static expr_t inline2 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr2 };
+static int inline_expr3( const  assignment_t *assignments )
 {
   int j = assignments[1].value;
   return (((j)/(stileSIZE))%(GRIDcols))==(colRANK);
 }
-static expr_t inline1 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr1 };
-static int inline_expr2( const  assignment_t *assignments )
+static expr_t inline3 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr3 };
+static int inline_expr4( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return (k)==(0);
 }
-static expr_t inline2 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr2 };
+static expr_t inline4 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr4 };
 static expr_t expr62 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr63 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
-static dep_t dep9 = { .cond = &inline2, .dplasma = NULL,
+static dep_t dep9 = { .cond = &inline4, .dplasma = NULL,
                        .call_params = {&expr62, &expr63, NULL, NULL, NULL}};
-static int inline_expr3( const  assignment_t *assignments )
+static int inline_expr5( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return !((k)==(0));
 }
-static expr_t inline3 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr3 };
+static expr_t inline5 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr5 };
 static expr_t expr64 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr68 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
 static expr_t expr69 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb3 }; /* SIZE */
@@ -696,24 +717,24 @@ static expr_t expr65 = { .op = 20, .flags = 0, .bop1 = &expr66, .bop2 = &expr71,
 static expr_t expr73 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb12 }; /* k */
 static expr_t expr74 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr72 = { .op = 25, .flags = 0, .bop1 = &expr73, .bop2 = &expr74, .value = 0 }; /* k - 1 */
-static dep_t dep10 = { .cond = &inline3, .dplasma = NULL,
+static dep_t dep10 = { .cond = &inline5, .dplasma = NULL,
                        .call_params = {&expr64, &expr65, &expr72, NULL, NULL}};
-static int inline_expr4( const  assignment_t *assignments )
+static int inline_expr6( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return (k)==((SIZE)-(1));
 }
-static expr_t inline4 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr4 };
+static expr_t inline6 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr6 };
 static expr_t expr75 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr76 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
-static dep_t dep11 = { .cond = &inline4, .dplasma = NULL,
+static dep_t dep11 = { .cond = &inline6, .dplasma = NULL,
                        .call_params = {&expr75, &expr76, NULL, NULL, NULL}};
-static int inline_expr5( const  assignment_t *assignments )
+static int inline_expr7( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return !((k)==((SIZE)-(1)));
 }
-static expr_t inline5 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr5 };
+static expr_t inline7 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr7 };
 static expr_t expr77 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr80 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
 static expr_t expr81 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
@@ -723,27 +744,27 @@ static expr_t expr78 = { .op = 20, .flags = 0, .bop1 = &expr79, .bop2 = &expr82,
 static expr_t expr84 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb12 }; /* k */
 static expr_t expr85 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr83 = { .op = 23, .flags = 0, .bop1 = &expr84, .bop2 = &expr85, .value = 0 }; /* k + 1 */
-static dep_t dep12 = { .cond = &inline5, .dplasma = NULL,
+static dep_t dep12 = { .cond = &inline7, .dplasma = NULL,
                        .call_params = {&expr77, &expr78, &expr83, NULL, NULL}};
 static param_t param3 = { .name = "A", .sym_type = 3, .param_mask = 0x01,
      .dep_in  = {&dep9, &dep10, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
      .dep_out = {&dep11, &dep12, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL} };
-static int inline_expr6( const  assignment_t *assignments )
+static int inline_expr8( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return (k)==(0);
 }
-static expr_t inline6 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr6 };
+static expr_t inline8 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr8 };
 static expr_t expr86 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr87 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
-static dep_t dep13 = { .cond = &inline6, .dplasma = NULL,
+static dep_t dep13 = { .cond = &inline8, .dplasma = NULL,
                        .call_params = {&expr86, &expr87, NULL, NULL, NULL}};
-static int inline_expr7( const  assignment_t *assignments )
+static int inline_expr9( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return !((k)==(0));
 }
-static expr_t inline7 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr7 };
+static expr_t inline9 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr9 };
 static expr_t expr91 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr92 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb3 }; /* SIZE */
 static expr_t expr90 = { .op = 23, .flags = 0, .bop1 = &expr91, .bop2 = &expr92, .value = 0 }; /* i + SIZE */
@@ -755,24 +776,24 @@ static expr_t expr95 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j 
 static expr_t expr97 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb12 }; /* k */
 static expr_t expr98 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr96 = { .op = 25, .flags = 0, .bop1 = &expr97, .bop2 = &expr98, .value = 0 }; /* k - 1 */
-static dep_t dep14 = { .cond = &inline7, .dplasma = NULL,
+static dep_t dep14 = { .cond = &inline9, .dplasma = NULL,
                        .call_params = {&expr88, &expr95, &expr96, NULL, NULL}};
-static int inline_expr8( const  assignment_t *assignments )
+static int inline_expr10( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return (k)==((SIZE)-(1));
 }
-static expr_t inline8 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr8 };
+static expr_t inline10 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr10 };
 static expr_t expr99 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr100 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
-static dep_t dep15 = { .cond = &inline8, .dplasma = NULL,
+static dep_t dep15 = { .cond = &inline10, .dplasma = NULL,
                        .call_params = {&expr99, &expr100, NULL, NULL, NULL}};
-static int inline_expr9( const  assignment_t *assignments )
+static int inline_expr11( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return !((k)==((SIZE)-(1)));
 }
-static expr_t inline9 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr9 };
+static expr_t inline11 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr11 };
 static expr_t expr103 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr104 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr102 = { .op = 23, .flags = 0, .bop1 = &expr103, .bop2 = &expr104, .value = 0 }; /* i + 1 */
@@ -782,56 +803,56 @@ static expr_t expr106 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j
 static expr_t expr108 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb12 }; /* k */
 static expr_t expr109 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr107 = { .op = 23, .flags = 0, .bop1 = &expr108, .bop2 = &expr109, .value = 0 }; /* k + 1 */
-static dep_t dep16 = { .cond = &inline9, .dplasma = NULL,
+static dep_t dep16 = { .cond = &inline11, .dplasma = NULL,
                        .call_params = {&expr101, &expr106, &expr107, NULL, NULL}};
 static param_t param5 = { .name = "B", .sym_type = 3, .param_mask = 0x02,
      .dep_in  = {&dep13, &dep14, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
      .dep_out = {&dep15, &dep16, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL} };
-static int inline_expr10( const  assignment_t *assignments )
+static int inline_expr12( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return (k)==(0);
 }
-static expr_t inline10 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr10 };
+static expr_t inline12 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr12 };
 static expr_t expr110 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr111 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
-static dep_t dep17 = { .cond = &inline10, .dplasma = NULL,
+static dep_t dep17 = { .cond = &inline12, .dplasma = NULL,
                        .call_params = {&expr110, &expr111, NULL, NULL, NULL}};
-static int inline_expr11( const  assignment_t *assignments )
+static int inline_expr13( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return !((k)==(0));
 }
-static expr_t inline11 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr11 };
+static expr_t inline13 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr13 };
 static expr_t expr112 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr113 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
 static expr_t expr115 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb12 }; /* k */
 static expr_t expr116 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr114 = { .op = 25, .flags = 0, .bop1 = &expr115, .bop2 = &expr116, .value = 0 }; /* k - 1 */
-static dep_t dep18 = { .cond = &inline11, .dplasma = NULL,
+static dep_t dep18 = { .cond = &inline13, .dplasma = NULL,
                        .call_params = {&expr112, &expr113, &expr114, NULL, NULL}};
-static int inline_expr12( const  assignment_t *assignments )
+static int inline_expr14( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return (k)==((SIZE)-(1));
 }
-static expr_t inline12 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr12 };
+static expr_t inline14 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr14 };
 static expr_t expr117 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr118 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
-static dep_t dep19 = { .cond = &inline12, .dplasma = NULL,
+static dep_t dep19 = { .cond = &inline14, .dplasma = NULL,
                        .call_params = {&expr117, &expr118, NULL, NULL, NULL}};
-static int inline_expr13( const  assignment_t *assignments )
+static int inline_expr15( const  assignment_t *assignments )
 {
   int k = assignments[2].value;
   return !((k)==((SIZE)-(1)));
 }
-static expr_t inline13 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr13 };
+static expr_t inline15 = { .op= EXPR_OP_INLINE, .flags = 0, .inline_func = inline_expr15 };
 static expr_t expr119 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb10 }; /* i */
 static expr_t expr120 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb11 }; /* j */
 static expr_t expr122 = { .op = EXPR_OP_SYMB, .flags = 0, .var = &symb12 }; /* k */
 static expr_t expr123 = { .op = EXPR_OP_CONST_INT, .flags = 1, .value = 1 }; /* 1 */
 static expr_t expr121 = { .op = 23, .flags = 0, .bop1 = &expr122, .bop2 = &expr123, .value = 0 }; /* k + 1 */
-static dep_t dep20 = { .cond = &inline13, .dplasma = NULL,
+static dep_t dep20 = { .cond = &inline15, .dplasma = NULL,
                        .call_params = {&expr119, &expr120, &expr121, NULL, NULL}};
 static param_t param7 = { .name = "C", .sym_type = 3, .param_mask = 0x04,
      .dep_in  = {&dep17, &dep18, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -1080,7 +1101,7 @@ static int GEMM_hook(dplasma_execution_unit_t* context, dplasma_execution_contex
   cache_buf_referenced(context->closest_cache, C);
 #endif /* DPLASMA_CACHE_AWARENESS */
   TAKE_TIME(context, GEMM_start_key, GEMM_hash(i, j, k));
-  #line 105 "gemm.jdf"
+  #line 109 "gemm.jdf"
         CORE(
             dgemm, (
                 PlasmaNoTrans, PlasmaTrans,
@@ -1102,7 +1123,7 @@ static int GEMM_hook(dplasma_execution_unit_t* context, dplasma_execution_contex
                  1.0, i, j, NB /*A.nb*/ )
             );
 
-#line 1106 "dgemm.c"
+#line 1127 "dgemm.c"
 
   if((k)==((SIZE)-(1))) {
     if( A(i, j) != A) memcpy( A(i, j), A, TILE_SIZE);
@@ -1194,7 +1215,7 @@ static dplasma_t dplasma_array[6] = {
       .dependencies_mask = 0x0f,
       .nb_locals = 2,
       .locals = {&symb8, &symb9, NULL, NULL, NULL},
-      .preds = {NULL, NULL, NULL, NULL, NULL},
+      .preds = {&inline0, &inline1, NULL, NULL, NULL},
       .inout= {&param1, &param2, &param4, &param6, NULL},
       .deps = NULL,
       .hook = NULL
@@ -1205,7 +1226,7 @@ static dplasma_t dplasma_array[6] = {
       .dependencies_mask = 0x07,
       .nb_locals = 3,
       .locals = {&symb10, &symb11, &symb12, NULL, NULL},
-      .preds = {&inline0, &inline1, NULL, NULL, NULL},
+      .preds = {&inline2, &inline3, NULL, NULL, NULL},
       .inout= {&param3, &param5, &param7, NULL, NULL},
       .deps = NULL,
       .hook = NULL
@@ -1441,6 +1462,8 @@ int enumerate_dplasma_tasks(dplasma_context_t* context)
     int j, j_start, j_end;
     int j_min, j_max;
     dplasma_dependencies_t **j_deps_location;
+    int pred0;
+    int pred1;
     function = (dplasma_t*)dplasma_find( "READVALS" );
     function->deps = NULL;
     DEBUG(("Prepare dependencies tracking for READVALS\n"));
@@ -1450,9 +1473,16 @@ int enumerate_dplasma_tasks(dplasma_context_t* context)
     i_max = -1;
     i_deps_location = &(function->deps);
     for(i = i_start; i <= i_end; i++) {
+      pred0 = (((i)/(stileSIZE))%(GRIDrows))==(rowRANK);
+      if( !(1 && pred0) ) continue;
       if( NULL == *i_deps_location ) {
-        i_min = i_start;
-        i_max = i_end;
+        {int _i; for(_i = i_start; _i <= i_end; _i++) {
+          int i = _i;
+          pred0 = (((i)/(stileSIZE))%(GRIDrows))==(rowRANK);
+          if( !(1 && pred0) ) continue;
+          if( _i < i_min ) i_min = i;
+          i_max = i;
+        }}
         assert( -1 != i_max );
         ALLOCATE_DEP_TRACKING(deps, i_min, i_max, "i", function->locals[0], *i_deps_location);
         *i_deps_location = deps;  /* store the deps in the right location */
@@ -1462,10 +1492,17 @@ int enumerate_dplasma_tasks(dplasma_context_t* context)
       j_min = 0x7fffffff;
       j_max = -1;
       for(j = j_start; j <= j_end; j++) {
+        pred1 = (((j)/(stileSIZE))%(GRIDcols))==(colRANK);
+        if( !(1 && pred1) ) continue;
         j_deps_location = &((*i_deps_location)->u.next[i - (*i_deps_location)->min]);
         if( NULL == *j_deps_location ) {
-          j_min = j_start;
-          j_max = j_end;
+          {int _j; for(_j = j_start; _j <= j_end; _j++) {
+            int j = _j;
+            pred1 = (((j)/(stileSIZE))%(GRIDcols))==(colRANK);
+            if( !(1 && pred1) ) continue;
+            if( _j < j_min ) j_min = j;
+            j_max = j;
+          }}
           assert( -1 != j_max );
           ALLOCATE_DEP_TRACKING(deps, j_min, j_max, "j", function->locals[1], *i_deps_location);
           *j_deps_location = deps;  /* store the deps in the right location */
@@ -1499,13 +1536,13 @@ int enumerate_dplasma_tasks(dplasma_context_t* context)
       pred0 = (((i)/(stileSIZE))%(GRIDrows))==(rowRANK);
       if( !(1 && pred0) ) continue;
       if( NULL == *i_deps_location ) {
-        for(int _i = i_start; _i <= i_end; _i++) {
+        {int _i; for(_i = i_start; _i <= i_end; _i++) {
           int i = _i;
           pred0 = (((i)/(stileSIZE))%(GRIDrows))==(rowRANK);
           if( !(1 && pred0) ) continue;
           if( _i < i_min ) i_min = i;
           i_max = i;
-        }
+        }}
         assert( -1 != i_max );
         ALLOCATE_DEP_TRACKING(deps, i_min, i_max, "i", function->locals[0], *i_deps_location);
         *i_deps_location = deps;  /* store the deps in the right location */
@@ -1519,13 +1556,13 @@ int enumerate_dplasma_tasks(dplasma_context_t* context)
         if( !(1 && pred1) ) continue;
         j_deps_location = &((*i_deps_location)->u.next[i - (*i_deps_location)->min]);
         if( NULL == *j_deps_location ) {
-          for(int _j = j_start; _j <= j_end; _j++) {
+          {int _j; for(_j = j_start; _j <= j_end; _j++) {
             int j = _j;
             pred1 = (((j)/(stileSIZE))%(GRIDcols))==(colRANK);
             if( !(1 && pred1) ) continue;
             if( _j < j_min ) j_min = j;
             j_max = j;
-          }
+          }}
           assert( -1 != j_max );
           ALLOCATE_DEP_TRACKING(deps, j_min, j_max, "j", function->locals[1], *i_deps_location);
           *j_deps_location = deps;  /* store the deps in the right location */
