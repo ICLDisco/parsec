@@ -448,9 +448,8 @@ static void runtime_fini(void)
 static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
-    plasma_context_t* plasma = plasma_context_self();
-    
-    dplasma = dplasma_init(cores, pargc, pargv, PLASMA_NB);
+   
+    dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
