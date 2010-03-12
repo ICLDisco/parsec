@@ -128,6 +128,8 @@ struct dplasma_execution_context_t {
     assignment_t locals[MAX_LOCAL_COUNT];
 };
 
+extern int DPLASMA_TILE_SIZE;
+
 #if defined(DPLASMA_PROFILING)
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
@@ -137,7 +139,7 @@ extern int schedule_sleep_begin, schedule_sleep_end;
 /**
  *
  */
-dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] );
+dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int tile_size );
 
 /**
  *

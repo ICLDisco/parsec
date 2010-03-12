@@ -1571,7 +1571,7 @@ int dplasma_dump_all_c(char *filename)
             "#include <string.h>\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
-            "#define TILE_SIZE (120*120*sizeof(double))\n"
+            "#define TILE_SIZE (DPLASMA_TILE_SIZE*DPLASMA_TILE_SIZE*sizeof(double))\n"
             "#ifdef HAVE_PAPI\n"
             "#include \"papi.h\"\n"
             "extern int eventSet;\n"

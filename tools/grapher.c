@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     /*symbol_dump_all("");*/
     /*dplasma_dump_all();*/
 
-    dplasma = dplasma_init(1, &argc, &argv);
+    dplasma = dplasma_init(1, &argc, &argv, 0);
 
     /* If arguments are provided then they are supposed to initialize some of the
      * global symbols. Try to do so ...

@@ -59,6 +59,8 @@ static int check_solution(int, int, double*, int, double*, double*, int, double)
 double time_elapsed;
 double sync_time_elapsed;
 
+int dposv_force_nb = 0;
+
 static inline double get_cur_time(){
     double t;
     struct timeval tv;
@@ -235,7 +237,8 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
-            "   -m --dist-matrix : generate tiled matrix in a distributed  way\n");
+            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
+            "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
 static void runtime_init(int argc, char **argv)
@@ -254,6 +257,7 @@ static void runtime_init(int argc, char **argv)
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
         {"dist-matrix", no_argument,        0, 'm'},
+        {"block-size",  required_argument,  0, 'B'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -277,7 +281,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -365,6 +369,18 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
                 
+        case 'B':
+                if(optarg)
+                {
+                    dposv_force_nb = atoi(optarg);
+                }
+                else
+                {
+                    fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
+                    exit(2);
+                }
+                break;
+
             case 'h':
                 print_usage();
                 exit(0);
@@ -432,8 +448,9 @@ static void runtime_fini(void)
 static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
+    plasma_context_t* plasma = plasma_context_self();
     
-    dplasma = dplasma_init(cores, pargc, pargv);
+    dplasma = dplasma_init(cores, pargc, pargv, PLASMA_NB);
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;

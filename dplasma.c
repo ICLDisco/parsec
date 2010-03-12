@@ -48,8 +48,10 @@ int num_events = 0;
 char* event_names[MAX_EVENTS];
 #endif
 
+int DPLASMA_TILE_SIZE = 0;
+
 #if defined(HAVE_HWLOC)
-#define TILE_SIZE (120*120*sizeof(double))
+#define TILE_SIZE (DPLASMA_TILE_SIZE*DPLASMA_TILE_SIZE*sizeof(double))
 
 static int dplasma_hwloc_nb_levels(const dplasma_context_t *context)
 {
@@ -539,13 +541,15 @@ extern int num_events;
 extern char* event_names[];
 #endif
 
-dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[] )
+dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int tile_size )
 {
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t) +
                                                             nb_cores * sizeof(dplasma_execution_unit_t*));
     __dplasma_temporary_thread_initialization_t* startup = 
         (__dplasma_temporary_thread_initialization_t*)malloc(nb_cores * sizeof(__dplasma_temporary_thread_initialization_t));
     int i;
+
+    DPLASMA_TILE_SIZE = tile_size;
 
     context->nb_cores = (int32_t) nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;

@@ -218,7 +218,7 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
     return 0;
 }
 
-#define TILE_SIZE (120 * 120)
+#define TILE_SIZE (DPLASMA_TILE_SIZE * DPLASMA_TILE_SIZE)
 
 #ifdef CRC_CHECK
 #define CRC_PRINT(data, pos) do \

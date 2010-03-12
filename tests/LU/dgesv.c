@@ -130,7 +130,7 @@ int DPLASMA_dgetrf(int ncores, int M, int N, double *A, int LDA, double *L, int 
 
 #ifdef DPLASMA_EXECUTE
     _IPIV = IPIV;
-    dplasma = dplasma_init(ncores, pargc, pargv);
+    dplasma = dplasma_init(ncores, pargc, pargv, PLASMA_NB);
     load_dplasma_objects(dplasma);
 
     dgesv_private_memory_initialization(plasma);

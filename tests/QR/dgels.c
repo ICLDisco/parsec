@@ -140,7 +140,7 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T,
         PLASMA_desc, descA);
 
 #ifdef DPLASMA_EXECUTE
-    dplasma = dplasma_init(ncores, pargc, pargv);
+    dplasma = dplasma_init(ncores, pargc, pargv, PLASMA_NB);
     load_dplasma_objects(dplasma);
 
     dgels_private_memory_initialization(plasma);
