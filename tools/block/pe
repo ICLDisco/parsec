@@ -1,0 +1,202 @@
+#!/usr/bin/perl -w
+
+# Parameter Explorer
+
+sub usage() {
+    print STDERR 
+	"Usage: argv[1] = script to run. This script takes as single input the integer
+                 parameter value to find, and produces on standard output a single
+                 line, with a single non blank string as a numerical value
+                 higher value is better. Only the max is kept for the final result.
+       argv[2] = min value for the parameter
+       argv[3] = max value for the parameter
+       argv[4] = minimal step between min and max
+       argv[5] = total time to run
+       argv[6] = base name of the output files.
+                 base.gnp is a standalone gnuplot script that is runnable to show the 
+                          current (and final) status
+                 base.dat will hold all measurements
+                 base.log will hold all traces of execution
+                 base.pdf will hold the result of interpreting base.gnp\n";
+    exit(1);
+}
+
+my $SCRIPT = shift @ARGV;
+my $MIN    = shift @ARGV;
+my $MAX    = shift @ARGV;
+my $STEP   = shift @ARGV;
+my $TIME   = shift @ARGV;
+my $BASE   = shift @ARGV;
+
+if( !defined($BASE) ) {
+    usage();
+}
+
+my $LOGFILE = "$BASE.log";
+my $GNPFILE = "$BASE.gnp";
+my $DATFILE = "$BASE.dat";
+
+unlink $LOGFILE, $GNPFILE, $DATFILE;
+
+open(DATFILE, ">$DATFILE") or die "unable to create $DATFILE: $!";
+
+my $VALUES = {};
+my $MAXV = 0;
+my $MAXI = $MIN;
+
+sub runone
+{
+    my ($value) = @_;
+    my $res;
+    my $changed = 0;
+
+    open(LOGFILE, ">>$LOGFILE") or die "unable to open $LOGFILE: $!\n";
+    print LOGFILE "##############################\n";
+    print LOGFILE "### PE now runs $SCRIPT $value\n";
+    close(LOGFILE);
+
+    open(SON, "$SCRIPT $value 2>>$LOGFILE |") ||
+	die "can't execute $SCRIPT: $!";
+    $res = <SON>;
+    close(SON);
+
+    if( !defined($res) ) {
+	print STDERR "$SCRIPT $value did not return a value\n";
+	return $changed;
+    }
+    chomp $res;
+    if( $res !~ /^[0-9]+(\.[0-9]+)?$/ ) {
+	print STDERR "$SCRIPT $value returned '$res' which is not a numerical value\n";
+	return $changed;
+    }
+
+    if( !defined( $VALUES->{$value} ) ) {
+	$VALUES->{$value} = { max => $res,
+			      values => [$res],
+			      nb => 1 };
+	$changed = 1;
+    } else {
+	if( $VALUES->{$value}->{max} < $res ) {
+	    $VALUES->{$value}->{max} = $res;
+	    $changed = 1;
+	}
+	push @{$VALUES->{$value}->{values}}, $res;
+	$VALUES->{$value}->{nb} = $VALUES->{$value}->{nb} + 1;
+    }
+    print DATFILE "$value\t$res\n";
+    return $changed;
+}
+
+sub renew_gnp_script()
+{
+    open(GNP, ">$GNPFILE.new") or die "unable to creat e$GNPFILE.new: $!\n";
+    print GNP "set terminal postscript eps enhanced color\n";
+    print GNP "set xlabel \"Block Size\"\n";
+    print GNP "set ylabel \"GF/s\"\n";
+    print GNP "set output \"$BASE.eps\"\n";
+    print GNP "plot \"-\" ls 1 t \"\", \"-\" w lp ls 1 t \"Max = $MAXV GF/s for x = $MAXI\"\n";
+
+    foreach my $val ( sort { int($a) <=> int($b) } keys(%$VALUES) ) {
+	foreach my $v ( @{ $VALUES->{$val}->{values} } ) {
+		print GNP "$val $v\n";
+	}
+    }
+    print GNP "e\n";
+    
+    foreach my $val ( sort { int($a) <=> int($b) }  keys(%$VALUES) ) {
+	print GNP "$val $VALUES->{$val}->{max} $VALUES->{$val}->{nb}\n";
+    }
+    print GNP "e\n";
+    print GNP "!epstopdf $BASE.eps\n";
+    close(GNP);
+    rename "$GNPFILE.new", "$GNPFILE";
+}
+
+sub best_value()
+{
+    $MAXI = $MIN;
+    $MAXV = $VALUES->{$MAXI}->{max};
+
+    $VALUES->{$MIN}->{weight} = 8;
+    $VALUES->{$MAX}->{weight} = 8;
+    for(my $v = $MIN + $STEP; $v <= $MAX - $STEP; $v += $STEP) {
+	if( $VALUES->{$v}->{max} > $MAXV ) {
+	    $MAXV = $VALUES->{$v}->{max};
+	    $MAXI = $v;
+	}
+	if( $VALUES->{$v}->{nb} == 0 ) {
+#   If never evaluated: max value
+	    $VALUES->{$v}->{weight} = 16;
+	} elsif( $VALUES->{$v-$STEP}->{max} > $VALUES->{$v}->{max} &&
+		 $VALUES->{$v+$STEP}->{max} > $VALUES->{$v}->{max} ) {
+#   If evaluated, but in a local minimal: average value
+	    $VALUES->{$v}->{weight} = 4;
+	} else {
+#   Otherwise: minimal value
+	    $VALUES->{$v}->{weight} = 1;
+	}
+    }
+
+#   Adjust for the elements near the maximum
+    my $min2 = $MAXI-4*$STEP < $MIN ? $MIN : $MAXI-4*$STEP;
+    my $max2 = $MAXI+4*$STEP > $MAX ? $MAX : $MAXI+4*$STEP;
+    for(my $v = $min2; $v <= $max2; $v += $STEP ) {
+	$VALUES->{$v}->{weight} = $VALUES->{$v}->{weight} > 8 ? $VALUES->{$v}->{weight} : 8;
+    }
+    $min2 = $MAXI-8*$STEP < $MIN ? $MIN : $MAXI-8*$STEP;
+    $max2 = $MAXI-5*$STEP < $MIN ? $MIN : $MAXI-5*$STEP;
+    for(my $v = $min2; $v <= $max2; $v += $STEP ) {
+	$VALUES->{$v}->{weight} = $VALUES->{$v}->{weight} > 4 ? $VALUES->{$v}->{weight} : 4;
+    }
+    $min2 = $MAXI+5*$STEP > $MAX ? $MAX : $MAXI+5*$STEP;
+    $max2 = $MAXI+8*$STEP > $MAX ? $MAX : $MAXI+8*$STEP;
+    for(my $v = $min2; $v <= $max2; $v += $STEP ) {
+	$VALUES->{$v}->{weight} = $VALUES->{$v}->{weight} > 4 ? $VALUES->{$v}->{weight} : 4;
+    }
+
+#   Compute the total weight, choose a value, find it.
+    my $weight = 0;
+    for(my $v = $MIN; $v <= $MAX; $v += $STEP) {
+	$weight += $VALUES->{$v}->{weight};
+    }
+    my $alea = int(rand($weight));
+    $weight = 0;
+    for(my $v = $MIN; $v <= $MAX; $v += $STEP) {
+	$weight += $VALUES->{$v}->{weight};
+	if( $weight > $alea ) {
+	    return $v;
+	}
+    }
+}
+
+my $deadline = time() + $TIME;
+srand($deadline);
+
+for(my $v = $MIN; $v <= $MAX; $v += $STEP) {
+    $VALUES->{$v} = { max => 0,
+		      values => [],
+		      nb => 0,
+		      weight => 10 };
+}
+
+my $run = 0;
+my $usefull = 0;
+print "";
+while( time() < $deadline ) {
+    my $v = best_value();
+    if( runone($v) == 1 ) {
+	$usefull++;
+    }
+    $run++;
+    my $remain = $deadline - time();
+    if($remain < 0 ) {
+	$remain = 0;
+    }
+    printf "\rETA: %4ds. Ran $run tests ($usefull of them improved the knowledge). Current best: $MAXV GF/s for $MAXI", $remain;
+    renew_gnp_script();
+}
+
+print "\nresult is in $GNPFILE\n";
+print "Best measurement is $MAXV GF/s\n";
+print "Obtained for a parameter of $MAXI\n";
+
