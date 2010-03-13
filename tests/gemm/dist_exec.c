@@ -433,7 +433,7 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
     
-    dplasma = dplasma_init(cores, pargc, pargv);
+    dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
