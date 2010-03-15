@@ -33,3 +33,7 @@ buildDAG
 cholesky/Makefile
 cmake_install.cmake
 Makefile
+tests/LU/LU.c
+tests/LU/dgesv
+tests/gemm/dgemm
+tests/gemm/dgemm.c
