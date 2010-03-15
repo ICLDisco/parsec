@@ -302,12 +302,13 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
     return ret;
 }
 
-#define PTR_TO_TAG(ptr) (((int) ptr) > 0 ? (int) ptr : - (int) ptr)
+#include <limits.h>
+#define PTR_TO_TAG(ptr) ((int) (((intptr_t) ptr) & INT_MAX))
 
 static void remote_dep_mpi_put_data(void* data, int to, int i)
 {
     assert(dep_enabled);
-    DEBUG(("TO\t%d\tPut data\tunknown \tj=%d\twith data at %p\n", to, i, data));
+    DEBUG(("TO\t%d\tPut data\tunknown \tj=%d\twith data at %p (hash %d)\n", to, i, data, PTR_TO_TAG(data)));
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
     MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, PTR_TO_TAG(data), dep_comm, &dep_put_snd_req[i]);
 }
@@ -323,7 +324,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
     task->list_item.cache_friendly_emptiness = malloc(sizeof(double) * TILE_SIZE);
     assert(dep_enabled);
     
-    DEBUG(("TO\t%d\tGet data\t%s\ti=%d\twith data at %p\n", from, dplasma_service_to_string(task, tmp, 128), i, datakey));
+    DEBUG(("TO\t%d\tGet data\t%s\ti=%d\twith data at %p (hash %d)\n", from, dplasma_service_to_string(task, tmp, 128), i, datakey, PTR_TO_TAG(datakey)));
     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
     MPI_Irecv(task->list_item.cache_friendly_emptiness, TILE_SIZE, 
               MPI_DOUBLE, from, PTR_TO_TAG(datakey), dep_comm, &dep_put_rcv_req[i]);
