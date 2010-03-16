@@ -9,10 +9,11 @@
 /**
  *
  */
-int dplasma_freelist_init( dplasma_freelist_t* freelist, size_t elem_size )
+int dplasma_freelist_init( dplasma_freelist_t* freelist, size_t elem_size, int ondemand )
 {
     dplasma_atomic_lifo_construct(&(freelist->lifo));
     freelist->elem_size = elem_size;
+    freelist->ondemand = ondemand;
     return 0;
 }
 
@@ -35,10 +36,15 @@ int dplasma_freelist_fini( dplasma_freelist_t* freelist )
 dplasma_list_item_t* dplasma_freelist_get(dplasma_freelist_t* freelist)
 {
     dplasma_freelist_item_t* item = (dplasma_freelist_item_t*)dplasma_atomic_lifo_pop(&(freelist->lifo));
-    if( NULL == item ) {
-        item = calloc(1, freelist->elem_size);
+
+    if( NULL != item ) {
+        item->upstream.origin = freelist;
+        return (dplasma_list_item_t*)item;
     }
-    item->upstream.origin = freelist;
+    if( freelist->ondemand ) {
+        item = calloc(1, freelist->elem_size);
+        item->upstream.origin = freelist;
+    }
     return (dplasma_list_item_t*)item;
 }
 

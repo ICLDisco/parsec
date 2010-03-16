@@ -12,7 +12,8 @@
 
 typedef struct dplasma_freelist_t {
     dplasma_atomic_lifo_t lifo;
-    size_t elem_size;
+    size_t elem_size; /** The size of the elements in the freelist */
+    int ondemand;     /** If allocation on demand is allowed */
 } dplasma_freelist_t;
 
 typedef struct dplasma_freelist_item_t {
@@ -25,7 +26,7 @@ typedef struct dplasma_freelist_item_t {
 /**
  *
  */
-int dplasma_freelist_init( dplasma_freelist_t* freelist, size_t elem_size );
+int dplasma_freelist_init( dplasma_freelist_t* freelist, size_t elem_size, int ondemand );
 
 /**
  *

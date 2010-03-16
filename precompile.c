@@ -1708,7 +1708,7 @@ int dplasma_dump_all_c(char *filename)
     output("#if defined(DISTRIBUTED)\n"
            "  { /* compute the maximum size of the dependencies array */\n"
            "    size_t elem_size = sizeof(dplasma_remote_deps_t) + %d * sizeof(uint32_t) + sizeof(uint32_t) * context->nb_nodes;\n"
-           "    dplasma_freelist_init( &remote_deps_freelist, elem_size );\n"
+           "    dplasma_freelist_init( &remote_deps_freelist, elem_size, 0 );\n"
            "  }\n"
            "#endif  /* defined(DISTRIBUTED) */\n\n", max_output_deps
            );
