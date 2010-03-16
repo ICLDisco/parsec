@@ -1619,7 +1619,6 @@ int dplasma_dump_all_c(char *filename)
         object = dplasma_element_at(i);
         output("int %s_start_key, %s_end_key;\n", object->name, object->name);
     }
-    output( "static dplasma_freelist_t remote_deps_freelist;\n" );
     output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT)->eu_profile, (KEY), (ID))\n"
             "#else\n"
             "#define TAKE_TIME(EU_CONTEXT, KEY, ID)\n"
@@ -1627,7 +1626,8 @@ int dplasma_dump_all_c(char *filename)
             "\n"
             "#include \"scheduling.h\"\n"
             "\n");
-    output( "#define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT, DATA) \\\n"
+    output( "static dplasma_freelist_t remote_deps_freelist;\n"
+            "#define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT, DATA) \\\n"
             "    if( NULL == (REMOTE_DEPS) ) { /* only once per function */               \\\n"
             "        int _i;                                                              \\\n"
             "        (REMOTE_DEPS) = (dplasma_remote_deps_t*)dplasma_freelist_get(&remote_deps_freelist);   \\\n"
