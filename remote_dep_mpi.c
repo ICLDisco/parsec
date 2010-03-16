@@ -144,9 +144,14 @@ static MPI_Request* dep_put_snd_req = &dep_req[3 * DEP_NB_CONCURENT];
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(dplasma_execution_context_t)
 static dplasma_execution_context_t dep_activate_buff[DEP_NB_CONCURENT];
-#define datakey_dtt MPI_BYTE
-#define datakey_count sizeof(intptr_t)
-static intptr_t dep_get_buff[DEP_NB_CONCURENT];
+#define datakey_dtt MPI_LONG_LONG
+#define datakey_count 1
+static unsigned long long dep_get_buff[DEP_NB_CONCURENT];
+
+#include <limits.h>
+#if ULLONG_MAX < UINTPTR_MAX
+#error "unsigned long long is not large enough to hold a pointer!"
+#endif
 
 static int remote_dep_mpi_init(dplasma_context_t* context)
 {
@@ -276,7 +281,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
             {
                 i -= DEP_NB_CONCURENT; /* shift i */
                 assert(i >= 0);
-                remote_dep_mpi_put_data((gc_data_t*) dep_get_buff[i], status.MPI_SOURCE, i);
+                remote_dep_mpi_put_data((gc_data_t*) (intptr_t)dep_get_buff[i], status.MPI_SOURCE, i);
             }
             else 
             {
@@ -300,7 +305,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     i -= DEP_NB_CONCURENT;
                     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
                     DEBUG(("TO\tna\tPut data\tunknown \tj=%d\tsend of %p (hash %d) complete\n", i, dep_get_buff[i], PTR_TO_TAG(dep_get_buff[i])));
-                    gc_data_unref((gc_data_t*)dep_get_buff[i]);
+                    gc_data_unref((gc_data_t*) (intptr_t) dep_get_buff[i]);
                     MPI_Start(&dep_get_req[i]);
                     /* Allow for termination if needed */
                     dplasma_atomic_dec_32b( &(eu_context->master_context->taskstodo) );
@@ -326,11 +331,11 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
 #ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
-    intptr_t datakey = (intptr_t) task->list_item.cache_friendly_emptiness;
+    unsigned long long datakey = (intptr_t) task->list_item.cache_friendly_emptiness;
     task->list_item.cache_friendly_emptiness = gc_data_new(malloc(sizeof(double) * TILE_SIZE), 1);
     assert(dep_enabled);
     
-    DEBUG(("TO\t%d\tGet data\t%s\ti=%d\twith data at %p (hash %d)\n", from, dplasma_service_to_string(task, tmp, 128), i, (void*) datakey, PTR_TO_TAG(datakey)));
+    DEBUG(("TO\t%d\tGet data\t%s\ti=%d\twith data at %p (hash %d)\n", from, dplasma_service_to_string(task, tmp, 128), i, (void*) (intptr_t) datakey, PTR_TO_TAG(datakey)));
     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
     MPI_Irecv(((gc_data_t*) task->list_item.cache_friendly_emptiness)->data, TILE_SIZE, 
               MPI_DOUBLE, from, PTR_TO_TAG(datakey), dep_comm, &dep_put_rcv_req[i]);
