@@ -59,6 +59,7 @@ static inline char* arprintf(const char* fmt, ...)
 #include "dep.h"
 #include "execution_unit.h"
 #include "lifo.h"
+#include "datarepo.h"
 
 /* There is another loop after this one. */
 #define DPLASMA_DEPENDENCIES_FLAG_NEXT       0x01
@@ -90,7 +91,7 @@ struct dplasma_dependencies_t {
 
 typedef struct dplasma_execution_context_t dplasma_execution_context_t;
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, dplasma_execution_context_t*);
-typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, void **);
+typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, gc_data_t **);
 #if defined(DPLASMA_CACHE_AWARENESS)
 typedef unsigned int (dplasma_cache_rank_function_t)(dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
 #endif
@@ -123,7 +124,7 @@ struct dplasma_execution_context_t {
     dplasma_list_item_t list_item;
     dplasma_t*   function;
 #if defined(DPLASMA_CACHE_AWARENESS)
-    void       *pointers[MAX_PARAM_COUNT*2];
+    void        *pointers[MAX_PARAM_COUNT*2];
 #endif
     assignment_t locals[MAX_LOCAL_COUNT];
 };
