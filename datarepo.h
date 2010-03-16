@@ -20,32 +20,60 @@ typedef struct gc_data {
              void    *data;
 } gc_data_t;
 
-static inline gc_data_t *gc_data_new(void *data, uint32_t gc_enabled)
+#ifdef DPLASMA_DEBUG
+#define gc_data_new(d, e) __gc_data_new(d, e, __FILE__, __LINE__)
+#else
+#define gc_data_new(d, e) __gc_data_new(d, e)
+#endif
+
+#ifdef DPLASMA_DEBUG
+static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled, const char *file, int line)
+#else
+static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled)
+#endif
 {
     gc_data_t *d = (gc_data_t*)malloc(sizeof(gc_data_t));
     d->refcount = 0;
     d->gc_enabled = gc_enabled;
     d->data = data;
-#if defined(DPLASMA_DEBUG)
-    printf("Allocating the tile counter %p pointing on tile %p, for which %s responsible to handle liberation\n",
-           d, d->data, d->gc_enabled ? "I am" : "I'm not");
-#endif
+    DEBUG(("Allocating the tile counter %p pointing on tile %p, at %s:%d for which %s responsible to handle liberation\n",
+            d, d->data, file, line, d->gc_enabled ? "I am" : "I'm not"));
     return d;
 }
 
-static inline void gc_data_ref(gc_data_t *d)
+#ifdef DPLASMA_DEBUG
+#define gc_data_ref(d) __gc_data_ref(d, __FILE__, __LINE__)
+#else
+#define gc_data_ref(d) __gc_data_ref(d)
+#endif
+
+#ifdef DPLASMA_DEBUG
+static inline void __gc_data_ref(gc_data_t *d, const char *file, int line)
+#else
+static inline void __gc_data_ref(gc_data_t *d)
+#endif
 {
+    DEBUG(("%p is ref'ed by %s:%d\n", d, file, line));
     dplasma_atomic_inc_32b( &d->refcount);
 }
 
-static inline gc_data_t *gc_data_unref(gc_data_t *d)
+#ifdef DPLASMA_DEBUG
+#define gc_data_unref(d) __gc_data_unref(d, __FILE__, __LINE__)
+#else
+#define gc_data_unref(d) __gc_data_unref(d)
+#endif
+
+#ifdef DPLASMA_DEBUG
+static inline gc_data_t* __gc_data_unref(gc_data_t *d, const char *file, int line)
+#else
+static inline gc_data_t* __gc_data_unref(gc_data_t *d)
+#endif
 {
     int nref = dplasma_atomic_dec_32b( &d->refcount );
+    DEBUG(("%p is unreferenced by %s:%d\n", d, file, line));
     if( 0 == nref ) {
-#if defined(DPLASMA_DEBUG)
-        printf("Liberating the tile counter %p pointing on tile %p, %s\n",
-               d, d->data, d->gc_enabled ? "and the data with it" : "without touching the data");
-#endif        
+            DEBUG(("Liberating the tile counter %p pointing on tile %p, %s\n",
+                   d, d->data, d->gc_enabled ? "and the data with it" : "without touching the data"));
         if( d->gc_enabled ) {
             free(d->data);
         }
