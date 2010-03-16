@@ -1626,17 +1626,19 @@ int dplasma_dump_all_c(char *filename)
             "\n"
             "#include \"scheduling.h\"\n"
             "\n");
-    output( "static dplasma_freelist_t remote_deps_freelist;\n"
-            "#define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT, DATA) \\\n"
-            "    if( NULL == (REMOTE_DEPS) ) { /* only once per function */               \\\n"
-            "        int _i;                                                              \\\n"
-            "        (REMOTE_DEPS) = (dplasma_remote_deps_t*)dplasma_freelist_get(&remote_deps_freelist);   \\\n"
-            "        (REMOTE_DEPS)->first.outside.exec_context = (EXEC_CONTEXT);          \\\n"
-            "        (REMOTE_DEPS)->first.outside.origin = (dplasma_freelist_t*)&remote_deps_freelist;             \\\n"
-            "        for( _i = 0; _i < (COUNT); _i++ ) {                                  \\\n"
-            "            (REMOTE_DEPS)->data[_i] = data[_i];                              \\\n"
-            "        }                                                                    \\\n"
-            "    }\n" );
+    output( "#if defined(DISTRIBUTED)\n"
+            "  static dplasma_freelist_t remote_deps_freelist;\n"
+            "  #define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT, DATA) \\\n"
+            "      if( NULL == (REMOTE_DEPS) ) { /* only once per function */               \\\n"
+            "          int _i;                                                              \\\n"
+            "          (REMOTE_DEPS) = (dplasma_remote_deps_t*)dplasma_freelist_get(&remote_deps_freelist);   \\\n"
+            "          (REMOTE_DEPS)->first.outside.exec_context = (EXEC_CONTEXT);          \\\n"
+            "          (REMOTE_DEPS)->first.outside.origin = (dplasma_freelist_t*)&remote_deps_freelist;             \\\n"
+            "          for( _i = 0; _i < (COUNT); _i++ ) {                                  \\\n"
+            "              (REMOTE_DEPS)->data[_i] = data[_i];                              \\\n"
+            "          }                                                                     \\\n"
+            "      }\n"
+            "#endif  /* defined(DISTRIBUTED) */\n\n" );
 
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
 
@@ -1703,10 +1705,12 @@ int dplasma_dump_all_c(char *filename)
             max_output_deps = object_output_deps;
         }            
     }
-    output("  { /* compute the maximum size of the dependencies array */\n"
-           "    size_t elem_size = sizeof(dplasma_remote_deps_t) + %d * sizeof(uint32_t) + sizeof(uint32_t) * 10;\n"
+    output("#if defined(DISTRIBUTED)\n"
+           "  { /* compute the maximum size of the dependencies array */\n"
+           "    size_t elem_size = sizeof(dplasma_remote_deps_t) + %d * sizeof(uint32_t) + sizeof(uint32_t) * context->nb_nodes;\n"
            "    dplasma_freelist_init( &remote_deps_freelist, elem_size );\n"
-           "  }\n\n", max_output_deps
+           "  }\n"
+           "#endif  /* defined(DISTRIBUTED) */\n\n", max_output_deps
            );
 
     output("#ifdef DPLASMA_PROFILING\n");
