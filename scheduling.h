@@ -32,7 +32,7 @@ void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
 
 
 
-#ifdef DEPRECATED
+//#ifdef DEPRECATED
 /**
  * Signal the termination of the execution context to all dependencies of 
  * its dependencies.  
@@ -47,7 +47,7 @@ void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
 int dplasma_trigger_dependencies( dplasma_execution_unit_t*,
                                  const dplasma_execution_context_t*,
                                  int forward_remote );
-#endif /* DEPRECATED */
+//#endif /* DEPRECATED */
 
 #endif  /* _dplasma_scheduling_h */
 
