@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef _dplasma_h
-#define _dplasma_h
+#ifndef DPLASMA_H_HAS_BEEN_INCLUDED
+#define DPLASMA_H_HAS_BEEN_INCLUDED
 
 #include "dplasma_config.h"
 
@@ -88,9 +88,10 @@ struct dplasma_dependencies_t {
     dplasma_dependencies_union_t u; 
 };
 
+struct dplasma_remote_deps_t;
 typedef struct dplasma_execution_context_t dplasma_execution_context_t;
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, dplasma_execution_context_t*);
-typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, void **);
+typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, struct dplasma_remote_deps_t*, void **);
 #if defined(DPLASMA_CACHE_AWARENESS)
 typedef unsigned int (dplasma_cache_rank_function_t)(dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
 #endif
@@ -224,7 +225,6 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                                             struct dplasma_dependencies_t **deps_location,
                                             dplasma_execution_context_t** pready_list );
 
-#ifdef DEPRECATED
 /**
  * Release all OUT dependencies for this particular instance of the service.
  * @param [IN] The execution context which just completed
@@ -239,7 +239,6 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                                       dplasma_execution_context_t* restrict exec_context,
                                       const param_t* restrict dest_param, 
                                       int forward_remote );
-#endif
 
 /**
  * Check is there is any of the input parameters that do depend on some
@@ -328,4 +327,4 @@ int load_dplasma_hooks( dplasma_context_t* context );
  */
 int enumerate_dplasma_tasks( dplasma_context_t* context );
 
-#endif
+#endif  /* DPLASMA_H_HAS_BEEN_INCLUDED */

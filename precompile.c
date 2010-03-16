@@ -742,13 +742,14 @@ static void dplasma_dump_locals_from_context(const dplasma_t *d,
             } else {
                 output("%*s  int %s;\n", additional_spaces, "", d->locals[i]->name);
             }
+        } else {
+            if( dump_what & DUMP_ASSIGNMENT_LINE ) {
+                output("%*s  %s = exec_context->locals[%d].value;\n", additional_spaces, "", d->locals[i]->name, i);
+            }
         }
         if( dump_what & DUMP_VOID_LINE ) {
             output("%*s  (void)%s;\n", additional_spaces, "", d->locals[i]->name);
         }
-		if( dump_what & ~DUMP_DECLARATION & DUMP_ASSIGNMENT_LINE ) {
-		    output("%*s  %s = exec_context->locals[%d].value;\n", additional_spaces, "", d->locals[i]->name, i);
-	    }
     }
 }
 
@@ -756,46 +757,36 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                            char *init_func_body,
                                            int init_func_body_size)
 {
-    int i, j, cpt;
+    int i, j, cpt, output_deps;
     char strexpr1[MAX_EXPR_LEN];
     char strexpr2[MAX_EXPR_LEN];
 
-    output("static int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
+    output("\nstatic int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
            "                                   const dplasma_execution_context_t *exec_context,\n"
-           "                                   int propagate_remote_dep,\n"
+           "                                   int action_mask,\n"
+           "                                   struct dplasma_remote_deps_t* upstream_remote_deps,\n"
            "                                   void **data)\n"
            "{\n"
-           "  int ret = 0;\n"
+           "  int ret = 0, remote_deps_count = 0;\n"
            "  data_repo_entry_t *e%s;\n", 
            d->name, d->name);
 
-    dplasma_dump_locals_from_context(d, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
-    output("  e%s = %s;\n", d->name, dplasma_to_data_repo_lookup_entry(d));
-    output("  if(data) {\n");
-    cpt = 0;
-    for( i = 0; i < MAX_PARAM_COUNT; i++) {
-        if( d->inout[i] != NULL &&
-            d->inout[i]->sym_type & SYM_OUT ) {
-            output("    e%s->data[%d] = data[%d];\n", d->name, cpt, cpt);
-            cpt++;
-        }
-    }
-    output("  } else {\n");
-    cpt = 0;
-    for( i = 0; i < MAX_PARAM_COUNT; i++) {
-        if( d->inout[i] != NULL &&
-            d->inout[i]->sym_type & SYM_OUT ) {
-            output("    e%s->data[%d] = NULL;\n", d->name, cpt);
-            cpt++;
-        }
-    }
-    output("  }\n\n");
-    
     output("  dplasma_execution_context_t*   ready_list = NULL;\n"
+           "  dplasma_remote_deps_t* remote_deps = upstream_remote_deps;\n"
            "  uint32_t usage = 0;\n"
            "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
     for(j = 0; j < MAX_LOCAL_COUNT; j++) {
         output(" {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
+    }
+
+    dplasma_dump_locals_from_context(d, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
+    output("  e%s = %s;\n", d->name, dplasma_to_data_repo_lookup_entry(d));
+
+    for( i = cpt = 0; i < MAX_PARAM_COUNT; i++) {
+        if( (d->inout[i] != NULL) && (d->inout[i]->sym_type & SYM_OUT) ) {
+            output("  e%s->data[%d] = (NULL != data) ? data[%d] : NULL;\n", d->name, cpt, cpt);
+            cpt++;
+        }
     }
 
     output("  /* remove warnings about unused context variable*/\n" 
@@ -804,13 +795,19 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     dplasma_dump_locals_from_context(d, DUMP_VOID_LINE, 0);
 
     output("#ifdef DISTRIBUTED\n"
-           "  if(propagate_remote_dep) {\n"
+           "  if(action_mask) {\n"
            "    dplasma_remote_dep_reset_forwarded(context);\n"
            "  }\n"
            "#else\n"
-           "  (void)propagate_remote_dep;  /* silence a warning */\n"
+           "  (void)action_mask;  /* silence a warning */\n"
            "#endif\n");
     
+    for(i = output_deps = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+        if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
+            output_deps++;
+        }
+    }
+
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
             int spaces = 0;
@@ -830,7 +827,11 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL != dep->call_params[k] ) {
-                            output("%*s    int _p%d;\n", spaces, "", k);
+                            output("%*s    int _p%d", spaces, "", k);
+                            if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
+                                output(" = %s", expression_to_c_inline(dep->call_params[k], strexpr1, MAX_EXPR_LEN));
+                            }
+                            output(";  /* %s local variable %s */\n", dep->dplasma->name, target->locals[k]->name);
                         }
                     }
 
@@ -838,30 +839,28 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                            spaces, "", i, j, dep->dplasma->name);
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
-                        if( NULL != dep->call_params[k] ) {
-                            if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
-                                output("%*s    for(_p%d = %s; _p%d <= %s; _p%d++) {\n", spaces, "", 
-                                       k, expression_to_c_inline(dep->call_params[k]->bop1, strexpr1, MAX_EXPR_LEN),
-                                       k, expression_to_c_inline(dep->call_params[k]->bop2, strexpr2, MAX_EXPR_LEN),
-                                       k);
-                                spaces += 2;
-                            } else {
-                                output("%*s    _p%d = %s;\n", spaces, "", k, expression_to_c_inline(dep->call_params[k], strexpr1, MAX_EXPR_LEN));
-                            }
+                        if( (NULL != dep->call_params[k]) && (EXPR_OP_BINARY_RANGE == dep->call_params[k]->op) ) {
+                            output("%*s    for(_p%d = %s; _p%d <= %s; _p%d++) {\n", spaces, "", 
+                                   k, expression_to_c_inline(dep->call_params[k]->bop1, strexpr1, MAX_EXPR_LEN),
+                                   k, expression_to_c_inline(dep->call_params[k]->bop2, strexpr2, MAX_EXPR_LEN),
+                                   k);
+                            spaces += 2;
                         }
                     }
                     if( NULL != dep->cond ) {
                         output("%*s    if(%s) {\n", spaces, "", expression_to_c_inline(dep->cond, strexpr1, MAX_EXPR_LEN));
-                    } else {
-                        output("%*s     {\n", spaces, "");
                     }
 
                     for(k = 0; k < dep->dplasma->nb_locals; k++) {
                         output("%*s      int %s = _p%d;\n", spaces, "", target->locals[k]->name, k);
                     }
 
-                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
-                        output("%*s      (void)%s;\n", spaces, "", target->locals[k]->name);
+                    if( dep->dplasma->nb_locals ) {
+                        output("%*s      ", spaces, "" );
+                        for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                            output("(void)%s; ", target->locals[k]->name);
+                        }
+                        output(" /* silence the compiler about unused variables */\n");
                     }
                     /******************************************************/
                     /* Compute predicates                                 */
@@ -917,44 +916,52 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                                              &rowpred, 
                                                              &colpred, 
                                                              &rowsize,
-                                                             &colsize) < 0)
-                            {
-                                output("%*s      } else if (propagate_remote_dep) {\n"
-                                       "%*s        DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
-                                       "%*s      }\n", 
-                                       spaces, "",
-                                       spaces, "",
-                                       spaces, "");
-                            }
-                        else 
-                            {
-                                output( "%*s      } else if (propagate_remote_dep) {\n"
-                                        "%*s        int rank, rrank, crank, ncols;\n"
-                                        "%*s        rrank = %s;\n"
-                                        "%*s        crank = %s;\n"
-                                        "%*s        ncols = %s;\n"
-                                        "%*s        rank = crank + rrank * ncols;\n"
-                                        "%*s      //DEBUG((\"gridrank = %%d ( %%d + %%d x %%d )\\n\", rank, crank, rrank, ncols));\n"
-                                        "%*s        ret += dplasma_remote_dep_activate_rank(context,\n"
-                                        "%*s                       exec_context,\n"
-                                        "%*s                       exec_context->function->inout[%d/*i*/],\n"
-                                        "%*s                       rank, data);\n"
-                                        "%*s      }\n",
-                                        spaces, "",
-                                        spaces, "",
-                                        spaces, "", expression_to_c_inline(rowpred, strexpr1, MAX_EXPR_LEN),
-                                        spaces, "", expression_to_c_inline(colpred, strexpr2, MAX_EXPR_LEN),
-                                        spaces, "", colsize->name,
-                                        spaces, "",
-                                        spaces, "",
-                                        spaces, "",
-                                        spaces, "",
-                                        spaces, "", i,
-                                        spaces, "",
-                                        spaces, "");
-                            }
+                                                             &colsize) < 0) {
+                            output("%*s      } else if (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) {\n"
+                                   "%*s        DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
+                                   "%*s      }\n", 
+                                   spaces, "",
+                                   spaces, "",
+                                   spaces, "");
+                        } else {
+                            output( "#if defined(DISTRIBUTED)\n"                                                                   /* line  1 */
+                                    "%*s      } else if (action_mask & (DPLASMA_ACTION_RELEASE_REMOTE_DEPS | (1 << %d)) ) {\n"     /* line  2 */
+                                    "%*s        int rank, rrank, crank, ncols, array_pos, array_mask;\n"                           /* line  3 */
+                                    "%*s        rrank = %s;\n"                                                                     /* line  4 */
+                                    "%*s        crank = %s;\n"                                                                     /* line  5 */
+                                    "%*s        ncols = %s;\n"                                                                     /* line  6 */
+                                    "%*s        rank = crank + rrank * ncols;\n"                                                   /* line  7 */
+                                    "%*s        array_pos = rank / (sizeof(uint32_t));\n"                                          /* line  8 */
+                                    "%*s        array_mask = rank %% (sizeof(uint32_t));\n"                                        /* line  9 */
+                                    "%*s        DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context,\n"                 /* line 10 */
+                                    "%*s                                             %d, data);\n"                                 /* line 11 */
+                                    "%*s        if( !((remote_deps->rank_bits[%d])[array_pos] & array_mask) ) {\n"                 /* line 12 */
+                                    "%*s          (remote_deps->rank_bits[%d])[array_pos] |= array_mask;\n"                        /* line 13 */
+                                    "%*s          (remote_deps->count[%d])++; remote_deps_count++;\n"                              /* line 14 */
+                                    "%*s        }\n"                                                                               /* line 15 */
+                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                         /* line 16 */
+                                    "%*s      }\n",                                                                                /* line 17 */
+                                    /* line  2 */ spaces, "", i,
+                                    /* line  3 */ spaces, "",
+                                    /* line  4 */ spaces, "", expression_to_c_inline(rowpred, strexpr1, MAX_EXPR_LEN),
+                                    /* line  5 */ spaces, "", expression_to_c_inline(colpred, strexpr2, MAX_EXPR_LEN),
+                                    /* line  6 */ spaces, "", colsize->name,
+                                    /* line  7 */ spaces, "",
+                                    /* line  8 */ spaces, "",
+                                    /* line  9 */ spaces, "",
+                                    /* line 10 */ spaces, "",
+                                    /* line 11 */ spaces, "", output_deps,
+                                    /* line 12 */ spaces, "", i,
+                                    /* line 13 */ spaces, "", i,
+                                    /* line 14 */ spaces, "", i,
+                                    /* line 15 */ spaces, "",
+                                    /* line 17 */ spaces, ""
+                                    );
+                        }
                     }                    
-                    output("%*s    }\n", spaces, "");
+                    if( NULL != dep->cond ) {
+                        output("%*s    }\n", spaces, "");
+                    }
                     
                     for(k = MAX_PARAM_COUNT-1; k >= 0; k--) {
                         if( NULL != dep->call_params[k] ) {
@@ -969,12 +976,19 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             }
         }
     }
-    output("  data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"
-           "  if( NULL != ready_list )\n"
-           "    __dplasma_schedule(context, ready_list);\n"
-           "  return ret;\n"
-           "}\n",
-           d->name, d->name);
+    output("  data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"                         /* line  1 */
+           "  if( NULL != ready_list )\n"                                                           /* line  2 */
+           "    __dplasma_schedule(context, ready_list);\n"                                         /* line  3 */
+           "#if defined(DISTRIBUTED)\n"                                                             /* line  4 */
+           "  if( (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) && remote_deps_count ) {\n"    /* line  5 */
+           "    ret += dplasma_remote_dep_activate(context,\n"                                      /* line  6 */
+           "                                       remote_deps,\n"                                  /* line  7 */
+           "                                       remote_deps_count);\n"                           /* line  8 */
+           "  }\n"                                                                                  /* line  9 */
+           "#endif  /* defined(DISTRIBUTED) */\n"                                                   /* line 10 */
+           "  return ret;\n"                                                                        /* line 11 */
+           "}\n\n",                                                                                 /* line 12 */
+           /* line  1 */ d->name, d->name);
 }
 
 #if defined(DPLASMA_CACHE_AWARENESS)
@@ -1391,7 +1405,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 output("    data[%d] = %s;\n", cpt++, d->inout[i]->name);
             }
         }
-        output("    %s_release_dependencies(context, exec_context, 1, data);\n"
+        output("    %s_release_dependencies(context, exec_context, 1, NULL, data);\n"
                "  }\n",
                d->name);
 
@@ -1544,7 +1558,7 @@ int dplasma_dump_all_c(char *filename)
     char body[INIT_FUNC_BODY_SIZE];
     preamble_list_t *n;
     const dplasma_t* object;
-    int i, p = 0;
+    int i, j, k, p = 0, object_output_deps, max_output_deps;
     
     out = fopen(filename, "w");
     if( out == NULL ) {
@@ -1569,6 +1583,7 @@ int dplasma_dump_all_c(char *filename)
 
     output( "#include <assert.h>\n"
             "#include <string.h>\n"
+            "#include \"freelist.h\"\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
             "#define TILE_SIZE (DPLASMA_TILE_SIZE*DPLASMA_TILE_SIZE*sizeof(double))\n"
@@ -1595,6 +1610,7 @@ int dplasma_dump_all_c(char *filename)
         object = dplasma_element_at(i);
         output("int %s_start_key, %s_end_key;\n", object->name, object->name);
     }
+    output( "static dplasma_freelist_t remote_deps_freelist;\n" );
     output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT)->eu_profile, (KEY), (ID))\n"
             "#else\n"
             "#define TAKE_TIME(EU_CONTEXT, KEY, ID)\n"
@@ -1602,6 +1618,16 @@ int dplasma_dump_all_c(char *filename)
             "\n"
             "#include \"scheduling.h\"\n"
             "\n");
+    output( "#define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT, DATA) \\\n"
+            "    if( NULL == (REMOTE_DEPS) ) { /* only once per function */               \\\n"
+            "        int _i;                                                              \\\n"
+            "        (REMOTE_DEPS) = (dplasma_remote_deps_t*)dplasma_freelist_get(&remote_deps_freelist);   \\\n"
+            "        (REMOTE_DEPS)->first.outside.exec_context = (EXEC_CONTEXT);          \\\n"
+            "        (REMOTE_DEPS)->first.outside.origin = (dplasma_freelist_t*)&remote_deps_freelist;             \\\n"
+            "        for( _i = 0; _i < (COUNT); _i++ ) {                                  \\\n"
+            "            (REMOTE_DEPS)->data[_i] = data[_i];                              \\\n"
+            "        }                                                                    \\\n"
+            "    }\n" );
 
     p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
 
@@ -1649,7 +1675,7 @@ int dplasma_dump_all_c(char *filename)
             "  }\n"
             "\n");
 
-    for(i = 0; i < dplasma_nb_elements(); i++) {
+    for(i = max_output_deps = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
         /* Specials IN and OUT test */
         if( object->body != NULL ) {
@@ -1658,7 +1684,21 @@ int dplasma_dump_all_c(char *filename)
                    "  object->release_deps = %s_release_dependencies;\n\n",
                    object->name, object->name, object->name);
         }
+        /* Compute the maximum number of output dependencies */
+        for( j = object_output_deps = 0; j < MAX_PARAM_COUNT; j++ ) {
+            if( (NULL != object->inout[j]) && (object->inout[j]->sym_type & SYM_OUT) ) {
+                object_output_deps++;
+            }
+        }
+        if( max_output_deps < object_output_deps ) {
+            max_output_deps = object_output_deps;
+        }            
     }
+    output("  { /* compute the maximum size of the dependencies array */\n"
+           "    size_t elem_size = sizeof(dplasma_remote_deps_t) + %d * sizeof(uint32_t) + sizeof(uint32_t) * 10;\n"
+           "    dplasma_freelist_init( &remote_deps_freelist, elem_size );\n"
+           "  }\n\n", max_output_deps
+           );
 
     output("#ifdef DPLASMA_PROFILING\n");
 

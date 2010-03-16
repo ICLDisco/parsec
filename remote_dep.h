@@ -15,6 +15,21 @@
 # undef DISTRIBUTED
 #endif
 
+#define DPLASMA_ACTION_RELEASE_REMOTE_DEPS 0x0100
+#define DPLASMA_ACTION_DEPS_MASK           0x00FF
+
+typedef struct dplasma_remote_deps_t {
+    union {
+        struct {
+            struct dplasma_freelist_t* origin;
+            const struct dplasma_execution_context_t* exec_context;
+        } outside;
+        dplasma_list_item_t                 item;
+    } first;
+    uint32_t*                               count;
+    uint32_t**                              rank_bits;
+    void**                                  data;
+} dplasma_remote_deps_t;
 
 #if defined(DISTRIBUTED) || defined(DPLASMA_DEBUG)
 # ifdef DEPRECATED
@@ -27,6 +42,9 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const param_t* dest_param );
 # endif
 
+int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
+                                dplasma_remote_deps_t* remote_deps,
+                                uint32_t remote_deps_count );
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param, 

@@ -10,6 +10,7 @@
 
 #include <mpi.h>
 #include "profiling.h"
+#include "freelist.h"
 
 #define USE_MPI_THREAD
 #define DEP_NB_CONCURENT 3
@@ -117,6 +118,33 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     /* make sure we don't leave before serving all data deps */
     dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
     return remote_dep_send(origin, rank, data);
+}
+
+int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
+                                dplasma_remote_deps_t* remote_deps,
+                                uint32_t remote_deps_count )
+{
+    dplasma_t* function = remote_deps->first.outside.exec_context->function;
+    int i, j, k, count, array_index, bit_index;
+
+    for( i = 0; i < function->nb_locals; i++ ) {
+        if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
+        array_index = 0;
+        for( j = count = 0; count < remote_deps->count[i]; j++ ) {
+            if( 0 == remote_deps->rank_bits[array_index] ) continue;  /* no bits here */
+            for( bit_index = 0; bit_index < (8 * sizeof(uint32_t)); bit_index++ ) {
+                if( (remote_deps->rank_bits[i])[array_index] & (1 << bit_index) ) {
+                    dplasma_remote_dep_activate_rank(eu_context, remote_deps->first.outside.exec_context, function->inout[i],
+                                                     (array_index * sizeof(uint32_t)) + bit_index, remote_deps->data[i]);
+                    count++;
+                }
+            }
+            /* Don't forget to reset the bits */
+            (remote_deps->rank_bits[i])[array_index] = 0;
+        }
+        remote_deps->count[i] = 0;
+    }
+    dplasma_freelist_release( (dplasma_freelist_item_t*)remote_deps );
 }
 
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
@@ -238,7 +266,7 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
 
 static int remote_dep_mpi_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, void** data)
 {
-    return exec_context->function->release_deps(eu_context, exec_context, 0, data);
+    return exec_context->function->release_deps(eu_context, exec_context, 0, NULL, data);
 }
 
 static void remote_dep_mpi_put_data(void* data, int to, int i);
@@ -571,22 +599,6 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
 }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #ifdef DEPRECATED
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,

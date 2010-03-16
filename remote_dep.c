@@ -33,6 +33,34 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     symbol_dump_all("\tGLOBAL SYMBOLS:\t");
     return -1;
 }
+
+int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
+                                dplasma_remote_deps_t* remote_deps,
+                                uint32_t remote_deps_count )
+{
+    dplasma_t* function = remote_deps->context->function;
+    int i, j, k, count, array_index, bit_index;
+
+    for( i = 0; i < function->nb_locals; i++ ) {
+        if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
+        array_index = 0;
+        for( j = count = 0; count < remote_deps->count[i]; j++ ) {
+            if( 0 == remote_deps->rank_bits[array_index] ) continue;  /* no bits here */
+            for( bit_index = 0; bit_index < (8 * sizeof(uint32_t)); bit_index++ ) {
+                if( (remote_deps->rank_bits[i])[array_index] & (1 << bit_index) ) {
+                    dplasma_remote_dep_activate_rank(eu_context, remote_deps->context, function->inout[i],
+                                                     (array_index * sizeof(uint32_t)) + bit_index, remote_deps->data[i]);
+                    count++;
+                }
+            }
+            /* Don't forget to reset the bits */
+            (remote_deps->rank_bits[i])[array_index] = 0;
+        }
+        remote_deps->count[i] = 0;
+    }
+    dplasma_freelist_release( (dplasma_freelist_item_t*)remote_deps );
+}
+
 #   endif /* DPLASMA_DEBUG */
 #endif /* NO TRANSPORT */
 
