@@ -765,7 +765,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "                                   const dplasma_execution_context_t *exec_context,\n"
            "                                   int action_mask,\n"
            "                                   struct dplasma_remote_deps_t* upstream_remote_deps,\n"
-           "                                   void **data)\n"
+           "                                   gc_data_t **data)\n"
            "{\n"
            "  int ret = 0, remote_deps_count = 0;\n"
            "  data_repo_entry_t *e%s;\n", 
@@ -794,19 +794,12 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "  /* remove warnings in case the variable is not used later */\n");
     dplasma_dump_locals_from_context(d, DUMP_VOID_LINE, 0);
 
-    output("#ifdef DISTRIBUTED\n"
-           "  if(action_mask) {\n"
-           "    dplasma_remote_dep_reset_forwarded(context);\n"
-           "  }\n"
-           "#else\n"
-           "  (void)action_mask;  /* silence a warning */\n"
-           "#endif\n");
-    
     for(i = output_deps = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
             output_deps++;
         }
     }
+    cpt = 0;
 
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
@@ -823,7 +816,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
 
                     output("%*s  new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* %s */\n",
                            spaces, "", i, j, dep->dplasma->name);
-                    output("%*s  { /** iterate now on the params and dependencies to release OUT dependencies */\n", spaces, "");
+                    output("%*s  if( action_mask & (1 << %d) ) { /** iterate now on the params and dependencies to release OUT dependencies */\n",
+                           spaces, "", i);
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL != dep->call_params[k] ) {
@@ -889,9 +883,11 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                spaces, "", k, k, target->name, target->locals[k]->name);
                     }
 
-                    output( "%*s        usage++;\n",
-                            spaces, "");
-                    
+                    output( "%*s        usage++;\n"
+                            "%*s        gc_data_ref( e%s->data[%d] /* %s of %s is used by %s */ );\n",
+                            spaces, "",
+                            spaces, "", d->name, cpt, p->name, d->name, target->name);
+
                     output( "%*s        ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"
                             "%*s                       exec_context->function->inout[%d/*i*/],\n"
                             "%*s                       &new_context,\n"
@@ -974,6 +970,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     output("  }\n");
                 }
             }
+            cpt++;
         }
     }
     output("  data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"                         /* line  1 */
@@ -1005,7 +1002,7 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
             d->name);
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) 
         if( d->inout[i]->sym_type & SYM_IN ) {
-            output("  void *%s;\n", d->inout[i]->name);
+            output("  gc_data_t *%s;\n", d->inout[i]->name);
             output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
         }
 	dplasma_dump_locals_from_context(d, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
@@ -1168,6 +1165,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         dplasma_dump_locals_from_context(d, DUMP_DECLARATION, 0);
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++)  {
             output("  void *%s;\n", d->inout[i]->name);
+            output("  gc_data_t *gs;\n", d->inout[i]->name);
             output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
         }
         dplasma_dump_locals_from_context(d, DUMP_ASSIGNMENT_LINE, 0);
@@ -1176,6 +1174,8 @@ static char *dplasma_dump_c(const dplasma_t *d,
                "    /* remove warnings in case the variable is not used later */\n");
         dplasma_dump_locals_from_context(d, DUMP_VOID_LINE, 2);
         
+        output("#warning \"This is untested Code\"\n");
+
         pointers_cpt = 0;
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_IN ) {
@@ -1191,7 +1191,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             } else {
                                 output("      exec_context->pointers[%d] = NULL;\n", 2*pointers_cpt);
                             }
-                            output("      exec_context->pointers[%d] = ", 2*pointers_cpt + 1);
+                            output("      g%s = ", d->inout[i]->name);
                         } else {
                             if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
                                 output("    e%s = %s;\n",
@@ -1201,7 +1201,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             } else {
                                 output("    exec_context->pointers[%d] = NULL;\n", 2 * pointers_cpt);
                             }
-                            output("    exec_context->pointers[%d] = ", 2 * pointers_cpt + 1);
+                            output("    g%s = ", d->inout[i]->name);
                         }
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
                             cpt = 0;
@@ -1213,11 +1213,13 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             }
                             output("e%s->data[%d];\n", d->inout[i]->name, cpt);
                         } else {
-                            output( "%s;\n", dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_in[k], strexpr1, MAX_EXPR_LEN) );
+                            output( "gc_data_new(%s, 0);\n", dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_in[k], strexpr1, MAX_EXPR_LEN) );
                         }
                         if( NULL != d->inout[i]->dep_in[k]->cond ) {
                             output("    }\n");
                         }
+                        output("    exec_context->pointers[%d] = g%s;\n", 2*pointers_cpt + 1, d->inout[i]->name);
+                        output("    gc_data_ref( g%s );\n", d->inout[i]->name);
                     }
                 }
                 pointers_cpt++;
@@ -1225,6 +1227,8 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 output("    (void)%s;\n", d->inout[i]->name);
             }            
         }
+
+        output("#warning \"End of untested Code\"\n");
         
         output("  }\n");
         
@@ -1245,6 +1249,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         dplasma_dump_locals_from_context(d, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             output("  void *%s = NULL;\n", d->inout[i]->name);
+            output("  gc_data_t *g%s = NULL;\n", d->inout[i]->name);
             output("  data_repo_entry_t *e%s = NULL;\n", d->inout[i]->name);
         }
 
@@ -1263,14 +1268,14 @@ static char *dplasma_dump_c(const dplasma_t *d,
                                        d->inout[i]->name,
                                        dep_to_data_repo_lookup_entry(d->inout[i]->dep_in[k]));
                             }
-                            output("    %s = ", d->inout[i]->name);
+                            output("    g%s = ", d->inout[i]->name);
                         } else {
                             if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
                                 output("  e%s = %s;\n",
                                        d->inout[i]->name,
                                        dep_to_data_repo_lookup_entry(d->inout[i]->dep_in[k]));
                             }
-                            output("  %s = ", d->inout[i]->name);
+                            output("  g%s = ", d->inout[i]->name);
                         }
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
                             cpt = 0;
@@ -1282,13 +1287,14 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             }
                             output("e%s->data[%d];\n", d->inout[i]->name, cpt);
                         } else {
-                            output( "%s;\n", dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_in[k], strexpr1, MAX_EXPR_LEN) );
+                            output( "gc_data_new(%s, 0);\n", dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_in[k], strexpr1, MAX_EXPR_LEN) );
                         }
                         if( NULL != d->inout[i]->dep_in[k]->cond ) {
                             output("  }\n");
                         }
                     }
                 }
+                output("  %s = g%s->data;\n", d->inout[i]->name, d->inout[i]->name);
             } else {
                 output("  (void)%s;\n", d->inout[i]->name);
             }
@@ -1397,18 +1403,19 @@ static char *dplasma_dump_c(const dplasma_t *d,
             }
         }
         output("  {\n"
-               "    void *data[%d];\n",
+               "    gc_data_t *data[%d];\n",
                cpt);
         cpt=0;
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_OUT ) {
-                output("    data[%d] = %s;\n", cpt++, d->inout[i]->name);
+                output("    data[%d] = g%s;\n", cpt++, d->inout[i]->name);
             }
         }
-        output("    %s_release_dependencies(context, exec_context, 1, NULL, data);\n"
+        output("    %s_release_dependencies(context, exec_context, \n"
+               "                            DPLASMA_ACTION_RELEASE_REMOTE_DEPS | DPLASMA_ACTION_DEPS_MASK, NULL, data);\n"
                "  }\n",
                d->name);
-
+     
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_IN ) {
                 for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
@@ -1416,15 +1423,17 @@ static char *dplasma_dump_c(const dplasma_t *d,
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
                             if( NULL != d->inout[i]->dep_in[k]->cond ) {
                                 output("  if(%s) {\n"
-                                       "    data_repo_entry_used_once( %s_repo, e%s->key );\n"
-                                       "  }\n",
+                                       "    data_repo_entry_used_once( %s_repo, e%s->key );\n",
                                        expression_to_c_inline(d->inout[i]->dep_in[k]->cond, strexpr1, MAX_EXPR_LEN),
                                        d->inout[i]->dep_in[k]->dplasma->name,
                                        d->inout[i]->name);
+                                output("    (void)gc_data_unref(g%s);\n", d->inout[i]->name);
+                                output("  }\n");
                             } else {
                                 output("  data_repo_entry_used_once( %s_repo, e%s->key );\n",
                                        d->inout[i]->dep_in[k]->dplasma->name,
                                        d->inout[i]->name);
+                                output("  (void)gc_data_unref(g%s);\n", d->inout[i]->name);
                             }
                         }
                     }

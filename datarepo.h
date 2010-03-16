@@ -14,12 +14,58 @@ static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
     *atomic_lock = 0;
 }
 
+typedef struct gc_data {
+    volatile uint32_t refcount;
+             uint32_t gc_enabled;
+             void    *data;
+} gc_data_t;
+
+static inline gc_data_t *gc_data_new(void *data, uint32_t gc_enabled)
+{
+    gc_data_t *d = (gc_data_t*)malloc(sizeof(gc_data_t));
+    d->refcount = 0;
+    d->gc_enabled = gc_enabled;
+    d->data = data;
+#if defined(DPLASMA_DEBUG)
+    printf("Allocating the tile counter %p pointing on tile %p, for which %s responsible to handle liberation\n",
+           d, d->data, d->gc_enabled ? "I am" : "I'm not");
+#endif
+    return d;
+}
+
+static inline void gc_data_ref(gc_data_t *d)
+{
+    dplasma_atomic_inc_32b( &d->refcount);
+}
+
+static inline gc_data_t *gc_data_unref(gc_data_t *d)
+{
+    int nref = dplasma_atomic_dec_32b( &d->refcount );
+    if( 0 == nref ) {
+#if defined(DPLASMA_DEBUG)
+        printf("Liberating the tile counter %p pointing on tile %p, %s\n",
+               d, d->data, d->gc_enabled ? "and the data with it" : "without touching the data");
+#endif        
+        if( d->gc_enabled ) {
+            free(d->data);
+        }
+#if defined(DPLASMA_DEBUG)
+        d->data = NULL;
+        d->refcount = 0;
+        d->gc_enabled = 2;
+#endif
+        free(d);
+        return NULL;
+    }
+    return d;
+}
+
 typedef struct data_repo_entry {
-    long int key;
-    struct data_repo_entry *next_entry;
     volatile uint32_t usagecnt;
     volatile uint32_t usagelmt;
-    void *data[1];
+    long int key;
+    struct data_repo_entry *next_entry;
+    gc_data_t *data[1];
 } data_repo_entry_t;
 
 typedef struct data_repo_head {
@@ -56,7 +102,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
         }
 
     if( create != 0 ) {
-        e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(void*));
+        e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*));
         e->next_entry = repo->heads[h].first_entry;
         repo->heads[h].first_entry = e;
         e->key = key;

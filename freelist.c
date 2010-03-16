@@ -35,7 +35,7 @@ int dplasma_freelist_fini( dplasma_freelist_t* freelist )
 dplasma_list_item_t* dplasma_freelist_get(dplasma_freelist_t* freelist)
 {
     dplasma_freelist_item_t* item = (dplasma_freelist_item_t*)dplasma_atomic_lifo_pop(&(freelist->lifo));
-    if( NULL != item ) {
+    if( NULL == item ) {
         item = calloc(1, freelist->elem_size);
     }
     item->upstream.origin = freelist;

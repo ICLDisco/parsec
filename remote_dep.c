@@ -15,7 +15,7 @@
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param,
-                                     int rank, void** data)
+                                     int rank, gc_data_t** data)
 {
     /* return some error and be loud
      * we should never get called in multicore mode */
