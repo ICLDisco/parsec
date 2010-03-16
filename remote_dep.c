@@ -12,6 +12,7 @@
 
 #else 
 #   ifdef DPLASMA_DEBUG
+#include "freelist.h"
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param,
@@ -38,9 +39,11 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
 {
-    dplasma_t* function = remote_deps->context->function;
+    dplasma_t* function = remote_deps->first.outside.exec_context->function;
     int i, j, k, count, array_index, bit_index;
-
+    
+    dplasma_remote_dep_reset_forwarded(eu_context);
+    
     for( i = 0; i < function->nb_locals; i++ ) {
         if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
         array_index = 0;
@@ -48,8 +51,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
             if( 0 == remote_deps->rank_bits[array_index] ) continue;  /* no bits here */
             for( bit_index = 0; bit_index < (8 * sizeof(uint32_t)); bit_index++ ) {
                 if( (remote_deps->rank_bits[i])[array_index] & (1 << bit_index) ) {
-                    dplasma_remote_dep_activate_rank(eu_context, remote_deps->context, function->inout[i],
-                                                     (array_index * sizeof(uint32_t)) + bit_index, remote_deps->data[i]);
+                    dplasma_remote_dep_activate_rank(eu_context, remote_deps->first.outside.exec_context, function->inout[i],
+                                                     (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[i]);
                     count++;
                 }
             }
