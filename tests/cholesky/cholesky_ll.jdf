@@ -157,7 +157,7 @@ n = 0..k-1
 
 //Parameters
 IN    A <- C TRSM(n, k)
-IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,n)
+IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,k)
 INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
