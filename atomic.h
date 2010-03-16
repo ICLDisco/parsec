@@ -8,6 +8,8 @@
 #define ATOMIC_H_HAS_BEEN_INCLUDED
 
 #include "dplasma_config.h"
+#include <stdint.h>
+#include <unistd.h>
 
 #if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) || (defined(__ICC) && (__ICC > 1100))
 #include "atomic-gcc.h"
