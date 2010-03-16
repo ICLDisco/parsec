@@ -77,7 +77,6 @@ struct dplasma_context_t {
      * field might be overwritten.
      */
     dplasma_execution_unit_t* execution_units[1];
-  
 };
 
 #endif  /* DPLASMA_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */

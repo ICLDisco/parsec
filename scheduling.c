@@ -553,8 +553,8 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
                 new_context.locals[k].sym = NULL;
             }
             dplasma_release_OUT_dependencies( eu_context,
-                                             exec_context, param,
-                                             &new_context, dep->param, forward_remote );
+                                              exec_context, param,
+                                              &new_context, dep->param, forward_remote );
         }
     }
     return 0;
