@@ -53,6 +53,9 @@ dplasma_list_item_t* dplasma_freelist_get(dplasma_freelist_t* freelist)
  */
 int dplasma_freelist_release( dplasma_freelist_item_t* item )
 {
-    dplasma_atomic_lifo_push( &(item->upstream.origin->lifo), (dplasma_list_item_t*)item );
+    dplasma_atomic_lifo_t* lifo = &(item->upstream.origin->lifo);
+    item->upstream.item.list_prev = (dplasma_list_item_t*)item;
+    item->upstream.item.list_next = (dplasma_list_item_t*)item;
+    dplasma_atomic_lifo_push( lifo, (dplasma_list_item_t*)item );
     return 0;
 }
