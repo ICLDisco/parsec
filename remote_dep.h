@@ -45,11 +45,6 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count );
-int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
-                                     const dplasma_execution_context_t* origin, 
-                                     const param_t* origin_param, 
-                                     int rank, gc_data_t* data);
-
 #else
 # ifdef DEPRECATED
 #   define dplasma_remote_dep_activate(eu, o, op, e, ep) (0)
