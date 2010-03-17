@@ -125,26 +125,34 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 uint32_t remote_deps_count )
 {
     dplasma_t* function = remote_deps->first.outside.exec_context->function;
-    int i, j, k, count, array_index, bit_index;
+    int i, j, k, count, array_index, bit_index, current_mask, where;
 
     dplasma_remote_dep_reset_forwarded(eu_context);
 
-    for( i = 0; i < remote_deps_count; i++ ) {
+    for( i = where = 0; i < MAX_PARAM_COUNT; i++ ) {
+        if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
         if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
         array_index = 0;
         for( j = count = 0; count < remote_deps->count[i]; j++ ) {
-            if( 0 == remote_deps->rank_bits[array_index] ) continue;  /* no bits here */
-            for( bit_index = 0; bit_index < (8 * sizeof(uint32_t)); bit_index++ ) {
-                if( (remote_deps->rank_bits[i])[array_index] & (1 << bit_index) ) {
+            current_mask = (remote_deps->rank_bits[i])[array_index];
+            if( 0 == current_mask ) continue;  /* no bits here */
+            for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
+                if( current_mask & (1 << bit_index) ) {
+                    printf("Release deps from %s for rank %d ptr %p\n",
+                           remote_deps->first.outside.exec_context->function->name,
+                           (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
                     dplasma_remote_dep_activate_rank(eu_context, remote_deps->first.outside.exec_context, function->inout[i],
-                                                     (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[i]);
+                                                     (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
+                    current_mask ^= (1 << bit_index);
                     count++;
                 }
             }
             /* Don't forget to reset the bits */
             (remote_deps->rank_bits[i])[array_index] = 0;
+            array_index++;
         }
         remote_deps->count[i] = 0;
+        where++;
     }
     dplasma_freelist_release( (dplasma_freelist_item_t*)remote_deps );
 }
