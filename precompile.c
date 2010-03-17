@@ -928,8 +928,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s        ncols = %s;\n"                                                                     /* line  6 */
                                     "%*s        rank = crank + rrank * ncols;\n"                                                   /* line  7 */
                                     "%*s        array_pos = rank / (sizeof(uint32_t));\n"                                          /* line  8 */
-                                    "%*s        array_mask = rank %% (sizeof(uint32_t));\n"                                        /* line  9 */
-                                    "           DEBUG((\"Release deps on rank %%d\\n\", rank));\n"
+                                    "%*s        array_mask = 1 << (rank %% (sizeof(uint32_t)));\n"                                 /* line  9 */
                                     "%*s        DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context,\n"                 /* line 10 */
                                     "%*s                                             %d, data);\n"                                 /* line 11 */
                                     "%*s        if( !((remote_deps->rank_bits[%d])[array_pos] & array_mask) ) {\n"                 /* line 12 */
