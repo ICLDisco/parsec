@@ -925,8 +925,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s        crank = %s;\n"                                                                     /* line  5 */
                                     "%*s        ncols = %s;\n"                                                                     /* line  6 */
                                     "%*s        rank = crank + rrank * ncols;\n"                                                   /* line  7 */
-                                    "%*s        array_pos = rank / (sizeof(uint32_t));\n"                                          /* line  8 */
-                                    "%*s        array_mask = 1 << (rank %% (sizeof(uint32_t)));\n"                                 /* line  9 */
+                                    "%*s        array_pos = rank / (8 * sizeof(uint32_t));\n"                                      /* line  8 */
+                                    "%*s        array_mask = 1 << (rank %% (8 * sizeof(uint32_t)));\n"                             /* line  9 */
                                     "%*s        DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context,\n"                 /* line 10 */
                                     "%*s                                             %d, data);\n"                                 /* line 11 */
                                     "%*s        if( !((remote_deps->rank_bits[%d])[array_pos] & array_mask) ) {\n"                 /* line 12 */
@@ -1641,13 +1641,13 @@ int dplasma_dump_all_c(char *filename)
             "    ptr = (char*)(remote_deps+1);\n"
             "    remote_deps->rank_bits = (uint32_t**)ptr;\n"
             "    ptr += count * sizeof(uint32_t*);\n"
-            "    remote_deps->data = (void*)ptr;\n"
-            "    ptr += count * sizeof(void*);\n"
+            "    remote_deps->data = (gc_data_t**)ptr;\n"
+            "    ptr += count * sizeof(gc_data_t*);\n"
             "    remote_deps->count = (uint32_t*)ptr;\n"
             "    ptr += count * sizeof(uint32_t);\n"
             "    for( i = 0; i < count; i++ ) {\n"
             "        remote_deps->rank_bits[i] = (uint32_t*)ptr;\n"
-            "        ptr += ((nb_nodes + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));\n"
+            "        ptr += sizeof(uint32_t) * ((nb_nodes + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));\n"
             "    }\n"
             "    assert( (ptr - (char*)remote_deps) <= freelist->elem_size );\n"
             "    return remote_deps;\n"
