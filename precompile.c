@@ -799,17 +799,15 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             output_deps++;
         }
     }
-    cpt = 0;
 
-    for(i = 0; i < MAX_PARAM_COUNT; i++) {
+    for(i = cpt = 0; i < MAX_PARAM_COUNT; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
             int spaces = 0;
             
             struct param *p = d->inout[i];
             
             for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
-                if( (NULL != p->dep_out[j]) &&
-                    (p->dep_out[j]->dplasma->nb_locals > 0) ) {
+                if( (NULL != p->dep_out[j]) && (p->dep_out[j]->dplasma->nb_locals > 0) ) {
                     struct dep *dep = p->dep_out[j];
                     dplasma_t* target = dep->dplasma;
                     int k;
@@ -817,7 +815,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     output("%*s  new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* %s */\n",
                            spaces, "", i, j, dep->dplasma->name);
                     output("%*s  if( action_mask & (1 << %d) ) { /** iterate now on the params and dependencies to release OUT dependencies */\n",
-                           spaces, "", i);
+                           spaces, "", cpt);
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL != dep->call_params[k] ) {
@@ -921,7 +919,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                    spaces, "");
                         } else {
                             output( "#if defined(DISTRIBUTED)\n"                                                                   /* line  1 */
-                                    "%*s      } else if (action_mask & (DPLASMA_ACTION_RELEASE_REMOTE_DEPS | (1 << %d)) ) {\n"     /* line  2 */
+                                    "%*s      } else if (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS ) {\n"                  /* line  2 */
                                     "%*s        int rank, rrank, crank, ncols, array_pos, array_mask;\n"                           /* line  3 */
                                     "%*s        rrank = %s;\n"                                                                     /* line  4 */
                                     "%*s        crank = %s;\n"                                                                     /* line  5 */
@@ -937,7 +935,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s        }\n"                                                                               /* line 15 */
                                     "#endif  /* defined(DISTRIBUTED) */\n"                                                         /* line 16 */
                                     "%*s      }\n",                                                                                /* line 17 */
-                                    /* line  2 */ spaces, "", i,
+                                    /* line  2 */ spaces, "",
                                     /* line  3 */ spaces, "",
                                     /* line  4 */ spaces, "", expression_to_c_inline(rowpred, strexpr1, MAX_EXPR_LEN),
                                     /* line  5 */ spaces, "", expression_to_c_inline(colpred, strexpr2, MAX_EXPR_LEN),
@@ -947,9 +945,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     /* line  9 */ spaces, "",
                                     /* line 10 */ spaces, "",
                                     /* line 11 */ spaces, "", output_deps,
-                                    /* line 12 */ spaces, "", i,
-                                    /* line 13 */ spaces, "", i,
-                                    /* line 14 */ spaces, "", i,
+                                    /* line 12 */ spaces, "", cpt,
+                                    /* line 13 */ spaces, "", cpt,
+                                    /* line 14 */ spaces, "", cpt,
                                     /* line 15 */ spaces, "",
                                     /* line 17 */ spaces, ""
                                     );
