@@ -16,9 +16,13 @@ static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
 
 typedef struct gc_data {
     volatile uint32_t refcount;
-             uint32_t gc_enabled;
+             uint32_t cache_friendliness;
              void    *data;
 } gc_data_t;
+
+#define GC_POINTER(d) ((gc_data_t*)( (uintptr_t)(d) & ~( (uintptr_t)1) ))
+#define GC_ENABLED(d) ( (uintptr_t)(d) & 1 == 1 )
+#define GC_DATA(d) (void*)( GC_ENABLED(d)?(GC_POINTER(d)->data):(d) )
 
 #ifdef DPLASMA_DEBUG
 #define gc_data_new(d, e) __gc_data_new(d, e, __FILE__, __LINE__)
@@ -32,13 +36,21 @@ static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled, const ch
 static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled)
 #endif
 {
-    gc_data_t *d = (gc_data_t*)malloc(sizeof(gc_data_t));
-    d->refcount = 0;
-    d->gc_enabled = gc_enabled;
-    d->data = data;
-    DEBUG(("Allocating the tile counter %p pointing on tile %p, at %s:%d for which %s responsible to handle liberation\n",
-            d, d->data, file, line, d->gc_enabled ? "I am" : "I'm not"));
-    return d;
+    gc_data_t *d;
+
+    if( gc_enabled ) {
+        d = (gc_data_t*)malloc(sizeof(gc_data_t));
+        d->refcount = 0;
+        d->data = data;
+        assert( ((uintptr_t)d & (uintptr_t)1) == 0 /* Pointers cannot be odd */ );
+        d = (gc_data_t*)( (uintptr_t)d | (uintptr_t)1 );
+
+        DEBUG(("Allocating the garbage collectable data %p pointing on data %p, at %s:%d\n",
+               d, d->data, file, line));
+        return d;
+    } else {
+        return (gc_data_t*)data;
+    }
 }
 
 #ifdef DPLASMA_DEBUG
@@ -53,8 +65,10 @@ static inline void __gc_data_ref(gc_data_t *d, const char *file, int line)
 static inline void __gc_data_ref(gc_data_t *d)
 #endif
 {
-    DEBUG(("%p is ref'ed by %s:%d\n", d, file, line));
-    dplasma_atomic_inc_32b( &d->refcount);
+    if( GC_ENABLED(d) ) {
+        DEBUG(("%p is referenced by %s:%d\n", d, file, line));
+        dplasma_atomic_inc_32b( &GC_POINTER(d)->refcount);
+    }
 }
 
 #ifdef DPLASMA_DEBUG
@@ -69,21 +83,20 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d, const char *file, int lin
 static inline gc_data_t* __gc_data_unref(gc_data_t *d)
 #endif
 {
-    int nref = dplasma_atomic_dec_32b( &d->refcount );
-    DEBUG(("%p is unreferenced by %s:%d\n", d, file, line));
-    if( 0 == nref ) {
-            DEBUG(("Liberating the tile counter %p pointing on tile %p, %s\n",
-                   d, d->data, d->gc_enabled ? "and the data with it" : "without touching the data"));
-        if( d->gc_enabled ) {
-            free(d->data);
-        }
+    int nref;
+    if( GC_ENABLED(d) ) {
+        nref = dplasma_atomic_dec_32b( &GC_POINTER(d)->refcount );
+        DEBUG(("%p is unreferenced by %s:%d\n", d, file, line));
+        if( 0 == nref ) {
+            DEBUG(("Liberating the garbage collectable datar %p pointing on data %p,\n",
+                   d, GC_DATA(d)));
 #if defined(DPLASMA_DEBUG)
-        d->data = NULL;
-        d->refcount = 0;
-        d->gc_enabled = 2;
+            GC_POINTER(d)->data = NULL;
+            GC_POINTER(d)->refcount = 0;
 #endif
-        free(d);
-        return NULL;
+            free(GC_POINTER(d));
+            return NULL;
+        }
     }
     return d;
 }

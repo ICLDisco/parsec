@@ -290,7 +290,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                 if(i < DEP_NB_CONCURENT)
                 {
                     DEBUG(("FROM\t%d\tPut data\tunknown \ti=%d\trecv complete\n", status.MPI_SOURCE, i));
-                    CRC_PRINT(((gc_data_t*) dep_activate_buff[i].list_item.cache_friendly_emptiness)->data, "R");
+                    CRC_PRINT(GC_DATA((gc_data_t*) dep_activate_buff[i].list_item.cache_friendly_emptiness), "R");
                     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
                     remote_dep_release(eu_context, &dep_activate_buff[i], 
                                        (gc_data_t**) &dep_activate_buff[i].list_item.cache_friendly_emptiness);
@@ -320,7 +320,7 @@ static void remote_dep_mpi_put_data(gc_data_t* data, int to, int i)
     assert(dep_enabled);
     DEBUG(("TO\t%d\tPut data\tunknown \tj=%d\twith data at %p (hash %d)\n", to, i, data, PTR_TO_TAG(data)));
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
-    MPI_Isend(data->data, TILE_SIZE, MPI_DOUBLE, to, PTR_TO_TAG(data), dep_comm, &dep_put_snd_req[i]);
+    MPI_Isend(GC_DATA(data), TILE_SIZE, MPI_DOUBLE, to, PTR_TO_TAG(data), dep_comm, &dep_put_snd_req[i]);
 }
 
 static int get = 1;
@@ -336,7 +336,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
     
     DEBUG(("TO\t%d\tGet data\t%s\ti=%d\twith data at %p (hash %d)\n", from, dplasma_service_to_string(task, tmp, 128), i, (void*) (intptr_t) datakey, PTR_TO_TAG(datakey)));
     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
-    MPI_Irecv(((gc_data_t*) task->list_item.cache_friendly_emptiness)->data, TILE_SIZE, 
+    MPI_Irecv(GC_DATA((gc_data_t*) task->list_item.cache_friendly_emptiness), TILE_SIZE, 
               MPI_DOUBLE, from, PTR_TO_TAG(datakey), dep_comm, &dep_put_rcv_req[i]);
 
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
@@ -356,7 +356,7 @@ static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank
     assert(dep_enabled);
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
     DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data at %p\n", rank, dplasma_service_to_string(task, tmp, 128), data));
-    CRC_PRINT((double**)(data->data), "S");
+    CRC_PRINT((double**)GC_DATA(data), "S");
     
     ((dplasma_execution_context_t*) task)->list_item.cache_friendly_emptiness = data;
     MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);

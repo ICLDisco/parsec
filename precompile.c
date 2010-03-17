@@ -1163,7 +1163,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         dplasma_dump_locals_from_context(d, DUMP_DECLARATION, 0);
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++)  {
             output("  void *%s;\n", d->inout[i]->name);
-            output("  gc_data_t *gs;\n", d->inout[i]->name);
+            output("  gc_data_t *g%s;\n", d->inout[i]->name);
             output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
         }
         dplasma_dump_locals_from_context(d, DUMP_ASSIGNMENT_LINE, 0);
@@ -1292,7 +1292,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                         }
                     }
                 }
-                output("  %s = g%s->data;\n", d->inout[i]->name, d->inout[i]->name);
+                output("  %s = GC_DATA(g%s);\n", d->inout[i]->name, d->inout[i]->name);
             } else {
                 output("  (void)%s;\n", d->inout[i]->name);
             }
