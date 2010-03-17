@@ -102,24 +102,6 @@ int dplasma_remote_dep_off(dplasma_context_t* context)
     return remote_dep_off(context);
 }
 
-int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
-                                     const dplasma_execution_context_t* origin,
-                                     const param_t* origin_param,
-                                     int rank, gc_data_t* data)
-{    
-    assert(rank >= 0);
-    assert(rank < eu_context->master_context->nb_nodes);
-    if(dplasma_remote_dep_is_forwarded(eu_context, rank))
-    {    
-        return 0;
-    }
-    dplasma_remote_dep_mark_forwarded(eu_context, rank);
-    
-    /* make sure we don't leave before serving all data deps */
-    dplasma_atomic_inc_32b( &(eu_context->master_context->taskstodo) );
-    return remote_dep_send(origin, rank, data);
-}
-
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 {
     return remote_dep_progress(eu_context);
@@ -295,8 +277,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     DEBUG(("TO\tna\tPut data\tunknown \tj=%d\tsend of %p (hash %d) complete\n", i, dep_get_buff[i], PTR_TO_TAG(dep_get_buff[i])));
                     gc_data_unref((gc_data_t*) (uintptr_t) dep_get_buff[i]);
                     MPI_Start(&dep_get_req[i]);
-                    /* Allow for termination if needed */
-                    dplasma_atomic_dec_32b( &(eu_context->master_context->taskstodo) );
+                    dplasma_remote_dep_dec_flying_messages(eu_context->master_context);
                 }
                 else
                 {

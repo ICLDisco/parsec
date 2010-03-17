@@ -7,6 +7,17 @@
 #include "scheduling.h"
 #include <stdio.h>
 
+static inline void dplasma_remote_dep_inc_flying_messages(dplasma_context_t* ctx)
+{
+    /* make sure we don't leave before serving all data deps */
+    dplasma_atomic_inc_32b( &ctx->taskstodo );
+}
+
+static inline void dplasma_remote_dep_dec_flying_messages(dplasma_context_t* ctx)
+{
+    dplasma_atomic_dec_32b( &ctx->taskstodo );
+}
+
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
 
@@ -15,8 +26,7 @@
 #include "freelist.h"
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
-                                     const param_t* origin_param,
-                                     int rank, gc_data_t* data)
+                                     int rank, dplasma_remote_deps_t* deps)
 {
     /* return some error and be loud
      * we should never get called in multicore mode */
@@ -24,14 +34,10 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     char tmp[128];
     dplasma_t* function = origin->function;
     
-    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates rank %d.\n    Remote dependencies are NOT ENABLED in this build!\n",
+    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates rank %d.\n"
+                    "     Remote dependencies are NOT ENABLED in this build!\n",
             dplasma_service_to_string(origin, tmp, 128),
             rank);
-    for(i = 0; i < function->nb_locals; i++)
-    {
-        symbol_dump(function->locals[i], "\tPREDICATE VARS:\t");
-    }
-    symbol_dump_all("\tGLOBAL SYMBOLS:\t");
     return -1;
 }
 
@@ -94,13 +100,23 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
                 if( current_mask & (1 << bit_index) ) {
+                    int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
+                    assert(rank >= 0);
+                    assert(rank < eu_context->master_context->nb_nodes);
+
                     DEBUG(("Release deps from %s for rank %d ptr %p\n",
                            remote_deps->first.outside.exec_context->function->name,
-                           (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]));
-                    dplasma_remote_dep_activate_rank(eu_context, remote_deps->first.outside.exec_context, function->inout[i],
-                                                     (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
+                           rank, remote_deps->data[where]));
                     current_mask ^= (1 << bit_index);
                     count++;
+
+                    if(dplasma_remote_dep_is_forwarded(eu_context, rank))
+                    {    
+                       continue;
+                    }
+                    dplasma_remote_dep_mark_forwarded(eu_context, rank);
+                    dplasma_remote_dep_inc_flying_messages(eu_context->master_context);
+                    remote_dep_send(remote_deps->first.outside.exec_context, rank, remote_deps->data[where]);
                 }
             }
             /* Don't forget to reset the bits */
@@ -112,6 +128,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     }
     dplasma_freelist_release( (dplasma_freelist_item_t*)remote_deps );
 }
+
 #endif /* DISTRIBUTED */
 
 #define HEAVY_DEBUG
