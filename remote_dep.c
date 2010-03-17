@@ -16,7 +16,7 @@
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param,
-                                     int rank, gc_data_t** data)
+                                     int rank, gc_data_t* data)
 {
     /* return some error and be loud
      * we should never get called in multicore mode */
@@ -44,7 +44,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     
     dplasma_remote_dep_reset_forwarded(eu_context);
     
-    for( i = 0; i < function->nb_locals; i++ ) {
+    for( i = 0; i < remote_deps_count; i++ ) {
         if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
         array_index = 0;
         for( j = count = 0; count < remote_deps->count[i]; j++ ) {

@@ -26,9 +26,9 @@ typedef struct dplasma_remote_deps_t {
         } outside;
         dplasma_list_item_t                 item;
     } first;
-    uint32_t*                               count;
     uint32_t**                              rank_bits;
-    void**                                  data;
+    gc_data_t**                             data;
+    uint32_t*                               count;
 } dplasma_remote_deps_t;
 
 #if defined(DISTRIBUTED) || defined(DPLASMA_DEBUG)
@@ -48,7 +48,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin, 
                                      const param_t* origin_param, 
-                                     int rank, gc_data_t** data);
+                                     int rank, gc_data_t* data);
 
 #else
 # ifdef DEPRECATED

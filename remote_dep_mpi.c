@@ -19,7 +19,7 @@ static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
 static int remote_dep_mpi_on(dplasma_context_t* context);
 static int remote_dep_mpi_off(dplasma_context_t* context);
-static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, gc_data_t** data);
+static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, gc_data_t* data);
 static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context);
 static int remote_dep_mpi_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, gc_data_t** data);
 
@@ -28,7 +28,7 @@ static int remote_dep_mpi_release(dplasma_execution_unit_t* eu_context, dplasma_
     static int remote_dep_dequeue_fini(dplasma_context_t* context);
     static int remote_dep_dequeue_on(dplasma_context_t* context);
     static int remote_dep_dequeue_off(dplasma_context_t* context);
-    static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, gc_data_t** data);
+    static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, gc_data_t* data);
     static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context);
     static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, gc_data_t** data);
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
@@ -105,7 +105,7 @@ int dplasma_remote_dep_off(dplasma_context_t* context)
 int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
                                      const dplasma_execution_context_t* origin,
                                      const param_t* origin_param,
-                                     int rank, gc_data_t** data)
+                                     int rank, gc_data_t* data)
 {    
     assert(rank >= 0);
     assert(rank < eu_context->master_context->nb_nodes);
@@ -129,7 +129,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 
     dplasma_remote_dep_reset_forwarded(eu_context);
 
-    for( i = 0; i < function->nb_locals; i++ ) {
+    for( i = 0; i < remote_deps_count; i++ ) {
         if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
         array_index = 0;
         for( j = count = 0; count < remote_deps->count[i]; j++ ) {
@@ -378,7 +378,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
 static int act = 1;
 
 /* Send the activate tag */
-static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, gc_data_t **data)
+static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, gc_data_t *data)
 {
 #ifdef DPLASMA_DEBUG
     char tmp[128];
@@ -386,10 +386,10 @@ static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank
 
     assert(dep_enabled);
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
-    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data at %p\n", rank, dplasma_service_to_string(task, tmp, 128), data[0]));
-    CRC_PRINT((double**)(data[0]->data), "S");
+    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data at %p\n", rank, dplasma_service_to_string(task, tmp, 128), data));
+    CRC_PRINT((double**)(data->data), "S");
     
-    ((dplasma_execution_context_t*) task)->list_item.cache_friendly_emptiness = data[0];
+    ((dplasma_execution_context_t*) task)->list_item.cache_friendly_emptiness = data;
     MPI_Send((void*) task, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
     
@@ -513,15 +513,15 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
 
 
 
-static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, gc_data_t** data)
+static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, gc_data_t* data)
 {
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
 
     cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
     cmd->u.activate.origin = *task;
-    gc_data_ref(data[0]);
-    cmd->u.activate.data = data[0];
+    gc_data_ref(data);
+    cmd->u.activate.data = data;
     cmd->u.activate.rank = rank;
     
     dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
@@ -573,7 +573,6 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
     ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
     
     do {
-        gc_data_t *data[1];
         while(NULL == (cmd = (dep_cmd_item_t*) dplasma_dequeue_pop_front(&dep_cmd_queue)))
         {
             if(dep_enabled)
@@ -586,8 +585,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         switch(cmd->cmd)
         {                
             case DEP_ACTIVATE:
-                data[0] = cmd->u.activate.data;
-                remote_dep_mpi_send(&cmd->u.activate.origin, cmd->u.activate.rank, data);
+                remote_dep_mpi_send(&cmd->u.activate.origin, cmd->u.activate.rank, cmd->u.activate.data);
                 break;
             case DEP_CTL:
                 if(cmd->u.enable == -1)
