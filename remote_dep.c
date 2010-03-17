@@ -94,9 +94,9 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
                 if( current_mask & (1 << bit_index) ) {
-                    printf("Release deps from %s for rank %d ptr %p\n",
+                    DEBUG(("Release deps from %s for rank %d ptr %p\n",
                            remote_deps->first.outside.exec_context->function->name,
-                           (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
+                           (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]));
                     dplasma_remote_dep_activate_rank(eu_context, remote_deps->first.outside.exec_context, function->inout[i],
                                                      (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
                     current_mask ^= (1 << bit_index);
