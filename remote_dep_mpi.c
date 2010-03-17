@@ -120,43 +120,6 @@ int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context,
     return remote_dep_send(origin, rank, data);
 }
 
-int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
-                                dplasma_remote_deps_t* remote_deps,
-                                uint32_t remote_deps_count )
-{
-    dplasma_t* function = remote_deps->first.outside.exec_context->function;
-    int i, j, k, count, array_index, bit_index, current_mask, where;
-
-    dplasma_remote_dep_reset_forwarded(eu_context);
-
-    for( i = where = 0; i < MAX_PARAM_COUNT; i++ ) {
-        if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
-        if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
-        array_index = 0;
-        for( j = count = 0; count < remote_deps->count[i]; j++ ) {
-            current_mask = (remote_deps->rank_bits[i])[array_index];
-            if( 0 == current_mask ) continue;  /* no bits here */
-            for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
-                if( current_mask & (1 << bit_index) ) {
-                    printf("Release deps from %s for rank %d ptr %p\n",
-                           remote_deps->first.outside.exec_context->function->name,
-                           (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
-                    dplasma_remote_dep_activate_rank(eu_context, remote_deps->first.outside.exec_context, function->inout[i],
-                                                     (array_index * sizeof(uint32_t) * 8) + bit_index, remote_deps->data[where]);
-                    current_mask ^= (1 << bit_index);
-                    count++;
-                }
-            }
-            /* Don't forget to reset the bits */
-            (remote_deps->rank_bits[i])[array_index] = 0;
-            array_index++;
-        }
-        remote_deps->count[i] = 0;
-        where++;
-    }
-    dplasma_freelist_release( (dplasma_freelist_item_t*)remote_deps );
-}
-
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 {
     return remote_dep_progress(eu_context);
@@ -211,8 +174,6 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
 static int remote_dep_mpi_on(dplasma_context_t* context)
 {
     int i;
-
-    //    while(i);
 
 #ifdef DPLASMA_PROFILING
     /* put a start marker on each line */
