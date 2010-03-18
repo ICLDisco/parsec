@@ -91,7 +91,6 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     
     dplasma_remote_dep_reset_forwarded(eu_context);
     
-    assert(remote_deps_count == 1); /* for now, until it is finished */
     for( i = 0; i < remote_deps_count; i++ ) {
         if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
         if( 0 == remote_deps->output[i].count ) continue;  /* no deps for this output */
