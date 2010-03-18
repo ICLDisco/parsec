@@ -274,7 +274,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     /* We finished sending the data, allow for more requests 
                      * to be processed */
                     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
-                    DEBUG(("TO\tna\tPut data\tunknown \tj=%d\tsend of %p (hash %d) complete\n", i, (void*) dep_get_buff[i], PTR_TO_TAG(dep_get_buff[i])));
+                    DEBUG(("TO\tna\tPut data\tunknown \tj=%d\tsend of %p (hash %d) complete\n", i, (uintptr_t) dep_get_buff[i], PTR_TO_TAG(dep_get_buff[i])));
                     gc_data_unref((gc_data_t*) (uintptr_t) dep_get_buff[i]);
                     MPI_Start(&dep_get_req[i]);
                     dplasma_remote_dep_dec_flying_messages(eu_context->master_context);
