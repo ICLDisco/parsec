@@ -105,7 +105,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     assert(rank < eu_context->master_context->nb_nodes);
 
                     DEBUG(("Release deps from %s for rank %d ptr %p\n",
-                           remote_deps->first.outside.exec_context->function->name,
+                           remote_deps->exec_context->function->name,
                            rank, remote_deps->output[i].data));
                     current_mask ^= (1 << bit_index);
                     count++;
