@@ -276,7 +276,7 @@ void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, MPI_Datatype datatype)
     cmd->u.memcpy.datatype = datatype;
     /* don't fill rank, it's useless */
     
-    gc_data_ref( cmd->u.memcpy.origin );
+    gc_data_ref( cmd->u.memcpy.source );
     dplasma_dequeue_push_back(&dep_activate_queue, (dplasma_list_item_t*) cmd);
 }
 
