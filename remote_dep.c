@@ -116,7 +116,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                        continue;
                     }
                     dplasma_remote_dep_mark_forwarded(eu_context, rank);
-                    dplasma_remote_dep_inc_flying_messages(eu_context->master_context);
+                    dplasma_remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
                     remote_dep_send(rank, remote_deps);
                 }
             }
