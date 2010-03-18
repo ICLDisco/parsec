@@ -420,10 +420,9 @@ static int remote_dep_dequeue_on(dplasma_context_t* context)
     if(1 < context->nb_nodes)
     {        
         dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-        
-        cmd->super.list_prev = (dplasma_list_item_t*) cmd;
         cmd->cmd = DEP_CTL;
         cmd->u.enable = 1;
+        DPLASMA_LIST_ITEM_SINGLETON(cmd);
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
         return 1;
     }
@@ -436,10 +435,9 @@ static int remote_dep_dequeue_off(dplasma_context_t* context)
     {        
         dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         dplasma_context_t *ret;
-        
-        cmd->super.list_prev = (dplasma_list_item_t*) cmd;
         cmd->cmd = DEP_CTL;
         cmd->u.enable = 0;
+        DPLASMA_LIST_ITEM_SINGLETON(cmd);
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
     }
     return 0;
@@ -451,10 +449,9 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
     {        
         dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         dplasma_context_t *ret;
-    
-        cmd->super.list_prev = (dplasma_list_item_t*) cmd;
         cmd->cmd = DEP_CTL;
         cmd->u.enable = -1;
+        DPLASMA_LIST_ITEM_SINGLETON(cmd);
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
     
         pthread_join(dep_thread_id, (void**) &ret);
@@ -468,13 +465,11 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
 static int remote_dep_dequeue_send(int rank, dplasma_remote_deps_t* deps)
 {
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-
-    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
     cmd->u.activate.origin = *deps->exec_context;
     cmd->u.activate.data = deps->output[0].data;
     cmd->u.activate.rank = rank;
-    
+    DPLASMA_LIST_ITEM_SINGLETON(cmd);
     dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);
     return 1;
 }
@@ -483,13 +478,11 @@ static int remote_dep_dequeue_send(int rank, dplasma_remote_deps_t* deps)
 static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, gc_data_t** data)
 {
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-    
-    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
     cmd->u.activate.origin = *exec_context;
     cmd->u.activate.data = data[0];
     /* don't fill rank, it's useless */
-    
+    DPLASMA_LIST_ITEM_SINGLETON(cmd);
     dplasma_dequeue_push_back(&dep_activate_queue, (dplasma_list_item_t*) cmd);
     return 1;
 }

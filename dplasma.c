@@ -1121,8 +1121,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
 #endif
 
             if( NULL == *pready_list ) {
-                new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
-                new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
+                DPLASMA_LIST_ITEM_SINGLETON(new_context);
                 *pready_list = new_context;
             } else {
                 new_context->list_item.list_next = (dplasma_list_item_t*)*pready_list;

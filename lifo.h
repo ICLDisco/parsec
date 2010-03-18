@@ -19,6 +19,15 @@ typedef struct dplasma_list_item_t {
 #endif  /* DPLASMA_DEBUG */
 } dplasma_list_item_t;
 
+/* Make a well formed singleton list with a list item so that it can be 
+ * puhsed. 
+ */
+#define DPLASMA_LIST_ITEM_SINGLETON(item) dplasma_list_item_singleton((dplasma_list_item_t*) item)
+static inline dplasma_list_item_t* dplasma_list_item_singleton(dplasma_list_item_t* item)
+{
+    return (dplasma_list_item_t*) (item->list_next = item->list_prev = item);
+}
+
 typedef struct dplasma_atomic_lifo_t {
     dplasma_list_item_t* lifo_head;
     dplasma_list_item_t  lifo_ghost;
@@ -49,7 +58,7 @@ static inline dplasma_list_item_t* dplasma_atomic_lifo_push( dplasma_atomic_lifo
             item->refcount++;
             item->belong_to_list = (struct dplasma_list_t*)lifo;
             item = (dplasma_list_item_t*)item->list_next;
-        } while (item != items);
+        } while (item != tail);
     }
 #endif  /* DPLASMA_DEBUG */
     do {

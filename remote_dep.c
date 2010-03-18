@@ -127,8 +127,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
         }
         remote_deps->output[i].count = 0;
     }
-    remote_deps->item.list_prev = remote_deps->item.list_next = &(remote_deps->item);
-    dplasma_atomic_lifo_push( remote_deps->origin, (dplasma_list_item_t*)remote_deps );
+    dplasma_atomic_lifo_push(remote_deps->origin, 
+                             dplasma_list_item_singleton((dplasma_list_item_t*) remote_deps));
 }
 
 #endif /* DISTRIBUTED */

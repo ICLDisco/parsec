@@ -62,8 +62,7 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
 #if defined(DPLASMA_CACHE_AWARENESS)
     new_context->pointers[1] = NULL;
 #endif
-    new_context->list_item.list_prev = (dplasma_list_item_t*)new_context;
-    new_context->list_item.list_next = (dplasma_list_item_t*)new_context;
+    DPLASMA_LIST_ITEM_SINGLETON( new_context );
     return __dplasma_schedule( eu_context, new_context );
 }
 
@@ -267,10 +266,7 @@ static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
             return nb;
         }
         /* Isolate this element */
-        item = (dplasma_list_item_t*)exec_context;
-        item->list_next = item;
-        item->list_prev = item;
-
+        item = DPLASMA_LIST_ITEM_SINGLETON( exec_context );
         /* And push it in the current queue level */
         dplasma_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
         nb++;
