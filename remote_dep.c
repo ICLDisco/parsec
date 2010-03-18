@@ -86,17 +86,17 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
 {
-    dplasma_t* function = remote_deps->first.outside.exec_context->function;
-    int i, j, k, count, array_index, bit_index, current_mask, where;
+    dplasma_t* function = remote_deps->exec_context->function;
+    int i, j, k, count, array_index, bit_index, current_mask;
     
     dplasma_remote_dep_reset_forwarded(eu_context);
     
-    for( i = where = 0; i < MAX_PARAM_COUNT; i++ ) {
+    for( i = 0; i < MAX_PARAM_COUNT; i++ ) {
         if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
-        if( 0 == remote_deps->count[i] ) continue;  /* no deps for this output */
+        if( 0 == remote_deps->output[i].count ) continue;  /* no deps for this output */
         array_index = 0;
-        for( j = count = 0; count < remote_deps->count[i]; j++ ) {
-            current_mask = (remote_deps->rank_bits[i])[array_index];
+        for( j = count = 0; count < remote_deps->output[i].count; j++ ) {
+            current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
                 if( current_mask & (1 << bit_index) ) {
@@ -106,7 +106,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 
                     DEBUG(("Release deps from %s for rank %d ptr %p\n",
                            remote_deps->first.outside.exec_context->function->name,
-                           rank, remote_deps->data[where]));
+                           rank, remote_deps->output[i].data));
                     current_mask ^= (1 << bit_index);
                     count++;
 
@@ -116,17 +116,17 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     }
                     dplasma_remote_dep_mark_forwarded(eu_context, rank);
                     dplasma_remote_dep_inc_flying_messages(eu_context->master_context);
-                    remote_dep_send(remote_deps->first.outside.exec_context, rank, remote_deps->data[where]);
+                    remote_dep_send(remote_deps->exec_context, rank, remote_deps->output[i].data);
                 }
             }
             /* Don't forget to reset the bits */
-            (remote_deps->rank_bits[i])[array_index] = 0;
+            remote_deps->output[i].rank_bits[array_index] = 0;
             array_index++;
         }
-        remote_deps->count[i] = 0;
-        where++;
+        remote_deps->output[i].count = 0;
     }
-    dplasma_freelist_release( (dplasma_freelist_item_t*)remote_deps );
+    remote_deps->item.list_prev = &(remote_deps->item);
+    dplasma_atomic_lifo_push( remote_deps->origin, (dplasma_list_item_t*)remote_deps );
 }
 
 #endif /* DISTRIBUTED */

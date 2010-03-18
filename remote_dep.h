@@ -19,16 +19,14 @@
 #define DPLASMA_ACTION_DEPS_MASK           0x00FF
 
 typedef struct dplasma_remote_deps_t {
-    union {
-        struct {
-            struct dplasma_freelist_t* origin;
-            const struct dplasma_execution_context_t* exec_context;
-        } outside;
-        dplasma_list_item_t                 item;
-    } first;
-    uint32_t**                              rank_bits;
-    gc_data_t**                             data;
-    uint32_t*                               count;
+    dplasma_list_item_t                       item;
+    struct dplasma_atomic_lifo_t*             origin;
+    const struct dplasma_execution_context_t* exec_context;
+    struct {
+        gc_data_t*                            data;
+        uint32_t*                             rank_bits;
+        uint32_t                              count;
+    } output[1];
 } dplasma_remote_deps_t;
 
 #if defined(DISTRIBUTED) || defined(DPLASMA_DEBUG)

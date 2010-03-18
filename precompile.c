@@ -933,8 +933,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                    spaces, "",
                                    spaces, "");
                         } else {
-                            output( "#if defined(DISTRIBUTED)\n"                                                                   /* line  1 */
-                                    "%*s    } else if (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS ) {\n"                  /* line  2 */
+                            output( "#if defined(DISTRIBUTED)\n"                                                                 /* line  1 */
+                                    "%*s    } else if (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS ) {\n"                   /* line  2 */
                                     "%*s      int rank, rrank, crank, ncols, array_pos, array_mask;\n"                           /* line  3 */
                                     "%*s      rrank = %s;\n"                                                                     /* line  4 */
                                     "%*s      crank = %s;\n"                                                                     /* line  5 */
@@ -942,13 +942,13 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s      rank = crank + rrank * ncols;\n"                                                   /* line  7 */
                                     "%*s      array_pos = rank / (8 * sizeof(uint32_t));\n"                                      /* line  8 */
                                     "%*s      array_mask = 1 << (rank %% (8 * sizeof(uint32_t)));\n"                             /* line  9 */
-                                    "%*s      DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context,\n"                 /* line 10 */
-                                    "%*s                                           %d, data);\n"                                 /* line 11 */
-                                    "%*s      if( !((remote_deps->rank_bits[%d])[array_pos] & array_mask) ) {\n"                 /* line 12 */
-                                    "%*s        (remote_deps->rank_bits[%d])[array_pos] |= array_mask;\n"                        /* line 13 */
-                                    "%*s        (remote_deps->count[%d])++; remote_deps_count++;\n"                              /* line 14 */
+                                    "%*s      DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line 10 */
+                                    "%*s      if( !(remote_deps->output[%d].rank_bits[array_pos] & array_mask) ) {\n"            /* line 11 */
+                                    "%*s        remote_deps->output[%d].data = data[%d];\n"                                      /* line 12 */
+                                    "%*s        remote_deps->output[%d].rank_bits[array_pos] |= array_mask;\n"                   /* line 13 */
+                                    "%*s        remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 14 */
                                     "%*s      }\n"                                                                               /* line 15 */
-                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                         /* line 16 */
+                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                       /* line 16 */
                                     "%*s    }\n",                                                                                /* line 17 */
                                     /* line  2 */ spaces, "",
                                     /* line  3 */ spaces, "",
@@ -958,9 +958,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     /* line  7 */ spaces, "",
                                     /* line  8 */ spaces, "",
                                     /* line  9 */ spaces, "",
-                                    /* line 10 */ spaces, "",
-                                    /* line 11 */ spaces, "", output_deps,
-                                    /* line 12 */ spaces, "", cpt,
+                                    /* line 10 */ spaces, "", output_deps,
+                                    /* line 11 */ spaces, "", cpt,
+                                    /* line 12 */ spaces, "", cpt, cpt,
                                     /* line 13 */ spaces, "", cpt,
                                     /* line 14 */ spaces, "", cpt,
                                     /* line 15 */ spaces, "",
@@ -1620,7 +1620,7 @@ int dplasma_dump_all_c(char *filename)
 
     output( "#include <assert.h>\n"
             "#include <string.h>\n"
-            "#include \"freelist.h\"\n"
+            "#include \"lifo.h\"\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
             "#define TILE_SIZE (DPLASMA_TILE_SIZE*DPLASMA_TILE_SIZE*sizeof(double))\n"
@@ -1655,42 +1655,33 @@ int dplasma_dump_all_c(char *filename)
             "#include \"scheduling.h\"\n"
             "\n");
     output( "#if defined(DISTRIBUTED)\n"
-            "  static dplasma_freelist_t remote_deps_freelist;\n"
-            "  static int max_dep_count, max_nodes_number;\n"
-            "static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_freelist_t * freelist )\n"
+            "  static dplasma_atomic_lifo_t remote_deps_freelist;\n"
+            "  static uint32_t max_dep_count, max_nodes_number, elem_size;\n"
+            "static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_atomic_lifo_t* lifo )\n"
             "{\n"
-            "    dplasma_list_item_t* item = dplasma_freelist_get(freelist);\n"
-            "    dplasma_remote_deps_t* remote_deps;\n"
-            "    uint32_t i, count = max_dep_count, nb_nodes = max_nodes_number;\n"
+            "    dplasma_remote_deps_t* remote_deps = (dplasma_remote_deps_t*)dplasma_atomic_lifo_pop(lifo);\n"
+            "    uint32_t i, rank_bit_size;\n"
             "    char *ptr;\n"
             "\n"
-            "    if( NULL == item ) {\n"
-            "        item = calloc(1, freelist->elem_size);\n"
+            "    if( NULL == remote_deps ) {\n"
+            "        remote_deps = (dplasma_remote_deps_t*)calloc(1, elem_size);\n"
+            "        remote_deps->origin = lifo;\n"
             "    }\n"
-            "    remote_deps = (dplasma_remote_deps_t*)item;\n"
-            "    ptr = (char*)(remote_deps+1);\n"
-            "    remote_deps->rank_bits = (uint32_t**)ptr;\n"
-            "    ptr += count * sizeof(uint32_t*);\n"
-            "    remote_deps->data = (gc_data_t**)ptr;\n"
-            "    ptr += count * sizeof(gc_data_t*);\n"
-            "    remote_deps->count = (uint32_t*)ptr;\n"
-            "    ptr += count * sizeof(uint32_t);\n"
-            "    for( i = 0; i < count; i++ ) {\n"
-            "        remote_deps->rank_bits[i] = (uint32_t*)ptr;\n"
-            "        ptr += sizeof(uint32_t) * ((nb_nodes + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));\n"
+            "    ptr = (char*)(&(remote_deps->output[max_dep_count]));\n"
+            "    rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));\n"
+            "    for( i = 0; i < max_dep_count; i++ ) {\n"
+            "        remote_deps->output[i].rank_bits = (uint32_t*)ptr;\n"
+            "        ptr += rank_bit_size;\n"
             "    }\n"
-            "    assert( (ptr - (char*)remote_deps) <= freelist->elem_size );\n"
+            "    assert( (ptr - (char*)remote_deps) <= elem_size );\n"
             "    return remote_deps;\n"
             "}\n\n"
-            "  #define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT, DATA) \\\n"
-            "      if( NULL == (REMOTE_DEPS) ) { /* only once per function */               \\\n"
-            "          int _i;                                                              \\\n"
+            "  #define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT)  \\\n"
+            "      if( NULL == (REMOTE_DEPS) ) { /* only once per function */                  \\\n"
+            "          int _i;                                                                 \\\n"
             "          (REMOTE_DEPS) = (dplasma_remote_deps_t*)remote_deps_allocation(&remote_deps_freelist);   \\\n"
-            "          (REMOTE_DEPS)->first.outside.exec_context = (EXEC_CONTEXT);          \\\n"
-            "          (REMOTE_DEPS)->first.outside.origin = (dplasma_freelist_t*)&remote_deps_freelist;             \\\n"
-            "          for( _i = 0; _i < (COUNT); _i++ ) {                                  \\\n"
-            "              (REMOTE_DEPS)->data[_i] = data[_i];                              \\\n"
-            "          }                                                                     \\\n"
+            "          (REMOTE_DEPS)->exec_context = (EXEC_CONTEXT);                           \\\n"
+            "          (REMOTE_DEPS)->origin = (dplasma_atomic_lifo_t*)&remote_deps_freelist;  \\\n"
             "      }\n\n"
             "#endif  /* defined(DISTRIBUTED) */\n\n"
             );
@@ -1777,9 +1768,9 @@ int dplasma_dump_all_c(char *filename)
            "  { /* compute the maximum size of the dependencies array */\n"
            "    max_dep_count = %d;\n"
            "    max_nodes_number = context->nb_nodes;\n"
-           "    size_t elem_size = sizeof(dplasma_remote_deps_t) + \n"
-           "                       max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + sizeof(uint32_t*) + sizeof(uint32_t) * (max_nodes_number + 31)/32);\n"
-           "    dplasma_freelist_init( &remote_deps_freelist, elem_size, 0 );\n"
+           "    elem_size = sizeof(dplasma_remote_deps_t) + \n"
+           "                max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + sizeof(uint32_t*) + sizeof(uint32_t) * (max_nodes_number + 31)/32);\n"
+           "    dplasma_atomic_lifo_construct(&remote_deps_freelist);"
            "  }\n"
            "#endif  /* defined(DISTRIBUTED) */\n\n", max_output_deps
            );
