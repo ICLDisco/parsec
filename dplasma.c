@@ -551,6 +551,13 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
 
     DPLASMA_TILE_SIZE = tile_size;
 
+#if defined(USE_MPI)
+    /* Change this to pass the MPI Datatype as parameter to dplasma_init, or 
+     * at least authorize to pass something different that MPI_DOUBLE?
+     */
+    remote_dep_mpi_create_default_datatype(tile_size, MPI_DOUBLE);
+#endif
+
     context->nb_cores = (int32_t) nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;

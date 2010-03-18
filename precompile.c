@@ -463,9 +463,12 @@ static char *dump_c_dep(const dplasma_t *dplasma, const dep_t *d, char *init_fun
         dumped_deps = dumped;
         
         p += snprintf(whole + p, DEP_CODE_SIZE-p, 
-                      "static dep_t dep%u = { .cond = %s, .dplasma = NULL,\n"
+                      "static dep_t dep%u = { .cond = %s, .mpi_type = %c%s%c, .dplasma = NULL,\n"
                       "                       .call_params = {",
-                      my_idx, dump_c_expression_inline(d->cond, (const symbol_t**)dplasma->locals, dplasma->nb_locals, init_func_body, init_func_body_size));
+                      my_idx, dump_c_expression_inline(d->cond, (const symbol_t**)dplasma->locals, dplasma->nb_locals, init_func_body, init_func_body_size),
+                      NULL == d->mpi_type ? ' ' : '"',
+                      NULL == d->mpi_type ? "NULL" : d->mpi_type,
+                      NULL == d->mpi_type ? ' ' : '"');
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
                      "  dep%d.dplasma = &dplasma_array[%d];\n", my_idx, dplasma_dplasma_index( d->dplasma ));
@@ -1349,6 +1352,8 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "\n",
                 d->body, body_lines+2+current_line, out_name);
 
+        output("#if defined(DISTRIBUTED)\n"
+               "  /** If not working on distributed, there is no risk that datas are not in place */ \n");
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_OUT ) {
                 for(k = 0; k < MAX_DEP_OUT_COUNT; k++) {
@@ -1358,8 +1363,11 @@ static char *dplasma_dump_c(const dplasma_t *d,
                                 output("  if(%s) {\n  ", expression_to_c_inline(d->inout[i]->dep_out[k]->cond, "", strexpr1, MAX_EXPR_LEN));
                             }
                             dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_out[k], strexpr1, MAX_EXPR_LEN);
-                            output("  if( %s != %s) memcpy( %s, %s, TILE_SIZE);\n",
-                                   strexpr1, d->inout[i]->name, strexpr1, d->inout[i]->name);
+                            output("%s  if(%s != %s)\n"
+                                   "%s    dplasma_remote_dep_memcpy( %s, g%s, %s );\n",
+                                   NULL != d->inout[i]->dep_out[k]->cond ? "  " : "", d->inout[i]->name, strexpr1,
+                                   NULL != d->inout[i]->dep_out[k]->cond ? "  " : "", strexpr1, d->inout[i]->name,
+                                   NULL == d->inout[i]->dep_out[k]->mpi_type ? "DPLASMA_DEFAULT_DATA_TYPE" : d->inout[i]->dep_out[k]->mpi_type);
                             if( NULL != d->inout[i]->dep_out[k]->cond ) {
                                 output(  "}\n");
                             }
@@ -1368,6 +1376,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 }
             }
         }
+        output("#endif /* defined(DISTRIBUTED) */\n");
 
         output( "  TAKE_TIME(context, %s_end_key, %s_hash(",
                 d->name, d->name);

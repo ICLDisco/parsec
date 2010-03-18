@@ -105,6 +105,9 @@ max           { yylval.operand = 'M'; return DPLASMA_OP; }
                           return DPLASMA_VAR; }
 "("            { return DPLASMA_OPEN_PAR; }
 ")"            { return DPLASMA_CLOSE_PAR; }
+\[[a-zA-Z_]+[a-zA-Z0-0_]*\] { yylval.string = strdup(yytext + 1);
+                              yylval.string[ strlen(yylval.string) - 1 ] = '\0';
+                              return DPLASMA_OPTIONAL_INFO; }
 "=="           { return DPLASMA_EQUAL; }
 "\!="          { return DPLASMA_NOT_EQUAL; }
 "<"            { return DPLASMA_LESS; }

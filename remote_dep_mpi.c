@@ -40,6 +40,8 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, unio
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
 #   define remote_dep_release(ctx, cmdu) remote_dep_dequeue_release(ctx, cmdu)
 
+/* Exported default datatype */
+MPI_Datatype DPLASMA_DEFAULT_DATA_TYPE;
 
 #ifdef DPLASMA_PROFILING
 static dplasma_thread_profiling_t* MPIctl_prof;
@@ -110,6 +112,7 @@ typedef enum dep_cmd_t
     DEP_PUT_DATA,
     DEP_GET_DATA,
     DEP_CTL,
+    DEP_MEMCPY,
 } dep_cmd_t;
 
 typedef union dep_cmd_item_content_t
@@ -120,6 +123,11 @@ typedef union dep_cmd_item_content_t
         assignment_t locals[MAX_LOCAL_COUNT];
         gc_data_t* data[MAX_PARAM_COUNT];
     } activate;
+    struct {
+        gc_data_t *source;
+        void *destination;
+        MPI_Datatype datatype;
+    } memcpy;
     int enable;
 } dep_cmd_item_content_t;
 
@@ -257,6 +265,21 @@ static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
     return 0;
 }
 
+void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, MPI_Datatype datatype)
+{
+    dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    
+    cmd->super.list_prev = (dplasma_list_item_t*) cmd;
+    cmd->cmd = DEP_MEMCPY;
+    cmd->u.memcpy.source = src;
+    cmd->u.memcpy.destination = dst;
+    cmd->u.memcpy.datatype = datatype;
+    /* don't fill rank, it's useless */
+    
+    gc_data_ref( cmd->u.memcpy.origin );
+    dplasma_dequeue_push_back(&dep_activate_queue, (dplasma_list_item_t*) cmd);
+}
+
 #define YIELD_TIME 5000
 
 static void* remote_dep_dequeue_main(dplasma_context_t* context)
@@ -301,6 +324,13 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
                     break;
                 }
                 assert((cmd->u.enable * cmd->u.enable) <= 1);
+                break;
+            case DEP_MEMCPY:
+                MPI_Sendrecv( GC_DATA(cmd->u.memcpy.source), 1, cmd->u.memcpy.datatype, 0, 0,
+                              cmd->u.memcpy.destination, 1, cmd->u.memcpy.datatype, 0, 0,
+                              MPI_COMM_SELF, MPI_STATUS_IGNORE );
+                gc_data_unref( cmd->u.memcpy.source );
+                break;
             default:
                 break;
         }
@@ -319,7 +349,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
 enum {
     REMOTE_DEP_ACTIVATE_TAG,
     REMOTE_DEP_GET_DATA_TAG,
-    REMOTE_DEP_PUT_DATA_TAG,
+    REMOTE_DEP_PUT_DATA_TAG
 } dplasma_remote_dep_tag_t;
 
 /* TODO: smart use of dplasma context instead of ugly globals */
@@ -559,6 +589,8 @@ static int remote_dep_mpi_send(dep_cmd_item_content_t* cmdu)
     return 1;
 }
 
-
-
-
+void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
+{
+    MPI_Type_contiguous(tile_size * tile_size, base, &DPLASMA_DEFAULT_DATA_TYPE);
+    MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
+}

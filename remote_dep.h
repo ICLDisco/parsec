@@ -105,6 +105,13 @@ static inline int dplasma_remote_dep_is_forwarded( dplasma_execution_unit_t* eu_
     return (int) ((eu_context->remote_dep_fw_mask[boffset] & mask) != 0);
 }
 
+#if defined(USE_MPI)
+void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, MPI_Datatype datatype);
+void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base);
+
+extern MPI_Datatype DPLASMA_DEFAULT_DATA_TYPE;
+#endif
+
 #else 
 # define dplasma_remote_dep_init(ctx) (1)
 # define dplasma_remote_dep_fini(ctx) (0)

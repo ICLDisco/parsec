@@ -60,6 +60,7 @@ int yywrap()
 %token <number>  DPLASMA_INT
 %token <string>  DPLASMA_VAR
 %token <string>  DPLASMA_BODY
+%token <string>  DPLASMA_OPTIONAL_INFO
 %token <operand> DPLASMA_OP
 %token <operand> DPLASMA_DEPENDENCY_TYPE
 %token <operand> DPLASMA_ARROW
@@ -304,12 +305,26 @@ dependencies: DPLASMA_ARROW {
 dependency: call {
                      if( inout_type == SYM_IN ) {
                          current_param->dep_in[global_indep_index]->cond = NULL;
+                         current_param->dep_in[global_indep_index]->mpi_type = NULL;
                          global_indep_index++;
                      } else {
                          assert( inout_type == SYM_OUT );
                          current_param->dep_out[global_outdep_index]->cond = NULL;
+                         current_param->dep_out[global_outdep_index]->mpi_type = NULL;
                          global_outdep_index++;
                      }
+                 }
+        | call DPLASMA_OPTIONAL_INFO {
+                     if( inout_type == SYM_IN ) {
+                         current_param->dep_in[global_indep_index]->cond = NULL;
+                         current_param->dep_in[global_indep_index]->mpi_type = $2;
+                         global_indep_index++;
+                     } else {
+                         assert( inout_type == SYM_OUT );
+                         current_param->dep_out[global_outdep_index]->cond = NULL;
+                         current_param->dep_out[global_outdep_index]->mpi_type = $2;
+                         global_outdep_index++;
+                     }            
                  }
         | expr DPLASMA_QUESTION call {
                                          dep_t *curr_dep = NULL;
@@ -323,6 +338,7 @@ dependency: call {
                                              global_outdep_index++;
                                          }
                                          curr_dep->cond = $1;
+                                         curr_dep->mpi_type = NULL;
                                      }
           DPLASMA_COLON call {
                                  dep_t *curr_dep = NULL;
@@ -336,6 +352,39 @@ dependency: call {
                                      global_outdep_index++;
                                  }
                                  curr_dep->cond = expr_new_unary( '!', $1);
+                                 curr_dep->mpi_type = NULL;
+                             }
+          |  expr DPLASMA_QUESTION call {
+                                         dep_t *curr_dep = NULL;
+
+                                         if( inout_type == SYM_IN ) {
+                                             curr_dep = current_param->dep_in[global_indep_index];
+                                             global_indep_index++;
+                                         } else {
+                                             assert( inout_type == SYM_OUT );
+                                             curr_dep = current_param->dep_out[global_outdep_index];
+                                             global_outdep_index++;
+                                         }
+                                         curr_dep->cond = $1;
+                                         curr_dep->mpi_type = NULL;
+                                     }
+              DPLASMA_COLON call DPLASMA_OPTIONAL_INFO {
+                                 dep_t *curr_dep = NULL;
+                                 dep_t *prev_dep = NULL;
+
+                                 if( inout_type == SYM_IN ) {
+                                     prev_dep = current_param->dep_in[global_indep_index-1];
+                                     curr_dep = current_param->dep_in[global_indep_index];
+                                     global_indep_index++;
+                                 } else {
+                                     assert( inout_type == SYM_OUT );
+                                     prev_dep = current_param->dep_out[global_outdep_index-1];
+                                     curr_dep = current_param->dep_out[global_outdep_index];
+                                     global_outdep_index++;
+                                 }
+                                 curr_dep->cond = expr_new_unary( '!', $1);
+                                 curr_dep->mpi_type = $7;
+                                 prev_dep->mpi_type = strdup($7);
                              }
 ;
 
