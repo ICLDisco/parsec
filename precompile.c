@@ -335,7 +335,7 @@ static char *dump_c_expression_inline(const expr_t *e,
         expr_idx++;
 
         output(
-               "static int inline_expr%d( const  assignment_t *assignments )\n"
+               "static inline int inline_expr%d( const  assignment_t *assignments )\n"
                "{\n",
                my_id);
 
@@ -606,9 +606,9 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
             (symbol->max != NULL) &&
             ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
             (symbol->min->value == symbol->max->value) ) {
-            output("int %s = %d;\n", symbol->name, symbol->min->value);
+            output("static int %s = %d;\n", symbol->name, symbol->min->value);
         } else {
-            output("int %s;\n", symbol->name);
+            output("static int %s;\n", symbol->name);
         }
         snprintf(init_func_body + strlen(init_func_body),
                  init_func_body_size - strlen(init_func_body),
@@ -661,7 +661,7 @@ static void dplasma_dump_context_holder(const dplasma_t *d,
     char minexpr[MAX_EXPR_LEN];
     char maxexpr[MAX_EXPR_LEN];
 
-    output("static long int %s_hash(",
+    output("static inline long int %s_hash(",
            d->name);
 
     for(i = 0; i < d->nb_params; i++) {
@@ -1645,7 +1645,7 @@ int dplasma_dump_all_c(char *filename)
             "#include \"profiling.h\"\n");
     for(i = 0; i < dplasma_nb_elements(); i++) {
         object = dplasma_element_at(i);
-        output("int %s_start_key, %s_end_key;\n", object->name, object->name);
+        output("static int %s_start_key, %s_end_key;\n", object->name, object->name);
     }
     output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT)->eu_profile, (KEY), (ID))\n"
             "#else\n"
