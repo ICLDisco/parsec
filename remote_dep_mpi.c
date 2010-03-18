@@ -28,14 +28,14 @@ static int remote_dep_mpi_release(dplasma_execution_unit_t* eu_context, dplasma_
     static int remote_dep_dequeue_fini(dplasma_context_t* context);
     static int remote_dep_dequeue_on(dplasma_context_t* context);
     static int remote_dep_dequeue_off(dplasma_context_t* context);
-    static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, gc_data_t* data);
+    static int remote_dep_dequeue_send(int rank, dplasma_remote_deps_t* deps);
     static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context);
     static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dplasma_execution_context_t* exec_context, gc_data_t** data);
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
-#   define remote_dep_send(task, rank, data) remote_dep_dequeue_send(task, rank, data)
+#   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
 #   define remote_dep_release(ctx, task, data) remote_dep_dequeue_release(ctx, task, data)
 
@@ -330,7 +330,7 @@ static void remote_dep_mpi_get_data(dplasma_execution_context_t* task, int from,
 static int act = 1;
 
 /* Send the activate tag */
-static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, gc_data_t *data)
+static int remote_dep_mpi_send(const dplasma_execution_context_t* task, int rank, gc_data_t* data)
 {
 #ifdef DPLASMA_DEBUG
     char tmp[128];
@@ -465,15 +465,14 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
 
 
 
-static int remote_dep_dequeue_send(const dplasma_execution_context_t* task, int rank, gc_data_t* data)
+static int remote_dep_dequeue_send(int rank, dplasma_remote_deps_t* deps)
 {
     dep_cmd_item_t* cmd = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
 
     cmd->super.list_prev = (dplasma_list_item_t*) cmd;
     cmd->cmd = DEP_ACTIVATE;
-    cmd->u.activate.origin = *task;
-    gc_data_ref(data);
-    cmd->u.activate.data = data;
+    cmd->u.activate.origin = *deps->exec_context;
+    cmd->u.activate.data = deps->output[0].data;
     cmd->u.activate.rank = rank;
     
     dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) cmd);

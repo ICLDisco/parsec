@@ -91,7 +91,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     
     dplasma_remote_dep_reset_forwarded(eu_context);
     
-    for( i = 0; i < MAX_PARAM_COUNT; i++ ) {
+    assert(remote_deps_count == 1); /* for now, until it is finished */
+    for( i = 0; i < remote_deps_count; i++ ) {
         if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
         if( 0 == remote_deps->output[i].count ) continue;  /* no deps for this output */
         array_index = 0;
@@ -110,13 +111,14 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     current_mask ^= (1 << bit_index);
                     count++;
 
+                    gc_data_ref(remote_deps->output[i].data);
                     if(dplasma_remote_dep_is_forwarded(eu_context, rank))
-                    {    
+                    {
                        continue;
                     }
                     dplasma_remote_dep_mark_forwarded(eu_context, rank);
                     dplasma_remote_dep_inc_flying_messages(eu_context->master_context);
-                    remote_dep_send(remote_deps->exec_context, rank, remote_deps->output[i].data);
+                    remote_dep_send(rank, remote_deps);
                 }
             }
             /* Don't forget to reset the bits */
@@ -125,11 +127,13 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
         }
         remote_deps->output[i].count = 0;
     }
-    remote_deps->item.list_prev = &(remote_deps->item);
+    remote_deps->item.list_prev = remote_deps->item.list_next = &(remote_deps->item);
     dplasma_atomic_lifo_push( remote_deps->origin, (dplasma_list_item_t*)remote_deps );
 }
 
 #endif /* DISTRIBUTED */
+
+
 
 #define HEAVY_DEBUG
 #if defined(DPLASMA_DEBUG) && defined(HEAVY_DEBUG)
@@ -203,6 +207,23 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
     
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #ifdef DEPRECATED
 static int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
