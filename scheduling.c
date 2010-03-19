@@ -489,7 +489,7 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
     dplasma_execution_context_t new_context;
     int i, j, k, value;    
 
-#ifdef DISTRIBUTED
+#if 0 /*DISTRIBUTED this code is outdated, does not work in distributed anymore */
     dplasma_remote_dep_reset_forwarded(eu_context);
 #endif
 

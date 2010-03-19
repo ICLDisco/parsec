@@ -5,18 +5,56 @@
  */
 #include "remote_dep.h"
 #include "scheduling.h"
+#include "execution_unit.h"
 #include <stdio.h>
+#include <string.h>
 
-static inline void dplasma_remote_dep_inc_flying_messages(dplasma_context_t* ctx)
+/* Clear the already forwarded remote dependency matrix */
+static inline void remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
 {
-    /* make sure we don't leave before serving all data deps */
+    /*DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));*/
+    memset(eu_context->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
+}
+
+/* Mark a rank as already forwarded the termination of the current task */
+static inline void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
+{
+    int boffset;
+    uint32_t mask;
+    
+    /*DEBUG(("fw mark\tREMOTE rank %d\n", rank));*/
+    boffset = rank / (8 * sizeof(uint32_t));
+    mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
+    assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
+    eu_context->remote_dep_fw_mask[boffset] |= mask;
+}
+
+/* Check if rank has already been forwarded the termination of the current task */
+static inline int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
+{
+    int boffset;
+    uint32_t mask;
+    
+    boffset = rank / (8 * sizeof(uint32_t));
+    mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
+    assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
+    /*DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));*/
+    return (int) ((eu_context->remote_dep_fw_mask[boffset] & mask) != 0);
+}
+
+
+/* make sure we don't leave before serving all data deps */
+static inline void remote_dep_inc_flying_messages(dplasma_context_t* ctx)
+{
     dplasma_atomic_inc_32b( &ctx->taskstodo );
 }
 
-static inline void dplasma_remote_dep_dec_flying_messages(dplasma_context_t* ctx)
+/* allow for termination when all deps have been served */
+static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
 {
     dplasma_atomic_dec_32b( &ctx->taskstodo );
 }
+
 
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
@@ -24,20 +62,20 @@ static inline void dplasma_remote_dep_dec_flying_messages(dplasma_context_t* ctx
 #else 
 #   ifdef DPLASMA_DEBUG
 #include "freelist.h"
-int dplasma_remote_dep_activate_rank(dplasma_execution_unit_t* eu_context, 
-                                     const dplasma_execution_context_t* origin, 
-                                     int rank, dplasma_remote_deps_t* deps)
+int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context, 
+                                dplasma_remote_deps_t* remote_deps,
+                                uint32_t remote_deps_count)
 {
     /* return some error and be loud
      * we should never get called in multicore mode */
     int i;
     char tmp[128];
+    const dplasma_execution_context_t* origin = remote_deps->exec_context;
     dplasma_t* function = origin->function;
     
-    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates rank %d.\n"
+    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates remote ranks.\n"
                     "     Remote dependencies are NOT ENABLED in this build!\n",
-            dplasma_service_to_string(origin, tmp, 128),
-            rank);
+            dplasma_service_to_string(origin, tmp, 128));
     return -1;
 }
 
@@ -89,7 +127,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     dplasma_t* function = remote_deps->exec_context->function;
     int i, j, k, count, array_index, bit_index, current_mask;
     
-    dplasma_remote_dep_reset_forwarded(eu_context);
+    remote_dep_reset_forwarded(eu_context);
     
     for( i = 0; i < remote_deps_count; i++ ) {
         if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
@@ -111,12 +149,12 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
 
                     gc_data_ref(remote_deps->output[i].data);
-                    if(dplasma_remote_dep_is_forwarded(eu_context, rank))
+                    if(remote_dep_is_forwarded(eu_context, rank))
                     {
                        continue;
                     }
-                    dplasma_remote_dep_mark_forwarded(eu_context, rank);
-                    dplasma_remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
+                    remote_dep_mark_forwarded(eu_context, rank);
+                    remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
                     remote_dep_send(rank, remote_deps);
                 }
             }
@@ -207,107 +245,3 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
     return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#ifdef DEPRECATED
-static int dplasma_remote_dep_compute_grid_rank(dplasma_execution_unit_t* eu_context,
-                                                const dplasma_execution_context_t* origin,
-                                                const dplasma_execution_context_t* exec_context)
-{
-    int i, pred_index;
-    int rank;
-    int ranks[2] = { -1, -1 };
-    const expr_t **predicates = (const expr_t**) exec_context->function->preds;
-    expr_t *expr;
-    symbol_t *symbols[2];
-    symbols[0] = dplasma_search_global_symbol( "colRANK" );
-    symbols[1] = dplasma_search_global_symbol( "rowRANK" );
-    int gridcols;
-    
-    assert(NULL != symbols[0]);
-    assert(NULL != symbols[1]);
-
-    /* compute matching colRank and rowRank from predicates */
-    for( pred_index = 0;
-        (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
-        pred_index++ ) 
-    {
-        for( i = 0; i < 2; i++ ) 
-        {            
-            if( EXPR_SUCCESS != expr_depend_on_symbol(predicates[pred_index], symbols[i]) )
-            {
-HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
-                continue;
-            }
-            assert(EXPR_IS_BINARY(predicates[pred_index]->op));
-            
-            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, symbols[i]) )
-            {
-                expr = predicates[pred_index]->bop2;
-            }
-            else
-            {                    
-                expr = predicates[pred_index]->bop1;
-            }
-            
-            assert(ranks[i] == -1);
-HDEBUG(     DEBUG(("expr[%d]:\t", i));expr_dump(stdout, expr);DEBUG(("\n")));
-            if( EXPR_SUCCESS != expr_eval(expr,
-                                          exec_context->locals, MAX_LOCAL_COUNT,
-                                          &ranks[i]) ) 
-            {
-                DEBUG(("EVAL FAILED FOR EXPR\t"));
-                expr_dump(stdout, expr);
-                DEBUG(("\n"));
-                return -1;
-            }
-        }
-    }
-    assert((ranks[0] != -1) && (ranks[1] != -1));
-    
-    expr = (expr_t *) dplasma_search_global_symbol("GRIDcols");
-    assert(NULL != expr);
-    expr = (expr_t *) ((symbol_t *) expr)->min;
-    if (EXPR_SUCCESS != expr_eval(expr, NULL, 0, &gridcols) )
-    {
-        DEBUG(("EVAL FAILED FOR EXPR\t"));
-        expr_dump(stdout, expr);
-        DEBUG(("\n"));
-    }
-    
-    rank = ranks[0] + ranks[1] * gridcols;
-    
-    DEBUG(("gridrank = %d ( %d + %d x %d )\n", rank, ranks[0], ranks[1], gridcols));
-    
-    return rank;
-}
-
-int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
-                                const dplasma_execution_context_t* origin,
-                                const param_t* origin_param,
-                                const dplasma_execution_context_t* exec_context,
-                                const param_t* dest_param )
-{
-    int rank;
-    
-    rank = dplasma_remote_dep_compute_grid_rank(eu_context, origin, exec_context);
-    return dplasma_remote_dep_activate_rank(eu_context, origin, origin_param, 
-                                            rank, NULL);
-}
-
-#endif 

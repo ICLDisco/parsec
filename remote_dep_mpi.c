@@ -536,7 +536,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     DEBUG(("TO\tna\tPut END  \tunknown \tj=%d\twith data %d at %p\n", i, PTR_TO_TAG(dep_get_buff[i]), (uintptr_t) dep_get_buff[i]));
                     gc_data_unref((gc_data_t*) (uintptr_t) dep_get_buff[i]);
                     MPI_Start(&dep_get_req[i]);
-                    dplasma_remote_dep_dec_flying_messages(eu_context->master_context);
+                    remote_dep_dec_flying_messages(eu_context->master_context);
                 }
                 else
                 {
