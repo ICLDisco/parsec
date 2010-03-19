@@ -1,0 +1,98 @@
+
+/********************************************************************************************
+ *                                       DGETRF                                             *
+ ********************************************************************************************/
+
+DGETRF(k)
+ k = 0..NT-1
+
+ // Parallel partitioning
+ : k % GRIDrows == rowRANK
+ : k % GRIDcols == colRANK
+
+ INOUT BC <- (k == 0)    ? A(0, 0)       : DE DSSSM(k-1, k, k)
+          -> (k == NT-1) ? A(NT-1, NT-1) : B DTSTRF(k, k+1)        [UPPER_TILE]
+	  -> (k == NT-1) ? NULL()        : C DGESSM(k, k+1..NT-1)  [LOWER_TILE]
+	  -> A(k, k)                                               [LOWER_TILE]
+ OUT D    -> B DGESSM(k, k+1..NT-1)                                [PIVOT_VECT]
+          -> IPIV(k, k)                                            [PIVOT_VECT]
+
+BODY
+END
+
+/********************************************************************************************
+ *                                       DSSSSM                                             *
+ ********************************************************************************************/
+
+DSSSSM(k, n, m)
+  k = 0   .. NT-2
+  n = k+1 .. NT-1
+  m = k+1 .. NT-1
+
+  // Parallel partitioning
+  : m % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  IN GH <- CD DTSTRF(k, m)
+  IN F  <- E DTSTRF(k, m)                                         [LITTLE_L]
+  IN I  <- F DTSTRF(k, m)                                         [PIVOT_VECT]
+
+  INOUT DE <- (k == 0)   ? A(m, n)         : DE DSSSSM(k-1, n, m)
+           -> (n == k+1) & (m == k+1) ? BC DGETRF(k+1) : NULL()
+	   -> (n == k+1) & (k  < m-1) ? CD DTSTRF(k+1, m) : NULL()
+	   -> (k < n-1) & (m = k+1) ? DE DGESSM(k+1, n) : NULL()
+	   -> (k < n-1) & (k < m-1) ? DE DSSSM(k+1, n, m) : NULL()
+  INOUT BC <- (m == k+1) ? DE DGESSM(k, n) : BC DSSSSM(k, n, m-1)
+  	   -> (n == NT-1) ? A(k, n) : BC DSSSSM(k, n, m+1)
+
+BODY
+END
+
+
+/********************************************************************************************
+ *                                       DGESSM                                             *
+ ********************************************************************************************/
+
+DGESSM(k, n)
+
+  k = 0..NT-2
+  n = k+1..NT-1
+
+  // Parallel partitioning
+  : k % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  IN    C  <- C DGETRF(k)                                         [LOWER_TILE]
+  IN    B  <- D DGETRF(k)                                         [PIVOT_VECT]
+  INOUT DE <- (k == 0) ? A(k, n) : DE DSSSSM(k-1, n, k)
+           -> BC DSSSSM(k, n, k+1)
+
+BODY
+END
+
+
+
+/********************************************************************************************
+ *                                       DTSTRF                                             *
+ ********************************************************************************************/
+
+DTSTRF(k, m)
+  k = 0..NT-2
+  m = k+1..NT-1
+
+  // Parallel partitioning
+  : m % GRIDrows == rowRANK
+  : k % GRIDcols == colRANK
+
+  INOUT CD <- (k == 0) ? A(m, 0) : DE DSSSSM(k-1, k, m)
+           -> GH DSSSSM(k, k+1..NT-1, m)
+	   -> A(m, k)
+  INOUT B  <- (m == k+1) ? B DGETRF(k) : B DTSTRF(k, m-1)             [UPPER_TILE]
+           -> (m == NT-1) ? A(k, k) : B DTSTRF(k, m+1)                [UPPER_TILE]
+  OUT   E  -> F DSSSSM(k, k+1..NT-1, m)                               [LITTLE_L]
+           -> L(m, k)	  	     				      [LITTLE_L]
+  OUT   F  -> I DSSSSM(k, k+1..NT-1, m)				      [PIVOT_VECT]
+  	   -> IPIV(m, k)  	     				      [PIVOT_VECT]
+
+BODY
+END
