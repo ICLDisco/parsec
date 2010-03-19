@@ -52,15 +52,8 @@ static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 
-#define TAKE_TIME(PROF, KEY, I)  dplasma_profiling_trace((PROF), (KEY), (I))
-#else
-#define TAKE_TIME(PROF, KEY, I)
-#endif  /* DPLASMA_PROFILING */
-
-
-int remote_dep_transport_init(dplasma_context_t* context)
+static void remote_dep_mpi_profiling_init(void)
 {
-#ifdef DPLASMA_PROFILING
     int i;
     
     dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
@@ -71,21 +64,21 @@ int remote_dep_transport_init(dplasma_context_t* context)
                                              &MPI_Data_plds_sk, &MPI_Data_plds_ek);
     dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
                                              &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
-
+    
     MPIctl_prof = dplasma_profiling_thread_init( 4096, "MPI ctl");
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
         MPIsnd_prof[i] = dplasma_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI isend(req=%d)", i);
         MPIrcv_prof[i] = dplasma_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI irecv(req=%d)", i);
-    }
-#endif /* DPLASMA_PROFILING */
-    return remote_dep_init(context);
+    }    
 }
 
-int remote_dep_transport_fini(dplasma_context_t* context)
-{
-    return remote_dep_fini(context);
-}
+#define TAKE_TIME(PROF, KEY, I)  dplasma_profiling_trace((PROF), (KEY), (I))
+#else
+#define TAKE_TIME(PROF, KEY, I)
+#define remote_dep_mpi_profiling_init() do {} while(0)
+#endif  /* DPLASMA_PROFILING */
+
 
 int dplasma_remote_dep_on(dplasma_context_t* context)
 {
@@ -400,6 +393,7 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
         dep_req[i] = MPI_REQUEST_NULL;
     }
     dep_enabled = 0;
+    remote_dep_mpi_profiling_init();
     return np;
 }
 

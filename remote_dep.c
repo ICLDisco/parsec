@@ -89,7 +89,7 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
     int i;
     int np;
     
-    np = (int32_t) remote_dep_transport_init(context);
+    np = (int32_t) remote_dep_init(context);
     if(np > 1)
     {
         context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
@@ -117,7 +117,7 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
             free(context->execution_units[i]->remote_dep_fw_mask);
         }
     }
-    return remote_dep_transport_fini(context);
+    return remote_dep_fini(context);
 }
 
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
