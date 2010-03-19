@@ -63,6 +63,7 @@ static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
 #   ifdef DPLASMA_DEBUG
 #include "freelist.h"
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context, 
+                                const dplasma_execution_context_t* origin,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count)
 {
@@ -70,7 +71,6 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
      * we should never get called in multicore mode */
     int i;
     char tmp[128];
-    const dplasma_execution_context_t* origin = remote_deps->exec_context;
     dplasma_t* function = origin->function;
     
     fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates remote ranks.\n"
@@ -137,13 +137,21 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 
 
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
+                                const dplasma_execution_context_t* exec_context,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
 {
-    dplasma_t* function = remote_deps->exec_context->function;
+    dplasma_t* function = exec_context->function;
     int i, j, k, count, array_index, bit_index, current_mask;
     
     remote_dep_reset_forwarded(eu_context);
+    
+    remote_deps->msg.deps = (uintptr_t) remote_deps;
+    remote_deps->msg.function = (uintptr_t) function;
+    for(i = 0; i < function->nb_locals; i++)
+    {
+        remote_deps->msg.locals[i] = exec_context->locals[i];
+    }
     
     for( i = 0; i < remote_deps_count; i++ ) {
         if( function->inout[i] == NULL ) break;  /* we're done ... hopefully */
@@ -159,7 +167,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     assert(rank < eu_context->master_context->nb_nodes);
 
                     DEBUG(("Release deps from %s for rank %d ptr %p\n",
-                           remote_deps->exec_context->function->name,
+                           exec_context->function->name,
                            rank, remote_deps->output[i].data));
                     current_mask ^= (1 << bit_index);
                     count++;
@@ -180,8 +188,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
         }
         remote_deps->output[i].count = 0;
     }
-    dplasma_atomic_lifo_push(remote_deps->origin, 
-                             dplasma_list_item_singleton((dplasma_list_item_t*) remote_deps));
+/*    dplasma_atomic_lifo_push(remote_deps->origin, 
+                             dplasma_list_item_singleton((dplasma_list_item_t*) remote_deps));*/
 }
 
 #endif /* DISTRIBUTED */
