@@ -26,6 +26,7 @@ typedef struct dplasma_remote_deps_t {
         gc_data_t*                            data;
         uint32_t*                             rank_bits;
         uint32_t                              count;
+        void*                                 type;
     } output[1];
 } dplasma_remote_deps_t;
 

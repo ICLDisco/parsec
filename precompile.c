@@ -948,11 +948,12 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s      DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line 10 */
                                     "%*s      if( !(remote_deps->output[%d].rank_bits[array_pos] & array_mask) ) {\n"            /* line 11 */
                                     "%*s        remote_deps->output[%d].data = data[%d];\n"                                      /* line 12 */
-                                    "%*s        remote_deps->output[%d].rank_bits[array_pos] |= array_mask;\n"                   /* line 13 */
-                                    "%*s        remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 14 */
-                                    "%*s      }\n"                                                                               /* line 15 */
-                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                       /* line 16 */
-                                    "%*s    }\n",                                                                                /* line 17 */
+                                    "%*s        remote_deps->output[%d].type = &%s;\n"                                           /* line 13 */
+                                    "%*s        remote_deps->output[%d].rank_bits[array_pos] |= array_mask;\n"                   /* line 14 */
+                                    "%*s        remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 15 */
+                                    "%*s      }\n"                                                                               /* line 16 */
+                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                       /* line 17 */
+                                    "%*s    }\n",                                                                                /* line 18 */
                                     /* line  2 */ spaces, "",
                                     /* line  3 */ spaces, "",
                                     /* line  4 */ spaces, "", expression_to_c_inline(rowpred, "", strexpr1, MAX_EXPR_LEN),
@@ -964,10 +965,12 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     /* line 10 */ spaces, "", output_deps,
                                     /* line 11 */ spaces, "", cpt,
                                     /* line 12 */ spaces, "", cpt, cpt,
-                                    /* line 13 */ spaces, "", cpt,
+                                    /* line 13 */ spaces, "", cpt, NULL == p->dep_out[j]->mpi_type ? "DPLASMA_DEFAULT_DATA_TYPE" : p->dep_out[j]->mpi_type,
                                     /* line 14 */ spaces, "", cpt,
-                                    /* line 15 */ spaces, "",
-                                    /* line 17 */ spaces, ""
+                                    /* line 15 */ spaces, "", cpt,
+                                    /* line 16 */ spaces, "",
+                                    /* line 17 */
+                                    /* line 18 */ spaces, ""
                                     );
                         }
                     }                    
