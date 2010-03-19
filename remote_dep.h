@@ -11,6 +11,7 @@
 
 #if defined(USE_MPI)
 # define DISTRIBUTED
+#include <mpi.h>
 #else
 # undef DISTRIBUTED
 #endif
