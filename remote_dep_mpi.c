@@ -40,62 +40,6 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, unio
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
 #   define remote_dep_release(ctx, cmdu) remote_dep_dequeue_release(ctx, cmdu)
 
-/* Exported default datatype */
-MPI_Datatype DPLASMA_DEFAULT_DATA_TYPE;
-
-#ifdef DPLASMA_PROFILING
-static dplasma_thread_profiling_t* MPIctl_prof;
-static dplasma_thread_profiling_t* MPIsnd_prof[DEP_NB_CONCURENT];
-static dplasma_thread_profiling_t* MPIrcv_prof[DEP_NB_CONCURENT];
-static int MPI_Activate_sk, MPI_Activate_ek;
-static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
-static int MPI_Data_plds_sk, MPI_Data_plds_ek;
-static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
-
-static void remote_dep_mpi_profiling_init(void)
-{
-    int i;
-    
-    dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
-                                             &MPI_Activate_sk, &MPI_Activate_ek);
-    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
-                                             &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
-    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
-                                             &MPI_Data_plds_sk, &MPI_Data_plds_ek);
-    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
-                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
-    
-    MPIctl_prof = dplasma_profiling_thread_init( 4096, "MPI ctl");
-    for(i = 0; i < DEP_NB_CONCURENT; i++)
-    {
-        MPIsnd_prof[i] = dplasma_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI isend(req=%d)", i);
-        MPIrcv_prof[i] = dplasma_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI irecv(req=%d)", i);
-    }    
-}
-
-#define TAKE_TIME(PROF, KEY, I)  dplasma_profiling_trace((PROF), (KEY), (I))
-#else
-#define TAKE_TIME(PROF, KEY, I)
-#define remote_dep_mpi_profiling_init() do {} while(0)
-#endif  /* DPLASMA_PROFILING */
-
-
-int dplasma_remote_dep_on(dplasma_context_t* context)
-{
-    return remote_dep_on(context);
-}
-
-int dplasma_remote_dep_off(dplasma_context_t* context)
-{
-    return remote_dep_off(context);
-}
-
-int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
-{
-    return remote_dep_progress(eu_context);
-}
-
-
 
 #include "dequeue.h"
 
@@ -360,6 +304,45 @@ enum {
     REMOTE_DEP_GET_DATA_TAG,
     REMOTE_DEP_PUT_DATA_TAG
 } dplasma_remote_dep_tag_t;
+
+/* Exported default datatype */
+MPI_Datatype DPLASMA_DEFAULT_DATA_TYPE;
+
+#ifdef DPLASMA_PROFILING
+static dplasma_thread_profiling_t* MPIctl_prof;
+static dplasma_thread_profiling_t* MPIsnd_prof[DEP_NB_CONCURENT];
+static dplasma_thread_profiling_t* MPIrcv_prof[DEP_NB_CONCURENT];
+static int MPI_Activate_sk, MPI_Activate_ek;
+static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
+static int MPI_Data_plds_sk, MPI_Data_plds_ek;
+static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
+
+static void remote_dep_mpi_profiling_init(void)
+{
+    int i;
+    
+    dplasma_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
+                                             &MPI_Activate_sk, &MPI_Activate_ek);
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
+                                             &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
+                                             &MPI_Data_plds_sk, &MPI_Data_plds_ek);
+    dplasma_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
+                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
+    
+    MPIctl_prof = dplasma_profiling_thread_init( 4096, "MPI ctl");
+    for(i = 0; i < DEP_NB_CONCURENT; i++)
+    {
+        MPIsnd_prof[i] = dplasma_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI isend(req=%d)", i);
+        MPIrcv_prof[i] = dplasma_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI irecv(req=%d)", i);
+    }    
+}
+
+#define TAKE_TIME(PROF, KEY, I)  dplasma_profiling_trace((PROF), (KEY), (I))
+#else
+#define TAKE_TIME(PROF, KEY, I)
+#define remote_dep_mpi_profiling_init() do {} while(0)
+#endif  /* DPLASMA_PROFILING */
 
 /* TODO: smart use of dplasma context instead of ugly globals */
 static MPI_Comm dep_comm;

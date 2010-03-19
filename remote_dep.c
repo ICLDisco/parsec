@@ -120,6 +120,22 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
     return remote_dep_fini(context);
 }
 
+int dplasma_remote_dep_on(dplasma_context_t* context)
+{
+    return remote_dep_on(context);
+}
+
+int dplasma_remote_dep_off(dplasma_context_t* context)
+{
+    return remote_dep_off(context);
+}
+
+int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
+{
+    return remote_dep_progress(eu_context);
+}
+
+
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
