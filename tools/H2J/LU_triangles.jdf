@@ -101,9 +101,15 @@ TASK: DSSSSM(k,n,m){
   /*C == A(k,n,1)*/
   OUT C -> A(k,n) OUT(k,n)  {0 <= k < n < BB && (m=BB-1) }
 
+
   /*D == A(m,n,0)*/
   /*B == A(k,k,0)*/
   OUT D -> B DGETRF(k+1)  {0 <= k <= BB-2 && (n=k+1)  && (m=k+1) }
+
+  /*E == A(m,n,1)*/
+  /*C == A(k,k,1)*/
+  OUT E -> C DGETRF(k+1)  {0 <= k <= BB-2 && (n=k+1)  && (m=k+1) }
+
 
   /*D == A(m,n,0)*/
   /*C == A(m,k,0)*/
@@ -116,10 +122,6 @@ TASK: DSSSSM(k,n,m){
   /*D == A(m,n,0)*/
   /*D == A(m,n,0)*/
   OUT D -> D DSSSSM(k+1,n,m)  {0 <= k <= n-2, m-2 && n < BB && m < BB}
-
-  /*E == A(m,n,1)*/
-  /*C == A(k,k,1)*/
-  OUT E -> C DGETRF(k+1)  {0 <= k <= BB-2 && (n=k+1)  && (m=k+1) }
 
   /*E == A(m,n,1)*/
   /*D == A(m,k,1)*/
@@ -197,12 +199,12 @@ TASK: DTSTRF(k,m){
   /*G == A(m,k,0)*/
   OUT C -> G DSSSSM(k,k+1..BB-1,m)  {0<=k<m<BB}
 
-  /*C == A(m,k,0)*/
-  OUT C -> A(m,k) OUT(m,k)  {0 <= k < m < BB}
-
   /*D == A(m,k,1)*/
   /*H == A(m,k,1)*/
   OUT D -> H DSSSSM(k,k+1..BB-1,m)  {0<=k<m<BB}
+
+  /*C == A(m,k,0)*/
+  OUT C -> A(m,k) OUT(m,k)  {0 <= k < m < BB}
 
   /*D == A(m,k,1)*/
   OUT D -> A(m,k) OUT(m,k)  {0 <= k < m < BB}
