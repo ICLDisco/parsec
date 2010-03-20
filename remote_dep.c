@@ -60,26 +60,6 @@ static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
 #include "remote_dep_mpi.c" 
 
 #else 
-#   ifdef DPLASMA_DEBUG
-#include "freelist.h"
-int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context, 
-                                const dplasma_execution_context_t* origin,
-                                dplasma_remote_deps_t* remote_deps,
-                                uint32_t remote_deps_count)
-{
-    /* return some error and be loud
-     * we should never get called in multicore mode */
-    int i;
-    char tmp[128];
-    dplasma_t* function = origin->function;
-    
-    fprintf(stderr, "/!\\ REMOTE DEPENDENCY DETECTED: %s activates remote ranks.\n"
-                    "     Remote dependencies are NOT ENABLED in this build!\n",
-            dplasma_service_to_string(origin, tmp, 128));
-    return -1;
-}
-
-#   endif /* DPLASMA_DEBUG */
 #endif /* NO TRANSPORT */
 
 
@@ -173,12 +153,12 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
 
                     gc_data_ref(remote_deps->output[i].data);
+                    remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
                     if(remote_dep_is_forwarded(eu_context, rank))
                     {
                        continue;
                     }
                     remote_dep_mark_forwarded(eu_context, rank);
-                    remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
                     remote_dep_send(rank, remote_deps);
                 }
             }

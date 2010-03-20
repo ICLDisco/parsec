@@ -18,7 +18,11 @@ typedef MPI_Datatype dplasma_remote_dep_datatype_t;
 typedef void dplasma_remote_dep_datatype_t;
 #endif
 
-#define DPLASMA_ACTION_RELEASE_REMOTE_DEPS 0x0100
+#define DPLASMA_ACTION_INIT_REMOTE_DEPS    0x0100
+#define DPLASMA_ACTION_SEND_REMOTE_DEPS    0x0200
+#define DPLASMA_ACTION_RECV_REMOTE_DEPS    0x0400
+#define DPLASMA_ACTION_RELEASE_REMOTE_DEPS (DPLASMA_ACTION_INIT_REMOTE_DEPS | DPLASMA_ACTION_SEND_REMOTE_DEPS)
+#define DPLASMA_ACTION_GETDATA_REMOTE_DEPS (DPLASMA_ACTION_INIT_REMOTE_DEPS | DPLASMA_ACTION_RECV_REMOTE_DEPS)
 #define DPLASMA_ACTION_DEPS_MASK           0x00FF
 
 typedef unsigned long remote_dep_datakey_t;
@@ -48,16 +52,6 @@ typedef struct dplasma_remote_deps_t {
     } output[1];
 } dplasma_remote_deps_t;
 
-#if defined(DISTRIBUTED) || defined(DPLASMA_DEBUG)
-int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
-                                const dplasma_execution_context_t* origin,
-                                dplasma_remote_deps_t* remote_deps,
-                                uint32_t remote_deps_count );
-#else
-# ifndef DPLASMA_DEBUG
-#   define dplasma_remote_dep_activate(eu, o, op, e, ep) (0)
-# endif
-#endif
 
 /* Gives pointers to expr_t allowing for evaluation of GRID predicates, needed 
  * by the precompiler only */
@@ -77,7 +71,16 @@ int dplasma_remote_dep_off(dplasma_context_t* context);
 /* Poll for remote completion of tasks that would enable some work locally */
 int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context);
 
+/* Send remote dependencies to target processes */
+int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
+                                const dplasma_execution_context_t* origin,
+                                dplasma_remote_deps_t* remote_deps,
+                                uint32_t remote_deps_count );
+
+/* Memcopy a particular data using datatype specification */
 void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, const dplasma_remote_dep_datatype_t datatype);
+
+/* Create a default datatype */
 void remote_dep_mpi_create_default_datatype(int tile_size, dplasma_remote_dep_datatype_t base);
 
 extern dplasma_remote_dep_datatype_t DPLASMA_DEFAULT_DATA_TYPE;
@@ -88,6 +91,7 @@ extern dplasma_remote_dep_datatype_t DPLASMA_DEFAULT_DATA_TYPE;
 # define dplasma_remote_dep_on(ctx)   (0)
 # define dplasma_remote_dep_off(ctx)  (0)
 # define dplasma_remote_dep_progress(ctx) (0)
+# define dplasma_remote_dep_activate(ctx, o, r, c) (-1)
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */

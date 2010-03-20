@@ -386,6 +386,8 @@ static remote_dep_wire_activate_t dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 2
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
+    
+static dplasma_remote_deps_t* dep_rdeps[DEP_NB_CONCURENT];
 
 #include <limits.h>
 #if ULONG_MAX < UINTPTR_MAX
@@ -596,6 +598,9 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 #endif
     remote_dep_wire_get_t msg;
     msg.deps = (intptr_t) task->deps;
+    
+    
+    
     
     assert(dep_enabled);
     for(int k = 0; k < 1; k++)
