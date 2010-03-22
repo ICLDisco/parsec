@@ -63,6 +63,39 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 
 #if defined(DISTRIBUTED)
 
+static dplasma_atomic_lifo_t remote_deps_freelist;
+static uint32_t max_dep_count, max_nodes_number, elem_size;
+static inline dplasma_remote_deps_t* remote_deps_construct( dplasma_remote_deps_t* deps)
+{
+    uint32_t i, rank_bit_size;
+    char *ptr;
+    
+    ptr = (char*)(&(deps->output[max_dep_count]));
+    rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
+    for( i = 0; i < max_dep_count; i++ ) {
+        deps->output[i].rank_bits = (uint32_t*)ptr;
+        ptr += rank_bit_size;
+    }
+    assert( (ptr - (char*)deps) <= elem_size );
+    return deps;
+}
+static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_atomic_lifo_t* lifo )
+{
+    dplasma_remote_deps_t* remote_deps = (dplasma_remote_deps_t*)dplasma_atomic_lifo_pop(lifo);
+    if( NULL == remote_deps ) {
+        remote_deps = (dplasma_remote_deps_t*)calloc(1, elem_size);
+        remote_deps->origin = lifo;
+    }    
+    return remote_deps_construct(remote_deps);
+}
+#define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
+    if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
+        int _i;                                                                \
+        (REMOTE_DEPS) = (dplasma_remote_deps_t*)remote_deps_allocation(&remote_deps_freelist); \
+        (REMOTE_DEPS)->origin = (dplasma_atomic_lifo_t*)&remote_deps_freelist; \
+    }
+
+
 int dplasma_remote_dep_init(dplasma_context_t* context);
 int dplasma_remote_dep_fini(dplasma_context_t* context);
 int dplasma_remote_dep_on(dplasma_context_t* context);
