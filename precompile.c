@@ -1004,6 +1004,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "#if defined(DISTRIBUTED)\n"                                                             /* line  4 */
            "  if( (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) && remote_deps_count ) {\n"    /* line  5 */
            "    ret += dplasma_remote_dep_activate(context,\n"                                      /* line  6 */
+           "                                       exec_context,\n"
            "                                       remote_deps,\n"                                  /* line  7 */
            "                                       remote_deps_count);\n"                           /* line  8 */
            "  }\n"                                                                                  /* line  9 */
@@ -1695,7 +1696,6 @@ int dplasma_dump_all_c(char *filename)
             "      if( NULL == (REMOTE_DEPS) ) { /* only once per function */                  \\\n"
             "          int _i;                                                                 \\\n"
             "          (REMOTE_DEPS) = (dplasma_remote_deps_t*)remote_deps_allocation(&remote_deps_freelist);   \\\n"
-            "          (REMOTE_DEPS)->exec_context = (EXEC_CONTEXT);                           \\\n"
             "          (REMOTE_DEPS)->origin = (dplasma_atomic_lifo_t*)&remote_deps_freelist;  \\\n"
             "      }\n\n"
             "#endif  /* defined(DISTRIBUTED) */\n\n"
