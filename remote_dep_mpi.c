@@ -65,7 +65,7 @@ typedef union dep_cmd_t
 {
     struct {
         int rank;
-        remote_dep_wire_activate_t origin;
+        remote_dep_wire_activate_t origin;	
         dplasma_remote_deps_t* deps;
     } activate;
     struct {
@@ -382,12 +382,10 @@ static MPI_Request* dep_put_rcv_req     = &dep_req[3 * DEP_NB_CONCURENT];
 /* TODO: fix heterogeneous restriction by using proper mpi datatypes */
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(remote_dep_wire_activate_t)
-static remote_dep_wire_activate_t dep_activate_buff[DEP_NB_CONCURENT];
+static dplasma_remote_deps_t dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 2
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
-    
-static dplasma_remote_deps_t* dep_rdeps[DEP_NB_CONCURENT];
 
 #include <limits.h>
 #if ULONG_MAX < UINTPTR_MAX
@@ -413,6 +411,11 @@ static int remote_dep_mpi_on(dplasma_context_t* context)
 {
     int i;
 
+    for(i = 0; i < DEP_NB_CONCURENT; i++)
+    {
+        remote_deps_construct(&dep_activate_buff[i]);
+    }
+
 #ifdef DPLASMA_PROFILING
     /* put a start marker on each line */
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
@@ -433,7 +436,7 @@ static int remote_dep_mpi_on(dplasma_context_t* context)
     assert(dep_enabled == 0);
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {        
-        MPI_Recv_init(&dep_activate_buff[i], dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
+        MPI_Recv_init(&dep_activate_buff[i].msg, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
         MPI_Recv_init(&dep_get_buff[i], datakey_count, datakey_dtt, MPI_ANY_SOURCE, REMOTE_DEP_GET_DATA_TAG, dep_comm, &dep_get_req[i]);
         MPI_Start(&dep_activate_req[i]);
         MPI_Start(&dep_get_req[i]);
@@ -530,8 +533,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
             {
-                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i], tmp, 128), i, PTR_TO_TAG(dep_activate_buff[i].deps)));
-                remote_dep_mpi_get_data(&dep_activate_buff[i], status.MPI_SOURCE, i);
+                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i].msg, tmp, 128), i, PTR_TO_TAG(dep_activate_buff[i].msg.deps)));
+                remote_dep_mpi_get_data(&dep_activate_buff[i].msg, status.MPI_SOURCE, i);
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
@@ -558,10 +561,10 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     i -= DEP_NB_CONCURENT;
                     assert((i >= 0) && (i < DEP_NB_CONCURENT));
                     /* We received a data, call the matching release_dep */
-                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i], tmp, 128), i, status.MPI_TAG));
-                    CRC_PRINT(GC_DATA((gc_data_t*) dep_activate_buff[i].deps), "R");
+                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i].msg, tmp, 128), i, status.MPI_TAG));
+                    CRC_PRINT(GC_DATA((gc_data_t*) dep_activate_buff[i].msg.deps), "R");
                     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
-                    remote_dep_release(eu_context, &dep_activate_buff[i]);
+                    remote_dep_release(eu_context, &dep_activate_buff[i].msg);
                     MPI_Start(&dep_activate_req[i]);
                     ret++;
                 }
@@ -585,7 +588,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         data = GC_DATA(deps->output[k].data);
         DEBUG(("TO\t%d\tPut START\tunknown \tj=%d\twith data %d at %p\n", to, i, PTR_TO_TAG(task->deps)+k, data));
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
-        MPI_Isend(data, TILE_SIZE, MPI_DOUBLE, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i]);
+        MPI_Isend(data, 1, (MPI_Datatype) *deps->output[k].type, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i]);
     }
 }
 

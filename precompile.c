@@ -1747,13 +1747,7 @@ int dplasma_dump_all_c(char *filename)
         }
     }
     output("#if defined(DISTRIBUTED)\n"
-           "  { /* compute the maximum size of the dependencies array */\n"
-           "    max_dep_count = %d;\n"
-           "    max_nodes_number = context->nb_nodes;\n"
-           "    elem_size = sizeof(dplasma_remote_deps_t) + \n"
-           "                max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + sizeof(uint32_t*) + sizeof(uint32_t) * (max_nodes_number + 31)/32);\n"
-           "    dplasma_atomic_lifo_construct(&remote_deps_freelist);"
-           "  }\n"
+           "  remote_deps_allocation_init(context->nb_nodes, %d);\n"
            "#endif  /* defined(DISTRIBUTED) */\n\n", max_output_deps
            );
 

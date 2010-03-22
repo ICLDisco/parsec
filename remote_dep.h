@@ -63,13 +63,16 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 
 #if defined(DISTRIBUTED)
 
-static dplasma_atomic_lifo_t remote_deps_freelist;
-static uint32_t max_dep_count, max_nodes_number, elem_size;
+extern dplasma_atomic_lifo_t remote_deps_freelist;
+extern uint32_t max_dep_count, max_nodes_number, elem_size;
+int remote_deps_allocation_init(int np, int max_output_deps);
+
 static inline dplasma_remote_deps_t* remote_deps_construct( dplasma_remote_deps_t* deps)
 {
     uint32_t i, rank_bit_size;
     char *ptr;
     
+    assert(NULL != deps);
     ptr = (char*)(&(deps->output[max_dep_count]));
     rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
     for( i = 0; i < max_dep_count; i++ ) {

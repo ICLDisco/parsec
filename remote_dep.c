@@ -172,6 +172,21 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                              dplasma_list_item_singleton((dplasma_list_item_t*) remote_deps));*/
 }
 
+
+dplasma_atomic_lifo_t remote_deps_freelist;
+uint32_t max_dep_count, max_nodes_number, elem_size;
+
+int remote_deps_allocation_init(int np, int max_output_deps)
+{ /* compute the maximum size of the dependencies array */
+    max_dep_count = max_output_deps;
+    max_nodes_number = np;
+    elem_size = sizeof(dplasma_remote_deps_t) +
+    max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
+                     sizeof(uint32_t*) + 
+                     sizeof(uint32_t) * (max_nodes_number + 31)/32);
+    dplasma_atomic_lifo_construct(&remote_deps_freelist);
+}
+
 #endif /* DISTRIBUTED */
 
 
