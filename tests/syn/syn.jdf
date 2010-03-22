@@ -1,10 +1,6 @@
 extern "C" %{
 #include "remote_dep.h"
 
-#ifdef DISTRIBUTED
-#   include "data_management.h"
-#endif
-
 extern char *DataIn;
 #define DATA(n) DataIn
 
