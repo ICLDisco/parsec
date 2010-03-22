@@ -94,7 +94,6 @@ IN             { yylval.operand = (char)SYM_IN;
                  return DPLASMA_DEPENDENCY_TYPE; }
 OUT            { yylval.operand = (char)SYM_OUT;
                  return DPLASMA_DEPENDENCY_TYPE; }
-
 "->"           { yylval.operand = '>';
                  return DPLASMA_ARROW; }
 "<-"           { yylval.operand = '<';
@@ -115,6 +114,8 @@ max           { yylval.operand = 'M'; return DPLASMA_OP; }
 "="            { return DPLASMA_ASSIGNMENT; }
 [\+\-\*/%\\\|\&\^]  { yylval.operand = yytext[0];
                       return DPLASMA_OP; }
+"<<"           { yylval.operand = 'L';
+                 return DPLASMA_OP; }
 "?"            { return DPLASMA_QUESTION; }
 ":"            { return DPLASMA_COLON; }
 ","            { return DPLASMA_COMMA; }

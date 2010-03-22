@@ -1,0 +1,79 @@
+extern "C" %{
+#include "dplasma.h"
+#include "remote_dep.h"
+
+#include "plasma.h"
+
+extern PLASMA_desc descA;
+extern int uplo;
+int PLASMA_INFO;
+
+#ifdef DISTRIBUTED
+#   include "data_management.h"
+    extern DPLASMA_desc ddescA;
+#   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
+#else
+#   define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#endif
+
+#ifdef DPLASMA_CALL_TRACE
+#   include <stdlib.h>
+#   include <stdio.h>
+#   define OUTPUT(ARG)  printf ARG
+#else
+#   define OUTPUT(ARG)
+#endif
+%}
+
+// Globals
+GRIDrows
+GRIDcols
+colRANK
+rowRANK
+
+TASKDURATION
+DEPTH
+
+/**************************************************
+ *                      DOWN                      *
+ **************************************************/
+DOWN(k, d)
+
+// Execution Space
+k = 0..DEPTH
+d = 0..1<<k
+
+// Parallel partitionning
+: d % GRIDrows == rowRANK
+: d % GRIDcols == colRANK
+
+INOUT T <- (k == 0 ) ? A(k, k) : T DOWN(k-1, d/2)
+        -> ((k == DEPTH) & ((d%2) == 0)) ? A UP(k-1, d/2)
+	-> ((k == DEPTH) & ((d%2) == 1)) ? B UP(k-1, d/2)
+	-> (k < DEPTH)                   ? T DOWN(k+1, 2*d..(2*d)+1)
+BODY
+	printf("do task down(%d, %d) for %d seconds\n",
+	       k, d, TASKDURATION);
+END
+
+/**************************************************
+ *                       UP                       *
+ **************************************************/
+UP(k, d)
+
+// Execution Space
+k = 0..DEPTH-1
+d = 0..1<<k
+
+// Parallel partitionning
+: d % GRIDrows == rowRANK
+: d % GRIDcols == colRANK
+
+INOUT  A <- (k == (DEPTH-1)) ? T DOWN(k-1, 2*d) : A UP(k+1, 2*d)
+         -> (k > 0) ? A UP(k-1, d/2) : A(k, k)
+IN     B <- (k == (DEPTH-1)) ? T DOWN(k-1, 2*d+1) : A UP(k+1, 2*d+1)
+
+BODY
+	printf("do task up(%d, %d) for %d seconds\n",
+	       k, d, TASKDURATION);
+END

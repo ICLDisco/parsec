@@ -88,9 +88,10 @@ DGETRF(k)
   IN LU <- (k == 0) ? A(k,k) : C2 DSSSSM(k-1,k,k)
   IN IPIV <- IPIV(k,k)
 
-  OUT LU -> (k == NT-1) ? A(k,k) : U DTSTRF(k,k+1)
-  OUT LU -> (k == NT-1) ? A(k,k) : L DGESSM(k,k+1..NT-1)
-  OUT IPIV -> IPIV DGESSM(k, k+1..NT-1)
+  OUT LU -> (k == NT-1) ? A(k,k) : U DTSTRF(k,k+1)          [UPPER_HALF_TYPE]
+  OUT LU -> (k == NT-1) ? A(k,k) : L DGESSM(k,k+1..NT-1)    [LOWER_HALF_TYPE]
+  OUT IPIV -> IPIV DGESSM(k, k+1..NT-1)                     [PIVOT_VECTOR_TYPE]
+           -> IPIV(k,k)                                     [PIVOT_VECTOR_TYPE]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -127,7 +128,7 @@ DTSTRF(k,m)
   IN IPIV <- IPIV(m,k)
 
   OUT U -> (m == NT-1) ? A(m,k) : U DTSTRF(k,m+1)
-  OUT L -> L DSSSSM(k,k+1..NT-1,m)
+  OUT L -> C3 DSSSSM(k,k+1..NT-1,m)                    [
   OUT L -> A(m,k)
   OUT dL -> dL DSSSSM(k,k+1..NT-1,m)
   OUT dL -> L(m,k)
@@ -203,13 +204,13 @@ DSSSSM(k,n,m)
 
   IN C2 <- (k == 0) ? A(m,n) : C2 DSSSSM(k-1,n,m)
   IN dL <- dL DTSTRF(k,m)
-  IN L <- L DTSTRF(k,m) 
+  IN C3 <- L DTSTRF(k,m) 
   IN IPIV <- IPIV DTSTRF(k,m)
   IN C1 <- (m == k+1) ? C1 DGESSM(k,n) : C1 DSSSSM(k,n,m-1)
 
   OUT C2 -> ((m == k+1) & (n == k+1)) ? LU DGETRF(k+1) : A(1,1)
   OUT C2 -> ((m == k+1) & (n != k+1)) ? C1 DGESSM(k+1,n) : A(1,1)
-  OUT C2 -> ((m != k+1) & (n == k+1)) ? L DTSTRF(k+1,m) : A(1,1)
+  OUT C2 -> ((m != k+1) & (n == k+1)) ? L DTSTRF(k+1,m) : A(1,1)        // Strange
   OUT C2 -> ((m != k+1) & (n != k+1)) ? C2 DSSSSM(k+1,n,m) : A(1,1)
 
   OUT C1 -> (m == NT-1) ? A(k,n) : C1 DSSSSM(k,n,m+1)
@@ -225,7 +226,7 @@ BODY
                     C1 /*A(k, n)*/, descA.nb,
                     C2 /*A(m, n)*/, descA.nb,
                     dL /*L(m, k)*/, descL.mb,
-                    L  /*A(m, k)*/, descA.nb,
+                    C3 /*A(m, k)*/, descA.nb,
                     IPIV /*IPIV(m, k)*/);
  #else
     OUTPUT(("void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"));

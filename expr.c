@@ -115,6 +115,9 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
     case EXPR_OP_BINARY_MORE:
         *v = (v1 > v2);
         break;
+    case EXPR_OP_BINARY_SHL:
+        *v = (v1 << v2);
+        break;
     case EXPR_OP_BINARY_RANGE:
         snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Cannot evaluate range");
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
@@ -343,6 +346,15 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
             *pmax = lmax * rmax;
         }
         return EXPR_SUCCESS;
+    case EXPR_OP_BINARY_SHL:
+        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
+            *pmin = lmin << rmin;
+        } else {
+            *pmax = lmax << rmax;
+        }
+        return EXPR_SUCCESS;
     case EXPR_OP_BINARY_LESS:
     case EXPR_OP_BINARY_MORE:
     case EXPR_OP_BINARY_DIV:
@@ -515,6 +527,13 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
             r->value = (op1->value > op2->value);
         }
         return r;
+    case 'L':
+        r->op = EXPR_OP_BINARY_SHL;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = (op1->value << op2->value);
+        }
+        return r;
     }
 
     free(r);
@@ -609,6 +628,15 @@ static void expr_dump_binary(FILE *out, unsigned char op, const expr_t *op1, con
         fprintf(out,  " (" );
         expr_dump(out, op1);
         fprintf(out,  " > " );
+        expr_dump(out, op2);
+        fprintf(out,  ") " );
+        return;
+    }
+
+    if( EXPR_OP_BINARY_SHL == op ) {
+        fprintf(out,  " (" );
+        expr_dump(out, op1);
+        fprintf(out,  " << " );
         expr_dump(out, op2);
         fprintf(out,  ") " );
         return;
