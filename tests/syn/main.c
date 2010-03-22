@@ -51,7 +51,7 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int syn_force_nb = 0;
-static int task_duration = 1;
+static int task_duration = 10000;
 static int tree_depth = 1;
 
 static inline double get_cur_time(){
@@ -198,8 +198,8 @@ static void print_usage(void)
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
             "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n"
-            "   -t --task-duration: change the duration of the tasks\n"
-            "   -D --tree-depth  : change the depth of the tree (number of tasks = 2*2^D)\n");
+            "   -t --task-duration: change the duration of the tasks (default: %d us)\n"
+            "   -D --tree-depth  : change the depth of the tree (number of tasks = 2*2^D, default: %d)\n", task_duration, tree_depth);
 }
 
 static void runtime_init(int argc, char **argv)
@@ -329,11 +329,11 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
 
-        case 't':
+        case 'D':
             tree_depth = atoi(optarg);
             break;
 
-        case 'D':
+        case 't':
             task_duration = atoi(optarg);
             break;
 
@@ -429,6 +429,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
     
+    printf("Number of tasks to do: %d\n", nbtasks);
+
     return dplasma;
 }
 
