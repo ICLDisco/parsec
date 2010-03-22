@@ -977,6 +977,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             ss << "  /*" << rmt_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
 
         ss << "  IN " << lcl_sV[dep.dstArray] << " <- ";
+        ss << "(" << cond << ") ? ";
         // If we are receiving from IN, strip the fake array indices that are in the petit file
         // and put in the actual parameters of the source Task.
         // Alternatively, we could use the fact that the dstArray has a literal meaning and it
@@ -988,8 +989,9 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
 //            ss << dep.dstArray; /* the destination array should be equivalent to the above */
         }else{
             ss << rmt_sV[dep.srcArray];
+            // Only print the task name if it is NOT "IN"
+            ss << " " << source << "("<< dstTaskParams <<") ";
         }
-        ss << " " << source << "("<< dstTaskParams <<") ";
     }else{
         map<string,string> lcl_sV = thisTask.symbolicVars;
         map<string,string> rmt_sV = peerTask.symbolicVars;
@@ -999,6 +1001,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             ss << "  /*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
 
         ss << "  OUT " << lcl_sV[dep.srcArray] << " -> ";
+        ss << "(" << cond << ") ? ";
         // If we are sending to OUT, strip the fake array indices that are in the petit file
         // and put in the actual parameters of the destination Task.
         if( dep.sink.find("OUT") != string::npos ){
@@ -1007,17 +1010,47 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
             ss << dstArr << "(" << dstTaskParams << ") ";
         }else{
             ss << rmt_sV[dep.dstArray] << " ";
+            // Only print the task name if it is NOT "OUT"
+            ss << sink << "(" << dstTaskParams << ")  ";
         }
-        ss << sink << "(" << dstTaskParams << ")  ";
     }
-    ss << "{" << cond << "}";
 
 #ifdef DEBUG
     ss << endl;
     dumpDep(ss, dep, iv_set, isInversed);
 #endif
 
-    return ss.str();
+    string rslt=ss.str();
+
+    // Replace "&&" and "||" with "&" and "|" respectively.
+    unsigned int pos = rslt.find("&&");
+    while( pos != string::npos ){
+        rslt.erase(pos,1);
+        pos = rslt.find("&&");
+    }
+
+    pos = rslt.find("||");
+    while( pos != string::npos ){
+        rslt.erase(pos,1);
+        pos = rslt.find("||");
+    }
+
+    // Replace "=" with "==" except if it's part of "<=" or ">="
+    pos = rslt.find("=");
+    if( pos == 0 || pos == rslt.length()-1){
+        cerr << "Malformed dependency starts or ends with symbol \"=\": \"" << rslt << "\"" << endl; 
+        return rslt;
+    }
+    while( pos != string::npos ){
+        if( rslt[pos-1] != '<' && rslt[pos-1] != '>' && rslt[pos-1] != '=' && rslt[pos+1] != '=' ){
+            rslt.insert(pos,"=");
+            pos = rslt.find("=",pos+2);
+        }else{
+            pos = rslt.find("=",pos+1);
+        }
+    }
+
+    return rslt;
 }
 
 bool isFakeVariable(string var){
@@ -1091,8 +1124,8 @@ void mergeLists(void){
             }
         }
 
-        // Iterate over all the relevant flow dependencies, apply the output dependencies
-        // to them and print the result.
+        // Iterate over all the relevant flow dependencies and apply the
+        // output dependencies to them
         for(fd_itr=rlvnt_flow_deps.begin(); fd_itr != rlvnt_flow_deps.end(); ++fd_itr) {
             dep_t f_dep = static_cast<dep_t>(*fd_itr);
             int fd_srcLine = f_dep.srcLine;
@@ -1237,18 +1270,18 @@ void mergeLists(void){
         for(; ps_itr != task.paramSpace.end(); ++ps_itr)
             cout << "  " << *ps_itr << "\n";
 
+        // Print the IN dependencies
+        list<string>::iterator id_itr = task.inDeps.begin();
+        for(; id_itr != task.inDeps.end(); ++id_itr)
+            cout << *id_itr << "\n";
+
+        cout << "\n";
+
         // Print the OUT dependencies
         list<string>::iterator od_itr = task.outDeps.begin();
         for(; od_itr != task.outDeps.end(); ++od_itr)
             cout << *od_itr << "\n";
 
-        cout << "\n";
-
-        // Print the IN dependencies
-        list<string>::iterator id_itr = task.inDeps.begin();
-        for(; id_itr != task.inDeps.end(); ++id_itr)
-            cout << *id_itr << "\n";
-        
         cout << "}" << endl;
     }
 
