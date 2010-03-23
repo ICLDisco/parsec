@@ -771,7 +771,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     int i, j, cpt, output_deps;
     char strexpr1[MAX_EXPR_LEN];
     char strexpr2[MAX_EXPR_LEN];
-    char local_prepend[MAX_EXPR_LEN];
+    char local_prepend[MAX_EXPR_LEN], target_prepend[MAX_EXPR_LEN];
 
     snprintf(local_prepend, MAX_EXPR_LEN, "%s_", d->name);
     output("\nstatic int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
@@ -824,6 +824,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                            "%*s   * Release %s OUTPUT dependencies for %s(",
                            spaces, "", spaces, "", 
                            dep->param->name, dep->dplasma->name);
+                    snprintf(target_prepend, MAX_EXPR_LEN, "%s_", dep->dplasma->name);
                     /* Prepare the list of locals on the target */
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL == dep->call_params[k] ) break;
@@ -854,7 +855,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     /* Prepare the list of locals on the target */
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL != dep->call_params[k] ) {
-                            output("%*s    int %s", spaces, "", target->locals[k]->name);
+                            output("%*s    int %s%s", spaces, "", target_prepend, target->locals[k]->name);
                             if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
                                 output(" = %s", expression_to_c_inline(dep->call_params[k], local_prepend, strexpr1, MAX_EXPR_LEN));
                             }
@@ -864,10 +865,10 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
 
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( (NULL != dep->call_params[k]) && (EXPR_OP_BINARY_RANGE == dep->call_params[k]->op) ) {
-                            output("%*s    for(%s = %s; %s <= %s; %s++) {\n", spaces, "", 
-                                   target->locals[k]->name, expression_to_c_inline(dep->call_params[k]->bop1, local_prepend, strexpr1, MAX_EXPR_LEN),
-                                   target->locals[k]->name, expression_to_c_inline(dep->call_params[k]->bop2, local_prepend, strexpr2, MAX_EXPR_LEN),
-                                   target->locals[k]->name);
+                            output("%*s    for(%s%s = %s; %s%s <= %s; %s%s++) {\n", spaces, "", 
+                                   target_prepend, target->locals[k]->name, expression_to_c_inline(dep->call_params[k]->bop1, local_prepend, strexpr1, MAX_EXPR_LEN),
+                                   target_prepend, target->locals[k]->name, expression_to_c_inline(dep->call_params[k]->bop2, local_prepend, strexpr2, MAX_EXPR_LEN),
+                                   target_prepend, target->locals[k]->name);
                             spaces += 2;
                         }
                     }
@@ -877,9 +878,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     output("%*s    if( (1)", spaces, "");
                     for(k = 0; NULL != target->preds[k]; k++) {
                         int l;
-                        output(" && %s_pred%d(%s", target->name, k, target->locals[0]->name);
+                        output(" && %s_pred%d(%s%s", target->name, k, target_prepend, target->locals[0]->name);
                         for( l = 1; l < target->nb_locals; l++ ) {
-                            output(",%s", target->locals[l]->name);
+                            output(", %s%s", target_prepend, target->locals[l]->name);
                         }
                         output(")");
                     }
@@ -890,16 +891,16 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             output("%*s      struct dplasma_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
                                    spaces, "", target->locals[0]->name);
                         } else {
-                            output("%*s      struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[%s - (*%s_placeholder)->min]);\n",
-                                   spaces, "", target->locals[k]->name, target->locals[k-1]->name, target->locals[k-1]->name, target->locals[k-1]->name);
+                            output("%*s      struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[%s%s - (*%s_placeholder)->min]);\n",
+                                   spaces, "", target->locals[k]->name, target->locals[k-1]->name, target_prepend, target->locals[k-1]->name, target->locals[k-1]->name);
                         }
                     }
 
                     for(k = 0; k < target->nb_locals; k++) {
                         output("%*s      new_context.locals[%d].sym = new_context.function->locals[%d]; /* task %s */\n",
                                spaces, "", k, k, target->name);
-                        output("%*s      new_context.locals[%d].value = %s;  /* task %s local %s */\n",
-                               spaces, "", k, target->locals[k]->name, target->name, target->locals[k]->name);
+                        output("%*s      new_context.locals[%d].value = %s%s;  /* task %s local %s */\n",
+                               spaces, "", k, target_prepend, target->locals[k]->name, target->name, target->name, target->locals[k]->name);
                     }
 
                     output( "%*s      usage++;\n"
@@ -959,8 +960,8 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s    }\n",                                                                                /* line 18 */
                                     /* line  2 */ spaces, "",
                                     /* line  3 */ spaces, "",
-                                    /* line  4 */ spaces, "", expression_to_c_inline(rowpred, "", strexpr1, MAX_EXPR_LEN),
-                                    /* line  5 */ spaces, "", expression_to_c_inline(colpred, "", strexpr2, MAX_EXPR_LEN),
+                                    /* line  4 */ spaces, "", expression_to_c_inline(rowpred, target_prepend, strexpr1, MAX_EXPR_LEN),
+                                    /* line  5 */ spaces, "", expression_to_c_inline(colpred, target_prepend, strexpr2, MAX_EXPR_LEN),
                                     /* line  6 */ spaces, "", colsize->name,
                                     /* line  7 */ spaces, "",
                                     /* line  8 */ spaces, "",
