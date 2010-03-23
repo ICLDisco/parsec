@@ -233,10 +233,14 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
-        
+       
+        constant = expr_new_int( 1 );
+        dplasma_assign_global_symbol( "GRIDcols", constant );	
         constant = expr_new_int( nodes );
         dplasma_assign_global_symbol( "GRIDrows", constant );
-        constant = expr_new_int( rank );
+        constant = expr_new_int( 0 );
+	dplasma_assign_global_symbol( "colRANK", constant );
+	constant = expr_new_int( rank );
         dplasma_assign_global_symbol( "rowRANK", constant );
     }
     load_dplasma_hooks(dplasma);

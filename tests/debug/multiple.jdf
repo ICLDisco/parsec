@@ -10,16 +10,16 @@ extern double *_B;
 %}
 
 rowRANK
+colRANK
 GRIDrows
+GRIDcols
 
-GRIDcols = 1
-colRANK = 0
 
 INIT(p)
 
 p = 0
-: 0 == rowRANK
-: 0 == colRANK
+: p * 0 == rowRANK
+: p * 0 == colRANK
 
 INOUT T <- A(0)
         -> I FL(0..2)
@@ -33,7 +33,7 @@ FL(k)
 
 k = 0..2
 : 2*k == rowRANK
-: 0 == colRANK
+: 0+k-k == colRANK
 
 IN    I <- T INIT(0)
 INOUT A <- A(0)
@@ -51,7 +51,7 @@ END
 SL(k)
 k = 0..1
 : ((2*k) + 1) == rowRANK
-: 0 == colRANK
+: 0+k-k == colRANK
 
 INOUT A <- (k == 0) ? A FL(0)
         <- (k == 1) ? B FL(1)
@@ -67,8 +67,8 @@ END
 
 LL(k)
 k = 0
-: 2 == rowRANK
-: 0 == colRANK
+: 2+k-k == rowRANK
+: 0+k-k == colRANK
 
 IN    A <- A SL(0)
 INOUT B <- B SL(1)
