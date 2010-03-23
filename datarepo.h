@@ -5,6 +5,7 @@
 
 #include "atomic.h"
 #include "debug.h"
+#include "stats.h"
 
 static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {
@@ -114,7 +115,8 @@ typedef struct data_repo_entry {
 } data_repo_entry_t;
 
 typedef struct data_repo_head {
-    volatile uint32_t lock;
+    volatile uint32_t  lock;
+    uint32_t           size;
     data_repo_entry_t *first_entry;
 } data_repo_head_t;
 
@@ -129,6 +131,7 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, 
     data_repo_t *res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t) * (hashsize-1));
     res->nbentries = hashsize;
     res->nbdata = nbdata;
+    DPLASMA_STAT_INCREASE(mem_hashtable, sizeof(data_repo_t) + sizeof(data_repo_head_t) * (hashsize-1) + STAT_MALLOC_OVERHEAD);
     return res;
 }
 
@@ -151,6 +154,9 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
         e->next_entry = repo->heads[h].first_entry;
         repo->heads[h].first_entry = e;
         e->key = key;
+        repo->heads[h].size++;
+        DPLASMA_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+        DPLASMA_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     }
     data_repo_atomic_unlock(&repo->heads[h].lock);
     return e;
@@ -179,7 +185,9 @@ static inline void data_repo_entry_used_once(data_repo_t *repo, long int key)
             repo->heads[h].first_entry = e->next_entry;
         }
         data_repo_atomic_unlock(&repo->heads[h].lock);
+        repo->heads[h].size--;
         free(e);
+        DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         data_repo_atomic_unlock(&repo->heads[h].lock);
     }
@@ -208,6 +216,7 @@ static inline void data_repo_entry_set_usage_limit(data_repo_t *repo, long int k
         }
         data_repo_atomic_unlock(&repo->heads[h].lock);
         free(e);
+        DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         data_repo_atomic_unlock(&repo->heads[h].lock);
     }
@@ -223,8 +232,10 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
             e = n) {
             n = e->next_entry;
             free(e);
+            DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
         }
     }
+    DPLASMA_STAT_DECREASE(mem_hashtable,  sizeof(data_repo_t) + sizeof(data_repo_head_t) * (repo->nbentries-1) + STAT_MALLOC_OVERHEAD);
     free(repo);
 }
 

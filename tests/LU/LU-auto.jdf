@@ -209,7 +209,8 @@ DTSTRF(k, m)
 	   -> A(m, k)
   INOUT U  <- (m == k+1) ? LU DGETRF(k) : U DTSTRF(k, m-1)         [UPPER_TILE]
            -> (m == NT-1) ? A(k, k) : U DTSTRF(k, m+1)             [UPPER_TILE]
-  OUT  dL  -> dL DSSSSM(k, k+1..NT-1, m)                           [LITTLE_L]
+  INOUT dL <- L(m, k)                                              [LITTLE_L]
+           -> dL DSSSSM(k, k+1..NT-1, m)                           [LITTLE_L]
            -> L(m, k)	  	     				   [LITTLE_L]
   INOUT IPIV <- IPIV(m, k)                                         [PIVOT_VECT]
              -> IPIV DSSSSM(k, k+1..NT-1, m)			   [PIVOT_VECT]

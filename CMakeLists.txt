@@ -1,7 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
-
 # should we use our own math functions
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
@@ -10,7 +9,11 @@ option(DPLASMA_SCHED_HWLOC
 option(DPLASMA_PAPI
   "Enable PAPI performance hardware counters" OFF)
 option(DPLASMA_PROFILING
-  "Enable the generation of the profiling information during execution" OFF)
+  "Enable the generation of the profiling information during
+  execution" OFF)
+option(DPLASMA_STATS
+  "Enable the generation of statistics informations during execution
+  (microbenchmarking)" OFF)
 option(DPLASMA_GRAPHER
   "Enable the generation of the dot output during execution" OFF)
 option(DPLASMA_CALL_TRACE
@@ -205,7 +208,7 @@ endif (DPLASMA_PAPI)
 # Setup targets
 #
 add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-  scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+  scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   freelist.c
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
