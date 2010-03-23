@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 #include "atomic.h"
-#include "debug.h"
 #include "stats.h"
+#include "debug.h"
 
 static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {

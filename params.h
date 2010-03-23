@@ -10,7 +10,6 @@
 typedef struct param param_t;
 
 #include "dep.h"
-#include "remote_dep.h"
 
 /**< Remark: (sym_type == SYM_INOUT) if (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
 #define SYM_IN     0x01
@@ -21,13 +20,13 @@ typedef struct param param_t;
 #define MAX_DEP_OUT_COUNT 10
 
 struct param {
-    char*                           name;
-    struct dplasma_t*               function;
-    unsigned char                   sym_type;
-    unsigned char                   param_mask;
-    dep_t*                          dep_in[MAX_DEP_IN_COUNT];
-    dep_t*                          dep_out[MAX_DEP_OUT_COUNT];
-    dplasma_remote_dep_datatype_t*  type;
+    char*               name;
+    struct dplasma_t*   function;
+    unsigned char       sym_type;
+    unsigned char       param_mask;
+    dep_t*              dep_in[MAX_DEP_IN_COUNT];
+    dep_t*              dep_out[MAX_DEP_OUT_COUNT];
+    void*               type;
 };
 
 void param_dump(const param_t *p, const char *prefix);

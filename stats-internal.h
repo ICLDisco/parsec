@@ -95,6 +95,8 @@ void dplasma_stats_dump(char *filename, char *prefix);
 #define DECLARE_STATMAX(name)
 #define DPLASMA_STAT_INCREASE(name, value)
 #define DPLASMA_STAT_DECREASE(name, value)
+#define DPLASMA_STATMAX_UPDATE(n, v)
+#define dplasma_stats_dump(f, p)
 
 #endif /* DPLASMA_STATS */
 
