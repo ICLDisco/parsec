@@ -297,7 +297,7 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
     uint32_t rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
     
     deps->msg.which = 0;
-    for(k = 0; k < deps->output_count; k++)
+    for(k = 0; k < deps->output_count; k += deps->output[k].count)
     {
         if(deps->output[k].rank_bits[rank_bank] & rank_mask)
         {
