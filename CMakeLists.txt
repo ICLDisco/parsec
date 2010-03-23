@@ -215,7 +215,7 @@ set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 
 if (DPLASMA_MPI AND MPI_FOUND)
     add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-      scheduling.c profiling.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+      scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
       freelist.c
       ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
     set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
