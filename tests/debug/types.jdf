@@ -7,12 +7,12 @@ extern "C" %{
 #include "dplasma.h"
 #include "mpi.h"
 
-double T[TILE_SIZE];
-char   B;
-MPI_Datatype My_Mpi_Char = MPI_CHAR;
+extern double          *T;
+extern unsigned char   *B;
+static MPI_Datatype My_Mpi_Char = MPI_CHAR;
 
-#define Tile() T
-#define Byte() (&B)
+#define Tile(d) T
+#define Byte(d) B
 
 %}
 
@@ -23,12 +23,13 @@ rowRANK
 
 A(rank)
 /* Sends a local tile from 0 to 1 */
- rank = 0..1
+ rank = 0
 
- : rank % GRIDrows == rowRANK
+ : 0 * rank == rowRANK
+ : 0 * rank == colRANK
 
- INOUT TILE <- (rank == 0) ? Tile()
-            -> (rank == 0) ? TILE B(1)
+ INOUT TILE <- Tile(0)
+            -> TILE B(1)
 
 BODY
 
@@ -39,12 +40,13 @@ END
 B(rank)
 /* Receives a tile from 0 as 1 */
 /* Then calls C */
- rank = 0..1
+ rank = 1
 
- : rank % GRIDrows == rowRANK
+ : 1 * rank == rowRANK
+ : 0 * rank == colRANK
 
- INOUT TILE <- (rank == 1) ? TILE A(0)
-            -> (rank == 1) ? TILE C(1)
+ INOUT TILE <-  TILE A(0)
+            ->  TILE C(1)
 
 BODY
 
@@ -55,31 +57,35 @@ END
 C(rank)
 /* Sends a local byte from 1 to 0 */
 /* Then calls D */
- rank = 0..1
+ rank = 1
 
- : rank % GRIDrows == rowRANK
+ : 1 * rank == rowRANK
+ : 0 * rank == colRANK
 
- IN    TILE <- (rank == 1) ? TILE B(1)
- INOUT BYTE <- (rank == 1) ? Byte()        [My_Mpi_Char]
-            -> (rank == 1) ? BYTE D(0)     [My_Mpi_Char]
+ IN    TILE <- TILE B(1) 
+ INOUT BYTE <- Byte(0)        [My_Mpi_Char]
+            -> BYTE D(0)      [My_Mpi_Char]
 
 BODY
 
-	printf("C: %d has received Tile %p and created Byte %p, sending it to 0\n", rank, TILE, BYTE);
+	printf("C: %d has received Tile %p and created Byte %d in %p, sending it to 0\n", 
+	       rank, TILE, (int)*(char*)BYTE, BYTE);
 
 END
 
 D(rank)
 /* Receives a remote byte from 1 as 0, and complete */
- rank = 0..1
+ rank = 0
 
- : rank % GRIDrows == rowRANK
+ : 0 * rank == rowRANK
+ : 0 * rank == colRANK
 
- INOUT BYTE <- (rank == 0) ? BYTE D(1)     [My_Mpi_Char]
-            -> (rank == 0) ? Byte()        [My_Mpi_Char]
+ INOUT BYTE <- BYTE D(1)     [My_Mpi_Char]
+            -> Byte(0)       [My_Mpi_Char]
 
 BODY
 
-	printf("D: %d has received Byte %p and stored it in local allocated memory\n", rank, BYTE);
+	printf("D: %d has received Byte %d in %p and stored it in local allocated memory %p\n",
+	       rank, (int)*(char*)BYTE, BYTE, Byte(0));
 
 END
