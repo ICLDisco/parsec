@@ -763,6 +763,13 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
     for( i = 0; i < object->nb_locals; i++ ) {
         int min;
         exec_context->locals[i].sym = object->locals[i];
+        rc = dplasma_symbol_get_first_value(object->locals[i], NULL,
+                                            exec_context->locals, &min);
+	exec_context->locals[i].value = min;
+    }
+    for( i = 0; i < object->nb_locals; i++ ) {
+        int min;
+        exec_context->locals[i].sym = object->locals[i];
         rc = dplasma_symbol_get_first_value(object->locals[i], predicates,
                                             exec_context->locals, &min);
         if( rc != EXPR_SUCCESS ) {

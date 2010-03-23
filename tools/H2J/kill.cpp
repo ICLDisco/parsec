@@ -17,7 +17,7 @@ string skipToNext(std::istream &ifs);
 bool isEOR(string line);
 void store_dep(list<dep_t> &depList, dep_t dep);
 void mergeLists(void);
-string processDep(dep_t dep, string dep_set, bool isInversed);
+bool processDep(dep_t dep, string dep_set, task_t &currTask, bool isInversed);
 void dumpDep(dep_t dep, string iv_set, bool isInversed);
 bool isFakeVariable(string var);
 string removeVarFromCond(string var, string condStr);
@@ -25,6 +25,7 @@ string removeVarFromSimpleCond(string var, string condStr);
 string expressionToRange(string var, string condStr);
 string offsetVariables( string vars, string off );
 bool isExpressionOrConst(string var);
+string makeMinorFormatingChanges(string str);
 
 string trimAll(string str);
 string removeWS(string str);
@@ -721,7 +722,7 @@ void dumpMap(stringstream &ss, map<string,string> sV){
     ss << endl;
 }
 
-string processDep(dep_t dep, string iv_set, bool isInversed){
+bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
     stringstream ss, ss0;
     string srcParams, dstParams, junk;
     unsigned int posLB, posRB, posCOL;
@@ -729,14 +730,14 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
 
     // if it is an impossible dependency, do not print anything.
     if( iv_set.find("FALSE") != string::npos )
-        return "";
+        return false;
 
     // Get the list of formal parameters of the source task (k,m,n,...)
     posLB = dep.source.find("(");
     posRB = dep.source.find(")");
     if( posLB == string::npos || posRB == string::npos){
        cerr << "Malformed dependency source: \"" << dep.source << "\"" << endl; 
-       return "";
+       return false;
     }
     string srcFrmlStr = dep.source.substr(posLB+1,posRB-posLB-1);
     if( isInversed )
@@ -749,7 +750,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     posRB = dep.sink.find(")");
     if( posLB == string::npos || posRB == string::npos){
        cerr << "Malformed dependency sink: \"" << dep.sink << "\"" << endl; 
-       return "";
+       return false;
     }
     string dstFrmlStr = dep.sink.substr(posLB+1,posRB-posLB-1);
     if( isInversed )
@@ -766,7 +767,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     posRB = srcParams.find("]");
     if( posLB == string::npos || posRB == string::npos){
        cerr << "Malformed set: \"" << iv_set << "\"" << endl; 
-       return "";
+       return false;
     }
     srcParams = srcParams.substr(posLB+1,posRB-posLB-1);
     list<string> srcActuals = stringToVarList(srcParams);
@@ -776,7 +777,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     posRB = dstParams.find("]");
     if( posLB == string::npos || posRB == string::npos){
        cerr << "Malformed set: \"" << iv_set << "\"" << endl; 
-       return "";
+       return false;
     }
     dstParams = dstParams.substr(posLB+1,posRB-posLB-1);
     list<string> dstActuals = stringToVarList(dstParams);
@@ -787,7 +788,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     posRB = cond.find("}");
     if( posCOL == string::npos || posRB == string::npos ){
        cerr << "Malformed conditions: \"" << iv_set << "\"" << endl; 
-       return "";
+       return false;
     }
     cond = trim(cond.substr(posCOL+1, posRB-posCOL-1));
 
@@ -795,7 +796,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     posLB = dep.source.find("(");
     if( posLB == string::npos ){
        cerr << "Malformed dependency source: \"" << dep.source << "\"" << endl; 
-       return "";
+       return false;
     }
     string source = dep.source.substr(0,posLB);
 
@@ -803,7 +804,7 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     posLB = dep.sink.find("(");
     if( posLB == string::npos ){
        cerr << "Malformed dependency sink: \"" << dep.sink << "\"" << endl; 
-       return "";
+       return false;
     }
     string sink = dep.sink.substr(0,posLB);
     
@@ -944,6 +945,40 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     // Manipulation is over, output code follows
     //
 
+    task_t thisTask;
+    task_t peerTask;
+
+    if( isInversed ){
+        thisTask = taskMap[dep.sink];
+        peerTask = taskMap[dep.source];
+    }else{
+        thisTask = taskMap[dep.source];
+        peerTask = taskMap[dep.sink];
+    }
+
+    map<string,string> lcl_sV = thisTask.symbolicVars;
+    map<string,string> rmt_sV = peerTask.symbolicVars;
+    string localVar;
+
+    // Find the alias under which the local variable is refered to in this task
+    if( isInversed )
+        localVar = lcl_sV[dep.dstArray];
+    else
+        localVar = lcl_sV[dep.srcArray];
+
+    // see if the task already has a dep involving this local variable
+    final_dep_t final_dep;
+    list<final_dep_t>::iterator d_itr=currTask.deps.begin();
+    for (; d_itr!=currTask.deps.end(); ++d_itr){
+        final_dep_t tmp_dep = *d_itr;
+        if( !tmp_dep.localVar.empty() && !tmp_dep.localVar.compare(localVar) ){
+            final_dep = tmp_dep;
+        }
+    }
+
+    if( final_dep.localVar.empty() )
+        final_dep.localVar = localVar;
+
     // iterate over the newly created list of actual destination parameters and
     // create a comma separeted list in a string, so we can print it.
     string dstTaskParams;
@@ -957,27 +992,37 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     }
 
 
-    task_t thisTask;
-    task_t peerTask;
-
     if( isInversed ){
-        thisTask = taskMap[dep.sink];
-        peerTask = taskMap[dep.source];
-    }else{
-        thisTask = taskMap[dep.source];
-        peerTask = taskMap[dep.sink];
-    }
 
-    if( isInversed ){
-        map<string,string> lcl_sV = thisTask.symbolicVars;
-        map<string,string> rmt_sV = peerTask.symbolicVars;
+//        ss << "\n  /*" << lcl_sV[dep.dstArray] << " = " << dep.dstArray << "*/\n";
+        ss0.str( "" );
+        ss0 << "/*" << lcl_sV[dep.dstArray] << " == " << dep.dstArray << "*/";
+        if( final_dep.localAlias.empty() )
+            final_dep.localAlias = ss0.str();
+        if( final_dep.localAlias.compare(ss0.str()) ){
+            cerr << "ERROR: expecting \"" << final_dep.localAlias << "\" to match \"" << ss0.str() << "\"" << endl;
+            cerr << "ERROR: " << currTask.name << endl;
+            cerr << "ERROR: " << final_dep.localVar << endl;
+            cerr << "ERROR: " << final_dep.type << "\n" << endl;
+        }
+  
+        if( dep.source.find("IN") == string::npos ){
+            //ss << "  /*" << rmt_sV[dep.srcArray] << " = " << dep.srcArray << "*/\n";
+            ss0.str( "" );
+            ss0 << "/*" << rmt_sV[dep.srcArray] << " == " << dep.srcArray << "*/";
+            final_dep.remoteAliases.push_back( ss0.str() );
+        }
 
-        ss << "\n  /*" << lcl_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
-        if( dep.source.find("IN") == string::npos )
-            ss << "  /*" << rmt_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
+        // Set of extend the type depending on what it was before
+        if( final_dep.type.empty() )
+            final_dep.type = "IN";
 
-        ss << "  IN " << lcl_sV[dep.dstArray] << " <- ";
-        ss << "(" << cond << ") ? ";
+        if( !final_dep.type.compare("OUT") )
+            final_dep.type = "INOUT";
+
+//        ss << "  IN " << lcl_sV[dep.dstArray] << " <- ";
+        ss0.str("");
+        ss0 << "<- (" << cond << ") ? ";
         // If we are receiving from IN, strip the fake array indices that are in the petit file
         // and put in the actual parameters of the source Task.
         // Alternatively, we could use the fact that the dstArray has a literal meaning and it
@@ -985,34 +1030,61 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
         if( dep.source.find("IN") != string::npos ){
             string srcArr = dep.srcArray;
             srcArr = srcArr.substr(0,srcArr.find("("));
-            ss << srcArr << "(" << dstTaskParams << ") ";
-//            ss << dep.dstArray; /* the destination array should be equivalent to the above */
+            ss0 << srcArr << "(" << dstTaskParams << ") ";
         }else{
-            ss << rmt_sV[dep.srcArray];
+            ss0 << rmt_sV[dep.srcArray];
             // Only print the task name if it is NOT "IN"
-            ss << " " << source << "("<< dstTaskParams <<") ";
+            ss0 << " " << source << "("<< dstTaskParams <<") ";
         }
+        string iE = makeMinorFormatingChanges(ss0.str());
+        final_dep.inEdges.push_back(iE);
     }else{
-        map<string,string> lcl_sV = thisTask.symbolicVars;
-        map<string,string> rmt_sV = peerTask.symbolicVars;
+//        map<string,string> lcl_sV = thisTask.symbolicVars;
+//        map<string,string> rmt_sV = peerTask.symbolicVars;
 
-        ss << "\n  /*" << lcl_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
-        if( dep.sink.find("OUT") == string::npos )
-            ss << "  /*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
+//        ss << "\n  /*" << lcl_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
+        ss0.str("");
+        ss0 << "/*" << lcl_sV[dep.srcArray] << " == " << dep.srcArray << "*/";
+        if( final_dep.localAlias.empty() )
+            final_dep.localAlias = ss0.str();
+        if( final_dep.localAlias.compare(ss0.str()) ){
+            cerr << "ERROR: expecting \"" << final_dep.localAlias << "\" to match \"" << ss0.str() << "\"" << endl;
+            cerr << "ERROR: " << currTask.name << endl;
+            cerr << "ERROR: " << final_dep.localVar << endl;
+            cerr << "ERROR: " << final_dep.type << "\n" << endl;
+        }
+        final_dep.localAlias = ss0.str();
 
-        ss << "  OUT " << lcl_sV[dep.srcArray] << " -> ";
-        ss << "(" << cond << ") ? ";
+        if( dep.sink.find("OUT") == string::npos ){
+//            ss << "  /*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
+            ss0.str("");
+            ss0 << "/*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/";
+            final_dep.remoteAliases.push_back( ss0.str() );
+        }
+
+        // Set of extend the type depending on what it was before
+        if( final_dep.type.empty() )
+            final_dep.type = "OUT";
+
+        if( !final_dep.type.compare("IN") )
+            final_dep.type = "INOUT";
+
+//        ss << "  OUT " << lcl_sV[dep.srcArray] << " -> ";
+        ss0.str("");
+        ss0 << "-> (" << cond << ") ? ";
         // If we are sending to OUT, strip the fake array indices that are in the petit file
         // and put in the actual parameters of the destination Task.
         if( dep.sink.find("OUT") != string::npos ){
             string dstArr = dep.dstArray;
             dstArr = dstArr.substr(0,dstArr.find("("));
-            ss << dstArr << "(" << dstTaskParams << ") ";
+            ss0 << dstArr << "(" << dstTaskParams << ") ";
         }else{
-            ss << rmt_sV[dep.dstArray] << " ";
+            ss0 << rmt_sV[dep.dstArray] << " ";
             // Only print the task name if it is NOT "OUT"
-            ss << sink << "(" << dstTaskParams << ")  ";
+            ss0 << sink << "(" << dstTaskParams << ")  ";
         }
+        string oE = makeMinorFormatingChanges(ss0.str());
+        final_dep.outEdges.push_back(oE);
     }
 
 #ifdef DEBUG
@@ -1020,38 +1092,56 @@ string processDep(dep_t dep, string iv_set, bool isInversed){
     dumpDep(ss, dep, iv_set, isInversed);
 #endif
 
-    string rslt=ss.str();
+    // see if the task already has this dep.  If so, replace it, otherwise add it
+    bool found=false;
+    d_itr=currTask.deps.begin();
+    for (; d_itr!=currTask.deps.end(); ++d_itr){
+        final_dep_t tmp_dep = *d_itr;
+        if( !tmp_dep.localVar.compare(localVar) ){
+            found = true;
+            *d_itr = final_dep;
+            break;
+        }
+    }
+    if( !found )
+        currTask.deps.push_back( final_dep );
 
+    return true;
+}
+
+
+string makeMinorFormatingChanges(string str){
     // Replace "&&" and "||" with "&" and "|" respectively.
-    unsigned int pos = rslt.find("&&");
+    unsigned int pos = str.find("&&");
     while( pos != string::npos ){
-        rslt.erase(pos,1);
-        pos = rslt.find("&&");
+        str.erase(pos,1);
+        pos = str.find("&&");
     }
 
-    pos = rslt.find("||");
+    pos = str.find("||");
     while( pos != string::npos ){
-        rslt.erase(pos,1);
-        pos = rslt.find("||");
+        str.erase(pos,1);
+        pos = str.find("||");
     }
 
     // Replace "=" with "==" except if it's part of "<=" or ">="
-    pos = rslt.find("=");
-    if( pos == 0 || pos == rslt.length()-1){
-        cerr << "Malformed dependency starts or ends with symbol \"=\": \"" << rslt << "\"" << endl; 
-        return rslt;
+    pos = str.find("=");
+    if( pos == 0 || pos == str.length()-1){
+        cerr << "Malformed dependency starts or ends with symbol \"=\": \"" << str << "\"" << endl; 
+        return str;
     }
     while( pos != string::npos ){
-        if( rslt[pos-1] != '<' && rslt[pos-1] != '>' && rslt[pos-1] != '=' && rslt[pos+1] != '=' ){
-            rslt.insert(pos,"=");
-            pos = rslt.find("=",pos+2);
+        if( str[pos-1] != '<' && str[pos-1] != '>' && str[pos-1] != '=' && str[pos+1] != '=' ){
+            str.insert(pos,"=");
+            pos = str.find("=",pos+2);
         }else{
-            pos = rslt.find("=",pos+1);
+            pos = str.find("=",pos+1);
         }
     }
 
-    return rslt;
+    return str;
 }
+
 
 bool isFakeVariable(string var){
     if( var.find("In_") != string::npos ) return true;
@@ -1187,11 +1277,29 @@ void mergeLists(void){
                     break;
                 }
             }
-            // format the dependency in JDF format and store it in the proper task in the taskMap
-            string outDep = processDep(f_dep, line, false);
-            if( outDep.empty() )
-                continue;
 
+            // Find the task in the map where the current dep should go
+            task_t task;
+            map<string,task_t>::iterator it;
+            it = taskMap.find(f_dep.source);
+            if ( it == taskMap.end() ){
+                cerr << "FATAL ERROR: Task \""<< f_dep.source <<"\" does not exist in the taskMap" << endl;
+                exit(-1);
+            }
+            task = it->second;
+            if( task.name.compare(f_dep.source) ){
+                cerr << "FATAL ERROR: Task name in taskMap does not match task name in flow dependency: ";
+                cerr << "\"" <<task.name << "\" != \"" << f_dep.source << "\"" << endl;
+                exit(-1);
+            }
+
+            // format the dependency in JDF format and store it in the proper task
+            if( processDep(f_dep, line, task, false) ){
+                // Update the taskMap, since "task" is just a copy and not a pointer into the map.
+                taskMap[task.name] = task;
+            }
+
+#if 0
             // Find the task in the map (if it exists) and add the new OUT dep to it's outDeps
             task_t task;
             map<string,task_t>::iterator it;
@@ -1208,9 +1316,12 @@ void mergeLists(void){
             }
             task.outDeps.push_back(outDep);
             taskMap[f_dep.source] = task;
+#endif
 
             // If this new OUT dep does not go to the exit, invert it to get an IN dep
-            if( f_dep.sink.find("OUT") == string::npos ){
+            // unless it was an impossible dependency (having "FALSE" in the conditions).
+            if( f_dep.sink.find("OUT") == string::npos && line.find("FALSE") == string::npos){
+ 
                 // If it was a real dependency, ask Omega to revert it
                 string rev_set_for_omega = setIntersector.inverse(line);
                 filestr.open("/tmp/oc_in.txt", fstream::out);
@@ -1231,10 +1342,8 @@ void mergeLists(void){
                         break;
                     }
                 }
-                // format the reversed dependency in JDF format and print it
-                string inDep = processDep(f_dep, line, true);
 
-                // Find the task in the map (if it exists) and add the new OUT dep to it's outDeps
+                // Find the task in the map where the current dep should go
                 it = taskMap.find(f_dep.sink);
                 if ( it == taskMap.end() ){
                     cerr << "FATAL ERROR: Task \""<< f_dep.sink <<"\" does not exist in the taskMap" << endl;
@@ -1246,17 +1355,33 @@ void mergeLists(void){
                     cerr << "\"" <<task.name << "\" != \"" << f_dep.sink << "\"" << endl;
                     exit(-1);
                 }
-                task.inDeps.push_back(inDep);
-                taskMap[f_dep.sink] = task;
+
+                // format the reversed dependency in JDF format and add it to the task
+                if( processDep(f_dep, line, task, true) ){
+                    // Update the taskMap, since "task" is just a copy and not a pointer into the map.
+                    taskMap[task.name] = task;
+                }
             }
         }
     }
+
+/*
+typedef struct{
+    string       localVar;
+    string       type; 
+    string       localAlias;
+    list<string> remoteAliases;
+    list<string> inEdges;
+    list<string> outEdges;
+} final_dep_t;
+*/
 
     // Print all the tasks
     map<string,task_t>::iterator it=taskMap.begin();
     for ( ; it != taskMap.end(); it++ ){
         task_t task = (*it).second;
 
+        // Do not print anything for tasks "IN()" and "OUT()"
         if( task.name.find("IN(") != string::npos || task.name.find("OUT(") != string::npos )
             continue;
 
@@ -1270,6 +1395,44 @@ void mergeLists(void){
         for(; ps_itr != task.paramSpace.end(); ++ps_itr)
             cout << "  " << *ps_itr << "\n";
 
+        list<final_dep_t>::iterator fnld_itr;
+        for(fnld_itr=task.deps.begin(); fnld_itr != task.deps.end(); ++fnld_itr) {
+            final_dep_t fnl_dep = *fnld_itr;
+
+            // Local Alias
+            cout << fnl_dep.localAlias << endl;
+
+            // Remote Aliases
+            list<string>::iterator a_itr;
+            for(a_itr=fnl_dep.remoteAliases.begin(); a_itr != fnl_dep.remoteAliases.end(); ++a_itr) {
+                cout << *a_itr << endl;
+            }
+
+            // Type & Local Variable
+            cout << fnl_dep.type << " " << fnl_dep.localVar << " ";
+
+            // IN Edges (if any)
+            list<string>::iterator e_itr;
+            for(e_itr=fnl_dep.inEdges.begin(); e_itr != fnl_dep.inEdges.end(); ++e_itr) {
+                if( e_itr!=fnl_dep.inEdges.begin() )
+                    cout << "        ";
+                cout << *e_itr << endl;
+            }
+
+            // OUT Edges (if any)
+            e_itr;
+            for(e_itr=fnl_dep.outEdges.begin(); e_itr != fnl_dep.outEdges.end(); ++e_itr) {
+                if( e_itr!=fnl_dep.outEdges.begin() || !fnl_dep.inEdges.empty() )
+                    cout << "        ";
+                cout << *e_itr << endl;
+            }
+
+            // Newline
+            cout << endl;
+
+        }
+
+#if 0
         // Print the IN dependencies
         list<string>::iterator id_itr = task.inDeps.begin();
         for(; id_itr != task.inDeps.end(); ++id_itr)
@@ -1281,6 +1444,7 @@ void mergeLists(void){
         list<string>::iterator od_itr = task.outDeps.begin();
         for(; od_itr != task.outDeps.end(); ++od_itr)
             cout << *od_itr << "\n";
+#endif
 
         cout << "}" << endl;
     }

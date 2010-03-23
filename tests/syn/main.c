@@ -280,7 +280,7 @@ static void create_data(void)
 {
     int i;
 
-    DataIn = (char *)malloc(N * sizeof(char));
+    DataIn = (char *)malloc(N * N * sizeof(double) * sizeof(char));
     for(i = 0; i < N; i++) {
         DataIn[i] = (char)(rank + i);
     }

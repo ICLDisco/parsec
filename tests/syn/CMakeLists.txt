@@ -7,14 +7,14 @@ if( PLASMA_FOUND )
     set_target_properties(mpi_syn PROPERTIES LINKER_LANGUAGE C)
     set_target_properties(mpi_syn PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(mpi_syn PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_C_LINK_FLAGS}")
-    target_link_libraries(mpi_syn dplasma-mpi ${MPI_LIBRARIES} ${EXTRA_LIBS})
+    target_link_libraries(mpi_syn dplasma-mpi ${MPI_LIBRARIES} ${EXTRA_LIBS} -lm)
  endif( DPLASMA_MPI AND MPI_FOUND )
 
   add_executable(syn main.c syn.c)
   set_target_properties(syn PROPERTIES LINKER_LANGUAGE C)
   set_target_properties(syn PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(syn PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-  target_link_libraries(syn dplasma ${EXTRA_LIBS})
+  target_link_libraries(syn dplasma ${EXTRA_LIBS} -lm)
 
 endif( PLASMA_FOUND )
 
