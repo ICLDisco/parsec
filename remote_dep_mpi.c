@@ -13,7 +13,7 @@
 #include "freelist.h"
 
 #define DPLASMA_REMOTE_DEP_USE_THREADS
-#define DEP_NB_CONCURENT 3
+#define DEP_NB_CONCURENT 1
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -41,7 +41,7 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dpla
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
-#   define remote_dep_release(ctx, deps) remote_dep_dequeue_release(ctx, deps)
+#   define remote_dep_release(ctx, deps) remote_dep_nothread_release(ctx, deps)
 
 #else
 /* TODO */
@@ -316,15 +316,17 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
     exec_context.function = (dplasma_t*) (uintptr_t) origin->msg.function;
     for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
-    for(int i = 0; i < exec_context.function->nb_params; i++)
+    for(int i = 0; origin->msg.deps >> i; i++)
     {
-        
         if(origin->msg.deps & (1 << i))
         {
+            assert(origin->msg.which & (1 << i));
             data[i] = (gc_data_t*) (uintptr_t) origin->output[i].data;
         }
     }
-    ret = exec_context.function->release_deps(eu_context, &exec_context, origin->msg.which, NULL, data);
+    ret = exec_context.function->release_deps(eu_context, &exec_context, origin->msg.deps, NULL, data);
+    origin->msg.which ^= origin->msg.deps;
+    origin->msg.deps = 0;
     return ret;
 }
 
@@ -396,8 +398,8 @@ static MPI_Comm dep_comm;
 static MPI_Request dep_req[DEP_NB_REQ];
 static MPI_Request* dep_activate_req    = &dep_req[0 * DEP_NB_CONCURENT];
 static MPI_Request* dep_get_req         = &dep_req[1 * DEP_NB_CONCURENT];
-static MPI_Request* dep_put_snd_req     = &dep_req[2 * DEP_NB_CONCURENT * MAX_PARAM_COUNT];
-static MPI_Request* dep_put_rcv_req     = &dep_req[3 * DEP_NB_CONCURENT];
+static MPI_Request* dep_put_snd_req     = &dep_req[2 * DEP_NB_CONCURENT];
+static MPI_Request* dep_put_rcv_req     = &dep_req[2 * DEP_NB_CONCURENT + DEP_NB_CONCURENT * MAX_PARAM_COUNT];
 /* TODO: fix heterogeneous restriction by using proper mpi datatypes */
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(remote_dep_wire_activate_t)
@@ -589,6 +591,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     if(0 == deps->output[k].count)
                     {
                         /* Don't forget to reset the bits */
+                        for(int a = 0; a < (max_nodes_number + 31)/32; a++)
+                            deps->output[k].rank_bits[a] = 0;
                         deps->output_count--;
                         if(0 == deps->output_count)
                         {
@@ -602,12 +606,12 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     /* We received a data, call the matching release_dep */
                     dplasma_remote_deps_t* deps;
                     int k;
-                    i -= DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+                    i -= (DEP_NB_CONCURENT * MAX_PARAM_COUNT);
                     assert((i >= 0) && (i < DEP_NB_CONCURENT * MAX_PARAM_COUNT));
                     k = i%MAX_PARAM_COUNT;
                     i = i/MAX_PARAM_COUNT;
                     deps = (dplasma_remote_deps_t*) (uintptr_t) dep_activate_buff[i];
-                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128), i, k, status.MPI_TAG));
+                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, status.MPI_TAG));
                     //CRC_PRINT(GC_DATA((gc_data_t*) dep_activate_buff[i]->msg.deps), "R");
                     //                    TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
                     deps->msg.deps |= 1<<k;
