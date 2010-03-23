@@ -929,7 +929,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                                              &colpred, 
                                                              &rowsize,
                                                              &colsize) < 0) {
-                            output("%*s    } else if (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) {\n"
+                            output("%*s    } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS) {\n"
                                    "%*s      DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
                                    "%*s    }\n", 
                                    spaces, "",
@@ -937,7 +937,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                    spaces, "");
                         } else {
                             output( "#if defined(DISTRIBUTED)\n"                                                                 /* line  1 */
-                                    "%*s    } else if (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS ) {\n"                   /* line  2 */
+                                    "%*s    } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) {\n"                      /* line  2 */
                                     "%*s      int rank, rrank, crank, ncols, array_pos, array_mask;\n"                           /* line  3 */
                                     "%*s      rrank = %s;\n"                                                                     /* line  4 */
                                     "%*s      crank = %s;\n"                                                                     /* line  5 */
@@ -999,7 +999,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "  if( NULL != ready_list )\n"                                                           /* line  2 */
            "    __dplasma_schedule(context, ready_list);\n"                                         /* line  3 */
            "#if defined(DISTRIBUTED)\n"                                                             /* line  4 */
-           "  if( (action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) && remote_deps_count ) {\n"    /* line  5 */
+           "  if( (action_mask & DPLASMA_ACTION_SEND_REMOTE_DEPS) && remote_deps_count ) {\n"       /* line  5 */
            "    ret += dplasma_remote_dep_activate(context,\n"                                      /* line  6 */
            "                                       exec_context,\n"
            "                                       remote_deps,\n"                                  /* line  7 */

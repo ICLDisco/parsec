@@ -1,7 +1,10 @@
 #ifndef _datarepo_h_
 #define _datarepo_h_
 
+#include <stdlib.h>
+
 #include "atomic.h"
+#include "debug.h"
 
 static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {

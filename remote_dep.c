@@ -126,6 +126,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     
     remote_dep_reset_forwarded(eu_context);
     
+    remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
     remote_deps->msg.function = (uintptr_t) function;
     for(i = 0; i < function->nb_locals; i++)
@@ -146,30 +147,22 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     assert(rank >= 0);
                     assert(rank < eu_context->master_context->nb_nodes);
 
-                    DEBUG(("Release deps from %s for rank %d ptr %p\n",
-                           exec_context->function->name,
-                           rank, remote_deps->output[i].data));
                     current_mask ^= (1 << bit_index);
                     count++;
 
                     gc_data_ref(remote_deps->output[i].data);
-                    remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
                     if(remote_dep_is_forwarded(eu_context, rank))
                     {
                        continue;
                     }
                     remote_dep_mark_forwarded(eu_context, rank);
+                    remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
                     remote_dep_send(rank, remote_deps);
                 }
             }
-            /* Don't forget to reset the bits */
-            remote_deps->output[i].rank_bits[array_index] = 0;
             array_index++;
         }
-        remote_deps->output[i].count = 0;
     }
-/*    dplasma_atomic_lifo_push(remote_deps->origin, 
-                             dplasma_list_item_singleton((dplasma_list_item_t*) remote_deps));*/
 }
 
 
@@ -181,9 +174,9 @@ int remote_deps_allocation_init(int np, int max_output_deps)
     max_dep_count = max_output_deps;
     max_nodes_number = np;
     elem_size = sizeof(dplasma_remote_deps_t) +
-    max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
-                     sizeof(uint32_t*) + 
-                     sizeof(uint32_t) * (max_nodes_number + 31)/32);
+                max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
+                                 sizeof(uint32_t*) + 
+                                 sizeof(uint32_t) * (max_nodes_number + 31)/32);
     dplasma_atomic_lifo_construct(&remote_deps_freelist);
 }
 

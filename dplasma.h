@@ -8,46 +8,16 @@
 #define DPLASMA_H_HAS_BEEN_INCLUDED
 
 #include "dplasma_config.h"
-
-#include <stdint.h>
-#include <stdlib.h>
+#include "debug.h"
 
 typedef struct dplasma_t dplasma_t;
+typedef struct dplasma_remote_deps_t dplasma_remote_deps_t;
+typedef struct dplasma_execution_context_t dplasma_execution_context_t;
+typedef struct dplasma_dependencies_t dplasma_dependencies_t;
 
 #define MAX_LOCAL_COUNT  5
 #define MAX_PRED_COUNT   5
 #define MAX_PARAM_COUNT  5
-
-#ifdef DPLASMA_DEBUG
-#   ifdef USE_MPI
-/* only one printf to avoid line breaks in the middle */
-#include <stdarg.h>
-#include <stdio.h>
-static inline char* arprintf(const char* fmt, ...)
-{
-    char* txt;
-    va_list args;
-    
-    va_start(args, fmt);
-    vasprintf(&txt, fmt, args);
-    va_end(args);
-    return txt;
-}
-#include <mpi.h>
-#define DEBUG(ARG)  do { \
-    int __debug_rank; \
-    char* __debug_str; \
-    MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
-    __debug_str = arprintf ARG ; \
-    fprintf(stderr, "[%d]\t%s", __debug_rank, __debug_str); \
-    free(__debug_str); \
-} while(0)
-#   else
-#define DEBUG(ARG) printf ARG
-#   endif
-#else
-#define DEBUG(ARG)
-#endif
 
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
@@ -73,7 +43,6 @@ static inline char* arprintf(const char* fmt, ...)
  */
 #define DPLASMA_DEPENDENCIES_HACK_IN         0x80
 
-typedef struct dplasma_dependencies_t dplasma_dependencies_t;
 typedef union {
     unsigned int            dependencies[1];
     dplasma_dependencies_t* next[1];
@@ -89,8 +58,6 @@ struct dplasma_dependencies_t {
     dplasma_dependencies_union_t u; 
 };
 
-struct dplasma_remote_deps_t;
-typedef struct dplasma_execution_context_t dplasma_execution_context_t;
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, dplasma_execution_context_t*);
 typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, struct dplasma_remote_deps_t*, gc_data_t **);
 #if defined(DPLASMA_CACHE_AWARENESS)

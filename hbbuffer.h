@@ -1,7 +1,7 @@
 #ifndef HBBUFFER_H_HAS_BEEN_INCLUDED
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 
-#include "dplasma.h"
+#include "debug.h"
 #include "atomic.h"
 #include "lifo.h"
 

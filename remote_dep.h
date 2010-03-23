@@ -6,8 +6,7 @@
 #ifndef __USE_REMOTE_DEP_H__
 #define __USE_REMOTE_DEP_H__
 
-#include "dplasma.h"
-#include "execution_unit.h"
+#include "debug.h"
 
 #if defined(USE_MPI)
 # define DISTRIBUTED
@@ -17,6 +16,12 @@ typedef MPI_Datatype dplasma_remote_dep_datatype_t;
 # undef DISTRIBUTED
 typedef void dplasma_remote_dep_datatype_t;
 #endif
+
+#include "assignment.h"
+#include "lifo.h"
+#include "execution_unit.h"
+#include "datarepo.h"
+#include "dplasma.h"
 
 #define DPLASMA_ACTION_INIT_REMOTE_DEPS    0x0100
 #define DPLASMA_ACTION_SEND_REMOTE_DEPS    0x0200
@@ -30,6 +35,7 @@ typedef unsigned long remote_dep_datakey_t;
 typedef struct remote_dep_wire_activate_t
 {
     remote_dep_datakey_t deps;
+    remote_dep_datakey_t which;
     remote_dep_datakey_t function;
     assignment_t locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
@@ -40,17 +46,18 @@ typedef struct remote_dep_wire_get_t
     remote_dep_datakey_t which;
 } remote_dep_wire_get_t;
 
-typedef struct dplasma_remote_deps_t {
+struct dplasma_remote_deps_t {
     dplasma_list_item_t                       item;
     struct dplasma_atomic_lifo_t*             origin;
     remote_dep_wire_activate_t                msg;
+    uint32_t                                  output_count;
     struct {
         gc_data_t*                            data;
         uint32_t*                             rank_bits;
         uint32_t                              count;
         dplasma_remote_dep_datatype_t*        type;
     } output[1];
-} dplasma_remote_deps_t;
+};
 
 
 /* Gives pointers to expr_t allowing for evaluation of GRID predicates, needed 
@@ -65,31 +72,26 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 
 extern dplasma_atomic_lifo_t remote_deps_freelist;
 extern uint32_t max_dep_count, max_nodes_number, elem_size;
-int remote_deps_allocation_init(int np, int max_output_deps);
 
-static inline dplasma_remote_deps_t* remote_deps_construct( dplasma_remote_deps_t* deps)
+int remote_deps_allocation_init(int np, int max_deps);
+
+static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_atomic_lifo_t* lifo )
 {
     uint32_t i, rank_bit_size;
     char *ptr;
-    
-    assert(NULL != deps);
-    ptr = (char*)(&(deps->output[max_dep_count]));
-    rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
-    for( i = 0; i < max_dep_count; i++ ) {
-        deps->output[i].rank_bits = (uint32_t*)ptr;
-        ptr += rank_bit_size;
-    }
-    assert( (ptr - (char*)deps) <= elem_size );
-    return deps;
-}
-static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_atomic_lifo_t* lifo )
-{
     dplasma_remote_deps_t* remote_deps = (dplasma_remote_deps_t*)dplasma_atomic_lifo_pop(lifo);
     if( NULL == remote_deps ) {
         remote_deps = (dplasma_remote_deps_t*)calloc(1, elem_size);
         remote_deps->origin = lifo;
     }    
-    return remote_deps_construct(remote_deps);
+    ptr = (char*)(&(remote_deps->output[max_dep_count]));
+    rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
+    for( i = 0; i < max_dep_count; i++ ) {
+        remote_deps->output[i].rank_bits = (uint32_t*)ptr;
+        ptr += rank_bit_size;
+    }
+    assert( (ptr - (char*)remote_deps) <= elem_size );
+    return remote_deps;
 }
 #define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
@@ -128,6 +130,7 @@ extern dplasma_remote_dep_datatype_t DPLASMA_DEFAULT_DATA_TYPE;
 # define dplasma_remote_dep_off(ctx)  (0)
 # define dplasma_remote_dep_progress(ctx) (0)
 # define dplasma_remote_dep_activate(ctx, o, r, c) (-1)
+# define DPLASMA_DEFAULT_DATA_TYPE    (NULL)
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */
