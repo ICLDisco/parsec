@@ -227,7 +227,8 @@ void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, dplasma_remote_dep_dat
     item->cmd.memcpy.destination = dst;
     item->cmd.memcpy.datatype = datatype;
     gc_data_ref(src);
-    dplasma_dequeue_push_back(&dep_activate_queue, (dplasma_list_item_t*) item);
+    DPLASMA_LIST_ITEM_SINGLETON(item);
+    dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
 }
 
 #define YIELD_TIME 5000
@@ -295,10 +296,12 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
     int k;
     int rank_bank = rank / (sizeof(uint32_t) * 8);
     uint32_t rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
-    
+    int output_count = deps->output_count;
+
     deps->msg.which = 0;
-    for(k = 0; k < deps->output_count; k += deps->output[k].count)
+    for(k = 0; output_count; k++)
     {
+	output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask)
         {
             deps->msg.which |= (1<<k);
