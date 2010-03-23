@@ -138,11 +138,10 @@ DEBUG(("ACTIVATE %s with %d deps\n", function->name, remote_deps_count));
     for( i = 0; remote_deps_count; i++) {
         if( function->inout[i] == NULL ) continue;  /* we're done ... hopefully */
         if( 0 == remote_deps->output[i].count ) continue;  /* no deps for this output */
-        array_index = 0;
-        for( j = count = 0; count < remote_deps->output[i].count; j++ ) {
+        for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
-            DEBUG(("MASK=%08x\n", current_mask));
-	    if( 0 == current_mask ) continue;  /* no bits here */
+            DEBUG(("MASK=%08x, array_index = %d, remote_deps->output[%d].count = %d\n", current_mask, array_index, i, remote_deps->output[i].count));
+            if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
                 if( current_mask & (1 << bit_index) ) {
                     int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
@@ -163,7 +162,6 @@ DEBUG(("ACTIVATE %s with %d deps\n", function->name, remote_deps_count));
                     remote_dep_send(rank, remote_deps);
                 }
             }
-            array_index++;
         }
     }
 }
