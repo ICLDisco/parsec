@@ -1,7 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
-set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # should we use our own math functions
 option(DPLASMA_MPI

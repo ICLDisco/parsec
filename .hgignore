@@ -33,3 +33,8 @@ tests/cholesky/dposv_ll
 tests/cholesky/dposv_rl
 tests/cholesky/cholesky_rl.c
 tests/cholesky/cholesky_ll.c
+tests/LU/LU-auto.c
+tests/cholesky/cholesky_mpi.c
+tests/gemm/gemm.c
+tests/syn/syn
+tests/syn/syn.c

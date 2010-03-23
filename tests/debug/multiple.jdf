@@ -1,0 +1,55 @@
+
+INIT(p)
+
+p = 0
+: 2 == rowRank
+
+INOUT T <- A()
+        -> I FL(0..2)
+
+BODY
+/* no body */
+END
+
+FL(k)
+
+k = 0..2
+: 2*k == rowRANK
+
+IN    I <- T INIT(0)
+INOUT A <- A()
+        -> ( k == 0 ) ? A SL(0)
+	-> ( k == 1 ) ? B SL(0)
+	-> ( k == 2 ) ? B SL(1)
+INOUT B <- ( k == 1 ) ? B()
+        -> ( k == 1 ) ? A SL(1)
+
+BODY
+/* no body */
+END
+
+SL(k)
+k = 0..1
+: ((2*k) + 1) == rowRANK
+
+INOUT A <- (k == 0) ? A FL(0)
+        <- (k == 1) ? B FL(1)
+	-> (k == 0) ? A LL(0)
+INOUT B <- (k == 0) ? A FL(1)
+        <- (k == 1) ? A FL(2)
+	-> (k == 1) ? B LL(0)
+
+BODY
+/* no body */
+END
+
+LL(k)
+k = 0
+: 2 == rowRank
+
+IN A <- A SL(0)
+IN B <- B SL(1)
+
+BODY
+/* no body */
+END
