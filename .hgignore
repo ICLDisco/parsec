@@ -38,3 +38,4 @@ tests/cholesky/cholesky_mpi.c
 tests/gemm/gemm.c
 tests/syn/syn
 tests/syn/syn.c
+tests/syn/mpi_syn
