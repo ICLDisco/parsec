@@ -122,7 +122,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 uint32_t remote_deps_count )
 {
     dplasma_t* function = exec_context->function;
-    int i, j, k, count, array_index, bit_index, current_mask;
+    int i, count, array_index, bit_index, current_mask;
 DEBUG(("ACTIVATE %s with %d deps\n", function->name, remote_deps_count));
 
     remote_dep_reset_forwarded(eu_context);
