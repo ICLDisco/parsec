@@ -1,10 +1,26 @@
+extern "C" %{
+#include "dplasma.h"
+
+extern double *_A;
+extern double *_B;
+
+#define A(n) _A
+#define B(n) _B
+
+%}
+
+rowRANK
+GRIDrows
+
+GRIDcols = 1
+colRANK = 0
 
 INIT(p)
 
 p = 0
-: 2 == rowRank
+: 2 == rowRANK
 
-INOUT T <- A()
+INOUT T <- A(0)
         -> I FL(0..2)
 
 BODY
@@ -17,11 +33,11 @@ k = 0..2
 : 2*k == rowRANK
 
 IN    I <- T INIT(0)
-INOUT A <- A()
+INOUT A <- A(0)
         -> ( k == 0 ) ? A SL(0)
 	-> ( k == 1 ) ? B SL(0)
 	-> ( k == 2 ) ? B SL(1)
-INOUT B <- ( k == 1 ) ? B()
+INOUT B <- ( k == 1 ) ? B(0)
         -> ( k == 1 ) ? A SL(1)
 
 BODY
@@ -45,7 +61,7 @@ END
 
 LL(k)
 k = 0
-: 2 == rowRank
+: 2 == rowRANK
 
 IN A <- A SL(0)
 IN B <- B SL(1)
