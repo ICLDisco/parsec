@@ -6,27 +6,31 @@
 
 #include "dplasma_config.h"
 #include "dplasma.h"
+#include "stats.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
-#ifdef HAVE_SCHED_SETAFFINITY
-#include <linux/unistd.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
 #include <errno.h>
-
 #include "scheduling.h"
 #include "dequeue.h"
 #include "barrier.h"
+#include "remote_dep.h"
+
+#ifdef HAVE_SCHED_SETAFFINITY
+#include <linux/unistd.h>
+#endif  /* HAVE_SCHED_SETAFFINITY */
+
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
 #endif
-#include "remote_dep.h"
+
 #ifdef HAVE_PAPI
 #include "papi.h"
 #endif
+
 #ifdef HAVE_HWLOC
 #include "hbbuffer.h"
 #endif
@@ -388,6 +392,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
     if( NULL == eu->eu_task_queue ) {
         free(eu);
+        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
         return NULL;
     }
     dplasma_atomic_lifo_construct( eu->eu_task_queue );
@@ -400,6 +405,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
     if( NULL == eu->eu_task_queue ) {
         free(eu);
+        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
         return NULL;
     }
     dplasma_dequeue_construct( eu->eu_task_queue );
@@ -706,6 +712,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
     for(i = 1; i < context->nb_cores; i++) {
 #if defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
+        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
         context->execution_units[i]->eu_task_queue = NULL;
 #endif  /* defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if defined(HAVE_HWLOC)
@@ -737,6 +744,8 @@ int dplasma_fini( dplasma_context_t** pcontext )
         fclose(__dplasma_graph_file);
         __dplasma_graph_file = NULL;
     }
+
+    dplasma_stats_dump("-", NULL);
 
     free(context);
     *pcontext = NULL;
@@ -879,6 +888,8 @@ int dplasma_compute_nb_tasks( const dplasma_t* object, int use_predicates )
     const expr_t** predicates = (const expr_t**)object->preds;
     int rc, actual_loop, nb_tasks = 0;
 
+    DPLASMA_STAT_INCREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
+
     exec_context->function = (dplasma_t*)object;
 
     DEBUG(( "Function %s (loops %d)\n", object->name, object->nb_locals ));
@@ -1013,6 +1024,8 @@ static void malloc_deps(dplasma_execution_unit_t* eu_context,
                    number, function->locals[i]->name, min, max));
             deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                    number * sizeof(dplasma_dependencies_union_t));
+            DPLASMA_STAT_INCREASE(mem_contexts, sizeof(dplasma_dependencies_t) +
+                                  number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
             deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;
@@ -1021,6 +1034,8 @@ static void malloc_deps(dplasma_execution_unit_t* eu_context,
             if( 0 == dplasma_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
                 /* Some other thread manage to set it before us. Not a big deal. */
                 free(deps);
+                DPLASMA_STAT_DECREASE(mem_contexts,  sizeof(dplasma_dependencies_t) +
+                                      number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                 goto deps_created_by_another_thread;
             }
             if( NULL != last_deps ) {
@@ -1129,6 +1144,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
         {
             dplasma_execution_context_t* new_context;
             new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
+            DPLASMA_STAT_INCREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
 #if defined(DPLASMA_CACHE_AWARENESS)
             new_context->pointers[1] = NULL;
@@ -1144,6 +1160,9 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                 new_context->list_item.list_prev->list_next = (dplasma_list_item_t*)new_context;
             }
         }
+
+        DPLASMA_STAT_INCREASE(counter_nbtasks, 1ULL);
+
     } else {
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dplasma_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
@@ -1280,6 +1299,8 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                    number, function->locals[i]->name, min, max));
             deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                    number * sizeof(dplasma_dependencies_union_t));
+            DPLASMA_STAT_INCREASE(mem_contexts,  sizeof(dplasma_dependencies_t) +
+                                  number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
             deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;
@@ -1288,6 +1309,8 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
             if( 0 == dplasma_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
                 /* Some other thread manage to set it before us. Not a big deal. */
                 free(deps);
+                DPLASMA_STAT_DECREASE(mem_contexts,  sizeof(dplasma_dependencies_t) +
+                                      number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                 goto deps_created_by_another_thread;
             }
             if( NULL != last_deps ) {
@@ -1442,6 +1465,8 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                            exec_context->locals[actual_loop].value, min, max));
                     deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                            number * sizeof(dplasma_dependencies_union_t));
+                    DPLASMA_STAT_INCREASE(mem_contexts, sizeof(dplasma_dependencies_t) +
+                                          number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                     deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
                     deps->symbol = function->locals[actual_loop];
                     deps->min = min;
@@ -1452,6 +1477,8 @@ int dplasma_release_OUT_dependencies( dplasma_execution_unit_t* eu_context,
                      * thread. Keep going.
                      */
                     if( !dplasma_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
+                        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_dependencies_t) +
+                                              number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                         free(deps);
                     }
                 }

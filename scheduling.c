@@ -4,18 +4,21 @@
  *                         reserved.
  */
 
-#ifdef  HAVE_SCHED_SETAFFINITY
-#include <linux/unistd.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
-#include <string.h>
-#include <sched.h>
-#include <sys/types.h>
-#include <errno.h>
 #include "scheduling.h"
 #include "dequeue.h"
 #include "profiling.h"
 #include "remote_dep.h"
 #include "dplasma.h"
+#include "stats.h"
+
+#include <string.h>
+#include <sched.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#ifdef  HAVE_SCHED_SETAFFINITY
+#include <linux/unistd.h>
+#endif  /* HAVE_SCHED_SETAFFINITY */
 
 #if defined(HAVE_HWLOC) && !defined(USE_HIERARCHICAL_QUEUES)
 int dplasma_hwloc_nb_cores(const dplasma_context_t *context, int level, int master);
@@ -467,7 +470,8 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
 #endif
     
     DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
-    
+    DPLASMA_STAT_DECREASE(counter_nbtasks, 1ULL);
+
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );
     }

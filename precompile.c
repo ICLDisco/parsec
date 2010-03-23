@@ -1669,6 +1669,7 @@ int dplasma_dump_all_c(char *filename)
             "#endif  /* DPLASMA_PROFILING */\n"
             "\n"
             "#include \"scheduling.h\"\n"
+            "#include \"stats.h\"\n"
             "\n");
     output( "#if defined(DISTRIBUTED)\n"
             "  static dplasma_atomic_lifo_t remote_deps_freelist;\n"
@@ -1812,6 +1813,8 @@ int dplasma_dump_all_c(char *filename)
            "  /*DEBUG((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\", */\\\n"
            "  /*       (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP))); */\\\n"
            "  (DEPS)->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL; \\\n"
+           "  DPLASMA_STAT_INCREASE(mem_bitarray,  sizeof(dplasma_dependencies_t) + STAT_MALLOC_OVERHEAD + \\\n"
+           "                                           (_vmax - _vmin) * sizeof(dplasma_dependencies_union_t)); \\\n"
            "  (DEPS)->symbol = (vSYMBOL); \\\n"
            "  (DEPS)->min = _vmin; \\\n"
            "  (DEPS)->max = _vmax; \\\n"
