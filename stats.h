@@ -22,5 +22,6 @@ DECLARE_STAT(counter_nbtasks);
 DECLARE_STAT(mem_bitarray);
 DECLARE_STAT(mem_hashtable);
 DECLARE_STAT(mem_contexts);
+DECLARE_STATMAX(counter_hashtable_collisions_size);
 
 #endif /* stats_h */
