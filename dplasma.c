@@ -392,7 +392,6 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     eu->eu_task_queue = (dplasma_atomic_lifo_t*)malloc( sizeof(dplasma_atomic_lifo_t) );
     if( NULL == eu->eu_task_queue ) {
         free(eu);
-        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
         return NULL;
     }
     dplasma_atomic_lifo_construct( eu->eu_task_queue );
@@ -405,7 +404,6 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     eu->eu_task_queue = (dplasma_dequeue_t*)malloc( sizeof(dplasma_dequeue_t) );
     if( NULL == eu->eu_task_queue ) {
         free(eu);
-        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
         return NULL;
     }
     dplasma_dequeue_construct( eu->eu_task_queue );
@@ -712,7 +710,6 @@ int dplasma_fini( dplasma_context_t** pcontext )
     for(i = 1; i < context->nb_cores; i++) {
 #if defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
-        DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
         context->execution_units[i]->eu_task_queue = NULL;
 #endif  /* defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO) */
 #if defined(HAVE_HWLOC)
@@ -1025,7 +1022,7 @@ static void malloc_deps(dplasma_execution_unit_t* eu_context,
             deps = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) +
                                                    number * sizeof(dplasma_dependencies_union_t));
             DPLASMA_STAT_INCREASE(mem_contexts, sizeof(dplasma_dependencies_t) +
-                                  number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
+                  number * sizeof(dplasma_dependencies_union_t) + STAT_MALLOC_OVERHEAD); 
             deps->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;

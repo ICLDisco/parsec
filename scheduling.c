@@ -347,6 +347,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 #if defined(DPLASMA_CACHE_AWARENESS)
             exec_context->pointers[1] = NULL;
 #endif
+            DPLASMA_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);
             free( exec_context );
         } else {
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
