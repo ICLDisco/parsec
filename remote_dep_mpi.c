@@ -562,6 +562,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
+                DEBUG(("GET FROM %d for data %d\n", status.MPI_SOURCE, status.MPI_TAG));
                 i -= DEP_NB_CONCURENT; /* shift i */
                 assert(i >= 0);
                 remote_dep_mpi_put_data(&dep_get_buff[i], status.MPI_SOURCE, i);
@@ -639,6 +640,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     assert(dep_enabled);
     assert(task->which);
 
+    DEBUG(("which=%lu\n", task->which));
     for(int k = 0; task->which>>k; k++)
     {
         assert(k < MAX_PARAM_COUNT);
@@ -682,11 +684,11 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                       dtt, from, PTR_TO_TAG(msg.deps)+k, dep_comm, 
                       &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
         }
-        TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
-        MPI_Send(&msg, datakey_count, datakey_dtt, from, 
-                 REMOTE_DEP_GET_DATA_TAG, dep_comm);
-        TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++); 
     }
+    TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
+    MPI_Send(&msg, datakey_count, datakey_dtt, from, 
+             REMOTE_DEP_GET_DATA_TAG, dep_comm);
+    TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);    
 }
 
 

@@ -151,15 +151,15 @@ DEBUG(("ACTIVATE %s with %d deps\n", function->name, remote_deps_count));
 
                     current_mask ^= (1 << bit_index);
                     count++;
-		    remote_deps_count--;
+                    remote_deps_count--;
 
                     gc_data_ref(remote_deps->output[i].data);
                     if(remote_dep_is_forwarded(eu_context, rank))
                     {
                        continue;
                     }
-                    remote_dep_mark_forwarded(eu_context, rank);
                     remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
+                    remote_dep_mark_forwarded(eu_context, rank);
                     remote_dep_send(rank, remote_deps);
                 }
             }
