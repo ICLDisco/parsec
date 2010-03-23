@@ -11,6 +11,15 @@
 using namespace std;
 
 typedef struct{
+    string       localVar;
+    string       type; 
+    string       localAlias;
+    list<string> remoteAliases;
+    list<string> inEdges;
+    list<string> outEdges;
+} final_dep_t;
+
+typedef struct{
     string type;
     string source;
     string sink;
@@ -28,6 +37,7 @@ typedef struct{
     map<string, string> symbolicVars;
     list<string> outDeps;
     list<string> inDeps;
+    list<final_dep_t> deps;
 } task_t;
 
 
