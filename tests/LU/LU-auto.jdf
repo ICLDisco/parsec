@@ -73,10 +73,10 @@ int dgesv_private_memory_finalization(void)
 
 /** Globals */
 NT
-GRIDrows
-GRIDcols
-rowRANK
-colRANK
+GRIDrows = 1
+GRIDcols = 1
+rowRANK = 0
+colRANK = 0
 
 /************************************************************************************
  *                                   DGETRF                                         *
@@ -93,8 +93,9 @@ DGETRF(k)
           -> (k == NT-1) ? A(NT-1, NT-1) : U DTSTRF(k, k+1)        [UPPER_TILE]
 	  -> (k != NT-1) ?                 L DGESSM(k, k+1..NT-1)  [LOWER_TILE]
 	  -> A(k, k)                                               [LOWER_TILE]
- OUT IPIV -> IPIV DGESSM(k, k+1..NT-1)                             [PIVOT_VECT]
-          -> IPIV(k, k)                                            [PIVOT_VECT]
+ INOUT IPIV <- IPIV(k, k)                                          [PIVOT_VECT]
+            -> IPIV DGESSM(k, k+1..NT-1)                           [PIVOT_VECT]
+            -> IPIV(k, k)                                          [PIVOT_VECT]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -210,8 +211,9 @@ DTSTRF(k, m)
            -> (m == NT-1) ? A(k, k) : U DTSTRF(k, m+1)             [UPPER_TILE]
   OUT  dL  -> dL DSSSSM(k, k+1..NT-1, m)                           [LITTLE_L]
            -> L(m, k)	  	     				   [LITTLE_L]
-  OUT IPIV -> IPIV DSSSSM(k, k+1..NT-1, m)			   [PIVOT_VECT]
-  	   -> IPIV(m, k)  	     				   [PIVOT_VECT]
+  INOUT IPIV <- IPIV(m, k)                                         [PIVOT_VECT]
+             -> IPIV DSSSSM(k, k+1..NT-1, m)			   [PIVOT_VECT]
+  	     -> IPIV(m, k)  	     				   [PIVOT_VECT]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
