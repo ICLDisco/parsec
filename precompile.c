@@ -941,18 +941,18 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         } else {
                             output( "#if defined(DISTRIBUTED)\n"                                                                 /* line  1 */
                                     "%*s    } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) {\n"                      /* line  2 */
-                                    "%*s      int rank, rrank, crank, ncols, array_pos, array_mask;\n"                           /* line  3 */
-                                    "%*s      rrank = %s;\n"                                                                     /* line  4 */
-                                    "%*s      crank = %s;\n"                                                                     /* line  5 */
-                                    "%*s      ncols = %s;\n"                                                                     /* line  6 */
-                                    "%*s      rank = crank + rrank * ncols;\n"                                                   /* line  7 */
-                                    "%*s      array_pos = rank / (8 * sizeof(uint32_t));\n"                                      /* line  8 */
-                                    "%*s      array_mask = 1 << (rank %% (8 * sizeof(uint32_t)));\n"                             /* line  9 */
+                                    "%*s      int _rank, _rrank, _crank, _ncols, _array_pos, _array_mask;\n"                     /* line  3 */
+                                    "%*s      _rrank = %s;\n"                                                                    /* line  4 */
+                                    "%*s      _crank = %s;\n"                                                                    /* line  5 */
+                                    "%*s      _ncols = %s;\n"                                                                    /* line  6 */
+                                    "%*s      _rank = _crank + _rrank * _ncols;\n"                                               /* line  7 */
+                                    "%*s      _array_pos = _rank / (8 * sizeof(uint32_t));\n"                                    /* line  8 */
+                                    "%*s      _array_mask = 1 << (_rank %% (8 * sizeof(uint32_t)));\n"                           /* line  9 */
                                     "%*s      DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line 10 */
-                                    "%*s      if( !(remote_deps->output[%d].rank_bits[array_pos] & array_mask) ) {\n"            /* line 11 */
+                                    "%*s      if( !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) ) {\n"          /* line 11 */
                                     "%*s        remote_deps->output[%d].data = data[%d];\n"                                      /* line 12 */
                                     "%*s        remote_deps->output[%d].type = &%s;\n"                                           /* line 13 */
-                                    "%*s        remote_deps->output[%d].rank_bits[array_pos] |= array_mask;\n"                   /* line 14 */
+                                    "%*s        remote_deps->output[%d].rank_bits[_array_pos] |= _array_mask;\n"                 /* line 14 */
                                     "%*s        remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 15 */
                                     "%*s      }\n"                                                                               /* line 16 */
                                     "#endif  /* defined(DISTRIBUTED) */\n"                                                       /* line 17 */
