@@ -1411,25 +1411,6 @@ void mergeLists(void){
                 taskMap[task.name] = task;
             }
 
-#if 0
-            // Find the task in the map (if it exists) and add the new OUT dep to it's outDeps
-            task_t task;
-            map<string,task_t>::iterator it;
-            it = taskMap.find(f_dep.source);
-            if ( it == taskMap.end() ){
-                cerr << "FATAL ERROR: Task \""<< f_dep.source <<"\" does not exist in the taskMap" << endl;
-                exit(-1);
-            }
-            task = it->second;
-            if( task.name.compare(f_dep.source) ){
-                cerr << "FATAL ERROR: Task name in taskMap does not match task name in flow dependency: ";
-                cerr << "\"" <<task.name << "\" != \"" << f_dep.source << "\"" << endl;
-                exit(-1);
-            }
-            task.outDeps.push_back(outDep);
-            taskMap[f_dep.source] = task;
-#endif
-
             // If this new OUT dep does not go to the exit, invert it to get an IN dep
             // unless it was an impossible dependency (having "FALSE" in the conditions).
             if( f_dep.sink.find("OUT") == string::npos && line.find("FALSE") == string::npos){
@@ -1477,17 +1458,6 @@ void mergeLists(void){
         }
     }
 
-/*
-typedef struct{
-    string       localVar;
-    string       type; 
-    string       localAlias;
-    list<string> remoteAliases;
-    list<string> inEdges;
-    list<string> outEdges;
-} final_dep_t;
-*/
-
     // Print all the tasks
     map<string,task_t>::iterator it=taskMap.begin();
     for ( ; it != taskMap.end(); it++ ){
@@ -1500,7 +1470,10 @@ typedef struct{
         // Print the task name and its parameter space
         if( it != taskMap.begin() )
             cout << "\n\n";
-        cout << "TASK: " << task.name << "{" << "\n";
+        cout << "/*" << string(60,'*') << "\n";
+        cout << " *" << string(20,' ') << task.name << string(20,' ') << "\n";
+        cout << string(60,'*') << "*/\n";
+        cout << task.name << "\n";
 
         // Print the parameter space bounds
         list<string>::iterator ps_itr = task.paramSpace.begin();
@@ -1544,21 +1517,7 @@ typedef struct{
 
         }
 
-#if 0
-        // Print the IN dependencies
-        list<string>::iterator id_itr = task.inDeps.begin();
-        for(; id_itr != task.inDeps.end(); ++id_itr)
-            cout << *id_itr << "\n";
-
-        cout << "\n";
-
-        // Print the OUT dependencies
-        list<string>::iterator od_itr = task.outDeps.begin();
-        for(; od_itr != task.outDeps.end(); ++od_itr)
-            cout << *od_itr << "\n";
-#endif
-
-        cout << "}" << endl;
+        cout << "BODY\nEND" << endl;
     }
 
 

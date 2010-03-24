@@ -18,6 +18,27 @@ my @paramSpaceStack;
 # First parse the petit file and extract information about
 # the tasks that is not preserved in petit's output
 
+# void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)
+# void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)
+
+# !       task_DTSTRF( A(k, k):U, A(m, k):LU, L(m, k), IPIV(m, k));
+# !               INOUT       INOUT       INOUT       OUT      OUT
+# !!      DTSTRF( A(k, k, 0), A(m, k, 0), A(m, k, 1), L(m, k), IPIV(m, k));
+
+convert it to
+# !!      DTSTRF( U:A(k, k):U, L:A(m, k):LU, dL:L(m, k), IPIV:IPIV(m, k));
+
+# TASK SECTION START
+# IN(ii,jj) {ii=0..BB-1,jj=0..BB-1} 
+# DGETRF(k) {k=0..BB-1} B:A(k, k, 0)|C:A(k, k, 1)|D:IPIV(k, k)
+# DGESSM(k,n) {k=0..BB-1,n=k+1..BB-1} B:IPIV(k, k)|C:A(k, k, 1)|D:A(k, n, 0)|E:A(k, n, 1)
+# DTSTRF(k,m) {k=0..BB-1,m=k+1..BB-1} B:A(k, k, 0)|C:A(m, k, 0)|D:A(m, k, 1)|E:L(m, k)|F:IPIV(m, k)
+# DSSSSM(k,m,n) {k=0..BB-1,m=k+1..BB-1,n=k+1..BB-1} B:A(k, n, 0)|C:A(k, n, 1)|D:A(m, n, 0)|E:A(m, n, 1)|F:L(m, k)|G:A(
+# m, k, 0)|H:A(m, k, 1)|I:IPIV(m, k)
+# OUT(ii,jj) {ii=0..BB-1,jj=0..BB-1} 
+# TASK SECTION END
+
+
 print "TASK SECTION START\n";
 open PETITFILE, "<", $ARGV[0];
 while(my $line=<PETITFILE>){

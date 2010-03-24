@@ -1,0 +1,43 @@
+extern "C" %{
+#include "dplasma.h"
+
+extern double *_A;
+
+#define A(n) _A
+
+%}
+
+rowRANK
+colRANK
+GRIDrows
+GRIDcols
+
+
+PING(k)
+
+k = 0..NT
+: 2*k == rowRANK
+: 0*k == colRANK
+
+INOUT T <- (k==0) ? A(0) : I PONG(k-1)
+        -> I PONG(k+1)
+
+BODY
+/* no body */
+printf("PING(%d) on %d\n", k, rowRANK);
+END
+
+
+PONG(k)
+
+k = 1..NT-1
+: ((2*k) + 1) == rowRANK
+: 0*k         == colRANK
+
+INOUT I <- T PING(k-1)
+        -> T PING(k+1)
+
+BODY
+/* no body */
+printf("PONG(%d) on %d\n", k, rowRANK);
+END
