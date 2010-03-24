@@ -80,7 +80,7 @@ D(rank)
  : 0 * rank == rowRANK
  : 0 * rank == colRANK
 
- INOUT BYTE <- BYTE D(1)     [My_Mpi_Char]
+ INOUT BYTE <- BYTE C(1)     [My_Mpi_Char]
             -> Byte(0)       [My_Mpi_Char]
 
 BODY
