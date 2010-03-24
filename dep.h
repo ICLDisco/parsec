@@ -19,7 +19,7 @@ struct dep {
     dplasma_t* dplasma;
     expr_t*    call_params[MAX_CALL_PARAM_COUNT];
     param_t*   param;
-    void*      mpi_type;
+    void*      type;
 };
 
 void dep_dump(const dep_t *d, const char *prefix);

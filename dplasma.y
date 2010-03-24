@@ -305,12 +305,12 @@ dependencies: DPLASMA_ARROW {
 dependency: call optional_info {
                      if( inout_type == SYM_IN ) {
                          current_param->dep_in[global_indep_index]->cond = NULL;
-                         current_param->dep_in[global_indep_index]->mpi_type = $2;
+                         current_param->dep_in[global_indep_index]->type = $2;
                          global_indep_index++;
                      } else {
                          assert( inout_type == SYM_OUT );
                          current_param->dep_out[global_outdep_index]->cond = NULL;
-                         current_param->dep_out[global_outdep_index]->mpi_type = $2;
+                         current_param->dep_out[global_outdep_index]->type = $2;
                          global_outdep_index++;
                      }
                  }
@@ -342,8 +342,8 @@ dependency: call optional_info {
                                      global_outdep_index++;
                                  }
                                  curr_dep->cond = expr_new_unary( '!', $1);
-                                 curr_dep->mpi_type = $7;
-                                 prev_dep->mpi_type = $7 != NULL ? strdup($7) : NULL;
+                                 curr_dep->type = $7;
+                                 prev_dep->type = $7 != NULL ? strdup($7) : NULL;
                              }
           | expr DPLASMA_QUESTION call optional_info {
                                          dep_t *curr_dep = NULL;
@@ -357,7 +357,7 @@ dependency: call optional_info {
                                              global_outdep_index++;
                                          }
                                          curr_dep->cond = $1;
-                                         curr_dep->mpi_type = $4;
+                                         curr_dep->type = $4;
                                      }
 ;
 

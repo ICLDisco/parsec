@@ -24,6 +24,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context);
 
 
 static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps);
+static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin);
 static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* origin);
 static int remote_dep_nothread_memcpy(void *dst, gc_data_t *src, const dplasma_remote_dep_datatype_t datatype);
 
@@ -42,6 +43,7 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dpla
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
 #   define remote_dep_release(ctx, deps) remote_dep_nothread_release(ctx, deps)
+#   define remote_dep_get_datatypes(deps) remote_dep_nothread_get_datatypes(deps)
 
 #else
 /* TODO */
@@ -301,13 +303,29 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
     deps->msg.which = 0;
     for(k = 0; output_count; k++)
     {
-	output_count -= deps->output[k].count;
+        output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask)
         {
             deps->msg.which |= (1<<k);
         }
     }
     remote_dep_mpi_send_dep(rank, &deps->msg);
+}
+
+static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
+{
+    int ret;
+    int actions;
+    dplasma_execution_context_t exec_context;
+    
+    exec_context.function = (dplasma_t*) (uintptr_t) origin->msg.function;
+    for(int i = 0; i < exec_context.function->nb_locals; i++)
+        exec_context.locals[i] = origin->msg.locals[i];
+    
+    actions = (DPLASMA_ACTION_GETTYPE_REMOTE_DEPS | DPLASMA_ACTION_DEPS_MASK);
+    
+    ret = exec_context.function->release_deps(NULL, &exec_context, actions, origin, NULL);
+    return ret;
 }
 
 static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* origin)
@@ -329,7 +347,9 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
         }
     }
     DEBUG(("%s->msg.deps = %08x\n", exec_context.function->name, origin->msg.deps));
-    ret = exec_context.function->release_deps(eu_context, &exec_context, origin->msg.deps, NULL, data);
+    ret = exec_context.function->release_deps(eu_context, &exec_context, 
+                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | origin->msg.deps, 
+                                              NULL, data);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
     return ret;
@@ -637,12 +657,14 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
 static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 {
     dplasma_remote_deps_t* deps = (dplasma_remote_deps_t*) (uintptr_t) task->deps;
+    dplasma_t* function = (dplasma_t*) (uintptr_t) deps->msg.function;
     void* data;
-    MPI_Datatype dtt = DPLASMA_DEFAULT_DATA_TYPE;
-    /* THOMAS/AURELIEN
-     * TODO: find dplasma, i and j such that dtt = *(MPI_Datatype*)(dplasma->inout[i]->dep_out[j]->type);
-     */
-
+    MPI_Datatype dtt;
+#ifdef DPLASMA_DEBUG
+    char type_name[MPI_MAX_OBJECT_NAME];
+    int len;
+#endif
+    
     assert(dep_enabled);
     assert(task->which);
 
@@ -652,7 +674,11 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->which)) continue;
         data = GC_DATA(deps->output[k].data);
-        DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p\n", to, i, k, PTR_TO_TAG(task->deps)+k, data));
+        dtt = *deps->output[k].type;
+#ifdef DPLASMA_DEBUG
+        MPI_Type_get_name(dtt, type_name, &len);
+        DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p type %s\n", to, i, k, PTR_TO_TAG(task->deps)+k, data, type_name));
+#endif
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
         MPI_Isend(data, 1, dtt, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
     }
@@ -664,36 +690,39 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 {
 #ifdef DPLASMA_DEBUG
     char tmp[128];
+    char type_name[MPI_MAX_OBJECT_NAME];
+    int len;
 #endif
+    MPI_Aint lb, size;
+    MPI_Datatype dtt;
     remote_dep_wire_get_t msg;
     dplasma_t* function = (dplasma_t*) (uintptr_t) task->function;
-
+    dplasma_remote_deps_t* deps = dep_activate_buff[i];
+    
     msg.deps =  task->deps;
     msg.which = task->which;
-    task->deps = 0; /* now this is the number of finished deps */
+
+    remote_dep_get_datatypes(deps);
     
     assert(dep_enabled);
     for(int k = 0; task->which>>k; k++)
     {        
         if((1<<k) & msg.which)
         {
-            MPI_Aint lb, size;
-            MPI_Datatype dtt = DPLASMA_DEFAULT_DATA_TYPE; 
-            /* THOMAS/AURELIEN
-             * TODO: find dplasma, i and j such that dtt = *(MPI_Datatype*)(dplasma->inout[i]->dep_in[j]->type);
-             */
-            
-            MPI_Type_get_true_extent(dtt, &lb, &size);
-            assert(0 == lb);
-            dep_activate_buff[i]->output[k].data = gc_data_new(malloc(size), 1);
-
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %d\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, PTR_TO_TAG(msg.deps)+k));
+            dtt = *deps->output[k].type;
+#ifdef DPLASMA_DEBUG
+            MPI_Type_get_name(dtt, type_name, &len);
+            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %d type %s\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, PTR_TO_TAG(msg.deps)+k, type_name));
+#endif         
+            MPI_Type_get_extent(dtt, &lb, &size);
+            deps->output[k].data = gc_data_new(malloc(size), 1);
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
-            MPI_Irecv(GC_DATA(dep_activate_buff[i]->output[k].data), 1, 
+            MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
                       dtt, from, PTR_TO_TAG(msg.deps)+k, dep_comm, 
                       &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
         }
     }
+    task->deps = 0; /* now this is the number of finished deps */    
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
     MPI_Send(&msg, datakey_count, datakey_dtt, from, 
              REMOTE_DEP_GET_DATA_TAG, dep_comm);
@@ -707,6 +736,11 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 
 void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
 {
+    char type_name[MPI_MAX_OBJECT_NAME];
+    
+    snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", tile_size, tile_size);
+    
     MPI_Type_contiguous(tile_size * tile_size, base, &DPLASMA_DEFAULT_DATA_TYPE);
+    MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
     MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
 }

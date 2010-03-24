@@ -9,21 +9,34 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 
-extern PLASMA_desc descA;
-extern PLASMA_desc descL;
-int _PLASMA_INFO;
-extern int* _IPIV;
-
 #if defined(USE_MPI)
 #include <mpi.h>
+#include "data_management.h"
 extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
-#endif
+extern DPLASMA_desc ddescA;
+extern DPLASMA_desc ddescL;
 
-#define OUTPUT(ARGS) printf ARGS
+#define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
+#define L(m,n) dplasma_get_local_tile_s(&ddescL, m, n)
+
+#define descA ddescA
+#define descL ddescL
+
+#else
+extern PLASMA_desc descA;
+extern PLASMA_desc descL;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #define L(m,n) &(((double*)descL.mat)[descL.bsiz*(m)+descL.bsiz*descL.lmt*(n)])
+
+#endif
+
+int _PLASMA_INFO;
+extern int* _IPIV;
 #define IPIV(m,n) &_IPIV[descA.nb*(m)+descA.nb*descA.lmt*(n)]
+
+
+#define OUTPUT(ARGS) printf ARGS
 
 typedef struct dplasma_memory_pool_t {
     dplasma_atomic_lifo_t lifo;
@@ -78,11 +91,11 @@ int dgesv_private_memory_finalization(void)
 
 /** Globals */
 NT
-GRIDrows = 1
-GRIDcols = 1
-rowRANK = 0
-colRANK = 0
-
+GRIDrows
+GRIDcols
+rowRANK
+colRANK
+
 /************************************************************************************
  *                                   DGETRF                                         *
  ************************************************************************************/
@@ -122,6 +135,20 @@ END
  *                                   DSSSSM                                         *
  ************************************************************************************/
 
+DSSSSM_OUT(k, n)
+  k = 0 .. NT-2
+  n = k+1 .. NT - 1
+  
+  :k % GRIDrows == rowRANK
+  :n % GRIDcols == colRANK
+  
+  INOUT A <- C1 DSSSSM(k, n, NT-1)
+          -> A(k, n)
+          
+BODY
+/* nothing */
+END
+  
 DSSSSM(k, n, m)
   k = 0   .. NT-2
   n = k+1 .. NT-1
@@ -129,7 +156,7 @@ DSSSSM(k, n, m)
 
   // Parallel partitioning
   : m % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  : n % GRIDcols == colRANK
 
   IN C3   <- C1 DTSTRF(k, m)
   IN dL   <- dL DTSTRF(k, m)                                       [LITTLE_L]
@@ -141,7 +168,7 @@ DSSSSM(k, n, m)
 	   -> ((k < n-1)  & (m == k+1)) ? C1 DGESSM(k+1, n)
 	   -> ((k < n-1)  & (k < m-1) ) ? C2 DSSSSM(k+1, n, m)
   INOUT C1 <- (m == k+1)  ? C1 DGESSM(k, n) : C1 DSSSSM(k, n, m-1)
-  	   -> (m == NT-1) ? A(k, n)         : C1 DSSSSM(k, n, m+1)
+  	   -> (m == NT-1) ? A DSSSSM_OUT(k, n)  : C1 DSSSSM(k, n, m+1)
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -173,7 +200,7 @@ DGESSM(k, n)
 
   // Parallel partitioning
   : k % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  : n % GRIDcols == colRANK
 
   IN    L    <- LU DGETRF(k)                                       [LOWER_TILE]
   IN    IPIV <- IPIV DGETRF(k)                                     [PIVOT_VECT]
@@ -201,6 +228,21 @@ END
  *                                   DTSTRF                                         *
  ************************************************************************************/
 
+
+DTSTRF_OUT(k)
+  k = 0 .. NT-2
+  
+  :k % GRIDrows == rowRANK
+  :k % GRIDcols == colRANK
+  
+  INOUT A <- U DTSTRF(k, NT-1) [UPPER_TILE]
+          -> A(k, k)         [UPPER_TILE]
+          
+BODY
+/* nothing */
+END
+
+
 DTSTRF(k, m)
   k = 0..NT-2
   m = k+1..NT-1
@@ -213,7 +255,7 @@ DTSTRF(k, m)
            -> C3 DSSSSM(k, k+1..NT-1, m)
 	   -> A(m, k)
   INOUT U  <- (m == k+1) ? LU DGETRF(k) : U DTSTRF(k, m-1)         [UPPER_TILE]
-           -> (m == NT-1) ? A(k, k) : U DTSTRF(k, m+1)             [UPPER_TILE]
+           -> (m == NT-1) ? A DTSTRF_OUT(k) : U DTSTRF(k, m+1)     [UPPER_TILE]
   INOUT dL <- L(m, k)                                              [LITTLE_L]
            -> dL DSSSSM(k, k+1..NT-1, m)                           [LITTLE_L]
            -> L(m, k)	  	     				   [LITTLE_L]

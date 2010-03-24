@@ -3,7 +3,7 @@ if( PLASMA_FOUND )
   
   add_executable(dgesv dgesv.c LU.c data_management.c)
   set_target_properties(dgesv PROPERTIES LINKER_LANGUAGE Fortran)
-  set_target_properties(dgesv PROPERTIES COMPILE_FLAGS "-DADD_ -DDPLASMA_EXECUTE")
+  set_target_properties(dgesv PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(dgesv PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
   target_link_libraries(dgesv dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
 

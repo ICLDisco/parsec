@@ -28,6 +28,8 @@ typedef void dplasma_remote_dep_datatype_t;
 #define DPLASMA_ACTION_RECV_REMOTE_DEPS    0x0400
 #define DPLASMA_ACTION_RELEASE_REMOTE_DEPS (DPLASMA_ACTION_INIT_REMOTE_DEPS | DPLASMA_ACTION_SEND_REMOTE_DEPS)
 #define DPLASMA_ACTION_GETDATA_REMOTE_DEPS (DPLASMA_ACTION_INIT_REMOTE_DEPS | DPLASMA_ACTION_RECV_REMOTE_DEPS)
+#define DPLASMA_ACTION_RELEASE_LOCAL_DEPS  0x0800
+#define DPLASMA_ACTION_GETTYPE_REMOTE_DEPS 0x1000
 #define DPLASMA_ACTION_DEPS_MASK           0x00FF
 
 typedef unsigned long remote_dep_datakey_t;
@@ -53,6 +55,7 @@ struct dplasma_remote_deps_t {
     uint32_t                                  output_count;
     struct {
         gc_data_t*                            data;
+        dplasma_remote_dep_datatype_t*        type;
         uint32_t*                             rank_bits;
         uint32_t                              count;
     } output[1];
