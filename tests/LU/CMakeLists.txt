@@ -1,17 +1,12 @@
 if( PLASMA_FOUND )
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src )
   
-  add_executable(dgesv dgesv.c LU.c)
+  add_executable(dgesv dgesv.c LU.c data_management.c)
   set_target_properties(dgesv PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dgesv PROPERTIES COMPILE_FLAGS "-DADD_ -DDPLASMA_EXECUTE")
   set_target_properties(dgesv PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
   target_link_libraries(dgesv dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
 
-  add_executable(dgesv.plasma dgesv.c)
-  set_target_properties(dgesv.plasma PROPERTIES LINKER_LANGUAGE Fortran)
-  set_target_properties(dgesv.plasma PROPERTIES COMPILE_FLAGS "-DADD_")
-  set_target_properties(dgesv.plasma PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(dgesv.plasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
 endif( PLASMA_FOUND )
 
 # add the command to generate the source code

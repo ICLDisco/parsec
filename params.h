@@ -26,7 +26,6 @@ struct param {
     unsigned char       param_mask;
     dep_t*              dep_in[MAX_DEP_IN_COUNT];
     dep_t*              dep_out[MAX_DEP_OUT_COUNT];
-    void*               type;
 };
 
 void param_dump(const param_t *p, const char *prefix);

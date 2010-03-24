@@ -55,7 +55,6 @@ struct dplasma_remote_deps_t {
         gc_data_t*                            data;
         uint32_t*                             rank_bits;
         uint32_t                              count;
-        dplasma_remote_dep_datatype_t*        type;
     } output[1];
 };
 

@@ -325,8 +325,10 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
         {
             assert(origin->msg.which & (1 << i));
             data[i] = (gc_data_t*) (uintptr_t) origin->output[i].data;
+            DEBUG(("%s->data[%d] = %p\n", exec_context.function->name, i, data[i]));
         }
     }
+    DEBUG(("%s->msg.deps = %08x\n", exec_context.function->name, origin->msg.deps));
     ret = exec_context.function->release_deps(eu_context, &exec_context, origin->msg.deps, NULL, data);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
@@ -636,7 +638,11 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 {
     dplasma_remote_deps_t* deps = (dplasma_remote_deps_t*) (uintptr_t) task->deps;
     void* data;
-    
+    MPI_Datatype dtt = DPLASMA_DEFAULT_DATA_TYPE;
+    /* THOMAS/AURELIEN
+     * TODO: find dplasma, i and j such that dtt = *(MPI_Datatype*)(dplasma->inout[i]->dep_out[j]->type);
+     */
+
     assert(dep_enabled);
     assert(task->which);
 
@@ -648,7 +654,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         data = GC_DATA(deps->output[k].data);
         DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p\n", to, i, k, PTR_TO_TAG(task->deps)+k, data));
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
-        MPI_Isend(data, 1, *deps->output[k].type, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
+        MPI_Isend(data, 1, dtt, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
     }
 }
 
@@ -672,7 +678,10 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
         if((1<<k) & msg.which)
         {
             MPI_Aint lb, size;
-            MPI_Datatype dtt = DPLASMA_DEFAULT_DATA_TYPE; //*function->inout[k]->type;
+            MPI_Datatype dtt = DPLASMA_DEFAULT_DATA_TYPE; 
+            /* THOMAS/AURELIEN
+             * TODO: find dplasma, i and j such that dtt = *(MPI_Datatype*)(dplasma->inout[i]->dep_in[j]->type);
+             */
             
             MPI_Type_get_true_extent(dtt, &lb, &size);
             assert(0 == lb);

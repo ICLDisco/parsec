@@ -54,7 +54,6 @@ param_t* dplasma_find_or_create_param(dplasma_t* function, char* param_name)
             param->function = function;
             param->param_mask = (unsigned char)(1 << i);
             function->inout[i] = param;
-            param->type = DPLASMA_DEFAULT_DATA_TYPE;
             return param;
         }
     }

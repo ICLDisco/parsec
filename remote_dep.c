@@ -140,7 +140,7 @@ DEBUG(("ACTIVATE %s with %d deps\n", function->name, remote_deps_count));
         if( 0 == remote_deps->output[i].count ) continue;  /* no deps for this output */
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
-            DEBUG(("MASK=%08x\n", current_mask));
+            DEBUG(("MASK=%08x, array_index = %d, remote_deps->output[%d].count = %d\n", current_mask, array_index, i, remote_deps->output[i].count));
             if( 0 == current_mask ) continue;  /* no bits here */
             for( bit_index = 0; (bit_index < (8 * sizeof(uint32_t))) && (current_mask != 0); bit_index++ ) {
                 if( current_mask & (1 << bit_index) ) {
