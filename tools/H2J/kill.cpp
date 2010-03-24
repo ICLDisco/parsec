@@ -26,6 +26,9 @@ string expressionToRange(string var, string condStr);
 string offsetVariables( string vars, string off );
 bool isExpressionOrConst(string var);
 string makeMinorFormatingChanges(string str);
+string simplifyCondition(string condStr);
+string simplifySimpleCondition( string condStr);
+list<string> commaSeparatedVariablesToList(string vars);
 
 string trimAll(string str);
 string removeWS(string str);
@@ -482,6 +485,113 @@ list<string> stringToVarList( string str ){
     return result;
 }
 
+
+list<string> commaSeparatedVariablesToList(string vars){
+    list<string> varList;
+
+    unsigned int pos = vars.find(",");
+    while( pos != string::npos ){
+        varList.push_back( vars.substr(0,pos) );
+        vars = vars.substr(pos+1);
+        pos = vars.find(",");
+    }
+    varList.push_back( vars );
+   
+    return varList;
+}
+
+// 0 <= k <= n-2, m-2    =>  (0 <= k & k <= n-2 & k <= m-2)
+// 1 <= k < n,m < BB     =>  (1 <= k & k < n & k < m & n < BB & m < BB)
+// Simplification algorithm: 
+// For every comparison operator "co"
+//     find the list of variables "llv" left of "co"
+//     find the list of variables "rlv" right of "co" but before the next comp. op.
+//     for every variable "lvi" in "llv"
+//         for every variable "rvi" in "rlv"
+//             emit "lvi co rvi"
+//             if not last
+//                 emit "&"
+string simplifySimpleCondition( string condStr ){
+    string resultCond;
+    int compOpLen;
+    bool firstIteration=true;
+
+    unsigned int pos = condStr.find("<");
+
+    // If it's a condition of the form "x=y"
+    if( pos == string::npos )
+        return condStr;
+
+    while( pos != string::npos ){
+        string compOp;
+        list<string> llv, rlv;
+        compOpLen = 1;
+        if( condStr.find("<=") != string::npos )
+            compOpLen = 2;
+
+        compOp = condStr.substr(pos,compOpLen);
+        llv = commaSeparatedVariablesToList( condStr.substr(0,pos) );
+        condStr = condStr.substr(pos+compOpLen);
+
+        unsigned int npos = condStr.find("<");
+        if( npos != string::npos ){
+            rlv = commaSeparatedVariablesToList( condStr.substr(0,npos) );
+        }else{
+            rlv = commaSeparatedVariablesToList( condStr );
+        }
+
+        if( !firstIteration )
+            resultCond += " & ";
+
+        while (!llv.empty()) {
+            string lvi = llv.front();
+            llv.pop_front();
+            list<string>::iterator itr;
+            for (itr=rlv.begin(); itr!=rlv.end(); ++itr) {
+                string rvi = *itr;
+                resultCond += lvi+compOp+rvi;
+                // if there are more variables in the lists, add a "&" to the condition.
+                if (!llv.empty() || *itr!=rlv.back() )
+                    resultCond += " & ";
+            }
+        }
+        // <- (1 <= k  &  k < n &  k <m  &  n< BB & ) ? D DSSSSM(k-1,n,m) 
+
+
+        pos = npos;
+        firstIteration=false;
+    }
+
+    return resultCond;
+}
+
+string simplifyCondition(string condStr){
+    string resultCond;
+    int loglOpLen;
+
+    // If the condition is a logical combination of multiple simpler
+    // conditions, process each simple condition individually. 
+    unsigned int pos = condStr.find_first_of("&|");
+    while( pos != string::npos ){
+        // See if Omega uses the double symbols "&&" and "||" or the single "&" and "|"
+        if( condStr.find("&&") != string::npos || condStr.find("||") != string::npos ){
+            loglOpLen = 2;
+        }else{
+            loglOpLen = 1;
+        }
+        // Take the first simple condition, clean it and put it in a new string
+        resultCond += simplifySimpleCondition( condStr.substr(0,pos) );
+        // Add the logical operator to the new string
+        resultCond += " "+condStr.substr(pos,loglOpLen)+" ";
+
+        condStr = condStr.substr(pos+loglOpLen);
+        pos = condStr.find_first_of("&|");
+    }
+    resultCond += simplifySimpleCondition( condStr );
+
+    // return the new string containing the cleaned condition.
+    return resultCond;
+}
 
 string removeVarFromCond(string var, string condStr){
     string resultCond;
@@ -940,6 +1050,8 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
             actual_parameter_list.push_back(range);
         }
     }
+
+    cond = simplifyCondition(cond);
 
     //
     // Manipulation is over, output code follows
