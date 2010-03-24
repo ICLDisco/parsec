@@ -11,16 +11,16 @@ rowRANK
 colRANK
 GRIDrows
 GRIDcols
-
+NT
 
 PING(k)
 
-k = 0..NT
-: 2*k == rowRANK
+k = 0 .. NT
+: ((0*k) + 0) == rowRANK
 : 0*k == colRANK
 
 INOUT T <- (k==0) ? A(0) : I PONG(k-1)
-        -> I PONG(k+1)
+        -> (k==NT) ? A(0) : I PONG(k)
 
 BODY
 /* no body */
@@ -30,11 +30,11 @@ END
 
 PONG(k)
 
-k = 1..NT-1
-: ((2*k) + 1) == rowRANK
+k = 0 .. NT-1
+: ((0*k) + 1) == rowRANK
 : 0*k         == colRANK
 
-INOUT I <- T PING(k-1)
+INOUT I <- T PING(k)
         -> T PING(k+1)
 
 BODY

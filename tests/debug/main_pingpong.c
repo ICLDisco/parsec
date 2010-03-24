@@ -91,8 +91,7 @@ int rank  = 0;
 int nbtasks = -1;
 
 double *_A;
-/*double *_B;*/
-int N;
+int NB;
 int NT;
 
 int main(int argc, char ** argv)
@@ -123,7 +122,7 @@ int main(int argc, char ** argv)
             dplasma_set_initial_execution_context(&exec_context);
             dplasma_schedule(dplasma, &exec_context);
         }
-    TIME_PRINT(("Dplasma initialization:\t%d %d\n", nodes, N));
+    TIME_PRINT(("Dplasma initialization:\t%d %d\n", nodes, NB));
     
     /* lets rock! */
     SYNC_TIME_START();
@@ -142,7 +141,7 @@ static void print_usage(void)
     fprintf(stderr,
             "Mandatory argument:\n"
             "   number           : the size of the matrix\n"
-            "   number           : Number of PINGs (PONGs are two fewer)\n"
+            "   number           : Number of PINGs\n"
             "Optional arguments:\n"
             "   -c --nb-cores    : number of computing threads to use\n");
 }
@@ -152,7 +151,8 @@ static void runtime_init(int argc, char **argv)
     struct option long_options[] =
     {
         {"nb-cores",      required_argument,  0, 'c'},
-        {"num-PING",      required_argument,  0, 't'},
+        {"size",          required_argument,  0, 's'},
+	{"num-PING",      required_argument,  0, 'n'},
         {"help",          no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -163,13 +163,13 @@ static void runtime_init(int argc, char **argv)
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-    if( nodes != 5 ) {
-        fprintf(stderr, "This code only works with 5 nodes!\n");
+    if( nodes != 2 ) {
+        fprintf(stderr, "This code only works with 2 nodes!\n");
         MPI_Finalize();
         exit(1);
     }
 #else
-    fprintf(stderr, "This code only works with 5 nodes!\n");
+    fprintf(stderr, "This code only works with 2 nodes!\n");
     exit(1);
 #endif
     
@@ -179,7 +179,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "c:t:h",
+        c = getopt_long (argc, argv, "n:c:s:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -195,14 +195,14 @@ static void runtime_init(int argc, char **argv)
                 //printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
 
-            case 't':
+            case 'n':
                 NT = atoi(optarg);
-                //printf("Number of PING tasks set to %d\n", N);
+                //printf("Number of PING tasks set to %d\n", NB);
                 break;
 
-            case 'n':
-                N = atoi(optarg);
-                //printf("matrix size set to %d\n", N);
+            case 's':
+                NB = atoi(optarg);
+                //printf("matrix size set to %d\n", NB);
                 break;
 
             case 'h':
@@ -213,17 +213,11 @@ static void runtime_init(int argc, char **argv)
                 break; /* Assume anything else is dplasma/mpi stuff */
         }
     } while(1);
-        
-    while(N == 0)
+    if((NT == 0) || (NB == 0))
     {
-        if(optind < argc)
-        {
-            N = atoi(argv[optind++]);
-            continue;
-        }
-        print_usage(); 
-        exit(2);
-    } 
+      print_usage();
+      exit(-1);
+    }
 }
 
 static void runtime_fini(void)
@@ -237,7 +231,7 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
 
-    dplasma = dplasma_init(cores, pargc, pargv, N);
+    dplasma = dplasma_init(cores, pargc, pargv, NB);
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
@@ -278,10 +272,8 @@ static void create_data(void)
 {
     int i;
 
-    _A = (double *)malloc(N * N * sizeof(double));
-/*    _B = (double *)malloc(N * N * sizeof(double));*/
-    for(i = 0; i < N*N; i++) {
+    _A = (double *)malloc(NB * NB * sizeof(double));
+    for(i = 0; i < NB*NB; i++) {
         _A[i] = (double)i;
-/*        _B[i] = (double)-i;*/
     }
 }
