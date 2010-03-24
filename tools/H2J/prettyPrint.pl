@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
+use Switch;
 my $verbose=0;
 my %linesToNames;
 my $currKernel;
@@ -25,7 +26,7 @@ my @paramSpaceStack;
 # !               INOUT       INOUT       INOUT       OUT      OUT
 # !!      DTSTRF( A(k, k, 0), A(m, k, 0), A(m, k, 1), L(m, k), IPIV(m, k));
 
-convert it to
+#convert it to
 # !!      DTSTRF( U:A(k, k):U, L:A(m, k):LU, dL:L(m, k), IPIV:IPIV(m, k));
 
 # TASK SECTION START
@@ -84,18 +85,38 @@ while(my $line=<PETITFILE>){
 
         my $i=0;
         # parse the arguments and generate symbolic names for the arrays
-        # an array will be the name "\w*" followed by a l-paren "\("
-        # followed by anything but a r-paren "[^)]*" followed by a
-        # r-paren "\)" and the whole thing is in parentheses so it is
-        # stored in "$1".
-        while($args =~ /(\w*\([^)]*\))/g){
+        # An array will be the alias "\w*" followed by ":" followed by the
+        # tile "\w*" followed by a l-paren "\(" followed by anything except
+        # a r-paren "[^)]*" followed by a # r-paren "\)" optionally followed
+        # by a ":L", or ":U", or ":LU" for lower, upper or both triangles
+        while($args =~ /(\w*):(\w*\([^)]*\))(:(\w*))?/g){
             if( $i > 0 ){
                 $full_string .= "|";
             }
-            $full_string .= chr($i+66).":".$1;
+            my $alias = $1;
+            my $tile = $2;
+            my $triangle = $4;
+            if( !length $triangle ){
+                $triangle = "LU";
+            }
+
+            switch( $triangle ){
+                case "U"  { my $rPar = index($tile,")");
+                            substr($tile,$rPar,1,", 0)");
+                            $full_string .= $alias.":".$tile;
+                          }
+                case "L"  { my $rPar = index($tile,")"); 
+                            substr($tile,$rPar,1,", 1)");
+                            $full_string .= $alias.":".$tile;
+                          }
+                case "LU" { my $rPar = index($tile,")");
+                            my $tmp = substr($tile,0,$rPar);
+                            $full_string .= $alias."_u:".$tmp.", 0)|";
+                            $full_string .= $alias."_l:".$tmp.", 1)";
+                         }
+            }
             $i++;
         }
-
         print "$full_string\n";
     }
 }
