@@ -417,6 +417,7 @@ static void runtime_init(int argc, char **argv)
             PLASMA_Init(1);
             break;
     }
+    ddescB = ddescC = ddescA;
 }
 
 static void runtime_fini(void)
