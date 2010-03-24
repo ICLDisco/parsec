@@ -773,7 +773,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     char strexpr2[MAX_EXPR_LEN];
     char local_prepend[MAX_EXPR_LEN], target_prepend[MAX_EXPR_LEN];
 
-    snprintf(local_prepend, MAX_EXPR_LEN, "%s_", d->name);
+    snprintf(local_prepend, MAX_EXPR_LEN, "s%s_", d->name);
     output("\nstatic int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
            "                                   const dplasma_execution_context_t *exec_context,\n"
            "                                   int action_mask,\n"
@@ -824,7 +824,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                            "%*s   * Release %s OUTPUT dependencies for %s(",
                            spaces, "", spaces, "", 
                            dep->param->name, dep->dplasma->name);
-                    snprintf(target_prepend, MAX_EXPR_LEN, "%s_", dep->dplasma->name);
+                    snprintf(target_prepend, MAX_EXPR_LEN, "d%s_", dep->dplasma->name);
                     /* Prepare the list of locals on the target */
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL == dep->call_params[k] ) break;
