@@ -54,6 +54,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          int LDA, int NRHS, int LDB, 
                          PLASMA_desc* dA, PLASMA_desc* dL,
                          double gflops);
+static void create_datatypes(void);
 
 static int check_solution(int, int, double*, int, double*, double*, int, double);
 
@@ -137,7 +138,9 @@ DPLASMA_desc ddescA;
 PLASMA_desc descL;
 DPLASMA_desc ddescL;
 int* _IPIV;
-
+#if defined(USE_MPI)
+MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
+#endif
 
 /* TODO Remove this ugly stuff */
 extern int dgesv_private_memory_initialization(plasma_context_t*);
@@ -192,6 +195,8 @@ int main(int argc, char ** argv)
             ddescL = ddescA;
             scatter_matrix(&descL, &ddescL); /* it is 0, but make sure it is */
             
+
+            create_datatypes();
             //#ifdef VTRACE 
             //    VT_ON();
             //#endif
@@ -280,7 +285,7 @@ static void runtime_init(int argc, char **argv)
     MPI_Init(&argc, &argv);
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
     nodes = 1;
     rank = 0;
@@ -529,6 +534,52 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
     /* Make sure everybody is done with warmup before proceeding */
     MPI_Barrier(MPI_COMM_WORLD);
 # endif    
+}
+
+
+static void create_datatypes(void)
+{
+#if defined(USE_MPI)
+    int *blocklens, *indices, count, i;
+    MPI_Datatype tmp;
+
+    count = N;  /* or NB as we use it in the JDFs */
+    blocklens = (int*)malloc( count * sizeof(int) );
+    indices = (int*)malloc( count * sizeof(int) );
+
+    /* UPPER_TILE with the diagonal */
+    for( i = 0; i < count; i++ ) {
+        blocklens[i] = i + 1;
+        indices[i] = i * N;
+    }
+
+    MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &UPPER_TILE);
+    MPI_Type_commit(&UPPER_TILE);
+    
+    /* LOWER_TILE without the diagonal */
+    for( i = 0; i < count-1; i++ ) {
+        blocklens[i] = N - i - 1;
+        indices[i] = i * N + i + 1;
+    }
+
+    MPI_Type_indexed(count-1, blocklens, indices, MPI_DOUBLE, &tmp);
+    MPI_Type_commit(&tmp);
+
+    /* Because the type is not spanning on the whole TILE, we need to resize it */
+    MPI_Type_create_resized(tmp, 0, N*N*sizeof(double), &LOWER_TILE);
+    MPI_Type_commit(&LOWER_TILE);
+
+    /* LITTLE_L is a LOWER_TILE */
+    MPI_Type_dup(LOWER_TILE, &LITTLE_L);
+    MPI_Type_commit(&LITTLE_L);
+
+    /* IPIV is a contiguous of size N */
+    MPI_Type_contiguous(N, MPI_DOUBLE, &PIVOT_VECT);
+    MPI_Type_commit(&PIVOT_VECT);
+    
+    free(blocklens);
+    free(indices);
+#endif
 }
 
 #undef N

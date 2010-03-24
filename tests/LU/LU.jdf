@@ -16,7 +16,7 @@ extern int* _IPIV;
 
 #if defined(USE_MPI)
 #include <mpi.h>
-extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT;
+extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
 #endif
 
 #define OUTPUT(ARGS) printf ARGS
