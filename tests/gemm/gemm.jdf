@@ -43,13 +43,13 @@ int PLASMA_INFO;
  * Globals
  * GRIDrows, GRIDcols, NB, SIZE, stileSIZE
  */
-GRIDrows = 1
-GRIDcols = 1
-NB = 120
+GRIDrows
+GRIDcols
+NB
 SIZE
-colRANK = 0
-rowRANK = 0
-stileSIZE = 1
+colRANK
+rowRANK
+stileSIZE 
 
 /**************************************************
  *                     STARTUP                    *
@@ -61,6 +61,7 @@ useless = 0 .. 0
 INOUT USELESS <- A(0,0)
               -> USELESS READVALS(0 .. SIZE-1, 0 .. SIZE-1)
 BODY
+  sleep(20);
   /* Nothing relevant */
 END
 
@@ -80,7 +81,7 @@ INOUT B <- B(i,j)
 INOUT C <- C(i,j)
         -> C GEMM(i,j,0)
 BODY
-  /* Emptiness */
+   /* Emptiness */
 END
 
 
