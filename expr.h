@@ -23,31 +23,33 @@ typedef struct expr expr_t;
 
 #define EXPR_IS_UNARY(op)  ( ((op) >= EXPR_OP_MIN_UNARY) && ((op) <= EXPR_OP_MAX_UNARY) )
 
-#define EXPR_OP_MIN_BINARY        20
-#define EXPR_OP_BINARY_MOD        20
-#define EXPR_OP_BINARY_EQUAL      21
-#define EXPR_OP_BINARY_NOT_EQUAL  22
-#define EXPR_OP_BINARY_PLUS       23
-#define EXPR_OP_BINARY_RANGE      24
-#define EXPR_OP_BINARY_MINUS      25
-#define EXPR_OP_BINARY_TIMES      26
-#define EXPR_OP_BINARY_DIV        27
-#define EXPR_OP_BINARY_OR         28
-#define EXPR_OP_BINARY_AND        29
-#define EXPR_OP_BINARY_XOR        30
-#define EXPR_OP_BINARY_LESS       31
-#define EXPR_OP_BINARY_MORE       32
-#define EXPR_OP_BINARY_SHL        33
-#define EXPR_OP_MAX_BINARY        33
+#define EXPR_OP_MIN_BINARY            20
+#define EXPR_OP_BINARY_MOD            20
+#define EXPR_OP_BINARY_EQUAL          21
+#define EXPR_OP_BINARY_NOT_EQUAL      22
+#define EXPR_OP_BINARY_PLUS           23
+#define EXPR_OP_BINARY_RANGE          24
+#define EXPR_OP_BINARY_MINUS          25
+#define EXPR_OP_BINARY_TIMES          26
+#define EXPR_OP_BINARY_DIV            27
+#define EXPR_OP_BINARY_OR             28
+#define EXPR_OP_BINARY_AND            29
+#define EXPR_OP_BINARY_XOR            30
+#define EXPR_OP_BINARY_LESS           31
+#define EXPR_OP_BINARY_LESS_OR_EQUAL  32
+#define EXPR_OP_BINARY_MORE           33
+#define EXPR_OP_BINARY_MORE_OR_EQUAL  34
+#define EXPR_OP_BINARY_SHL            35
+#define EXPR_OP_MAX_BINARY            35
 
 #define EXPR_IS_BINARY(op)  ( ((op) >= EXPR_OP_MIN_BINARY) && ((op) <= EXPR_OP_MAX_BINARY) )
 
-#define EXPR_OP_MIN_TERTIAR       70
-#define EXPR_OP_CONDITIONAL       70
-#define EXPR_OP_MAX_TERTIAR       70
+#define EXPR_OP_MIN_TERTIAR           70
+#define EXPR_OP_CONDITIONAL           70
+#define EXPR_OP_MAX_TERTIAR           70
 #define EXPR_IS_TERTIAR(op)  ( ((op) >= EXPR_OP_MIN_TERTIAR) && ((op) <= EXPR_OP_MAX_TERTIAR) )
 
-#define EXPR_OP_INLINE            100
+#define EXPR_OP_INLINE                100
 #define EXPR_IS_INLINE(op)  ( (op) == EXPR_OP_INLINE )
 
 /**

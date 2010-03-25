@@ -109,7 +109,7 @@ DGESSM(k,n)
 
   /*C1 == A(k,n)*/
   INOUT C1 <- (k==0) ? A(0,n) 
-           <- (0 < k ) ? C2 DSSSSM(k-1,k,n) 
+           <- (1 <= k ) ? C2 DSSSSM(k-1,k,n) 
            -> C1 DSSSSM(k,k+1,n)  
 
   /*L == A(k,k)*/
@@ -199,9 +199,9 @@ DSSSSM(k,m,n)
   /*C2 == A(m,n)*/
   INOUT C2 <- ( k==0 ) ? A(m,n) : C2 DSSSSM(k-1,m,n) 
            -> ( (m==k+1) & (n==k+1) ) ? LU DGETRF(k+1)  
-           -> ( (k<n-1) & (m==k+1) ) ? C1 DGESSM(k+1,n)  
-           -> ( (k<m-1) & (n==k+1) ) ? L DTSTRF(k+1,m)  
-           -> ( (k<m-1) & (k<n-1) ) ? C2 DSSSSM(k+1,m,n)  
+           -> ( (k<=n-2) & (m==k+1) ) ? C1 DGESSM(k+1,n)  
+           -> ( (k<=m-2) & (n==k+1) ) ? L DTSTRF(k+1,m)  
+           -> ( (k<=m-2) & (k<=n-2) ) ? C2 DSSSSM(k+1,m,n)  
 
   /*C1 == A(k,n)*/
   INOUT C1 <- (m==k+1) ? C1 DGESSM(k,n)           : C1 DSSSSM(k,m-1,n) 
