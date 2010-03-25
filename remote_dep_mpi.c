@@ -553,7 +553,15 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
     
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
-    
+#if defined(DPLASMA_STATS)
+    {
+        MPI_Aint lb, size;
+        MPI_Type_get_extent(dep_dtt, &lb, &size);
+        DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+    }
+#endif
+
     return 1;
 }
 
@@ -679,6 +687,16 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p type %s\n", to, i, k, PTR_TO_TAG(task->deps)+k, data, type_name));
 #endif
+
+#if defined(DPLASMA_STATS)
+        {
+            MPI_Aint lb, size;
+            MPI_Type_get_extent(dtt, &lb, &size);
+            DPLASMA_STATACC_ACCUMULATE(counter_data_messages_sent, 1);
+            DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+        }
+#endif
+
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
         MPI_Isend(data, 1, dtt, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
     }
@@ -731,7 +749,15 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
     MPI_Send(&msg, datakey_count, datakey_dtt, from, 
              REMOTE_DEP_GET_DATA_TAG, dep_comm);
-    TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);    
+    TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
+#if defined(DPLASMA_STATS)
+    {
+        MPI_Aint lb, size;
+        MPI_Type_get_extent(datakey_dtt, &lb, &size);
+        DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+    }
+#endif
 }
 
 
