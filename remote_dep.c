@@ -136,8 +136,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     remote_dep_get_datatypes(remote_deps);
 
     for( i = 0; remote_deps_count; i++) {
-        if( function->inout[i] == NULL ) continue;  /* we're done ... hopefully */
-        if( 0 == remote_deps->output[i].count ) continue;  /* no deps for this output */
+        if( function->inout[i] == NULL ) continue;
+        if( 0 == remote_deps->output[i].count ) continue;
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
