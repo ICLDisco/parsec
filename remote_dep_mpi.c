@@ -558,7 +558,7 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
         MPI_Aint lb, size;
         MPI_Type_get_extent(dep_dtt, &lb, &size);
         DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size * dep_count);
     }
 #endif
 
@@ -738,7 +738,12 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
              * In case of a 0-sized object, we pass 1 to force the creation of a
              * garbage collectable pointer
              */
+#if defined(DPLASMA_STATS)
+            assert( size < 0xffffffff );
             deps->output[k].data = gc_data_new(malloc(size), size > 0 ? (uint32_t)size : 1); 
+#else
+            deps->output[k].data = gc_data_new(malloc(size), 1); 
+#endif
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
             MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
                       dtt, from, PTR_TO_TAG(msg.deps)+k, dep_comm, 
@@ -755,7 +760,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
         MPI_Aint lb, size;
         MPI_Type_get_extent(datakey_dtt, &lb, &size);
         DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size * datakey_count);
     }
 #endif
 }
