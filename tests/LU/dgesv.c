@@ -45,6 +45,9 @@ static void create_matrix(int N, PLASMA_enum* uplo,
                           double** pL, int** pIPIV,
                           int LDA, int NRHS, int LDB, 
                           PLASMA_desc* dA, PLASMA_desc* dL);
+static void create_local(int N, PLASMA_enum* uplo, 
+                         double** pL,
+                         int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL);
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void check_matrix(int N, PLASMA_enum* uplo, 
@@ -165,7 +168,9 @@ int main(int argc, char ** argv)
     
     if(0 == rank)
         create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
-    
+    else
+        create_local(N, &uplo, &L, &_IPIV, LDA, NRHS, &descA, &descL);
+
     switch(backend)
     {
         case DO_PLASMA: {
@@ -194,7 +199,6 @@ int main(int argc, char ** argv)
             scatter_matrix(&descA, &ddescA);
             ddescL = ddescA;
             scatter_matrix(&descL, &ddescL); /* it is 0, but make sure it is */
-            
 
             create_datatypes();
             //#ifdef VTRACE 
@@ -681,6 +685,46 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 #undef A2 
 #undef B1 
 #undef B2
+#undef L
+#undef IPIV
+}
+
+static void create_local(int N, PLASMA_enum* uplo, 
+                         double** pL,
+                         int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL)
+{
+#define IPIV    (*pIPIV)
+#define L       (*pL)
+    int i, j;
+    
+    if(do_distributed_generation) 
+    {
+        IPIV = NULL;
+        return;
+    }    
+    
+    plasma_context_t* plasma = plasma_context_self();
+    plasma_tune(PLASMA_FUNC_DGELS, N, N, NRHS);
+    double* Abdl;
+    double* Lbdl;
+    int NB, NT;
+    
+    NB = PLASMA_NB;
+    NT = (N%NB==0) ? (N/NB) : (N/NB+1);
+
+    PLASMA_Alloc_Workspace_dgesv(N, &L, &IPIV);
+    Abdl = (double*) plasma_shared_alloc(plasma, NT*NT*PLASMA_NBNBSIZE, PlasmaRealDouble);
+    Lbdl = (double*) plasma_shared_alloc(plasma, NT*NT*PLASMA_IBNBSIZE, PlasmaRealDouble);
+    *dA = plasma_desc_init(Abdl, PlasmaRealDouble,
+                           PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
+                           N, N, 0, 0, N, N);
+    *dL = plasma_desc_init(Lbdl, PlasmaRealDouble,
+                           PLASMA_IB, PLASMA_NB, PLASMA_IBNBSIZE,
+                           N, N, 0, 0, N, N);    
+    
+    plasma_memzero(IPIV, dA->mt*dA->nt*PLASMA_NB, PlasmaInteger);
+    plasma_memzero(dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
+    
 #undef L
 #undef IPIV
 }
