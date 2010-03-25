@@ -43,3 +43,5 @@ tests/debug/mpi_multiple
 tests/debug/multiple.c
 tests/debug/mpi_types
 tests/debug/types.c
+tests/debug/mpi_pingpong
+tests/debug/pingpong.c
