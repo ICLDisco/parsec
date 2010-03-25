@@ -1,5 +1,5 @@
 CXX=g++-4.2
-CXXFLAGS=-O3
+CXXFLAGS=-O3 -Wall
 LDFLAGS=-L/opt/local/lib -lboost_regex-mt
 
 all:	kill

@@ -67,6 +67,10 @@ class SetIntersector{
         void compose_FD2_OD();
         string subtract();
         string inverse(string set);
+        string intersect(string set1, string set2);
+        string simplify(string set);
+
+
         SetIntersector(set<string> sym_vars){
             symbolic_vars = sym_vars;
             cmpsd_counter = 0;

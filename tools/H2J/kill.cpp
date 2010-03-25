@@ -26,9 +26,11 @@ string expressionToRange(string var, string condStr);
 string offsetVariables( string vars, string off );
 bool isExpressionOrConst(string var);
 string makeMinorFormatingChanges(string str);
-string simplifyCondition(string condStr);
-string simplifySimpleCondition( string condStr);
+string simplifyCondition(list<string> paramSpace, string condStr);
+string simplifySimpleCondition(list<string> paramSpace, string condStr);
 list<string> commaSeparatedVariablesToList(string vars);
+bool isConditionObvious(list<string> paramSpace, string cond);
+string send_to_omega(string str);
 
 string trimAll(string str);
 string removeWS(string str);
@@ -122,6 +124,42 @@ string SetIntersector::inverse(string dep_set){
     return ret_val.str();
 }
 
+string SetIntersector::intersect(string set1, string set2){
+    stringstream ret_val;
+    ret_val << "symbolic ";
+    set<string>::iterator sym_itr;
+    for(sym_itr=symbolic_vars.begin(); sym_itr != symbolic_vars.end(); ++sym_itr) {
+        string sym_var = *sym_itr;
+        if( sym_itr!=symbolic_vars.begin() )
+            ret_val << ", ";
+        ret_val << sym_var;
+    }
+    ret_val << ";" << endl;
+
+    ret_val << "s1 := " << set1 << ";" << endl;
+    ret_val << "s2 := " << set2 << ";" << endl;
+    ret_val << "s1 intersection s2;" << endl;
+
+    return ret_val.str();
+}
+
+string SetIntersector::simplify(string set){
+    stringstream ret_val;
+    ret_val << "symbolic ";
+    std::set<string>::iterator sym_itr;
+    for(sym_itr=symbolic_vars.begin(); sym_itr != symbolic_vars.end(); ++sym_itr) {
+        string sym_var = *sym_itr;
+        if( sym_itr!=symbolic_vars.begin() )
+            ret_val << ", ";
+        ret_val << sym_var;
+    }
+    ret_val << ";" << endl;
+
+    ret_val << "s1 := " << set << ";" << endl;
+    ret_val << "s1;" << endl;
+
+    return ret_val.str();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -435,7 +473,7 @@ string skipToNext(istream &ifs){
 }
 
 string trim(string in){
-    int i;
+    unsigned int i;
     for(i=0; i<in.length(); ++i){
         if(in[i] != ' ')
             break;
@@ -500,6 +538,81 @@ list<string> commaSeparatedVariablesToList(string vars){
     return varList;
 }
 
+bool isConditionObvious(list<string> paramSpace, string cond){
+    string base, var, conditions, set;
+    stringstream ret_val;
+    std::set<string> fake_it;
+
+    fake_it.insert("BB");
+    SetIntersector setIntersector(fake_it);
+
+    base = "{[";
+    while( !paramSpace.empty() ){
+        unsigned int pos;
+        string tmpCond = paramSpace.front();
+        paramSpace.pop_front();
+
+       // elements of paramSpace should have the form
+       // k=0..BB-1  _or_   m=k+1..BB-1  _or_  n=k+1..BB-1  _etc_
+        pos = tmpCond.find("=");
+        assert( pos != string::npos );
+        var = tmpCond.substr(0,pos);
+        base += var;
+        if( !paramSpace.empty() )
+            base += ",";
+        tmpCond = tmpCond.substr(pos+1);
+
+        pos = tmpCond.find("..");
+        assert( (pos != string::npos) && (pos+2 < tmpCond.length()) );
+        conditions += tmpCond.substr(0,pos)+"<="+var+"<="+tmpCond.substr(pos+2);
+        if( !paramSpace.empty() )
+            conditions += " && ";
+    }
+    base += "]: ";
+    set = base+conditions+"}";
+    cond = base+cond+"}";
+
+    string str_for_omega = setIntersector.simplify(set);
+    set = send_to_omega(str_for_omega);
+
+    str_for_omega = setIntersector.intersect(set, cond);
+    string result = send_to_omega(str_for_omega);
+    
+//    cout << set << "\n" << cond << "\n" << result << "\n" << endl;
+
+    // If the result of the intersection was the same as the original set, then
+    // the condition is obvious (unnecessary), otherwise it is usefull.
+    if( set.compare(result) )
+        return false;
+    else
+        return true;
+
+}
+
+string send_to_omega(string str){
+    fstream filestr ("/tmp/oc_in.txt", fstream::out);
+    filestr << str << endl;
+    filestr.close();
+
+    FILE *pfp = popen( (omegaHome+"/omega_calc/obj/oc /tmp/oc_in.txt").c_str(), "r");
+    stringstream data;
+    char buffer[256];
+    while (!feof(pfp)){
+        if (fgets(buffer, 256, pfp) != NULL){
+            data << buffer;
+        }
+    }
+    pclose(pfp);
+    // Read the dependency that comes out of Omega
+    string line;
+    while( getline(data, line) ){
+        if( (line.find("#") == string::npos) && !line.empty() ){
+            break;
+        }
+    }
+    return line;
+}
+
 // 0 <= k <= n-2, m-2    =>  (0 <= k & k <= n-2 & k <= m-2)
 // 1 <= k < n,m < BB     =>  (1 <= k & k < n & k < m & n < BB & m < BB)
 // Simplification algorithm: 
@@ -511,10 +624,10 @@ list<string> commaSeparatedVariablesToList(string vars){
 //             emit "lvi co rvi"
 //             if not last
 //                 emit "&"
-string simplifySimpleCondition( string condStr ){
+string simplifySimpleCondition(list<string> paramSpace, string condStr ){
     string resultCond;
     int compOpLen;
-    bool firstIteration=true;
+    bool newConditionsAdded=false;
 
     unsigned int pos = condStr.find("<");
 
@@ -540,38 +653,47 @@ string simplifySimpleCondition( string condStr ){
             rlv = commaSeparatedVariablesToList( condStr );
         }
 
-        if( !firstIteration )
-            resultCond += " & ";
-
+        // before I reset the boolean, store the value that came from the previous iteration
+        bool appendingToOldConditions = newConditionsAdded;
+        newConditionsAdded = false;
         while (!llv.empty()) {
             string lvi = llv.front();
             llv.pop_front();
             list<string>::iterator itr;
             for (itr=rlv.begin(); itr!=rlv.end(); ++itr) {
                 string rvi = *itr;
-                resultCond += lvi+compOp+rvi;
-                // if there are more variables in the lists, add a "&" to the condition.
-                if (!llv.empty() || *itr!=rlv.back() )
+                string newCond = lvi+compOp+rvi;
+                if( isConditionObvious(paramSpace, newCond) )
+                    continue;
+                if( newConditionsAdded || appendingToOldConditions )
                     resultCond += " & ";
+                resultCond += newCond;
+                newConditionsAdded = true;
             }
         }
         // <- (1 <= k  &  k < n &  k <m  &  n< BB & ) ? D DSSSSM(k-1,n,m) 
 
 
         pos = npos;
-        firstIteration=false;
     }
 
     return resultCond;
 }
 
-string simplifyCondition(string condStr){
+string simplifyCondition(list<string> paramSpace, string condStr){
     string resultCond;
-    int loglOpLen;
+    int loglOpLen=2;
+    bool appendingToOldConditions = false;
+
+    // For now we cannot handle mixed logical operators, only "&" (or "&&").
+    if( condStr.find_first_of("|") != string::npos ){
+        cerr << "Warning: logical OR found in condition, aborting simplification" << endl;
+        return condStr;
+    }
 
     // If the condition is a logical combination of multiple simpler
     // conditions, process each simple condition individually. 
-    unsigned int pos = condStr.find_first_of("&|");
+    unsigned int pos = condStr.find_first_of("&");
     while( pos != string::npos ){
         // See if Omega uses the double symbols "&&" and "||" or the single "&" and "|"
         if( condStr.find("&&") != string::npos || condStr.find("||") != string::npos ){
@@ -580,14 +702,25 @@ string simplifyCondition(string condStr){
             loglOpLen = 1;
         }
         // Take the first simple condition, clean it and put it in a new string
-        resultCond += simplifySimpleCondition( condStr.substr(0,pos) );
-        // Add the logical operator to the new string
-        resultCond += " "+condStr.substr(pos,loglOpLen)+" ";
+        string simpleCond = simplifySimpleCondition(paramSpace, condStr.substr(0,pos) );
+        if( !simpleCond.empty() ){
+            // Add the simplified condition and the logical operator to the new string
+            if( appendingToOldConditions )
+                resultCond += " "+string(loglOpLen,'&')+" ";
+            resultCond += simpleCond;
+            appendingToOldConditions = true;
+        }
 
         condStr = condStr.substr(pos+loglOpLen);
         pos = condStr.find_first_of("&|");
     }
-    resultCond += simplifySimpleCondition( condStr );
+    // Deal with the remaining part of the condition (after the last logical operator).
+    string simpleCond = simplifySimpleCondition(paramSpace, condStr );
+    if( !simpleCond.empty() ){
+        if( appendingToOldConditions )
+            resultCond += " "+string(loglOpLen,'&')+" ";
+        resultCond += simpleCond;
+    }
 
     // return the new string containing the cleaned condition.
     return resultCond;
@@ -1051,7 +1184,7 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
         }
     }
 
-    cond = simplifyCondition(cond);
+    cond = simplifyCondition(currTask.paramSpace, cond);
 
     //
     // Manipulation is over, output code follows
@@ -1106,7 +1239,6 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
 
     if( isInversed ){
 
-//        ss << "\n  /*" << lcl_sV[dep.dstArray] << " = " << dep.dstArray << "*/\n";
         ss0.str( "" );
         ss0 << "/*" << lcl_sV[dep.dstArray] << " == " << dep.dstArray << "*/";
         if( final_dep.localAlias.empty() )
@@ -1119,7 +1251,6 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
         }
   
         if( dep.source.find("IN") == string::npos ){
-            //ss << "  /*" << rmt_sV[dep.srcArray] << " = " << dep.srcArray << "*/\n";
             ss0.str( "" );
             ss0 << "/*" << rmt_sV[dep.srcArray] << " == " << dep.srcArray << "*/";
             final_dep.remoteAliases.push_back( ss0.str() );
@@ -1132,9 +1263,11 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
         if( !final_dep.type.compare("OUT") )
             final_dep.type = "INOUT";
 
-//        ss << "  IN " << lcl_sV[dep.dstArray] << " <- ";
         ss0.str("");
-        ss0 << "<- (" << cond << ") ? ";
+        if( !cond.empty() )
+            ss0 << "<- (" << cond << ") ? ";
+        else
+            ss0 << "<- ";
         // If we are receiving from IN, strip the fake array indices that are in the petit file
         // and put in the actual parameters of the source Task.
         // Alternatively, we could use the fact that the dstArray has a literal meaning and it
@@ -1151,10 +1284,6 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
         string iE = makeMinorFormatingChanges(ss0.str());
         final_dep.inEdges.push_back(iE);
     }else{
-//        map<string,string> lcl_sV = thisTask.symbolicVars;
-//        map<string,string> rmt_sV = peerTask.symbolicVars;
-
-//        ss << "\n  /*" << lcl_sV[dep.srcArray] << " == " << dep.srcArray << "*/\n";
         ss0.str("");
         ss0 << "/*" << lcl_sV[dep.srcArray] << " == " << dep.srcArray << "*/";
         if( final_dep.localAlias.empty() )
@@ -1168,7 +1297,6 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
         final_dep.localAlias = ss0.str();
 
         if( dep.sink.find("OUT") == string::npos ){
-//            ss << "  /*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/\n";
             ss0.str("");
             ss0 << "/*" << rmt_sV[dep.dstArray] << " == " << dep.dstArray << "*/";
             final_dep.remoteAliases.push_back( ss0.str() );
@@ -1181,9 +1309,11 @@ bool processDep(dep_t dep, string iv_set, task_t &currTask, bool isInversed){
         if( !final_dep.type.compare("IN") )
             final_dep.type = "INOUT";
 
-//        ss << "  OUT " << lcl_sV[dep.srcArray] << " -> ";
         ss0.str("");
-        ss0 << "-> (" << cond << ") ? ";
+        if( !cond.empty() )
+            ss0 << "-> (" << cond << ") ? ";
+        else
+            ss0 << "-> ";
         // If we are sending to OUT, strip the fake array indices that are in the petit file
         // and put in the actual parameters of the destination Task.
         if( dep.sink.find("OUT") != string::npos ){
@@ -1269,7 +1399,7 @@ bool isExpressionOrConst(string var){
         return true;
     }
 
-    for(int i=0; i<var.length(); ++i){
+    for(unsigned int i=0; i<var.length(); ++i){
         if( !isdigit(var[i]) ){
             isNumber = false;
             break;
@@ -1296,12 +1426,14 @@ void mergeLists(void){
     set<string> fake_it;
 
     fake_it.insert("BB");
+/*
     fake_it.insert("step");
     fake_it.insert("NT");
     fake_it.insert("ip");
     fake_it.insert("proot");
     fake_it.insert("P");
     fake_it.insert("B");
+*/
 
     SetIntersector setIntersector(fake_it);
 
@@ -1320,7 +1452,6 @@ void mergeLists(void){
         for(fd_itr=flow_deps.begin(); fd_itr != flow_deps.end(); ++fd_itr) {
             dep_t f_dep = static_cast<dep_t>(*fd_itr);
             int fd_srcLine = f_dep.srcLine;
-            int fd_dstLine = f_dep.dstLine;
             if( fd_srcLine == source ){
                 rlvnt_flow_deps.push_back(f_dep);
             }
@@ -1505,7 +1636,6 @@ void mergeLists(void){
             }
 
             // OUT Edges (if any)
-            e_itr;
             for(e_itr=fnl_dep.outEdges.begin(); e_itr != fnl_dep.outEdges.end(); ++e_itr) {
                 if( e_itr!=fnl_dep.outEdges.begin() || !fnl_dep.inEdges.empty() )
                     cout << "        ";
