@@ -125,7 +125,11 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     int i, count, array_index, bit_index, current_mask;
 
     remote_dep_reset_forwarded(eu_context);
-    
+   
+#if defined(DPLASMA_DEBUG)
+    memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
+#endif
+ 
     remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
     remote_deps->msg.function = (uintptr_t) function;
@@ -133,12 +137,6 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
-#if defined(DPLASMA_DEBUG)
-    for(int i = function->nb_locals; i < MAX_LOCAL_COUNT; i++)
-    {
-        remote_deps->msg.locals[i] = 0;
-    }
-#endif
     remote_dep_get_datatypes(remote_deps);
 
     for( i = 0; remote_deps_count; i++) {
