@@ -558,7 +558,7 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
         MPI_Aint lb, size;
         MPI_Type_get_extent(dep_dtt, &lb, &size);
         DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size * dep_count);
     }
 #endif
 
@@ -760,7 +760,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
         MPI_Aint lb, size;
         MPI_Type_get_extent(datakey_dtt, &lb, &size);
         DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size * datakey_count);
     }
 #endif
 }
