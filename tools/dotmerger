@@ -1,0 +1,18 @@
+#!/bin/sh
+
+echo "digraph G {"
+
+export i=0
+for f in $*; do
+    echo "subgraph cluster_$i {"
+    echo "label = \"rank $i\";"
+    grep -v '^digraph\ G\ {' $f | grep -v "^{$" | grep -v "^}$" | grep -v ' -> '
+    echo "}";
+    export i=$((i+1))
+done
+
+for f in $*; do
+    grep ' -> ' $f
+done
+
+echo "}";

@@ -573,7 +573,16 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
     for( i = 0; i < *pargc; i++ ) {
         if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
             if( NULL == __dplasma_graph_file ) {
-                __dplasma_graph_file = fopen( (*pargv)[i+1], "w");
+                int len = strlen((*pargv)[i+1]) + 32;
+                char filename[len];
+#if defined(DISTRIBUTED) && defined(USE_MPI)
+                int rank;
+                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                snprintf(filename, len, "%s%d", (*pargv)[i+1], rank);
+#else
+                snprintf(filename, len, "%s", (*pargv)[i+1]);
+#endif
+                __dplasma_graph_file = fopen( filename, "w");
                 i++;
             }      
         }
