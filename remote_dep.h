@@ -53,7 +53,9 @@ struct dplasma_remote_deps_t {
     struct dplasma_atomic_lifo_t*             origin;
     remote_dep_wire_activate_t                msg;
     uint32_t                                  output_count;
-    struct {
+    struct { /** Never change this structure without understanding the 
+              *   "subtle" relation with  remote_deps_allocation_init in remote_dep.c
+              */
         gc_data_t*                            data;
         dplasma_remote_dep_datatype_t*        type;
         uint32_t*                             rank_bits;

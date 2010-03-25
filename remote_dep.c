@@ -175,7 +175,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
     max_nodes_number = np;
     elem_size = sizeof(dplasma_remote_deps_t) +
                 max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
-                                 sizeof(uint32_t*) + 
+                                 sizeof(uint32_t*) + sizeof(dplasma_remote_dep_datatype_t*) +
                                  sizeof(uint32_t) * (max_nodes_number + 31)/32);
     dplasma_atomic_lifo_construct(&remote_deps_freelist);
 }
