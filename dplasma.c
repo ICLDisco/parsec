@@ -742,7 +742,23 @@ int dplasma_fini( dplasma_context_t** pcontext )
         __dplasma_graph_file = NULL;
     }
 
-    dplasma_stats_dump("-", NULL);
+#if defined(DPLASMA_STATS)
+    {
+        char filename[64];
+        char prefix[32];
+# if defined(DISTRIBUTED) && defined(USE_MPI)
+        int rank, size;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+        snprintf(filename, 64, "dplasma-%d.stats", rank);
+        snprintf(prefix, 32, "%d/%d", rank, size);
+# else
+        snprintf(filename, 64, "dplasma.stats");
+        snprintf(prefix, 32, "");
+# endif
+        dplasma_stats_dump(filename, prefix);
+    }
+#endif
 
     free(context);
     *pcontext = NULL;
