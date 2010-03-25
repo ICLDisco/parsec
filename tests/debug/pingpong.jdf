@@ -24,7 +24,9 @@ INOUT T <- (k==0) ? A(0) : I PONG(k-1)
 
 BODY
 /* no body */
+#if defined(DPLASMA_DEBUG)
 printf("PING(%d) on %d\n", k, rowRANK);
+#endif
 END
 
 
@@ -39,5 +41,7 @@ INOUT I <- T PING(k)
 
 BODY
 /* no body */
+#if defined(DPLASMA_DEBUG)
 printf("PONG(%d) on %d\n", k, rowRANK);
+#endif
 END
