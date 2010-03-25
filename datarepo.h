@@ -278,7 +278,7 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt, const char *tablename, const char *file, int line)
 #else
-# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_used_once(repo, key, usagelmt)
+# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt)
 static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt)
 #endif
 {

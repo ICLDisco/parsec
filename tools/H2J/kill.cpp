@@ -1602,8 +1602,8 @@ void mergeLists(void){
         if( it != taskMap.begin() )
             cout << "\n\n";
         cout << "/*" << string(60,'*') << "\n";
-        cout << " *" << string(20,' ') << task.name << string(20,' ') << "\n";
-        cout << string(60,'*') << "*/\n";
+        cout << " *" << string(24,' ') << task.name << string(24,' ') << "*\n";
+        cout << " " << string(60,'*') << "*/\n";
         cout << task.name << "\n";
 
         // Print the parameter space bounds
