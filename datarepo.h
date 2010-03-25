@@ -51,7 +51,7 @@ static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled)
         d = (gc_data_t*)( (uintptr_t)d | (uintptr_t)1 );
 
         DEBUG(("Allocating the garbage collectable data %p pointing on data %p, at %s:%d\n",
-               d, d->data, file, line));
+               d, GC_DATA(d), file, line));
         return d;
     } else {
         return (gc_data_t*)data;
