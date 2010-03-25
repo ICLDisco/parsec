@@ -106,9 +106,49 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
     return d;
 }
 
+/**
+ * Hash table:
+ *  Because threads are allowed to use elements deposited in the hash table
+ *  while we are still discovering how many times these elements will be used,
+ *  it is necessary to
+ *     - use a positive reference counting method only.
+ *       Think for example if 10 threads decrement the reference counter, while
+ *       the thread that pushes the element is still counting. The reference counter
+ *       goes negative. Bad.
+ *     - use a retaining facility.
+ *       Think for example that the thread that pushes the element computed for now that
+ *       the limit is going to be 3. While it's still exploring the dependencies, other
+ *       threads use this element 3 times. The element is going to be removed while the
+ *       pushing thread is still exploring, and SEGFAULT will occur.
+ *
+ *  An alternative solution consisted in having a function that will compute how many
+ *  times the element will be used at creation time, and keep this for the whole life 
+ *  of the entry without changing it. But this requires to write a specialized function
+ *  dumped by the precompiler, that will do a loop on the predicates. This was ruled out.
+ *
+ *  The element can still be inserted in the table, counted for some data (not all),
+ *  used by some tasks (not all), removed from the table, then re-inserted when a
+ *  new data arrives that the previous tasks did not depend upon. 
+ *
+ *  Here is how it is used:
+ *    the table is created with data_repo_create_nothreadsafe
+ *    entries can be looked up with data_repo_lookup_entry (no side effect on the counters)
+ *    entries are created using data_repo_lookup_entry_and_create. This turns the retained flag on.
+ *    The same thread that called data_repo_lookup_entry_and_create must eventually call
+ *    data_repo_entry_addto_usage_limit to set the usage limit and remove the retained flag.
+ *    Between the two calls, any thread can call data_repo_lookup_entry and 
+ *    data_repo_entry_used_once if the entry has been "used", but NEVER data_repo_entry_addto_usage_limit or
+ *    data_repo_lookup_entry_and_create on the same repository. When data_repo_entry_addto_usage_limit
+ *    has been called the same number of times as data_repo_lookup_entry_and_create and data_repo_entry_used_once 
+ *    has been called N times where N is the sum of the usagelmt parameters of data_repo_lookup_entry_and_create,
+ *    the entry is garbage collected from the hash table. Notice that the values pointed by the entry
+ *    are not collected.
+ */
+
 typedef struct data_repo_entry {
     volatile uint32_t usagecnt;
     volatile uint32_t usagelmt;
+    volatile uint32_t retained;
     long int key;
     struct data_repo_entry *next_entry;
     gc_data_t *data[1];
@@ -135,7 +175,7 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, 
     return res;
 }
 
-static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key, int create)
+static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
@@ -148,21 +188,51 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
             data_repo_atomic_unlock(&repo->heads[h].lock);
             return e;
         }
+    data_repo_atomic_unlock(&repo->heads[h].lock);
 
-    if( create != 0 ) {
-        e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*));
-        e->next_entry = repo->heads[h].first_entry;
-        repo->heads[h].first_entry = e;
-        e->key = key;
-        repo->heads[h].size++;
-        DPLASMA_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
-        DPLASMA_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
-    }
+    return NULL;
+}
+
+/* If using lookup_and_create, don't forget to call add_to_usage_limit on the same entry when
+ * you're done counting the number of references, otherwise the entry is non erasable.
+ * See comment near the structure definition.
+ */
+static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *repo, long int key)
+{
+    data_repo_entry_t *e;
+    int h = key % repo->nbentries;
+    
+    data_repo_atomic_lock(&repo->heads[h].lock);
+    for(e = repo->heads[h].first_entry;
+        e != NULL;
+        e = e->next_entry)
+        if( e->key == key ) {
+            e->retained = 1; /* Until we update the usage limit */
+            data_repo_atomic_unlock(&repo->heads[h].lock);
+            return e;
+        }
+
+    e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*));
+    e->next_entry = repo->heads[h].first_entry;
+    repo->heads[h].first_entry = e;
+    e->key = key;
+    e->usagelmt = 0;
+    e->usagecnt = 0;
+    e->retained = 1; /* Until we update the usage limit */
+    repo->heads[h].size++;
+    DPLASMA_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+    DPLASMA_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     data_repo_atomic_unlock(&repo->heads[h].lock);
     return e;
 }
 
-static inline void data_repo_entry_used_once(data_repo_t *repo, long int key)
+#if defined(DPLASMA_DEBUG)
+# define data_repo_entry_used_once(repo, key) __data_repo_entry_used_once(repo, key, #repo, __FILE__, __LINE__)
+static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
+#else
+# define data_repo_entry_used_once(repo, key) __data_repo_entry_used_once(repo, key)
+static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
+#endif
 {
     data_repo_entry_t *e, *p;
     int h = key % repo->nbentries;
@@ -178,24 +248,42 @@ static inline void data_repo_entry_used_once(data_repo_t *repo, long int key)
             break;
         }
 
-    if( /*(NULL != e) &&*/ (e->usagelmt == r) ) {
+#ifdef DPLASMA_DEBUG
+    if( NULL == e ) {
+        DEBUG(("entry %ld of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
+    }
+#endif
+    assert( NULL != e );
+
+    if( (e->usagelmt == r) && (0 == e->retained) ) {
+        DEBUG(("entry %p/%ld of hash table %s has 0 usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+               e, e->key, tablename, r, r, file, line));
         if( NULL != p ) {
             p->next_entry = e->next_entry;
         } else {
             repo->heads[h].first_entry = e->next_entry;
         }
-        data_repo_atomic_unlock(&repo->heads[h].lock);
         repo->heads[h].size--;
+        data_repo_atomic_unlock(&repo->heads[h].lock);
         free(e);
         DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
+        DEBUG(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
+               e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
         data_repo_atomic_unlock(&repo->heads[h].lock);
     }
 }
 
-static inline void data_repo_entry_set_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt)
+#if defined(DPLASMA_DEBUG)
+# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
+static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt, const char *tablename, const char *file, int line)
+#else
+# define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_used_once(repo, key, usagelmt)
+static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt)
+#endif
 {
     data_repo_entry_t *e, *p;
+    uint32_t ov, nv;
     int h = key % repo->nbentries;
 
     data_repo_atomic_lock(&repo->heads[h].lock);
@@ -204,20 +292,31 @@ static inline void data_repo_entry_set_usage_limit(data_repo_t *repo, long int k
         e != NULL;
         p = e, e = e->next_entry)
         if( e->key == key ) {
-            e->usagelmt = usagelmt;
+            do {
+                ov = e->usagelmt;
+                nv = ov + usagelmt;
+            } while( !dplasma_atomic_cas_32b( &e->usagelmt, ov, nv) );
+            e->retained = 0;
             break;
         }
 
-    if( /*(NULL != e) &&*/ (usagelmt == e->usagecnt) ) {
+    assert( NULL != e );
+
+    if( (e->usagelmt == e->usagecnt) && (0 == e->retained) ) {
+        DEBUG(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+               e, e->key, tablename, e->usagecnt, e->usagelmt, file, line));
         if( NULL != p ) {
             p->next_entry = e->next_entry;
         } else {
             repo->heads[h].first_entry = e->next_entry;
         }
+        repo->heads[h].size--;
         data_repo_atomic_unlock(&repo->heads[h].lock);
         free(e);
         DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
+        DEBUG(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
+               e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
         data_repo_atomic_unlock(&repo->heads[h].lock);
     }
 }
