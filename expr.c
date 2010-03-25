@@ -112,8 +112,14 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
     case EXPR_OP_BINARY_LESS:
         *v = (v1 < v2);
         break;
+    case EXPR_OP_BINARY_LESS_OR_EQUAL:
+        *v = (v1 <= v2);
+        break;
     case EXPR_OP_BINARY_MORE:
         *v = (v1 > v2);
+        break;
+    case EXPR_OP_BINARY_MORE_OR_EQUAL:
+        *v = (v1 >= v2);
         break;
     case EXPR_OP_BINARY_SHL:
         *v = (v1 << v2);
@@ -356,7 +362,9 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         }
         return EXPR_SUCCESS;
     case EXPR_OP_BINARY_LESS:
+    case EXPR_OP_BINARY_LESS_OR_EQUAL:
     case EXPR_OP_BINARY_MORE:
+    case EXPR_OP_BINARY_MORE_OR_EQUAL:
     case EXPR_OP_BINARY_DIV:
     case EXPR_OP_BINARY_AND:
     case EXPR_OP_BINARY_OR:
@@ -520,11 +528,25 @@ expr_t *expr_new_binary(const expr_t *op1, char op, const expr_t *op2)
             r->value = (op1->value < op2->value);
         }
         return r;
+    case '{':
+        r->op = EXPR_OP_BINARY_LESS_OR_EQUAL;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = (op1->value <= op2->value);
+        }
+        return r;
     case '>':
         r->op = EXPR_OP_BINARY_MORE;
         if( is_constant ) {
             r->flags = EXPR_FLAG_CONSTANT;
             r->value = (op1->value > op2->value);
+        }
+        return r;
+    case '}':
+        r->op = EXPR_OP_BINARY_MORE_OR_EQUAL;
+        if( is_constant ) {
+            r->flags = EXPR_FLAG_CONSTANT;
+            r->value = (op1->value >= op2->value);
         }
         return r;
     case 'L':
@@ -624,10 +646,28 @@ static void expr_dump_binary(FILE *out, unsigned char op, const expr_t *op1, con
         return;
     }
 
+    if( EXPR_OP_BINARY_LESS_OR_EQUAL == op ) {
+        fprintf(out,  " (" );
+        expr_dump(out, op1);
+        fprintf(out,  " <= " );
+        expr_dump(out, op2);
+        fprintf(out,  ") " );
+        return;
+    }
+
     if( EXPR_OP_BINARY_MORE == op ) {
         fprintf(out,  " (" );
         expr_dump(out, op1);
         fprintf(out,  " > " );
+        expr_dump(out, op2);
+        fprintf(out,  ") " );
+        return;
+    }
+
+    if( EXPR_OP_BINARY_MORE_OR_EQUAL == op ) {
+        fprintf(out,  " (" );
+        expr_dump(out, op1);
+        fprintf(out,  " >= " );
         expr_dump(out, op2);
         fprintf(out,  ") " );
         return;

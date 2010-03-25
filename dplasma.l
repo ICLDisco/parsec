@@ -110,7 +110,9 @@ max           { yylval.operand = 'M'; return DPLASMA_OP; }
 "=="           { return DPLASMA_EQUAL; }
 "\!="          { return DPLASMA_NOT_EQUAL; }
 "<"            { return DPLASMA_LESS; }
+"<="           { return DPLASMA_LESS_OR_EQUAL; }
 ">"            { return DPLASMA_MORE; }
+">="           { return DPLASMA_MORE_OR_EQUAL; }
 "="            { return DPLASMA_ASSIGNMENT; }
 [\+\-\*/%\\\|\&\^]  { yylval.operand = yytext[0];
                       return DPLASMA_OP; }

@@ -259,8 +259,14 @@ static char *expression_to_c_inline(const expr_t *e, char* prepend, char *res, i
             case EXPR_OP_BINARY_LESS:
                 WIR((res, reslen, "(%s)<(%s)", lo, ro));
                 break;
+            case EXPR_OP_BINARY_LESS_OR_EQUAL:
+                WIR((res, reslen, "(%s)<=(%s)", lo, ro));
+                break;
             case EXPR_OP_BINARY_MORE:
                 WIR((res, reslen, "(%s)>(%s)", lo, ro));
+                break;
+            case EXPR_OP_BINARY_MORE_OR_EQUAL:
+                WIR((res, reslen, "(%s)>=(%s)", lo, ro));
                 break;
             case EXPR_OP_BINARY_SHL:
                 WIR((res, reslen, "(%s)<<(%s)", lo, ro));
