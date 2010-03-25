@@ -133,6 +133,12 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
+#if defined(DPLASMA_DEBUG)
+    for(int i = function->nb_locals; i < MAX_LOCAL_COUNT; i++)
+    {
+        remote_deps->msg.locals[i] = 0;
+    }
+#endif
     remote_dep_get_datatypes(remote_deps);
 
     for( i = 0; remote_deps_count; i++) {
