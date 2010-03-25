@@ -13,11 +13,24 @@ if( PLASMA_FOUND )
     set_target_properties(mpi_dgesv PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(mpi_dgesv PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
     target_link_libraries(mpi_dgesv dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+
+    add_executable(mpi_dgesv_kmn dgesv.c data_management.c LU_kmn.c)
+    set_target_properties(mpi_dgesv_kmn PROPERTIES LINKER_LANGUAGE Fortran)
+    set_target_properties(mpi_dgesv_kmn PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+    set_target_properties(mpi_dgesv_kmn PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
+    target_link_libraries(mpi_dgesv_kmn dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
   endif( DPLASMA_MPI AND MPI_FOUND )
 
 endif( PLASMA_FOUND )
 
 # add the command to generate the source code
+add_custom_command (
+  OUTPUT LU_kmn.c
+  COMMAND ../../tools/dpc LU_kmn.jdf LU_kmn.c
+  MAIN_DEPENDENCY LU_kmn.jdf
+  DEPENDS dpc
+  )
+
 add_custom_command (
   OUTPUT LU.c
   COMMAND ../../tools/dpc LU.jdf LU.c
