@@ -707,12 +707,12 @@ static char *dplasma_to_data_repo_lookup_entry( const dplasma_t *d, char* prepen
     int i, p;
     static char res[DATA_REPO_LOOKUP_SIZE];
 
-    p = snprintf(res, DATA_REPO_LOOKUP_SIZE, "data_repo_lookup_entry( %s_repo, %s_hash(",
+    p = snprintf(res, DATA_REPO_LOOKUP_SIZE, "data_repo_lookup_entry_and_create( %s_repo, %s_hash(",
                  d->name, d->name);
     for(i = 0; i < d->nb_locals; i++) {
         p += snprintf(res + p, DATA_REPO_LOOKUP_SIZE-p, "%s%s%s", 
                       prepend, d->locals[i]->name,
-                      i == d->nb_locals - 1 ? "), 1 )" : ", ");
+                      i == d->nb_locals - 1 ? "))" : ", ");
     }
     
     return res;
@@ -729,7 +729,7 @@ static char *dep_to_data_repo_lookup_entry( const dep_t *d, char* prepend )
     for(i = 0; i < d->dplasma->nb_locals; i++) {
         p += snprintf(res + p, DATA_REPO_LOOKUP_SIZE-p, "%s%s", 
                       expression_to_c_inline( d->call_params[i], prepend, expr, MAX_EXPR_LEN ),
-                      i == d->dplasma->nb_locals - 1 ? "), 0 )" : ", ");
+                      i == d->dplasma->nb_locals - 1 ? "))" : ", ");
     }
     
     return res;
@@ -1005,20 +1005,20 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
         }
     }
     output("  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n"
-           "    data_repo_entry_set_usage_limit(%s_repo, e%s->key, usage);\n"                         /* line  1 */
-           "    if( NULL != ready_list )\n"                                                           /* line  2 */
-           "      __dplasma_schedule(context, ready_list);\n"                                         /* line  3 */
+           "    data_repo_entry_addto_usage_limit(%s_repo, e%s->key, usage);\n"                            /* line  1 */
+           "    if( NULL != ready_list )\n"                                                                /* line  2 */
+           "      __dplasma_schedule(context, ready_list);\n"                                              /* line  3 */
            "  }\n"
-           "#if defined(DISTRIBUTED)\n"                                                             /* line  4 */
-           "  if( (action_mask & DPLASMA_ACTION_SEND_REMOTE_DEPS) && remote_deps_count ) {\n"       /* line  5 */
-           "    ret += dplasma_remote_dep_activate(context,\n"                                      /* line  6 */
-           "                                       exec_context,\n"
-           "                                       remote_deps,\n"                                  /* line  7 */
-           "                                       remote_deps_count);\n"                           /* line  8 */
-           "  }\n"                                                                                  /* line  9 */
-           "#endif  /* defined(DISTRIBUTED) */\n"                                                   /* line 10 */
-           "  return ret;\n"                                                                        /* line 11 */
-           "}\n\n",                                                                                 /* line 12 */
+           "#if defined(DISTRIBUTED)\n"                                                                  /* line  4 */
+           "  if( (action_mask & DPLASMA_ACTION_SEND_REMOTE_DEPS) && remote_deps_count ) {\n"            /* line  5 */
+           "    ret += dplasma_remote_dep_activate(context,\n"                                           /* line  6 */
+           "                                       exec_context,\n"                                      /* line  7 */
+           "                                       remote_deps,\n"                                       /* line  8 */
+           "                                       remote_deps_count);\n"                                /* line  9 */
+           "  }\n"                                                                                       /* line 10 */
+           "#endif  /* defined(DISTRIBUTED) */\n"                                                        /* line 11 */
+           "  return ret;\n"                                                                             /* line 12 */
+           "}\n\n",                                                                                      /* line 13 */
            /* line  1 */ d->name, d->name);
 }
 
