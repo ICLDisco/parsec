@@ -150,8 +150,9 @@ DGETRF(k)
           -> A(k,k) 
 
  /*IPIV == IPIV(k,k)*/
- OUT IPIV -> (k<NT-1) ? IPIV DGESSM(k,k+1..NT-1)           [PIVOT_VECT]
-          -> IPIV(k,k)                                     [PIVOT_VECT]
+ INOUT IPIV <- IPIV(k,k)                                     [PIVOT_VECT]
+            -> (k<NT-1) ? IPIV DGESSM(k,k+1..NT-1)           [PIVOT_VECT]
+            -> IPIV(k,k)                                     [PIVOT_VECT]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -179,7 +180,7 @@ DSSSSM_OUT(k, n)
   :k % GRIDrows == rowRANK
   :n % GRIDcols == colRANK
   
-  INOUT A <- C1 DSSSSM(k, n, NT-1)
+  INOUT A <- C1 DSSSSM(k, NT-1, n)
           -> A(k, n)
           
 BODY
@@ -204,7 +205,7 @@ DSSSSM(k,m,n)
 
   /*C1 == A(k,n)*/
   INOUT C1 <- (m==k+1) ? C1 DGESSM(k,n)           : C1 DSSSSM(k,m-1,n) 
-           -> (m==NT-1) ? A(k,n) DSSSSM_OUT(k, n) : C1 DSSSSM(k,m+1,n)  
+           -> (m==NT-1) ? A DSSSSM_OUT(k, n)      : C1 DSSSSM(k,m+1,n)  
 
   /*L == A(m,k)*/
   IN L <- L DTSTRF(k,m) 
@@ -267,12 +268,14 @@ DTSTRF(k,m)
           -> (m==NT-1) ? A DTSTRF_OUT(k) : U DTSTRF(k,m+1)  [UPPER_TILE]
 
   /*dL == L(m,k)*/
-  OUT dL -> dL DSSSSM(k,m,k+1..NT-1)                        [LITTLE_L]
-         -> L(m,k)                                          [LITTLE_L]
+  INOUT dL <- L(m,k)
+           -> dL DSSSSM(k,m,k+1..NT-1)                        [LITTLE_L]
+           -> L(m,k)                                          [LITTLE_L]
 
   /*IPIV == IPIV(m,k)*/
-  OUT IPIV -> IPIV DSSSSM(k,m,k+1..NT-1)                    [PIVOT_VECT]
-           -> IPIV(m,k)                                     [PIVOT_VECT]
+  INOUT IPIV <- IPIV(m,k)
+             -> IPIV DSSSSM(k,m,k+1..NT-1)                    [PIVOT_VECT]
+             -> IPIV(m,k)                                     [PIVOT_VECT]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
