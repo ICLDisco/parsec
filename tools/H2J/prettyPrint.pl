@@ -96,9 +96,10 @@ while(my $line=<PETITFILE>){
             my $alias = $1;
             my $tile = $2;
             my $triangle = $4;
-            if( !length $triangle ){
-                $triangle = "LU";
-            }
+
+#            if( !length $triangle ){
+#                $triangle = "LU";
+#            }
 
             switch( $triangle ){
                 case "U"  { my $rPar = index($tile,")");
@@ -113,6 +114,9 @@ while(my $line=<PETITFILE>){
                             my $tmp = substr($tile,0,$rPar);
                             $full_string .= $alias."_u:".$tmp.", 0)|";
                             $full_string .= $alias."_l:".$tmp.", 1)";
+                         }
+                else     {
+                            $full_string .= $alias.":".$tile;
                          }
             }
             $i++;
