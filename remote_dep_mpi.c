@@ -715,7 +715,12 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %d type %s\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, PTR_TO_TAG(msg.deps)+k, type_name));
 #endif         
             MPI_Type_get_extent(dtt, &lb, &size);
-            deps->output[k].data = gc_data_new(malloc(size), 1);
+            /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
+             * the size of the pointed data into the cache_friendliness pointer.
+             * In case of a 0-sized object, we pass 1 to force the creation of a
+             * garbage collectable pointer
+             */
+            deps->output[k].data = gc_data_new(malloc(size), size > 0 ? (uint32_t)size : 1); 
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
             MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
                       dtt, from, PTR_TO_TAG(msg.deps)+k, dep_comm, 

@@ -321,6 +321,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+            DPLASMA_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);

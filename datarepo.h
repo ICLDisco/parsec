@@ -28,25 +28,26 @@ typedef struct gc_data {
 #define GC_ENABLED(d) ( (uintptr_t)(d) & 1 == 1 )
 #define GC_DATA(d) (void*)( GC_ENABLED(d)?(GC_POINTER(d)->data):(d) )
 
-#ifdef DPLASMA_DEBUG
-#define gc_data_new(d, e) __gc_data_new(d, e, __FILE__, __LINE__)
-#else
-#define gc_data_new(d, e) __gc_data_new(d, e)
-#endif
 
 #ifdef DPLASMA_DEBUG
+#define gc_data_new(d, e) __gc_data_new(d, e, __FILE__, __LINE__)
 static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled, const char *file, int line)
 #else
+#define gc_data_new(d, e) __gc_data_new(d, e)
 static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled)
 #endif
 {
     gc_data_t *d;
 
-    if( gc_enabled ) {
+    if( gc_enabled != 0 ) {
         d = (gc_data_t*)malloc(sizeof(gc_data_t));
         d->refcount = 0;
         d->data = data;
         assert( ((uintptr_t)d & (uintptr_t)1) == 0 /* Pointers cannot be odd */ );
+#if defined(DPLASMA_STATS)
+        d->cache_friendliness = gc_enabled;
+        DPLASMA_STAT_INCREASE(mem_communications, gc_enabled + sizeof(gc_data_t) + 2 * STAT_MALLOC_OVERHEAD);
+#endif
         d = (gc_data_t*)( (uintptr_t)d | (uintptr_t)1 );
 
         DEBUG(("Allocating the garbage collectable data %p pointing on data %p, at %s:%d\n",
@@ -99,6 +100,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
             GC_POINTER(d)->data = NULL;
             GC_POINTER(d)->refcount = 0;
 #endif
+            DPLASMA_STAT_DECREASE(mem_communications, sizeof(gc_data_t) + 2*STAT_MALLOC_OVERHEAD + d->cache_friendliness);
             free(GC_POINTER(d));
             return NULL;
         }
