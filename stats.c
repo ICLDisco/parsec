@@ -8,6 +8,7 @@
 #undef stats_h
 #undef DECLARE_STAT
 #undef DECLARE_STATMAX
+#undef DECLARE_STATACC
 #undef DPLASMA_STATS_C_DECLARE
 
 #include <stdio.h>

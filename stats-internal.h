@@ -19,12 +19,17 @@
 #define DECLARE_STATMAX(name)                           \
     volatile uint64_t dplasma_stats_##name##_max = 0
 
+#define DECLARE_STATACC(name)                           \
+    volatile uint64_t dplasma_stats_##name##_acc = 0
+
 #elif defined(DPLASMA_STATS_C_DUMP)
 
 #define DECLARE_STAT(name) \
-    fprintf(statfile, "%s%s" #name "  MAX = %llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", dplasma_stats_##name##_max)
+    fprintf(statfile, "%s%s%-40s\t(MAX)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, dplasma_stats_##name##_max)
 #define DECLARE_STATMAX(name) \
-    fprintf(statfile, "%s%s" #name "  MAX = %llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", dplasma_stats_##name##_max)
+    fprintf(statfile, "%s%s%-40s\t(MAX)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, dplasma_stats_##name##_max)
+#define DECLARE_STATACC(name) \
+    fprintf(statfile, "%s%s%-40s\t(ACC)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, dplasma_stats_##name##_acc)
 
 #else /* no C-magic */
 
@@ -37,6 +42,9 @@
 
 #define DECLARE_STATMAX(name)                           \
     extern volatile uint64_t dplasma_stats_##name##_max
+
+#define DECLARE_STATACC(name)                           \
+    extern volatile uint64_t dplasma_stats_##name##_acc
 
 #define DPLASMA_STAT_INCREASE(name, value)                   \
     __dplasma_stat_increase(&dplasma_stats_##name##_current, \
@@ -83,6 +91,18 @@ static inline void __dplasma_statmax_update(volatile uint64_t *max, uint64_t val
     } while( !dplasma_atomic_cas_64b( max, cv, nv ) );
 }
 
+#define DPLASMA_STATACC_ACCUMULATE(name, value) \
+    __dplasma_statacc_accumulate(&dplasma_stats_##name##_acc, value)
+
+static inline void __dplasma_statacc_accumulate(volatile uint64_t *acc, uint64_t value)
+{
+    uint64_t cv, nv;
+    do {
+        cv = *acc;
+        nv = cv + value;
+    } while( !dplasma_atomic_cas_64b( acc, cv, nv ) );
+}
+
 void dplasma_stats_dump(char *filename, char *prefix);
 
 #define STAT_MALLOC_OVERHEAD (2*sizeof(void*))
@@ -93,9 +113,11 @@ void dplasma_stats_dump(char *filename, char *prefix);
 
 #define DECLARE_STAT(name)
 #define DECLARE_STATMAX(name)
+#define DECLARE_STATACC(name)
 #define DPLASMA_STAT_INCREASE(name, value)
 #define DPLASMA_STAT_DECREASE(name, value)
 #define DPLASMA_STATMAX_UPDATE(n, v)
+#define DPLASMA_STATACC_ACCUMULATE(n, v)
 #define dplasma_stats_dump(f, p)
 
 #endif /* DPLASMA_STATS */
