@@ -728,11 +728,11 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
         if((1<<k) & msg.which)
         {
             dtt = *deps->output[k].type;
+            MPI_Type_get_extent(dtt, &lb, &size);
 #ifdef DPLASMA_DEBUG
             MPI_Type_get_name(dtt, type_name, &len);
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %d type %s\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, PTR_TO_TAG(msg.deps)+k, type_name));
+            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %d type %s extent %d\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, PTR_TO_TAG(msg.deps)+k, type_name, size));
 #endif         
-            MPI_Type_get_extent(dtt, &lb, &size);
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
              * the size of the pointed data into the cache_friendliness pointer.
              * In case of a 0-sized object, we pass 1 to force the creation of a
