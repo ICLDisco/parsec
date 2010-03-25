@@ -55,7 +55,8 @@ int yywrap()
 
 %token DPLASMA_COMMA DPLASMA_OPEN_PAR DPLASMA_CLOSE_PAR DPLASMA_RANGE
 %token DPLASMA_EQUAL DPLASMA_NOT_EQUAL DPLASMA_ASSIGNMENT DPLASMA_QUESTION
-%token DPLASMA_LESS DPLASMA_MORE DPLASMA_COLON
+%token DPLASMA_LESS DPLASMA_MORE DPLASMA_LESS_OR_EQUAL DPLASMA_MORE_OR_EQUAL
+%token DPLASMA_COLON
 %token <number>  DPLASMA_INT
 %token <string>  DPLASMA_VAR
 %token <string>  DPLASMA_BODY
@@ -71,7 +72,7 @@ int yywrap()
 %nonassoc DPLASMA_ASSIGNMENT
 %nonassoc DPLASMA_RANGE
 %left DPLASMA_EQUAL DPLASMA_NOT_EQUAL
-%left DPLASMA_LESS DPLASMA_MORE
+%left DPLASMA_LESS DPLASMA_LESS_OR_EQUAL DPLASMA_MORE DPLASMA_MORE_OR_EQUAL
 %left DPLASMA_OP
 %nonassoc DPLASMA_QUESTION
 %nonassoc DPLASMA_COLON
@@ -511,7 +512,9 @@ expr:     DPLASMA_VAR                                {
         | expr DPLASMA_EQUAL expr                    { $$ = expr_new_binary($1, '=', $3); }
         | expr DPLASMA_NOT_EQUAL expr                { $$ = expr_new_binary($1, '!', $3); }
         | expr DPLASMA_LESS expr                     { $$ = expr_new_binary($1, '<', $3); }
+        | expr DPLASMA_LESS_OR_EQUAL expr            { $$ = expr_new_binary($1, '{', $3); }
         | expr DPLASMA_MORE expr                     { $$ = expr_new_binary($1, '>', $3); }
+        | expr DPLASMA_MORE_OR_EQUAL expr            { $$ = expr_new_binary($1, '}', $3); }
         | expr DPLASMA_RANGE expr                    { $$ = expr_new_binary($1, '.', $3); }
         | expr DPLASMA_QUESTION expr DPLASMA_COLON expr { $$ = expr_new_tertiar($1, $3, $5); }
 ;

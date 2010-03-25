@@ -781,7 +781,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
  */
 int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_context )
 {
-    int i, rc;
+    int i, min, rc;
     const dplasma_t* object = exec_context->function;
     const expr_t** predicates = (const expr_t**)object->preds;
 
@@ -791,16 +791,23 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
         return 0;
     }
 
+    /**
+     * Find the minimum values for all locals. Note this is done
+     * with NULL predicates, so no validation on the values
+     * is performed.
+     */
     for( i = 0; i < object->nb_locals; i++ ) {
-        int min;
         exec_context->locals[i].sym = object->locals[i];
         rc = dplasma_symbol_get_first_value(object->locals[i], NULL,
                                             exec_context->locals, &min);
 	exec_context->locals[i].value = min;
     }
+    /**
+     * Now fix these values, by walking up and down the locals
+     * stack and validate the selected values through the
+     * predicates.
+     */
     for( i = 0; i < object->nb_locals; i++ ) {
-        int min;
-        exec_context->locals[i].sym = object->locals[i];
         rc = dplasma_symbol_get_first_value(object->locals[i], predicates,
                                             exec_context->locals, &min);
         while ( rc != EXPR_SUCCESS ) {
