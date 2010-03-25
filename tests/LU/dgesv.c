@@ -558,7 +558,10 @@ static void create_datatypes(void)
     MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &UPPER_TILE);
     MPI_Type_set_name(UPPER_TILE, "Upper Tile");
     MPI_Type_commit(&UPPER_TILE);
+
     
+    blocklens = (int*)malloc( (count-1) * sizeof(int) );
+    indices = (int*)malloc( (count-1) * sizeof(int) );
     /* LOWER_TILE without the diagonal */
     for( i = 0; i < count-1; i++ ) {
         blocklens[i] = NB - i - 1;
