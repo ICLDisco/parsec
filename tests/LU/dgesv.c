@@ -548,6 +548,7 @@ static void create_datatypes(void)
     blocklens = (int*)malloc( count * sizeof(int) );
     indices = (int*)malloc( count * sizeof(int) );
 
+    /* TODO: are upper and lower swapped there ?? */
     /* UPPER_TILE with the diagonal */
     for( i = 0; i < count; i++ ) {
         blocklens[i] = i + 1;
@@ -582,8 +583,8 @@ static void create_datatypes(void)
     MPI_Type_set_name(PIVOT_VECT, "Pivot vector");
     MPI_Type_commit(&PIVOT_VECT);
     
-    free(blocklens);
-    free(indices);
+/*    free(blocklens);*/ /* MPI takes possession of this ?? */
+/*    free(indices);*/
 #endif
 }
 
