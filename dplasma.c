@@ -778,18 +778,15 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
         exec_context->locals[i].sym = object->locals[i];
         rc = dplasma_symbol_get_first_value(object->locals[i], predicates,
                                             exec_context->locals, &min);
-        if( rc != EXPR_SUCCESS ) {
-        initial_values_one_loop_up:
+        while ( rc != EXPR_SUCCESS ) {
             i--;
             if( i < 0 ) {
                 printf( "Impossible to find initial values. Giving up\n" );
                 return -1;
             }
+
             rc = dplasma_symbol_get_next_value(object->locals[i], predicates,
                                                exec_context->locals, &min );
-            if( rc != EXPR_SUCCESS ) {
-                goto initial_values_one_loop_up;
-            }
         }
     }
     if( i < MAX_LOCAL_COUNT ) {
