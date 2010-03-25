@@ -738,7 +738,12 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
              * In case of a 0-sized object, we pass 1 to force the creation of a
              * garbage collectable pointer
              */
+#if defined(DPLASMA_STATS)
+            assert( size < 0xffffffff );
             deps->output[k].data = gc_data_new(malloc(size), size > 0 ? (uint32_t)size : 1); 
+#else
+            deps->output[k].data = gc_data_new(malloc(size), 1); 
+#endif
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
             MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
                       dtt, from, PTR_TO_TAG(msg.deps)+k, dep_comm, 
