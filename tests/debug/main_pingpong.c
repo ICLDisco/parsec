@@ -140,8 +140,8 @@ static void print_usage(void)
 {
     fprintf(stderr,
             "Mandatory argument:\n"
-            "   number           : the size of the matrix\n"
-            "   number           : Number of PINGs\n"
+            "  -s number         : the size of the matrix\n"
+            "  -n number         : Number of PINGs\n"
             "Optional arguments:\n"
             "   -c --nb-cores    : number of computing threads to use\n");
 }
