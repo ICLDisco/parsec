@@ -113,7 +113,7 @@ DGESSM(k,n)
            -> C1 DSSSSM(k,k+1,n)  
 
   /*L == A(k,k)*/
-  IN L <- A DGETRF(k)                        [LOWER_TILE]
+  IN L <- LU DGETRF(k)                        [LOWER_TILE]
 
   /*IPIV == IPIV(k,k)*/
   IN IPIV <- IPIV DGETRF(k)                  [PIVOT_VECT]
