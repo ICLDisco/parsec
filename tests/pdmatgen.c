@@ -58,6 +58,7 @@
 #define    HPL_POW16         65536.0
 #define    HPL_HALF          0.5
 
+static inline
 void HPL_ladd
 (
    int *                            J,
@@ -126,6 +127,8 @@ void HPL_ladd
  */
 }
 
+
+static inline
 void HPL_lmul
 (
    int *                            K,
@@ -199,6 +202,7 @@ void HPL_lmul
  */
 }
 
+static inline
 void HPL_xjumpm
 (
    const int                        JUMPM,
@@ -302,6 +306,7 @@ void HPL_xjumpm
  */
 static int       ias[2], ics[2], irand[2];
 
+static inline
 void HPL_setran
 (
    const int                        OPTION,
@@ -354,6 +359,7 @@ void HPL_setran
  */
 }
 
+static inline
 void HPL_jumpit
 (
    int *                            MULT,
@@ -406,6 +412,47 @@ void HPL_jumpit
    HPL_setran( 0, IRANM );                  /* irand = IRANM          */
 /*
  * End of HPL_jumpit
+ */
+}
+
+static inline
+double HPL_rand( void )
+{
+/* 
+ * Purpose
+ * =======
+ *
+ * HPL_rand generates  the next number  in the  random  sequence.  This
+ * function  ensures  that this number lies in the interval (-0.5, 0.5].
+ *  
+ * The static array irand contains the information (2 integers) required
+ * to generate the  next number  in the sequence  X(n).  This  number is
+ * computed as X(n) = (2^32 * irand[1] + irand[0]) / d - 0.5,  where the
+ * constant d is the largest 64 bit positive unsigned integer. The array
+ * irand is then  updated  for the generation of the next number  X(n+1)
+ * in  the  random   sequence  as   follows  X(n+1) = a * X(n) + c.  The
+ * constants a and c should have been preliminarily stored in the arrays
+ * ias and ics as 2 pairs of integers.  The initialization of  ias,  ics
+ * and  irand  is performed by the function HPL_setran.
+ *
+ * ---------------------------------------------------------------------
+ */ 
+/*
+ * .. Local Variables ..
+ */
+   int                        j[2];
+/* ..
+ * .. Executable Statements ..
+ */
+   HPL_setran( 3, j );
+/*
+ * return number between -0.5 and 0.5
+ */
+   return( HPL_HALF -
+           (((j[0] & 65535) + ((unsigned)j[0] >> 16) * HPL_POW16) / HPL_DIVFAC * HPL_HALF +
+           (j[1] & 65535) + ((unsigned)j[1] >> 16) * HPL_POW16) / HPL_DIVFAC * HPL_HALF );
+/*
+ * End of HPL_rand
  */
 }
 
