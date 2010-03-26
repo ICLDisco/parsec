@@ -1,6 +1,13 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
+#
+# Do NOT remove this. Make sure it is set to OFF to
+# avoid the spurious output from make, but please don't
+# remove it.
+#
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
 # should we use our own math functions
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
