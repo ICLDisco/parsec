@@ -578,7 +578,7 @@ static void create_datatypes(void)
 
 
     /* Because the type is not spanning on the whole TILE, we need to resize it */    
-    MPI_Type_create_resized(tmp, lb, NB*NB*sizeof(double), &LOWER_TILE);
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LOWER_TILE);
     MPI_Type_set_name(LOWER_TILE, "Lower Tile");
     MPI_Type_commit(&LOWER_TILE);
     MPI_Type_get_extent(LOWER_TILE, &lb, &ub);
