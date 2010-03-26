@@ -594,7 +594,7 @@ static void create_datatypes(void)
 
     
     /* IPIV is a contiguous of size N */
-    MPI_Type_contiguous(N, MPI_INT, &PIVOT_VECT);
+    MPI_Type_contiguous(N*N, MPI_INT, &PIVOT_VECT);
     MPI_Type_set_name(PIVOT_VECT, "Pivot vector");
     MPI_Type_commit(&PIVOT_VECT);
     MPI_Type_get_extent(PIVOT_VECT, &lb, &ub);
