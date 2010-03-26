@@ -537,7 +537,11 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 # endif    
 }
 
-
+/*
+ * These datatype creation function works only when the matrix
+ * is COLUMN major. In case the matrix storage is ROW major
+ * these functions have to be changed.
+ */
 static void create_datatypes(void)
 {
 #if defined(USE_MPI)
@@ -555,15 +559,11 @@ static void create_datatypes(void)
         indices[i] = i * NB;
     }
 
-    printf("NB=%d, sizeof=%d\n", NB, NB*NB*sizeof(double));
-    
     MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &UPPER_TILE);
     MPI_Type_set_name(UPPER_TILE, "Upper Tile");
     MPI_Type_commit(&UPPER_TILE);
     
     MPI_Type_get_extent(UPPER_TILE, &lb, &ub);
-    printf("upper\tlb=%d extent=%d\n", lb, ub);
-    
     
     /* LOWER_TILE without the diagonal */
     for( i = 0; i < count-1; i++ ) {
@@ -572,34 +572,19 @@ static void create_datatypes(void)
     }
 
     MPI_Type_indexed(count-1, blocklens, indices, MPI_DOUBLE, &tmp);
-    MPI_Type_commit(&tmp);
-    MPI_Type_get_extent(tmp, &lb, &ub);
-    printf("tmp\tlb=%d extent=%d\n", lb, ub);
-
-
-    /* Because the type is not spanning on the whole TILE, we need to resize it */    
     MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LOWER_TILE);
     MPI_Type_set_name(LOWER_TILE, "Lower Tile");
     MPI_Type_commit(&LOWER_TILE);
-    MPI_Type_get_extent(LOWER_TILE, &lb, &ub);
-    printf("lower\tlb=%d extent=%d\n", lb, ub);
-
     
     /* LITTLE_L is a LOWER_TILE */
     MPI_Type_dup(LOWER_TILE, &LITTLE_L);
     MPI_Type_set_name(LITTLE_L, "Little L");
     MPI_Type_commit(&LITTLE_L);
-    MPI_Type_get_extent(LITTLE_L, &lb, &ub);
-    printf("L\tlb=%d extent=%d\n", lb, ub);
-
     
     /* IPIV is a contiguous of size N */
     MPI_Type_contiguous(N, MPI_INT, &PIVOT_VECT);
     MPI_Type_set_name(PIVOT_VECT, "Pivot vector");
     MPI_Type_commit(&PIVOT_VECT);
-    MPI_Type_get_extent(PIVOT_VECT, &lb, &ub);
-    printf("IPIV\tlb=%d extent=%d\n", lb, ub);
-
     
     free(blocklens);
     free(indices);
