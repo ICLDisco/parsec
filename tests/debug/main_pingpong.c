@@ -131,6 +131,14 @@ int main(int argc, char ** argv)
     TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
 
     cleanup_dplasma(dplasma);
+
+    if(rank == 0 ) {
+        printf("  %lu bytes moved back and forth %d times in %f time units %g Mb/s latency: %g us\n", 
+               NB*NB*sizeof(double), NT, time_elapsed, 
+               (double)(NT*2*8*NB*NB*sizeof(double)) / (double)time_elapsed / 1000000.0,
+               (double)time_elapsed / (double)(NT*2) * 1000000.0);
+    }
+
     /*** END OF DPLASMA COMPUTATION ***/
     runtime_fini();
     return 0;
