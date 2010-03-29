@@ -660,7 +660,7 @@ static void create_matrix(int N, PLASMA_enum* uplo,
     
     
     plasma_context_t* plasma = plasma_context_self();
-    plasma_tune(PLASMA_FUNC_DGELS, N, N, NRHS);
+    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     double* Abdl;
     double* Lbdl;
     int NB, NT;
@@ -708,26 +708,15 @@ static void create_local(int N, PLASMA_enum* uplo,
     }    
     
     plasma_context_t* plasma = plasma_context_self();
-    plasma_tune(PLASMA_FUNC_DGELS, N, N, NRHS);
-    double* Abdl;
-    double* Lbdl;
+    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     int NB, NT;
     
     NB = PLASMA_NB;
     NT = (N%NB==0) ? (N/NB) : (N/NB+1);
 
     PLASMA_Alloc_Workspace_dgesv(N, &L, &IPIV);
-    Abdl = (double*) plasma_shared_alloc(plasma, NT*NT*PLASMA_NBNBSIZE, PlasmaRealDouble);
-    Lbdl = (double*) plasma_shared_alloc(plasma, NT*NT*PLASMA_IBNBSIZE, PlasmaRealDouble);
-    *dA = plasma_desc_init(Abdl, PlasmaRealDouble,
-                           PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
-                           N, N, 0, 0, N, N);
-    *dL = plasma_desc_init(Lbdl, PlasmaRealDouble,
-                           PLASMA_IB, PLASMA_NB, PLASMA_IBNBSIZE,
-                           N, N, 0, 0, N, N);    
-    
+    free(L); /* it is distributed otherwise */
     plasma_memzero(IPIV, dA->mt*dA->nt*PLASMA_NB, PlasmaInteger);
-    plasma_memzero(dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
     
 #undef L
 #undef IPIV
