@@ -12,6 +12,7 @@
 # define DISTRIBUTED
 #include <mpi.h>
 typedef MPI_Datatype dplasma_remote_dep_datatype_t;
+extern dplasma_remote_dep_datatype_t DPLASMA_DEFAULT_DATA_TYPE;
 #else
 # undef DISTRIBUTED
 typedef void dplasma_remote_dep_datatype_t;
@@ -124,8 +125,6 @@ void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, const dplasma_remote_d
 
 /* Create a default datatype */
 void remote_dep_mpi_create_default_datatype(int tile_size, dplasma_remote_dep_datatype_t base);
-
-extern dplasma_remote_dep_datatype_t DPLASMA_DEFAULT_DATA_TYPE;
 
 #else 
 # define dplasma_remote_dep_init(ctx) (1)
