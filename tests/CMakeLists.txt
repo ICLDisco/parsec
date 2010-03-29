@@ -1,4 +1,5 @@
-Add_Subdirectory(cholesky)
+Add_Subdirectory(pdpotrf)
+Add_Subdirectory(pspotrf)
 Add_Subdirectory(QR)
 Add_Subdirectory(LU)
 Add_Subdirectory(gemm)
