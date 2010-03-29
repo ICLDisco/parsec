@@ -177,17 +177,11 @@ IF (_match_ifort)
     SET(LOCAL_FORTRAN_LINK_FLAGS "-nofor_main")
 ENDIF (_match_ifort)
 
-STRING(REGEX MATCH ".*pgf90$" _match_pgf ${CMAKE_Fortran_COMPILER})
-IF (_match_pgf)
+STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
+IF (_match_ftn)
     MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "-Mnomain -Bstatic -Bstatic_pgi")
-ENDIF (_match_pgf)
-
-STRING(REGEX MATCH ".*mpif90$" _match_mpif ${CMAKE_Fortran_COMPILER})
-IF (_match_mpif)
-    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "-Mnomain -Bstatic -Bstatic_pgi")
-ENDIF (_match_mpif)
+    SET(LOCAL_FORTRAN_LINK_FLAGS "-Mnomain -Bstatic")
+ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
 
