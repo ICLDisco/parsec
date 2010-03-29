@@ -132,6 +132,12 @@ int main(int argc, char ** argv)
     dplasma_progress(dplasma);
     TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
 
+    if( rank == 0 ) {
+        nbtasks = (1<<(N+1)) + (1 << N) - 2;
+        printf(" %d tasks done in %f s: %f tasks/s, overhead is %f s\n", 
+               nbtasks, time_elapsed, (float)nbtasks/time_elapsed, time_elapsed - (nbtasks*(float)task_duration/1000000.0) / (nodes * cores));
+    }
+
     cleanup_dplasma(dplasma);
     /*** END OF DPLASMA COMPUTATION ***/
     runtime_fini();
