@@ -4,8 +4,9 @@
  *                         reserved.
  */
 
-
+#include "dplasma.h"
 #ifdef USE_MPI
+#include "remote_dep.h"
 #include <mpi.h>
 #endif  /* defined(USE_MPI) */
 
@@ -23,7 +24,6 @@
 #include <../src/context.h>
 #include <../src/allocate.h>
 
-#include "dplasma.h"
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_management.h"
@@ -449,6 +449,22 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     dplasma_context_t *dplasma;
    
     dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
+
+#ifdef USE_MPI
+    /**
+     * Redefine the default type after dplasma_init.
+     */
+    {
+        char type_name[MPI_MAX_OBJECT_NAME];
+    
+        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", NB, NB);
+    
+        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DPLASMA_DEFAULT_DATA_TYPE);
+        MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
+        MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
+    }
+#endif  /* USE_MPI */
+
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
