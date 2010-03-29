@@ -441,7 +441,20 @@ static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 static int remote_dep_mpi_init(dplasma_context_t* context)
 {
     int i, np;
+    int mpi_tag_ub_exists;
+    int MAX_TAG;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
+
+    MPI_Attr_get(dep_comm, MPI_TAG_UB, &MAX_TAG, &mpi_tag_ub_exists);
+    if( !mpi_tag_ub_exists ) {
+        fprintf(stderr, "Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30).\n");
+    } else {
+        if( MAX_TAG < INT_MAX ) {
+            fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which is too small for the current code...\n",
+                    MAX_TAG, (unsigned int)MAX_TAG);
+        }
+    }
+
     MPI_Comm_size(dep_comm, &np);
     
     for(i = 0; i < DEP_NB_REQ; i++)
@@ -548,7 +561,7 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
     
     assert(dep_enabled);
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
-    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data %d\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), PTR_TO_TAG(msg->deps)));
+    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data %d, ptr = %p\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), PTR_TO_TAG(msg->deps), msg));
     //    CRC_PRINT((double**)GC_DATA(msg->deps->output[0]), "S");
     
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
