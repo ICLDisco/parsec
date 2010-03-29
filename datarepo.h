@@ -25,7 +25,7 @@ typedef struct gc_data {
 } gc_data_t;
 
 #define GC_POINTER(d) ((gc_data_t*)( (uintptr_t)(d) & ~( (uintptr_t)1) ))
-#define GC_ENABLED(d) ( (uintptr_t)(d) & 1 == 1 )
+#define GC_ENABLED(d) ( ((uintptr_t)(d) & 1) == 1 )
 #define GC_DATA(d) (void*)( GC_ENABLED(d)?(GC_POINTER(d)->data):(d) )
 
 

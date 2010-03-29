@@ -450,8 +450,8 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
         fprintf(stderr, "Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30).\n");
     } else {
         if( MAX_TAG < INT_MAX ) {
-            fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which is too small for the current code...\n",
-                    MAX_TAG, (unsigned int)MAX_TAG);
+            fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which is too small for the current code (require %d -- 0x%08x)...\n",
+                    MAX_TAG, (unsigned int)MAX_TAG, INT_MAX, (unsigned int)INT_MAX);
         }
     }
 
