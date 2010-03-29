@@ -560,7 +560,7 @@ static void create_datatypes(void)
     }
 
     MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &UPPER_TILE);
-    MPI_Type_set_name(UPPER_TILE, "Upper Tile");
+    MPI_Type_set_name(UPPER_TILE, "Upper");
     MPI_Type_commit(&UPPER_TILE);
     
     MPI_Type_get_extent(UPPER_TILE, &lb, &ub);
@@ -573,17 +573,17 @@ static void create_datatypes(void)
 
     MPI_Type_indexed(count-1, blocklens, indices, MPI_DOUBLE, &tmp);
     MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LOWER_TILE);
-    MPI_Type_set_name(LOWER_TILE, "Lower Tile");
+    MPI_Type_set_name(LOWER_TILE, "Lower");
     MPI_Type_commit(&LOWER_TILE);
     
     /* LITTLE_L is a LOWER_TILE */
     MPI_Type_dup(LOWER_TILE, &LITTLE_L);
-    MPI_Type_set_name(LITTLE_L, "Little L");
+    MPI_Type_set_name(LITTLE_L, "L");
     MPI_Type_commit(&LITTLE_L);
     
-    /* IPIV is a contiguous of size N */
-    MPI_Type_contiguous(N*N, MPI_INT, &PIVOT_VECT);
-    MPI_Type_set_name(PIVOT_VECT, "Pivot vector");
+    /* IPIV is a contiguous of size 1*NB */
+    MPI_Type_contiguous(NB, MPI_INT, &PIVOT_VECT);
+    MPI_Type_set_name(PIVOT_VECT, "IPIV");
     MPI_Type_commit(&PIVOT_VECT);
     
     free(blocklens);
