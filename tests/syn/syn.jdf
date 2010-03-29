@@ -4,8 +4,8 @@ extern "C" %{
 extern char *DataIn;
 #define DATA(n) DataIn
 
-#include <math.h>
-#include <sys/time.h>
+extern void do_down(void);
+extern void do_up(void);
 %}
 
 // Constants
@@ -36,19 +36,7 @@ INOUT T <- (k == 0 ) ? DATA(0)           : T DOWN(k-1, d/2)
 	-> ((k == DEPTH) & ((d%2) == 1)) ? B UP(k-1, d/2)
 	-> (k < DEPTH)                   ? T DOWN(k+1, 2*d..(2*d)+1)
 BODY
-	{
-		struct timeval start, now, end;
-		struct timeval duration = {0, TASKDURATION};
-		double v = 2;
-
-		gettimeofday(&start, NULL);	
-		end = start;
-		timeradd(&start, &duration, &end);
-		do {
-		   v = sqrt(v);		   		   
-		   gettimeofday(&now, NULL);
-		} while( !timercmp(&now, &end, >=) );
-	}
+	do_down();
 END
 
 /**************************************************
@@ -70,17 +58,5 @@ INOUT  A <- (k == (DEPTH-1)) ? T DOWN(k+1, 2*d) : A UP(k+1, 2*d)
 IN     B <- (k == (DEPTH-1)) ? T DOWN(k+1, 2*d+1) : A UP(k+1, 2*d+1)
 
 BODY
-	{
-		struct timeval start, now, end;
-		struct timeval duration = {0, TASKDURATION};
-		double v = 2;
-
-		gettimeofday(&start, NULL);	
-		end = start;
-		timeradd(&start, &duration, &end);
-		do {
-		   v = sqrt(v);		   		   
-		   gettimeofday(&now, NULL);
-		} while( !timercmp(&now, &end, >=) );
-	}
+	do_up();
 END
