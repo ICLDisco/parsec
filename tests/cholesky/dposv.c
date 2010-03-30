@@ -301,7 +301,6 @@ static void runtime_init(int argc, char **argv)
                 cores = atoi(optarg);
                 if(cores<= 0)
                     cores=1;
-                ddescA.cores = cores;
                 //printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
 
@@ -406,7 +405,7 @@ static void runtime_init(int argc, char **argv)
         print_usage(); 
         exit(2);
     } 
-
+    ddescA.cores = cores;
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
