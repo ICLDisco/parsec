@@ -464,8 +464,8 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
         if( MAX_MPI_TAG < INT_MAX ) {
             fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
-#endif
         }
+#endif
     }
 
     MPI_Comm_size(dep_comm, &np);
