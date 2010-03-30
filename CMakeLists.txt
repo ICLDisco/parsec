@@ -1,6 +1,13 @@
 cmake_minimum_required (VERSION 2.8)
 project (DPLASMA C Fortran)
 
+#
+# Do NOT remove this. Make sure it is set to OFF to
+# avoid the spurious output from make, but please don't
+# remove it.
+#
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
 # should we use our own math functions
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
@@ -41,11 +48,12 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 #
 # check for the CPU we build for
 #
-EXECUTE_PROCESS(
-    COMMAND ${CMAKE_C_COMPILER} -dumpmachine
-    OUTPUT_VARIABLE MACHINE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+#EXECUTE_PROCESS(
+#    COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+#    OUTPUT_VARIABLE MACHINE
+#    OUTPUT_STRIP_TRAILING_WHITESPACE
+#)
+set(MACHINE "x86_64")
 MESSAGE(STATUS "Building for target ${MACHINE}")
 
 STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${MACHINE})
@@ -168,6 +176,12 @@ IF (_match_ifort)
     MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
     SET(LOCAL_FORTRAN_LINK_FLAGS "-nofor_main")
 ENDIF (_match_ifort)
+
+STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
+IF (_match_ftn)
+    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "-Mnomain -Bstatic")
+ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
 

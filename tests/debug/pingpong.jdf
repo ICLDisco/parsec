@@ -24,7 +24,7 @@ INOUT T <- (k==0) ? A(0) : I PONG(k-1)
 
 BODY
 /* no body */
-printf("PING(%d) on %d\n", k, rowRANK);
+DEBUG(("PING(%d) on %d\n", k, rowRANK));
 END
 
 
@@ -39,5 +39,5 @@ INOUT I <- T PING(k)
 
 BODY
 /* no body */
-printf("PONG(%d) on %d\n", k, rowRANK);
+DEBUG(("PONG(%d) on %d\n", k, rowRANK));
 END

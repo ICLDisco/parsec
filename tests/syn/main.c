@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
-
 #include <math.h>
 
 #include "dplasma.h"
@@ -95,6 +94,109 @@ int nbtasks = -1;
 
 char *DataIn;
 int   N = 0;
+uint64_t nbiter = 0;
+double hack = 0.0;
+
+#define S 8
+void do_nbiter_computation(void)
+{
+    static double **v = NULL;
+    uint64_t i, j, k, n;
+
+    if( v == NULL ) {
+        v = (double**)malloc(S * sizeof(double*));
+        for(i = 0; i < S; i++)
+            v[i] = (double*)calloc(S, sizeof(double));
+        for(i = 0; i < S; i++) {
+            for(j = 0; j < S; j++) {
+                v[i][j] = (double)i+(double)j;
+            }
+        }
+    }
+
+    for(n = 0; n < nbiter; n++) {
+        for(i = 0; i < S; i++) {
+            for(j = 0; j < S; j++) {
+                for(k = 0; k < S; k++) {
+                    v[i][j] = v[i][j] + v[i][k] * v[k][j];
+                }
+            }
+        }
+    }
+
+    for(i = 0; i < S; i++) {
+        for(j = 0; j < S; j++) {
+            hack += v[i][j];
+        }
+    }
+
+}
+#undef S
+
+void do_down(void)
+{
+    do_nbiter_computation();
+}
+
+void do_up(void)
+{
+    do_nbiter_computation();
+}
+
+static void nbiter_calibrate(void)
+{
+    struct timeval start, end, duration;
+    uint64_t microsecs, candidate, best_iter, i, j, k, sum;
+    int nbtry;
+    double best_dist = 1.0, dist;
+
+    nbiter = 1;
+    do_nbiter_computation();
+
+    for(candidate = 1ULL;
+        candidate < (1ULL<<8);
+        candidate = (candidate << 1)) {
+
+        nbiter = candidate;
+
+        sum = 0;
+        for(nbtry = 0; nbtry < 20; nbtry++) {
+            gettimeofday(&start, NULL);	
+            do_nbiter_computation();
+            gettimeofday(&end, NULL);
+            timersub(&end, &start, &duration);
+            microsecs = duration.tv_sec * 1000000 + duration.tv_usec;
+            sum += microsecs;
+        }
+        microsecs = (sum + 19) / 20;
+        assert(microsecs > 0);
+        nbiter = task_duration * candidate / microsecs;
+
+        microsecs = 0;
+        for(nbtry = 0; nbtry < 25; nbtry++) {
+            gettimeofday(&start, NULL);	
+            do_nbiter_computation();
+            gettimeofday(&end, NULL);
+            timersub(&end, &start, &duration);
+            if( duration.tv_sec * 1000000 + duration.tv_usec > microsecs ) {
+                microsecs = duration.tv_sec * 1000000 + duration.tv_usec;
+            }
+        }
+
+        dist = fabs(((double)task_duration - (double)microsecs) / (double)task_duration);
+        if( dist < 1e-2 ) {
+            printf("[%d] Calibration done: with candidate = %llu, we found nbiter = %llu to give at most %lluus (on 25 tests) which was %f%% away from the goal %d\n",
+                   rank, candidate, nbiter, microsecs, dist * 100.0, task_duration);
+            return;
+        } else if ( dist < best_dist ) {
+            best_dist = dist;
+            best_iter = nbiter;
+        }
+    }
+    printf("[%d] Calibration: failed. Best approximation is %f%% away from goal of %d. Taking %llu iterations\n",
+           rank, best_dist*100, task_duration, best_iter);
+    nbiter = best_iter;
+}
 
 int main(int argc, char ** argv)
 {
@@ -105,6 +207,7 @@ int main(int argc, char ** argv)
     //#endif
 
     runtime_init(argc, argv);
+    nbiter_calibrate();
 
     create_data();
 
@@ -131,6 +234,12 @@ int main(int argc, char ** argv)
     TIME_START();
     dplasma_progress(dplasma);
     TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
+
+    if( rank == 0 ) {
+        nbtasks = (1<<(tree_depth+1)) + (1 << tree_depth) - 2;
+        printf(" %d tasks done in %f s: %f tasks/s, overhead is %f s\n", 
+               nbtasks, time_elapsed, (float)nbtasks/time_elapsed, time_elapsed - (nbtasks*(float)task_duration/1000000.0) / (nodes * cores));
+    }
 
     cleanup_dplasma(dplasma);
     /*** END OF DPLASMA COMPUTATION ***/

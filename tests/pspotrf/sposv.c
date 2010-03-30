@@ -4,10 +4,11 @@
  *                         reserved.
  */
 
-
+#include "dplasma.h"
 #ifdef USE_MPI
+#include "remote_dep.h"
 #include <mpi.h>
-#endif /* defined(USE_MPI) */
+#endif  /* defined(USE_MPI) */
 
 #include <getopt.h>
 #include <stdlib.h>
@@ -17,13 +18,12 @@
 
 #include <cblas.h>
 #include <math.h>
-#include <plasma.h>
+#include "plasma.h"
 #include <../src/common.h>
 #include <../src/lapack.h>
 #include <../src/context.h>
 #include <../src/allocate.h>
 
-#include "dplasma.h"
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_management.h"
@@ -40,31 +40,25 @@ static void cleanup_dplasma(dplasma_context_t* context);
 static void warmup_dplasma(dplasma_context_t* dplasma);
 
 static void create_matrix(int N, PLASMA_enum* uplo, 
-                          double** pA1, double** pA2, 
-                          double** pB1, double** pB2, 
-                          double** pL, int** pIPIV,
-                          int LDA, int NRHS, int LDB, 
-                          PLASMA_desc* dA, PLASMA_desc* dL);
-static void create_local(int N, PLASMA_enum* uplo, 
-                         double** pL,
-                         int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL);
+                          float** pA1, float** pA2, 
+                          float** pB1, float** pB2, 
+                          int LDA, int NRHS, int LDB, PLASMA_desc* local);
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void check_matrix(int N, PLASMA_enum* uplo, 
-                         double* A1, double* A2, 
-                         double* B1, double* B2,
-                         double* L, int* IPIV,
-                         int LDA, int NRHS, int LDB, 
-                         PLASMA_desc* dA, PLASMA_desc* dL,
+                         float* A1, float* A2, 
+                         float* B1, float* B2,
+                         int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops);
-static void create_datatypes(void);
 
-static int check_solution(int, int, double*, int, double*, double*, int, double);
-
+static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, float eps);
+static int check_solution(int N, int NRHS, float *A1, int LDA, float *B1, float *B2, int LDB, float eps );
 
 /* timing profiling etc */
 double time_elapsed;
 double sync_time_elapsed;
+
+int dposv_force_nb = 0;
 
 static inline double get_cur_time(){
     double t;
@@ -77,28 +71,28 @@ static inline double get_cur_time(){
 #define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(print) do { \
-TIME_STOP(); \
-printf("[%d] TIMED %f s :\t", rank, time_elapsed); \
-printf print; \
+  TIME_STOP(); \
+  printf("[%d] TIMED %f s :\t", rank, time_elapsed); \
+  printf print; \
 } while(0)
 
 
 #ifdef USE_MPI
 # define SYNC_TIME_START() do { \
-MPI_Barrier(MPI_COMM_WORLD); \
-sync_time_elapsed = get_cur_time(); \
-} while(0)
+    MPI_Barrier(MPI_COMM_WORLD); \
+    sync_time_elapsed = get_cur_time(); \
+  } while(0)
 # define SYNC_TIME_STOP() do { \
-MPI_Barrier(MPI_COMM_WORLD); \
-sync_time_elapsed = get_cur_time() - sync_time_elapsed; \
-} while(0)
+    MPI_Barrier(MPI_COMM_WORLD); \
+    sync_time_elapsed = get_cur_time() - sync_time_elapsed; \
+  } while(0)
 # define SYNC_TIME_PRINT(print) do { \
-SYNC_TIME_STOP(); \
-if(0 == rank) { \
-printf("### TIMED %f s :\t", sync_time_elapsed); \
-printf print; \
-} \
-} while(0)
+    SYNC_TIME_STOP(); \
+    if(0 == rank) { \
+      printf("### TIMED %f s :\t", sync_time_elapsed); \
+      printf print; \
+    } \
+  } while(0)
 
 /* overload exit in MPI mode */
 #   define exit(ret) MPI_Abort(MPI_COMM_WORLD, ret)
@@ -107,12 +101,12 @@ printf print; \
 # define SYNC_TIME_START() do { sync_time_elapsed = get_cur_time(); } while(0)
 # define SYNC_TIME_STOP() do { sync_time_elapsed = get_cur_time() - sync_time_elapsed; } while(0)
 # define SYNC_TIME_PRINT(print) do { \
-SYNC_TIME_STOP(); \
-if(0 == rank) { \
-printf("### TIMED %f doing\t", sync_time_elapsed); \
-printf print; \
-} \
-} while(0)
+    SYNC_TIME_STOP(); \
+    if(0 == rank) { \
+      printf("### TIMED %f doing\t", sync_time_elapsed); \
+      printf print; \
+    } \
+  } while(0)
 #endif
 
 typedef enum {
@@ -138,38 +132,25 @@ PLASMA_enum uplo = PlasmaLower;
 
 PLASMA_desc descA;
 DPLASMA_desc ddescA;
-PLASMA_desc descL;
-DPLASMA_desc ddescL;
-int* _IPIV;
-#if defined(USE_MPI)
-MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
-#endif
-
-/* TODO Remove this ugly stuff */
-extern int dgesv_private_memory_initialization(plasma_context_t*);
-struct dplasma_memory_pool_t *work_pool = NULL;
 
 
 int main(int argc, char ** argv)
 {
     double gflops;
-    double *A1;
-    double *A2;
-    double *B1;
-    double *B2;
-    double *L;
+    float *A1;
+    float *A2;
+    float *B1;
+    float *B2;
     dplasma_context_t* dplasma;
-    
+
     //#ifdef VTRACE
-    // VT_OFF();
+      // VT_OFF();
     //#endif
-    
+
     runtime_init(argc, argv);
-    
+
     if(0 == rank)
-        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
-    else
-        create_local(N, &uplo, &L, &_IPIV, LDA, NRHS, &descA, &descL);
+        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, LDA, NRHS, LDB, &descA);
 
     switch(backend)
     {
@@ -178,69 +159,63 @@ int main(int argc, char ** argv)
 
             if(do_warmup)
             {
-                TIME_START();                
-                plasma_parallel_call_3(plasma_pdgetrf,
-                                       PLASMA_desc, descA,
-                                       PLASMA_desc, descL,
-                                       int*, _IPIV);
+                TIME_START();
+                plasma_parallel_call_2(plasma_pdpotrf, 
+                                       PLASMA_enum, uplo, 
+                                       PLASMA_desc, descA);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
-                            (2*N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+                            (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             }
             TIME_START();
-            plasma_parallel_call_3(plasma_pdgetrf,
-                                   PLASMA_desc, descA,
-                                   PLASMA_desc, descL,
-                                   int*, _IPIV);
+            plasma_parallel_call_2(plasma_pdpotrf,
+                                   PLASMA_enum, uplo,
+                                   PLASMA_desc, descA);
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
-                        gflops = (2*N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+                        gflops = (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             break;
         }
         case DO_DPLASMA: {
             scatter_matrix(&descA, &ddescA);
-            ddescL = ddescA;
-            scatter_matrix(&descL, &ddescL); /* it is 0, but make sure it is */
 
-            create_datatypes();
             //#ifdef VTRACE 
             //    VT_ON();
             //#endif
-            
+    
             /*** THIS IS THE DPLASMA COMPUTATION ***/
             TIME_START();
             dplasma = setup_dplasma(&argc, &argv);
             if(0 == rank)
             {
                 dplasma_execution_context_t exec_context;
-                
+
                 /* I know what I'm doing ;) */
-                exec_context.function = (dplasma_t*)dplasma_find("DGETRF");
+                exec_context.function = (dplasma_t*)dplasma_find("POTRF");
                 dplasma_set_initial_execution_context(&exec_context);
                 dplasma_schedule(dplasma, &exec_context);
             }
             TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
-            
+
             if(do_warmup)
                 warmup_dplasma(dplasma);
-            
+    
             /* lets rock! */
             SYNC_TIME_START();
             TIME_START();
             dplasma_progress(dplasma);
             TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (2*N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
-            
+            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(sync_time_elapsed)));
+
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
             gather_matrix(&descA, &ddescA);
-            gather_matrix(&descL, &ddescL);
             break;
         }
     }
-    
+
     if(0 == rank)
-        check_matrix(N, &uplo, A1, A2, B1, B2, L, _IPIV, LDA, NRHS, LDB, &descA, &descL, gflops);
-    
+        check_matrix(N, &uplo, A1, A2, B1, B2, LDA, NRHS, LDB, &descA, gflops);
+
     runtime_fini();
     return 0;
 }
@@ -261,7 +236,8 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
-            "   -m --dist-matrix : generate tiled matrix in a distributed way\n");
+            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
+            "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
 static void runtime_init(int argc, char **argv)
@@ -280,16 +256,17 @@ static void runtime_init(int argc, char **argv)
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
         {"dist-matrix", no_argument,        0, 'm'},
+        {"block-size",  required_argument,  0, 'B'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
-    
+
 #ifdef USE_MPI
     /* mpi init */
     MPI_Init(&argc, &argv);
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 #else
     nodes = 1;
     rank = 0;
@@ -303,7 +280,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -318,20 +295,19 @@ static void runtime_init(int argc, char **argv)
             case 'd':
                 backend = DO_DPLASMA;
                 break;
-                
+
             case 'c':
                 cores = atoi(optarg);
                 if(cores<= 0)
                     cores=1;
-                ddescA.cores = cores;
                 //printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
-                
+
             case 'n':
                 N = atoi(optarg);
                 //printf("matrix size set to %d\n", N);
                 break;
-                
+
             case 'g':
                 ddescA.GRIDrows = atoi(optarg);
                 break;
@@ -391,6 +367,18 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
                 
+        case 'B':
+                if(optarg)
+                {
+                    dposv_force_nb = atoi(optarg);
+                }
+                else
+                {
+                    fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
+                    exit(2);
+                }
+                break;
+
             case 'h':
                 print_usage();
                 exit(0);
@@ -416,7 +404,7 @@ static void runtime_init(int argc, char **argv)
         print_usage(); 
         exit(2);
     } 
-    
+    ddescA.cores = cores;
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
@@ -424,7 +412,7 @@ static void runtime_init(int argc, char **argv)
         exit(2);
     }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
-    
+
     if(LDA <= 0) 
     {
         LDA = N;
@@ -454,25 +442,36 @@ static void runtime_fini(void)
 }
 
 
+
 static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
-    plasma_context_t* plasma = plasma_context_self();
-    
+   
     dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
+
+#ifdef USE_MPI
+    /**
+     * Redefine the default type after dplasma_init.
+     */
+    {
+        char type_name[MPI_MAX_OBJECT_NAME];
+    
+        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", NB, NB);
+    
+        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DPLASMA_DEFAULT_DATA_TYPE);
+        MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
+        MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
+    }
+#endif  /* USE_MPI */
+
     load_dplasma_objects(dplasma);
-    
-    dgesv_private_memory_initialization(plasma);
-#if 0
-    // TODO: this should be allocated per execution context.
-    work = (double *)plasma_private_alloc(plasma, descL.mb*descL.nb, descL.dtyp);
-#endif
-    
     {
         expr_t* constant;
         
+        constant = expr_new_int( ddescA.nb );
+        dplasma_assign_global_symbol( "NB", constant );
         constant = expr_new_int( ddescA.nt );
-        dplasma_assign_global_symbol( "NT", constant );
+        dplasma_assign_global_symbol( "SIZE", constant );
         constant = expr_new_int( ddescA.GRIDrows );
         dplasma_assign_global_symbol( "GRIDrows", constant );
         constant = expr_new_int( ddescA.GRIDcols );
@@ -481,8 +480,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( ddescA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
-/*        constant = expr_new_int( ddescA.nrst );
-        dplasma_assign_global_symbol( "stileSIZE", constant );        */
+        constant = expr_new_int( ddescA.nrst );
+        dplasma_assign_global_symbol( "stileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
@@ -495,7 +494,7 @@ static void cleanup_dplasma(dplasma_context_t* dplasma)
 #ifdef DPLASMA_PROFILING
     char* filename = NULL;
     
-    asprintf( &filename, "%s.%d.profile", "dgesv", rank );
+    asprintf( &filename, "%s.%d.profile", "dposv", rank );
     dplasma_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DPLASMA_PROFILING */
@@ -518,16 +517,16 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
         if(do_warmup > 1)
         {
             int i, j;
-            double useless = 0.0;
+            float useless = 0.0;
             for( i = 0; i < ddescA.nb; i++ ) {
                 for( j = 0; j < ddescA.nb; j++ ) {
-                    useless += ((double*)ddescA.mat)[i*ddescA.nb+j];
+                    useless += ((float*)ddescA.mat)[i*ddescA.nb+j];
                 }
             }
         }
-        
+
         /* Ok, now get ready for the same thing again. */
-        exec_context.function = (dplasma_t*)dplasma_find("DGETRF");
+        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
         dplasma_set_initial_execution_context(&exec_context);
         dplasma_schedule(dplasma, &exec_context);
     }
@@ -537,194 +536,88 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 # endif    
 }
 
-/*
- * These datatype creation function works only when the matrix
- * is COLUMN major. In case the matrix storage is ROW major
- * these functions have to be changed.
- */
-static void create_datatypes(void)
-{
-#if defined(USE_MPI)
-    int *blocklens, *indices, count, i;
-    MPI_Datatype tmp;
-    MPI_Aint lb, ub;
-
-    count = NB; 
-    blocklens = (int*)malloc( count * sizeof(int) );
-    indices = (int*)malloc( count * sizeof(int) );
-
-    /* UPPER_TILE with the diagonal */
-    for( i = 0; i < count; i++ ) {
-        blocklens[i] = i + 1;
-        indices[i] = i * NB;
-    }
-
-    MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &UPPER_TILE);
-    MPI_Type_set_name(UPPER_TILE, "Upper");
-    MPI_Type_commit(&UPPER_TILE);
-    
-    MPI_Type_get_extent(UPPER_TILE, &lb, &ub);
-    
-    /* LOWER_TILE without the diagonal */
-    for( i = 0; i < count-1; i++ ) {
-        blocklens[i] = NB - i - 1;
-        indices[i] = i * NB + i + 1;
-    }
-
-    MPI_Type_indexed(count-1, blocklens, indices, MPI_DOUBLE, &tmp);
-    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LOWER_TILE);
-    MPI_Type_set_name(LOWER_TILE, "Lower");
-    MPI_Type_commit(&LOWER_TILE);
-    
-    /* LITTLE_L is a LOWER_TILE */
-    MPI_Type_dup(LOWER_TILE, &LITTLE_L);
-    MPI_Type_set_name(LITTLE_L, "L");
-    MPI_Type_commit(&LITTLE_L);
-    
-    /* IPIV is a contiguous of size 1*NB */
-    MPI_Type_contiguous(NB, MPI_INT, &PIVOT_VECT);
-    MPI_Type_set_name(PIVOT_VECT, "IPIV");
-    MPI_Type_commit(&PIVOT_VECT);
-    
-    free(blocklens);
-    free(indices);
-#endif
-}
-
 #undef N
 #undef NB
 
 
 static void create_matrix(int N, PLASMA_enum* uplo, 
-                          double** pA1, double** pA2, 
-                          double** pB1, double** pB2, 
-                          double** pL, int** pIPIV,
-                          int LDA, int NRHS, int LDB, PLASMA_desc* dA, PLASMA_desc* dL)
+                          float** pA1, float** pA2, 
+                          float** pB1, float** pB2, 
+                          int LDA, int NRHS, int LDB, PLASMA_desc* local)
 {
 #define A1      (*pA1)
 #define A2      (*pA2)
 #define B1      (*pB1)
 #define B2      (*pB2)
-#define L       (*pL)
-#define IPIV    (*pIPIV)
     int i, j;
-    
+
     if(do_distributed_generation) 
     {
-        A1 = A2 = B1 = B2 = L = NULL;
-        IPIV = NULL;
+        A1 = A2 = B1 = B2 = NULL;
         return;
     }
     
     if(do_nasty_validations)
     {
-        A1   = (double *)malloc(LDA*N*sizeof(double));
-        A2   = (double *)malloc(LDA*N*sizeof(double));
-        B1   = (double *)malloc(LDB*NRHS*sizeof(double));
-        B2   = (double *)malloc(LDB*NRHS*sizeof(double));
+        A1   = (float *)malloc(LDA*N*sizeof(float));
+        A2   = (float *)malloc(LDA*N*sizeof(float));
+        B1   = (float *)malloc(LDB*NRHS*sizeof(float));
+        B2   = (float *)malloc(LDB*NRHS*sizeof(float));
         /* Check if unable to allocate memory */
         if((!pA1) || (!pA2) || (!pB1) || (!pB2))
         {
             printf("Out of Memory \n ");
             exit(1);
         }
-        
+
         /* generating a random matrix */
-        for (i = 0; i < N; i++)
-            for (j = 0; j < N; j++)
-                A2[LDA*j+i] = A1[LDA*j+i] = 0.5 - (double)rand() / RAND_MAX;
-        for (i = 0; i < N; i++)
-            for (j = 0; j < NRHS; j++)
-                B2[LDB*j+i] = B1[LDB*j+i] = 0.5 - (double)rand() / RAND_MAX;        
-        for( i = 0; i < N; i++ )
-            A2[LDA*i+i] = A1[LDA*i+i] = A1[LDA*i+i] + 10 * N;
+        for ( i = 0; i < N; i++)
+            for ( j = i; j < N; j++) {
+                A2[LDA*j+i] = A1[LDA*j+i] = (float)rand() / RAND_MAX;
+                A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
+            }
+        for ( i = 0; i < N; i++) {
+            A2[LDA*i+i] = A1[LDA*i+i] += 10*N;
+        }
+        /* Initialize B1 and B2 */
+        for ( i = 0; i < N; i++)
+            for ( j = 0; j < NRHS; j++)
+                B2[LDB*j+i] = B1[LDB*j+i] = (float)rand() / RAND_MAX;
     }
     else
-    {
+    {        
         /* Only need A2 */
         A1 = B1 = B2 = NULL;
-        A2 = (double *)malloc(LDA*N*sizeof(double));
+        A2   = (float *)malloc(LDA*N*sizeof(float));
         /* Check if unable to allocate memory */
         if (!A2){
             printf("Out of Memory \n ");
             exit(1);
         }
-        
+
         /* generating a random matrix */
-        for (i = 0; i < N; i++)
-            for (j = 0; j < N; j++)
-                A2[LDA*j+i] = 0.5 - (double)rand() / RAND_MAX;
-        for( i = 0; i < N; i++ )
-            A2[LDA*i+i] = A2[LDA*i+i] + 10 * N;        
+        for ( i = 0; i < N; i++)
+            for ( j = i; j < N; j++) {
+                A2[LDA*j+i] = A2[LDA*i+j] = (float)rand() / RAND_MAX;
+            }
+        for ( i = 0; i < N; i++) {
+            A2[LDA*i+i] = A2[LDA*i+i] + 10 * N;
+        }
     }
     
-    
-    plasma_context_t* plasma = plasma_context_self();
-    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
-    double* Abdl;
-    double* Lbdl;
-    int NB, NT;
-    
-    NB = PLASMA_NB;
-    NT = (N%NB==0) ? (N/NB) : (N/NB+1);
-
-    PLASMA_Alloc_Workspace_dgesv(N, &L, &IPIV);
-    Abdl = (double*) plasma_shared_alloc(plasma, NT*NT*PLASMA_NBNBSIZE, PlasmaRealDouble);
-    Lbdl = (double*) plasma_shared_alloc(plasma, NT*NT*PLASMA_IBNBSIZE, PlasmaRealDouble);
-    *dA = plasma_desc_init(Abdl, PlasmaRealDouble,
-                           PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
-                           N, N, 0, 0, N, N);
-    *dL = plasma_desc_init(Lbdl, PlasmaRealDouble,
-                           PLASMA_IB, PLASMA_NB, PLASMA_IBNBSIZE,
-                           N, N, 0, 0, N, N);    
-    plasma_parallel_call_3(plasma_lapack_to_tile,
-                           double*, A2,
-                           int, LDA,
-                           PLASMA_desc, *dA);
-    
-    plasma_memzero(IPIV, dA->mt*dA->nt*PLASMA_NB, PlasmaInteger);
-    plasma_memzero(dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
-    
+    tiling(uplo, N, A2, LDA, NRHS, local);
 #undef A1
 #undef A2 
 #undef B1 
-#undef B2
-#undef L
-#undef IPIV
-}
-
-static void create_local(int N, PLASMA_enum* uplo, 
-                         double** pL,
-                         int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL)
-{
-#define IPIV    (*pIPIV)
-#define L       (*pL)
-    int i, j;
-    
-    if(do_distributed_generation) 
-    {
-        IPIV = NULL;
-        return;
-    }    
-    
-    plasma_context_t* plasma = plasma_context_self();
-    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
-    int NB, NT;
-    
-    NB = PLASMA_NB;
-    NT = (N%NB==0) ? (N/NB) : (N/NB+1);
-
-    PLASMA_Alloc_Workspace_dgesv(N, &L, &IPIV);
-    free(L); /* it is distributed otherwise */
-    plasma_memzero(IPIV, dA->mt*dA->nt*PLASMA_NB, PlasmaInteger);
-    
-#undef L
-#undef IPIV
+#undef B2 
 }
 
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
 #ifdef USE_MPI
+    MPI_Request * requests;
+    int req_count;
+
     if(do_distributed_generation)
     {
         TIME_START();
@@ -777,43 +670,35 @@ static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 }
 
 static void check_matrix(int N, PLASMA_enum* uplo, 
-                         double* A1, double* A2, 
-                         double* B1, double* B2,
-                         double* L, int* IPIV,
-                         int LDA, int NRHS, int LDB, 
-                         PLASMA_desc* dA, PLASMA_desc* dL,
+                         float* A1, float* A2, 
+                         float* B1, float* B2,  
+                         int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops)
 {    
-    int info_solution;
-    double eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
-    
+    int info_solution, info_factorization;
+    float eps = (float) 1.0e-13;  /* dlamch("Epsilon");*/
+
     printf("\n");
-    printf("------ TESTS FOR PLASMA DGETRF + DTRSMPL + DTRSM  ROUTINE -------  \n");
+    printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
     printf("            Size of the Matrix %d by %d\n", N, N);
     printf("\n");
     printf(" The matrix A is randomly generated for each test.\n");
     printf("============\n");
     printf(" The relative machine precision (eps) is to be %e \n", eps);
-    printf(" Computational tests pass if scaled residuals are less than 60.\n");        
+    printf(" Computational tests pass if scaled residuals are less than 10.\n");        
     if(do_nasty_validations)
     {
-        plasma_context_t* plasma = plasma_context_self();
-        plasma_parallel_call_3(plasma_tile_to_lapack,
-                               PLASMA_desc, *dA,
-                               double*, A2,
-                               int, LDA);
-        plasma_memcpy(L, dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
-        
-        PLASMA_dtrsmpl(N, NRHS, A2, LDA, L, IPIV, B2, LDB);
-        PLASMA_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, N, NRHS, A2,
-                     LDA, B2, LDB);
-        
+        untiling(uplo, N, A2, LDA, local);
+        PLASMA_spotrs(*uplo, N, NRHS, A2, LDA, B2, LDB);
+
+        /* Check the factorization and the solution */
+        info_factorization = check_factorization(N, A1, A2, LDA, *uplo, eps);
         info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
-        
-        if((info_solution == 0)) 
+
+        if((info_solution == 0) && (info_factorization == 0)) 
         {
             printf("****************************************************\n");
-            printf(" ---- TESTING DGETRF + DTRSMPL + DTRSM ... PASSED ! \n");
+            printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED ! \n");
             printf("****************************************************\n");
             printf(" ---- GFLOPS ............................. %.4f\n", gflops);
             printf("****************************************************\n");
@@ -821,7 +706,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
         else 
         {
             printf("*****************************************************\n");
-            printf(" ---- TESTING DGETRF + DTRSMPL + DTRSM ... FAILED !  \n");
+            printf(" ---- TESTING DPOTRF + DPOTRS ............ FAILED !  \n");
             printf("*****************************************************\n");
         }
         free(A1); free(B1); free(B2);
@@ -829,44 +714,104 @@ static void check_matrix(int N, PLASMA_enum* uplo,
     else
     {
         printf("****************************************************\n");
-        printf(" ---- TESTING DGETRF + DTRSMPL + DTRSM ... SKIPPED !\n");
+        printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
         printf("****************************************************\n");
         printf(" ---- n= %d np= %d nc= %d g= %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
         printf("****************************************************\n");
     }
-    free(A2); free(L); free(IPIV);
+    free(A2);
 }
 
 #undef rank
 
 
 /*------------------------------------------------------------------------
- *  Check the accuracy of the solution of the linear system
- */
+ * *  Check the factorization of the matrix A2
+ * */
+static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, float eps)
+{
+    float Anorm, Rnorm;
+    float alpha;
+    char norm='I';
+    int info_factorization;
+    int i,j;
+    
+    float *Residual = (float *)malloc(N*N*sizeof(float));
+    float *L1       = (float *)malloc(N*N*sizeof(float));
+    float *L2       = (float *)malloc(N*N*sizeof(float));
+    float *work     = (float *)malloc(N*sizeof(float));
+    
+    memset((void*)L1, 0, N*N*sizeof(float));
+    memset((void*)L2, 0, N*N*sizeof(float));
+    
+    alpha= 1.0;
+    
+    slacpy("ALL", &N, &N, A1, &LDA, Residual, &N);
+    
+    /* Dealing with L'L or U'U  */
+    if (uplo == PlasmaUpper){
+        slacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L1, &N);
+        slacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L2, &N);
+        cblas_strmm(CblasColMajor, CblasLeft, CblasUpper, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
+    }
+    else{
+        slacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L1, &N);
+        slacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L2, &N);
+        cblas_strmm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
+    }
+    
+    /* Compute the Residual || A -L'L|| */
+    for (i = 0; i < N; i++)
+        for (j = 0; j < N; j++)
+            Residual[j*N+i] = L2[j*N+i] - Residual[j*N+i];
+    
+    Rnorm = slange(&norm, &N, &N, Residual, &N, work);
+    Anorm = slange(&norm, &N, &N, A1, &LDA, work);
+    
+    printf("============\n");
+    printf("Checking the Cholesky Factorization \n");
+    printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n",Rnorm/(Anorm*N*eps));
+    
+    if ( isnan(Rnorm/(Anorm*N*eps)) || (Rnorm/(Anorm*N*eps) > 10.0) ){
+        printf("-- Factorization is suspicious ! \n");
+        info_factorization = 1;
+    }
+    else{
+        printf("-- Factorization is CORRECT ! \n");
+        info_factorization = 0;
+    }
+    
+    free(Residual); free(L1); free(L2); free(work);
+    
+    return info_factorization;
+}
 
-int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, double *B2, int LDB, double eps )
+
+/*------------------------------------------------------------------------
+ * *  Check the accuracy of the solution of the linear system
+ * */
+static int check_solution(int N, int NRHS, float *A1, int LDA, float *B1, float *B2, int LDB, float eps )
 {
     int info_solution;
-    double Rnorm, Anorm, Xnorm, Bnorm;
+    float Rnorm, Anorm, Xnorm, Bnorm;
     char norm='I';
-    double alpha, beta;
-    double *work = (double *)malloc(N*sizeof(double));
-
+    float alpha, beta;
+    float *work = (float *)malloc(N*sizeof(float));
     alpha = 1.0;
     beta  = -1.0;
-
-    Xnorm = dlange(&norm, &N, &NRHS, B2, &LDB, work);
-    Anorm = dlange(&norm, &N, &N, A1, &LDA, work);
-    Bnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
-
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
-    Rnorm=dlange(&norm, &N, &NRHS, B1, &LDB, work);
-
+    
+    Xnorm = slange(&norm, &N, &NRHS, B2, &LDB, work);
+    Anorm = slange(&norm, &N, &N, A1, &LDA, work);
+    Bnorm = slange(&norm, &N, &NRHS, B1, &LDB, work);
+    
+    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
+    Rnorm = slange(&norm, &N, &NRHS, B1, &LDB, work);
+    
     printf("============\n");
     printf("Checking the Residual of the solution \n");
     printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));
-
-    if ( isnan(Rnorm/((Anorm*Xnorm+Bnorm)*N*eps)) || (Rnorm/((Anorm*Xnorm+Bnorm)*N*eps) > 60.0) ){
+    
+    if ( isnan(Rnorm/((Anorm*Xnorm+Bnorm)*N*eps)) || Rnorm/((Anorm*Xnorm+Bnorm)*N*eps) > 10.0) {
         printf("-- The solution is suspicious ! \n");
         info_solution = 1;
     }
@@ -874,8 +819,8 @@ int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, double *B2,
         printf("-- The solution is CORRECT ! \n");
         info_solution = 0;
     }
-
+    
     free(work);
-
+    
     return info_solution;
 }

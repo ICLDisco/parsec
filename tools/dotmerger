@@ -1,18 +1,43 @@
 #!/bin/sh
 
-echo "digraph G {"
+export color=""
+export cluster=""
 
-export i=0
-for f in $*; do
-    echo "subgraph cluster_$i {"
-    echo "label = \"rank $i\";"
-    grep -v '^digraph\ G\ {' $f | grep -v "^{$" | grep -v "^}$" | grep -v ' -> '
+merger() {
+    echo "digraph G {"
+
+    export i=0
+    for f in $*; do
+	if [ "$cluster" ]; then
+	    echo "subgraph cluster_$i {"
+	    echo "label = \"rank $i\";"
+	fi
+	if [ "$color" ]; then
+	    grep -v '^digraph\ G\ {' $f | grep -v "^{$" | grep -v "^}$" | grep -v ' -> ' | awk -v FS='"|#' '{ r=sprintf("0x%s", substr($5, 1, 2)); g= sprintf("0x%s", substr($5, 3, 2)); b=sprintf("0x%s", substr($5, 5, 2)); col = sprintf("#%02x%02x%02x", (r+'$((i*24))')%255, g+('$((i*24))')%255, (b+'$((i*24))')%255); sub("#......", col); print $0}' | sed 's/label=\"\([^\"]*\)\"/label=\"\1 ('$i')\"/'
+	else
+	    grep -v '^digraph\ G\ {' $f | grep -v "^{$" | grep -v "^}$" | grep -v ' -> ' | sed 's/label=\"\([^\"]*\)\"/label=\"\1 ('$i')\"/'
+	fi
+	if [ "$cluster" ]; then
+	    echo "}"
+	fi
+	export i=$((i+1))
+    done
+
+    for f in $*; do
+	grep ' -> ' $f
+    done
+
     echo "}";
-    export i=$((i+1))
-done
+}
 
-for f in $*; do
-    grep ' -> ' $f
-done
+if [ "x$1" = "x-color" ]; then
+    export color="yes"
+    shift
+fi
 
-echo "}";
+if [ "x$1" = "x-cluster" ]; then
+    export cluster="yes"
+    shift
+fi
+
+merger $*
