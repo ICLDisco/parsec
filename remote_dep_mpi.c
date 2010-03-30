@@ -433,15 +433,41 @@ static dplasma_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_count 2
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 
+/* Pointers are converted to long to be used as keys to fetch data in the get
+ * rdv protocol. Make sure we can carry pointers correctly.
+ */
 #include <limits.h>
 #if ULONG_MAX < UINTPTR_MAX
 #error "unsigned long is not large enough to hold a pointer!"
 #endif
+static int MAX_MPI_TAG;
+/* This function hashes a tag from a pointer. There is no collision because the 
+ * pointers used to feed it are coming from remote_deps arrays, either from 
+ * static here, or from free_list (a consecutive array as well). Therefore 
+ * we should see no collision until we reach in the order of 
+ * MAX_MPI_TAG/MAX_PARAM_COUNT simultaneous flying messages
+ */
+#define PTR_TO_TAG(ptr) ((int) (((((intptr_t) ptr) / sizeof(dplasma_remote_deps_t)) * MAX_PARAM_COUNT) % MAX_MPI_TAG))
+
 
 static int remote_dep_mpi_init(dplasma_context_t* context)
 {
     int i, np;
+    int mpi_tag_ub_exists;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
+
+    MPI_Attr_get(dep_comm, MPI_TAG_UB, &MAX_MPI_TAG, &mpi_tag_ub_exists);
+    if( !mpi_tag_ub_exists ) {
+        fprintf(stderr, "Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30).\n");
+    } else {
+#ifdef DPLASMA_DEBUG
+        if( MAX_MPI_TAG < INT_MAX ) {
+            fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
+                    MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
+        }
+#endif
+    }
+
     MPI_Comm_size(dep_comm, &np);
     
     for(i = 0; i < DEP_NB_REQ; i++)
@@ -533,10 +559,6 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
 #endif 
 
 
-#include <limits.h>
-#define PTR_TO_TAG(ptr) ((int) (((intptr_t) ptr) & INT_MAX))
-
-
 static int act = 1;
 
 /* Send the activate tag */
@@ -548,7 +570,7 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
     
     assert(dep_enabled);
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
-    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data %d\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), PTR_TO_TAG(msg->deps)));
+    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data %d, ptr = %p\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), PTR_TO_TAG(msg->deps), msg));
     //    CRC_PRINT((double**)GC_DATA(msg->deps->output[0]), "S");
     
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
