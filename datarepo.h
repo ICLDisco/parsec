@@ -258,7 +258,7 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
     assert( NULL != e );
 
     if( (e->usagelmt == r) && (0 == e->retained) ) {
-        DEBUG(("entry %p/%ld of hash table %s has 0 usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+        DEBUG(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
                e, e->key, tablename, r, r, file, line));
         if( NULL != p ) {
             p->next_entry = e->next_entry;

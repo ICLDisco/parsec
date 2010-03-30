@@ -449,18 +449,20 @@ static int MAX_MPI_TAG;
  */
 #define PTR_TO_TAG(ptr) ((int) (((((intptr_t) ptr) / sizeof(dplasma_remote_deps_t)) * MAX_PARAM_COUNT) % MAX_MPI_TAG))
 
-
 static int remote_dep_mpi_init(dplasma_context_t* context)
 {
     int i, np;
     int mpi_tag_ub_exists;
+    int *ub;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
 
-    MPI_Attr_get(dep_comm, MPI_TAG_UB, &MAX_MPI_TAG, &mpi_tag_ub_exists);
+    MPI_Comm_get_attr(dep_comm, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);    
     if( !mpi_tag_ub_exists ) {
+        MAX_MPI_TAG = INT_MAX;
         fprintf(stderr, "Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30).\n");
     } else {
-#ifdef DPLASMA_DEBUG
+        MAX_MPI_TAG = *ub;
+#if defined( DPLASMA_DEBUG )
         if( MAX_MPI_TAG < INT_MAX ) {
             fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
@@ -521,6 +523,7 @@ static int remote_dep_mpi_off(dplasma_context_t* context)
     int i;
 
     assert(dep_enabled == 1);
+
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
         MPI_Cancel(&dep_activate_req[i]); MPI_Request_free(&dep_activate_req[i]);
@@ -614,7 +617,6 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
             {
-                DEBUG(("GET FROM %d for data %d\n", status.MPI_SOURCE, status.MPI_TAG));
                 i -= DEP_NB_CONCURENT; /* shift i */
                 assert(i >= 0);
                 remote_dep_mpi_put_data(&dep_get_buff[i], status.MPI_SOURCE, i);
@@ -698,7 +700,8 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     assert(dep_enabled);
     assert(task->which);
 
-    DEBUG(("which=%lu\n", task->which));
+    DEBUG(("Put data: %lu, TAG = %lu, i = %d, which=%lu\n", 
+           task->deps, PTR_TO_TAG(task->deps), i, task->which));
     for(int k = 0; task->which>>k; k++)
     {
         assert(k < MAX_PARAM_COUNT);

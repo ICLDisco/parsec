@@ -46,3 +46,15 @@ tests/debug/types.c
 tests/debug/mpi_pingpong
 tests/debug/pingpong.c
 tests/LU/LU_kmn.c
+hostfile
+tests/pspotrf/cholesky_ll.c
+tests/pspotrf/cholesky_rl.c
+tests/pspotrf/mpi_sposv_ll
+tests/pspotrf/mpi_sposv_rl
+tests/pspotrf/sposv_ll
+tests/pspotrf/sposv_rl
+\.\#*
+tests/pdpotrf/dposv_ll
+tests/pdpotrf/dposv_rl
+tests/pdpotrf/mpi_dposv_ll
+tests/pdpotrf/mpi_dposv_rl
