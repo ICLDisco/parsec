@@ -6,7 +6,7 @@ project (DPLASMA C Fortran)
 # avoid the spurious output from make, but please don't
 # remove it.
 #
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # should we use our own math functions
 option(DPLASMA_MPI
