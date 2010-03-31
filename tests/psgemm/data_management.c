@@ -386,7 +386,7 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 /*     } */
 /* #ifdef USE_MPI */
 /*     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank); */
-/*     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_DOUBLE, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE); */
+/*     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_FLOAT, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE); */
 /*     return plasma_A((PLASMA_desc *)Ddesc, m, n); */
 /* #else */
 /*     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__); */
@@ -557,7 +557,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                 target = (float *)plasma_A(Pdesc, j*Ddesc->nrst, i*Ddesc->ncst);
                 for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
                 {                                        
-                    MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
+                    MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_FLOAT, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
                     k++;
                     target += Ddesc->lmt * Ddesc->bsiz;
                     if(0 == (k % 4)) 
@@ -593,7 +593,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                     
                     for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
                     {                                        
-                        MPI_Irecv(&(((float*)Ddesc->mat)[pos]), tile_size * Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &((*reqs)[k]));
+                        MPI_Irecv(&(((float*)Ddesc->mat)[pos]), tile_size * Ddesc->bsiz, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &((*reqs)[k]));
                         pos += tile_size * Ddesc->bsiz;
                         k++;
 			if(0 == (k %4))
@@ -638,7 +638,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 if (rank == 0)
                     memcpy(plasma_A(Pdesc, i, j ), dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(float)) ;
                 else
-                    MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &reqs[req_count++] );
+                    MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_FLOAT, rank, 1, MPI_COMM_WORLD, &reqs[req_count++] );
             }
     }
     else
@@ -648,7 +648,7 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             {
                 rank = dplasma_get_rank_for_tile(Ddesc, i, j);
                 if (rank == Ddesc->mpi_rank)
-                    MPI_Isend( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &reqs[req_count++] );
+                    MPI_Isend( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &reqs[req_count++] );
             }
         
     }
