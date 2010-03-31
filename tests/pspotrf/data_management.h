@@ -105,7 +105,7 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
 int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
 
 /* translate a position in the matrix buffer to the tile it belongs */
-void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile);
+void pos_to_coordinate(DPLASMA_desc * Ddesc, float * position, tile_coordinate_t * tile);
 
 
 /************************************************************************

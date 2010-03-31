@@ -855,11 +855,7 @@ typedef struct dist_tiles{
   given a position in the matrix array, retrieve to which tile it belongs
 
  */
-<<<<<<< local
-void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile) 
-=======
-static void pos_to_coordinate(DPLASMA_desc * Ddesc, float * position, tile_coordinate_t * tile) 
->>>>>>> other
+void pos_to_coordinate(DPLASMA_desc * Ddesc, float * position, tile_coordinate_t * tile) 
 { 
     int nb_tiles;
     int shift;
