@@ -375,7 +375,8 @@ static int remote_dep_nothread_memcpy(void *dst, gc_data_t *src,
 enum {
     REMOTE_DEP_ACTIVATE_TAG,
     REMOTE_DEP_GET_DATA_TAG,
-    REMOTE_DEP_PUT_DATA_TAG
+    REMOTE_DEP_PUT_DATA_TAG,
+    REMOTE_DEP_MAX_CTRL_TAG
 } dplasma_remote_dep_tag_t;
 
 /* Exported default datatype */
@@ -430,7 +431,7 @@ static MPI_Request* dep_put_rcv_req     = &dep_req[2 * DEP_NB_CONCURENT + DEP_NB
 #define dep_count sizeof(remote_dep_wire_activate_t)
 static dplasma_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
-#define datakey_count 2
+#define datakey_count 3
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
@@ -441,13 +442,22 @@ static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 #error "unsigned long is not large enough to hold a pointer!"
 #endif
 static int MAX_MPI_TAG;
+static int NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG+1;
+#define INC_NEXT_TAG(k) do { \
+    assert(k < MAX_MPI_TAG); \
+    if(NEXT_TAG < (MAX_MPI_TAG - k)) \
+        NEXT_TAG += k; \
+    else \
+        NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG + k + 1; \
+} while(0)
+
 /* This function hashes a tag from a pointer. There is no collision because the 
  * pointers used to feed it are coming from remote_deps arrays, either from 
  * static here, or from free_list (a consecutive array as well). Therefore 
  * we should see no collision until we reach in the order of 
  * MAX_MPI_TAG/MAX_PARAM_COUNT simultaneous flying messages
  */
-#define PTR_TO_TAG(ptr) ((int) (((((intptr_t) ptr) / sizeof(dplasma_remote_deps_t)) * MAX_PARAM_COUNT) % MAX_MPI_TAG))
+/*#define PTR_TO_TAG(ptr) ((int) (((((intptr_t) ptr) / sizeof(dplasma_remote_deps_t)) * MAX_PARAM_COUNT) % MAX_MPI_TAG))*/
 
 static int remote_dep_mpi_init(dplasma_context_t* context)
 {
@@ -543,24 +553,6 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
     return 0;
 }
 
-#define TILE_SIZE (DPLASMA_TILE_SIZE * DPLASMA_TILE_SIZE)
-
-#ifdef CRC_CHECK
-#define CRC_PRINT(data, pos) do \
-{ \
-    double _crc = 0.0f; \
-    int _i; \
-    for(_i = 0; _i < TILE_SIZE; _i++) \
-    { \
-        _crc += ((double*) (data))[_i] * _i; \
-    } \
-    MPI_Comm_rank(MPI_COMM_WORLD, &_i); \
-    printf("[%g:" pos "] on %d\n", _crc, _i); \
-} while(0)
-#else
-#define CRC_PRINT(data, pos)
-#endif 
-
 
 static int act = 1;
 
@@ -573,8 +565,7 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
     
     assert(dep_enabled);
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
-    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith data %d, ptr = %p\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), PTR_TO_TAG(msg->deps), msg));
-    //    CRC_PRINT((double**)GC_DATA(msg->deps->output[0]), "S");
+    DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith datakey %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps));
     
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
@@ -612,7 +603,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
             {
-                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128), i, PTR_TO_TAG(dep_activate_buff[i]->msg.deps)));
+                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith datakey %lx\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128), i, dep_activate_buff[i]->msg.deps));
                 remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, status.MPI_SOURCE, i);
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
@@ -634,7 +625,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     k = i % MAX_PARAM_COUNT;
                     i = i / MAX_PARAM_COUNT;
                     deps = (dplasma_remote_deps_t*) (uintptr_t) dep_get_buff[i].deps;
-                    DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith data %d\n", i, k, status.MPI_TAG));
+                    DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\t(tag=%d)\n", i, k, dep_get_buff[i].deps, status.MPI_TAG));
                     gc_data_unref(deps->output[k].data);
                     //TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
                     dep_get_buff[i].which ^= (1<<k);
@@ -669,9 +660,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     k = i%MAX_PARAM_COUNT;
                     i = i/MAX_PARAM_COUNT;
                     deps = (dplasma_remote_deps_t*) (uintptr_t) dep_activate_buff[i];
-                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith data %d\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, status.MPI_TAG));
-                    //CRC_PRINT(GC_DATA((gc_data_t*) dep_activate_buff[i]->msg.deps), "R");
-                    //                    TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
+                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith datakey na\t(tag=%d)\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, status.MPI_TAG));
+                    TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
                     deps->msg.deps |= 1<<k;
                     remote_dep_release(eu_context, deps);
                     if(deps->msg.which == deps->msg.deps)
@@ -690,6 +680,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 {
     dplasma_remote_deps_t* deps = (dplasma_remote_deps_t*) (uintptr_t) task->deps;
     dplasma_t* function = (dplasma_t*) (uintptr_t) deps->msg.function;
+    int tag = task->tag;
     void* data;
     MPI_Datatype dtt;
 #ifdef DPLASMA_DEBUG
@@ -700,8 +691,6 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     assert(dep_enabled);
     assert(task->which);
 
-    DEBUG(("Put data: %lu, TAG = %lu, i = %d, which=%lu\n", 
-           task->deps, PTR_TO_TAG(task->deps), i, task->which));
     for(int k = 0; task->which>>k; k++)
     {
         assert(k < MAX_PARAM_COUNT);
@@ -710,7 +699,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         dtt = *deps->output[k].type;
 #ifdef DPLASMA_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p type %s\n", to, i, k, PTR_TO_TAG(task->deps)+k, data, type_name));
+        DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p type %s\t(tag=%d)\n", to, i, k, task->deps, data, type_name, tag+k));
 #endif
 
 #if defined(DPLASMA_STATS)
@@ -723,7 +712,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 #endif
 
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
-        MPI_Isend(data, 1, dtt, to, PTR_TO_TAG(task->deps)+k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
+        MPI_Isend(data, 1, dtt, to, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
     }
 }
 
@@ -744,7 +733,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     
     msg.deps =  task->deps;
     msg.which = task->which;
-
+    msg.tag = NEXT_TAG;
+    
     remote_dep_get_datatypes(deps);
     
     assert(dep_enabled);
@@ -756,26 +746,27 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             MPI_Type_get_extent(dtt, &lb, &size);
 #ifdef DPLASMA_DEBUG
             MPI_Type_get_name(dtt, type_name, &len);
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %d type %s extent %d\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, PTR_TO_TAG(msg.deps)+k, type_name, size));
-#endif         
+            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, type_name, size, NEXT_TAG+k));
+#endif
+#if defined(DPLASMA_STATS)
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
              * the size of the pointed data into the cache_friendliness pointer.
              * In case of a 0-sized object, we pass 1 to force the creation of a
              * garbage collectable pointer
-             */
-#if defined(DPLASMA_STATS)
+             */            
             assert( size < 0xffffffff );
             deps->output[k].data = gc_data_new(malloc(size), size > 0 ? (uint32_t)size : 1); 
 #else
             deps->output[k].data = gc_data_new(malloc(size), 1); 
 #endif
-            TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i);
+            TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
             MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
-                      dtt, from, PTR_TO_TAG(msg.deps)+k, dep_comm, 
+                      dtt, from, NEXT_TAG + k, dep_comm, 
                       &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
         }
     }
-    task->deps = 0; /* now this is the number of finished deps */    
+    INC_NEXT_TAG(MAX_PARAM_COUNT);
+    task->deps = 0; /* now this is the mask of finished deps */
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
     MPI_Send(&msg, datakey_count, datakey_dtt, from, 
              REMOTE_DEP_GET_DATA_TAG, dep_comm);
@@ -785,7 +776,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
         MPI_Aint lb, size;
         MPI_Type_get_extent(datakey_dtt, &lb, &size);
         DPLASMA_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size * datakey_count);
+        DPLASMA_STATACC_ACCUMULATE(counter_bytes_sent, size * k);
     }
 #endif
 }
