@@ -60,6 +60,12 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops);
 static void create_datatypes(void);
 
+#if defined(DEBUG_MATRICES)
+static void debug_matrices(void);
+#else
+#define debug_matrices()
+#endif
+
 static int check_solution(int, int, double*, int, double*, double*, int, double);
 
 
@@ -239,6 +245,8 @@ int main(int argc, char ** argv)
         }
     }
     
+    debug_matrices();
+
     if(0 == rank)
         check_matrix(N, &uplo, A1, A2, B1, B2, L, _IPIV, LDA, NRHS, LDB, &descA, &descL, gflops);
     
@@ -956,3 +964,83 @@ int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, double *B2,
 
     return info_solution;
 }
+
+#if defined(DEBUG_MATRICES)
+#if defined(USE_MPI)
+#define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
+#define L(m,n) dplasma_get_local_tile_s(&ddescL, m, n)
+#define descA ddescA
+#define descL ddescL
+#else
+#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#define L(m,n) &(((double*)descL.mat)[descL.bsiz*(m)+descL.bsiz*descL.lmt*(n)])
+#endif
+#define MAXDBLSTRLEN 16
+
+static void debug_matrices(void)
+{
+    int tilem, tilen;
+    int m, n, len, pos;
+    double *a;
+    char *line;
+#if defined(USE_MPI)
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    int rank = 0;
+#endif
+
+    len = 32 + (MAXDBLSTRLEN + 1) * descA.nb;
+    line = (char *)malloc( len );
+
+    for(tilem = 0; tilem < descA.mt; tilem++) {
+        for(tilen = 0; tilen < descA.nt; tilen++) {
+#if defined(USE_MPI)
+            if( dplasma_get_rank_for_tile(&ddescA, tilem, tilen) == rank ) {
+#endif
+                a = A(tilem, tilen);
+                fprintf(stderr, "[%d] A(%d, %d) = \n", rank, tilem, tilen);
+                pos = 0;
+                for(m = 0; m < descA.mb; m++) {
+                    for(n = 0; n < descA.nb; n++) {
+                        pos += snprintf(line + pos, len-pos, "%9.5f ", a[m + descA.mb * n]);
+                    }
+                    fprintf(stderr, "[%d]   %s\n", rank, line);
+                    pos = 0;
+                }
+#if defined(USE_MPI)
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+#endif
+        }
+    }
+
+    for(tilem = 0; tilem < descL.mt; tilem++) {
+        for(tilen = 0; tilen < descL.nt; tilen++) {
+#if defined(USE_MPI)
+            if( dplasma_get_rank_for_tile(&ddescL, tilem, tilen) == rank ) {
+#endif
+                a = L(tilem, tilen);
+                fprintf(stderr, "[%d] dL(%d, %d) = \n", rank, tilem, tilen);
+                pos = 0;
+                for(m = 0; m < descL.mb; m++) {
+                    for(n = 0; n < descL.nb; n++) {
+                        pos += snprintf(line + pos, len-pos, "%9.5f ", a[m + descL.mb * n]);
+                    }
+                    fprintf(stderr, "[%d]   %s\n", rank, line);
+                    pos = 0;
+                }
+#if defined(USE_MPI)
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+#endif
+        }
+    }
+
+    free(line);
+}
+#undef descA
+#undef descL
+#undef A
+#undef L
+#endif /* defined(DEBUG_MATRICES) */

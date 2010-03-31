@@ -90,6 +90,7 @@ int dgesv_private_memory_finalization(void)
 
 #define MAXDBLSTRLEN 16
 
+#if defined(DEBUG_MATRICES)
 static void debug_warning(int core, const char *when, const char *function, int p1, int p2, int p3)
 {
     int m, n, len, pos;
@@ -190,7 +191,12 @@ static void debug_ipiv(int core, int *a, char *name, int tilen, int tilem)
     fprintf(stderr, "[%d/%d]   %s\n", rank, core, line);
     free(line);
 }
-
+#else
+#define debug_ipiv(core, a, name, tilen, tilem)
+#define debug_l(core, a, name, tilen, tilem)
+#define debug_matrix(core, a, name, tilen, tilem)
+#define debug_warning(core, when, function, p1, p2, p3)
+#endif
 %}
 
 /** Globals */

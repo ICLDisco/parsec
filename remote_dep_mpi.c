@@ -634,18 +634,31 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     }
 
                     /* remote_deps cleanup */
-                    deps->output[k].count--;
-                    if(0 == deps->output[k].count)
+                    deps->output_sent_count++;
+                    if(deps->output_count == deps->output_sent_count)
                     {
-                        /* Don't forget to reset the bits */
-                        for(int a = 0; a < (max_nodes_number + 31)/32; a++)
-                            deps->output[k].rank_bits[a] = 0;
-                        deps->output_count--;
-                        if(0 == deps->output_count)
-                        {
-                            dplasma_atomic_lifo_push(deps->origin, 
-                                dplasma_list_item_singleton((dplasma_list_item_t*) deps));
+                        int count;
+
+                        k = 0;
+                        count = 0;
+                        while( count < deps->output_count ) {
+                            for(int a = 0; a < (max_nodes_number + 31)/32; a++)
+                                deps->output[k].rank_bits[a] = 0;
+                            count += deps->output[k].count;
+                            deps->output[k].count = 0;
+#if defined(DPLASMA_DEBUG)
+                            deps->output[k].data = NULL;
+                            deps->output[k].type = NULL;
+#endif
+
                         }
+                        deps->output_count = 0;
+                        deps->output_sent_count = 0;
+#if defined(DPLASMA_DEBUG)
+                        memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
+#endif
+                        dplasma_atomic_lifo_push(deps->origin, 
+                                                 dplasma_list_item_singleton((dplasma_list_item_t*) deps));
                     }
                 }
                 else
