@@ -156,7 +156,7 @@ int main(int argc, char ** argv)
     {
         case DO_PLASMA: {
             plasma_context_t* plasma = plasma_context_self();
-
+#if 0
             if(do_warmup)
             {
                 TIME_START();
@@ -172,6 +172,9 @@ int main(int argc, char ** argv)
                                    PLASMA_desc, descA);
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
                         gflops = (N/1e3*N/1e3*N/1e3/3.0 + N/1e3*N/1e3/2.0)/(time_elapsed)));
+#else
+            printf( "No support for PLASMA dgemm yet." );
+#endif
             break;
         }
         case DO_DPLASMA: {
