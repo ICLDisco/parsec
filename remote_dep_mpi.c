@@ -13,7 +13,7 @@
 #include "freelist.h"
 
 #define DPLASMA_REMOTE_DEP_USE_THREADS
-#define DEP_NB_CONCURENT 1
+#define DEP_NB_CONCURENT 3
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
