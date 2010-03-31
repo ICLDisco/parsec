@@ -616,9 +616,6 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
 #ifdef USE_MPI
-    MPI_Request * requests;
-    int req_count;
-
     if(do_distributed_generation)
     {
         TIME_START();
