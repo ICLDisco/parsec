@@ -285,9 +285,12 @@ static void runtime_init(int argc, char **argv)
         {"plasma",      no_argument,        0, 'p'},
         {"dist-matrix", no_argument,        0, 'm'},
         {"block-size",  required_argument,  0, 'B'},
+        {"internal-block-size", required_argument, 0, 'I'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
+    int block_forced = 0;
+    int internal_block_forced = 0;
 
 #ifdef USE_MPI
     /* mpi init */
@@ -308,7 +311,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:I:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -396,14 +399,26 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
                 
-        case 'B':
+            case 'B':
                 if(optarg)
                 {
-                    dposv_force_nb = atoi(optarg);
+                    block_forced = atoi(optarg);
                 }
                 else
                 {
                     fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
+                    exit(2);
+                }
+                break;
+
+            case 'I':
+                if(optarg)
+                {
+                    internal_block_forced = atoi(optarg);
+                }
+                else
+                {
+                    fprintf(stderr, "Argument is mandatory for -I (--internal-block-size) flag.\n");
                     exit(2);
                 }
                 break;
@@ -434,6 +449,11 @@ static void runtime_init(int argc, char **argv)
         exit(2);
     } 
 
+    if( internal_block_forced != 0 && block_forced == 0 ) {
+        fprintf(stderr, "Cannot force the internal block value if you don't force the block value (-B)\n");
+        exit(1);
+    }
+
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
@@ -460,6 +480,48 @@ static void runtime_init(int argc, char **argv)
             PLASMA_Init(1);
             break;
     }
+
+    if( 0 != block_forced ) {
+        plasma_context_t* plasma = plasma_context_self();
+        plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
+
+        PLASMA_NB = block_forced;
+        PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
+
+        if( 0 != internal_block_forced ) {
+            if( PLASMA_NB % internal_block_forced != 0 ) {
+                fprintf(stderr, "Invalid IB flag: %d (internal block size) does not divide %d (block size)\n",
+                        internal_block_forced, block_forced);
+                exit(1);
+            }
+            PLASMA_IB = internal_block_forced;
+        } else {
+            int candidate, dist;
+
+            candidate = PLASMA_NB / 5;
+            if( candidate == 0 ) 
+                PLASMA_IB = PLASMA_NB;
+            else {
+                for(dist = 0; 1; dist++) {
+                    if( PLASMA_NB % (candidate + dist) == 0 ) {
+                        PLASMA_IB = candidate + dist;
+                        break;
+                    }
+                    if( PLASMA_NB % (candidate - dist) == 0 ) {
+                        PLASMA_IB = candidate - dist;
+                        break;
+                    }
+                }
+            }
+            printf("Using an internal block size of %d\n",PLASMA_IB);
+        }
+
+        PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
+
+        plasma->autotuning_enabled = 0;
+    } else {
+        plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
+    }    
 }
 
 static void runtime_fini(void)
@@ -677,7 +739,6 @@ static void create_matrix(int N, PLASMA_enum* uplo,
     
     
     plasma_context_t* plasma = plasma_context_self();
-    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     double* Abdl;
     double* Lbdl;
     int NB, NT;
@@ -725,7 +786,6 @@ static void create_local(int N, PLASMA_enum* uplo,
     }    
     
     plasma_context_t* plasma = plasma_context_self();
-    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     int NB, NT;
     
     NB = PLASMA_NB;
