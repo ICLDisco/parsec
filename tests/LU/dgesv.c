@@ -67,8 +67,6 @@ static int check_solution(int, int, double*, int, double*, double*, int, double)
 double time_elapsed;
 double sync_time_elapsed;
 
-int dposv_force_nb = 0;
-
 static inline double get_cur_time(){
     double t;
     struct timeval tv;

@@ -31,8 +31,6 @@
 #include <sys/syscall.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
-extern int dposv_force_nb;
-
 //#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 {
@@ -236,17 +234,11 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
         return PLASMA_SUCCESS;
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DPOSV, N, N, NRHS);
+    status = plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
     }
-
-    if( dposv_force_nb != 0 ) {
-        PLASMA_NB = dposv_force_nb;
-        PLASMA_NBNBSIZE = dposv_force_nb * dposv_force_nb;
-    }
-
     /* Set NT */
     NB = PLASMA_NB;
     NT = (N%NB==0) ? (N/NB) : (N/NB+1);
@@ -1022,15 +1014,10 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
         }
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DPOSV, Ddesc->n, Ddesc->n, NRHS);
+    status = plasma_tune(PLASMA_FUNC_DGESV, Ddesc->n, Ddesc->n, NRHS);
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
-    }
-
-    if( 0 != dposv_force_nb ) {
-        PLASMA_NB = dposv_force_nb;
-        PLASMA_NBNBSIZE = dposv_force_nb * dposv_force_nb;
     }
 
     /* Set NB, NT, BSIZ */
