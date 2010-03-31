@@ -31,6 +31,8 @@
 #include <sys/syscall.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
+extern int dposv_force_nb;
+
 //#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 {
@@ -211,7 +213,6 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
     double *Abdl;
     plasma_context_t *plasma;
 
-    
     plasma = plasma_context_self();
     if (plasma == NULL) {
         plasma_fatal_error("PLASMA_dpotrf", "PLASMA not initialized");
@@ -239,6 +240,11 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
+    }
+
+    if( dposv_force_nb != 0 ) {
+        PLASMA_NB = dposv_force_nb;
+        PLASMA_NBNBSIZE = dposv_force_nb * dposv_force_nb;
     }
 
     /* Set NT */
@@ -409,60 +415,8 @@ int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
     return 0;
 }
 
-#ifdef USE_MPI
-static int nb_request(DPLASMA_desc * Ddesc, int rank)
-{
-    int nb_req = 0; //number of request
-    int nbr_c;      // number of request per column
-    int str;        // number of super tile per column
-    int i, j, r;
-    int colr, rowr;
-    if (rank == 0)
-        {
-            for( i = 1; i < (Ddesc->GRIDcols * Ddesc->GRIDrows) ; i++)
-                {
-                    j = nb_request(Ddesc, i);
-                    nb_req += j;
-                    //                    printf("nb_request adjust for rank 0 to %d (+ %d requests to rank %d)\n", nb_req, j, i);
-                }
-            return nb_req;
-        }
-    colr = 0;
-    rowr = 0;
-    r = rank;
-    /* find rowRANK for rank */
-    while ( r >= Ddesc->GRIDcols)
-        {
-            rowr++;
-            r = r - Ddesc->GRIDcols;
-        }
-    /* find colRANK */
-    colr = r;
 
-    
-    str = Ddesc->lmt / Ddesc->nrst; // number of super tile in a column
-    if (Ddesc->lmt % Ddesc->nrst)
-        str++;
 
-    str = str - rowr; 
-    nbr_c = str / Ddesc->GRIDrows;
-    if (str % Ddesc->GRIDrows)
-        nbr_c++;
-
-    i = colr * Ddesc->ncst;
-    while(i < Ddesc->lnt)
-        {
-            if (i + Ddesc->ncst > Ddesc->lnt)
-                {
-                    nb_req = nb_req + ( nbr_c * (Ddesc->lnt - i));
-                    return nb_req;
-                }
-            nb_req = nb_req + (nbr_c * Ddesc->ncst);
-            i+=(Ddesc->ncst * Ddesc->GRIDcols); 
-        }
-    return nb_req;
-}
-#endif
 
 int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
@@ -1072,6 +1026,11 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
+    }
+
+    if( 0 != dposv_force_nb ) {
+        PLASMA_NB = dposv_force_nb;
+        PLASMA_NBNBSIZE = dposv_force_nb * dposv_force_nb;
     }
 
     /* Set NB, NT, BSIZ */
