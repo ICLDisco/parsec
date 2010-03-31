@@ -31,6 +31,8 @@
 #include <sys/syscall.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
+extern int dposv_force_nb;
+
 //#define A(m,n) &((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 {
@@ -204,47 +206,6 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 }
 
 
-
-int generate_matrix(int N, float * A1, float * A2, float * B1, float * B2, int LDA, int NRHS, int LDB)
-{
-    
-    int i, j;
-#if USE_LAPACK_RANDOM_MATRIX 
-    int IONE=1;
-    int info;
-    int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
-    int LDBxNRHS = LDB*NRHS;    
-    int NminusOne = N-1;
-    float* D; float* WORK;
-    
-    WORK = (float*) malloc(2*LDA*sizeof(float));
-    D = (float*) malloc(LDA*sizeof(float));
-    
-    dlarnv(&IONE, ISEED, &LDA, D);
-    dlagsy(&N, &NminusOne, D, A1, &LDA, ISEED, WORK, &info);
-    for (i = 0; i < N; i++) A1[LDA*i+i] += 10*N;
-    memcpy(A2, A1, LDA*N*sizeof(float));
-    dlarnv(&IONE, ISEED, &LDBxNRHS, B1);
-    memcpy(B2, B1, LDB*NRHS*sizeof(float));
-    free(WORK); free(D);
-#else
-    for ( i = 0; i < N; i++)
-        for ( j = i; j < N; j++) {
-            A2[LDA*j+i] = A1[LDA*j+i] = (float)rand() / RAND_MAX;
-            A2[LDA*i+j] = A1[LDA*i+j] = A1[LDA*j+i];
-        }
-    for ( i = 0; i < N; i++) {
-        A2[LDA*i+i] = A1[LDA*i+i] += 10*N;
-    }
-    /* Initialize B1 and B2 */
-    for ( i = 0; i < N; i++)
-        for ( j = 0; j < NRHS; j++)
-            B2[LDB*j+i] = B1[LDB*j+i] = (float)rand() / RAND_MAX;
-#endif    
-    return 0;
-}
-
-
 int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc * descA)
 {
     int NB, NT;
@@ -252,7 +213,6 @@ int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc *
     float *Abdl;
     plasma_context_t *plasma;
 
-    
     plasma = plasma_context_self();
     if (plasma == NULL) {
         plasma_fatal_error("PLASMA_dpotrf", "PLASMA not initialized");
@@ -280,6 +240,11 @@ int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc *
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
+    }
+
+    if( dposv_force_nb != 0 ) {
+        PLASMA_NB = dposv_force_nb;
+        PLASMA_NBNBSIZE = dposv_force_nb * dposv_force_nb;
     }
 
     /* Set NT */
@@ -450,74 +415,22 @@ int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
     return 0;
 }
 
-#ifdef USE_MPI
-static int nb_request(DPLASMA_desc * Ddesc, int rank)
+
+
+
+int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
-    int nb_req = 0; //number of request
-    int nbr_c;      // number of request per column
-    int str;        // number of super tile per column
-    int i, j, r;
-    int colr, rowr;
-    if (rank == 0)
-        {
-            for( i = 1; i < (Ddesc->GRIDcols * Ddesc->GRIDrows) ; i++)
-                {
-                    j = nb_request(Ddesc, i);
-                    nb_req += j;
-                    //                    printf("nb_request adjust for rank 0 to %d (+ %d requests to rank %d)\n", nb_req, j, i);
-                }
-            return nb_req;
-        }
-    colr = 0;
-    rowr = 0;
-    r = rank;
-    /* find rowRANK for rank */
-    while ( r >= Ddesc->GRIDcols)
-        {
-            rowr++;
-            r = r - Ddesc->GRIDcols;
-        }
-    /* find colRANK */
-    colr = r;
-
-    
-    str = Ddesc->lmt / Ddesc->nrst; // number of super tile in a column
-    if (Ddesc->lmt % Ddesc->nrst)
-        str++;
-
-    str = str - rowr; 
-    nbr_c = str / Ddesc->GRIDrows;
-    if (str % Ddesc->GRIDrows)
-        nbr_c++;
-
-    i = colr * Ddesc->ncst;
-    while(i < Ddesc->lnt)
-        {
-            if (i + Ddesc->ncst > Ddesc->lnt)
-                {
-                    nb_req = nb_req + ( nbr_c * (Ddesc->lnt - i));
-                    return nb_req;
-                }
-            nb_req = nb_req + (nbr_c * Ddesc->ncst);
-            i+=(Ddesc->ncst * Ddesc->GRIDcols); 
-        }
-    return nb_req;
-}
-#endif
-
 #ifdef USE_MPI
-int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** reqs, int * req_count)
-{
-    
     int i, j, k, nb, pos, rank;
     int tile_size, str, stc;
     float * target;
     pos = 0;
     k = 0;
-    *req_count = nb_request(Ddesc, Ddesc->mpi_rank);
-    /*printf("number of request for proc %d: %d\n", Ddesc->mpi_rank, *req_count);*/
-    *reqs = (MPI_Request *)malloc((*req_count) * sizeof(MPI_Request));
-    if (NULL == *reqs)
+    MPI_Request *reqs; 
+#define NBREQS 16
+    
+    reqs = (MPI_Request *)malloc(NBREQS * sizeof(MPI_Request));
+    if (NULL == reqs)
     {
         printf("memory allocation failed\n");
         exit(2);
@@ -557,20 +470,14 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                 target = (float *)plasma_A(Pdesc, j*Ddesc->nrst, i*Ddesc->ncst);
                 for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
                 {                                        
-                    MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_FLOAT, rank, 1, MPI_COMM_WORLD, &((*reqs)[k]));
-                    k++;
+                    MPI_Isend(target, tile_size * Ddesc->bsiz, MPI_FLOAT, rank, 1, MPI_COMM_WORLD, &reqs[k++]);
                     target += Ddesc->lmt * Ddesc->bsiz;
-                    if(0 == (k % 4)) 
+                    if(0 == (k % NBREQS)) 
                     {
-                        MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
+                        MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
                         k = 0;
                     }
                 }
-		if(k)
-		{
-		    MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
-		    k = 0;
-		}
             }
     }
     else /* mpi_rank != 0*/
@@ -593,42 +500,38 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, MPI_Request ** re
                     
                     for (nb = 0 ; nb < min(Ddesc->ncst, Ddesc->lnt - (i*Ddesc->ncst)) ; nb++)
                     {                                        
-                        MPI_Irecv(&(((float*)Ddesc->mat)[pos]), tile_size * Ddesc->bsiz, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &((*reqs)[k]));
+                        MPI_Irecv(&(((float*)Ddesc->mat)[pos]), tile_size * Ddesc->bsiz, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &reqs[k++]);
                         pos += tile_size * Ddesc->bsiz;
-                        k++;
-			if(0 == (k %4))
-			{
-				MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
-				k = 0;
-			}
+                        if(0 == (k % NBREQS))
+                        {
+                            MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
+                            k = 0;
+                        }
                     }
-		    if(k)
-		    {
-			    MPI_Waitall(k, *reqs, MPI_STATUSES_IGNORE);
-			    k = 0;
-		    }
                 }
             }
     }
-    *req_count = 0;
-    free(*reqs);
-    *reqs = NULL;
+    if(k)
+    {
+        MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
+    }    
+    free(reqs);
     return 0;
-    
+#else
+    fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
+    return -1;
+#endif
 }
-#endif    
 
 int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc) 
 {
 #ifdef USE_MPI
-    int i, j,  rank;
-    int req_count;
+    int i, j, k, rank;
     MPI_Request * reqs;
 
-    /* we overallocate for rank>0, but who cares ? */ 
-    reqs = malloc(sizeof(MPI_Request) * Ddesc->lmt * Ddesc->lnt);
-    req_count = 0;
-    
+    reqs = malloc(sizeof(MPI_Request) * NBREQS);
+
+    k = 0;
     if ( Ddesc->mpi_rank == 0)
     {
         for (i = 0 ; i < Ddesc->lmt ; i++ )
@@ -638,7 +541,14 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
                 if (rank == 0)
                     memcpy(plasma_A(Pdesc, i, j ), dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(float)) ;
                 else
-                    MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_FLOAT, rank, 1, MPI_COMM_WORLD, &reqs[req_count++] );
+                {
+                    MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_FLOAT, rank, 1, MPI_COMM_WORLD, &reqs[k++]);
+                    if(0 == (k % NBREQS))
+                    {
+                        MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
+                        k = 0;
+                    }
+                }
             }
     }
     else
@@ -648,17 +558,28 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             {
                 rank = dplasma_get_rank_for_tile(Ddesc, i, j);
                 if (rank == Ddesc->mpi_rank)
-                    MPI_Isend( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &reqs[req_count++] );
+                {
+                    MPI_Isend( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &reqs[k++] );
+                    if(0 == (k % NBREQS))
+                    {
+                        MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
+                        k = 0;
+                    }
+                }
             }
-        
     }
-    MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
+    
+    if(k)
+    {
+        MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
+    }
     free(reqs);
     return 0;
 #else
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
     return -1;
-#endif    
+#endif
+#undef NBREQS
 }
 
 #ifdef HEAVY_DEBUG
@@ -774,17 +695,6 @@ int plasma_dump(PLASMA_desc * Pdesc){
     fclose(tmpf);
     return 0;
 }
-
-#ifdef USE_MPI
-int is_data_distributed(DPLASMA_desc * Ddesc, MPI_Request * reqs, int req_count)
-{
-    if(req_count)
-    {
-	MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
-    }
-    return 1;
-}
-#endif    
 
 int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, float precision)
 {
@@ -1118,6 +1028,11 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
         return status;
     }
 
+    if( 0 != dposv_force_nb ) {
+        PLASMA_NB = dposv_force_nb;
+        PLASMA_NBNBSIZE = dposv_force_nb * dposv_force_nb;
+    }
+
     /* Set NB, NT, BSIZ */
     Ddesc->nb = PLASMA_NB;
     Ddesc->nt = ((Ddesc->n)%(Ddesc->nb)==0) ? ((Ddesc->n)/(Ddesc->nb)) : ((Ddesc->n)/(Ddesc->nb) + 1);
@@ -1199,7 +1114,7 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
     Ddesc->mat =(float *)plasma_shared_alloc(plasma, Ddesc->nb_elem_r*Ddesc->nb_elem_c * Ddesc->bsiz, PlasmaRealFloat);
     if (Ddesc->mat == NULL)
         {
-            plasma_error("PLASMA_dpotrf", "plasma_shared_alloc() failed");
+            plasma_error("PLASMA_spotrf", "plasma_shared_alloc() failed");
             return PLASMA_ERR_OUT_OF_RESOURCES;
         }
     return 0;
