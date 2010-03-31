@@ -790,11 +790,6 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 #endif
 }
 
-
-
-
-
-
 void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
 {
     char type_name[MPI_MAX_OBJECT_NAME];

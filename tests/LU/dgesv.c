@@ -5,9 +5,11 @@
  */
 
 
+#include "dplasma.h"
 #ifdef USE_MPI
+#include "remote_dep.h"
 #include <mpi.h>
-#endif /* defined(USE_MPI) */
+#endif  /* defined(USE_MPI) */
 
 #include <getopt.h>
 #include <stdlib.h>
@@ -23,7 +25,6 @@
 #include <../src/context.h>
 #include <../src/allocate.h>
 
-#include "dplasma.h"
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_management.h"
@@ -65,6 +66,8 @@ static int check_solution(int, int, double*, int, double*, double*, int, double)
 /* timing profiling etc */
 double time_elapsed;
 double sync_time_elapsed;
+
+int dposv_force_nb = 0;
 
 static inline double get_cur_time(){
     double t;
@@ -261,7 +264,8 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
-            "   -m --dist-matrix : generate tiled matrix in a distributed way\n");
+            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
+            "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
 static void runtime_init(int argc, char **argv)
@@ -280,10 +284,11 @@ static void runtime_init(int argc, char **argv)
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
         {"dist-matrix", no_argument,        0, 'm'},
+        {"block-size",  required_argument,  0, 'B'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
-    
+
 #ifdef USE_MPI
     /* mpi init */
     MPI_Init(&argc, &argv);
@@ -303,7 +308,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -318,7 +323,7 @@ static void runtime_init(int argc, char **argv)
             case 'd':
                 backend = DO_DPLASMA;
                 break;
-                
+
             case 'c':
                 cores = atoi(optarg);
                 if(cores<= 0)
@@ -326,12 +331,12 @@ static void runtime_init(int argc, char **argv)
                 ddescA.cores = cores;
                 //printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
-                
+
             case 'n':
                 N = atoi(optarg);
                 //printf("matrix size set to %d\n", N);
                 break;
-                
+
             case 'g':
                 ddescA.GRIDrows = atoi(optarg);
                 break;
@@ -391,6 +396,18 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
                 
+        case 'B':
+                if(optarg)
+                {
+                    dposv_force_nb = atoi(optarg);
+                }
+                else
+                {
+                    fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
+                    exit(2);
+                }
+                break;
+
             case 'h':
                 print_usage();
                 exit(0);
@@ -416,7 +433,7 @@ static void runtime_init(int argc, char **argv)
         print_usage(); 
         exit(2);
     } 
-    
+
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
@@ -424,7 +441,7 @@ static void runtime_init(int argc, char **argv)
         exit(2);
     }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
-    
+
     if(LDA <= 0) 
     {
         LDA = N;
@@ -481,8 +498,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( ddescA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
-/*        constant = expr_new_int( ddescA.nrst );
-        dplasma_assign_global_symbol( "stileSIZE", constant );        */
+        constant = expr_new_int( ddescA.nrst );
+        dplasma_assign_global_symbol( "stileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
