@@ -13,7 +13,7 @@
 #include "freelist.h"
 
 #define DPLASMA_REMOTE_DEP_USE_THREADS
-#define DEP_NB_CONCURENT 3
+#define DEP_NB_CONCURENT 1
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -472,8 +472,8 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
         MAX_MPI_TAG = *ub;
 #if defined( DPLASMA_DEBUG )
         if( MAX_MPI_TAG < INT_MAX ) {
-            fprintf(stderr, "Your MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
-                    MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
+            DEBUG(("Your MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
+                    MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
         }
 #endif
     }
@@ -517,7 +517,7 @@ static int remote_dep_mpi_on(dplasma_context_t* context)
     
     assert(dep_enabled == 0);
     for(i = 0; i < DEP_NB_CONCURENT; i++)
-    {        
+    {
         MPI_Recv_init(&dep_activate_buff[i]->msg, dep_count, dep_dtt, MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm, &dep_activate_req[i]);
         MPI_Recv_init(&dep_get_buff[i], datakey_count, datakey_dtt, MPI_ANY_SOURCE, REMOTE_DEP_GET_DATA_TAG, dep_comm, &dep_get_req[i]);
         MPI_Start(&dep_activate_req[i]);
