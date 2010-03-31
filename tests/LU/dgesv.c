@@ -498,7 +498,7 @@ static void runtime_init(int argc, char **argv)
 
             candidate = PLASMA_NB / 5;
             if( candidate == 0 ) 
-                PLASMA_IB = PLASMA_NB;
+                PLASMA_IB = 1;
             else {
                 for(dist = 0; 1; dist++) {
                     if( PLASMA_NB % (candidate + dist) == 0 ) {
@@ -622,9 +622,11 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 static void create_datatypes(void)
 {
 #if defined(USE_MPI)
+    plasma_context_t* plasma = plasma_context_self();
     int *blocklens, *indices, count, i;
     MPI_Datatype tmp;
     MPI_Aint lb, ub;
+    int IB = PLASMA_IB;
 
     count = NB; 
     blocklens = (int*)malloc( count * sizeof(int) );
@@ -653,8 +655,8 @@ static void create_datatypes(void)
     MPI_Type_set_name(LOWER_TILE, "Lower");
     MPI_Type_commit(&LOWER_TILE);
     
-    /* LITTLE_L is a LOWER_TILE */
-    MPI_Type_dup(LOWER_TILE, &LITTLE_L);
+    /* LITTLE_L is a NB*IB rectangle (containing IB*IB Lower tiles) */
+    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &LITTLE_L);
     MPI_Type_set_name(LITTLE_L, "L");
     MPI_Type_commit(&LITTLE_L);
     

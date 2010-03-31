@@ -342,11 +342,9 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
         if(origin->msg.deps & (1 << i))
         {
             assert(origin->msg.which & (1 << i));
-            data[i] = (gc_data_t*) (uintptr_t) origin->output[i].data;
-            DEBUG(("%s->data[%d] = %p\n", exec_context.function->name, i, data[i]));
+            data[i] = origin->output[i].data;
         }
     }
-    DEBUG(("%s->msg.deps = %08x\n", exec_context.function->name, origin->msg.deps));
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               DPLASMA_ACTION_RELEASE_LOCAL_DEPS | origin->msg.deps, 
                                               NULL, data);

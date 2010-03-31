@@ -140,6 +140,34 @@ static void debug_matrix(int core, double *a, char *name, int tilem, int tilen)
     free(line);
 }
 
+static void debug_l(int core, double* a, char* name, int tilen, int tilem)
+{
+    int m, n, len, pos;
+    char *line;
+#if defined(USE_MPI)
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    int rank = 0;
+#endif
+
+    len = 32 + (MAXDBLSTRLEN + 1) * descL.nb;
+    line = (char *)malloc( len );
+
+    fprintf(stderr, "[%d/%d] %s(%d, %d) = \n", rank, core, name, tilem, tilen);
+    pos = 0;
+    for(m = 0; m < descL.mb; m++) {
+        for(n = 0; n < descL.nb; n++) {
+            pos += snprintf(line + pos, len-pos, "%9.5f ", a[m + descL.mb * n]);
+        }
+        fprintf(stderr, "[%d/%d]   %s\n", rank, core, line);
+        pos = 0;
+    }
+    free(line);
+}
+
+
+
 static void debug_ipiv(int core, int *a, char *name, int tilen, int tilem)
 {
     int m, len, pos;
@@ -195,8 +223,8 @@ BODY
 #if !defined(DPLASMA_DRY_RUN)
                 int iinfo = 0;
                 debug_warning(context->eu_id, "before", "DGETRF", k, -1, -1);
-                debug_matrix(context->eu_id, A(k, k), "A", k, k);
-                debug_ipiv(context->eu_id, IPIV(k, k), "IPIV", k, k);
+                debug_matrix(context->eu_id, LU, "LU=A", k, k);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", k, k);
                 CORE_dgetrf(
                     k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
                     k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
@@ -204,8 +232,8 @@ BODY
                     LU /*A(k, k)*/, descA.nb,
                     IPIV /*IPIV(k, k)*/, &iinfo);
                 debug_warning(context->eu_id, "after", "DGETRF", k, -1, -1);
-                debug_matrix(context->eu_id, A(k, k), "A", k, k);
-                debug_ipiv(context->eu_id, IPIV(k, k), "IPIV", k, k);
+                debug_matrix(context->eu_id, LU, "LU=A", k, k);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", k, k);
                 if (_PLASMA_INFO == 0 && iinfo > 0 && k == descA.mt-1)
                     _PLASMA_INFO = iinfo + descA.nb*k;
 #else
@@ -255,11 +283,11 @@ DSSSSM(k, n, m)
 BODY
 #if !defined(DPLASMA_DRY_RUN)
                 debug_warning(context->eu_id, "before", "DSSSSM", k, n, m);
-                debug_matrix(context->eu_id, A(k, n), "A", k, n);
-                debug_matrix(context->eu_id, A(m, n), "A", m, n);
-                debug_matrix(context->eu_id, L(m, k), "L", m, k);
-                debug_matrix(context->eu_id, A(m, k), "A", m, k);
-                debug_ipiv(context->eu_id, IPIV(m, k), "IPIV", m, k);
+                debug_matrix(context->eu_id, C1, "C1=A", k, n);
+                debug_matrix(context->eu_id, C2, "C2=A", m, n);
+                debug_l(context->eu_id, dL, "dL=L", m, k);
+                debug_matrix(context->eu_id, C3, "C3=A", m, k);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
                 CORE_dssssm(
                     descA.nb,
                     m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
@@ -272,11 +300,11 @@ BODY
                     C3 /*A(m, k)*/, descA.nb,
                     IPIV /*IPIV(m, k)*/);
                 debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);
-                debug_matrix(context->eu_id, A(k, n), "A", k, n);
-                debug_matrix(context->eu_id, A(m, n), "A", m, n);
-                debug_matrix(context->eu_id, L(m, k), "L", m, k);
-                debug_matrix(context->eu_id, A(m, k), "A", m, k);
-                debug_ipiv(context->eu_id, IPIV(m, k), "IPIV", m, k);
+                debug_matrix(context->eu_id, C1, "C1=A", k, n);
+                debug_matrix(context->eu_id, C2, "C2=A", m, n);
+                debug_l(context->eu_id, dL, "dL=L", m, k);
+                debug_matrix(context->eu_id, C3, "C3=A", m, k);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
  #else
     OUTPUT(("void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"));
 #endif  /*!defined(DPLASMA_DRY_RUN)*/
@@ -304,9 +332,9 @@ DGESSM(k, n)
 BODY
 #if !defined(DPLASMA_DRY_RUN)
                 debug_warning(context->eu_id, "before", "DGESSM", k, n, -1);
-                debug_matrix(context->eu_id, A(k, k), "A", k, k);
-                debug_matrix(context->eu_id, A(k, n), "A", k, n);
-                debug_ipiv(context->eu_id, IPIV(k, k), "IPIV", k, k);
+                debug_matrix(context->eu_id, L, "L=A", k, k);
+                debug_matrix(context->eu_id, C1, "C1=A", k, n);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", k, k);
                 CORE_dgessm(
                     k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
                     n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
@@ -316,9 +344,9 @@ BODY
                     L /*A(k, k)*/, descA.nb,
                     C1 /*A(k, n)*/, descA.nb);
                 debug_warning(context->eu_id, "after", "DGESSM", k, n, -1);
-                debug_matrix(context->eu_id, A(k, k), "A", k, k);
-                debug_matrix(context->eu_id, A(k, n), "A", k, n);
-                debug_ipiv(context->eu_id, IPIV(k, k), "IPIV", k, k);
+                debug_matrix(context->eu_id, L, "L=A", k, k);
+                debug_matrix(context->eu_id, C1, "C1=A", k, n);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", k, k);
 #else
      OUTPUT(("void task_DGESSM(int *IPIV, double *L, double *C1)"));
 #endif  /* !defined(DPLASMA_DRY_RUN) */
@@ -370,10 +398,10 @@ BODY
                 int iinfo = 0;
                 void* work = dplasma_private_memory_pop(work_pool);
                 debug_warning(context->eu_id, "before", "DTSTRF", k, m, -1);
-                debug_matrix(context->eu_id, A(k, k), "A", k, k);
-                debug_matrix(context->eu_id, A(m, k), "A", m, k);
-                debug_matrix(context->eu_id, L(m, k), "L", m, k);
-                debug_ipiv(context->eu_id, IPIV(m, k), "IPIV", m, k);
+                debug_matrix(context->eu_id, U, "U=A", k, k);
+                debug_matrix(context->eu_id, C1, "C1=A", m, k);
+                debug_l(context->eu_id, dL, "dL=L", m, k);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
                 CORE_dtstrf(
                     m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
                     k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
@@ -385,10 +413,10 @@ BODY
                     IPIV /*IPIV(m, k)*/, 
                     work, descL.nb, &iinfo);
                 debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);
-                debug_matrix(context->eu_id, A(k, k), "A", k, k);
-                debug_matrix(context->eu_id, A(m, k), "A", m, k);
-                debug_matrix(context->eu_id, L(m, k), "L", m, k);
-                debug_ipiv(context->eu_id, IPIV(m, k), "IPIV", m, k);
+                debug_matrix(context->eu_id, U, "U=A", k, k);
+                debug_matrix(context->eu_id, C1, "C1=A", m, k);
+                debug_l(context->eu_id, dL, "dL=L", m, k);
+                debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
                 if (_PLASMA_INFO == 0 && iinfo > 0 && m == descA.mt-1)
                     _PLASMA_INFO = iinfo + descA.nb*k;
                 dplasma_private_memory_push(work_pool, work);

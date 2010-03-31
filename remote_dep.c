@@ -127,6 +127,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     remote_dep_reset_forwarded(eu_context);
    
 #if defined(DPLASMA_DEBUG)
+    /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
  
