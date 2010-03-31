@@ -24,8 +24,6 @@ int PLASMA_INFO;
 #   define C(m,n) &(((double*)descC.mat)[descC.bsiz*(m)+descC.bsiz*descC.lmt*(n)])
 #endif
 
-#define DPLASMA_CALL_TRACE
-
 #ifdef DPLASMA_CALL_TRACE
 #   include <stdlib.h>
 #   include <stdio.h>
@@ -33,8 +31,6 @@ int PLASMA_INFO;
 #else
 #   define OUTPUT(ARG)
 #endif
-
-#define DPLASMA_DRY_RUN
 
 #ifdef DPLASMA_DRY_RUN
 #   define CORE(FN, ARGS)
@@ -62,12 +58,19 @@ stileSIZE
 STARTUP(useless)
 useless = 0 .. 0
 
+// Parallel partitioning
+: (useless * 0) % GRIDrows == rowRANK
+: (useless * 0) % GRIDcols == colRANK
+
 INOUT USELESS <- A(0,0)
               -> USELESS READVALS(0 .. SIZE-1, 0 .. SIZE-1)
 BODY
   /* Nothing relevant */
 END
 
+/**************************************************
+ *                     READVALS                   *
+ **************************************************/
 READVALS(i,j)
 i = 0 .. SIZE-1
 j = 0 .. SIZE-1

@@ -176,6 +176,8 @@ int main(int argc, char ** argv)
         }
         case DO_DPLASMA: {
             scatter_matrix(&descA, &ddescA);
+            scatter_matrix(&descB, &ddescB);
+            scatter_matrix(&descC, &ddescC);
 
             //#ifdef VTRACE 
             //    VT_ON();
@@ -433,7 +435,7 @@ static void runtime_fini(void)
 static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
-    
+
     dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
     load_dplasma_objects(dplasma);
     {
