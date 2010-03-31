@@ -164,7 +164,7 @@ int main(int argc, char ** argv)
                                        PLASMA_enum, uplo, 
                                        PLASMA_desc, descA);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
-                            (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+                            (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             }
             TIME_START();
             plasma_parallel_call_2(plasma_pdpotrf,
@@ -677,7 +677,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution, info_factorization;
-    float eps = (float) 1.0e-13;  /* dlamch("Epsilon");*/
+    float eps = (float) 1.0e-5;  /* dlamch("Epsilon");*/
 
     printf("\n");
     printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
