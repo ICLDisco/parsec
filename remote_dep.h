@@ -47,6 +47,7 @@ typedef struct remote_dep_wire_get_t
 {
     remote_dep_datakey_t deps;
     remote_dep_datakey_t which;
+    remote_dep_datakey_t tag;
 } remote_dep_wire_get_t;
 
 struct dplasma_remote_deps_t {
