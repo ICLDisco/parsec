@@ -842,10 +842,6 @@ static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int c
     }
 }
 
-typedef struct tile_coordinate{
-    int row;
-    int col;
-} tile_coordinate_t;
 
 typedef struct dist_tiles{
     DPLASMA_desc * Ddesc;
@@ -859,7 +855,7 @@ typedef struct dist_tiles{
   given a position in the matrix array, retrieve to which tile it belongs
 
  */
-static void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile) 
+void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile) 
 { 
     int nb_tiles;
     int shift;

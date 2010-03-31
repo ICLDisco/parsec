@@ -51,6 +51,12 @@ typedef struct dplasma_desc_t {
     int nb_elem_c;      // number of column tiles handled by this process
 } DPLASMA_desc;
 
+typedef struct tile_coordinate{
+    int row;
+    int col;
+} tile_coordinate_t;
+
+
 /************************************************
  *   mpi ranks distribution in the process grid
  *   -----------------
@@ -97,6 +103,9 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
  * return 0 if success, >0 if not
  */
 int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
+
+/* translate a position in the matrix buffer to the tile it belongs */
+void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile);
 
 
 /************************************************************************
