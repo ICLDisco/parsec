@@ -58,3 +58,7 @@ tests/pdpotrf/dposv_ll
 tests/pdpotrf/dposv_rl
 tests/pdpotrf/mpi_dposv_ll
 tests/pdpotrf/mpi_dposv_rl
+tests/pdgemm/dgemm
+tests/pdgemm/pdgemm
+tests/psgemm/psgemm
+tests/psgemm/sgemm
