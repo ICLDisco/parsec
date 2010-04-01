@@ -3,6 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+#include "dplasma_config.h"
 #include "dplasma.h"
 #include "scheduling.h"
 #include <stdio.h>
@@ -52,6 +53,90 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
     return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
 }
 
+static int generic_release_dependencies(dplasma_execution_unit_t *eu_context,
+                                        const dplasma_execution_context_t *exec_context,
+                                        int action_mask,
+                                        struct dplasma_remote_deps_t* upstream_remote_deps,
+                                        gc_data_t **data)
+{
+    char tmp[128];
+    dplasma_service_to_string(exec_context, tmp, 128);
+
+    fprintf( __dplasma_graph_file, "RELEASE deps for %s\n", tmp );
+    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+}
+
+/**
+ * This function generate all possible execution context for a given function with
+ * respect to the predicates.
+ */
+int dplasma_find_start_values( dplasma_execution_context_t* exec_context, int use_predicates )
+{
+    const expr_t** predicates = (const expr_t**)exec_context->function->preds;
+    const dplasma_t* object = exec_context->function;
+    int rc, actual_loop;
+
+    DEBUG(( "Function %s (loops %d)\n", object->name, object->nb_locals ));
+    if( 0 == object->nb_locals ) {
+        /* special case for the IN/OUT obejcts */
+        return 0;
+    }
+
+    /* Clear the predicates if not needed */
+    if( !use_predicates ) predicates = NULL;
+
+    actual_loop = object->nb_locals - 1;
+    while(1) {
+        int value;
+
+        /* If this can be the starting point task return */
+        rc = dplasma_service_can_be_startup( exec_context );
+        if( rc == 0 )
+            return 0;
+
+        /* Go to the next valid value for this loop context */
+        rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
+                                            exec_context->locals, &value );
+
+        /* If no more valid values, go to the previous loop,
+         * compute the next valid value and redo and reinitialize all other loops.
+         */
+        if( rc != EXPR_SUCCESS ) {
+            int current_loop = actual_loop;
+        one_loop_up:
+            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
+                   actual_loop, object->locals[actual_loop]->name));
+            if( 0 == actual_loop ) {  /* we're done */
+                goto end_of_all_loops;
+            }
+            actual_loop--;  /* one level up */
+            rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
+                                                exec_context->locals, &value );
+            if( rc != EXPR_SUCCESS ) {
+                goto one_loop_up;
+            }
+            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
+                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
+            for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
+                rc = dplasma_symbol_get_first_value(object->locals[actual_loop], predicates,
+                                                    exec_context->locals, &value );
+                if( rc != EXPR_SUCCESS ) {  /* no values for this symbol in this context */
+                    goto one_loop_up;
+                }
+                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
+                       object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
+            }
+            actual_loop = current_loop;  /* go back to the original loop */
+        } else {
+            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
+                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
+        }
+    }
+ end_of_all_loops:
+
+    return -1;
+}
+
 int main(int argc, char *argv[])
 {
     dplasma_context_t* dplasma;
@@ -66,6 +151,7 @@ int main(int argc, char *argv[])
 
     dplasma = dplasma_init(1, &argc, &argv, 0);
 
+    __dplasma_graph_file = stdout;
     /* If arguments are provided then they are supposed to initialize some of the
      * global symbols. Try to do so ...
      */
@@ -81,6 +167,7 @@ int main(int argc, char *argv[])
 
                     constant = expr_new_int( atoi(argv[i+1]) );
                     dplasma_assign_global_symbol( symbol->name, constant );
+                    break;
                 }
             }
         }
@@ -111,6 +198,7 @@ int main(int argc, char *argv[])
         int i;
         for( i = 0; NULL != (object = (dplasma_t*)dplasma_element_at(i)); i++ ) {
             object->hook = generic_hook;
+            object->release_deps = generic_release_dependencies;
             total_nb_tasks += dplasma_compute_nb_tasks( object, 1 );
         }
         dplasma_register_nb_tasks(dplasma, total_nb_tasks);
@@ -126,8 +214,11 @@ int main(int argc, char *argv[])
             if( NULL == exec_context.function ) {
                 break;
             }
+            if( 0 == exec_context.function->nb_locals ) {
+                continue;
+            }
             dplasma_set_initial_execution_context(&exec_context);
-            rc = dplasma_service_can_be_startup( &exec_context );
+            rc = dplasma_find_start_values( &exec_context, 0 );
             if( rc == 0 ) {
                 dplasma_schedule(dplasma, &exec_context);
                 dplasma_progress(dplasma);
@@ -137,5 +228,5 @@ int main(int argc, char *argv[])
     }
     dplasma_fini(&dplasma);
 
-	return 0;
+    return 0;
 }
