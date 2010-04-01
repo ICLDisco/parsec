@@ -9,18 +9,31 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 
+#if defined(USE_MPI)
+#include <mpi.h>
+#include "data_management.h"
+extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
+extern DPLASMA_desc ddescA;
+extern DPLASMA_desc ddescT;
+
+#define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
+#define T(m,n) dplasma_get_local_tile_s(&ddescT, m, n)
+
+#define descA ddescA
+#define descT ddescT
+
+#else
 extern PLASMA_desc descA;
 extern PLASMA_desc descT;
-int PLASMA_INFO;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #define T(m,n) &(((double*)descT.mat)[descT.bsiz*(m)+descT.bsiz*descT.lmt*(n)])
 
-#if 0
-#define OUTPUT(ARG)  printf ARG
-#else
-#define OUTPUT(ARG)
 #endif
+
+int PLASMA_INFO;
+
+#define OUTPUT(ARGS) printf ARGS
 
 typedef struct dplasma_memory_pool_t {
     dplasma_atomic_lifo_t lifo;
@@ -78,14 +91,14 @@ int dgels_private_memory_finalization(void)
 
 %}
 
-GRIDrows = 1
-GRIDcols = 1
+GRIDrows
+GRIDcols
 NB
 MT
 NT
-MINMTNT = (MT < NT ? MT : NT)
-colRANK = 0
-rowRANK = 0
+MINMTNT = ((MT < NT) ? MT : NT)
+colRANK
+rowRANK
 
 /*****************************************
  9:11
@@ -99,10 +112,12 @@ DGEQRT(k)
   : k % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN RV1 <- (k==0) ? A(k,k) : C2 DSSMQR(k-1,k,k)
-
-  OUT RV1 -> (k==MT-1) ? A(k,k) : R DTSQRT(k,k+1)
-  OUT T   -> T DORMQR(k, k+1..NT-1)
+  INOUT RV1 <- (k == 0)    ? A(0,0) : C2 DSSMQR(k-1,k,k)
+            -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]
+            -> A(k,k)                                     [LOWER_TILE]
+  INOUT T   <- T(k,k)                                     [PIVOT_VECT]
+            -> T DORMQR(k, k+1..NT-1)                     [PIVOT_VECT]
+            -> T(k,k)                                     [PIVOT_VECT]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -112,8 +127,8 @@ BODY
         k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
         k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
         descT.mb,
-        A(k, k), descA.nb,
-        T(k, k), descT.mb,
+        RV1 /*A(k, k)*/, descA.nb,
+        T /*T(k, k)*/, descT.mb,
         tau, work);
     dplasma_private_memory_push(tau_pool, tau);
     dplasma_private_memory_push(work_pool, work);
@@ -135,12 +150,14 @@ DTSQRT(k,m)
   : m % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  IN V2 <- (k==0) ? A(m,k) : C2 DSSMQR(k-1,k,m)
-  IN R  <- (m==k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)
-
-  OUT R  -> (m==MT-1) ?  V1 DORMQR(k,k+1..NT-1) : R DTSQRT(k,m+1)
-  OUT V2 -> V2 DSSMQR(k,k+1..NT-1,m)
-  OUT T  -> T DSSMQR(k,k+1..NT-1,m)
+  INOUT V2 <- (k == 0) ? A(m,0) : C2 DSSMQR(k-1,k,m)
+           -> V2 DSSMQR(k,k+1..NT-1,m)
+           -> A(m,k)
+  INOUT R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)             [UPPER_TILE]
+           -> (m == MT-1) ?  V1 DORMQR(k,k+1..NT-1) : R DTSQRT(k,m+1)  [UPPER_TILE]
+  INOUT T  <- T(m,k)                                                   [PIVOT_VECT]
+           -> T DSSMQR(k,k+1..NT-1,m)                                  [PIVOT_VECT]
+           -> T(m,k)                                                   [PIVOT_VECT]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -150,9 +167,9 @@ BODY
         m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
         k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
         descT.mb,
-        A(k, k), descA.nb,
-        A(m, k), descA.nb,
-        T(m, k), descT.mb,
+        R  /*A(k, k)*/, descA.nb,
+        V2 /*A(m, k)*/, descA.nb,
+        T  /*T(m, k)*/, descT.mb,
         tau, work);
     dplasma_private_memory_push(tau_pool, tau);
     dplasma_private_memory_push(work_pool, work);
@@ -172,13 +189,12 @@ DORMQR(k,n)
 
   // Parallel partitioning
   : k % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  : n % GRIDcols == colRANK
 
-  IN C1 <- (k==0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
-  IN T  <-  T DGEQRT(k)
-  IN V1 <- R DTSQRT(k, MT-1)
-
-  OUT C1 -> C1 DSSMQR(k,n,k+1)
+  IN V1    <- R DTSQRT(k, MT-1)                         [UPPER_TILE]
+  IN T     <- T DGEQRT(k)                               [PIVOT_VECT]
+  INOUT C1 <- (k == 0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
+           -> C1 DSSMQR(k,n,k+1)
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -189,9 +205,9 @@ BODY
         n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
         descT.mb,
         k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-        A(k, k), descA.nb,
-        T(k, k), descT.mb,
-        A(k, n), descA.nb,
+        V1 /*A(k, k)*/, descA.nb,
+        T  /*T(k, k)*/, descT.mb,
+        C1 /*A(k, n)*/, descA.nb,
         work, descT.nb);
     dplasma_private_memory_push(work_pool, work);
 #else
@@ -202,28 +218,41 @@ END
 /*****************************************
  37:41
 */
+DSSMQR_OUT(k, n)
+  k = 0 .. MINMTNT-2
+  n = k+1 .. NT - 1
+  
+  :k % GRIDrows == rowRANK
+  :n % GRIDcols == colRANK
+  
+  INOUT A <- C1 DSSMQR(k, n, MT-1)
+          -> A(k, n)
+          
+BODY
+/* nothing */
+END
+
 DSSMQR(k,n,m)
 
   // Execution space
-  k = 0..MINMTNT-2
-  n = k+1..NT-1
-  m = k+1..MT-1
+  k = 0   .. MINMTNT-2
+  n = k+1 .. NT-1
+  m = k+1 .. MT-1
 
   // Parallel partitioning
   : m % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  : n % GRIDcols == colRANK
 
-  IN C2 <- (k==0) ? A(m,n) : C2 DSSMQR(k-1,n,m)
   IN V2 <- V2 DTSQRT(k,m)
-  IN T  <- T DTSQRT(k,m)
-  IN C1 <- (m==k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
+  IN T  <- T DTSQRT(k,m)                                           [PIVOT_VECT]
 
-  OUT C2 -> ((m==k+1) & (n==k+1)) ? RV1 DGEQRT(k+1) : A(1,1)
-  OUT C2 -> ((m==k+1) & (n!=k+1))  ? C1 DORMQR(k+1,n) : A(1,1)
-  OUT C2 -> ((m!=k+1) & (n==k+1)) ? V2 DTSQRT(k+1,m) : A(1,1)
-  OUT C2 -> ((m!=k+1) & (n!=k+1))  ? C2 DSSMQR(k+1,n,m) : A(1,1)
-
-  OUT C1 -> (m==MT-1) ? A(k,n) : C1 DSSMQR(k,n,m+1)
+  INOUT C2 <- (k == 0) ? A(m,n) : C2 DSSMQR(k-1,n,m)
+           -> ((n == k+1) & (m == k+1)) ? RV1 DGEQRT(k+1)
+           -> ((n == k+1) & (k  < m-1)) ? V2 DTSQRT(k+1,m)
+           -> ((k  < n-1) & (m == k+1)) ? C1 DORMQR(k+1,n)
+           -> ((k  < n-1) & (k  < m-1)) ? C2 DSSMQR(k+1,n,m)
+  INOUT C1 <- (m == k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
+           -> (m == MT-1) ? A DSSMQR_OUT(k,n) : C1 DSSMQR(k,n,m+1)
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -235,10 +264,10 @@ BODY
         n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
         descT.mb,
         descA.nb,
-        A(k, n), descA.nb,
-        A(m, n), descA.nb,
-        A(m, k), descA.nb,
-        T(m, k), descT.mb,
+        C1 /*A(k, n)*/, descA.nb,
+        C2 /*A(m, n)*/, descA.nb,
+        V2 /*A(m, k)*/, descA.nb,
+        T  /*T(m, k)*/, descT.mb,
         work, descT.mb);
     dplasma_private_memory_push(work_pool, work);
 #else
