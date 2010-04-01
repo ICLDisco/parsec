@@ -9,7 +9,9 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 
-#if defined(USE_MPI)
+int PLASMA_INFO = 0;
+
+#ifdef DISTRIBUTED
 #include <mpi.h>
 #include "data_management.h"
 extern MPI_Datatype TILE, VECTOR;
@@ -24,26 +26,39 @@ extern DPLASMA_desc ddescB;
 
 #else
 extern PLASMA_desc descA;
-extern PLASMA_desc descL;
+extern PLASMA_desc descB;
 
 #define A(k,l) &(((double*)descA.mat)[descA.bsiz*(k)+descA.bsiz*descA.lmt*(l)])
 #define B(l)   &(((double*)descB.mat)[descB.bsiz*(l)])
 
 #endif
 
-int _PLASMA_INFO;
+#ifdef DPLASMA_CALL_TRACE
+#   include <stdlib.h>
+#   include <stdio.h>
+#   define OUTPUT(ARG)  printf ARG
+#else
+#   define OUTPUT(ARG)
+#endif
+
+#ifdef DPLASMA_DRY_RUN
+#   define CORE(FN, ARGS)
+#else
+#   define CORE(FN, ARGS) CORE_##FN ARGS
+#endif
 %}
 
 /** Globals */
 NT
+NB
 GRIDrows
 GRIDcols
 rowRANK
 colRANK
 
-/************************************************************************************
- *                                    TRSM                                          *
- ************************************************************************************/
+/*************************************************************************
+ *                             TRSM                                      *
+ *************************************************************************/
 
 TRSM(k)
 
@@ -54,9 +69,9 @@ TRSM(k)
   : k % GRIDcols == colRANK
 
   IN    A <- A(k,k)                               [TILE]
-  INOUT B <- k == NT-1 ? B(k) : C GEMM(k, k+1)    [VECTOR]
-        -> B GEMM(k, 0 .. k-1)                    [VECTOR]
-        -> B(k)
+  INOUT B <- (k == NT-1) ? B(k) : C GEMM(k, k+1)  [VECTOR]
+          -> B GEMM(k, 0 .. k)                    [VECTOR]
+          -> B(k)
 
 BODY
     CORE(
@@ -78,22 +93,22 @@ BODY
 
 END
 
-/************************************************************************************
- *                                    TRSM                                          *
- ************************************************************************************/
+/****************************************************************************
+ *                                TRSM                                      *
+ ****************************************************************************/
 
 GEMM(k, l)
 
   k = 0 .. NT-1
-  l = k+1 .. NT-1
+  l = 0 .. k-1
 
   :k % GRIDrows == rowRANK
-  :n % GRIDcols == colRANK
+  :l % GRIDcols == colRANK
 
-  IN    A <- A(k,l)                                   [TILE]
-  IN    B <- B TRSM(l)                                [VECTOR]
-  INOUT C <- (l == NT-1) ? B(k) : C GEMM(k, l+1)      [VECTOR]
-          -> (l == k+1) ? B TRSM(k) : C GEMM(k, l-1)  [VECTOR]
+  IN    A <- A(k,l)                                     [TILE]
+  IN    B <- B TRSM(k)                                  [VECTOR]
+  INOUT C <- (k == NT-1) ? B(k) : C GEMM(k+1, l)        [VECTOR]
+          -> (l == k-1) ? B TRSM(k-1) : C GEMM(k-1, l)  [VECTOR]
 
 BODY
     CORE(
