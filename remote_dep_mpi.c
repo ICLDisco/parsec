@@ -347,7 +347,9 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
         }
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
-                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | origin->msg.deps, 
+                                              DPLASMA_ACTION_NO_PLACEHOLDER | 
+                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | 
+                                              origin->msg.deps, 
                                               NULL, data);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;

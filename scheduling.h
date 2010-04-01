@@ -23,7 +23,7 @@
  * @return -1 If something went wrong.
  */
 int dplasma_schedule( dplasma_context_t*, const dplasma_execution_context_t* );
-int __dplasma_schedule( dplasma_execution_unit_t*, dplasma_execution_context_t* );
+int __dplasma_schedule( dplasma_execution_unit_t*, dplasma_execution_context_t*, int use_placeholder );
 
 int dplasma_progress(dplasma_context_t* context);
 void* __dplasma_progress(dplasma_execution_unit_t* eu_context);

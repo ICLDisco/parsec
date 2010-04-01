@@ -15,7 +15,7 @@
 #include "Buf2Cache/buf2cache.h"
 #include "hbbuffer.h"
 
-#define PLACEHOLDER_SIZE 0
+#define PLACEHOLDER_SIZE 2
 
 typedef struct dplasma_context_t dplasma_context_t;
 

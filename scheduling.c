@@ -66,11 +66,11 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
     new_context->pointers[1] = NULL;
 #endif
     DPLASMA_LIST_ITEM_SINGLETON( new_context );
-    return __dplasma_schedule( eu_context, new_context );
+    return __dplasma_schedule( eu_context, new_context, 1);
 }
 
 int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
-                        dplasma_execution_context_t* new_context )
+                        dplasma_execution_context_t* new_context, int use_placeholder )
 {
 # ifdef DPLASMA_DEBUG
     char tmp[128];
@@ -104,16 +104,19 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     }
 #  else
 #    if PLACEHOLDER_SIZE
-    while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
-        eu_context->placeholder[eu_context->placeholder_push] = new_context;
-        eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
-        if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context ) {
-            TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
-            return 0;
+    if(use_placeholder)
+    {
+        while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
+            eu_context->placeholder[eu_context->placeholder_push] = new_context;
+            eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
+            if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context ) {
+                TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+                return 0;
+            }
+            new_context->list_item.list_next->list_prev = new_context->list_item.list_prev;
+            new_context->list_item.list_prev->list_next = new_context->list_item.list_next;
+            new_context = (dplasma_execution_context_t*)new_context->list_item.list_next;
         }
-        new_context->list_item.list_next->list_prev = new_context->list_item.list_prev;
-        new_context->list_item.list_prev->list_next = new_context->list_item.list_next;
-        new_context = (dplasma_execution_context_t*)new_context->list_item.list_next;
     }
 #    endif  /* PLACEHOLDER_SIZE */
     if( new_context->function->flags & DPLASMA_HIGH_PRIORITY_TASK ) {

@@ -1013,7 +1013,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     output("  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n"
            "    data_repo_entry_addto_usage_limit(%s_repo, e%s->key, usage);\n"                            /* line  1 */
            "    if( NULL != ready_list )\n"                                                                /* line  2 */
-           "      __dplasma_schedule(context, ready_list);\n"                                              /* line  3 */
+           "      __dplasma_schedule(context, ready_list, !(DPLASMA_ACTION_NO_PLACEHOLDER & action_mask));\n"
            "  }\n"
            "#if defined(DISTRIBUTED)\n"                                                                  /* line  4 */
            "  if( (action_mask & DPLASMA_ACTION_SEND_REMOTE_DEPS) && remote_deps_count ) {\n"            /* line  5 */
