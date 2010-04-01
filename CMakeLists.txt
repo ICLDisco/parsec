@@ -9,6 +9,8 @@ project (DPLASMA C Fortran)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # should we use our own math functions
+option(DPLASMA_DEBUG_HISTORY
+  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
 option(DPLASMA_SCHED_HWLOC

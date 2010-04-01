@@ -4,7 +4,7 @@
 #include "remote_dep.h"
 #include "atomic.h"
 
-#if defined(DPLASMA_DEBUG)
+#if defined(DPLASMA_DEBUG_HISTORY)
 
 typedef struct {
     dplasma_t *function;
@@ -39,18 +39,15 @@ typedef struct {
     } u;
 } mark_t;
 
-#define MAX_MARKS 8192
+#define MAX_MARKS 96
 static volatile uint32_t nextmark = 0;
 static mark_t   marks[MAX_MARKS];
 
 static inline mark_t *get_my_mark(void)
 {
     uint32_t mymark_idx = dplasma_atomic_inc_32b(&nextmark) - 1;
- 
-    if( mymark_idx >= MAX_MARKS ) {
-        DEBUG(("Unable to mark more events\n"));
-        return NULL;
-    }
+    mymark_idx %= MAX_MARKS;
+    
     return (&marks[mymark_idx]);
 }
 
@@ -169,6 +166,8 @@ void debug_mark_dta_msg_end_recv(int tag)
     mymark->u.comm.msg.tag = tag;
 }
 
+#define reali(i) (i+nextmark)
+
 void debug_mark_display_history(void)
 {
     uint32_t current_mark = nextmark;
@@ -179,7 +178,7 @@ void debug_mark_display_history(void)
     dplasma_t *f;
 
     current_mark = current_mark > MAX_MARKS ? MAX_MARKS : current_mark;
-    for(i = 0; i < current_mark; i++) {
+    for(i = nextmark % MAX_MARKS; i != (nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
         m = &marks[i];
         pos = 0;
 
@@ -188,7 +187,7 @@ void debug_mark_display_history(void)
             switch( m->u.comm.type ) {
             case TYPE_SEND_ACTIVATE:
                 pos += snprintf(msg+pos, len-pos, "mark %d: emission of an activate message to %d\n", 
-                                i, m->u.comm.fromto);
+                                reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n",
                                 m->u.comm.buffer);
                 f = (dplasma_t*)m->u.comm.msg.activate.function;
@@ -205,7 +204,7 @@ void debug_mark_display_history(void)
 
             case TYPE_RECV_ACTIVATE:
                 pos += snprintf(msg+pos, len-pos, "mark %d: reception of an activate message from %d\n", 
-                                i, m->u.comm.fromto);
+                                reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 f = (dplasma_t*)m->u.comm.msg.activate.function;
@@ -224,7 +223,7 @@ void debug_mark_display_history(void)
 
             case TYPE_SEND_GET:
                 pos += snprintf(msg+pos, len-pos, "mark %d: emission of a Get control message to %d\n", 
-                                i, m->u.comm.fromto);
+                                reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emission\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      deps requested = 0x%X\n",
@@ -237,7 +236,7 @@ void debug_mark_display_history(void)
 
             case TYPE_RECV_GET:
                 pos += snprintf(msg+pos, len-pos, "mark %d: reception of a Get control message from %d\n", 
-                                i, m->u.comm.fromto);
+                                reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      deps requested = 0x%X\n",
@@ -250,7 +249,7 @@ void debug_mark_display_history(void)
 
             case TYPE_SEND_START_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Start emitting data to %d\n", 
-                                i, m->u.comm.fromto);
+                                reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emission\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the emission of data = %d\n",
@@ -259,12 +258,12 @@ void debug_mark_display_history(void)
 
             case TYPE_SEND_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done sending data of tag %d\n", 
-                                i, m->u.comm.msg.tag);
+                                reali(i), m->u.comm.msg.tag);
                 break;
 
             case TYPE_RECV_START_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Start receiving data from %d\n", 
-                                i, m->u.comm.fromto);
+                                reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the reception of data = %d\n",
@@ -273,24 +272,25 @@ void debug_mark_display_history(void)
 
             case TYPE_RECV_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done receiving data with tag %d\n", 
-                                i, m->u.comm.msg.tag);
+                                reali(i), m->u.comm.msg.tag);
                 break;
             default: 
-                pos += snprintf(msg+pos, len-pos, "mark %d: WAT? type %d\n", i, m->u.comm.type);
+                pos += snprintf(msg+pos, len-pos, "mark %d: WAT? type %d\n", reali(i), m->u.comm.type);
                 break;
             }
-            DEBUG(("%s", msg));
+            fprintf(stderr, "%s", msg);
         } else {
-            pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", i, m->core);
+            pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", reali(i), m->core);
             pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
             for(j = 0; j < m->u.exe.function->nb_locals; j++) {
                 pos += snprintf(msg+pos, len-pos, "%s=%d%s",
                                 m->u.exe.locals[j].sym->name, m->u.exe.locals[j].value,
                                 (j == m->u.exe.function->nb_locals-1) ? ")\n" : ", ");
             }
-            DEBUG(("%s", msg));
+            fprintf(stderr, "%s", msg);
         }
     }
+    fprintf(stderr, "DISPLAYING last %u of %u events\n", current_mark, nextmark);
 }
 
 #endif
