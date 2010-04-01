@@ -257,7 +257,7 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
                     break;
             }
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
-                fprintf(stderr, "Profiling error: end event of key %d id %lu was not found\n", key, profile->events[end_idx].id);
+                fprintf(stderr, "Profiling error: end event of key %d id %lu was not found\n", key, profile->events[start_idx].id);
                 continue;
             }
 
