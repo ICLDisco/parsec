@@ -47,7 +47,7 @@ if(FOUND_HWLOC_INCLUDE)
   if( NOT HWLOC_LIB )
     find_library(HWLOC_LIB hwloc
       PATHS ${HWLOC_LIBRARIES}
-      DOC "Where the HWLOC cblas libraries are")
+      DOC "Where the HWLOC  libraries are")
   endif( NOT HWLOC_LIB )
 endif(FOUND_HWLOC_INCLUDE)
   
@@ -65,6 +65,7 @@ if(NOT HWLOC_FIND_QUIETLY)
   if(HWLOC_FOUND)
     message(STATUS "A library with HWLOC API found.")
     set(HAVE_HWLOC 1)
+    include_directories( ${HWLOC_INCLUDE_DIR} )
   else(HWLOC_FOUND)
     if(HWLOC_FIND_REQUIRED)
       message(FATAL_ERROR
