@@ -566,7 +566,10 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
     DEBUG(("TO\t%d\tActivate\t%s\ti=na\twith datakey %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps));
     
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
+
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
+    DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(rank, (void*)msg, msg);
+
 #if defined(DPLASMA_STATS)
     {
         MPI_Aint lb, size;
@@ -624,6 +627,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     i = i / MAX_PARAM_COUNT;
                     deps = (dplasma_remote_deps_t*) (uintptr_t) dep_get_buff[i].deps;
                     DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\t(tag=%d)\n", i, k, dep_get_buff[i].deps, status.MPI_TAG));
+                    DEBUG_MARK_DTA_MSG_END_SEND(status.MPI_TAG);
                     gc_data_unref(deps->output[k].data);
                     //TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
                     dep_get_buff[i].which ^= (1<<k);
@@ -672,6 +676,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     i = i/MAX_PARAM_COUNT;
                     deps = (dplasma_remote_deps_t*) (uintptr_t) dep_activate_buff[i];
                     DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith datakey na\t(tag=%d)\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, status.MPI_TAG));
+                    DEBUG_MARK_DTA_MSG_END_RECV(status.MPI_TAG);
                     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
                     deps->msg.deps |= 1<<k;
                     remote_dep_release(eu_context, deps);
@@ -698,7 +703,9 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
-    
+
+    DEBUG_MARK_CTL_MSG_GET_RECV(to, (void*)task, task);
+
     assert(dep_enabled);
     assert(task->which);
 
@@ -724,6 +731,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
         MPI_Isend(data, 1, dtt, to, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
+        DEBUG_MARK_DTA_MSG_START_SEND(to, data, tag+k);
     }
 }
 
@@ -741,7 +749,9 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_wire_get_t msg;
     dplasma_t* function = (dplasma_t*) (uintptr_t) task->function;
     dplasma_remote_deps_t* deps = dep_activate_buff[i];
-    
+
+    DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
+
     msg.deps =  task->deps;
     msg.which = task->which;
     msg.tag = NEXT_TAG;
@@ -774,6 +784,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
                       dtt, from, NEXT_TAG + k, dep_comm, 
                       &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
+            DEBUG_MARK_DTA_MSG_START_RECV(from, GC_DATA(deps->output[k].data), NEXT_TAG + k);
         }
     }
     INC_NEXT_TAG(MAX_PARAM_COUNT);
@@ -782,6 +793,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     MPI_Send(&msg, datakey_count, datakey_dtt, from, 
              REMOTE_DEP_GET_DATA_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
+    DEBUG_MARK_CTL_MSG_GET_SENT(from, (void*)&msg, &msg);
+
 #if defined(DPLASMA_STATS)
     {
         MPI_Aint lb, size;

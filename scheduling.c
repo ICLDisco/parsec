@@ -343,6 +343,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             done_task(master_context);
             /* We're good to go ... */
             dplasma_execute( eu_context, exec_context );
+            DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
             nbiterations++;
             /* Release the execution context */
 #if defined(DPLASMA_CACHE_AWARENESS)
