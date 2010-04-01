@@ -800,7 +800,7 @@ int dplasma_set_initial_execution_context( dplasma_execution_context_t* exec_con
         exec_context->locals[i].sym = object->locals[i];
         rc = dplasma_symbol_get_first_value(object->locals[i], NULL,
                                             exec_context->locals, &min);
-	exec_context->locals[i].value = min;
+        exec_context->locals[i].value = min;
     }
     /**
      * Now fix these values, by walking up and down the locals
