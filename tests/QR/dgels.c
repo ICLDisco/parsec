@@ -161,6 +161,14 @@ int DPLASMA_dgeqrf(int ncores, int M, int N, double *A, int LDA, double *T,
         dplasma_assign_global_symbol( "NT", constant );
         constant = expr_new_int( MT );
         dplasma_assign_global_symbol( "MT", constant );
+        constant = expr_new_int( 1/*ddescA.GRIDrows*/ );
+        dplasma_assign_global_symbol( "GRIDrows", constant );
+        constant = expr_new_int( 1/*ddescA.GRIDcols*/ );
+        dplasma_assign_global_symbol( "GRIDcols", constant );
+        constant = expr_new_int( 0/*ddescA.rowRANK*/ );
+        dplasma_assign_global_symbol( "rowRANK", constant );
+        constant = expr_new_int( 0/*ddescA.colRANK*/ );
+        dplasma_assign_global_symbol( "colRANK", constant );
         /*constant = expr_new_int( ((MT < NT) ? MT : NT) );
           dplasma_assign_global_symbol( "MINMTNT", constant );*/
     }
