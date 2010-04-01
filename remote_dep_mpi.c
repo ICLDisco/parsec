@@ -654,7 +654,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                             deps->output[k].data = NULL;
                             deps->output[k].type = NULL;
 #endif
-
+                            k++;
+                            assert(k < MAX_PARAM_COUNT);
                         }
                         deps->output_count = 0;
                         deps->output_sent_count = 0;

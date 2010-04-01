@@ -21,8 +21,8 @@ typedef struct {
 #define TYPE_RECV_END_DTA         8
 
 typedef struct {
-    uint32_t fromto:24;
-    uint32_t type  :8;
+    uint32_t fromto;
+    uint32_t type;
     const void *buffer;
     union {
         remote_dep_wire_activate_t activate;
@@ -62,6 +62,7 @@ void debug_mark_exe(int core, const struct dplasma_execution_context_t *ctx)
     if( mymark == NULL )
         return;
 
+    assert(ctx->function->nb_locals < MAX_LOCAL_COUNT);
     mymark->core = core;
     mymark->u.exe.function = ctx->function;
     for(i = 0; i < ctx->function->nb_locals; i++)
@@ -192,11 +193,11 @@ void debug_mark_display_history(void)
                                 m->u.comm.buffer);
                 f = (dplasma_t*)m->u.comm.msg.activate.function;
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-                for(i = 0; i < f->nb_locals; i++) {
+                for(j = 0; j < f->nb_locals; j++) {
                     pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
-                                    m->u.comm.msg.activate.locals[i].sym->name,
-                                    m->u.comm.msg.activate.locals[i].value,
-                                    (i == f->nb_locals - 1) ? ")\n" : ", ");
+                                    m->u.comm.msg.activate.locals[j].sym->name,
+                                    m->u.comm.msg.activate.locals[j].value,
+                                    (j == f->nb_locals - 1) ? ")\n" : ", ");
                 }
                 pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
                                 m->u.comm.msg.activate.which);
@@ -209,11 +210,11 @@ void debug_mark_display_history(void)
                                 m->u.comm.buffer);
                 f = (dplasma_t*)m->u.comm.msg.activate.function;
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-                for(i = 0; i < f->nb_locals; i++) {
+                for(j = 0; j < f->nb_locals; j++) {
                     pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
-                                    m->u.comm.msg.activate.locals[i].sym->name,
-                                    m->u.comm.msg.activate.locals[i].value,
-                                    (i == f->nb_locals - 1) ? ")\n" : ", ");
+                                    m->u.comm.msg.activate.locals[j].sym->name,
+                                    m->u.comm.msg.activate.locals[j].value,
+                                    (j == f->nb_locals - 1) ? ")\n" : ", ");
                 }
                 pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
                                 m->u.comm.msg.activate.which);
@@ -273,6 +274,9 @@ void debug_mark_display_history(void)
             case TYPE_RECV_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done receiving data with tag %d\n", 
                                 i, m->u.comm.msg.tag);
+                break;
+            default: 
+                pos += snprintf(msg+pos, len-pos, "mark %d: WAT? type %d\n", i, m->u.comm.type);
                 break;
             }
             DEBUG(("%s", msg));
