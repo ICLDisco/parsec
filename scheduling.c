@@ -518,6 +518,9 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
                 }
             }
             new_context.function = dep->dplasma;
+            /* Nothing to do is this is not a real function */
+            if( 0 == new_context.function->nb_locals ) continue;
+
             DEBUG(( " -> %s( ", dep->dplasma->name ));
             /* Check to see if any of the params are conditionals or ranges and if they are
              * if they match. If yes, then set the correct values.
