@@ -27,6 +27,7 @@ typedef struct dplasma_desc_t {
     PLASMA_enum dtyp;   // precision of the matrix
     int mb;             // number of rows in a tile
     int nb;             // number of columns in a tile
+    int ib;             // number of columns in an inner block
     int bsiz;           // size in elements including padding
     int lm;             // number of rows of the entire matrix
     int ln;             // number of columns of the entire matrix
@@ -92,6 +93,8 @@ static inline void* dplasma_get_local_tile(DPLASMA_desc* Ddesc, int m, int n)
 /* get a pointer to a specific LOCAL tile, with supertile management. */
 void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
 
+/* same thing, but for int matrix */
+void * dplasma_get_local_IPIV(DPLASMA_desc * Ddesc, int m, int n);
 
 /* set new data to tile
  * return 0 if success, >0 if not
@@ -136,6 +139,8 @@ int dplasma_description_init(DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, P
 /* affecting the complete local view of a distributed matrix with random values */
 int rand_dist_matrix(DPLASMA_desc * Ddesc);
 
+/* put zero on last nrhs lines of the matrix except diagonal (==1) */
+void zeroing(DPLASMA_desc * Ddesc, int nrhs);
 
 /*********************************************************************
  * Debugging functions

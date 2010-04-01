@@ -395,6 +395,46 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
     return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
 }
 
+void * dplasma_get_local_IPIV(DPLASMA_desc * Ddesc, int m, int n)
+{
+    int pos;
+    int nb_elem_r, last_c_size;
+
+    assert(Ddesc->mpi_rank == dplasma_get_rank_for_tile(Ddesc, m, n));
+
+    /**********************************/
+
+    nb_elem_r = Ddesc->nb_elem_r * Ddesc->ncst; /* number of tiles per column of super-tile */
+
+    pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
+
+    if (n >= ((Ddesc->lnt/Ddesc->ncst)*Ddesc->ncst )) /* tile is in the last column of super-tile */
+        {
+            last_c_size = (Ddesc->lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
+        }
+    else
+        {
+            last_c_size = Ddesc->ncst * Ddesc->nrst;
+        }
+    pos += (last_c_size * ((m / Ddesc->nrst) / Ddesc->GRIDrows ) ); /* pos is at head of supertile (BxA) containing (m,n)  */
+    
+    /* if tile (m,n) is in the last row of super tile and this super tile is smaller than others */
+    if (m >= ((Ddesc->lmt/Ddesc->nrst)*Ddesc->nrst))
+        {           
+            last_c_size = Ddesc->lmt % Ddesc->nrst;
+        }
+    else
+        {
+            last_c_size = Ddesc->nrst;
+        }
+    pos += ((n % Ddesc->ncst) * last_c_size); /* pos is at (B, n)*/
+    pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
+
+    //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
+    /************************************/
+    return &(((int *) Ddesc->mat)[pos * Ddesc->bsiz]);
+}
+
 int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
 {
     double * tile;
@@ -1020,8 +1060,17 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
         return status;
     }
 
-    /* Set NB, NT, BSIZ */
-    Ddesc->nb = PLASMA_NB;
+    /* Set NB, IB, NT, BSIZ */
+    if(Ddesc->nb == 0)
+        Ddesc->nb = PLASMA_NB;
+    else
+        PLASMA_NB = Ddesc->nb;
+    if (Ddesc->ib == 0)
+        Ddesc->ib = PLASMA_IB;
+    else
+        PLASMA_IB = Ddesc->ib;
+    PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
+    PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
     Ddesc->nt = ((Ddesc->n)%(Ddesc->nb)==0) ? ((Ddesc->n)/(Ddesc->nb)) : ((Ddesc->n)/(Ddesc->nb) + 1);
     Ddesc->bsiz = PLASMA_NBNBSIZE;
     // Matrix properties
@@ -1107,3 +1156,37 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
     return 0;
 
 }
+
+
+void zeroing_lines(DPLASMA_desc * Ddesc, int nrhs){
+    int i, j, k, rank;
+    double * buff;
+    if (nrhs > Ddesc->nb)/* TODO change it one day */
+        {
+            printf("nrhs > nb --> case currently not handled\n");
+            exit(2);
+        }
+    for (i = 0 ; i < Ddesc->nt ; i ++) /* for every tile in the last tile row */
+        {
+            if (Ddesc->mpi_rank == dplasma_get_rank_for_tile(Ddesc, Ddesc->mt - 1, i))
+                {
+                    buff = dplasma_get_local_tile_s(Ddesc, Ddesc->mt - 1 , i);
+                    if (i != Ddesc->nt - 1) /* not the last tile of the matrix */
+                        {
+                            for (j = 0 ; j < Ddesc-> nb ; j++) /* for every column of that tile */
+                                for(k = 0 ; k < nrhs ; k++) /* zeroing the last 'nrhs' lines */
+                                    buff[(j * Ddesc->mb) + (Ddesc->mb - 1 - k)  ] = 0;
+                        }
+                    else /* last tile of the matrix*/
+                        {
+                            for (j = 0 ; j < Ddesc-> nb ; j++) /* for every column of that tile */
+                                for(k = 0 ; k < nrhs ; k++) /* zeroing the last 'nrhs' lines */
+                                    if (j == (Ddesc->mb - 1 - k))
+                                        buff[(j * Ddesc->mb) + (Ddesc->mb - 1 - k)  ] = 1;
+                                    else
+                                        buff[(j * Ddesc->mb) + (Ddesc->mb - 1 - k)  ] = 0;
+                        }
+                }
+        }
+}
+

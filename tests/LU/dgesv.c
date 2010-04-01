@@ -49,6 +49,7 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 static void create_local(int N, PLASMA_enum* uplo, 
                          double** pL,
                          int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL);
+static void create_dl_IPIV();
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void check_matrix(int N, PLASMA_enum* uplo, 
@@ -148,6 +149,7 @@ DPLASMA_desc ddescA;
 PLASMA_desc descL;
 DPLASMA_desc ddescL;
 int* _IPIV;
+DPLASMA_desc ddescIPIV;
 #if defined(USE_MPI)
 MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
 #endif
@@ -172,12 +174,17 @@ int main(int argc, char ** argv)
     //#endif
     
     runtime_init(argc, argv);
-    
-    if(0 == rank)
-        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
+    if(!do_distributed_generation)
+        {
+            if(0 == rank)
+                create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
+            else
+                create_local(N, &uplo, &L, &_IPIV, LDA, NRHS, &descA, &descL);
+        }
     else
-        create_local(N, &uplo, &L, &_IPIV, LDA, NRHS, &descA, &descL);
-
+        {
+            
+        }
     switch(backend)
     {
         case DO_PLASMA: {
@@ -203,15 +210,20 @@ int main(int argc, char ** argv)
             break;
         }
         case DO_DPLASMA: {
-            scatter_matrix(&descA, &ddescA);
-            ddescL = ddescA;
-            scatter_matrix(&descL, &ddescL); /* it is 0, but make sure it is */
-
-            create_datatypes();
-            //#ifdef VTRACE 
-            //    VT_ON();
-            //#endif
             
+            scatter_matrix(&descA, &ddescA);/*  create/distribute  matrix A */
+            
+            if(!do_distributed_generation)
+                {
+                    scatter_matrix(&descL, &ddescL); /* it is 0, but make sure it is */
+                    //ddescL = ddescA;
+                }
+            else
+                {
+                    create_dl_IPIV();
+                }
+            create_datatypes();
+
             /*** THIS IS THE DPLASMA COMPUTATION ***/
             TIME_START();
             dplasma = setup_dplasma(&argc, &argv);
@@ -409,6 +421,7 @@ static void runtime_init(int argc, char **argv)
                 if(optarg)
                 {
                     block_forced = atoi(optarg);
+                    ddescA.nb = block_forced;
                 }
                 else
                 {
@@ -421,6 +434,7 @@ static void runtime_init(int argc, char **argv)
                 if(optarg)
                 {
                     internal_block_forced = atoi(optarg);
+                    ddescA.ib = internal_block_forced;
                 }
                 else
                 {
@@ -455,11 +469,7 @@ static void runtime_init(int argc, char **argv)
         exit(2);
     } 
 
-    if( internal_block_forced != 0 && block_forced == 0 ) {
-        fprintf(stderr, "Cannot force the internal block value if you don't force the block value (-B)\n");
-        exit(1);
-    }
-
+   
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
     {
@@ -502,23 +512,8 @@ static void runtime_init(int argc, char **argv)
             }
             PLASMA_IB = internal_block_forced;
         } else {
-            int candidate, dist;
-
-            candidate = PLASMA_NB / 5;
-            if( candidate == 0 ) 
-                PLASMA_IB = 1;
-            else {
-                for(dist = 0; 1; dist++) {
-                    if( PLASMA_NB % (candidate + dist) == 0 ) {
-                        PLASMA_IB = candidate + dist;
-                        break;
-                    }
-                    if( PLASMA_NB % (candidate - dist) == 0 ) {
-                        PLASMA_IB = candidate - dist;
-                        break;
-                    }
-                }
-            }
+            PLASMA_IB = (PLASMA_NB / 5) + 1;
+            ddescA.ib = PLASMA_IB;
             printf("Using an internal block size of %d\n",PLASMA_IB);
         }
 
@@ -806,6 +801,31 @@ static void create_local(int N, PLASMA_enum* uplo,
 #undef L
 #undef IPIV
 }
+
+/* create ipiv and dl.
+ * must be call after scatter/creation of matrix A 
+ */
+static void create_dl_IPIV()
+{
+    /* assign same values for both matrix description */
+    ddescL = ddescA; 
+    ddescIPIV = ddescA;
+    /* now change L*/
+    ddescL.nb =  ddescA.ib;
+    ddescL.bsiz = ddescA.nb * ddescA.ib;
+    ddescL.ln = ddescA.lnt * ddescA.ib;
+    ddescL.n = ddescL.ln;
+    ddescL.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescL.bsiz, sizeof(double));
+
+    /* and change IPIV */
+    ddescIPIV.nb = 1;
+    ddescIPIV.bsiz = ddescA.mb;
+    ddescIPIV.ln = ddescA.lnt;
+    ddescIPIV.n = ddescIPIV.ln;
+    ddescIPIV.mat=calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescIPIV.bsiz, sizeof(int));
+    return;
+}
+
 
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
