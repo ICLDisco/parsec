@@ -299,17 +299,18 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
     int rank_bank = rank / (sizeof(uint32_t) * 8);
     uint32_t rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
     int output_count = deps->output_count;
+    remote_dep_wire_activate_t msg = deps->msg;
 
-    deps->msg.which = 0;
+    msg.which = 0;
     for(k = 0; output_count; k++)
     {
         output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask)
         {
-            deps->msg.which |= (1<<k);
+            msg.which |= (1<<k);
         }
     }
-    remote_dep_mpi_send_dep(rank, &deps->msg);
+    remote_dep_mpi_send_dep(rank, &msg);
 }
 
 static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
@@ -448,14 +449,6 @@ static int NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG+1;
     else \
         NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG + k + 1; \
 } while(0)
-
-/* This function hashes a tag from a pointer. There is no collision because the 
- * pointers used to feed it are coming from remote_deps arrays, either from 
- * static here, or from free_list (a consecutive array as well). Therefore 
- * we should see no collision until we reach in the order of 
- * MAX_MPI_TAG/MAX_PARAM_COUNT simultaneous flying messages
- */
-/*#define PTR_TO_TAG(ptr) ((int) (((((intptr_t) ptr) / sizeof(dplasma_remote_deps_t)) * MAX_PARAM_COUNT) % MAX_MPI_TAG))*/
 
 static int remote_dep_mpi_init(dplasma_context_t* context)
 {
