@@ -7,6 +7,8 @@
 #include "stats.h"
 #include "debug.h"
 
+#define DEBUG_HEAVY(p)
+
 static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {
     while( !dplasma_atomic_cas( atomic_lock, 0, 1) )
@@ -20,8 +22,8 @@ static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
 
 typedef struct gc_data {
     volatile uint32_t refcount;
-             uint32_t cache_friendliness;
-             void    *data;
+    uint32_t cache_friendliness;
+    void    *data;
 } gc_data_t;
 
 #define GC_POINTER(d) ((gc_data_t*)( (uintptr_t)(d) & ~( (uintptr_t)1) ))
@@ -29,7 +31,7 @@ typedef struct gc_data {
 #define GC_DATA(d) (void*)( GC_ENABLED(d)?(GC_POINTER(d)->data):(d) )
 
 
-#ifdef DPLASMA_DEBUG
+#ifdef DPLASMA_DEBUG_HEAVY
 #define gc_data_new(d, e) __gc_data_new(d, e, __FILE__, __LINE__)
 static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled, const char *file, int line)
 #else
@@ -50,39 +52,39 @@ static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled)
 #endif
         d = (gc_data_t*)( (uintptr_t)d | (uintptr_t)1 );
 
-        DEBUG(("Allocating the garbage collectable data %p pointing on data %p, at %s:%d\n",
-               d, GC_DATA(d), file, line));
+        DEBUG_HEAVY(("Allocating the garbage collectable data %p pointing on data %p, at %s:%d\n",
+                     d, GC_DATA(d), file, line));
         return d;
     } else {
         return (gc_data_t*)data;
     }
 }
 
-#ifdef DPLASMA_DEBUG
+#ifdef DPLASMA_DEBUG_HEAVY
 #define gc_data_ref(d) __gc_data_ref(d, __FILE__, __LINE__)
 #else
 #define gc_data_ref(d) __gc_data_ref(d)
 #endif
 
-#ifdef DPLASMA_DEBUG
+#ifdef DPLASMA_DEBUG_HEAVY
 static inline void __gc_data_ref(gc_data_t *d, const char *file, int line)
 #else
 static inline void __gc_data_ref(gc_data_t *d)
 #endif
 {
     if( GC_ENABLED(d) ) {
-        DEBUG(("%p is referenced by %s:%d\n", d, file, line));
+        DEBUG_HEAVY(("%p is referenced by %s:%d\n", d, file, line));
         dplasma_atomic_inc_32b( &GC_POINTER(d)->refcount);
     }
 }
 
-#ifdef DPLASMA_DEBUG
+#ifdef DPLASMA_DEBUG_HEAVY
 #define gc_data_unref(d) __gc_data_unref(d, __FILE__, __LINE__)
 #else
 #define gc_data_unref(d) __gc_data_unref(d)
 #endif
 
-#ifdef DPLASMA_DEBUG
+#ifdef DPLASMA_DEBUG_HEAVY
 static inline gc_data_t* __gc_data_unref(gc_data_t *d, const char *file, int line)
 #else
 static inline gc_data_t* __gc_data_unref(gc_data_t *d)
@@ -91,12 +93,12 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
     int nref;
     if( GC_ENABLED(d) ) {
         nref = dplasma_atomic_dec_32b( &GC_POINTER(d)->refcount );
-        DEBUG(("%p is unreferenced by %s:%d\n", d, file, line));
+        DEBUG_HEAVY(("%p is unreferenced by %s:%d\n", d, file, line));
         if( 0 == nref ) {
-            DEBUG(("Liberating the garbage collectable datar %p pointing on data %p,\n",
-                   d, GC_DATA(d)));
+            DEBUG_HEAVY(("Liberating the garbage collectable datar %p pointing on data %p,\n",
+                         d, GC_DATA(d)));
             free(GC_DATA(d));
-#if defined(DPLASMA_DEBUG)
+#if defined(DPLASMA_DEBUG_HEAVY)
             GC_POINTER(d)->data = NULL;
             GC_POINTER(d)->refcount = 0;
 #endif
@@ -228,7 +230,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
     return e;
 }
 
-#if defined(DPLASMA_DEBUG)
+#if defined(DPLASMA_DEBUG_HEAVY)
 # define data_repo_entry_used_once(repo, key) __data_repo_entry_used_once(repo, key, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
 #else
@@ -250,16 +252,16 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
             break;
         }
 
-#ifdef DPLASMA_DEBUG
+#ifdef DPLASMA_DEBUG_HEAVY
     if( NULL == e ) {
-        DEBUG(("entry %ld of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
+        DEBUG_HEAVY(("entry %ld of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
     }
 #endif
     assert( NULL != e );
 
     if( (e->usagelmt == r) && (0 == e->retained) ) {
-        DEBUG(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
-               e, e->key, tablename, r, r, file, line));
+        DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+                     e, e->key, tablename, r, r, file, line));
         if( NULL != p ) {
             p->next_entry = e->next_entry;
         } else {
@@ -270,13 +272,13 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
         free(e);
         DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
-        DEBUG(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
-               e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
+        DEBUG_HEAVY(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
+                     e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
         data_repo_atomic_unlock(&repo->heads[h].lock);
     }
 }
 
-#if defined(DPLASMA_DEBUG)
+#if defined(DPLASMA_DEBUG_HEAVY)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt, const char *tablename, const char *file, int line)
 #else
@@ -305,8 +307,8 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
     assert( NULL != e );
 
     if( (e->usagelmt == e->usagecnt) && (0 == e->retained) ) {
-        DEBUG(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
-               e, e->key, tablename, e->usagecnt, e->usagelmt, file, line));
+        DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+                     e, e->key, tablename, e->usagecnt, e->usagelmt, file, line));
         if( NULL != p ) {
             p->next_entry = e->next_entry;
         } else {
@@ -317,8 +319,8 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         free(e);
         DPLASMA_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
-        DEBUG(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
-               e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
+        DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
+                     e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
         data_repo_atomic_unlock(&repo->heads[h].lock);
     }
 }
