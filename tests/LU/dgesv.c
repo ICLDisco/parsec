@@ -294,9 +294,12 @@ int main(int argc, char ** argv)
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
-            gather_matrix(&descA, &ddescA);
-            gather_matrix(&descL, &ddescL);
-            gather_ipiv();
+            if( do_nasty_validations &&
+                !do_distributed_generation ) {
+                gather_matrix(&descA, &ddescA);
+                gather_matrix(&descL, &ddescL);
+                gather_ipiv();
+            }
             break;
         }
     }
@@ -1006,7 +1009,6 @@ static void check_matrix(int N, PLASMA_enum* uplo,
         printf(" ---- n= %d np= %d nc= %d g= %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
         printf("****************************************************\n");
     }
-    free(A2); free(L); free(IPIV);
 }
 
 #undef rank
