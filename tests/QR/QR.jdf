@@ -103,6 +103,20 @@ rowRANK
 /*****************************************
  9:11
 */
+
+DGEQRT_HACK(k)
+ k = 0..MINMTNT-1
+
+ // Parallel partitioning
+ : k % GRIDrows == rowRANK
+ : k % GRIDcols == colRANK
+
+ INOUT RV1 <- RV1 DGEQRT(k)
+           -> A(k,k)                                      [LOWER_TILE]
+BODY
+  /* Nothing */
+END
+
 DGEQRT(k)
 
   // Execution space
@@ -114,7 +128,7 @@ DGEQRT(k)
 
   INOUT RV1 <- (k == 0)    ? A(0,0) : C2 DSSMQR(k-1,k,k)
             -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]
-            -> A(k,k)                                     [LOWER_TILE]
+            -> RV1 DGEQRT_HACK(k)
   INOUT T   <- T(k,k)                                     [PIVOT_VECT]
             -> T DORMQR(k, k+1..NT-1)                     [PIVOT_VECT]
             -> T(k,k)                                     [PIVOT_VECT]
