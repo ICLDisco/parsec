@@ -272,17 +272,6 @@ int main(int argc, char ** argv)
                 warmup_dplasma(dplasma);
             
             plasma_context_t *plasma = plasma_context_self();
-            DEBUG(("plasma->nb = %d\n", plasma->nb));
-            DEBUG(("plasma->ib = %d\n", plasma->ib));
-            DEBUG(("plasma->nbnbsize = %d\n", plasma->nbnbsize));
-            DEBUG(("plasma->ibnbsize = %d\n", plasma->ibnbsize));
-            DEBUG(("plasma->info = %d\n", plasma->info));
-
-            display_desc("descA", &descA);
-            display_desc("descL", &descL);
-            display_ddesc("ddescA", &ddescA);
-            display_ddesc("ddescL", &ddescL);
-            display_ddesc("ddescIPIV", &ddescIPIV);
 
             /* lets rock! */
             SYNC_TIME_START();
@@ -559,7 +548,12 @@ static void runtime_init(int argc, char **argv)
             }
             PLASMA_IB = internal_block_forced;
         } else {
-            PLASMA_IB = (PLASMA_NB / 5) + 1;
+            PLASMA_IB = (PLASMA_NB / 5);
+            if( (PLASMA_NB % PLASMA_IB) != 0 ) {
+                fprintf(stderr, "Invalid -B flag: heuristic is to take Inner block of %d, which is not a divisor of the Block size %d\n",
+                        PLASMA_IB, PLASMA_NB);
+                exit(0);
+            }
             ddescA.ib = PLASMA_IB;
             printf("Using an internal block size of %d\n",PLASMA_IB);
         }
