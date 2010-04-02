@@ -46,12 +46,10 @@ static void create_matrix(int N, PLASMA_enum* uplo,
                           double** pL, int** pIPIV,
                           int LDA, int NRHS, int LDB, 
                           PLASMA_desc* dA, PLASMA_desc* dL);
-static void create_local(int N, PLASMA_enum* uplo, 
-                         double** pL,
-                         int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL);
 static void create_dl_IPIV();
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
+static void gather_ipiv(void);
 static void check_matrix(int N, PLASMA_enum* uplo, 
                          double* A1, double* A2, 
                          double* B1, double* B2,
@@ -223,17 +221,9 @@ int main(int argc, char ** argv)
     //#endif
     
     runtime_init(argc, argv);
-    if(!do_distributed_generation)
-        {
-            if(0 == rank)
-                create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
-            else
-                create_local(N, &uplo, &L, &_IPIV, LDA, NRHS, &descA, &descL);
-        }
-    else
-        {
-            
-        }
+    if(!do_distributed_generation && (0 == rank) )
+        create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
+
     switch(backend)
     {
         case DO_PLASMA: {
@@ -306,6 +296,7 @@ int main(int argc, char ** argv)
 
             gather_matrix(&descA, &ddescA);
             gather_matrix(&descL, &ddescL);
+            gather_ipiv();
             break;
         }
     }
@@ -827,34 +818,6 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 #undef IPIV
 }
 
-static void create_local(int N, PLASMA_enum* uplo, 
-                         double** pL,
-                         int** pIPIV, int LDA, int NRHS, PLASMA_desc* dA, PLASMA_desc* dL)
-{
-#define IPIV    (*pIPIV)
-#define L       (*pL)
-    int i, j;
-    
-    if(do_distributed_generation) 
-    {
-        IPIV = NULL;
-        return;
-    }    
-    
-    plasma_context_t* plasma = plasma_context_self();
-    int NB, NT;
-    
-    NB = PLASMA_NB;
-    NT = (N%NB==0) ? (N/NB) : (N/NB+1);
-
-    PLASMA_Alloc_Workspace_dgesv(N, &L, &IPIV);
-    free(L); /* it is distributed otherwise */
-    plasma_memzero(IPIV, dA->mt*dA->nt*PLASMA_NB, PlasmaInteger);
-    
-#undef L
-#undef IPIV
-}
-
 /* create ipiv and dl.
  * must be call after scatter/creation of matrix A 
  */
@@ -933,6 +896,50 @@ static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
         TIME_PRINT(("data reduction on rank %d (to rank 0)\n", dist->mpi_rank));
     }
 # endif
+}
+
+static void gather_ipiv(void)
+{
+#if USE_MPI
+    int i, j, k, _rank;
+
+    if( do_distributed_generation )
+        return;
+
+    if( do_nasty_validations ) {
+        k = 0;
+        if ( ddescIPIV.mpi_rank == 0 )
+            {
+                for(j = 0; j < ddescIPIV.lnt ; j++)
+                    for (i = 0 ; i < ddescIPIV.lmt ; i++ )
+                        {
+                            _rank = dplasma_get_rank_for_tile(&ddescIPIV, i, j);
+                            if (_rank == 0)
+                                memcpy(&_IPIV[descA.nb*i+descA.nb*descA.lmt*j], 
+                                       dplasma_get_local_IPIV(&ddescIPIV, i, j), 
+                                       ddescIPIV.bsiz * sizeof(int));
+                            else
+                                {
+                                    MPI_Recv(&_IPIV[descA.nb*i+descA.nb*descA.lmt*j], 
+                                             ddescIPIV.bsiz, MPI_INT, _rank, 1, MPI_COMM_WORLD, 
+                                             MPI_STATUS_IGNORE);
+                                }
+                        }
+            }
+        else
+            {
+                for(j = 0; j < ddescIPIV.lnt ; j++)
+                    for (i = 0 ; i < ddescIPIV.lmt ; i++ )
+                        {
+                            _rank = dplasma_get_rank_for_tile(&ddescIPIV, i, j);
+                            if (_rank == ddescIPIV.mpi_rank)
+                                {
+                                    MPI_Send( dplasma_get_local_IPIV(&ddescIPIV, i, j), ddescIPIV.bsiz, MPI_INT, 0, 1, MPI_COMM_WORLD );
+                                }
+                        }
+            }
+    }
+#endif
 }
 
 static void check_matrix(int N, PLASMA_enum* uplo, 
