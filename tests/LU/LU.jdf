@@ -15,9 +15,11 @@ extern "C" %{
 extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
 extern DPLASMA_desc ddescA;
 extern DPLASMA_desc ddescL;
+extern DPLASMA_desc ddescIPIV;
 
 #define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #define L(m,n) dplasma_get_local_tile_s(&ddescL, m, n)
+#define IPIV(m,n) dplasma_get_local_IPIV(&ddescIPIV, m, n)
 
 #define descA ddescA
 #define descL ddescL
@@ -28,13 +30,12 @@ extern PLASMA_desc descL;
 
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #define L(m,n) &(((double*)descL.mat)[descL.bsiz*(m)+descL.bsiz*descL.lmt*(n)])
+extern int* _IPIV;
+#define IPIV(m,n) &_IPIV[descA.nb*(m)+descA.nb*descA.lmt*(n)]
 
 #endif
 
 int _PLASMA_INFO;
-extern int* _IPIV;
-#define IPIV(m,n) &_IPIV[descA.nb*(m)+descA.nb*descA.lmt*(n)]
-
 
 #define OUTPUT(ARGS) printf ARGS
 

@@ -131,13 +131,17 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     Ddesc->n = Pdesc->n ;
     Ddesc->mt = Pdesc->mt ;
     Ddesc->nt = Pdesc->nt ;
+    {
+        plasma_context_t *plasma = plasma_context_self();
+        Ddesc->ib = PLASMA_IB;
+    }
     return ddesc_compute_vals( Ddesc );
 }
 
 int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
 #ifdef USE_MPI
-    int tmp_ints[20];
+    int tmp_ints[21];
 
     if (Ddesc->mpi_rank == 0) /* send data */
     {
@@ -161,12 +165,13 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         tmp_ints[17] = Ddesc->GRIDcols ;
         tmp_ints[18] = Ddesc->cores ;
         tmp_ints[19] = Ddesc->nodes ;
+        tmp_ints[20] = Ddesc->ib;
         
-        MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(tmp_ints, 21, MPI_INT, 0, MPI_COMM_WORLD);
     }
     else /* rank != 0, receive data */
     {
-        MPI_Bcast(tmp_ints, 20, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(tmp_ints, 21, MPI_INT, 0, MPI_COMM_WORLD);
         
         Ddesc->dtyp= tmp_ints[0];
         Ddesc->mb = tmp_ints[1];
@@ -188,6 +193,7 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         Ddesc->GRIDcols  = tmp_ints[17];
         Ddesc->cores  = tmp_ints[18];
         Ddesc->nodes  = tmp_ints[19];
+        Ddesc->ib     = tmp_ints[20];
 
         if( -1 == ddesc_compute_vals(Ddesc) )
         {
