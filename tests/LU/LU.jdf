@@ -211,6 +211,20 @@ colRANK
  *                                   DGETRF                                         *
  ************************************************************************************/
 
+DGETRF_HACK(k)
+ k = 0..NT-1
+
+ // Parallel partitioning
+ : k % GRIDrows == rowRANK
+ : k % GRIDcols == colRANK
+
+ INOUT LU <- LU DGETRF(k)
+          -> (k != NT-1) ?                 L DGESSM(k, k+1..NT-1)  [LOWER_TILE]
+	  -> A(k,k)                                                [LOWER_TILE]
+BODY
+ /* nothing */
+END
+
 DGETRF(k)
  k = 0..NT-1
 
@@ -218,10 +232,10 @@ DGETRF(k)
  : k % GRIDrows == rowRANK
  : k % GRIDcols == colRANK
 
+ //This DSSSSM always run on the same node, so typing will have no effect.
  INOUT LU <- (k == 0)    ? A(0, 0)       : C2 DSSSSM(k-1, k, k)
           -> (k == NT-1) ? A(NT-1, NT-1) : U DTSTRF(k, k+1)        [UPPER_TILE]
-	  -> (k != NT-1) ?                 L DGESSM(k, k+1..NT-1)  [LOWER_TILE]
-	  -> A(k, k)                                               [LOWER_TILE]
+	  -> LU DGETRF_HACK(k)
  INOUT IPIV <- IPIV(k, k)                                          [PIVOT_VECT]
             -> IPIV DGESSM(k, k+1..NT-1)                           [PIVOT_VECT]
             -> IPIV(k, k)                                          [PIVOT_VECT]
@@ -331,7 +345,7 @@ DGESSM(k, n)
   : k % GRIDrows == rowRANK
   : n % GRIDcols == colRANK
 
-  IN    L    <- LU DGETRF(k)                                       [LOWER_TILE]
+  IN    L    <- LU DGETRF_HACK(k)                                  [LOWER_TILE]
   IN    IPIV <- IPIV DGETRF(k)                                     [PIVOT_VECT]
   INOUT C1 <- (k == 0) ? A(k, n) : C2 DSSSSM(k-1, n, k)
            -> C1 DSSSSM(k, n, k+1)
@@ -373,7 +387,7 @@ DTSTRF_OUT(k)
   :k % GRIDcols == colRANK
   
   INOUT A <- U DTSTRF(k, NT-1) [UPPER_TILE]
-          -> A(k, k)         [UPPER_TILE]
+          -> A(k, k)           [UPPER_TILE]
           
 BODY
 /* nothing */
