@@ -242,7 +242,8 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
 {
     int key, start_idx, end_idx, displayed_key;
     uint64_t start, end;
-    
+    static int displayed_error_message = 0;
+
     for( key = 0; key < dplasma_prof_keys_count; key++ ) {
         displayed_key = 0;
         for( start_idx = 0; start_idx < min(profile->events_count, profile->events_limit); start_idx++ ) {
@@ -257,7 +258,10 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
                     break;
             }
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
-                fprintf(stderr, "Profiling error: end event of key %d id %lu was not found\n", key, profile->events[start_idx].id);
+                if( !displayed_error_message ) {
+                    fprintf(stderr, "Profiling error: end event of key %d id %lu was not found -- some histories are truncated\n", key, profile->events[start_idx].id);
+                    displayed_error_message = 1;
+                }
                 continue;
             }
 
