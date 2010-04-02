@@ -158,6 +158,55 @@ MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
 extern int dgesv_private_memory_initialization(plasma_context_t*);
 struct dplasma_memory_pool_t *work_pool = NULL;
 
+static void display_ddesc(const char *name, DPLASMA_desc *d)
+{
+    DEBUG(("%s->mat = %p          // pointer to the beginning of the matrix\n", name, d->mat));
+    DEBUG(("%s->dtyp = %d         // precision of the matrix\n", name, d->dtyp));
+    DEBUG(("%s->mb = %d           // number of rows in a tile\n", name, d->mb));
+    DEBUG(("%s->nb = %d           // number of columns in a tile\n", name, d->nb));
+    DEBUG(("%s->ib = %d           // number of columns in an inner block\n", name, d->ib));
+    DEBUG(("%s->bsiz = %d         // size in elements including padding\n", name, d->bsiz));
+    DEBUG(("%s->lm = %d           // number of rows of the entire matrix\n", name, d->lm));
+    DEBUG(("%s->ln = %d           // number of columns of the entire matrix\n", name, d->ln));
+    DEBUG(("%s->lmt = %d          // number of tile rows of the entire matrix - derived parameter\n", name, d->lmt));
+    DEBUG(("%s->lnt = %d          // number of tile columns of the entire matrix - derived parameter\n", name, d->lnt));
+    DEBUG(("%s->i = %d            // row index to the beginning of the submatrix\n", name, d->i));
+    DEBUG(("%s->j = %d            // column indes to the beginning of the submatrix\n", name, d->j));
+    DEBUG(("%s->m = %d            // number of rows of the submatrix\n", name, d->m));
+    DEBUG(("%s->n = %d            // number of columns of the submatrix\n", name, d->n));
+    DEBUG(("%s->mt = %d           // number of tile rows of the submatrix - derived parameter\n", name, d->mt));
+    DEBUG(("%s->nt = %d           // number of tile columns of the submatrix - derived parameter\n", name, d->nt));
+    DEBUG(("%s->nrst = %d         // max number of tile rows in a super-tile\n", name, d->nrst));
+    DEBUG(("%s->ncst = %d         // max number of tile columns in a super tiles\n", name, d->ncst));
+    DEBUG(("%s->mpi_rank = %d     // well... mpi rank...\n", name, d->mpi_rank));
+    DEBUG(("%s->GRIDrows = %d     // number of processes rows in the process grid\n", name, d->GRIDrows));
+    DEBUG(("%s->GRIDcols = %d     // number of processes cols in the process grid\n", name, d->GRIDcols));
+    DEBUG(("%s->cores = %d        // number of cores used for computation per node\n", name, d->cores));
+    DEBUG(("%s->nodes = %d        // number of nodes involved in the computation\n", name, d->nodes));
+    DEBUG(("%s->colRANK = %d      // process column rank in the process grid - derived parameter\n", name, d->colRANK));
+    DEBUG(("%s->rowRANK = %d      // process row rank in the process grid - derived parameter\n", name, d->rowRANK));
+    DEBUG(("%s->nb_elem_r = %d    // number of row tiles  handled by this process\n", name, d->nb_elem_r));
+    DEBUG(("%s->nb_elem_c = %d    // number of column tiles handled by this process\n", name, d->nb_elem_c));
+}
+
+static void display_desc(const char *name, PLASMA_desc *d)
+{
+    DEBUG(("%s->mat = %p          // pointer to the beginning of the matrix\n", name, d->mat));
+    DEBUG(("%s->dtyp = %d         // precision of the matrix\n", name, d->dtyp));
+    DEBUG(("%s->mb = %d           // number of rows in a tile\n", name, d->mb));
+    DEBUG(("%s->nb = %d           // number of columns in a tile\n", name, d->nb));
+    DEBUG(("%s->bsiz = %d         // size in elements including padding\n", name, d->bsiz));
+    DEBUG(("%s->lm = %d           // number of rows of the entire matrix\n", name, d->lm));
+    DEBUG(("%s->ln = %d           // number of columns of the entire matrix\n", name, d->ln));
+    DEBUG(("%s->lmt = %d          // number of tile rows of the entire matrix - derived parameter\n", name, d->lmt));
+    DEBUG(("%s->lnt = %d          // number of tile columns of the entire matrix - derived parameter\n", name, d->lnt));
+    DEBUG(("%s->i = %d            // row index to the beginning of the submatrix\n", name, d->i));
+    DEBUG(("%s->j = %d            // column indes to the beginning of the submatrix\n", name, d->j));
+    DEBUG(("%s->m = %d            // number of rows of the submatrix\n", name, d->m));
+    DEBUG(("%s->n = %d            // number of columns of the submatrix\n", name, d->n));
+    DEBUG(("%s->mt = %d           // number of tile rows of the submatrix - derived parameter\n", name, d->mt));
+    DEBUG(("%s->nt = %d           // number of tile columns of the submatrix - derived parameter\n", name, d->nt));
+}
 
 int main(int argc, char ** argv)
 {
@@ -212,16 +261,7 @@ int main(int argc, char ** argv)
         case DO_DPLASMA: {
             
             scatter_matrix(&descA, &ddescA);/*  create/distribute  matrix A */
-            
-            if(!do_distributed_generation)
-                {
-                    scatter_matrix(&descL, &ddescL); /* it is 0, but make sure it is */
-                    //ddescL = ddescA;
-                }
-            else
-                {
-                    create_dl_IPIV();
-                }
+            create_dl_IPIV();
             create_datatypes();
 
             /*** THIS IS THE DPLASMA COMPUTATION ***/
@@ -241,6 +281,19 @@ int main(int argc, char ** argv)
             if(do_warmup)
                 warmup_dplasma(dplasma);
             
+            plasma_context_t *plasma = plasma_context_self();
+            DEBUG(("plasma->nb = %d\n", plasma->nb));
+            DEBUG(("plasma->ib = %d\n", plasma->ib));
+            DEBUG(("plasma->nbnbsize = %d\n", plasma->nbnbsize));
+            DEBUG(("plasma->ibnbsize = %d\n", plasma->ibnbsize));
+            DEBUG(("plasma->info = %d\n", plasma->info));
+
+            display_desc("descA", &descA);
+            display_desc("descL", &descL);
+            display_ddesc("ddescA", &ddescA);
+            display_ddesc("ddescL", &ddescL);
+            display_ddesc("ddescIPIV", &ddescIPIV);
+
             /* lets rock! */
             SYNC_TIME_START();
             TIME_START();
@@ -810,11 +863,12 @@ static void create_dl_IPIV()
     /* assign same values for both matrix description */
     ddescL = ddescA; 
     ddescIPIV = ddescA;
+
     /* now change L*/
-    ddescL.nb =  ddescA.ib;
+    ddescL.mb =  ddescA.ib;
     ddescL.bsiz = ddescA.nb * ddescA.ib;
-    ddescL.ln = ddescA.lnt * ddescA.ib;
-    ddescL.n = ddescL.ln;
+    ddescL.lm = ddescA.lmt * ddescA.ib;
+    ddescL.m = ddescL.lm;
     ddescL.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescL.bsiz, sizeof(double));
 
     /* and change IPIV */
@@ -909,6 +963,12 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                                int, LDA);
         plasma_memcpy(L, dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
         
+#if defined(USE_MPI)
+        // We should have done something in the like of 
+        //        memcpy(IPIV, ddescIPIV.mat, sizeof(int)*ddescIPIV.mb*ddescIPIV.lmt*ddescIPIV.lnt);
+        // in the gather.
+#endif
+
         PLASMA_dtrsmpl(N, NRHS, A2, LDA, L, IPIV, B2, LDB);
         PLASMA_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, N, NRHS, A2,
                      LDA, B2, LDB);
