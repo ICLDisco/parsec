@@ -12,7 +12,7 @@ extern "C" %{
 #if defined(USE_MPI)
 #include <mpi.h>
 #include "data_management.h"
-extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
+extern MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 extern DPLASMA_desc ddescA;
 extern DPLASMA_desc ddescT;
 
@@ -93,7 +93,6 @@ int dgels_private_memory_finalization(void)
 
 GRIDrows
 GRIDcols
-NB
 MT
 NT
 MINMTNT = ((MT < NT) ? MT : NT)
@@ -129,9 +128,9 @@ DGEQRT(k)
   INOUT RV1 <- (k == 0)    ? A(0,0) : C2 DSSMQR(k-1,k,k)
             -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]
             -> RV1 DGEQRT_HACK(k)
-  INOUT T   <- T(k,k)                                     [PIVOT_VECT]
-            -> T DORMQR(k, k+1..NT-1)                     [PIVOT_VECT]
-            -> T(k,k)                                     [PIVOT_VECT]
+  INOUT T   <- T(k,k)                                     [LITTLE_T]
+            -> T DORMQR(k, k+1..NT-1)                     [LITTLE_T]
+            -> T(k,k)                                     [LITTLE_T]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -169,9 +168,9 @@ DTSQRT(k,m)
            -> A(m,k)
   INOUT R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)             [UPPER_TILE]
            -> (m == MT-1) ?  V1 DORMQR(k,k+1..NT-1) : R DTSQRT(k,m+1)  [UPPER_TILE]
-  INOUT T  <- T(m,k)                                                   [PIVOT_VECT]
-           -> T DSSMQR(k,k+1..NT-1,m)                                  [PIVOT_VECT]
-           -> T(m,k)                                                   [PIVOT_VECT]
+  INOUT T  <- T(m,k)                                                   [LITTLE_T]
+           -> T DSSMQR(k,k+1..NT-1,m)                                  [LITTLE_T]
+           -> T(m,k)                                                   [LITTLE_T]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -206,7 +205,7 @@ DORMQR(k,n)
   : n % GRIDcols == colRANK
 
   IN V1    <- R DTSQRT(k, MT-1)                         [UPPER_TILE]
-  IN T     <- T DGEQRT(k)                               [PIVOT_VECT]
+  IN T     <- T DGEQRT(k)                               [LITTLE_T]
   INOUT C1 <- (k == 0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
            -> C1 DSSMQR(k,n,k+1)
 
@@ -258,7 +257,7 @@ DSSMQR(k,n,m)
   : n % GRIDcols == colRANK
 
   IN V2 <- V2 DTSQRT(k,m)
-  IN T  <- T DTSQRT(k,m)                                           [PIVOT_VECT]
+  IN T  <- T DTSQRT(k,m)                                           [LITTLE_T]
 
   INOUT C2 <- (k == 0) ? A(m,n) : C2 DSSMQR(k-1,n,m)
            -> ((n == k+1) & (m == k+1)) ? RV1 DGEQRT(k+1)
