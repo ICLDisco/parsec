@@ -704,7 +704,7 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
                 A2[LDA*j+i] = A1[LDA*j+i] = 0.5 - (double)rand() / RAND_MAX;
         for (i = 0; i < N; i++)
             for (j = 0; j < NRHS; j++)
-                B2[LDB*j+i] = B1[LDB*j+i] = 0.5 - (double)rand() / RAND_MAX;        
+                B2[LDB*j+i] = B1[LDB*j+i] = 0.5 - (double)rand() / RAND_MAX;  
         for( i = 0; i < N; i++ )
             A2[LDA*i+i] = A1[LDA*i+i] = A1[LDA*i+i] + 10 * N;
     }
@@ -856,7 +856,7 @@ static void check_matrix(int M, int N, PLASMA_enum* uplo,
         double *Q  = (double *)malloc(LDA*N*sizeof(double));
         int i, K = min(M, N);
 
-        // memset((void*)Q, 0, LDA*N*sizeof(double));
+        memset((void*)Q, 0, LDA*N*sizeof(double));
         for (i = 0; i < K; i++)
             Q[LDA*i+i] = 1.0;
 
@@ -865,13 +865,6 @@ static void check_matrix(int M, int N, PLASMA_enum* uplo,
                                double*, A2,
                                int, LDA);
         plasma_memcpy(T, dT->mat, dT->mt*dT->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
-        
-#if defined(USE_MPI)
-        // We should have done something in the like of 
-        //        memcpy(IPIV, ddescIPIV.mat, sizeof(int)*ddescIPIV.mb*ddescIPIV.lmt*ddescIPIV.lnt);
-        // in the gather.
-#endif
-
         PLASMA_dorgqr(M, N, K, A2, LDA, T, Q, LDA);
         PLASMA_dgeqrs(M, N, NRHS, A2, LDA, T, B2, LDB);
         
