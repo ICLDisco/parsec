@@ -406,46 +406,6 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
     return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
 }
 
-void * dplasma_get_local_IPIV(DPLASMA_desc * Ddesc, int m, int n)
-{
-    int pos;
-    int nb_elem_r, last_c_size;
-
-    assert(Ddesc->mpi_rank == dplasma_get_rank_for_tile(Ddesc, m, n));
-
-    /**********************************/
-
-    nb_elem_r = Ddesc->nb_elem_r * Ddesc->ncst; /* number of tiles per column of super-tile */
-
-    pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
-
-    if (n >= ((Ddesc->lnt/Ddesc->ncst)*Ddesc->ncst )) /* tile is in the last column of super-tile */
-        {
-            last_c_size = (Ddesc->lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
-        }
-    else
-        {
-            last_c_size = Ddesc->ncst * Ddesc->nrst;
-        }
-    pos += (last_c_size * ((m / Ddesc->nrst) / Ddesc->GRIDrows ) ); /* pos is at head of supertile (BxA) containing (m,n)  */
-    
-    /* if tile (m,n) is in the last row of super tile and this super tile is smaller than others */
-    if (m >= ((Ddesc->lmt/Ddesc->nrst)*Ddesc->nrst))
-        {           
-            last_c_size = Ddesc->lmt % Ddesc->nrst;
-        }
-    else
-        {
-            last_c_size = Ddesc->nrst;
-        }
-    pos += ((n % Ddesc->ncst) * last_c_size); /* pos is at (B, n)*/
-    pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
-
-    //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
-    /************************************/
-    return &(((int *) Ddesc->mat)[pos * Ddesc->bsiz]);
-}
-
 int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
 {
     double * tile;
