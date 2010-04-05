@@ -759,8 +759,10 @@ static void create_matrix(int N, PLASMA_enum* uplo,
         for (i = 0; i < N; i++)
             for (j = 0; j < NRHS; j++)
                 B2[LDB*j+i] = B1[LDB*j+i] = 0.5 - (double)rand() / RAND_MAX;        
+        /*
         for( i = 0; i < N; i++ )
             A2[LDA*i+i] = A1[LDA*i+i] = A1[LDA*i+i] + 10 * N;
+        */
     }
     else
     {
@@ -777,8 +779,10 @@ static void create_matrix(int N, PLASMA_enum* uplo,
         for (i = 0; i < N; i++)
             for (j = 0; j < N; j++)
                 A2[LDA*j+i] = 0.5 - (double)rand() / RAND_MAX;
+        /*
         for( i = 0; i < N; i++ )
             A2[LDA*i+i] = A2[LDA*i+i] + 10 * N;        
+        */
     }
     
     
