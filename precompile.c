@@ -814,7 +814,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             int spaces = 0;
             
             struct param *p = d->inout[i];
-            
+            output("%*s  /** Parameter %s **/\n",
+                   spaces, "", p->name);
+
             for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
                 if( (NULL != p->dep_out[j]) && (p->dep_out[j]->dplasma->nb_locals > 0) ) {
                     struct dep *dep = p->dep_out[j];
@@ -1384,11 +1386,15 @@ static char *dplasma_dump_c(const dplasma_t *d,
                                 output("  if(%s) {\n  ", expression_to_c_inline(d->inout[i]->dep_out[k]->cond, "", strexpr1, MAX_EXPR_LEN));
                             }
                             dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_out[k], strexpr1, MAX_EXPR_LEN);
-                            output("%s  if(%s != %s)\n"
-                                   "%s    dplasma_remote_dep_memcpy( %s, g%s, %s );\n",
+                            output("%s  if(%s != %s) {\n"
+                                   "%s    dplasma_remote_dep_memcpy( %s, g%s, %s );\n"
+                                   "%s    DEBUG((\"memcpy\\n\"));\n"
+                                   "%s  }\n",
                                    NULL != d->inout[i]->dep_out[k]->cond ? "  " : "", d->inout[i]->name, strexpr1,
                                    NULL != d->inout[i]->dep_out[k]->cond ? "  " : "", strexpr1, d->inout[i]->name,
-                                   NULL == d->inout[i]->dep_out[k]->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char *)d->inout[i]->dep_out[k]->type);
+                                   NULL == d->inout[i]->dep_out[k]->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char *)d->inout[i]->dep_out[k]->type,
+                                   NULL != d->inout[i]->dep_out[k]->cond ? "  " : "",
+                                   NULL != d->inout[i]->dep_out[k]->cond ? "  " : "");
                             if( NULL != d->inout[i]->dep_out[k]->cond ) {
                                 output(  "}\n");
                             }
