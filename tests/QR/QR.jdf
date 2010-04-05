@@ -113,8 +113,6 @@ INOUT RV1 <- RV1 DGEQRT(k)
           -> A(k,k)                                          [LOWER_TILE]
 BODY
  /* nothing */
-    debug_warning(context->eu_id, "after", "DGEQRT_HACK", k, -1, -1);
-    debug_matrix(context->eu_id, RV1, "RV1=A", k, k);
 END
 
 DGEQRT(k)
