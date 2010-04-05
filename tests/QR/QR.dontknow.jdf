@@ -88,6 +88,7 @@ int dgels_private_memory_finalization(void)
 {
     return 0;
 }
+
 %}
 
 GRIDrows
@@ -101,6 +102,7 @@ rowRANK
 /*****************************************
  9:11
 */
+
 DGEQRT_HACK(k)
  k = 0..MINMTNT-1
 
@@ -108,13 +110,10 @@ DGEQRT_HACK(k)
  : k % GRIDrows == rowRANK
  : k % GRIDcols == colRANK
 
-INOUT RV1 <- RV1 DGEQRT(k)
-          -> (k != MINMTNT-1) ? V1 DORMQR(k, k+1..MINMTNT-1) [LOWER_TILE]
-          -> A(k,k)                                          [LOWER_TILE]
+ INOUT RV1 <- RV1 DGEQRT(k)
+           -> A(k,k)                                      [LOWER_TILE]
 BODY
- /* nothing */
-    debug_warning(context->eu_id, "after", "DGEQRT_HACK", k, -1, -1);
-    debug_matrix(context->eu_id, RV1, "RV1=A", k, k);
+  /* Nothing */
 END
 
 DGEQRT(k)
@@ -126,17 +125,17 @@ DGEQRT(k)
   : k % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
-  INOUT RV1 <- (k == 0)         ? A(0,0) : C2 DSSMQR(k-1,k,k)
-            -> (k == MINMTNT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]     
+  INOUT RV1 <- (k == 0)    ? A(0,0) : C2 DSSMQR(k-1,k,k)
+            -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]
             -> RV1 DGEQRT_HACK(k)
-  INOUT T   <- T(k,k)                                          [LITTLE_T]
-            -> T DORMQR(k, k+1..MINMTNT-1)                     [LITTLE_T]
-            -> T(k,k)                                          [LITTLE_T]
+  INOUT T   <- T(k,k)                                     [LITTLE_T]
+            -> T DORMQR(k, k+1..NT-1)                     [LITTLE_T]
+            -> T(k,k)                                     [LITTLE_T]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
     void* work = dplasma_private_memory_pop(work_pool);
-    void* tau = dplasma_private_memory_pop(tau_pool); 
+    void* tau = dplasma_private_memory_pop(tau_pool);
     CORE_dgeqrt(
         k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
         k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
@@ -154,38 +153,23 @@ END
 /*****************************************
  17:21
 */
-
-DTSQRT_OUT(k)
-  k = 0 .. MINMTNT-2
-  
-  :k % GRIDrows == rowRANK
-  :k % GRIDcols == colRANK
-  
-  INOUT R <- R DTSQRT(k, MINMTNT-1) [UPPER_TILE]
-          -> A(k, k)                [UPPER_TILE]
-          
-BODY
-/* nothing */
-END
-
-
 DTSQRT(k,m)
 
   // Execution space
   k = 0..MINMTNT-2
-  m = k+1..MINMTNT-1
+  m = k+1..MT-1
 
   // Parallel partitioning
   : m % GRIDrows == rowRANK
   : k % GRIDcols == colRANK
 
   INOUT V2 <- (k == 0) ? A(m,0) : C2 DSSMQR(k-1,k,m)
-           -> V2 DSSMQR(k,k+1..MINMTNT-1,m)
+           -> V2 DSSMQR(k,k+1..NT-1,m)
            -> A(m,k)
-  INOUT R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)             [UPPER_TILE]           
-           -> (m == MINMTNT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
+  INOUT R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)             [UPPER_TILE]
+           -> (m == MT-1) ?  V1 DORMQR(k,k+1..NT-1) : R DTSQRT(k,m+1)  [UPPER_TILE]
   INOUT T  <- T(m,k)                                                   [LITTLE_T]
-           -> T DSSMQR(k,k+1..MINMTNT-1,m)                             [LITTLE_T]
+           -> T DSSMQR(k,k+1..NT-1,m)                                  [LITTLE_T]
            -> T(m,k)                                                   [LITTLE_T]
 
 BODY
@@ -214,14 +198,14 @@ DORMQR(k,n)
 
   // Execution space
   k = 0..MINMTNT-2
-  n = k+1..MINMTNT-1
+  n = k+1..NT-1
 
   // Parallel partitioning
   : k % GRIDrows == rowRANK
   : n % GRIDcols == colRANK
 
+  IN V1    <- R DTSQRT(k, MT-1)                         [UPPER_TILE]
   IN T     <- T DGEQRT(k)                               [LITTLE_T]
-  IN V1    <- RV1 DGEQRT_HACK(k)                        [LOWER_TILE] 
   INOUT C1 <- (k == 0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
            -> C1 DSSMQR(k,n,k+1)
 
@@ -249,12 +233,12 @@ END
 */
 DSSMQR_OUT(k, n)
   k = 0 .. MINMTNT-2
-  n = k+1 .. MINMTNT - 1
+  n = k+1 .. NT - 1
   
   :k % GRIDrows == rowRANK
   :n % GRIDcols == colRANK
   
-  INOUT A <- C1 DSSMQR(k, n, MINMTNT-1)
+  INOUT A <- C1 DSSMQR(k, n, MT-1)
           -> A(k, n)
           
 BODY
@@ -265,8 +249,8 @@ DSSMQR(k,n,m)
 
   // Execution space
   k = 0   .. MINMTNT-2
-  n = k+1 .. MINMTNT-1
-  m = k+1 .. MINMTNT-1
+  n = k+1 .. NT-1
+  m = k+1 .. MT-1
 
   // Parallel partitioning
   : m % GRIDrows == rowRANK
@@ -281,7 +265,7 @@ DSSMQR(k,n,m)
            -> ((k  < n-1) & (m == k+1)) ? C1 DORMQR(k+1,n)
            -> ((k  < n-1) & (k  < m-1)) ? C2 DSSMQR(k+1,n,m)
   INOUT C1 <- (m == k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
-           -> (m == MINMTNT-1) ? A DSSMQR_OUT(k,n) : C1 DSSMQR(k,n,m+1)
+           -> (m == MT-1) ? A DSSMQR_OUT(k,n) : C1 DSSMQR(k,n,m+1)
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
