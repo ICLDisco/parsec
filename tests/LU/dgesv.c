@@ -33,6 +33,8 @@
 //#include "vt_user.h"
 //#endif
 
+
+
 static void runtime_init(int argc, char **argv);
 static void runtime_fini(void);
 
@@ -151,6 +153,7 @@ DPLASMA_desc ddescIPIV;
 #if defined(USE_MPI)
 MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
 #endif
+static int matgen = 0;
 
 /* TODO Remove this ugly stuff */
 extern int dgesv_private_memory_initialization(plasma_context_t*);
@@ -319,6 +322,7 @@ static void print_usage(void)
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
             "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
+            "   -t --matrix-type : 0 for LU-like matrix, !=0 for cholesky-like matrix\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
@@ -340,6 +344,7 @@ static void runtime_init(int argc, char **argv)
         {"dist-matrix", no_argument,        0, 'm'},
         {"block-size",  required_argument,  0, 'B'},
         {"internal-block-size", required_argument, 0, 'I'},
+        {"matrix-type", required_argument,  0, 't'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -365,7 +370,7 @@ static void runtime_init(int argc, char **argv)
         int c;
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:I:h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:t:I:h",
                          long_options, &option_index);
         
         /* Detect the end of the options. */
@@ -373,37 +378,37 @@ static void runtime_init(int argc, char **argv)
             break;
         
         switch (c)
-        {
+            {
             case 'p': 
                 backend = DO_PLASMA;
                 break; 
             case 'd':
                 backend = DO_DPLASMA;
                 break;
-
+                
             case 'c':
                 cores = atoi(optarg);
                 if(cores<= 0)
                     cores=1;
-                ddescA.cores = cores;
+                
                 //printf("Number of cores (computing threads) set to %d\n", cores);
                 break;
-
+                
             case 'n':
                 N = atoi(optarg);
                 //printf("matrix size set to %d\n", N);
                 break;
-
+                
             case 'g':
                 ddescA.GRIDrows = atoi(optarg);
                 break;
             case 's':
                 ddescA.ncst = ddescA.nrst = atoi(optarg);
                 if(ddescA.ncst <= 0)
-                {
-                    fprintf(stderr, "select a positive value for super tile size\n");
-                    exit(2);
-                }                
+                    {
+                        fprintf(stderr, "select a positive value for super tile size\n");
+                        exit(2);
+                    }                
                 //printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
                 break;
                 
@@ -423,23 +428,23 @@ static void runtime_init(int argc, char **argv)
             case 'x':
                 do_nasty_validations = 1;
                 if(do_warmup)
-                {
-                    fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
-                    exit(2);
-                }
+                    {
+                        fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
+                        exit(2);
+                    }
                 if(do_distributed_generation)
-                {
-                    fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
-                    exit(2);
-                }
+                    {
+                        fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
+                        exit(2);
+                    }
                 break; 
             case 'm':
                 do_distributed_generation = 1;
                 if(do_nasty_validations)
-                {
-                    fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
-                    exit(2);
-                }
+                    {
+                        fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
+                        exit(2);
+                    }
                 break;
             case 'w':
                 if(optarg)
@@ -447,38 +452,46 @@ static void runtime_init(int argc, char **argv)
                 else
                     do_warmup = 1;
                 if(do_nasty_validations)
-                {
-                    fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
-                    exit(2);
-                }
+                    {
+                        fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
+                        exit(2);
+                    }
                 break;
                 
             case 'B':
                 if(optarg)
-                {
-                    block_forced = atoi(optarg);
-                    ddescA.nb = block_forced;
-                }
+                    {
+                        block_forced = atoi(optarg);
+                        ddescA.nb = block_forced;
+                    }
                 else
-                {
-                    fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
-                    exit(2);
-                }
+                    {
+                        fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
+                        exit(2);
+                    }
                 break;
-
+                
             case 'I':
                 if(optarg)
-                {
-                    internal_block_forced = atoi(optarg);
-                    ddescA.ib = internal_block_forced;
-                }
+                    {
+                        internal_block_forced = atoi(optarg);
+                        ddescA.ib = internal_block_forced;
+                    }
                 else
-                {
-                    fprintf(stderr, "Argument is mandatory for -I (--internal-block-size) flag.\n");
-                    exit(2);
-                }
+                    {
+                        fprintf(stderr, "Argument is mandatory for -I (--internal-block-size) flag.\n");
+                        exit(2);
+                    }
                 break;
-
+            case 't':
+                matgen = atoi(optarg);
+                if (matgen)
+                    printf("cholesky like matrix generation \n");
+                else
+                    printf("LU like matrix generation \n");
+                break;
+                
+                
             case 'h':
                 print_usage();
                 exit(0);
@@ -522,7 +535,7 @@ static void runtime_init(int argc, char **argv)
     {
         LDB = N;        
     }
-    
+    ddescA.cores = cores;
     switch(backend)
     {
         case DO_PLASMA:
@@ -852,7 +865,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     {
         TIME_START();
         dplasma_description_init(dist, LDA, LDB, NRHS, uplo);
-        rand_dist_matrix(dist);
+        rand_dist_matrix(dist, matgen);
         TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));
         return;
     }

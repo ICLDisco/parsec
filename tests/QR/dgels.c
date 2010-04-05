@@ -481,7 +481,7 @@ static void runtime_init(int argc, char **argv)
     {
         LDB = M;        
     }
-    
+    ddescA.cores = cores;
     switch(backend)
     {
         case DO_PLASMA:

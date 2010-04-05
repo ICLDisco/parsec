@@ -838,11 +838,6 @@ static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int c
         x += 1;
       }
     }
-    /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
-    if (row == col) {
-      for (i = 0; i < nb; ++i)
-        position[i + i * nb] += mn_max;
-    }
 }
 
 typedef struct tile_coordinate{
