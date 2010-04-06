@@ -39,8 +39,8 @@ int main(int argc, char **argv) {
 	int myrank_mpi, nprocs_mpi;
 	int ictxt, nprow, npcol, myrow, mycol;
 	int nb, n, s, mloc, nloc, sloc;
-	int i, j, k, info_pdpotrf, info_pdpotrs, info, iseed, verif;
-	int my_info_pdpotrf, my_info_pdpotrs;
+	int i, j, k, info_facto, info_solve, info, iseed, verif;
+	int my_info_facto, my_info_solve;
 	int descA[9], descB[9];
 	double *A=NULL, *B=NULL, *Acpy=NULL, *X=NULL, *work=NULL;
 	double XnormF, AnormF, RnormF, residF;
@@ -122,11 +122,11 @@ int main(int argc, char **argv) {
 
 
 	my_elapsed =- MPI_Wtime();
-	{ int i1=1; pdpotrf_( "L", &n, A, &i1, &i1, descA, &my_info_pdpotrf ); }
+	{ int i1=1; pdpotrf_( "L", &n, A, &i1, &i1, descA, &my_info_facto ); }
 	my_elapsed += MPI_Wtime();
 
 	MPI_Allreduce( &my_elapsed, &elapsed, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-	MPI_Allreduce( &my_info_pdpotrf, &info_pdpotrf, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	MPI_Allreduce( &my_info_facto, &info_facto, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
 	GFLOPS = (((double) n)*((double) n)*((double) n))/1e+9/elapsed/3;
 
@@ -147,8 +147,8 @@ int main(int argc, char **argv) {
 		X = (double *)malloc(mloc*sloc*sizeof(double)) ;
       		{ int i1=1; pdlacpy_( "A", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB ); }
 
-		{ int i1=1; pdpotrs_( "L", &n, &s, A, &i1, &i1, descA, X, &i1, &i1, descB, &my_info_pdpotrs ); }
-		MPI_Allreduce( &my_info_pdpotrs, &info_pdpotrs, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+		{ int i1=1; pdpotrs_( "L", &n, &s, A, &i1, &i1, descA, X, &i1, &i1, descB, &my_info_solve ); }
+		MPI_Allreduce( &my_info_solve, &info_solve, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
 		{ int i1=1; double pone=1.00e+00, mone = -1.00e+00; pdsymm_( "L", "L", &n, &s, &mone, Acpy, &i1, &i1, descA, X, &i1, &i1, descB,
 			&pone, B, &i1, &i1, descB); }
@@ -163,14 +163,14 @@ int main(int argc, char **argv) {
 
 		if ( iam == 0 ){
             printf("**********************     N * S * NB * NP * P * Q *   T     * Gflops * Norm   * Rf * Rs *\n");
-			printf("SCAL POTRF            %6d %3d %4d %4d %3d %3d %6.2f %6.2lf %6.2e %d %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, residF, info_pdpotrf, info_pdpotrs);
+			printf("SCAL POTRF            %6d %3d %4d %4d %3d %3d %6.2f %6.2lf %6.2e %d %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, residF, info_facto, info_solve);
 		}
 
 	} else {
 
 		if ( iam == 0 ){
             printf("********************** N * S * NB * NP * P * Q *    T  * Gflops * R *\n");
-			printf("SCAL POTRF            %6d %3d %4d %3d %3d %3d %6.2f %6.2lf %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_pdpotrf);
+			printf("SCAL POTRF            %6d %3d %4d %3d %3d %3d %6.2f %6.2lf %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_facto);
 		}
 	}
 
