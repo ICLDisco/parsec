@@ -281,7 +281,8 @@ int main(int argc, char ** argv)
             TIME_START();
             dplasma_progress(dplasma);
             TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (2*N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
+            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB,
+                             gflops = (2*N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
             
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
@@ -1017,7 +1018,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
         printf("****************************************************\n");
         printf(" ---- TESTING DGETRF + DTRSMPL + DTRSM ... SKIPPED !\n");
         printf("****************************************************\n");
-        printf(" ---- n= %d np= %d nc= %d g= %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
+        printf(" ---- n= %d np= %d nc= %d g= %dx%d (%dx%d)  %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, ddescA.nrst, ddescA.ncst, gflops);
         printf("****************************************************\n");
     }
 }

@@ -206,6 +206,7 @@ GRIDrows
 GRIDcols
 rowRANK
 colRANK
+stileSIZE
 
 /************************************************************************************
  *                                   DGETRF                                         *
@@ -215,8 +216,8 @@ DGETRF_HACK(k)
  k = 0..NT-1
 
  // Parallel partitioning
- : k % GRIDrows == rowRANK
- : k % GRIDcols == colRANK
+ : (k / stileSIZE) % GRIDrows == rowRANK
+ : (k / stileSIZE) % GRIDcols == colRANK
 
  INOUT LU <- LU DGETRF(k)
           -> (k != NT-1) ?                 L DGESSM(k, k+1..NT-1)  [LOWER_TILE]
@@ -229,8 +230,8 @@ DGETRF(k)
  k = 0..NT-1
 
  // Parallel partitioning
- : k % GRIDrows == rowRANK
- : k % GRIDcols == colRANK
+ : (k / stileSIZE) % GRIDrows == rowRANK
+ : (k / stileSIZE) % GRIDcols == colRANK
 
  //This DSSSSM always run on the same node, so typing will have no effect.
  INOUT LU <- (k == 0)    ? A(0, 0)       : C2 DSSSSM(k-1, k, k)
@@ -270,8 +271,8 @@ DSSSSM_OUT(k, n)
   k = 0 .. NT-2
   n = k+1 .. NT - 1
   
-  :k % GRIDrows == rowRANK
-  :n % GRIDcols == colRANK
+  :(k / stileSIZE) % GRIDrows == rowRANK
+  :(n / stileSIZE) % GRIDcols == colRANK
   
   INOUT A <- C1 DSSSSM(k, n, NT-1)
           -> A(k, n)
@@ -286,8 +287,8 @@ DSSSSM(k, n, m)
   m = k+1 .. NT-1
 
   // Parallel partitioning
-  : m % GRIDrows == rowRANK
-  : n % GRIDcols == colRANK
+  : (m / stileSIZE) % GRIDrows == rowRANK
+  : (n / stileSIZE) % GRIDcols == colRANK
 
   IN C3   <- C1 DTSTRF(k, m)
   IN dL   <- dL DTSTRF(k, m)                                       [LITTLE_L]
@@ -342,8 +343,8 @@ DGESSM(k, n)
   n = k+1..NT-1
 
   // Parallel partitioning
-  : k % GRIDrows == rowRANK
-  : n % GRIDcols == colRANK
+  : (k / stileSIZE) % GRIDrows == rowRANK
+  : (n / stileSIZE) % GRIDcols == colRANK
 
   IN    L    <- LU DGETRF_HACK(k)                                  [LOWER_TILE]
   IN    IPIV <- IPIV DGETRF(k)                                     [PIVOT_VECT]
@@ -383,8 +384,8 @@ END
 DTSTRF_OUT(k)
   k = 0 .. NT-2
   
-  :k % GRIDrows == rowRANK
-  :k % GRIDcols == colRANK
+  : (k / stileSIZE) % GRIDrows == rowRANK
+  : (k / stileSIZE) % GRIDcols == colRANK
   
   INOUT A <- U DTSTRF(k, NT-1) [UPPER_TILE]
           -> A(k, k)           [UPPER_TILE]
@@ -399,8 +400,8 @@ DTSTRF(k, m)
   m = k+1..NT-1
 
   // Parallel partitioning
-  : m % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  : (m / stileSIZE) % GRIDrows == rowRANK
+  : (k / stileSIZE) % GRIDcols == colRANK
 
   INOUT C1 <- (k == 0) ? A(m, 0) : C2 DSSSSM(k-1, k, m)
            -> C3 DSSSSM(k, k+1..NT-1, m)
