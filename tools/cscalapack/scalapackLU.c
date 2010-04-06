@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
         
 		if ( iam == 0 ){
             printf("********************** N * S * NB * NP * P * Q *    T  * Gflops * R *\n");
-			printf("SCAL GETRF            %6d %3d %4d %3d %3d %3d %6.2f %6.2lf %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_pdpotrf);
+			printf("SCAL GETRF            %6d %3d %4d %3d %3d %3d %6.2f %6.2lf %d\n", n, s, nb, nprocs, nprow, npcol, elapsed, GFLOPS, info_pdgetrf);
 		}
 	}
 
