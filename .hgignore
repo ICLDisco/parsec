@@ -18,6 +18,7 @@ dposv.svg
 dposv-graph.svg
 cmake_install.cmake
 Makefile
+tools/cscalapack/*scad*
 tests/QR/QR.c
 tests/QR/dgels
 tests/QR/mpi_dgels
