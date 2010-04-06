@@ -102,7 +102,7 @@ stileSIZE
 /*****************************************
  9:11
 */
-DGEQRT_HACK(k)
+DGEQRT_HACK(k)  (high_priority)
  k = 0..MINMTNT-1
 
  // Parallel partitioning
@@ -116,7 +116,7 @@ BODY
  /* nothing */
 END
 
-DGEQRT(k)
+DGEQRT(k)  (high_priority)
 
   // Execution space
   k = 0..MINMTNT-1
@@ -154,7 +154,7 @@ END
  17:21
 */
 
-DTSQRT_OUT(k)
+DTSQRT_OUT(k)  (high_priority)
   k = 0 .. MINMTNT-2
   
  : (k / stileSIZE) % GRIDrows == rowRANK
@@ -168,7 +168,7 @@ BODY
 END
 
 
-DTSQRT(k,m)
+DTSQRT(k,m)  (high_priority)
 
   // Execution space
   k = 0..MINMTNT-2
@@ -209,7 +209,7 @@ END
 /*****************************************
  28:31
 */
-DORMQR(k,n)
+DORMQR(k,n)  (high_priority)
 
   // Execution space
   k = 0..MINMTNT-2
