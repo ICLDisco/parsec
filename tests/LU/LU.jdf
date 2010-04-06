@@ -236,7 +236,7 @@ DGETRF(k)
  //This DSSSSM always run on the same node, so typing will have no effect.
  INOUT LU <- (k == 0)    ? A(0, 0)       : C2 DSSSSM(k-1, k, k)
           -> (k == NT-1) ? A(NT-1, NT-1) : U DTSTRF(k, k+1)        [UPPER_TILE]
-	  -> LU DGETRF_HACK(k)
+          -> LU DGETRF_HACK(k)
  INOUT IPIV <- IPIV(k, k)                                          [PIVOT_VECT]
             -> IPIV DGESSM(k, k+1..NT-1)                           [PIVOT_VECT]
             -> IPIV(k, k)                                          [PIVOT_VECT]
