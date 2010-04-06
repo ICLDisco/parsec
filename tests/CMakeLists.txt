@@ -1,3 +1,4 @@
+#Add_Subdirectory(trsmun)
 Add_Subdirectory(pdpotrf)
 Add_Subdirectory(pspotrf)
 Add_Subdirectory(pdgemm)

@@ -245,7 +245,7 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
         return PLASMA_SUCCESS;
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
+    status = plasma_tune(PLASMA_FUNC_DGELS, N, N, NRHS);
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
@@ -1020,7 +1020,7 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
         }
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DGESV, Ddesc->n, Ddesc->n, NRHS);
+    status = plasma_tune(PLASMA_FUNC_DGELS, Ddesc->n, Ddesc->n, NRHS);
     if (status != PLASMA_SUCCESS) {
         plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
         return status;
@@ -1038,12 +1038,13 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
     PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
     PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
     Ddesc->nt = ((Ddesc->n)%(Ddesc->nb)==0) ? ((Ddesc->n)/(Ddesc->nb)) : ((Ddesc->n)/(Ddesc->nb) + 1);
+    Ddesc->mt = ((Ddesc->m)%(Ddesc->nb)==0) ? ((Ddesc->m)/(Ddesc->nb)) : ((Ddesc->m)/(Ddesc->nb) + 1);
     Ddesc->bsiz = PLASMA_NBNBSIZE;
     // Matrix properties
     Ddesc->dtyp = PlasmaRealDouble;
     Ddesc->mb = Ddesc->nb;
     // Large matrix parameters
-    Ddesc->lm = Ddesc->n;
+    Ddesc->lm = Ddesc->m;
     Ddesc->ln = Ddesc->n;
     // Large matrix derived parameters
     Ddesc->lmt = ((Ddesc->lm)%(Ddesc->nb)==0) ? ((Ddesc->lm)/(Ddesc->nb)) : ((Ddesc->lm)/(Ddesc->nb) + 1);
@@ -1051,8 +1052,6 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
     // Submatrix parameters
     Ddesc->i = 0;
     Ddesc->j = 0;
-    Ddesc->m = Ddesc->n;
-    Ddesc->n = Ddesc->n;
     // Submatrix derived parameters
     Ddesc->mt = ((Ddesc->i)+(Ddesc->m)-1)/(Ddesc->nb) - (Ddesc->i)/(Ddesc->nb) + 1;
     Ddesc->nt = ((Ddesc->j)+(Ddesc->n)-1)/(Ddesc->nb) - (Ddesc->j)/(Ddesc->nb) + 1;
