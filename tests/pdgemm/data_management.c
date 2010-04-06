@@ -276,9 +276,9 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
         return PLASMA_SUCCESS;
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DPOSV, N, N, NRHS);
+    status = plasma_tune(PLASMA_FUNC_DGEMM, N, N, NRHS);
     if (status != PLASMA_SUCCESS) {
-        plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
+        plasma_error("PLASMA_dgemm", "plasma_tune() failed");
         return status;
     }
 
@@ -289,7 +289,7 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
     /* Allocate memory for matrices in block layout */
     Abdl = (double *)plasma_shared_alloc(plasma, NT*NT*PLASMA_NBNBSIZE, PlasmaRealDouble);
     if (Abdl == NULL) {
-        plasma_error("PLASMA_dpotrf", "plasma_shared_alloc() failed");
+        plasma_error("PLASMA_dgemm", "plasma_shared_alloc() failed");
         return PLASMA_ERR_OUT_OF_RESOURCES;
     }
 
@@ -925,11 +925,13 @@ static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int c
         x += 1;
       }
     }
+#if 0
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
       for (i = 0; i < nb; ++i)
         position[i + i * nb] += mn_max;
     }
+#endif
 }
 
 typedef struct tile_coordinate{
@@ -1088,7 +1090,7 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
 
     plasma = plasma_context_self();
     if (plasma == NULL) {
-        plasma_fatal_error("PLASMA_dpotrf", "PLASMA not initialized");
+        plasma_fatal_error("PLASMA_DGEMM", "PLASMA not initialized");
         return PLASMA_ERR_NOT_INITIALIZED;
     }
     /* Check input arguments */
@@ -1112,9 +1114,9 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
         }
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DPOSV, Ddesc->n, Ddesc->n, NRHS);
+    status = plasma_tune(PLASMA_FUNC_DGEMM, Ddesc->n, Ddesc->n, NRHS);
     if (status != PLASMA_SUCCESS) {
-        plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
+        plasma_error("PLASMA_DGEMM", "plasma_tune() failed");
         return status;
     }
 
@@ -1203,5 +1205,4 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
             return PLASMA_ERR_OUT_OF_RESOURCES;
         }
     return 0;
-
 }

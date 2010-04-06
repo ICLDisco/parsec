@@ -27,6 +27,7 @@ typedef struct dplasma_desc_t {
     PLASMA_enum dtyp;   // precision of the matrix
     int mb;             // number of rows in a tile
     int nb;             // number of columns in a tile
+    int ib;             // number of columns in an inner block
     int bsiz;           // size in elements including padding
     int lm;             // number of rows of the entire matrix
     int ln;             // number of columns of the entire matrix
