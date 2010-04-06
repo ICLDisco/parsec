@@ -152,7 +152,7 @@ int main(int argc, char ** argv)
                                        PLASMA_enum, uplo, 
                                        PLASMA_desc, descA,
                                        PLASMA_desc, descB,
-                                       PLASMA_desc, descB);
+                                       PLASMA_desc, descC);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             2*(N/1e3*N/1e3*N/1e3)/(time_elapsed)));
             }
