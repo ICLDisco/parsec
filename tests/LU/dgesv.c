@@ -547,9 +547,9 @@ static void runtime_init(int argc, char **argv)
             break;
     }
 
+    plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     if( 0 != block_forced ) {
         plasma_context_t* plasma = plasma_context_self();
-        plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
 
         PLASMA_NB = block_forced;
         PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
@@ -575,8 +575,6 @@ static void runtime_init(int argc, char **argv)
         PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
 
         plasma->autotuning_enabled = 0;
-    } else {
-        plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
     }    
 }
 
