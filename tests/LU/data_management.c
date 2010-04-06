@@ -31,6 +31,8 @@
 #include <sys/syscall.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
+static int generationtype=0;
+
 //#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 {
@@ -854,7 +856,7 @@ Rnd64_jump(unsigned long long int n) {
  *distributed matrix generation
  ************************************************************/
 /* affect one tile with random values  */
-static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int col)
+static void create_tile_cholesky(DPLASMA_desc * Ddesc, double * position,  int row, int col)
 {
     int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     double *x = position;
@@ -879,6 +881,28 @@ static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int c
         position[i + i * nb] += mn_max;
     }
 }
+
+static void create_tile_lu(DPLASMA_desc * Ddesc, double * position,  int row, int col)
+{
+    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    double *x = position;
+    unsigned long long int ran;
+
+    /* These are global values of first row and column of the tile counting from 0 */
+    first_row = row * nb;
+    first_col = col * nb;
+
+    for (j = 0; j < nb; ++j) {
+        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
+        
+        for (i = 0; i < nb; ++i) {
+            x[0] = 0.5 - ran * 5.4210108624275222e-20;
+            ran = Rnd64_A * ran + Rnd64_C;
+            x += 1;
+        }
+    }
+}
+
 
 typedef struct tile_coordinate{
     int row;
@@ -962,20 +986,24 @@ static void * rand_dist_tiles(void * tiles)
     for (i = 0 ; i < ((dist_tiles_t*)tiles)->nb_elements ; i++)
         {
             pos_to_coordinate(((dist_tiles_t*)tiles)->Ddesc, pos, &current_tile);
-            create_tile(((dist_tiles_t*)tiles)->Ddesc, pos, current_tile.row, current_tile.col);
+            if(generationtype)
+                create_tile_cholesky(((dist_tiles_t*)tiles)->Ddesc, pos, current_tile.row, current_tile.col);
+            else
+                create_tile_lu(((dist_tiles_t*)tiles)->Ddesc, pos, current_tile.row, current_tile.col);
             pos += ((dist_tiles_t*)tiles)->Ddesc->bsiz;
         }
     return NULL;
 }
 
 /* affecting the complete local view of a distributed matrix with random values */
-int rand_dist_matrix(DPLASMA_desc * Ddesc)
+int rand_dist_matrix(DPLASMA_desc * Ddesc, int mtype)
 {
     dist_tiles_t * tiles;
     int i;
     double * pos = Ddesc->mat;
     pthread_t *threads;
     pthread_attr_t thread_attr;
+    generationtype = mtype;
     Ddesc->lm = Ddesc->lmt * Ddesc->mb;
     Ddesc->ln = Ddesc->lnt * Ddesc->nb;
     Ddesc->m = Ddesc->lm;

@@ -137,7 +137,7 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
 int dplasma_description_init(DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
 
 /* affecting the complete local view of a distributed matrix with random values */
-int rand_dist_matrix(DPLASMA_desc * Ddesc);
+int rand_dist_matrix(DPLASMA_desc * Ddesc, int mtype);
 
 /* put zero on last nrhs lines of the matrix except diagonal (==1) */
 void zeroing(DPLASMA_desc * Ddesc, int nrhs);
