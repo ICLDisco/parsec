@@ -97,6 +97,7 @@ NT
 MINMTNT = ((MT < NT) ? MT : NT)
 colRANK
 rowRANK
+stileSIZE
 
 /*****************************************
  9:11
@@ -105,8 +106,8 @@ DGEQRT_HACK(k)
  k = 0..MINMTNT-1
 
  // Parallel partitioning
- : k % GRIDrows == rowRANK
- : k % GRIDcols == colRANK
+ : (k / stileSIZE) % GRIDrows == rowRANK
+ : (k / stileSIZE) % GRIDcols == colRANK
 
 INOUT RV1 <- RV1 DGEQRT(k)
           -> (k != MINMTNT-1) ? V1 DORMQR(k, k+1..MINMTNT-1) [LOWER_TILE]
@@ -121,8 +122,8 @@ DGEQRT(k)
   k = 0..MINMTNT-1
 
   // Parallel partitioning
-  : k % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+ : (k / stileSIZE) % GRIDrows == rowRANK
+ : (k / stileSIZE) % GRIDcols == colRANK
 
   INOUT RV1 <- (k == 0)         ? A(0,0) : C2 DSSMQR(k-1,k,k)
             -> (k == MINMTNT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]     
@@ -156,8 +157,8 @@ END
 DTSQRT_OUT(k)
   k = 0 .. MINMTNT-2
   
-  :k % GRIDrows == rowRANK
-  :k % GRIDcols == colRANK
+ : (k / stileSIZE) % GRIDrows == rowRANK
+ : (k / stileSIZE) % GRIDcols == colRANK
   
   INOUT R <- R DTSQRT(k, MINMTNT-1) [UPPER_TILE]
           -> A(k, k)                [UPPER_TILE]
@@ -174,8 +175,8 @@ DTSQRT(k,m)
   m = k+1..MINMTNT-1
 
   // Parallel partitioning
-  : m % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  : (m / stileSIZE) % GRIDrows == rowRANK
+  : (k / stileSIZE) % GRIDcols == colRANK
 
   INOUT V2 <- (k == 0) ? A(m,0) : C2 DSSMQR(k-1,k,m)
            -> V2 DSSMQR(k,k+1..MINMTNT-1,m)
@@ -215,8 +216,8 @@ DORMQR(k,n)
   n = k+1..MINMTNT-1
 
   // Parallel partitioning
-  : k % GRIDrows == rowRANK
-  : n % GRIDcols == colRANK
+  : (k / stileSIZE) % GRIDrows == rowRANK
+  : (n / stileSIZE) % GRIDcols == colRANK
 
   IN T     <- T DGEQRT(k)                               [LITTLE_T]
   IN V1    <- RV1 DGEQRT_HACK(k)                        [LOWER_TILE] 
@@ -249,8 +250,8 @@ DSSMQR_OUT(k, n)
   k = 0 .. MINMTNT-2
   n = k+1 .. MINMTNT - 1
   
-  :k % GRIDrows == rowRANK
-  :n % GRIDcols == colRANK
+  : (k / stileSIZE) % GRIDrows == rowRANK
+  : (n / stileSIZE) % GRIDcols == colRANK
   
   INOUT A <- C1 DSSMQR(k, n, MINMTNT-1)
           -> A(k, n)
@@ -267,8 +268,8 @@ DSSMQR(k,n,m)
   m = k+1 .. MINMTNT-1
 
   // Parallel partitioning
-  : m % GRIDrows == rowRANK
-  : n % GRIDcols == colRANK
+  : (m / stileSIZE) % GRIDrows == rowRANK
+  : (n / stileSIZE) % GRIDcols == colRANK
 
   IN V2 <- V2 DTSQRT(k,m)
   IN T  <- T DTSQRT(k,m)                                           [LITTLE_T]

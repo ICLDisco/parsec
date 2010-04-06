@@ -187,14 +187,14 @@ int main(int argc, char ** argv)
                                        PLASMA_desc, descA,
                                        PLASMA_desc, descT);
                 TIME_PRINT(("_plasma warmup:\t\t%dx%d %d %f Gflops\n", M, N, PLASMA_NB,
-                            gflops = (2.5*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
+                            gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
             }
             TIME_START();
             plasma_parallel_call_2(plasma_pdgeqrf,
                                    PLASMA_desc, descA,
                                    PLASMA_desc, descT);
             TIME_PRINT(("_plasma computation:\t%dx%d %d %f Gflops\n", M, N, PLASMA_NB, 
-                        gflops = (2.5*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
+                        gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
             descT.mat = ddescT.mat;
             break;
         }
@@ -228,7 +228,8 @@ int main(int argc, char ** argv)
             TIME_START();
             dplasma_progress(dplasma);
             TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (2.5*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(sync_time_elapsed)));
+            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB,
+                             gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(sync_time_elapsed)));
             
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
@@ -559,6 +560,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( ddescA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
+        constant = expr_new_int( ddescA.nrst );
+        dplasma_assign_global_symbol( "stileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
@@ -890,7 +893,7 @@ static void check_matrix(int M, int N, PLASMA_enum* uplo,
         printf("****************************************************\n");
         printf(" ---- TESTING DGEQRF + DGEQRS ............ SKIPPED !\n");
         printf("****************************************************\n");
-        printf(" ---- n= %d np= %d nc= %d g= %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
+        printf(" ---- n= %d np= %d nc= %d g= %dx%d (%dx%d) %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, ddescA.nrst, ddescA.ncst, gflops);
         printf("****************************************************\n");
     }
 }
