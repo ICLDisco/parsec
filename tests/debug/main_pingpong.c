@@ -7,6 +7,7 @@
 
 #ifdef USE_MPI
 #include <mpi.h>
+MPI_Datatype ATYPE;
 #endif  /* defined(USE_MPI) */
 
 #include <getopt.h>
@@ -90,7 +91,7 @@ int nodes = 1;
 int rank  = 0;
 int nbtasks = -1;
 
-double *_A;
+unsigned char *_A;
 int NB;
 int NT;
 
@@ -134,8 +135,8 @@ int main(int argc, char ** argv)
 
     if(rank == 0 ) {
         printf("  %lu bytes moved back and forth %d times in %f time units %g Mb/s latency: %g us\n", 
-               NB*NB*sizeof(double), NT, time_elapsed, 
-               (double)(NT*2*8*NB*NB*sizeof(double)) / (double)time_elapsed / 1000000.0,
+               NB*sizeof(unsigned char), NT, time_elapsed, 
+               (double)(NT*2*NB*sizeof(unsigned char)*8) / (double)time_elapsed / 1000000.0,
                (double)time_elapsed / (double)(NT*2) * 1000000.0);
     }
 
@@ -239,7 +240,7 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 {
     dplasma_context_t *dplasma;
 
-    dplasma = dplasma_init(cores, pargc, pargv, NB);
+    dplasma = dplasma_init(cores, pargc, pargv, 1);
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
@@ -280,8 +281,14 @@ static void create_data(void)
 {
     int i;
 
-    _A = (double *)malloc(NB * NB * sizeof(double));
-    for(i = 0; i < NB*NB; i++) {
-        _A[i] = (double)i;
+    _A = (unsigned char *)malloc(NB * sizeof(unsigned char));
+    for(i = 0; i < NB; i++) {
+        _A[i] = (unsigned char)i;
     }
+#if defined(USE_MPI)
+    printf("NB = %d\n", NB);
+    MPI_Type_contiguous(NB, MPI_BYTE, &ATYPE);
+    MPI_Type_set_name(ATYPE, "ATYPE");
+    MPI_Type_commit(&ATYPE);
+#endif
 }
