@@ -913,7 +913,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output("%*s    new_context.locals[%d].sym = new_context.function->locals[%d]; /* task %s */\n",
                                spaces, " ", k, k, target->name);
                         output("%*s    new_context.locals[%d].value = %s%s;  /* task %s local %s */\n",
-                               spaces, " ", k, target_prepend, target->locals[k]->name, target->name, target->name, target->locals[k]->name);
+                               spaces, " ", k, target_prepend, target->locals[k]->name, target->name, target->locals[k]->name);
                     }
                     output( "%*s      e%s->data[%d] = (NULL != data) ? data[%d] : NULL;\n", spaces, "", d->name, cpt, cpt);
                     output( "%*s      usage++;\n"

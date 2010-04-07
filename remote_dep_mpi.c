@@ -311,6 +311,7 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
         }
     }
     remote_dep_mpi_send_dep(rank, &msg);
+    return 0;
 }
 
 static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
@@ -360,10 +361,11 @@ static int remote_dep_nothread_memcpy(void *dst, gc_data_t *src,
                                       const dplasma_remote_dep_datatype_t datatype)
 {
     /* TODO: split the mpi part */
-    MPI_Sendrecv(GC_DATA(src), 1, datatype, 0, 0,
-                 dst, 1, datatype, 0, 0,
-                 MPI_COMM_SELF, MPI_STATUS_IGNORE);
+    int rc = MPI_Sendrecv(GC_DATA(src), 1, datatype, 0, 0,
+                          dst, 1, datatype, 0, 0,
+                          MPI_COMM_SELF, MPI_STATUS_IGNORE);
     gc_data_unref(src);
+    return (MPI_SUCCESS == rc ? 0 : -1);
 }
 
 
