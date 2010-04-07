@@ -4,9 +4,10 @@
  *                         reserved.
  */
 
-
+#include "dplasma.h"
+#include "remote_dep.h"
 #ifdef USE_MPI
-#include "mpi.h"
+#include <mpi.h>
 #endif  /* defined(USE_MPI) */
 
 #include <getopt.h>
@@ -23,7 +24,6 @@
 #include <../src/allocate.h>
 #include <sys/time.h>
 
-#include "dplasma.h"
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_management.h"
@@ -45,10 +45,6 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double* B1, double* B2,
                          int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops);
-
-static int check_factorization(int, double*, double*, int, int , double);
-static int check_solution(int, int, double*, int, double*, double*, int, double);
-
 
 /* timing profiling etc */
 double time_elapsed;
@@ -116,7 +112,7 @@ int do_nasty_validations = 0;
 int cores = 1;
 int nodes = 1;
 int nbtasks = -1;
-#define N (ddescA.n)
+int N;
 #define NB (ddescA.nb)
 #define rank (ddescA.mpi_rank)
 int LDA = 0;
@@ -205,6 +201,7 @@ int main(int argc, char ** argv)
 
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
+
             break;
         }
     }
@@ -223,6 +220,7 @@ static void print_usage(void)
             "   number           : the size of the matrix\n"
             "Optional arguments:\n"
             "   -c --nb-cores    : number of computing threads to use\n"
+            "   -N --matrix-size : the size of the matrix\n"
             "   -d --dplasma     : use DPLASMA backend (default)\n"
             "   -p --plasma      : use PLASMA backend\n"
             "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
@@ -231,7 +229,8 @@ static void print_usage(void)
             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
-            "   -w --warmup      : do some warmup, if > 1 also preload cache\n");
+            "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
+            "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
 static void runtime_init(int argc, char **argv)
@@ -265,7 +264,6 @@ static void runtime_init(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 #else
     nodes = 1;
-    rank = 0;
 #endif
     
     /* parse arguments */
@@ -392,6 +390,7 @@ static void runtime_init(int argc, char **argv)
         print_usage(); 
         exit(2);
     } 
+    ddescA.n = ddescA.m = N;
 
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
     if((nodes % ddescA.GRIDrows) != 0)
@@ -447,6 +446,22 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     dplasma_context_t *dplasma;
 
     dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
+
+#ifdef USE_MPI
+    /**
+     * Redefine the default type after dplasma_init.
+     */
+    {
+        char type_name[MPI_MAX_OBJECT_NAME];
+    
+        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", NB, NB);
+    
+        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &DPLASMA_DEFAULT_DATA_TYPE);
+        MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
+        MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
+    }
+#endif  /* USE_MPI */
+
     load_dplasma_objects(dplasma);
     {
         expr_t* constant;
@@ -468,7 +483,6 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
-    printf( "\nNb tasks %d\n\n", nbtasks );
     return dplasma;
 }
 
@@ -519,17 +533,12 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
 # endif    
 }
 
-#undef N
-#undef NB
-
-
-
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
-    TIME_START();
     dplasma_description_init(dist, LDA, LDB, NRHS, uplo);
     rand_dist_matrix(dist);
-    TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));
+    /*TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));*/
+    *local = *(PLASMA_desc*)dist;
     return;
 }
 
