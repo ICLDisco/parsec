@@ -1388,12 +1388,12 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_out[k], strexpr1, MAX_EXPR_LEN);
                             output("%s  if(%s != %s) {\n"
                                    "%s    dplasma_remote_dep_memcpy( %s, g%s, %s );\n"
-                                   "%s    DEBUG((\"memcpy\\n\"));\n"
+                                   "%s    DEBUG((\"memcpy(%%p, %%p)\\n\", %s, g%s));\n"
                                    "%s  }\n",
                                    NULL != d->inout[i]->dep_out[k]->cond ? "  " : "", d->inout[i]->name, strexpr1,
                                    NULL != d->inout[i]->dep_out[k]->cond ? "  " : "", strexpr1, d->inout[i]->name,
                                    NULL == d->inout[i]->dep_out[k]->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char *)d->inout[i]->dep_out[k]->type,
-                                   NULL != d->inout[i]->dep_out[k]->cond ? "  " : "",
+                                   NULL != d->inout[i]->dep_out[k]->cond ? "  " : "" , strexpr1, d->inout[i]->name,
                                    NULL != d->inout[i]->dep_out[k]->cond ? "  " : "");
                             if( NULL != d->inout[i]->dep_out[k]->cond ) {
                                 output(  "}\n");

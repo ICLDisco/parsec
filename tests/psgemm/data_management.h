@@ -27,6 +27,7 @@ typedef struct dplasma_desc_t {
     PLASMA_enum dtyp;   // precision of the matrix
     int mb;             // number of rows in a tile
     int nb;             // number of columns in a tile
+    int ib;             // number of columns in an inner block
     int bsiz;           // size in elements including padding
     int lm;             // number of rows of the entire matrix
     int ln;             // number of columns of the entire matrix
@@ -98,33 +99,6 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
  */
 int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
 
-
-/************************************************************************
- * matrix distribution (single tiled matrix to distributed tiled matrix)
- ************************************************************************/
-
-/* distribute the matrix to the different mpi ranks 
- * 
- */
-int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc);
-
-/* regroup the distributed tiles to the rank 0 */
-/* Pdesc is NULL except on rank 0 */
-int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
-
-/*********************************************************************
- *  matrix generation, Lapack/Plasma format conversion, shared memory
- ********************************************************************/
-
-/* generate a random matrix  */
-int generate_matrix(int N, float * A1, float * A2, float * B1, float * B2, int LDA, int NRHS, int LDB);
-
-/* Convert Lapack format to Plasma tiled description format (shared memory) */
-int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc * descA);
-
-/* Convert Plasma tiled description format to Lapack format (shared memory) */
-int untiling(PLASMA_enum * uplo, int N, float *A, int LDA, PLASMA_desc * descA);
-
 /**********************************************************************
  * Distributed matrix generation
  **********************************************************************/
@@ -144,9 +118,5 @@ int rand_dist_matrix(DPLASMA_desc * Ddesc);
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );
 int data_dump(DPLASMA_desc * Ddesc);
 int plasma_dump(PLASMA_desc * Pdesc);
-int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, float precision);
-int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, float precision);
-int compare_plasma_matrices(PLASMA_desc * A, PLASMA_desc * B, float precision);
-
 
 #endif
