@@ -49,33 +49,28 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 #
 # check for the CPU we build for
 #
-#EXECUTE_PROCESS(
-#    COMMAND ${CMAKE_C_COMPILER} -dumpmachine
-#    OUTPUT_VARIABLE MACHINE
-#    OUTPUT_STRIP_TRAILING_WHITESPACE
-#)
-set(MACHINE "x86_64")
-MESSAGE(STATUS "Building for target ${MACHINE}")
+MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
 
-STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${MACHINE})
+STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86)
     MESSAGE(STATUS "Found target for X86")
     SET(ARCH_X86 1)
 ENDIF (_mach_x86)
 
-STRING(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${MACHINE})
+STRING(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86_64)
     MESSAGE(STATUS "Found target X86_64")
     SET(ARCH_X86_64 1)
 ENDIF (_mach_x86_64)
 
-STRING(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${MACHINE})
+STRING(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_ppc)
     MESSAGE(STATUS "Found target for PPC")
     SET(ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+
 #
 # If we are on a 64 bits machine make sure to compile in 64 bits mode.
 #
