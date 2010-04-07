@@ -9,6 +9,9 @@
 
 #include "dplasma_config.h"
 #include "debug.h"
+#ifdef HAVE_HWLOC
+#include "dplasma_hwloc.h"
+#endif
 
 typedef struct dplasma_t dplasma_t;
 typedef struct dplasma_remote_deps_t dplasma_remote_deps_t;
