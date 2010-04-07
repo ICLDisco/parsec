@@ -108,9 +108,9 @@ k = 0 .. SIZE-1
 
 // Parameters
 INOUT A <- (k == 0) ? A READVALS(i,j) : A GEMM( i, (j+SIZE-1) % SIZE, k-1 )
-        -> (k == SIZE-1) ? A(i,j) : A GEMM( i, (j+1) % SIZE, k+1 )
+        -> (k != SIZE-1) ? A GEMM( i, (j+1) % SIZE, k+1 )
 INOUT B <- (k == 0) ? B READVALS(i,j) : B GEMM( (i+SIZE-1) % SIZE, j, k-1 )
-        -> (k == SIZE-1) ? B(i,j) : B GEMM( (i+1) % SIZE, j, k+1 )
+        -> (k != SIZE-1) ? B GEMM( (i+1) % SIZE, j, k+1 )
 INOUT C <- (k == 0) ? C READVALS(i,j) : C GEMM( i, j, k-1 )
         -> (k == SIZE-1) ? C(i,j) : C GEMM( i, j, k+1 )
 BODY

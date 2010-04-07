@@ -1,7 +1,11 @@
 extern "C" %{
 #include "dplasma.h"
 
-extern double *_A;
+extern unsigned char *_A;
+#if defined(USE_MPI)
+#include "mpi.h"
+extern MPI_Datatype ATYPE;
+#endif
 
 #define A(n) _A
 
@@ -19,8 +23,8 @@ k = 0 .. NT
 : ((0*k) + 0) == rowRANK
 : 0*k == colRANK
 
-INOUT T <- (k==0) ? A(0) : I PONG(k-1)
-        -> (k==NT) ? A(0) : I PONG(k)
+INOUT T <- (k==0) ? A(0) : I PONG(k-1)   [ATYPE]
+        -> (k==NT) ? A(0) : I PONG(k)    [ATYPE]
 
 BODY
 /* no body */
@@ -34,8 +38,8 @@ k = 0 .. NT-1
 : ((0*k) + 1) == rowRANK
 : 0*k         == colRANK
 
-INOUT I <- T PING(k)
-        -> T PING(k+1)
+INOUT I <- T PING(k)                    [ATYPE]
+        -> T PING(k+1)                  [ATYPE]
 
 BODY
 /* no body */
