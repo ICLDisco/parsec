@@ -2,9 +2,11 @@
 rm -rf CMakeCache.txt CMakeFiles
 HWLOC_OPTS=""
 
-# the above line is necessary only when using gcc and gfortran 4.4 from fink. If using stock gcc and hpc gfortran, or port, it is not necessary. 
-#export CC=gcc-4
+# the above line is necessary only when using gcc and gfortran 4.4
+# from fink. If using stock gcc and hpc gfortran, or port,
+# it is not necessary. 
+#export CC=gcc-4.2
 PLASMA_DIR=/Users/bosilca/tools/plasma-installer/build/plasma_2.0.0/
-HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
+#HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
 
-cmake -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON -DHWLOC_DIR=/Users/bosilca/opt ${HWLOC_OPTS"
+cmake -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON ${HWLOC_OPTS}
