@@ -61,7 +61,7 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
                          : "r" (location), "r" (old_value), "r" (new_value), "m" (*location)
                          : "cr0", "memory");
 
-   return (ret == oldval);
+   return (ret == old_value);
 }
 
 static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
@@ -81,7 +81,7 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
                          : "r" (location), "r" (old_value), "r" (new_value), "m" (*location)
                          : "cr0", "memory");
 
-   return (ret == oldval);
+   return (ret == old_value);
 }
 
 #define DPLASMA_ATOMIC_HAS_ATOMIC_INC_32B
