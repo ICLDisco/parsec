@@ -174,7 +174,7 @@ int expr_eval(const expr_t *expr,
     }
 
     if( EXPR_OP_SYMB == expr->op ) {
-        int ret_val = expr_eval_symbol(expr->var, assignments, nbassignments, res);
+        int ret_val = expr_eval_symbol(expr->variable, assignments, nbassignments, res);
         return ret_val;
     }
     if ( EXPR_IS_UNARY(expr->op) ) {
@@ -204,7 +204,7 @@ int expr_parse_symbols( const expr_t* expr,
     int rc;
 
     if( EXPR_OP_SYMB == expr->op ) {
-        return callback(expr->var, data);
+        return callback(expr->variable, data);
     }
     if( EXPR_OP_CONST_INT == expr->op ) {
         return EXPR_SUCCESS;
@@ -238,7 +238,7 @@ int expr_depend_on_symbol( const expr_t* expr,
     int rc;
 
     if( EXPR_OP_SYMB == expr->op ) {
-        if( !strcmp(expr->var->name, symbol->name) ) {
+        if( !strcmp(expr->variable->name, symbol->name) ) {
             return EXPR_SUCCESS;
         }
         return EXPR_FAILURE_SYMBOL_NOT_FOUND;
@@ -296,7 +296,7 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
     assert( EXPR_OP_CONST_INT != expr->op );
 
     if( EXPR_OP_SYMB == expr->op ) {
-        const symbol_t* symbol = expr->var;
+        const symbol_t* symbol = expr->variable;
         const symbol_t* gsym = dplasma_search_global_symbol( symbol->name );
         if( gsym != NULL ) {
             if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, storage) ) {
@@ -417,7 +417,7 @@ expr_t *expr_new_var(const symbol_t *symb)
 {
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
     r->op = EXPR_OP_SYMB;
-    r->var = (symbol_t*)symb;
+    r->variable = (symbol_t*)symb;
     if( dplasma_symbol_is_global(symb) &&
         ((NULL != symb->min) && (symb->min->flags & EXPR_FLAG_CONSTANT)) ) {
         r->flags = EXPR_FLAG_CONSTANT;
@@ -728,14 +728,14 @@ void expr_dump(FILE *out, const expr_t *e)
         fprintf(out,  "{%d:", e->value );
     }
     if( EXPR_OP_SYMB == e->op ) {
-        if( dplasma_symbol_is_global(e->var) ) {
-            fprintf(out, "%s", e->var->name);
+        if( dplasma_symbol_is_global(e->variable) ) {
+            fprintf(out, "%s", e->variable->name);
         } else {
             int res;
-            if( EXPR_SUCCESS == expr_eval_symbol(e->var, NULL, 0, &res)){
+            if( EXPR_SUCCESS == expr_eval_symbol(e->variable, NULL, 0, &res)){
                 fprintf(out, "%d", res);
             }else{
-                fprintf(out, "%s", e->var->name);
+                fprintf(out, "%s", e->variable->name);
             }
         }
     } else if( EXPR_OP_CONST_INT == e->op ) {

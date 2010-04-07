@@ -196,10 +196,10 @@ static char *expression_to_c_inline(const expr_t *e, char* prepend, char *res, i
         if( EXPR_OP_CONST_INT == e->op ) {
             WIR((res, reslen, "%d", e->value));
         } else if( EXPR_OP_SYMB == e->op ) {
-            if( e->var->flags & DPLASMA_SYMBOL_IS_GLOBAL ) {
-                WIR((res, reslen, "%s", e->var->name));
+            if( e->variable->flags & DPLASMA_SYMBOL_IS_GLOBAL ) {
+                WIR((res, reslen, "%s", e->variable->name));
             } else {
-                WIR((res, reslen, "%s%s", prepend, e->var->name));
+                WIR((res, reslen, "%s%s", prepend, e->variable->name));
             }
         } else if( EXPR_IS_UNARY(e->op) ) {
             pres = expression_to_c_inline(e->uop1, prepend, lo, MAX_EXPR_LEN);
@@ -383,14 +383,14 @@ static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_f
         } 
         else if( EXPR_OP_SYMB == e->op ) {
             char sname[FNAME_SIZE];
-            snprintf(sname, FNAME_SIZE, "%s", dump_c_symbol(e->var, init_func_body, init_func_body_size));
+            snprintf(sname, FNAME_SIZE, "%s", dump_c_symbol(e->variable, init_func_body, init_func_body_size));
             if( e->flags & EXPR_FLAG_CONSTANT ) {
-                output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s, .value = %d }; /* ",
+                output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .variable = %s, .value = %d }; /* ",
                        my_id, e->flags, sname, e->value);
                 expr_dump(out, e);
                 output(" */\n");
             } else {
-                output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .var = %s }; /* ",
+                output("static expr_t expr%d = { .op = EXPR_OP_SYMB, .flags = %d, .variable = %s }; /* ",
                        my_id, e->flags, sname);
                 expr_dump(out, e);
                 output(" */\n");
