@@ -419,7 +419,7 @@ static void runtime_init(int argc, char **argv)
             PLASMA_Init(1);
             break;
     }
-    plasma_tune(PLASMA_FUNC_DGEMM, N, N, NRHS);
+    plasma_tune(PLASMA_FUNC_SGEMM, N, N, NRHS);
     if( 0 != block_forced ) {
         plasma_context_t* plasma = plasma_context_self();
 
