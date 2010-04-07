@@ -11,6 +11,11 @@
 #if defined(USE_MPI)
 #include <mpi.h>
 #endif  /* defined(USE_MPI) */
+
+#if !defined(PLASMA_FUNC_SGEMM)
+#define PLASMA_FUNC_SGEMM PLASMA_FUNC_SPOSV
+#endif  /* !defined(PLASMA_FUNC_SGEMM) */
+
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */
