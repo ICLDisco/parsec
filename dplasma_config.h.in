@@ -14,6 +14,11 @@
 #cmakedefine HAVE_CLOCK_GETTIME
 #cmakedefine HAVE_COMPARE_AND_SWAP_32
 #cmakedefine HAVE_COMPARE_AND_SWAP_64
+#cmakedefine HAVE_ASPRINTF
+#cmakedefine HAVE_VASPRINTF
+#cmakedefine HAVE_STDARG_H
+#cmakedefine HAVE_VA_COPY
+#cmakedefine HAVE_UNDERSCORE_VA_COPY
 
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64

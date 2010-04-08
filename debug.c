@@ -1,8 +1,225 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "debug.h"
 
 #include "dplasma.h"
 #include "remote_dep.h"
 #include "atomic.h"
+
+#if !defined(HAVE_ASPRINTF)
+int asprintf(char **ptr, const char *fmt, ...)
+{
+    int length;
+    va_list ap;
+
+    va_start(ap, fmt);
+    length = vasprintf(ptr, fmt, ap);
+    va_end(ap);
+
+    return length;
+}
+#endif  /* !defined(HAVE_ASPRINTF) */
+
+#if !defined(HAVE_VASPRINTF)
+/*
+ * Make a good guess about how long a printf-style varargs formatted
+ * string will be once all the % escapes are filled in.  We don't
+ * handle every % escape here, but we handle enough, and then add a
+ * fudge factor in at the end.
+ */
+static int guess_strlen(const char *fmt, va_list ap)
+{
+    char *sarg, carg;
+    double darg;
+    float farg;
+    size_t i;
+    int iarg;
+    int len;
+    long larg;
+
+    /* Start off with a fudge factor of 128 to handle the % escapes that
+       we aren't calculating here */
+
+    len = (int)strlen(fmt) + 128;
+    for (i = 0; i < strlen(fmt); ++i) {
+        if ('%' == fmt[i] && i + 1 < strlen(fmt)
+            && '%' != fmt[i + 1]) {
+            ++i;
+            switch (fmt[i]) {
+            case 'c':
+                carg = va_arg(ap, int);
+                len += 1;  /* let's suppose it's a printable char */
+                break;
+            case 's':
+                sarg = va_arg(ap, char *);
+
+                /* If there's an arg, get the strlen, otherwise we'll
+                 * use (null) */
+
+                if (NULL != sarg) {
+                    len += (int)strlen(sarg);
+                } else {
+#if OPAL_ENABLE_DEBUG
+                    opal_output(0, "OPAL DEBUG WARNING: Got a NULL argument to opal_vasprintf!\n");
+#endif
+                    len += 5;
+                }
+                break;
+
+            case 'd':
+            case 'i':
+                iarg = va_arg(ap, int);
+                /* Alloc for minus sign */
+                if (iarg < 0)
+                    ++len;
+                /* Now get the log10 */
+                do {
+                    ++len;
+                    iarg /= 10;
+                } while (0 != iarg);
+                break;
+
+            case 'x':
+            case 'X':
+                iarg = va_arg(ap, int);
+                /* Now get the log16 */
+                do {
+                    ++len;
+                    iarg /= 16;
+                } while (0 != iarg);
+                break;
+
+            case 'f':
+                farg = (float)va_arg(ap, int);
+                /* Alloc for minus sign */
+                if (farg < 0) {
+                    ++len;
+                    farg = -farg;
+                }
+                /* Alloc for 3 decimal places + '.' */
+                len += 4;
+                /* Now get the log10 */
+                do {
+                    ++len;
+                    farg /= 10.0;
+                } while (0 != farg);
+                break;
+
+            case 'g':
+                darg = va_arg(ap, int);
+                /* Alloc for minus sign */
+                if (darg < 0) {
+                    ++len;
+                    darg = -darg;
+                }
+                /* Alloc for 3 decimal places + '.' */
+                len += 4;
+                /* Now get the log10 */
+                do {
+                    ++len;
+                    darg /= 10.0;
+                } while (0 != darg);
+                break;
+
+            case 'l':
+                /* Get %ld %lx %lX %lf */
+                if (i + 1 < strlen(fmt)) {
+                    ++i;
+                    switch (fmt[i]) {
+                    case 'x':
+                    case 'X':
+                        larg = va_arg(ap, int);
+                        /* Now get the log16 */
+                        do {
+                            ++len;
+                            larg /= 16;
+                        } while (0 != larg);
+                        break;
+
+                    case 'f':
+                        darg = va_arg(ap, int);
+                        /* Alloc for minus sign */
+                        if (darg < 0) {
+                            ++len;
+                            darg = -darg;
+                        }
+                        /* Alloc for 3 decimal places + '.' */
+                        len += 4;
+                        /* Now get the log10 */
+                        do {
+                            ++len;
+                            darg /= 10.0;
+                        } while (0 != darg);
+                        break;
+
+                    case 'd':
+                    default:
+                        larg = va_arg(ap, int);
+                        /* Now get the log10 */
+                        do {
+                            ++len;
+                            larg /= 10;
+                        } while (0 != larg);
+                        break;
+                    }
+                }
+
+            default:
+                break;
+            }
+        }
+    }
+
+    return len;
+}
+
+int vasprintf(char **ptr, const char *fmt, va_list ap)
+{
+    int length;
+    va_list ap2;
+
+    /* va_list might have pointer to internal state and using
+       it twice is a bad idea.  So make a copy for the second
+       use.  Copy order taken from Autoconf docs. */
+#if HAVE_VA_COPY
+    va_copy(ap2, ap);
+#elif HAVE_UNDERSCORE_VA_COPY
+    __va_copy(ap2, ap);
+#else
+    memcpy (&ap2, &ap, sizeof(va_list));
+#endif
+
+    /* guess the size */
+    length = guess_strlen(fmt, ap);
+
+    /* allocate a buffer */
+    *ptr = (char *) malloc((size_t) length + 1);
+    if (NULL == *ptr) {
+        errno = ENOMEM;
+        va_end(ap2);
+        return -1;
+    }
+
+    /* fill the buffer */
+    length = vsprintf(*ptr, fmt, ap2);
+#if HAVE_VA_COPY || HAVE_UNDERSCORE_VA_COPY
+    va_end(ap2);
+#endif  /* HAVE_VA_COPY || HAVE_UNDERSCORE_VA_COPY */
+
+    /* realloc */
+    *ptr = (char*) realloc(*ptr, (size_t) length + 1);
+    if (NULL == *ptr) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    return length;
+}
+#endif  /* !defined(HAVE_VASPRINTF) */
 
 #if defined(DPLASMA_DEBUG_HISTORY)
 

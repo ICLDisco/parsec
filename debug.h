@@ -9,6 +9,13 @@
 
 #include "dplasma_config.h"
 
+#if !defined(HAVE_ASPRINTF)
+int asprintf(char **ret, const char *format, ...);
+#endif  /* !defined(HAVE_ASPRINTF) */
+#if !defined(HAVE_VASPRINTF)
+int vasprintf(char **ret, const char *format, va_list ap);
+#endif  /* !defined(HAVE_VASPRINTF) */
+
 #ifdef DPLASMA_DEBUG
 
 #include <stdint.h>
