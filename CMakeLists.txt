@@ -99,6 +99,7 @@ include (${CMAKE_ROOT}/Modules/FindFLEX.cmake)
 include (${CMAKE_ROOT}/Modules/FindBISON.cmake)
 include (${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
 include (${CMAKE_ROOT}/Modules/CMakeDetermineSystem.cmake)
+include (${CMAKE_ROOT}/Modules/CheckIncludeFiles.cmake)
 
 find_package(BISON)
 find_package(FLEX)
@@ -215,6 +216,14 @@ if (DPLASMA_PAPI)
     include_directories( ${PAPI_INCLUDE_DIR} )
   endif (PAPI_FOUND)
 endif (DPLASMA_PAPI)
+
+check_include_files(stdarg.h HAVE_STDARG_H)
+check_function_exists(va_copy HAVE_VA_COPY)
+if (NOT HAVE_VA_COPY)
+  check_function_exists(__va_copy HAVE_UNDERSCORE_VA_COPY)
+endif (NOT HAVE_VA_COPY)
+check_function_exists(asprintf HAVE_ASPRINTF)
+check_function_exists(vasprintf HAVE_VASPRINTF)
 
 #
 # Setup targets
