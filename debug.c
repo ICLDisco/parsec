@@ -4,11 +4,16 @@
  *                         reserved.
  */
 
+#include "dplasma_config.h"
 #include "debug.h"
 
 #include "dplasma.h"
 #include "remote_dep.h"
 #include "atomic.h"
+
+#if defined(HAVE_ERRNO_H)
+#include <errno.h>
+#endif  /* defined(HAVE_ERRNO_H) */
 
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...)

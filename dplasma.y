@@ -4,6 +4,8 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "dplasma_config.h"
 #include "dplasma.h"
 #include "precompile.h"
 #include <stdio.h>

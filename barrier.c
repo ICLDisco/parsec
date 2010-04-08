@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#include "dplasma_config.h"
 #include "barrier.h"
 
 #if DPLASMA_IMPLEMENT_BARRIERS

@@ -3,6 +3,8 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "dplasma_config.h"
 #include "remote_dep.h"
 #include "scheduling.h"
 #include "execution_unit.h"

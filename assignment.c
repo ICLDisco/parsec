@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#include "dplasma_config.h"
 #include "assignment.h"
 #include <stdlib.h>
 #include <string.h>

@@ -3,6 +3,8 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "dplasma_config.h"
 #include "dplasma.h"
 
 #if defined(HAVE_HWLOC)

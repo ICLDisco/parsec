@@ -6,6 +6,8 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "dplasma_config.h"
 #include <string.h>
 #include <stdio.h>
 

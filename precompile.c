@@ -4,12 +4,15 @@
  *                         reserved.
  */
 
+#include "dplasma_config.h"
 #include "dplasma.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#if defined(HAVE_ERRNO_H)
 #include <errno.h>
+#endif  /* defined(HAVE_ERRNO_H) */
 
 #include "precompile.h"
 #include "symbol.h"
