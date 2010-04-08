@@ -861,8 +861,13 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     output("%*s    new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* %s */\n",
                            spaces, "", i, j, dep->dplasma->name);
                     if( NULL != dep->cond ) {
-                        output("%*s    if(%s) {\n", spaces, "", expression_to_c_inline(dep->cond, local_prepend, strexpr1, MAX_EXPR_LEN));
+                        output("%*s    if((action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS)) && %s) {\n",
+                               spaces, "", expression_to_c_inline(dep->cond, local_prepend, strexpr1, MAX_EXPR_LEN));
+                    } else {
+                        output("%*s    if( action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS) ) {\n",
+                               spaces, "");
                     }
+                    spaces += 2;
 
                     /* Prepare the list of locals on the target */
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
@@ -896,7 +901,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                         output(")");
                     }
-                    output(" ) {\n");
+                    output(" ) {\n"); spaces += 2;
 
                     output("%*s    if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n", spaces, " "); spaces += 2;
                     for(k = 0; k < dep->dplasma->nb_locals; k++) {
@@ -915,24 +920,24 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output("%*s    new_context.locals[%d].value = %s%s;  /* task %s local %s */\n",
                                spaces, " ", k, target_prepend, target->locals[k]->name, target->name, target->locals[k]->name);
                     }
-                    output( "%*s      e%s->data[%d] = (NULL != data) ? data[%d] : NULL;\n", spaces, "", d->name, cpt, cpt);
-                    output( "%*s      usage++;\n"
-                            "%*s      gc_data_ref( e%s->data[%d] /* %s of %s is used by %s */ );\n",
+                    output( "%*s    e%s->data[%d] = (NULL != data) ? data[%d] : NULL;\n", spaces, "", d->name, cpt, cpt);
+                    output( "%*s    usage++;\n"
+                            "%*s    gc_data_ref( e%s->data[%d] /* %s of %s is used by %s */ );\n",
                             spaces, "",
                             spaces, "", d->name, cpt, p->name, d->name, target->name);
 
-                    output( "%*s      ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"
-                            "%*s                       exec_context->function->inout[%d/*i*/],\n"
-                            "%*s                       &new_context,\n"
-                            "%*s                       exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
-                            "%*s                       %s_placeholder, &ready_list);\n"
-                            "%*s    } /* DPLASMA_ACTION_RELEASE_LOCAL_DEPS */\n",
+                    output( "%*s    ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"
+                            "%*s                     exec_context->function->inout[%d/*i*/],\n"
+                            "%*s                     &new_context,\n"
+                            "%*s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
+                            "%*s                     %s_placeholder, &ready_list);\n"
+                            "%*s  } /* DPLASMA_ACTION_RELEASE_LOCAL_DEPS */\n",
                             spaces, "",
                             spaces, "", i,
                             spaces, "", 
                             spaces, "", i, j,
                             spaces, "", target->locals[target->nb_locals-1]->name, 
-                            spaces, "");
+                            spaces, ""); spaces -= 2;
 
                     /* If predicates don't verify, this is remote, compute 
                      * target rank from predicate values
@@ -1002,8 +1007,11 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     if( NULL != dep->cond ) {
                         output("%*s  }  /* if(%s) */\n", spaces, "", 
                                expression_to_c_inline(dep->cond, local_prepend, strexpr1, MAX_EXPR_LEN));
+                    } else {
+                        output("%*s  }  /* if( action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS) ) */\n",
+                               spaces, "");
                     }
-
+                    spaces -= 2;
                     output("  }\n");
                 }
             }
