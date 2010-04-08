@@ -68,10 +68,10 @@ static int guess_strlen(const char *fmt, va_list ap)
                 if (NULL != sarg) {
                     len += (int)strlen(sarg);
                 } else {
-#if OPAL_ENABLE_DEBUG
-                    opal_output(0, "OPAL DEBUG WARNING: Got a NULL argument to opal_vasprintf!\n");
-#endif
-                    len += 5;
+#if defined(DPLASMA_DEBUG)
+                    printf("DEBUG WARNING: Got a NULL argument to vasprintf!\n");
+#endif  /* defined(DPLASMA_DEBUG) */
+                    len += 6;  /* for "(null)" */
                 }
                 break;
 
