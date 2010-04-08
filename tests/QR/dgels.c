@@ -11,7 +11,9 @@
 #include <mpi.h>
 #endif  /* defined(USE_MPI) */
 
+#if defined(HAVE_GETOPT_H)
 #include <getopt.h>
+#endif  /* defined(HAVE_GETOPT_H) */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -274,6 +276,7 @@ static void print_usage(void)
 
 static void runtime_init(int argc, char **argv)
 {
+#if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
     {
         {"nb-cores",    required_argument,  0, 'c'},
@@ -294,6 +297,7 @@ static void runtime_init(int argc, char **argv)
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
+#endif  /* defined(HAVE_GETOPT_LONG) */
     int block_forced = 0;
     int internal_block_forced = 0;
 
@@ -314,10 +318,13 @@ static void runtime_init(int argc, char **argv)
     do
     {
         int c;
+#if defined(HAVE_GETOPT_LONG)
         int option_index = 0;
-        
         c = getopt_long (argc, argv, "dpxmc:N:M:a:r:b:g:s:w::B:I:h",
                          long_options, &option_index);
+#else
+        c = getopt (argc, argv, "dpxmc:N:M:a:r:b:g:s:w::B:I:h");
+#endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
         if (c == -1)
