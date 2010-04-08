@@ -81,18 +81,18 @@ struct expr {
         } unary;
         symbol_t *var;
         expr_op_inline_func_t inline_func;
-    } u;
+    } u_expr;
 };
 
-#define tcond       u.tertiar.cond
-#define top1        u.tertiar.op1
-#define top2        u.tertiar.op2
-#define bop1        u.binary.op1
-#define bop2        u.binary.op2
-#define uop1        u.unary.op1
-#define var         u.var
-#define const_int   u.const_int
-#define inline_func u.inline_func
+#define tcond       u_expr.tertiar.cond
+#define top1        u_expr.tertiar.op1
+#define top2        u_expr.tertiar.op2
+#define bop1        u_expr.binary.op1
+#define bop2        u_expr.binary.op2
+#define uop1        u_expr.unary.op1
+#define variable    u_expr.var
+#define const_int   u_expr.const_int
+#define inline_func u_expr.inline_func
 
 #define EXPR_SUCCESS                        0
 #define EXPR_FAILURE_SYMBOL_NOT_FOUND      -1

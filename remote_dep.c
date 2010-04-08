@@ -168,6 +168,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
             }
         }
     }
+    return 0;
 }
 
 
@@ -183,6 +184,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
                                  sizeof(uint32_t*) + sizeof(dplasma_remote_dep_datatype_t*) +
                                  sizeof(uint32_t) * (max_nodes_number + 31)/32);
     dplasma_atomic_lifo_construct(&remote_deps_freelist);
+    return 0;
 }
 
 #endif /* DISTRIBUTED */

@@ -14,9 +14,17 @@
 #cmakedefine HAVE_CLOCK_GETTIME
 #cmakedefine HAVE_COMPARE_AND_SWAP_32
 #cmakedefine HAVE_COMPARE_AND_SWAP_64
+#cmakedefine HAVE_ASPRINTF
+#cmakedefine HAVE_VASPRINTF
+#cmakedefine HAVE_STDARG_H
+#cmakedefine HAVE_VA_COPY
+#cmakedefine HAVE_UNDERSCORE_VA_COPY
+#cmakedefine HAVE_GETOPT_LONG
+#cmakedefine HAVE_GETOPT_H
 
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
+#cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
 #cmakedefine DPLASMA_SCHED_HWLOC
 #cmakedefine DPLASMA_PROFILING

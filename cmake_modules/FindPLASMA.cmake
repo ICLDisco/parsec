@@ -105,12 +105,10 @@ if(NOT PLASMA_FIND_QUIETLY)
   else(PLASMA_FOUND)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR
-        "A required library with PLASMA API not found. Please specify library location."
-        )
+        "A required library with PLASMA API not found. Please specify library location.")
     else(PLASMA_FIND_REQUIRED)
       message(STATUS
-        "A library with PLASMA API not found. Please specify library location."
-        )
+        "A library with PLASMA API not found. Please specify library location.")
     endif(PLASMA_FIND_REQUIRED)
   endif(PLASMA_FOUND)
 endif(NOT PLASMA_FIND_QUIETLY)

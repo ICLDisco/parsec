@@ -19,6 +19,8 @@
 #include "atomic-x86_32.h"
 #elif defined(ARCH_X86_64)
 #include "atomic-x86_64.h"
+#elif defined(ARCH_PPC)
+#include "atomic-ppc.h"
 #else
 #error "Using unsafe atomics"
 #endif

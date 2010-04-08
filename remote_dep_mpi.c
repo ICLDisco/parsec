@@ -299,18 +299,19 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
     int rank_bank = rank / (sizeof(uint32_t) * 8);
     uint32_t rank_mask = 1 << (rank % (sizeof(uint32_t) * 8));
     int output_count = deps->output_count;
-    remote_dep_wire_activate_t *msg = &deps->msg;
+    remote_dep_wire_activate_t msg = deps->msg;
 
-    msg->which = 0;
+    msg.which = 0;
     for(k = 0; output_count; k++)
     {
         output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask)
         {
-            msg->which |= (1<<k);
+            msg.which |= (1<<k);
         }
     }
-    remote_dep_mpi_send_dep(rank, msg);
+    remote_dep_mpi_send_dep(rank, &msg);
+    return 0;
 }
 
 static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
@@ -360,19 +361,20 @@ static int remote_dep_nothread_memcpy(void *dst, gc_data_t *src,
                                       const dplasma_remote_dep_datatype_t datatype)
 {
     /* TODO: split the mpi part */
-    MPI_Sendrecv(GC_DATA(src), 1, datatype, 0, 0,
-                 dst, 1, datatype, 0, 0,
-                 MPI_COMM_SELF, MPI_STATUS_IGNORE);
+    int rc = MPI_Sendrecv(GC_DATA(src), 1, datatype, 0, 0,
+                          dst, 1, datatype, 0, 0,
+                          MPI_COMM_SELF, MPI_STATUS_IGNORE);
     gc_data_unref(src);
+    return (MPI_SUCCESS == rc ? 0 : -1);
 }
 
 
 
 
 
-/******************************************************************************/
-/* ALL MPI SPECIFIC CODE GOES HERE 
-/******************************************************************************/
+/****************************************************************************** 
+ * ALL MPI SPECIFIC CODE GOES HERE 
+ ******************************************************************************/
 enum {
     REMOTE_DEP_ACTIVATE_TAG,
     REMOTE_DEP_GET_DATA_TAG,

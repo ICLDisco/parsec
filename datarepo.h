@@ -141,8 +141,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
  *    The same thread that called data_repo_lookup_entry_and_create must eventually call
  *    data_repo_entry_addto_usage_limit to set the usage limit and remove the retained flag.
  *    Between the two calls, any thread can call data_repo_lookup_entry and 
- *    data_repo_entry_used_once if the entry has been "used", but NEVER data_repo_entry_addto_usage_limit or
- *    data_repo_lookup_entry_and_create on the same repository. When data_repo_entry_addto_usage_limit
+ *    data_repo_entry_used_once if the entry has been "used". When data_repo_entry_addto_usage_limit
  *    has been called the same number of times as data_repo_lookup_entry_and_create and data_repo_entry_used_once 
  *    has been called N times where N is the sum of the usagelmt parameters of data_repo_lookup_entry_and_create,
  *    the entry is garbage collected from the hash table. Notice that the values pointed by the entry
@@ -211,7 +210,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
         e != NULL;
         e = e->next_entry)
         if( e->key == key ) {
-            e->retained = 1; /* Until we update the usage limit */
+            e->retained++; /* Until we update the usage limit */
             data_repo_atomic_unlock(&repo->heads[h].lock);
             return e;
         }
@@ -296,11 +295,12 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         e != NULL;
         p = e, e = e->next_entry)
         if( e->key == key ) {
+            assert(e->retained > 0);
             do {
                 ov = e->usagelmt;
                 nv = ov + usagelmt;
             } while( !dplasma_atomic_cas_32b( &e->usagelmt, ov, nv) );
-            e->retained = 0;
+            e->retained--;
             break;
         }
 

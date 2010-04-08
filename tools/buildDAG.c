@@ -192,7 +192,7 @@ static void printNodeColor(dplasma_t *currTask, char *taskInstanceStr,assignment
                 fprintf(stderr,"\n");
                 exit(-1);
             }
-            fprintf(stderr,"Cannot evaluate the value of global variable: %s",e->bop2->var->name);
+            fprintf(stderr,"Cannot evaluate the value of global variable: %s",e->bop2->variable->name);
             expr_dump(stdout, e);
             fprintf(stderr,"\n");
             exit(-1);

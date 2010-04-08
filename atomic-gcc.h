@@ -33,6 +33,8 @@ static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
+#include <stdlib.h>
+#include <stdio.h>
 static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
