@@ -19,6 +19,8 @@
 #cmakedefine HAVE_STDARG_H
 #cmakedefine HAVE_VA_COPY
 #cmakedefine HAVE_UNDERSCORE_VA_COPY
+#cmakedefine HAVE_GETOPT_LONG
+#cmakedefine HAVE_GETOPT_H
 
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
