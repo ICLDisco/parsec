@@ -97,7 +97,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
         if( 0 == nref ) {
             DEBUG_HEAVY(("Liberating the garbage collectable datar %p pointing on data %p,\n",
                          d, GC_DATA(d)));
-            //free(GC_DATA(d));
+            free(GC_DATA(d));
 #if defined(DPLASMA_DEBUG_HEAVY)
             GC_POINTER(d)->data = NULL;
             GC_POINTER(d)->refcount = 0;
