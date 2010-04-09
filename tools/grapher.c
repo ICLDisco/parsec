@@ -201,6 +201,12 @@ int main(int argc, char *argv[])
             object->release_deps = generic_release_dependencies;
             total_nb_tasks += dplasma_compute_nb_tasks( object, 1 );
         }
+        // dplasma_register_nb_tasks is waiting an unsigned int.
+        // problem arise with -1...
+        if ( total_nb_tasks < 0 ) {
+            fprintf( stderr, "Error during task generation, aborting" );
+            exit( 1 );
+        }
         dplasma_register_nb_tasks(dplasma, total_nb_tasks);
     }
 
