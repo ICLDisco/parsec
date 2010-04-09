@@ -9,6 +9,9 @@
 
 #include "dplasma_config.h"
 
+#if defined(HAVE_STDARG_H)
+#include <stdarg.h>
+#endif  /* define(HAVE_STDARG_H) */
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ret, const char *format, ...);
 #endif  /* !defined(HAVE_ASPRINTF) */

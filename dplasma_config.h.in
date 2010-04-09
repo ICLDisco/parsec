@@ -21,7 +21,7 @@
 #cmakedefine HAVE_UNDERSCORE_VA_COPY
 #cmakedefine HAVE_GETOPT_LONG
 #cmakedefine HAVE_GETOPT_H
-
+#cmakedefine HAVE_ERRNO_H
 #cmakedefine ARCH_X86
 #cmakedefine ARCH_X86_64
 #cmakedefine ARCH_PPC

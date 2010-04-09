@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#include "dplasma_config.h"
 #include "scheduling.h"
 #include "dequeue.h"
 #include "profiling.h"
