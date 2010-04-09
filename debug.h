@@ -28,7 +28,6 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #   ifdef USE_MPI
 /* only one printf to avoid line breaks in the middle */
 
-#include <stdarg.h>
 static inline char* arprintf(const char* fmt, ...)
 {
     char* txt;
