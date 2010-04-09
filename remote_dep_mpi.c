@@ -525,14 +525,15 @@ static int remote_dep_mpi_on(dplasma_context_t* context)
 
 static int remote_dep_mpi_off(dplasma_context_t* context)
 {
-    int i;
+    MPI_Status status;
+    int i, flag;
 
     assert(dep_enabled == 1);
 
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
-        MPI_Cancel(&dep_activate_req[i]); MPI_Request_free(&dep_activate_req[i]);
-        MPI_Cancel(&dep_get_req[i]); MPI_Request_free(&dep_get_req[i]);
+        MPI_Cancel(&dep_activate_req[i]); MPI_Test(&dep_activate_req[i], &flag, &status); MPI_Request_free(&dep_activate_req[i]);
+        MPI_Cancel(&dep_get_req[i]); MPI_Test(&dep_get_req[i], &flag, &status);MPI_Request_free(&dep_get_req[i]);
     }
     for(i = 0; i < DEP_NB_REQ; i++)
     {
