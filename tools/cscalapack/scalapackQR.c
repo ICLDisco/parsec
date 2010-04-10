@@ -88,25 +88,25 @@ static int max( int a, int b ){
 }
 
 int main(int argc, char **argv) {
-	int iam, nprocs;
+	int iam, nprocs, do_validation = 0;
 	int myrank_mpi, nprocs_mpi;
 	int ictxt, nprow, npcol, myrow, mycol;
 	int np, nq, n, nb, nqrhs, nrhs;
 	int i, j, k, info, itemp, seed;
 	int descA[9], descB[9];
 	double *A=NULL, *Acpy=NULL, *B=NULL, *X=NULL, *R=NULL, eps, *work=NULL;
-        double AnormF, XnormF, RnormF, BnormF, residF;
+    double AnormF, XnormF, RnormF, BnormF, residF;
 	double *tau=NULL;
 	int lwork;
 	int izero=0,ione=1;
 	double mone=(-1.0e0),pone=(1.0e0);
-/**/
+    /**/
 	double MPIt1, MPIt2, MPIelapsed, GFLOPS, GFLOPS_per_proc ;
-/**/
+    /**/
 	MPI_Init( &argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myrank_mpi);
 	MPI_Comm_size(MPI_COMM_WORLD, &nprocs_mpi);
-/**/
+    /**/
 	n = 100; nrhs = 1; nprow = 1; npcol = 1; nb = 64;
 	for( i = 1; i < argc; i++ ) {
 		if( strcmp( argv[i], "-n" ) == 0 ) {
@@ -129,17 +129,20 @@ int main(int argc, char **argv) {
 			nb     = atoi(argv[i+1]);
 			i++;
 		}
+        if( strcmp( argv[i], "-v" ) == 0 ) {
+            do_validation = 1;
+        }
 	}
-/**/
+    /**/
 	if (nb>n)
 		nb = n;
 	if (nprow*npcol>nprocs_mpi){
 		if (myrank_mpi==0)
 			printf(" **** ERROR : we do not have enough processes available to make a p-by-q process grid ***\n");
-			printf(" **** Bye-bye                                                                         ***\n");
+        printf(" **** Bye-bye                                                                         ***\n");
 		MPI_Finalize(); exit(1);
 	}
-/**/
+    /**/
 	/* no idea why I have problem with Cblacs on my computer, I am using blacsF77 interface here .... */
 	blacs_pinfo_( &iam, &nprocs ) ;
 	{ int im1 = -1; int i0 = 0; blacs_get_( &im1, &i0, &ictxt ); }
@@ -150,58 +153,58 @@ int main(int argc, char **argv) {
 	//Cblacs_get( -1, 0, &ictxt );
 	//Cblacs_gridinit( &ictxt, "Row", nprow, npcol );
 	//Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol );
-/**/
+    /**/
 	if ( iam==0 ){
 		printf("\n");
 		printf("n\tnrhs\tnb\tp\tq\tinfo\tresid\ttime(s)  \tGFLOPS/sec\tGFLOPS/sec/proc\n");
 	}
-/**/
-/*	
- *	if (iam==0)
- *		printf("\tn = %d\tnrhs = %d\t(%d,%d)\t%dx%d\n",n,nrhs,nprow,npcol,nb,nb);
- *	printf("Hello World, I am proc %d over %d for MPI, proc %d over %d for BLACS in position (%d,%d) in the process grid\n", 
- *	 		myrank_mpi,nprocs_mpi,iam,nprocs,myrow,mycol);
- */	 
-/*
-*
-*     Work only the process in the process grid
-*
-*/
+    /**/
+    /*	
+     *	if (iam==0)
+     *		printf("\tn = %d\tnrhs = %d\t(%d,%d)\t%dx%d\n",n,nrhs,nprow,npcol,nb,nb);
+     *	printf("Hello World, I am proc %d over %d for MPI, proc %d over %d for BLACS in position (%d,%d) in the process grid\n", 
+     *	 		myrank_mpi,nprocs_mpi,iam,nprocs,myrow,mycol);
+     */	 
+    /*
+     *
+     *     Work only the process in the process grid
+     *
+     */
 	if ((myrow < nprow)&(mycol < npcol)){
-/*
-*
-*     Compute the size of the local matrices (thanks to numroc)
-*
-*/ 
+        /*
+         *
+         *     Compute the size of the local matrices (thanks to numroc)
+         *
+         */ 
 		np    = numroc_( &n   , &nb, &myrow, &izero, &nprow );
 		nq    = numroc_( &n   , &nb, &mycol, &izero, &npcol );
 		nqrhs = numroc_( &nrhs, &nb, &mycol, &izero, &npcol );
-/*
-*
-*     Allocate and fill the matrices A and B
-*
-*/ 
+        /*
+         *
+         *     Allocate and fill the matrices A and B
+         *
+         */ 
 
 		seed = iam*n*(n+nrhs); srand(seed);
-/**/		
+        /**/		
 		A = (double *)calloc(np*nq,sizeof(double)) ;
 		if (A==NULL){ printf("error of memory allocation A on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		Acpy = (double *)calloc(np*nq,sizeof(double)) ;
 		if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		B = (double *)calloc(np*nqrhs,sizeof(double)) ;
 		if (B==NULL){ printf("error of memory allocation B on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		X = (double *)calloc(np*nqrhs,sizeof(double)) ;
 		if (X==NULL){ printf("error of memory allocation X on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		R = (double *)calloc(np*nqrhs,sizeof(double)) ;
 		if (R==NULL){ printf("error of memory allocation R on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		tau = (double *)calloc(n,sizeof(double)) ;
 		if (tau==NULL){ printf("error of memory allocation TAU on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		k = 0;
 		for (i = 0; i < np; i++) {
 			for (j = 0; j < nq; j++) {
@@ -216,26 +219,26 @@ int main(int argc, char **argv) {
 				k++;	
 			}
 		}
-/*
-*
-*     Initialize the array descriptor for the matrix A and B
-*
-*/ 
+        /*
+         *
+         *     Initialize the array descriptor for the matrix A and B
+         *
+         */ 
 		itemp = max( 1, np );
 		descinit_( descA, &n, &n   , &nb, &nb, &izero, &izero, &ictxt, &itemp, &info );
 		descinit_( descB, &n, &nrhs, &nb, &nb, &izero, &izero, &ictxt, &itemp, &info );
-/*
-*
-*     Make a copy of A and the rhs for checking purposes
-*/
-      		pdlacpy_( "All", &n, &n   , A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
-      		pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X   , &ione, &ione, descB );
-/*
+        /*
+         *
+         *     Make a copy of A and the rhs for checking purposes
+         */
+        pdlacpy_( "All", &n, &n   , A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
+        pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X   , &ione, &ione, descB );
+        /*
 **********************************************************************
 *     Call ScaLAPACK PDGESV routine
 **********************************************************************
 */
-/**/
+        /**/
 		lwork = -1;
 		work = (double *)calloc(1,sizeof(double)) ;
 		if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
@@ -244,67 +247,70 @@ int main(int argc, char **argv) {
 		free(work); work = NULL;
 		work = (double *)calloc(lwork,sizeof(double)) ;
 		if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-/**/		
+        /**/		
 		MPIt1 = MPI_Wtime();
 		pdgeqrf_( &n, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
-/**/
+        /**/
 		MPIt2 = MPI_Wtime();
 		MPIelapsed=MPIt2-MPIt1;
 		free(work); work = NULL;
-/**/
-		lwork = -1;
-		work = (double *)calloc(1,sizeof(double)) ;
-		if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-		pdormqr_( "L", "T", &n, &nrhs, &n, A, &ione, &ione,
-				descA, tau, X, &ione, &ione, descB,
-				work, &lwork, &info );
-		lwork = (int) work[0];
-		free(work); work = NULL;
-		work = (double *)calloc(lwork,sizeof(double)) ;
-		if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-		pdormqr_( "L", "T", &n, &nrhs, &n, A, &ione, &ione,
-				descA, tau, X, &ione, &ione, descB,
-				work, &lwork, &info );
-		free(work); work=NULL;
-/**/
-		pdtrsm_( "L", "U", "N", "N", &n, &nrhs, &pone, A, &ione, &ione, descA, X, &ione, &ione, descB );
 
-		//fprintf(stderr,"%d ==> done \n",iam);Cblacs_gridexit( 0 ); MPI_Finalize(); exit(0);
-/**/
-		GFLOPS = 4.0e0/3.e0*(((double) n)*((double) n)*((double) n))/1e+9/MPIelapsed;
-		GFLOPS_per_proc = GFLOPS / (((double) nprow)*((double) npcol));
-/*
-*     Compute residual ||A * X  - B|| / ( ||X|| * ||A|| * eps * N )
-*     Froebenius norm
-*/
+        if( do_validation ) {
+            /**/
+            lwork = -1;
+            work = (double *)calloc(1,sizeof(double)) ;
+            if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
+            pdormqr_( "L", "T", &n, &nrhs, &n, A, &ione, &ione,
+                      descA, tau, X, &ione, &ione, descB,
+                      work, &lwork, &info );
+            lwork = (int) work[0];
+            free(work); work = NULL;
+            work = (double *)calloc(lwork,sizeof(double)) ;
+            if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
+            pdormqr_( "L", "T", &n, &nrhs, &n, A, &ione, &ione,
+                      descA, tau, X, &ione, &ione, descB,
+                      work, &lwork, &info );
+            free(work); work=NULL;
+            /**/
+            pdtrsm_( "L", "U", "N", "N", &n, &nrhs, &pone, A, &ione, &ione, descA, X, &ione, &ione, descB );
+
+            //fprintf(stderr,"%d ==> done \n",iam);Cblacs_gridexit( 0 ); MPI_Finalize(); exit(0);
+            /*
+             *     Compute residual ||A * X  - B|| / ( ||X|| * ||A|| * eps * N )
+             *     Froebenius norm
+             */
       		pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, R   , &ione, &ione, descB );
       		eps = pdlamch_( &ictxt, "Epsilon" );
-		pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
-				&mone, R, &ione, &ione, descB);
-		AnormF = pdlange_( "F", &n, &n   , A, &ione, &ione, descA, work);
-		BnormF = pdlange_( "F", &n, &nrhs, B, &ione, &ione, descB, work);
-		XnormF = pdlange_( "F", &n, &nrhs, X, &ione, &ione, descB, work);
-		RnormF = pdlange_( "F", &n, &nrhs, R, &ione, &ione, descB, work);
-		residF = RnormF / ( AnormF * XnormF * eps );
-/**/
+            pdgemm_( "N", "N", &n, &nrhs, &n, &pone, Acpy, &ione, &ione, descA, X, &ione, &ione, descB,
+                     &mone, R, &ione, &ione, descB);
+            AnormF = pdlange_( "F", &n, &n   , A, &ione, &ione, descA, work);
+            BnormF = pdlange_( "F", &n, &nrhs, B, &ione, &ione, descB, work);
+            XnormF = pdlange_( "F", &n, &nrhs, X, &ione, &ione, descB, work);
+            RnormF = pdlange_( "F", &n, &nrhs, R, &ione, &ione, descB, work);
+            residF = RnormF / ( AnormF * XnormF * eps );
+        }
+        /**/
+		GFLOPS = 4.0e0/3.e0*(((double) n)*((double) n)*((double) n))/1e+9/MPIelapsed;
+		GFLOPS_per_proc = GFLOPS / (((double) nprow)*((double) npcol));
+        /**/
 		if ( iam==0 ){
 			printf("%d\t%d\t%d\t%d\t%d\t%d\t%1.1f\t%f\t%f\t%f\n",
-				       	n, nrhs, nb, nprow, npcol, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
+                   n, nrhs, nb, nprow, npcol, info, residF, MPIelapsed, GFLOPS, GFLOPS_per_proc);
 		}
-/**/
+        /**/
 		free(A);
 		free(Acpy);
 		free(B);
 		free(X);
 		free(tau);
 	}
-/*
-*     Print ending messages
-*/
+    /*
+     *     Print ending messages
+     */
 	if ( iam==0 ){
 		printf("\n");
 	}
-/**/
+    /**/
 	Cblacs_gridexit( 0 );
 	MPI_Finalize();
 	exit(0);
