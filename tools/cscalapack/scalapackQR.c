@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 	int myrank_mpi, nprocs_mpi;
 	int ictxt, nprow, npcol, myrow, mycol;
 	int np, nq, n, nb, nqrhs, nrhs;
-	int i, j, k, info, itemp, seed;
+	int i, j, k, info=0, itemp, seed;
 	int descA[9], descB[9];
 	double *A=NULL, *Acpy=NULL, *B=NULL, *X=NULL, *R=NULL, eps, *work=NULL;
     double AnormF, XnormF, RnormF, BnormF, residF;
@@ -190,17 +190,8 @@ int main(int argc, char **argv) {
 		A = (double *)calloc(np*nq,sizeof(double)) ;
 		if (A==NULL){ printf("error of memory allocation A on proc %dx%d\n",myrow,mycol); exit(0); }
         /**/		
-		Acpy = (double *)calloc(np*nq,sizeof(double)) ;
-		if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
-        /**/		
 		B = (double *)calloc(np*nqrhs,sizeof(double)) ;
 		if (B==NULL){ printf("error of memory allocation B on proc %dx%d\n",myrow,mycol); exit(0); }
-        /**/		
-		X = (double *)calloc(np*nqrhs,sizeof(double)) ;
-		if (X==NULL){ printf("error of memory allocation X on proc %dx%d\n",myrow,mycol); exit(0); }
-        /**/		
-		R = (double *)calloc(np*nqrhs,sizeof(double)) ;
-		if (R==NULL){ printf("error of memory allocation R on proc %dx%d\n",myrow,mycol); exit(0); }
         /**/		
 		tau = (double *)calloc(n,sizeof(double)) ;
 		if (tau==NULL){ printf("error of memory allocation TAU on proc %dx%d\n",myrow,mycol); exit(0); }
@@ -231,29 +222,40 @@ int main(int argc, char **argv) {
          *
          *     Make a copy of A and the rhs for checking purposes
          */
-        pdlacpy_( "All", &n, &n   , A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
-        pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X   , &ione, &ione, descB );
+        if( do_validation ) {
+            Acpy = (double *)calloc(np*nq,sizeof(double)) ;
+            if (Acpy==NULL){ printf("error of memory allocation Acpy on proc %dx%d\n",myrow,mycol); exit(0); }
+        /**/		
+            R = (double *)calloc(np*nqrhs,sizeof(double)) ;
+            if (R==NULL){ printf("error of memory allocation R on proc %dx%d\n",myrow,mycol); exit(0); }
+        /**/
+            X = (double *)calloc(np*nqrhs,sizeof(double)) ;
+            if (X==NULL){ printf("error of memory allocation X on proc %dx%d\n",myrow,mycol); exit(0); }
+        /**/		
+            pdlacpy_( "All", &n, &n   , A, &ione, &ione, descA, Acpy, &ione, &ione, descA );
+            pdlacpy_( "All", &n, &nrhs, B, &ione, &ione, descB, X   , &ione, &ione, descB );
+        }
         /*
 **********************************************************************
 *     Call ScaLAPACK PDGESV routine
 **********************************************************************
 */
         /**/
-		lwork = -1;
-		work = (double *)calloc(1,sizeof(double)) ;
-		if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
-		pdgeqrf_( &n, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
-		lwork = (int) work[0];
-		free(work); work = NULL;
-		work = (double *)calloc(lwork,sizeof(double)) ;
-		if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
+        lwork = -1;
+        work = (double *)calloc(1,sizeof(double)) ;
+        if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
+        pdgeqrf_( &n, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
+        lwork = (int) work[0];
+        free(work); work = NULL;
+        work = (double *)calloc(lwork,sizeof(double)) ;
+        if (work==NULL){ printf("error of memory allocation WORK on proc %dx%d\n",myrow,mycol); exit(0); }
         /**/		
-		MPIt1 = MPI_Wtime();
-		pdgeqrf_( &n, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
+        MPIt1 = MPI_Wtime();
+        pdgeqrf_( &n, &n, A, &ione, &ione, descA, tau, work, &lwork, &info );
         /**/
-		MPIt2 = MPI_Wtime();
-		MPIelapsed=MPIt2-MPIt1;
-		free(work); work = NULL;
+        MPIt2 = MPI_Wtime();
+        MPIelapsed=MPIt2-MPIt1;
+        free(work); work = NULL;
 
         if( do_validation ) {
             /**/
