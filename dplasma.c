@@ -18,10 +18,7 @@
 #include "dequeue.h"
 #include "barrier.h"
 #include "remote_dep.h"
-
-#ifdef HAVE_SCHED_SETAFFINITY
-#include <linux/unistd.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
+#include "bindthread.h"
 
 #ifdef DPLASMA_PROFILING
 #include "profiling.h"
@@ -201,10 +198,6 @@ int dplasma_nb_elements( void )
 dplasma_atomic_lifo_t ready_list;
 #endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
 
-#ifdef HAVE_SCHED_SETAFFINITY
-#define gettid() syscall(__NR_gettid)
-#endif /* HAVE_SCHED_SETAFFINITY */
-
 typedef struct __dplasma_temporary_thread_initialization_t {
     dplasma_context_t* master_context;
     int th_id;
@@ -235,9 +228,8 @@ static void push_in_queue_wrapper(void *store, dplasma_list_item_t *elt)
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
-#if defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY)
     int bind_to_proc = startup->th_id;
-#endif  /* defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY) */
+
 
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
 #if defined(ON_ZOOT)
@@ -245,18 +237,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #endif
 #endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
 
-#ifdef HAVE_SCHED_SETAFFINITY
-    {
-        cpu_set_t cpuset;
-
-        CPU_ZERO(&cpuset);
-        CPU_SET(bind_to_proc, &cpuset);
-
-        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
-        }
-    }
-#endif  /* HAVE_SCHED_SETAFFINITY */
+    dplasma_bindthread(bind_to_proc);
 
     eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
     if( NULL == eu ) {

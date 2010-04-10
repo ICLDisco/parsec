@@ -25,12 +25,6 @@
 #include "data_management.h"
 #include "dplasma.h"
 
-#ifdef HAVE_SCHED_SETAFFINITY
-#include <unistd.h>
-#include <linux/unistd.h>
-#include <sys/syscall.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
-
 extern int dposv_force_nb;
 
 //#define A(m,n) &((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
@@ -883,10 +877,6 @@ void pos_to_coordinate(DPLASMA_desc * Ddesc, float * position, tile_coordinate_t
     tile->col = ecol;
 }
 
-#ifdef HAVE_SCHED_SETAFFINITY
-#define gettid() syscall(__NR_gettid)
-#endif
-
 /* thread function for affecting multiple tiles with random values
  * @param : tiles : of type dist_tiles_t
 
@@ -897,20 +887,9 @@ static void * rand_dist_tiles(void * tiles)
     float * pos;
     tile_coordinate_t current_tile;
     /* bind thread to cpu */
-#if defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY)
     int bind_to_proc = ((dist_tiles_t *)tiles)->th_id;
-#endif  /* defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY) */
-#ifdef HAVE_SCHED_SETAFFINITY
-    {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(bind_to_proc, &cpuset);
+    dplasma_bindthread(bind_to_proc);
 
-        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
-        }
-    }
-#endif  /* HAVE_SCHED_SETAFFINITY */
     printf("generating matrix on process %d, thread %d: %d tiles\n",
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
            ((dist_tiles_t*)tiles)->th_id,

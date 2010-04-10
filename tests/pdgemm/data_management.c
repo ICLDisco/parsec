@@ -24,12 +24,7 @@
 #include "../src/allocate.h"
 #include "data_management.h"
 #include "dplasma.h"
-
-#ifdef HAVE_SCHED_SETAFFINITY
-#include <unistd.h>
-#include <linux/unistd.h>
-#include <sys/syscall.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
+#include "bindthread.h"
 
 //#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
@@ -583,10 +578,6 @@ static void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coor
     tile->col = ecol;
 }
 
-#ifdef HAVE_SCHED_SETAFFINITY
-#define gettid() syscall(__NR_gettid)
-#endif
-
 /* thread function for affecting multiple tiles with random values
  * @param : tiles : of type dist_tiles_t
 
@@ -597,20 +588,10 @@ static void * rand_dist_tiles(void * tiles)
     double * pos;
     tile_coordinate_t current_tile;
     /* bind thread to cpu */
-#if defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY)
     int bind_to_proc = ((dist_tiles_t *)tiles)->th_id;
-#endif  /* defined(HAVE_HWLOC) || defined(HAVE_SCHED_SETAFFINITY) */
-#ifdef HAVE_SCHED_SETAFFINITY
-    {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(bind_to_proc, &cpuset);
 
-        if( -1 == sched_setaffinity(gettid(), sizeof(cpu_set_t), &cpuset) ) {
-            printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
-        }
-    }
-#endif  /* HAVE_SCHED_SETAFFINITY */
+    dplasma_bindthread(bind_to_proc);
+
     pos = ((dist_tiles_t*)tiles)->starting_position;
     for (i = 0 ; i < ((dist_tiles_t*)tiles)->nb_elements ; i++)
         {

@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include "profiling.h"
 
 #include "atomic.h"
 #define min(a, b) ((a)<(b)?(a):(b))
