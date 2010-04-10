@@ -1,38 +1,14 @@
 
 // /usr/local/bin/mpirun -np 8 ./scalapackChInv -p 2 -q 4 -n 8000 -nb 200
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <math.h>
 #include <sys/time.h>
-#include "mpi.h"
-
-extern void blacs_pinfo_( int *mypnum, int *nprocs);
-extern void blacs_get_( int *context, int *request, int* value);
-extern void blacs_gridinit_( int* context, char *order, int *np_row, int *np_col);
-extern void blacs_gridinfo_( int *context, int *np_row, int *np_col, int *my_row, int *my_col);
-extern void blacs_gridexit_( int *context);
-extern void blacs_exit_( int *error_code);
-
-extern int indxg2p_( int *indxglob, int *nb, int *iproc, int *isrcproc, int *nprocs );
-extern int indxg2l_( int *indxglob, int *nb, int *iproc, int *isrcproc, int *nprocs );
-
-extern void pdlacpy_( char *uplo, int *m, int *n, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb );
-
-extern void pdpotrf_( char *uplo, int *n, double *a, int *ia, int *ja, int *desca, int *info );
-extern void pdpotri_( char *uplo, int *n, double *a, int *ia, int *ja, int *desca, int *info );
-extern void pdpotrs_( char *uplo, int *n, int *nrhs, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, int *info );
-extern double pdlange_( char *norm, int *m, int *n, double *a, int *ia, int *ja, int *desca, double *work );
-extern void pdgemm_ ( char *transa, char *transb, int *m, int *n, int *k, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc );
-extern double pdlansy_( char *norm, char *uplo, int *n, double *a, int *ia, int *ja, int *desca, double *work );
-extern void pdsymm_(char *side, char *uplo, int *m, int *n, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc);
-
-extern int numroc_( int *n, int *nb, int *iproc, int *isrcproc, int *nprocs);
-extern void descinit_( int *desc, int *m, int *n, int *mb, int *nb, int *irsrc, int *icsrc, int *ictxt, int *lld, int *info);
-
-extern void pdmatgen_( int *ictxt, char *aform, char *diag, int *m, int *n, int *mb, int *nb, double *a, int *lda, int *iarow, int *iacol, int *iseed, int *iroff, int *irnum, int *icoff, int *icnum, int *myrow, int *mycol, int *nprow, int *npcol );
+#include <mpi.h>
+#include "myscalapack.h"
 
 int main(int argc, char **argv) {
 	int iam, nprocs;
