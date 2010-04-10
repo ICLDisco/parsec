@@ -138,5 +138,5 @@ static inline uint32_t dplasma_atomic_dec_32b( volatile uint32_t *location )
 #else
    return __fetch_and_add( (volatile int*)location, -1) - 1;
 #endif  /* !defined(__IBMC__) */
-}}
+}
 
