@@ -9,21 +9,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
-
-#include "cblas.h"
 #include <math.h>
 #include <pthread.h>
-
 #include <errno.h>
 
+#include "dplasma.h"
+#include "data_management.h"
+#include "bindthread.h"
+
 #include "plasma.h"
+#include "cblas.h"
 #include "../src/common.h"
 #include "../src/lapack.h"
 #include "../src/context.h"
 #include "../src/allocate.h"
-#include "data_management.h"
-#include "dplasma.h"
 
 extern int dposv_force_nb;
 

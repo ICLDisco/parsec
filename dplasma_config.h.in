@@ -36,6 +36,10 @@
 #cmakedefine DPLASMA_WARM_UP
 #cmakedefine DO_THE_NASTY_VALIDATIONS
 
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif  /* !defined(_GNU_SOURCE) */
+
 #ifdef ARCH_PPC
 #define inline __inline__
 #define restrict 
