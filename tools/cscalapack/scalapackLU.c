@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
 	MPI_Allreduce( &my_elapsed, &elapsed, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	MPI_Allreduce( &my_info_facto, &info_facto, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-	GFLOPS = (((double) n)*((double) n)*((double) n))/1e+9/elapsed/3;
+	GFLOPS = 2.0 * (((double) n)*((double) n)*((double) n))/1e+9/elapsed/3;
 
 	if (0 /*verif==1*/){
 
