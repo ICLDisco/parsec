@@ -736,7 +736,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
         printf("****************************************************\n");
         printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
         printf("****************************************************\n");
-        printf(" ---- n= %d np= %d nc= %d g= %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
+        printf(" ---- n= %d np= %d nc= %d g= %dx%d (%dx%d)\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, ddescA.nrst, ddescA.ncst, gflops);
         printf("****************************************************\n");
     }
     free(A2);
