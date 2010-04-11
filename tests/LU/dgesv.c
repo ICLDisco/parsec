@@ -88,7 +88,7 @@ static inline double get_cur_time(){
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(print) do { \
 TIME_STOP(); \
-printf("[%d] TIMED %f s :\t", rank, time_elapsed); \
+/*printf("[%d] TIMED %f s :\t", rank, time_elapsed);*/ \
 printf print; \
 } while(0)
 
@@ -105,7 +105,7 @@ sync_time_elapsed = get_cur_time() - sync_time_elapsed; \
 # define SYNC_TIME_PRINT(print) do { \
 SYNC_TIME_STOP(); \
 if(0 == rank) { \
-printf("### TIMED %f s :\t", sync_time_elapsed); \
+/*printf("### TIMED %f s :\t", sync_time_elapsed);*/ \
 printf print; \
 } \
 } while(0)
@@ -119,7 +119,7 @@ printf print; \
 # define SYNC_TIME_PRINT(print) do { \
 SYNC_TIME_STOP(); \
 if(0 == rank) { \
-printf("### TIMED %f doing\t", sync_time_elapsed); \
+/*printf("### TIMED %f doing\t", sync_time_elapsed);*/ \
 printf print; \
 } \
 } while(0)
@@ -318,7 +318,8 @@ static void print_usage(void)
             "   -d --dplasma     : use DPLASMA backend (default)\n"
             "   -p --plasma      : use PLASMA backend\n"
             "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-            "   -s --stile-size  : number of tile per row (col) in a super tile (default: 1)\n"
+            "   -s --stile-row   : number of tile per row in a super tile (default: 1)\n"
+            "   -e --stile-col   : number of tile per col in a super tile (default: 1)\n"
             "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
@@ -340,7 +341,8 @@ static void runtime_init(int argc, char **argv)
         {"nrhs",        required_argument,  0, 'r'},
         {"ldb",         required_argument,  0, 'b'},
         {"grid-rows",   required_argument,  0, 'g'},
-        {"stile-size",  required_argument,  0, 's'},
+        {"stile-row",   required_argument,  0, 's'},
+        {"stile-col",   required_argument,  0, 'e'},
         {"xcheck",      no_argument,        0, 'x'},
         {"warmup",      optional_argument,  0, 'w'},
         {"dplasma",     no_argument,        0, 'd'},
@@ -375,10 +377,10 @@ static void runtime_init(int argc, char **argv)
         int c;
 #if defined(HAVE_GETOPT_LONG)
         int option_index = 0;
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:t:I:h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:t:I:h",
                          long_options, &option_index);
 #else
-        c = getopt (argc, argv, "dpxmc:n:a:r:b:g:s:w::B:t:I:h");
+        c = getopt (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:t:I:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -411,13 +413,22 @@ static void runtime_init(int argc, char **argv)
                 ddescA.GRIDrows = atoi(optarg);
                 break;
             case 's':
-                ddescA.ncst = ddescA.nrst = atoi(optarg);
-                if(ddescA.ncst <= 0)
+                ddescA.nrst = atoi(optarg);
+                if(ddescA.nrst <= 0)
                     {
-                        fprintf(stderr, "select a positive value for super tile size\n");
+                        fprintf(stderr, "select a positive value for the row super tile size\n");
                         exit(2);
                     }                
-                //printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
+                /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
+                break;
+            case 'e':
+                ddescA.ncst = atoi(optarg);
+                if(ddescA.ncst <= 0)
+                    {
+                        fprintf(stderr, "select a positive value for the col super tile size\n");
+                        exit(2);
+                    }                
+                /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
                 break;
                 
             case 'r':
@@ -576,7 +587,7 @@ static void runtime_init(int argc, char **argv)
                 exit(0);
             }
             ddescA.ib = PLASMA_IB;
-            printf("Using an internal block size of %d\n",PLASMA_IB);
+            /*printf("Using an internal block size of %d\n",PLASMA_IB);*/
         }
 
         PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
@@ -622,7 +633,9 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         constant = expr_new_int( ddescA.colRANK );
         dplasma_assign_global_symbol( "colRANK", constant );
         constant = expr_new_int( ddescA.nrst );
-        dplasma_assign_global_symbol( "stileSIZE", constant );
+        dplasma_assign_global_symbol( "rtileSIZE", constant );
+        constant = expr_new_int( ddescA.ncst );
+        dplasma_assign_global_symbol( "ctileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
@@ -872,7 +885,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
         TIME_START();
         dplasma_description_init(dist, LDA, LDB, NRHS, uplo);
         rand_dist_matrix(dist, matgen);
-        TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));
+        /*TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));*/
         return;
     }
     

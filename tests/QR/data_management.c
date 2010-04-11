@@ -894,10 +894,10 @@ static void * rand_dist_tiles(void * tiles)
 
     dplasma_bindthread(bind_to_proc);
 
-    printf("generating matrix on process %d, thread %d: %d tiles\n",
+    /*printf("generating matrix on process %d, thread %d: %d tiles\n",
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
            ((dist_tiles_t*)tiles)->th_id,
-           ((dist_tiles_t*)tiles)->nb_elements);
+           ((dist_tiles_t*)tiles)->nb_elements);*/
     
     pos = ((dist_tiles_t*)tiles)->starting_position;
     for (i = 0 ; i < ((dist_tiles_t*)tiles)->nb_elements ; i++)
@@ -921,7 +921,7 @@ int rand_dist_matrix(DPLASMA_desc * Ddesc)
     Ddesc->ln = Ddesc->lnt * Ddesc->nb;
     Ddesc->m = Ddesc->lm;
     Ddesc->n = Ddesc->ln;
-    printf("generated matrix size: %d x %d\n", Ddesc->lm, Ddesc->ln);
+    /*printf("generated matrix size: %d x %d\n", Ddesc->lm, Ddesc->ln);*/
     
     if (Ddesc->cores > 1)
         {
@@ -1059,7 +1059,7 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
                    Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
             return -1;
         }
-    printf("matrix to be generated distributed by block of %d x %d tiles \n", nbstile_r, nbstile_c);    
+    /*printf("matrix to be generated distributed by block of %d x %d tiles \n", nbstile_r, nbstile_c);*/
 
     /* find the number of tiles this process will handle */
     Ddesc->nb_elem_r = 0;
