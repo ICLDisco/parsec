@@ -889,10 +889,10 @@ static void * rand_dist_tiles(void * tiles)
     int bind_to_proc = ((dist_tiles_t *)tiles)->th_id;
     dplasma_bindthread(bind_to_proc);
 
-    printf("generating matrix on process %d, thread %d: %d tiles\n",
+    /*printf("generating matrix on process %d, thread %d: %d tiles\n",
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
            ((dist_tiles_t*)tiles)->th_id,
-           ((dist_tiles_t*)tiles)->nb_elements);
+           ((dist_tiles_t*)tiles)->nb_elements);*/
     
     pos = ((dist_tiles_t*)tiles)->starting_position;
     for (i = 0 ; i < ((dist_tiles_t*)tiles)->nb_elements ; i++)
