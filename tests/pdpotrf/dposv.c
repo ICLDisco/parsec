@@ -275,9 +275,6 @@ static void runtime_init(int argc, char **argv)
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-
-    MPI_Type_contiguous( 0, MPI_BYTE, &SYNCHRO );
-    MPI_Type_commit( &SYNCHRO );
 #else
     nodes = 1;
     rank = 0;
