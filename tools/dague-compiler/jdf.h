@@ -130,8 +130,8 @@ typedef enum { JDF_GUARD_UNCONDITIONAL,
 typedef struct jdf_guarded_call {
     jdf_guard_type_t         guard_type;
     struct jdf_expr          *guard;
-    struct jdf_call         *calltrue;
-    struct jdf_call         *callfalse;
+    struct jdf_call          *calltrue;
+    struct jdf_call          *callfalse;
 } jdf_guarded_call_t;
 
 typedef struct jdf_call {
