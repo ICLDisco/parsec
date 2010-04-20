@@ -63,3 +63,4 @@ tests/pdgemm/dgemm
 tests/pdgemm/pdgemm
 tests/psgemm/psgemm
 tests/psgemm/sgemm
+tools/dague-compiler/dc
