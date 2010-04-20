@@ -12,6 +12,8 @@ char *yyfilename;
 
 int main(int argc, char *argv[])
 {
+    int rc;
+
     if( argc != 1 ) {
         yyin = fopen(argv[1], "r");
         if( yyin == NULL ) {
@@ -29,5 +31,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    rc = jdf_sanity_checks( JDF_ALL_WARNINGS );
+    if(rc < 0)
+        return -1;
+    
 	return 0;
 }

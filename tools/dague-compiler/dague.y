@@ -104,22 +104,33 @@ jdf:            jdf function
                 }
         |       jdf VAR ASSIGNMENT expr 
                 {
-                    jdf_global_entry_t *e = new(jdf_global_entry_t);
+                    jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     e->next = NULL;
                     e->name = $2;
                     e->expression = $4;
                     e->lineno = current_lineno;
-                    e->next = current_jdf.globals;
-                    current_jdf.globals = e;
+                    if( current_jdf.globals == NULL ) {
+                        current_jdf.globals = e;
+                    } else {
+                        for(g = current_jdf.globals; g->next != NULL; g = g->next)
+                            /* nothing */ ;
+                        g->next = e;
+                    }
                 } 
         |       jdf VAR
                 {
-                    jdf_global_entry_t *e = new(jdf_global_entry_t);
+                    jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     e->name = $2;
+                    e->next = NULL;
                     e->expression = NULL;
                     e->lineno = current_lineno;
-                    e->next = current_jdf.globals;
-                    current_jdf.globals = e;
+                    if( current_jdf.globals == NULL ) {
+                        current_jdf.globals = e;
+                    } else {
+                        for(g = current_jdf.globals; g->next != NULL; g = g->next)
+                            /* nothing */ ;
+                        g->next = e;
+                    }                
                 }
         |       jdf EXTERN_DECL 
                 {
@@ -147,9 +158,14 @@ flags_list:     VAR COMMA flags_list
                         $$ = $3;
                     }
                 }
-        |       
+        |       VAR
                 {
-                    $$ = 0;
+                    if( 0 == strcasecmp("high_priority", $1) ) {
+                        $$ = JDF_FUNCTION_FLAG_HIGH_PRIORITY;
+                    } else {
+                        printf( "Ignore unknown DAGuE flag %s.\n", $1 );
+                        $$ = 0;
+                    }
                 }
         ;
 

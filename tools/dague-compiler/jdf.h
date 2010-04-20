@@ -1,6 +1,8 @@
 #ifndef jdf_h
 #define jdf_h
 
+#include <stdint.h>
+
 /**
  * This file holds all data structures to parse the JDF file format.
  * It should be independent from the internal representation of the JDF,
@@ -12,6 +14,21 @@
 
 void jdf_prepare_parsing(void);
 void jdf_warn(int lineno, const char *format, ...);
+
+/**
+ * Checks the sanity of the current_jdf.
+ *
+ * @param [IN] mask defines what level of warnings must be raised
+ *
+ * @return -1 if a fatal error was encountered
+ * @return 0 if no warning was signaled (except for warnings during parsing)
+ * @return >0 the number of warnings signaled if a non fatal but probable 
+ *            error was encountered
+ */
+typedef uint64_t jdf_warning_mask_t;
+#define JDF_WARN_MASKED_GLOBALS        ((jdf_warning_mask_t)(1 <<  0))
+#define JDF_ALL_WARNINGS               ((jdf_warning_mask_t)(0xffffffffffffffff))
+int jdf_sanity_checks( jdf_warning_mask_t mask );
 
 /**
  * Toplevel structure: three linked lists: preambles, globals and functions 
