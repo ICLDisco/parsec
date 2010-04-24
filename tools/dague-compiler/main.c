@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "jdf.h"
+#include "jdf2c.h"
 
 extern int yyparse();
 extern int current_lineno;
@@ -35,5 +36,9 @@ int main(int argc, char *argv[])
     if(rc < 0)
         return -1;
     
+    if( jdf2c("a", &current_jdf) < 0 ) {
+        return -1;
+    }
+
 	return 0;
 }
