@@ -102,7 +102,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do { \
         SYNC_TIME_STOP();                                   \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f s :\t", sync_time_elapsed);*/    \
+            printf("### TIMED %f s :\t", sync_time_elapsed);    \
             printf print;                                           \
         }                                                           \
 } while(0)
