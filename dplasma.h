@@ -82,6 +82,7 @@ struct dplasma_t {
     symbol_t*               locals[MAX_LOCAL_COUNT];
     expr_t*                 preds[MAX_PRED_COUNT];
     param_t*                inout[MAX_PARAM_COUNT];
+    expr_t*                 priority;
     dplasma_dependencies_t* deps;
 #if defined(DPLASMA_CACHE_AWARENESS)
     dplasma_cache_rank_function_t *cache_rank_function;
@@ -94,6 +95,7 @@ struct dplasma_t {
 struct dplasma_execution_context_t {
     dplasma_list_item_t list_item;
     dplasma_t*   function;
+    int32_t      priority;
 #if defined(DPLASMA_CACHE_AWARENESS)
     void        *pointers[MAX_PARAM_COUNT*2];
 #endif

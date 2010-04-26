@@ -58,7 +58,7 @@ int yywrap()
 %token DPLASMA_COMMA DPLASMA_OPEN_PAR DPLASMA_CLOSE_PAR DPLASMA_RANGE
 %token DPLASMA_EQUAL DPLASMA_NOT_EQUAL DPLASMA_ASSIGNMENT DPLASMA_QUESTION
 %token DPLASMA_LESS DPLASMA_MORE DPLASMA_LESS_OR_EQUAL DPLASMA_MORE_OR_EQUAL
-%token DPLASMA_COLON
+%token DPLASMA_COLON DPLASMA_SEMICOLON
 %token <number>  DPLASMA_INT
 %token <string>  DPLASMA_VAR
 %token <string>  DPLASMA_BODY
@@ -133,11 +133,24 @@ dplasma:
                   }
      params {
                 global_lists_index = 0;
-            } 
+            }
+     priority
      DPLASMA_BODY
                 {
-                    global_dplasma->body = $13;
+                    global_dplasma->body = $14;
                 }
+;
+
+priority: DPLASMA_SEMICOLON expr  {
+                                       if( NULL != global_dplasma->priority ) {
+                                           fprintf(stderr,
+                                                   "The task priority is already set at line %d: ignoring the new one\n",
+                                                   dplasma_lineno);
+                                       } else {
+                                           global_dplasma->priority = $2;                             
+                                       }
+                                   }
+         | 
 ;
 
 varlist:   DPLASMA_VAR DPLASMA_COMMA {

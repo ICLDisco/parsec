@@ -76,6 +76,12 @@ void dplasma_dump(const dplasma_t *d, const char *prefix)
         printf("\n");
     }
 
+    if( NULL != d->priority ) {
+        printf("%s Priority:\n", prefix);
+        expr_dump(stdout, d->priority);
+        printf("\n");
+    }
+
     printf("%s Parameters and Dependencies:\n", prefix);
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         param_dump(d->inout[i], pref2);
@@ -1041,10 +1047,18 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                 DPLASMA_LIST_ITEM_SINGLETON(new_context);
                 *pready_list = new_context;
             } else {
-                new_context->list_item.list_next = (dplasma_list_item_t*)*pready_list;
-                new_context->list_item.list_prev = (*pready_list)->list_item.list_prev;
+                dplasma_execution_context_t* position = *pready_list;
+
+                while( position->priority > new_context->priority ) {
+                    position = (dplasma_execution_context_t*)position->list_item.list_next;
+                    if( position == (*pready_list) ) break;
+                }
+                new_context->list_item.list_next = (dplasma_list_item_t*)position;
+                new_context->list_item.list_prev = position->list_item.list_prev;
                 new_context->list_item.list_next->list_prev = (dplasma_list_item_t*)new_context;
                 new_context->list_item.list_prev->list_next = (dplasma_list_item_t*)new_context;
+                if( (position == *pready_list) && (position->priority <= new_context->priority) )
+                    *pready_list = position;
             }
         }
 

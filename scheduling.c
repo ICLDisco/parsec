@@ -101,8 +101,11 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
     }
 #  else
 #    if PLACEHOLDER_SIZE
-    if(use_placeholder)
-    {
+    if(use_placeholder) {
+        /**
+         * The list is supposedly arranged by decreasing order of priority, so we will
+         * pick the highest priority tasks and move them into the placeholder.
+         */
         while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
             eu_context->placeholder[eu_context->placeholder_push] = new_context;
             eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;

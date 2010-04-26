@@ -122,6 +122,7 @@ max           { yylval.operand = 'M'; return DPLASMA_OP; }
                  return DPLASMA_OP; }
 "?"            { return DPLASMA_QUESTION; }
 ":"            { return DPLASMA_COLON; }
+";"            { return DPLASMA_SEMICOLON; }
 ","            { return DPLASMA_COMMA; }
 ".."           { return DPLASMA_RANGE; }
 %%

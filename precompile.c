@@ -923,6 +923,20 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output("%*s    new_context.locals[%d].value = %s%s;  /* task %s local %s */\n",
                                spaces, " ", k, target_prepend, target->locals[k]->name, target->name, target->locals[k]->name);
                     }
+
+                    if( NULL != target->priority ) {
+                        output("%*s    new_context.priority = %s_priority(%s%s",
+                               spaces, " ", target->name, target_prepend, target->locals[0]->name);
+                        for(k = 1; k < target->nb_locals; k++) {
+                            output(",%s%s",
+                                   target_prepend, target->locals[k]->name);
+                        }
+                        output(");  /* priority of %s */\n", target->name );
+                    } else {
+                        output("%*s    new_context.priority = %d;  /* no priority defined for %s */\n",
+                               spaces, " ", ( (DPLASMA_HIGH_PRIORITY_TASK & target->flags) ? 1 : -1), target->name);
+                    }
+
                     output( "%*s    e%s->data[%d] = (NULL != data) ? data[%d] : NULL;\n", spaces, "", d->name, cpt, cpt);
                     output( "%*s    usage++;\n"
                             "%*s    gc_data_ref( e%s->data[%d] /* %s of %s is used by %s */ );\n",
@@ -1719,6 +1733,13 @@ int dplasma_dump_all_c(char *filename)
                 output(",%s", object->locals[k]->name);
             }
             output(") %s\n", expression_to_c_inline(object->preds[j], "", strexpr1, MAX_EXPR_LEN));
+        }
+        if( NULL != object->priority ) {
+            output("#define %s_priority(%s", object->name, object->locals[0]->name);
+            for( k = 1; k < object->nb_locals; k++ ) {
+                output(",%s", object->locals[k]->name);
+            }
+            output(") ((int32_t)%s)\n", expression_to_c_inline(object->priority, "", strexpr1, MAX_EXPR_LEN));
         }
     }
 
