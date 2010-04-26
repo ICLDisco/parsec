@@ -76,6 +76,7 @@ typedef struct jdf_function_entry {
     struct jdf_def_list       *definitions;
     struct jdf_expr_list      *predicates;
     struct jdf_dataflow_list  *dataflow;
+    struct jdf_expr           *priority;
     char                      *body;
     int                        lineno;
 } jdf_function_entry_t;
@@ -101,9 +102,13 @@ typedef struct jdf_dataflow_list {
     struct jdf_dataflow      *flow;
 } jdf_dataflow_list_t;
 
+typedef unsigned int jdf_access_type_t;
+#define JDF_VAR_TYPE_READ  ((jdf_access_type_t)(1<<0))
+#define JDF_VAR_TYPE_WRITE ((jdf_access_type_t)(1<<1))
 typedef struct jdf_dataflow {
     char                     *varname;
     struct jdf_dep_list      *deps;
+    jdf_access_type_t         access_type;
     int                       lineno;
 } jdf_dataflow_t;
 

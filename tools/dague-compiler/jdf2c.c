@@ -12,7 +12,7 @@ static FILE *cfile;
 static int   cfile_lineno;
 static FILE *hfile;
 static int   hfile_lineno;
-static char *basename;
+static char *jdf_basename;
 
 static int nblines(const char *p)
 {
@@ -100,19 +100,35 @@ static void string_arena_free(string_arena_t *sa)
     free(sa);
 }
 
-static void string_arena_ensure_space(string_arena_t *sa, int toadd)
-{
-    if( sa->pos + toadd > sa->size ) {
-        sa->size = sa->pos + toadd;
-        sa->ptr = (char*)realloc(sa->ptr, sa->size);
-    }
-}
-
 static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
 {
-    va_list ap;
+    va_list ap, ap2;
+    int length;
+
     va_start(ap, format);
-    sa->pos += vsnprintf(sa->ptr + sa->pos, sa->size - sa->pos, format, ap);
+    /* va_list might have pointer to internal state and using
+       it twice is a bad idea.  So make a copy for the second
+       use.  Copy order taken from Autoconf docs. */
+#if defined(HAVE_VA_COPY)
+    va_copy(ap2, ap);
+#elif defined(HAVE_UNDERSCORE_VA_COPY)
+    __va_copy(ap2, ap);
+#else
+    memcpy (&ap2, &ap, sizeof(va_list));
+#endif
+
+    length = vsnprintf(sa->ptr + sa->pos, sa->size - sa->pos, format, ap);
+    if( length >= (sa->size - sa->pos) ) {
+        /* realloc */
+        sa->size = sa->pos + length + 1;
+        sa->ptr = (char*)realloc( sa->ptr, sa->size );
+        length = vsnprintf(sa->ptr + sa->pos, sa->size - sa->pos, format, ap2);
+    }
+    sa->pos += length;
+
+#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
+    va_end(ap2);
+#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
     va_end(ap);
 }
 
@@ -151,7 +167,9 @@ static char *util_dump_list_fct( string_arena_t *sa,
     void *elt;
     int pos = 0;
     
-    string_arena_ensure_space(sa, strlen(before)+1);
+    sa->pos = 0;
+    sa->ptr[0] = '\0';
+
     string_arena_add_string(sa, "%s", before);
 
     while(firstelt != NULL) {
@@ -160,15 +178,12 @@ static char *util_dump_list_fct( string_arena_t *sa,
 
         firstelt = *((void **)((char *)(firstelt) + next_offset));
         if( firstelt != NULL ) {
-            string_arena_ensure_space(sa, strlen(eltstr) + strlen(separator) + strlen(prefix) + 1);
             string_arena_add_string(sa, "%s%s%s", prefix, eltstr, separator);
         } else {
-            string_arena_ensure_space(sa, strlen(prefix) + strlen(prefix) + 1);
-            string_arena_add_string(sa, "%s%s%s", prefix, eltstr);
+            string_arena_add_string(sa, "%s%s", prefix, eltstr);
         }
     }
     
-    string_arena_ensure_space(sa, strlen(after) + 1);
     string_arena_add_string(sa, "%s", after);
 
     return sa->ptr;
@@ -190,9 +205,9 @@ static void typedef_structure(const jdf_t *jdf)
 
     houtput("#include <dplasma.h>\n"
             "\n"
-            "#define DPLASMA_%s_NB_FUNCTIONS %d\n", basename, nbfunctions);
-    houtput("typedef struct dplasma_%s {\n", basename);
-    houtput("  const dplasma_t *functions_array[DPLASMA_%s_NB_FUNCTIONS];\n", basename);
+            "#define DPLASMA_%s_NB_FUNCTIONS %d\n", jdf_basename, nbfunctions);
+    houtput("typedef struct dplasma_%s {\n", jdf_basename);
+    houtput("  const dplasma_t *functions_array[DPLASMA_%s_NB_FUNCTIONS];\n", jdf_basename);
     houtput("%s", 
             UTIL_DUMP_LIST( sa1, jdf->globals, next, name, "", "  int ", dumpstring, ";\n", ";\n"));
     houtput("#  if defined(DPLASMA_PROFILING)\n");
@@ -202,24 +217,24 @@ static void typedef_structure(const jdf_t *jdf)
             UTIL_DUMP_LIST( sa1, jdf->functions, next, fname, "", "  int ", dumpstring, "_end_key;\n", "_end_key;\n"));
     houtput("#  endif /* defined(DPLASMA_PROFILING) */\n");
     houtput("} dplasma_%s_t;\n"
-            "\n", basename);
-    houtput("dplasma_object_t *dplasma_%s_new(%s);\n", basename, basename,
+            "\n", jdf_basename);
+    houtput("dplasma_object_t *dplasma_%s_new(%s);\n", jdf_basename,
             UTIL_DUMP_LIST( sa1, jdf->globals, next, name, "",  "int ", dumpstring, ", ", ""));
 
     string_arena_free(sa1);
     string_arena_free(sa2);
 }
 
-int jdf2c(char *_basename, const jdf_t *jdf)
+int jdf2c(char *_jdf_basename, const jdf_t *jdf)
 {
-    char filename[strlen(_basename)+4];
+    char filename[strlen(_jdf_basename)+4];
     int ret = 0;
 
-    basename = _basename;
+    jdf_basename = _jdf_basename;
     cfile = NULL;
     hfile = NULL;
 
-    sprintf(filename, "%s.c", basename);
+    sprintf(filename, "%s.c", jdf_basename);
     cfile = fopen(filename, "w");
     if( cfile == NULL ) {
         fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
@@ -227,7 +242,7 @@ int jdf2c(char *_basename, const jdf_t *jdf)
         goto err;
     }
 
-    sprintf(filename, "%s.h", basename);
+    sprintf(filename, "%s.h", jdf_basename);
     hfile = fopen(filename, "w");
     if( hfile == NULL ) {
         fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
@@ -240,10 +255,10 @@ int jdf2c(char *_basename, const jdf_t *jdf)
     
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
-            basename, basename);
+            jdf_basename, jdf_basename);
     typedef_structure(jdf);
     houtput("#endif /* _%s_h_ */ \n",
-            basename);
+            jdf_basename);
 
  err:
     if( NULL != cfile ) 

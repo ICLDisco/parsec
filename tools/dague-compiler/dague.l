@@ -7,6 +7,7 @@
  *                         reserved.
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -89,11 +90,11 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}          
 {WHITE}+              {  /* Eat multiple white-spaces */                   }
 [0-9]+                { yylval.number = atol(yytext);
                         return INT;                                        }
-INOUT                 { yylval.string = strdup(yytext);
+RW                    { yylval.number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
-IN                    { yylval.string = strdup(yytext);
+READ                  { yylval.number = JDF_VAR_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
-OUT                   { yylval.string = strdup(yytext);
+WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 "->"                  { yylval.dep_type = JDF_DEP_TYPE_OUT;
                         return ARROW;                                      }
@@ -129,6 +130,7 @@ OUT                   { yylval.string = strdup(yytext);
 "="                   { return ASSIGNMENT;                                 }
 "?"                   { return QUESTION_MARK;                              }
 ":"                   { return COLON;                                      }
+";"                   { return SEMICOLON;                                  }
 ","                   { return COMMA;                                      }
 
 %%

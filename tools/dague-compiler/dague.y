@@ -71,6 +71,8 @@ int yywrap()
 %type <call>call
 %type <expr_list>expr_list
 %type <expr>expr
+%type <expr>priority
+%type <number>optional_access_type
 
 %type <string>VAR
 %type <string>EXTERN_DECL
@@ -78,10 +80,10 @@ int yywrap()
 %type <dep_type>ARROW
 %type <string>OPTIONAL_INFO
 %type <number>INT
-%type <string>DEPENDENCY_TYPE
+%type <number>DEPENDENCY_TYPE
 
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY
-%token COLON DEPENDENCY_TYPE ARROW QUESTION_MARK OPTIONAL_INFO 
+%token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK OPTIONAL_INFO 
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE 
 
@@ -179,7 +181,7 @@ flags:          OPEN_PAR flags_list CLOSE_PAR
                 }
         ;
 
-function:       VAR OPEN_PAR varlist CLOSE_PAR flags execution_space partitioning dataflow_list BODY
+function:       VAR OPEN_PAR varlist CLOSE_PAR flags execution_space partitioning dataflow_list priority BODY
                 {
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
                     e->fname = $1;
@@ -188,7 +190,8 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR flags execution_space partitionin
                     e->definitions = $6;
                     e->predicates = $7;
                     e->dataflow = $8;
-                    e->body = $9;
+                    e->priority = $9;
+                    e->body = $10;
 
                     e->lineno  = current_lineno;
 
@@ -270,20 +273,21 @@ dataflow_list:  dataflow dataflow_list
                 }
          ;
 
-optional_preliminar_deptype :
+optional_access_type :
                 DEPENDENCY_TYPE 
                 {
-                    jdf_warn(current_lineno, "Use of keyword '%s' is now obsolete\n", $1);
+                    $$ = $1;
                 }
-         |
+         |      { $$ = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE; }
          ;
 
-dataflow:       optional_preliminar_deptype VAR dependencies
+dataflow:       optional_access_type VAR dependencies
                 {
                     jdf_dataflow_t *flow = new(jdf_dataflow_t);
-                    flow->varname = $2;
-                    flow->deps    = $3;
-                    flow->lineno  = current_lineno;
+                    flow->access_type = $1;
+                    flow->varname     = $2;
+                    flow->deps        = $3;
+                    flow->lineno      = current_lineno;
 
                     $$ = flow;
                 }
@@ -369,6 +373,13 @@ call:         VAR VAR OPEN_PAR expr_list CLOSE_PAR
                   c->parameters = $3;
                   $$ = c;                  
               }
+       ;
+
+priority:     SEMICOLON expr
+              {
+                    $$ = $2;
+              }
+       |      { $$ = NULL; }
        ;
 
 /* And now, the expressions */
