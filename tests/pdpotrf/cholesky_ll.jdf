@@ -15,6 +15,7 @@ int PLASMA_INFO;
 #ifdef DISTRIBUTED
 #   include "data_management.h"
     extern DPLASMA_desc ddescA;
+    extern MPI_Datatype SYNCHRO;
 #   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #else
 #   define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
@@ -63,7 +64,10 @@ k = 0..SIZE-1
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
         -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
-OUT   F -> F GEMM(k, k+1..SIZE-1, 0)
+OUT   F -> F GEMM(k, k+1..SIZE-1, 0)           [SYNCHRO]
+
+; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
+
 BODY
     CORE(
         dpotrf, (
@@ -100,8 +104,10 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> A SYRK(m, k)
         -> A GEMM(m, m+1..SIZE-1, k)
         -> B GEMM(k+1..m-1, m, k)
-        -> (m == k+1) ? F SYRK(m, 0) : A(m,k)
+        -> (m == k+1) ? F SYRK(m, 0)                [SYNCHRO]
         -> A(m, k)
+
+; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 2
 
 BODY
     if( uplo == PlasmaLower ) {
@@ -157,9 +163,11 @@ n = 0..k-1
 
 //Parameters
 IN    A <- C TRSM(n, k)
-IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,k)
+IN    F <- (n == 0) ? C TRSM(k-1, k)
 INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
+
+; 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1
 
 BODY
     if( uplo == PlasmaLower ) {
@@ -218,9 +226,11 @@ n = 0..k-1
 // Parameters
 IN    A <- C TRSM(n, k)
 IN    B <- C TRSM(n, m)
-IN    F <- (n == 0) ? F POTRF(k) : A(m, k)
+IN    F <- (n == 0) ? F POTRF(k)                        [SYNCHRO]
 INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
+
+; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 3
 
 BODY
     if( uplo == PlasmaLower ) {
