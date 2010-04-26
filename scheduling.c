@@ -69,10 +69,6 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
 int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
                         dplasma_execution_context_t* new_context, int use_placeholder )
 {
-# ifdef DPLASMA_DEBUG
-    char tmp[128];
-# endif
-
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
 
 #  if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
@@ -87,17 +83,14 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
             if( dplasma_hbbuffer_push_ideal_nonrec( eu_context->eu_hierarch_queues[i], 
                                                     (dplasma_list_item_t**)&new_context ) ) {
                 /** Every contexts were pushed at this level or below */
-                break;
+                goto done_pushing_tasks;
             }
         }
-        if( i == eu_context->eu_nb_hierarch_queues )
 #    endif /* USE_HIERARCHICAL_QUEUES */
-            {
-                /** We couldn't push more: everybody above me (and myself) are ideally full, so 
-                 *  let's overfill, potentially pushing recursively in the system queue
-                 */
-                dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
-            }
+        /** We couldn't push more: everybody above me (and myself) are ideally full, so 
+         *  let's overfill, potentially pushing recursively in the system queue
+         */
+        dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
     }
 #  else
 #    if PLACEHOLDER_SIZE
@@ -109,6 +102,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
         while( (((eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE) != eu_context->placeholder_pop) ) {
             eu_context->placeholder[eu_context->placeholder_push] = new_context;
             eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
+
             if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context ) {
                 TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
                 return 0;
@@ -125,9 +119,15 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
         dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
     }
 #  endif  /* DPLASMA_USE_LIFO */
+ done_pushing_tasks:
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
-    DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
+# ifdef DPLASMA_DEBUG
+    {
+        char tmp[128];
+        DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
+    }
+# endif
     return 0;
 }
 
