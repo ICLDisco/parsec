@@ -75,6 +75,47 @@ static char *dumpstring(void *elt)
 {
     return (char*)elt;
 }
+
+typedef struct string_arena {
+    char *ptr;
+    int   pos;
+    int   size;
+} string_arena_t;
+
+static string_arena_t *string_arena_new(int base_size)
+{
+    string_arena_t *sa;
+    sa = (string_arena_t*)calloc(1, sizeof(string_arena_t));
+    sa->ptr  = (char*)malloc(base_size);
+    sa->pos  = 0;
+    sa->size = base_size;
+    return sa;
+}
+
+static void string_arena_free(string_arena_t *sa)
+{
+    free(sa->ptr);
+    sa->pos  = -1;
+    sa->size = -1;
+    free(sa);
+}
+
+static void string_arena_ensure_space(string_arena_t *sa, int toadd)
+{
+    if( sa->pos + toadd > sa->size ) {
+        sa->size = sa->pos + toadd;
+        sa->ptr = (char*)realloc(sa->ptr, sa->size);
+    }
+}
+
+static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    sa->pos += vsnprintf(sa->ptr + sa->pos, sa->size - sa->pos, format, ap);
+    va_end(ap);
+}
+
 /**
  * util_dump_list:
  *  @param [IN] structure_ptr: pointer to a structure that implement any list
@@ -96,51 +137,41 @@ static char *dumpstring(void *elt)
  *  @example: to create the list of declarations of globals, use
  *    UTIL_DUMP_LIST(jdf->globals, next, name, "", "  int ", dumpstring, ";\n", ";\n");
  */
-#define UTIL_DUMP_LIST(structure_ptr, nextfield, eltfield, before, prefix, fct, separator, after) \
-    util_dump_list_fct( structure_ptr,                                  \
+#define UTIL_DUMP_LIST(arena, structure_ptr, nextfield, eltfield, before, prefix, fct, separator, after) \
+    util_dump_list_fct( arena, structure_ptr,                           \
                         (char *)&(structure_ptr->nextfield)-(char *)structure_ptr, \
                         (char *)&(structure_ptr->eltfield)-(char *)structure_ptr, \
                         before, prefix, fct, separator, after)
-static char *util_dump_list_fct( void *firstelt, unsigned int next_offset, unsigned int elt_offset, 
+static char *util_dump_list_fct( string_arena_t *sa, 
+                                 void *firstelt, unsigned int next_offset, unsigned int elt_offset, 
                                  const char *before, const char *prefix, dumper_function_t fct, 
                                  const char *separator, const char *after)
 {
-    static char *dumpstr = NULL;
-    static int   dumpstr_len = 0;
     char *eltstr;
     void *elt;
     int pos = 0;
     
-    if( pos + strlen(before) + 1 > dumpstr_len ) {
-        dumpstr_len = strlen(before) + 1;
-        dumpstr = (char *)realloc(dumpstr, dumpstr_len);
-    }
-
-    pos += snprintf(dumpstr + pos, dumpstr_len - pos, "%s", before);
+    string_arena_ensure_space(sa, strlen(before)+1);
+    string_arena_add_string(sa, "%s", before);
 
     while(firstelt != NULL) {
         elt = *((void **)((char*)(firstelt) + elt_offset));
         eltstr = fct(elt);
 
-        if( pos + strlen(eltstr) + strlen(separator) + strlen(prefix) + 1 > dumpstr_len ) {
-            dumpstr_len += strlen(eltstr) + strlen(separator) + strlen(prefix) + 1;
-            dumpstr = (char *)realloc(dumpstr, dumpstr_len);
-        }
         firstelt = *((void **)((char *)(firstelt) + next_offset));
         if( firstelt != NULL ) {
-            pos += snprintf(dumpstr + pos, dumpstr_len - pos, "%s%s%s", prefix, eltstr, separator);
+            string_arena_ensure_space(sa, strlen(eltstr) + strlen(separator) + strlen(prefix) + 1);
+            string_arena_add_string(sa, "%s%s%s", prefix, eltstr, separator);
         } else {
-            pos += snprintf(dumpstr + pos, dumpstr_len - pos, "%s%s", prefix, eltstr);
+            string_arena_ensure_space(sa, strlen(prefix) + strlen(prefix) + 1);
+            string_arena_add_string(sa, "%s%s%s", prefix, eltstr);
         }
     }
     
-    if( pos + strlen(after) > dumpstr_len ) {
-        dumpstr_len += strlen(after) + 1;
-        dumpstr = (char *)realloc(dumpstr, dumpstr_len);
-    }
-    pos += snprintf(dumpstr + pos, dumpstr_len - pos, "%s", after);
+    string_arena_ensure_space(sa, strlen(after) + 1);
+    string_arena_add_string(sa, "%s", after);
 
-    return dumpstr;
+    return sa->ptr;
 }
 
 static void typedef_structure(const jdf_t *jdf)
@@ -148,10 +179,14 @@ static void typedef_structure(const jdf_t *jdf)
     jdf_global_entry_t *g;
     jdf_function_entry_t *f;
     int nbfunctions;
+    string_arena_t *sa1, *sa2;
 
     nbfunctions = 0;
     for(f = jdf->functions; f != NULL; f = f->next)
         nbfunctions++;
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
 
     houtput("#include <dplasma.h>\n"
             "\n"
@@ -159,17 +194,20 @@ static void typedef_structure(const jdf_t *jdf)
     houtput("typedef struct dplasma_%s {\n", basename);
     houtput("  const dplasma_t *functions_array[DPLASMA_%s_NB_FUNCTIONS];\n", basename);
     houtput("%s", 
-            UTIL_DUMP_LIST( jdf->globals, next, name, "", "  int ", dumpstring, ";\n", ";\n"));
+            UTIL_DUMP_LIST( sa1, jdf->globals, next, name, "", "  int ", dumpstring, ";\n", ";\n"));
     houtput("#  if defined(DPLASMA_PROFILING)\n");
     houtput("%s", 
-            UTIL_DUMP_LIST( jdf->functions, next, fname, "", "  int ", dumpstring, "_start_key;\n", "_start_key;\n"));
+            UTIL_DUMP_LIST( sa1, jdf->functions, next, fname, "", "  int ", dumpstring, "_start_key;\n", "_start_key;\n"));
     houtput("%s", 
-            UTIL_DUMP_LIST( jdf->functions, next, fname, "", "  int ", dumpstring, "_end_key;\n", "_end_key;\n"));
+            UTIL_DUMP_LIST( sa1, jdf->functions, next, fname, "", "  int ", dumpstring, "_end_key;\n", "_end_key;\n"));
     houtput("#  endif /* defined(DPLASMA_PROFILING) */\n");
     houtput("} dplasma_%s_t;\n"
             "\n", basename);
-    houtput("dplasma_%s_t *dplasma_%s_new(%s);\n", basename, basename,
-            UTIL_DUMP_LIST( jdf->globals, next, name, "",  "int ", dumpstring, ", ", ""));
+    houtput("dplasma_object_t *dplasma_%s_new(%s);\n", basename, basename,
+            UTIL_DUMP_LIST( sa1, jdf->globals, next, name, "",  "int ", dumpstring, ", ", ""));
+
+    string_arena_free(sa1);
+    string_arena_free(sa2);
 }
 
 int jdf2c(char *_basename, const jdf_t *jdf)
