@@ -57,7 +57,6 @@ static void check_matrix(int N, PLASMA_enum* uplo,
 static int check_factorization(int, double*, double*, int, int , double);
 static int check_solution(int, int, double*, int, double*, double*, int, double);
 
-
 /* timing profiling etc */
 double time_elapsed;
 double sync_time_elapsed;
@@ -93,7 +92,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do {                                \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f s :\t", sync_time_elapsed);*/    \
+            printf("### TIMED %f s :\t", sync_time_elapsed);    \
             printf print;                                           \
         }                                                           \
   } while(0)
@@ -107,7 +106,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do {                                \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f doing\t", sync_time_elapsed);*/  \
+            printf("### TIMED %f doing\t", sync_time_elapsed);  \
             printf print;                                           \
         }                                                           \
     } while(0)
