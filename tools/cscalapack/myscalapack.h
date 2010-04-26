@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2010      University of Denver, Colorado.
+ */
+
 #ifndef MYSCALAPACK_H
 #define MYSCALAPACK_H
 
