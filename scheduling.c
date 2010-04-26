@@ -103,10 +103,9 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
             eu_context->placeholder[eu_context->placeholder_push] = new_context;
             eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
 
-            if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context ) {
-                TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
-                return 0;
-            }
+            if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context )
+                goto done_pushing_tasks;
+
             new_context->list_item.list_next->list_prev = new_context->list_item.list_prev;
             new_context->list_item.list_prev->list_next = new_context->list_item.list_next;
             new_context = (dplasma_execution_context_t*)new_context->list_item.list_next;
