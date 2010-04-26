@@ -970,7 +970,8 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
     char tmp[128];
 #endif
 
-    DEBUG(("Activate dependencies for %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
+    DEBUG(("Activate dependencies for %s priority %d\n",
+           dplasma_service_to_string(exec_context, tmp, 128), exec_context->priority));
     if( NULL == *deps_location ) {
         malloc_deps(eu_context, exec_context, deps_location);
     }
@@ -1057,8 +1058,9 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                 new_context->list_item.list_prev = position->list_item.list_prev;
                 new_context->list_item.list_next->list_prev = (dplasma_list_item_t*)new_context;
                 new_context->list_item.list_prev->list_next = (dplasma_list_item_t*)new_context;
-                if( (position == *pready_list) && (position->priority <= new_context->priority) )
-                    *pready_list = position;
+                if( (position == *pready_list) && (position->priority <= new_context->priority) ) {
+                    *pready_list = new_context;
+                }
             }
         }
 
