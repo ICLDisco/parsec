@@ -69,13 +69,6 @@ static void houtput(const char *format, ...)
 
 /** UTIL HELPERS **/
 
-typedef char *(*dumper_function_t)(void *elt);
-
-static char *dumpstring(void *elt)
-{
-    return (char*)elt;
-}
-
 typedef struct string_arena {
     char *ptr;
     int   pos;
@@ -132,6 +125,13 @@ static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
     va_end(ap);
 }
 
+typedef char *(*dumper_function_t)(void **elt, void *arg);
+
+static char *dumpstring(void **elt, void *_)
+{
+    return (char*)*elt;
+}
+
 /**
  * util_dump_list:
  *  @param [IN] structure_ptr: pointer to a structure that implement any list
@@ -153,15 +153,20 @@ static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
  *  @example: to create the list of declarations of globals, use
  *    UTIL_DUMP_LIST(jdf->globals, next, name, "", "  int ", dumpstring, ";\n", ";\n");
  */
-#define UTIL_DUMP_LIST(arena, structure_ptr, nextfield, eltfield, before, prefix, fct, separator, after) \
+#define UTIL_DUMP_LIST_FIELD(arena, structure_ptr, nextfield, eltfield, fct, fctarg, before, prefix, separator, after) \
     util_dump_list_fct( arena, structure_ptr,                           \
                         (char *)&(structure_ptr->nextfield)-(char *)structure_ptr, \
                         (char *)&(structure_ptr->eltfield)-(char *)structure_ptr, \
-                        before, prefix, fct, separator, after)
+                            fct, fctarg, before, prefix, separator, after)
+#define UTIL_DUMP_LIST(arena, structure_ptr, nextfield, fct, fctarg, before, prefix, separator, after) \
+    util_dump_list_fct( arena, structure_ptr,                           \
+                        (char *)&(structure_ptr->nextfield)-(char *)structure_ptr, \
+                        0, \
+                        fct, fctarg, before, prefix, separator, after)
 static char *util_dump_list_fct( string_arena_t *sa, 
                                  void *firstelt, unsigned int next_offset, unsigned int elt_offset, 
-                                 const char *before, const char *prefix, dumper_function_t fct, 
-                                 const char *separator, const char *after)
+                                 dumper_function_t fct, void *fctarg,
+                                 const char *before, const char *prefix, const char *separator, const char *after)
 {
     char *eltstr;
     void *elt;
@@ -173,8 +178,8 @@ static char *util_dump_list_fct( string_arena_t *sa,
     string_arena_add_string(sa, "%s", before);
 
     while(firstelt != NULL) {
-        elt = *((void **)((char*)(firstelt) + elt_offset));
-        eltstr = fct(elt);
+        elt = ((void **)((char*)(firstelt) + elt_offset));
+        eltstr = fct(elt, fctarg);
 
         firstelt = *((void **)((char *)(firstelt) + next_offset));
         if( firstelt != NULL ) {
@@ -189,37 +194,264 @@ static char *util_dump_list_fct( string_arena_t *sa,
     return sa->ptr;
 }
 
-static void typedef_structure(const jdf_t *jdf)
+static void jdf_generate_header_file(const jdf_t* jdf)
 {
-    jdf_global_entry_t *g;
-    jdf_function_entry_t *f;
-    int nbfunctions;
     string_arena_t *sa1, *sa2;
-
-    nbfunctions = 0;
-    for(f = jdf->functions; f != NULL; f = f->next)
-        nbfunctions++;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    houtput("#include <dplasma.h>\n"
-            "\n"
-            "#define DPLASMA_%s_NB_FUNCTIONS %d\n", jdf_basename, nbfunctions);
-    houtput("typedef struct dplasma_%s {\n", jdf_basename);
-    houtput("  const dplasma_t *functions_array[DPLASMA_%s_NB_FUNCTIONS];\n", jdf_basename);
-    houtput("%s", 
-            UTIL_DUMP_LIST( sa1, jdf->globals, next, name, "", "  int ", dumpstring, ";\n", ";\n"));
-    houtput("#  if defined(DPLASMA_PROFILING)\n");
-    houtput("%s", 
-            UTIL_DUMP_LIST( sa1, jdf->functions, next, fname, "", "  int ", dumpstring, "_start_key;\n", "_start_key;\n"));
-    houtput("%s", 
-            UTIL_DUMP_LIST( sa1, jdf->functions, next, fname, "", "  int ", dumpstring, "_end_key;\n", "_end_key;\n"));
-    houtput("#  endif /* defined(DPLASMA_PROFILING) */\n");
-    houtput("} dplasma_%s_t;\n"
+    houtput("#ifndef _%s_h_\n"
+            "#define _%s_h_\n",
+            jdf_basename, jdf_basename);
+    houtput("#include <DAGuE.h>\n\n");
+    houtput("DAGuE_object_t *DAGuE_%s_new(%s, %s);\n", jdf_basename,
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname, dumpstring, NULL, "", "DAGUE_ddesc_t *", ", ", ""),
+            UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name, dumpstring, NULL, "",  "int ", ", ", ""));
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+    houtput("#endif /* _%s_h_ */ \n",
+            jdf_basename);
+}
+
+/**
+ * Dump a global symbol like #define ABC (jdf->ABC)
+ */
+static char* dump_globals(void** elem, void *arg)
+{
+    static char str[512];
+    snprintf( str, 512, "%s (jdf->%s)", (char*)*elem, (char*)*elem );
+    return str;
+}
+
+/**
+ * Dump a global symbol like #define ABC(A0, A1) (jdf->ABC->data_of(jdf->ABC, A0, A1))
+ */
+static char* dump_data(void** elem, void *arg)
+{
+    jdf_data_entry_t* data = (jdf_data_entry_t*)elem;
+    static char str[1024];
+    int i, len = 0;
+
+    len += snprintf( str, 1024, "%s(%s%d", data->dname, data->dname, 0 );
+    for( i = 1; i < data->nbparams; i++ ) {
+        len += snprintf( str+len, 1024 - len, ",%s%d", data->dname, i );
+    }
+    len += snprintf(str+len, 1024 - len, ")  (jdf->%s->data_of(jdf->%s", data->dname, data->dname);
+    for( i = 0; i < data->nbparams; i++ ) {
+        len += snprintf( str+len, 1024 - len, ", (%s%d)", data->dname, i );
+    }
+    len += snprintf( str+len, 1024 - len, "))\n" );
+    return str;
+}
+
+typedef struct expr_info {
+    string_arena_t* sa;
+    const char* prefix;
+} expr_info_t;
+
+static char * dump_expr(void **elem, void *arg)
+{
+    expr_info_t* expr_info = (expr_info_t*)arg;
+    expr_info_t li, ri;
+    jdf_expr_t *e = *(jdf_expr_t**)elem;
+    string_arena_t *sa = expr_info->sa;
+    string_arena_t *la, *ra;
+
+    sa->pos = 0;
+    sa->ptr[0] = '\0';
+
+    la = string_arena_new(8);
+    ra = string_arena_new(8);
+
+    li.sa = la;
+    li.prefix = expr_info->prefix;
+    
+    ri.sa = ra;
+    ri.prefix = expr_info->prefix;
+
+    switch( e->op ) {
+    case JDF_VAR: {
+        jdf_global_entry_t* item = current_jdf.globals;
+        while( item != NULL ) {
+            if( !strcmp(item->name, e->jdf_var) ) {
+                string_arena_add_string(sa, "%s", e->jdf_var);
+                break;
+            }
+            item = item->next;
+        }
+        if( NULL == item ) {
+            string_arena_add_string(sa, "%s%s", expr_info->prefix, e->jdf_var);
+        }
+        break;
+    }
+    case JDF_EQUAL:
+        string_arena_add_string(sa, "(%s == %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_NOTEQUAL:
+        string_arena_add_string(sa, "(%s != %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_AND:
+        string_arena_add_string(sa, "(%s && %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_OR:
+        string_arena_add_string(sa, "(%s || %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_XOR:
+        string_arena_add_string(sa, "(%s ^ %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_LESS:
+        string_arena_add_string(sa, "(%s <  %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_LEQ:
+        string_arena_add_string(sa, "(%s <= %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_MORE:
+        string_arena_add_string(sa, "(%s >  %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_MEQ:
+        string_arena_add_string(sa, "(%s >= %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_NOT:
+        string_arena_add_string(sa, "!%s", dump_expr((void**)&e->jdf_ua, &li));
+        break;
+    case JDF_PLUS:
+        string_arena_add_string(sa, "(%s + %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_MINUS:
+        string_arena_add_string(sa, "(%s - %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_TIMES:
+        string_arena_add_string(sa, "(%s * %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_DIV:
+        string_arena_add_string(sa, "(%s / %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_MODULO:
+        string_arena_add_string(sa, "(%s %% %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_SHL:
+        string_arena_add_string(sa, "(%s << %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_SHR:
+        string_arena_add_string(sa, "(%s >> %s)", dump_expr((void**)&e->jdf_ba1, &li), dump_expr((void**)&e->jdf_ba2, &ri) );
+        break;
+    case JDF_RANGE:
+        break;
+    case JDF_TERNARY: {
+        expr_info_t ti;
+        string_arena_t *ta;
+        ta = string_arena_new(8);
+        ti.sa = ta;
+        ti.prefix = expr_info->prefix;
+
+        string_arena_add_string(sa, "(%s ? %s : %s)", dump_expr((void**)&e->jdf_tat, &ti), dump_expr((void**)&e->jdf_ta1, &li), dump_expr((void**)&e->jdf_ta2, &ri) );
+
+        string_arena_free(ta);
+        break;
+    }
+    case JDF_CST:
+        string_arena_add_string(sa, "%d", e->jdf_cst);
+        break;
+    default:
+        string_arena_add_string(sa, "DonKnow");
+        break;
+    }
+    string_arena_free(la);
+    string_arena_free(ra);
+    
+    return sa->ptr;
+}
+
+/**
+ * Dump a predicate like #define F_pred(k, n, m) (rank == jdf->ABC->rank_of(jdf->ABC, k, n, m))
+ */
+static char* dump_predicate(void** elem, void *arg)
+{
+    jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
+    string_arena_t *sa = (string_arena_t*)arg;
+    string_arena_t *sa2 = string_arena_new(64);
+    string_arena_t *sa3 = string_arena_new(64);
+    expr_info_t expr_info;
+
+    jdf_call_t* call = f->predicate;
+    int i, len = 0;
+
+    sa->pos = 0;
+    sa->ptr[0] = '\0';
+
+    string_arena_add_string(sa, "%s_pred(%s) ",
+                            f->fname,
+                            UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dumpstring, NULL, 
+                                                 "", "", ", ", ""));
+    expr_info.sa = sa3;
+    expr_info.prefix = "";
+    string_arena_add_string(sa, "(rank == jdf->%s->rank_of(jdf->%s, %s))", f->predicate->func_or_mem, f->predicate->func_or_mem,
+                            UTIL_DUMP_LIST_FIELD(sa2, f->predicate->parameters, next, expr, dump_expr, &expr_info,
+                                                 "", "", ", ", "")); 
+
+    string_arena_free(sa2);
+    string_arena_free(sa3);
+    return sa->ptr;
+}
+
+static void typedef_structure(const jdf_t *jdf)
+{
+    int nbfunctions, nbmatrices;
+    string_arena_t *sa1, *sa2;
+
+    JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
+    JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbmatrices);
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
+    coutput("#include <DAGuE.h>\n"
+            "#include \"%s.h\"\n\n"
+            "#define DAGuE_%s_NB_FUNCTIONS %d\n"
+            "#define DAGuE_%s_NB_MATRICES %d\n", jdf_basename, jdf_basename, nbfunctions, jdf_basename, nbmatrices);
+    coutput("typedef struct DAGuE_%s {\n", jdf_basename);
+    coutput("  const DAGuE_t *functions_array[DAGuE_%s_NB_FUNCTIONS];\n", jdf_basename);
+    coutput("%s", 
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name, dumpstring, NULL, "", "  int ", ";\n", ";\n"));
+    coutput("%s", 
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname, dumpstring, NULL, "", "  DAGuE_ddesc_t *", ";\n", ";\n"));
+    coutput("#  if defined(DAGuE_PROFILING)\n");
+    coutput("%s", 
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname, dumpstring, NULL, "", "  int ", "_start_key;\n", "_start_key;\n"));
+    coutput("%s", 
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname, dumpstring, NULL, "", "  int ", "_end_key;\n", "_end_key;\n"));
+    coutput("#  endif /* defined(DAGuE_PROFILING) */\n");
+    coutput("} DAGuE_%s_t;\n"
             "\n", jdf_basename);
-    houtput("dplasma_object_t *dplasma_%s_new(%s);\n", jdf_basename,
-            UTIL_DUMP_LIST( sa1, jdf->globals, next, name, "",  "int ", dumpstring, ", ", ""));
+
+    /* dump the global symbols macros*/
+    coutput("/* The globals */\n%s\n",
+            UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name, dump_globals, sa2, "", "#define ", "\n", "\n"));
+
+    /* dump the data access macros */
+    coutput("/* The data access macros */\n%s\n",
+            UTIL_DUMP_LIST(sa1, jdf->data, next, dump_data, sa2, "", "#define ", "\n", "\n"));
+
+    /* dump the functions predicates */
+    coutput("/* Functions Predicates */\n%s\n",
+            UTIL_DUMP_LIST(sa1, jdf->functions, next, dump_predicate, sa2, "", "#define ", "\n", "\n"));
+
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+}
+
+static void jdf_generate_constructor( const jdf_t* jdf )
+{
+    string_arena_t *sa1,*sa2;
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
+    coutput("DAGuE_object_t *DAGuE_%s_new(%s, %s)\n{\n", jdf_basename,
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname, dumpstring, NULL, "", "DAGuE_ddesc_t *", ", ", ""),
+            UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name, dumpstring, NULL, "",  "int ", ", ", ""));
+
+    coutput("}\n\n");
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -253,13 +485,14 @@ int jdf2c(char *_jdf_basename, const jdf_t *jdf)
     cfile_lineno = 1;
     hfile_lineno = 1;
     
-    houtput("#ifndef _%s_h_\n"
-            "#define _%s_h_\n",
-            jdf_basename, jdf_basename);
-    typedef_structure(jdf);
-    houtput("#endif /* _%s_h_ */ \n",
-            jdf_basename);
+    jdf_generate_header_file(jdf);
 
+    typedef_structure(jdf);
+
+    /**
+     * Generate the externally visible function.
+     */
+    jdf_generate_constructor(jdf);
  err:
     if( NULL != cfile ) 
         fclose(cfile);

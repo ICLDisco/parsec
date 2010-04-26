@@ -1,0 +1,157 @@
+extern "C" %{
+   /**
+    * PLASMA include for defined and constants.
+    */
+#include "dplasma.h"
+#include <plasma.h>
+#include <core_dblas.h>
+
+extern int uplo;
+int PLASMA_INFO = 0;
+
+#ifdef DPLASMA_CALL_TRACE
+#   include <stdlib.h>
+#   include <stdio.h>
+#   define OUTPUT(ARG)  printf ARG
+#else
+#   define OUTPUT(ARG)
+#endif
+
+#ifdef DPLASMA_DRY_RUN
+#   define CORE(FN, ARGS)
+#else
+#   define CORE(FN, ARGS) CORE_##FN ARGS
+#endif
+%}
+
+/* Globals
+ * GRIDrows, GRIDcols, NB, SIZE
+ */
+NB
+SIZE
+
+/**************************************************
+ *                      POTRF                     *
+ **************************************************/
+POTRF(k) (high_priority)
+
+// Execution space
+k = 0..SIZE-1
+
+// Parallel partitioning
+: A(k + 0,(k + NB - NB))
+
+// Parameters
+RW T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
+     -> T TRSM(k, k+1..SIZE-1)
+     -> A(k, k)
+
+; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
+
+BODY
+    CORE(
+        dpotrf, (
+            uplo,
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            T /* A(k, k) */, NB, /*A.nb,*/
+            &PLASMA_INFO )
+        );
+END
+
+/**************************************************
+ *                      TRSM                      *
+ **************************************************/
+TRSM(k, n) (high_priority)
+
+// Execution space
+k = 0..SIZE-1
+n = k+1..SIZE-1
+
+// Parallel partitioning
+: A(n,k)
+
+// Parameters
+READ T <- T POTRF(k)
+RW   C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
+       -> A SYRK(k, n)
+       -> A GEMM(k, n+1..SIZE-1, n)
+       -> B GEMM(k, n, k+1..n-1)
+       -> A(n, k)
+
+; 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2
+
+BODY
+     CORE(
+        dtrsm, (
+            PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
+            NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                 C /*A(n, k)*/, NB /*A.nb*/ )
+        );
+END
+
+/**************************************************
+ *                      SYRK                      *
+ **************************************************/
+SYRK(k, n) (high_priority)
+
+// Execution space
+k = 0..SIZE-1
+n = k+1..SIZE-1
+
+// Parallel partitioning
+: A(n,n)
+
+//Parameters
+READ A <- C TRSM(k, n)
+RW   T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
+       -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
+
+; 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1
+
+BODY
+    CORE(
+        dsyrk, (
+            PlasmaLower, PlasmaNoTrans,
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
+             1.0, T /*A(n, n)*/, NB /*A.nb*/ )
+        );
+END
+
+/**************************************************
+ *                      GEMM                      *
+ **************************************************/
+// Name
+GEMM(k, m, n)
+
+// Execution space
+k = 0..SIZE-1
+m = k+2..SIZE-1
+n = k+1..m-1
+
+// Parallel partitioning
+: A(m,n)
+
+// Parameters
+READ A <- C TRSM(k, n)
+READ B <- C TRSM(k, m)
+RW   C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
+       -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
+
+; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 3
+
+BODY
+    CORE(
+        dgemm, ( 
+            PlasmaNoTrans, PlasmaTrans,
+            NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+            NB, /*A.nb,*/
+            NB, /*A.nb,*/
+            -1.0, B /*A(m, k)*/, NB, /*A.nb,*/
+                  A /*A(n, k)*/, NB, /*A.nb,*/
+             1.0, C /*A(m, n)*/, NB /*A.nb*/ )
+        );
+END

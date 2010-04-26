@@ -14,6 +14,7 @@
 
 void jdf_prepare_parsing(void);
 void jdf_warn(int lineno, const char *format, ...);
+void jdf_fatal(int lineno, const char *format, ...);
 
 /**
  * Checks the sanity of the current_jdf.
@@ -37,6 +38,7 @@ typedef struct jdf {
     struct jdf_preamble_entry *preambles;
     struct jdf_global_entry   *globals;
     struct jdf_function_entry *functions;
+    struct jdf_data_entry     *data;
 } jdf_t;
 
 extern jdf_t current_jdf;
@@ -74,12 +76,19 @@ typedef struct jdf_function_entry {
     struct jdf_name_list      *parameters;
     jdf_flags_t                flags;
     struct jdf_def_list       *definitions;
-    struct jdf_expr_list      *predicates;
+    struct jdf_call           *predicate;
     struct jdf_dataflow_list  *dataflow;
     struct jdf_expr           *priority;
     char                      *body;
     int                        lineno;
 } jdf_function_entry_t;
+
+typedef struct jdf_data_entry {
+    struct jdf_data_entry *next;
+    char                  *dname;
+    int                   nbparams;
+    int                   lineno;
+} jdf_data_entry_t;
 
 /*******************************************************************/
 /*          Internal structures of the jdf_function                */
@@ -205,5 +214,15 @@ typedef struct jdf_expr {
 #define jdf_ta2 u.ternary.arg2
 #define jdf_var u.varname
 #define jdf_cst u.cstval
+
+#define JDF_COUNT_LIST_ENTRIES(LIST, TYPEOF, NEXT, COUNT)    \
+    do {                                                     \
+        TYPEOF* _item = (LIST);                              \
+        (COUNT) = 0;                                         \
+        while( NULL != _item) {                              \
+            (COUNT)++;                                       \
+            _item = _item->NEXT;                             \
+        }                                                    \
+    } while (0)
 
 #endif

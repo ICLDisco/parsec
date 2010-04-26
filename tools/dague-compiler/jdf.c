@@ -302,8 +302,8 @@ static int jdf_sanity_check_predicates_unbound(void)
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         i = 0;
-        for(e = f->predicates; e != NULL; e = e->next) {
-            snprintf(kind, 64, "Predicate number %d", i);
+        for(e = f->predicate->parameters; e != NULL; e = e->next) {
+            snprintf(kind, 64, "Parameter number %d of predicate", i);
             if( jdf_sanity_check_expr_bound(e->expr, kind, f) < 0 )
                 rc = -1;
             i++;

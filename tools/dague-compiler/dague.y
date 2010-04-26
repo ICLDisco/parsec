@@ -33,6 +33,25 @@ int yywrap()
 
 #define new(type)  (type*)calloc(1, sizeof(type))
 
+static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
+{
+    jdf_data_entry_t* data = jdf->data;
+
+    while( NULL != data ) {
+        if( !strcmp(data->dname, dname) ) {
+            return data;
+        }
+    }
+    /* not found, create */
+    data = new(jdf_data_entry_t);
+    data->dname    = strdup(dname);
+    data->lineno   = -1;
+    data->nbparams = -1;
+    data->next     = jdf->data;
+    jdf->data = data;
+    return data;
+}
+
 %}
 
 %union {
@@ -61,7 +80,7 @@ int yywrap()
 %type <function>function
 %type <name_list>varlist
 %type <def_list>execution_space
-%type <expr_list>partitioning
+%type <call>partitioning
 %type <dataflow_list>dataflow_list
 %type <dataflow>dataflow
 %type <dep_list>dependencies
@@ -188,7 +207,7 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR flags execution_space partitionin
                     e->parameters = $3;
                     e->flags = $5;
                     e->definitions = $6;
-                    e->predicates = $7;
+                    e->predicate = $7;
                     e->dataflow = $8;
                     e->priority = $9;
                     e->body = $10;
@@ -244,20 +263,29 @@ execution_space:
                 }
          ;
 
-partitioning:   COLON expr partitioning 
-                {
-                    jdf_expr_list_t *l = new(jdf_expr_list_t);
-                    l->expr = $2;
-                    l->next = $3;
-                    $$ = l;
-                }
-         |      COLON expr 
-                {
-                    jdf_expr_list_t *l = new(jdf_expr_list_t);
-                    l->expr = $2;
-                    l->next = NULL;
-                    $$ = l;
-                }
+partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
+              {
+                  jdf_data_entry_t* data;
+                  jdf_call_t *c = new(jdf_call_t);
+                  int nbparams;
+
+                  c->var = NULL;
+                  c->func_or_mem = $2;
+                  data = jdf_find_or_create_data(&current_jdf, $2);
+                  c->parameters = $4;
+                  JDF_COUNT_LIST_ENTRIES($4, jdf_expr_list_t, next, nbparams);
+                  if( data->nbparams != -1 ) {
+                      if( data->nbparams != nbparams ) {
+                          jdf_fatal(current_lineno, "Data %s used with %d parameters at line %d while used with %d parameters line %d\n",
+                                    $2, nbparams, current_lineno, data->nbparams, data->lineno);
+                          YYERROR;
+                      }
+                  } else {
+                      data->nbparams = nbparams;
+                      data->lineno = current_lineno;
+                  }
+                  $$ = c;                  
+              }
          ;
 
 dataflow_list:  dataflow dataflow_list 
@@ -367,11 +395,26 @@ call:         VAR VAR OPEN_PAR expr_list CLOSE_PAR
               }
        |      VAR OPEN_PAR expr_list CLOSE_PAR
               {
+                  jdf_data_entry_t* data;
                   jdf_call_t *c = new(jdf_call_t);
+                  int nbparams;
+
                   c->var = NULL;
                   c->func_or_mem = $1;
                   c->parameters = $3;
                   $$ = c;                  
+                  data = jdf_find_or_create_data(&current_jdf, $1);
+                  JDF_COUNT_LIST_ENTRIES($3, jdf_expr_list_t, next, nbparams);
+                  if( data->nbparams != -1 ) {
+                      if( data->nbparams != nbparams ) {
+                          jdf_fatal(current_lineno, "Data %s used with %d parameters at line %d while used with %d parameters line %d\n",
+                                    $1, nbparams, current_lineno, data->nbparams, data->lineno);
+                          YYERROR;
+                      }
+                  } else {
+                      data->nbparams = nbparams;
+                      data->lineno = current_lineno;
+                  }
               }
        ;
 

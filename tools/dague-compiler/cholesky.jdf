@@ -60,7 +60,7 @@ k = 0..SIZE-1
 : (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
-WR T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
+RW T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
      -> T TRSM(k, k+1..SIZE-1)
      -> A(k, k)
 
