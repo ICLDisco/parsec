@@ -69,7 +69,7 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}          
                           
                           /* find the end of the language */
                           for(lend = lstart + 1; yytext[lend] != '"'; lend++) /* nothing */;
-                          assert( (yytext[lstart] = 'C') && ((lend-lstart) == 1) );
+                          assert( (yytext[lstart] == 'C') && ((lend-lstart) == 1) );
                           
                           /* Search for the start of the body */
                           for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
