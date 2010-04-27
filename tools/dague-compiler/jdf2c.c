@@ -14,7 +14,7 @@ static FILE *cfile;
 static int   cfile_lineno;
 static FILE *hfile;
 static int   hfile_lineno;
-static char *jdf_basename;
+static const char *jdf_basename;
 
 static int nblines(const char *p)
 {
@@ -356,27 +356,24 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_free(sa2);
 }
 
-int jdf2c(char *_jdf_basename, const jdf_t *jdf)
+int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename, const jdf_t *jdf)
 {
-    char filename[strlen(_jdf_basename)+4];
     int ret = 0;
 
     jdf_basename = _jdf_basename;
     cfile = NULL;
     hfile = NULL;
 
-    sprintf(filename, "%s.c", jdf_basename);
-    cfile = fopen(filename, "w");
+    cfile = fopen(output_c, "w");
     if( cfile == NULL ) {
-        fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
+        fprintf(stderr, "unable to create %s: %s\n", output_c, strerror(errno));
         ret = -1;
         goto err;
     }
 
-    sprintf(filename, "%s.h", jdf_basename);
-    hfile = fopen(filename, "w");
+    hfile = fopen(output_h, "w");
     if( hfile == NULL ) {
-        fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
+        fprintf(stderr, "unable to create %s: %s\n", output_h, strerror(errno));
         ret = -1;
         goto err;
     }
