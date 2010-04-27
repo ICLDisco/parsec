@@ -45,8 +45,8 @@ NB
 SIZE
 colRANK
 rowRANK
-stileSIZE
-
+rtileSIZE
+ctileSIZE
 
 /**************************************************
  *                      POTRF                     *
@@ -57,8 +57,8 @@ POTRF(k) (high_priority)
 k = 0..SIZE-1
 
 // Parallel partitioning
-: (k / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (k / rtileSIZE) % GRIDrows == rowRANK
+: (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
@@ -95,8 +95,8 @@ k = 0..SIZE-1
 m = k+1..SIZE-1
 
 // Parallel partitioning
-: (m / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (m / rtileSIZE) % GRIDrows == rowRANK
+: (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
 IN    T <- T POTRF(k)
@@ -158,8 +158,8 @@ k = 1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (n / stileSIZE) % GRIDrows == rowRANK
-: (n / stileSIZE) % GRIDcols == colRANK
+: (n / rtileSIZE) % GRIDrows == rowRANK
+: (n / ctileSIZE) % GRIDcols == colRANK
 
 //Parameters
 IN    A <- C TRSM(n, k)
@@ -220,8 +220,8 @@ m = k+1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (m / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (m / rtileSIZE) % GRIDrows == rowRANK
+: (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
 IN    A <- C TRSM(n, k)
