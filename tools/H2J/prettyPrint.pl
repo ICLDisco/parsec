@@ -49,6 +49,7 @@ while(my $line=<PETITFILE>){
         my $bounds = $1."=".$2."..".$3;
         push (@paramSpaceStack, $bounds);
     }
+#    if( $line =~ /endfor/ || $line =~ /\!\!\! *ENDTASK/ ){
     if( $line =~ /endfor/ ){
         pop @stack;
         pop @paramSpaceStack;
