@@ -237,13 +237,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     dplasma_execution_unit_t* eu;
     int bind_to_proc = startup->th_id;
 
-
-#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-#if defined(ON_ZOOT)
-    bind_to_proc = distance[startup->th_id];
-#endif
-#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
-
+    /* Bind to the specified CORE */
     dplasma_bindthread(bind_to_proc);
 
     eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
@@ -361,6 +355,8 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                     d = dplasma_hwloc_distance(eu->eu_id, id);
                     if( d == 2*level || d == 2*level + 1 ) {
                         eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
+                        /*printf( "th %d bound to %d use at level %d the task queue of %d (%p)\n",
+                          eu->eu_id, bind_to_proc, nq, id, eu->eu_hierarch_queues[nq]);*/
                         DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
                                eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]));
                         nq++;

@@ -104,7 +104,7 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> A SYRK(m, k)
         -> A GEMM(m, m+1..SIZE-1, k)
         -> B GEMM(k+1..m-1, m, k)
-        -> (m == k+1) ? F SYRK(m, 0)                [SYNCHRO]
+        -> (m == k+1) ? F SYRK(m, 0) : A(m,k)                [SYNCHRO]
         -> A(m, k)
 
 ; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 2
@@ -163,7 +163,7 @@ n = 0..k-1
 
 //Parameters
 IN    A <- C TRSM(n, k)
-IN    F <- (n == 0) ? C TRSM(k-1, k)
+IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,k)
 INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
@@ -226,7 +226,7 @@ n = 0..k-1
 // Parameters
 IN    A <- C TRSM(n, k)
 IN    B <- C TRSM(n, m)
-IN    F <- (n == 0) ? F POTRF(k)                        [SYNCHRO]
+IN    F <- (n == 0) ? F POTRF(k) : A(m,k)                       [SYNCHRO]
 INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 

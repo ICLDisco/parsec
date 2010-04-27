@@ -57,7 +57,6 @@ static void check_matrix(int N, PLASMA_enum* uplo,
 static int check_factorization(int, double*, double*, int, int , double);
 static int check_solution(int, int, double*, int, double*, double*, int, double);
 
-
 /* timing profiling etc */
 double time_elapsed;
 double sync_time_elapsed;
@@ -93,7 +92,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do {                                \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f s :\t", sync_time_elapsed);*/    \
+            printf("### TIMED %f s :\t", sync_time_elapsed);    \
             printf print;                                           \
         }                                                           \
   } while(0)
@@ -107,7 +106,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do {                                \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f doing\t", sync_time_elapsed);*/  \
+            printf("### TIMED %f doing\t", sync_time_elapsed);  \
             printf print;                                           \
         }                                                           \
     } while(0)
@@ -210,7 +209,8 @@ int main(int argc, char ** argv)
             TIME_START();
             dplasma_progress(dplasma);
             TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(sync_time_elapsed)));
+            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, 
+                             gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0)+(N/1e3)*(N/1e3)/2.0)/(sync_time_elapsed)));
 
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/

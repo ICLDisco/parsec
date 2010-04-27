@@ -678,7 +678,8 @@ static void create_datatypes(void)
     MPI_Type_commit(&LOWER_TILE);
     
     /* LITTLE_T is a NB*IB rectangle (containing IB*IB Lower tiles) */
-    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &LITTLE_T);
+    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LITTLE_T);
     MPI_Type_set_name(LITTLE_T, "T");
     MPI_Type_commit(&LITTLE_T);
     
