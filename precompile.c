@@ -589,8 +589,7 @@ static char *dump_c_symbol(const symbol_t *s, char *init_func_body, int init_fun
     snprintf(mm, FNAME_SIZE, "%s", dump_c_expression(s->max, init_func_body, init_func_body_size));
     
     output("static symbol_t symb%d = { .flags = 0x%08x, .name = \"%s\", .min = %s, .max = %s };\n",
-           i,
-           s->flags, s->name, mn, mm);
+           i, s->flags, s->name, mn, mm);
 
     return e->c_name;
 }
