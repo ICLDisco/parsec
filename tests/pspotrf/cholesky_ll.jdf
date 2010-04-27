@@ -44,8 +44,8 @@ NB
 SIZE
 colRANK
 rowRANK
-stileSIZE
-
+rtileSIZE
+ctileSIZE
 
 /**************************************************
  *                      POTRF                     *
@@ -56,14 +56,17 @@ POTRF(k) (high_priority)
 k = 0..SIZE-1
 
 // Parallel partitioning
-: (k / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (k / rtileSIZE) % GRIDrows == rowRANK
+: (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
         -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
 OUT   F -> F GEMM(k, k+1..SIZE-1, 0)
+
+; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
+
 BODY
     CORE(
         spotrf, (
@@ -91,8 +94,8 @@ k = 0..SIZE-1
 m = k+1..SIZE-1
 
 // Parallel partitioning
-: (m / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (m / rtileSIZE) % GRIDrows == rowRANK
+: (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
 IN    T <- T POTRF(k)
@@ -102,6 +105,8 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> B GEMM(k+1..m-1, m, k)
         -> (m == k+1) ? F SYRK(m, 0) : A(m,k)
         -> A(m, k)
+
+; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 1
 
 BODY
     if( uplo == PlasmaLower ) {
@@ -152,14 +157,16 @@ k = 1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (n / stileSIZE) % GRIDrows == rowRANK
-: (n / stileSIZE) % GRIDcols == colRANK
+: (n / rtileSIZE) % GRIDrows == rowRANK
+: (n / ctileSIZE) % GRIDcols == colRANK
 
 //Parameters
 IN    A <- C TRSM(n, k)
 IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,k)
 INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
+
+; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 2
 
 BODY
     if( uplo == PlasmaLower ) {
@@ -212,8 +219,8 @@ m = k+1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (m / stileSIZE) % GRIDrows == rowRANK
-: (k / stileSIZE) % GRIDcols == colRANK
+: (m / rtileSIZE) % GRIDrows == rowRANK
+: (k / ctileSIZE) % GRIDcols == colRANK
 
 // Parameters
 IN    A <- C TRSM(n, k)
@@ -221,6 +228,8 @@ IN    B <- C TRSM(n, m)
 IN    F <- (n == 0) ? F POTRF(k) : A(m, k)
 INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
+
+; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
 
 BODY
     if( uplo == PlasmaLower ) {

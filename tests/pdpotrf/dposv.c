@@ -136,6 +136,9 @@ PLASMA_enum uplo = PlasmaLower;
 PLASMA_desc descA;
 DPLASMA_desc ddescA;
 
+#if defined(USE_MPI)
+MPI_Datatype SYNCHRO = MPI_BYTE;
+#endif  /* USE_MPI */
 
 int main(int argc, char ** argv)
 {
