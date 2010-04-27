@@ -127,6 +127,7 @@ static void parse_args(int argc, char *argv[])
         ARGS.output_c = c;
         c = NULL;
     }
+
     if( NULL == h ) {
         if( NULL != o ) {
             ARGS.output_h = (char*)malloc(strlen(o) + 3);
@@ -138,6 +139,7 @@ static void parse_args(int argc, char *argv[])
         ARGS.output_h = h;
         h = NULL;
     }
+
     if( NULL == f ) {
         if( NULL != o ) {
             ARGS.funcid = o;
