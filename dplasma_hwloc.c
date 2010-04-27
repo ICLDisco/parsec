@@ -39,19 +39,19 @@ int dplasma_hwloc_fini(void)
 int dplasma_hwloc_distance( int id1, int id2 )
 {
 #if defined(HAVE_HWLOC)
-	int count = 0;
+    int count = 0;
 
-	hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id1);
-	hwloc_obj_t obj2 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id2);
+    hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id1);
+    hwloc_obj_t obj2 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id2);
 	 
-	while( obj && obj2) {
-		if(obj == obj2 ) {
+    while( obj && obj2) {
+        if(obj == obj2 ) {
             return count*2;
         }
-		obj = obj->father;
-		obj2 = obj2->father;
+        obj = obj->parent;
+        obj2 = obj2->parent;
         count++;
-	}
+    }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
 }
@@ -59,52 +59,52 @@ int dplasma_hwloc_distance( int id1, int id2 )
 int dplasma_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
-	int count = 0, i, div = 0, real_cores, cores, test = 0;
+    int count = 0, i, div = 0, real_cores, cores, test = 0;
 	        
-	real_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
-	cores = real_cores;
-	div = cores;
+    real_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+    cores = real_cores;
+    div = cores;
 		        
-	if( 0 < (processor_id / cores) ) {
-		while(processor_id) {
+    if( 0 < (processor_id / cores) ) {
+        while(processor_id) {
             if( (processor_id % div) == 0) {
                 processor_id = count;
-		        break;
+                break;
             }
             count++;
             div++;
             if( real_cores == count ) count = 0;
-		}
-	}
-
-	for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
-		hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
-					            
-		if(hwloc_cpuset_isset(obj->cpuset, processor_id)) {
-			return hwloc_cpuset_first(obj->cpuset);
         }
-	}
+    }
+
+    for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
+        hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
+					            
+        if(hwloc_cpuset_isset(obj->cpuset, processor_id)) {
+            return hwloc_cpuset_first(obj->cpuset);
+        }
+    }
 #endif  /* defined(HAVE_HWLOC) */
 
-	return -1;
+    return -1;
 }    
  
 unsigned int dplasma_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
-	int i;
+    int i;
 	     
-	for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++){	 
+    for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++){	 
 		
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
 				 
         if(hwloc_cpuset_isset(obj->cpuset, master_id)){
             return hwloc_cpuset_weight(obj->cpuset);
         }
-	}
+    }
 #endif  /* defined(HAVE_HWLOC) */
 
-	return 0;
+    return 0;
 }
  
  
@@ -119,18 +119,18 @@ int dplasma_hwloc_nb_levels(void)
 size_t dplasma_hwloc_cache_size( int level, int master_id )
 {	    
 #if defined(HAVE_HWLOC)
-	hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PROC, master_id);
+    hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);
 	     
-	while (obj) {
-		if(obj->depth == level){
+    while (obj) {
+        if(obj->depth == level){
             if(obj->type == HWLOC_OBJ_CACHE){
-	        	return obj->attr->cache.memory_kB;
+                return obj->attr->cache.size;
             }
             return 0;
         }
-        obj = obj->father;
-	}
+        obj = obj->parent;
+    }
 #endif  /* defined(HAVE_HWLOC) */
 	 
-	return 0;
+    return 0;
 }
