@@ -30,6 +30,7 @@
 
 #ifdef HAVE_HWLOC
 #include "hbbuffer.h"
+#include "dplasma_hwloc.h"
 #endif
 
 FILE *__dplasma_graph_file = NULL;
@@ -429,6 +430,10 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
     remote_dep_mpi_create_default_datatype(tile_size, MPI_DOUBLE);
 #endif
 
+#if defined(HAVE_HWLOC)
+    dplasma_hwloc_init();
+#endif  /* defined(HWLOC) */
+
     context->nb_cores = (int32_t) nb_cores;
     context->__dplasma_internal_finalization_in_progress = 0;
     context->__dplasma_internal_finalization_counter = 0;
@@ -617,6 +622,10 @@ int dplasma_fini( dplasma_context_t** pcontext )
         fclose(__dplasma_graph_file);
         __dplasma_graph_file = NULL;
     }
+
+#if defined(HAVE_HWLOC)
+    dplasma_hwloc_fini();
+#endif  /* defined(HWLOC) */
 
 #if defined(DPLASMA_STATS)
     {
