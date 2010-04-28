@@ -18,8 +18,10 @@ static const char *jdf_basename;
 
 /** Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
-static void jdf_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
-static void jdf_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+
+/** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
 static int nblines(const char *p)
 {
@@ -74,7 +76,7 @@ static void houtput(const char *format, ...)
     }
 }
 
-/** UTIL HELPERS **/
+/** Utils: dumper functions for UTIL_DUMP_LIST_FIELD and UTIL_DUMP_LIST calls **/
 
 /**
  * dump_string:
@@ -392,31 +394,7 @@ static char *dump_resinit(void **elem, void *arg)
     return string_arena_get_string(sa);
 }
 
-/**
- * Parameters of the dump_stringlist_by_index function
- */
-typedef struct stringlist_by_index_info {
-    string_arena_t *sa;
-    int             idx;
-    const char *    format;
-} stringlist_by_index_info_t;
-
-/**
- * dump_stringlist_by_index:
- *  This is almost a hack: it dumps a list of anything by applying a
- *  varying index to a given format. The varying element is ignored.
- *  Only the arguments vary. The only link with the list is that
- *  this is dumped once per element of the list.
- *  Takes as second argument the parameters for the function.
- */
-static char *dump_stringlist_by_index(void **_, void *arg)
-{
-    stringlist_by_index_info_t *info = (stringlist_by_index_info_t*)arg;
-    string_arena_init(info->sa);
-    string_arena_add_string(info->sa, info->format, info->idx);
-    info->idx++;
-    return string_arena_get_string(info->sa);
-}
+/** Utils: observers for the jdf **/
 
 static int jdf_symbol_is_global(const jdf_global_entry_t *globals, const char *name)
 {
@@ -531,17 +509,14 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("} __DAGuE_%s_t;\n"
             "\n", jdf_basename);
 
-    /* dump the global symbols macros*/
-    coutput("/* The globals */\n%s\n",
+    coutput("/* Globals */\n%s\n",
             UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
                                  dump_globals, sa2, "", "#define ", "\n", "\n"));
 
-    /* dump the data access macros */
-    coutput("/* The data access macros */\n%s\n",
+    coutput("/* Data Access Macros */\n%s\n",
             UTIL_DUMP_LIST(sa1, jdf->data, next,
                            dump_data, sa2, "", "#define ", "\n", "\n"));
 
-    /* dump the functions predicates */
     coutput("/* Functions Predicates */\n%s\n",
             UTIL_DUMP_LIST(sa1, jdf->functions, next,
                            dump_predicate, sa2, "", "#define ", "\n", "\n"));
@@ -887,11 +862,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                                                  "", prefix, ", ", ""));
 
     sprintf(prefix, "hook_of_%s_%s", jdf_basename, f->fname);
-    jdf_code_hook(jdf, f, prefix);
+    jdf_generate_code_hook(jdf, f, prefix);
     string_arena_add_string(sa, "  .hook = %s;\n", prefix);
 
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
-    jdf_code_release_deps(jdf, f, prefix);
+    jdf_generate_code_release_deps(jdf, f, prefix);
     string_arena_add_string(sa, "  .release_deps = %s;\n", prefix);
 
     free(prefix);
@@ -1017,12 +992,12 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
 /** Code Generators */
 
-static void jdf_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
+static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
 
 }
 
-static void jdf_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
+static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
 
 }
