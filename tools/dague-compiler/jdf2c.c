@@ -971,7 +971,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "    DAGuE_%s_initialized = 1;\n"
             "  }\n",
             jdf_basename, jdf_basename, jdf_basename);
-    coutput("  res->nb_functions    = DAGuE_cholesky_NB_FUNCTIONS;\n", jdf_basename);
+    coutput("  res->nb_functions    = DAGuE_%s_NB_FUNCTIONS;\n", jdf_basename);
     coutput("  res->functions_array = (DAGuE_t**)malloc(DAGuE_%s_NB_FUNCTIONS * sizeof(DAGuE_t*));\n",
             jdf_basename);
     coutput("  res->dependencies_array = (DAGuE_dependencies_t **)\n"
