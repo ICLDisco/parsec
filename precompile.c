@@ -800,9 +800,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     dplasma_dump_locals_from_context(d, local_prepend, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
 
     
-    output("  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n"
+    output("\n  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n"
            "    e%s = %s;\n"
-           "  }\n\n", d->name, dplasma_to_data_repo_lookup_entry(d, local_prepend));
+           "  }\n", d->name, dplasma_to_data_repo_lookup_entry(d, local_prepend));
 
     for(i = output_deps = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
@@ -813,17 +813,18 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     for(i = cpt = 0; i < MAX_PARAM_COUNT; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
             int spaces = 0;
-            
             struct param *p = d->inout[i];
-            output("%*s  /** Parameter %s **/\n",
-                   spaces, "", p->name);
+
+            output("\n%*s  if( action_mask & (1 << %d) ) { /* Output parameter %s */\n",
+                   spaces, "", cpt, p->name);
+            spaces += 2;
 
             for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
                 if( (NULL != p->dep_out[j]) && (p->dep_out[j]->dplasma->nb_locals > 0) ) {
                     struct dep *dep = p->dep_out[j];
                     dplasma_t* target = dep->dplasma;
 
-                    output("%*s  /**\n"
+                    output("\n%*s  /**\n"
                            "%*s   * Release %s OUTPUT dependencies for %s(",
                            spaces, "", spaces, "", 
                            dep->param->name, dep->dplasma->name);
@@ -840,17 +841,13 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                         if( NULL != dep->call_params[k+1] )
                             output(",");
-                        else
-                            output(")\n");
                     }
-                    output("%*s   */\n"
-                           "%*s  if( action_mask & (1 << %d) ) {\n",
-                           spaces, "", spaces, "", cpt);
+                    output(")\n%*s   */\n", spaces, " ");
 
                     output("#if defined(DISTRIBUTED)\n"
                            "%*s    if(action_mask & DPLASMA_ACTION_GETTYPE_REMOTE_DEPS) {\n"
                            "%*s      remote_deps->output[%d].type = exec_context->function->inout[%d]->dep_out[%d]->type;\n"
-                           "%*s    } /* DPLASMA_ACTION_GETTYPE_REMOTE_DEPS */\n"
+                           "%*s    } /* if(action_mask & DPLASMA_ACTION_GETTYPE_REMOTE_DEPS) */\n"
                            "#endif /* DISTRIBUTED */\n", 
                            spaces, " ", 
                            spaces, " ", cpt, i, j,
@@ -945,7 +942,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             "%*s                     &new_context,\n"
                             "%*s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"
                             "%*s                     %s_placeholder, &ready_list);\n"
-                            "%*s  } /* DPLASMA_ACTION_RELEASE_LOCAL_DEPS */\n",
+                            "%*s  } /* if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) */\n",
                             spaces, "",
                             spaces, "", i,
                             spaces, "", 
@@ -974,22 +971,22 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                    spaces, "",
                                    spaces, "");
                         } else {
-                            output( "#if defined(DISTRIBUTED)\n"                                                                 /* line  1 */
-                                    "%*s    } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) {\n"                      /* line  2 */
-                                    "%*s      int _rank, _rrank, _crank, _array_pos, _array_mask;\n"                             /* line  3 */
-                                    "%*s      _rrank = %s;\n"                                                                    /* line  4 */
-                                    "%*s      _crank = %s;\n"                                                                    /* line  5 */
-                                    "%*s      _rank = _crank + _rrank * %s;\n"                                                   /* line  6 */
-                                    "%*s      _array_pos = _rank / (8 * sizeof(uint32_t));\n"                                    /* line  7 */
-                                    "%*s      _array_mask = 1 << (_rank %% (8 * sizeof(uint32_t)));\n"                           /* line  8 */
-                                    "%*s      DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line  9 */
-                                    "%*s      if( !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) ) {\n"          /* line 10 */
-                                    "%*s        remote_deps->output[%d].data = (gc_data_t*)exec_context->pointers[%d];\n"        /* line 11 */
-                                    "%*s        remote_deps->output[%d].rank_bits[_array_pos] |= _array_mask;\n"                 /* line 12 */
-                                    "%*s        remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 13 */
-                                    "%*s      }\n"                                                                               /* line 14 */
-                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                       /* line 15 */
-                                    "%*s    }\n",                                                                                /* line 16 */
+                            output( "#if defined(DISTRIBUTED)\n"                                                               /* line  1 */
+                                    "%*s  } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) {\n"                      /* line  2 */
+                                    "%*s    int _rank, _rrank, _crank, _array_pos, _array_mask;\n"                             /* line  3 */
+                                    "%*s    _rrank = %s;\n"                                                                    /* line  4 */
+                                    "%*s    _crank = %s;\n"                                                                    /* line  5 */
+                                    "%*s    _rank = _crank + _rrank * %s;\n"                                                   /* line  6 */
+                                    "%*s    _array_pos = _rank / (8 * sizeof(uint32_t));\n"                                    /* line  7 */
+                                    "%*s    _array_mask = 1 << (_rank %% (8 * sizeof(uint32_t)));\n"                           /* line  8 */
+                                    "%*s    DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line  9 */
+                                    "%*s    if( !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) ) {\n"          /* line 10 */
+                                    "%*s      remote_deps->output[%d].data = (gc_data_t*)exec_context->pointers[%d];\n"        /* line 11 */
+                                    "%*s      remote_deps->output[%d].rank_bits[_array_pos] |= _array_mask;\n"                 /* line 12 */
+                                    "%*s      remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 13 */
+                                    "%*s    }  /* !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) */\n"         /* line 14 */
+                                    "#endif  /* defined(DISTRIBUTED) */\n"                                                     /* line 15 */
+                                    "%*s  }  /* if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) */\n",                     /* line 16 */
                                     /* line  2 */ spaces, "",
                                     /* line  3 */ spaces, "",
                                     /* line  4 */ spaces, "", expression_to_c_inline(rowpred, target_prepend, strexpr1, MAX_EXPR_LEN),
@@ -1002,7 +999,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     /* line 11 */ spaces, "", cpt, 2 * cpt + 1,
                                     /* line 12 */ spaces, "", cpt,
                                     /* line 13 */ spaces, "", cpt,
-                                    /* line 14 */ spaces, "",
+                                    /* line 14 */ spaces, "", cpt,
                                     /* line 15 */
                                     /* line 16 */ spaces, ""
                                     );
@@ -1013,7 +1010,11 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         if( NULL != dep->call_params[k] ) {
                             if( EXPR_OP_BINARY_RANGE == dep->call_params[k]->op ) {
                                 spaces -= 2;
-                                output("%*s    }\n", spaces, "");
+                                output("%*s  } /* for(%s%s = %s; %s%s <= %s; %s%s++) { */\n",
+                                       spaces, "",
+                                       target_prepend, target->locals[k]->name, expression_to_c_inline(dep->call_params[k]->bop1, local_prepend, strexpr1, MAX_EXPR_LEN),
+                                       target_prepend, target->locals[k]->name, expression_to_c_inline(dep->call_params[k]->bop2, local_prepend, strexpr2, MAX_EXPR_LEN),
+                                       target_prepend, target->locals[k]->name);
                             }
                         }
                     }
@@ -1022,13 +1023,14 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output("%*s  }  /* if(%s) */\n", spaces, "", 
                                expression_to_c_inline(dep->cond, local_prepend, strexpr1, MAX_EXPR_LEN));
                     } else {
-                        output("%*s  }  /* if( action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS) ) */\n",
+                        output("%*s}  /* if( action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS) ) */\n",
                                spaces, "");
                     }
                     spaces -= 2;
-                    output("  }\n");
                 }
             }
+            output("%*s} /* if( action_mask & (1 << %d) ) */ /* Output parameter %s */\n",
+                   spaces, "", cpt, p->name);
             cpt++;
         }
     }
