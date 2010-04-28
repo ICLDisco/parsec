@@ -70,7 +70,7 @@ static int generic_release_dependencies(dplasma_execution_unit_t *eu_context,
  * This function generate all possible execution context for a given function with
  * respect to the predicates.
  */
-int dplasma_find_start_values( dplasma_execution_context_t* exec_context, int use_predicates )
+int dplasma_find_start_values( dplasma_execution_context_t* exec_context, int use_predicates, int jump_to_next )
 {
     const expr_t** predicates = (const expr_t**)exec_context->function->preds;
     const dplasma_t* object = exec_context->function;
@@ -86,6 +86,10 @@ int dplasma_find_start_values( dplasma_execution_context_t* exec_context, int us
     if( !use_predicates ) predicates = NULL;
 
     actual_loop = object->nb_locals - 1;
+
+    if( jump_to_next )
+        goto find_next_value;
+
     while(1) {
         int value;
 
@@ -94,6 +98,7 @@ int dplasma_find_start_values( dplasma_execution_context_t* exec_context, int us
         if( rc == 0 )
             return 0;
 
+      find_next_value:
         /* Go to the next valid value for this loop context */
         rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
                                             exec_context->locals, &value );
@@ -212,7 +217,7 @@ int main(int argc, char *argv[])
 
     {
         dplasma_execution_context_t exec_context;
-        int i = 0, rc;
+        int i = 0, rc, first_task;
 
         for( i = 0; ; i++ ) {
             memset(&exec_context, 0, sizeof(dplasma_execution_context_t));
@@ -224,14 +229,18 @@ int main(int argc, char *argv[])
                 continue;
             }
             dplasma_set_initial_execution_context(&exec_context);
-            rc = dplasma_find_start_values( &exec_context, 0 );
-            if( rc == 0 ) {
-                dplasma_schedule(dplasma, &exec_context);
-                dplasma_progress(dplasma);
-                break;
-            }
+            first_task = 0;
+            do {
+                rc = dplasma_find_start_values( &exec_context, 0, first_task );
+                if( rc == 0 ) {
+                    dplasma_schedule(dplasma, &exec_context);
+                    first_task = 1;
+                }
+            } while(rc != -1);
         }
     }
+    dplasma_progress(dplasma);
+
     dplasma_fini(&dplasma);
 
     return 0;

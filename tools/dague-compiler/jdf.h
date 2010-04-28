@@ -186,6 +186,15 @@ typedef enum { JDF_EQUAL,
                JDF_CST
 } jdf_expr_operand_t;
 
+#define JDF_OP_IS_UNARY(op)    ( (op) == JDF_NOT )
+#define JDF_OP_IS_TERNARY(op)  ( (op) == JDF_TERNARY )
+#define JDF_OP_IS_CST(op)      ( (op) == JDF_CST )
+#define JDF_OP_IS_VAR(op)      ( (op) == JDF_VAR )
+#define JDF_OP_IS_BINARY(op)   ( !( JDF_OP_IS_UNARY(op) ||              \
+                                    JDF_OP_IS_TERNARY(op) ||            \
+                                    JDF_OP_IS_CST(op) ||                \
+                                    JDF_OP_IS_VAR(op)) )
+
 typedef struct jdf_expr {
     jdf_expr_operand_t op;
     union {

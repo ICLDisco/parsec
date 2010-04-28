@@ -27,6 +27,8 @@ typedef char *(*dumper_function_t)(void **elt, void *arg);
  *
  *  @return a string (of characters) written in arena with the list formed so.
  *
+ *  If the function fct return NULL, the element is ignored
+ *
  *  @example: to create the list of expressions that is a parameter call, use
  *    UTIL_DUMP_LIST_FIELD(sa, jdf->functions->predicates, next, expr, dump_expr, NULL, "(", "", ", ", ")")
  *  @example: to create the list of declarations of globals, use
@@ -57,6 +59,8 @@ typedef char *(*dumper_function_t)(void **elt, void *arg);
  *  @param [IN] after:         string (of characters) that will be put at the end of the list, after the last
  *                             element
  *
+ *  If the function fct return NULL, the element is ignored
+ *
  *  @return a string (of characters) written in arena with the list formed so.
  *
  *  @example: to create the list of expressions that is #define list of macros, transforming each element
@@ -74,7 +78,7 @@ typedef char *(*dumper_function_t)(void **elt, void *arg);
  *   function used by the UTIL_DUMP_LIST* macros. Do not use directly.
  */
 static char *util_dump_list_fct( string_arena_t *sa, 
-                                 void *firstelt, unsigned int next_offset, unsigned int elt_offset, 
+                                 const void *firstelt, unsigned int next_offset, unsigned int elt_offset, 
                                  dumper_function_t fct, void *fctarg,
                                  const char *before, const char *prefix, const char *separator, const char *after)
 {
@@ -91,10 +95,12 @@ static char *util_dump_list_fct( string_arena_t *sa,
         eltstr = fct(elt, fctarg);
 
         firstelt = *((void **)((char *)(firstelt) + next_offset));
-        if( firstelt != NULL ) {
-            string_arena_add_string(sa, "%s%s%s", prefix, eltstr, separator);
-        } else {
-            string_arena_add_string(sa, "%s%s", prefix, eltstr);
+        if( eltstr != NULL ) {
+            if( firstelt != NULL ) {
+                string_arena_add_string(sa, "%s%s%s", prefix, eltstr, separator);
+            } else {
+                string_arena_add_string(sa, "%s%s", prefix, eltstr);
+            }
         }
     }
     

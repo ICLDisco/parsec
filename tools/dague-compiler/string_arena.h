@@ -11,6 +11,9 @@ static string_arena_t *string_arena_new(int base_size)
 {
     string_arena_t *sa;
     sa = (string_arena_t*)calloc(1, sizeof(string_arena_t));
+    if( base_size == 0 ) {
+        base_size = 1;
+    }
     sa->ptr  = (char*)malloc(base_size);
     sa->pos  = 0;
     sa->size = base_size;
@@ -63,6 +66,7 @@ static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
 static void string_arena_init(string_arena_t *sa)
 {
     sa->pos = 0;
+    sa->ptr[0] = '\0';
 }
 
 static char *string_arena_get_string(string_arena_t *sa)
