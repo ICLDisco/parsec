@@ -12,21 +12,14 @@ extern int current_lineno;
 extern FILE *yyin;
 char *yyfilename;
 
-typedef struct args {
-    char *input;
-    char *output_c;
-    char *output_h;
-    char *funcid;
-    jdf_warning_mask_t wmask;   
-} args_t;
-static args_t DEFAULTS = {
+static jdf_compiler_global_args_t DEFAULTS = {
     .input = "-",
     .output_c = "a.c",
     .output_h = "a.h",
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS
 };
-static args_t ARGS = { NULL, };
+jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, };
 
 static void usage(void)
 {
@@ -45,6 +38,8 @@ static void usage(void)
             "\n"
             " Warning Options: Default is to print ALL warnings. You can disable the following:\n"
             "  --Wmasked          Do NOT print warnings for masked variables\n"
+            "  --Wmutexin         Do NOT print warnings for non-obvious mutual exclusion of\n"
+            "                     input flows\n"
             "\n",
             DEFAULTS.input,
             DEFAULTS.output_c,
@@ -55,7 +50,8 @@ static void usage(void)
 static void parse_args(int argc, char *argv[])
 {
     int ch;
-    int wmasked;
+    int wmasked = 0;
+    int wmutexinput = 0;
     char *c = NULL;
     char *h = NULL;
     char *o = NULL;
@@ -68,18 +64,19 @@ static void parse_args(int argc, char *argv[])
         { "output",        required_argument,       NULL,  'o' },
         { "function-name", required_argument,       NULL,  'f' },
         { "Wmasked",       no_argument,         &wmasked,   1  },
+        { "Wmutexin",      no_argument,     &wmutexinput,   1  },
         { "help",          no_argument,             NULL,  'h' },
         { NULL,            0,                       NULL,   0  }
     };
 
-    ARGS.wmask = JDF_ALL_WARNINGS;
+    JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
 
     while( (ch = getopt_long(argc, argv, "i:C:H:o:f:h", longopts, NULL)) != -1) {
         switch(ch) {
         case 'i':
-            if( NULL != ARGS.input )
-                free(ARGS.input);
-            ARGS.input = strdup(optarg);
+            if( NULL != JDF_COMPILER_GLOBAL_ARGS.input )
+                free(JDF_COMPILER_GLOBAL_ARGS.input);
+            JDF_COMPILER_GLOBAL_ARGS.input = strdup(optarg);
             break;
         case 'C':
             if( NULL != c) 
@@ -103,8 +100,12 @@ static void parse_args(int argc, char *argv[])
             break;
         case 0:
             if( wmasked ) {
-                ARGS.wmask ^= ~JDF_WARN_MASKED_GLOBALS;
+                JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_MASKED_GLOBALS;
             }
+            if( wmutexinput ) {
+                JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
+            }
+            break;
         case 'h':
         default:
             usage();
@@ -112,43 +113,43 @@ static void parse_args(int argc, char *argv[])
         }
     }
 
-    if( NULL == ARGS.input ) {
-        ARGS.input = DEFAULTS.input;
+    if( NULL == JDF_COMPILER_GLOBAL_ARGS.input ) {
+        JDF_COMPILER_GLOBAL_ARGS.input = DEFAULTS.input;
     }
 
     if( NULL == c) {
         if( NULL != o ) {
-            ARGS.output_c = (char*)malloc(strlen(o) + 3);
-            sprintf(ARGS.output_c, "%s.c", o);
+            JDF_COMPILER_GLOBAL_ARGS.output_c = (char*)malloc(strlen(o) + 3);
+            sprintf(JDF_COMPILER_GLOBAL_ARGS.output_c, "%s.c", o);
         } else {
-            ARGS.output_c = DEFAULTS.output_c;
+            JDF_COMPILER_GLOBAL_ARGS.output_c = DEFAULTS.output_c;
         }
     } else {
-        ARGS.output_c = c;
+        JDF_COMPILER_GLOBAL_ARGS.output_c = c;
         c = NULL;
     }
 
     if( NULL == h ) {
         if( NULL != o ) {
-            ARGS.output_h = (char*)malloc(strlen(o) + 3);
-            sprintf(ARGS.output_h, "%s.h", o);
+            JDF_COMPILER_GLOBAL_ARGS.output_h = (char*)malloc(strlen(o) + 3);
+            sprintf(JDF_COMPILER_GLOBAL_ARGS.output_h, "%s.h", o);
         } else {
-            ARGS.output_h = DEFAULTS.output_h;
+            JDF_COMPILER_GLOBAL_ARGS.output_h = DEFAULTS.output_h;
         }
     } else {
-        ARGS.output_h = h;
+        JDF_COMPILER_GLOBAL_ARGS.output_h = h;
         h = NULL;
     }
 
     if( NULL == f ) {
         if( NULL != o ) {
-            ARGS.funcid = o;
+            JDF_COMPILER_GLOBAL_ARGS.funcid = o;
             o = NULL;
         } else {
-            ARGS.funcid = DEFAULTS.funcid;
+            JDF_COMPILER_GLOBAL_ARGS.funcid = DEFAULTS.funcid;
         }
     } else {
-        ARGS.funcid = f;
+        JDF_COMPILER_GLOBAL_ARGS.funcid = f;
         f = NULL;
     }
 
@@ -165,13 +166,13 @@ int main(int argc, char *argv[])
     int rc;
 
     parse_args(argc, argv);
-    if( strcmp(ARGS.input, DEFAULTS.input) ) {
-        yyin = fopen(ARGS.input, "r");
+    if( strcmp(JDF_COMPILER_GLOBAL_ARGS.input, DEFAULTS.input) ) {
+        yyin = fopen(JDF_COMPILER_GLOBAL_ARGS.input, "r");
         if( yyin == NULL ) {
-            fprintf(stderr, "unable to open input file %s: %s\n", ARGS.input, strerror(errno));
+            fprintf(stderr, "unable to open input file %s: %s\n", JDF_COMPILER_GLOBAL_ARGS.input, strerror(errno));
             exit(1);
         }
-        yyfilename = strdup(ARGS.input);
+        yyfilename = strdup(JDF_COMPILER_GLOBAL_ARGS.input);
     } else {
         yyfilename = strdup("(stdin)");
     }
@@ -182,11 +183,14 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    rc = jdf_sanity_checks( ARGS.wmask );
+    rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
     if(rc < 0)
         return -1;
     
-    if( jdf2c(ARGS.output_c, ARGS.output_h, ARGS.funcid, &current_jdf) < 0 ) {
+    if( jdf2c(JDF_COMPILER_GLOBAL_ARGS.output_c, 
+              JDF_COMPILER_GLOBAL_ARGS.output_h, 
+              JDF_COMPILER_GLOBAL_ARGS.funcid, 
+              &current_jdf) < 0 ) {
         return -1;
     }
 
