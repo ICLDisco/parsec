@@ -1,7 +1,7 @@
 
 
 /*************************************************************
- *                        dgeqrt(k)                        *
+ *                         dgeqrt(k)                         *
  *************************************************************/
 dgeqrt(k)
   k=0..BB-1
@@ -12,15 +12,19 @@ dgeqrt(k)
 /*V1 == A(k,k,1)*/
 
 INOUT R1 <- ( (k==0) ) ? A(0,0) : C2 dssrfb(k-1,k,k) 
-        -> ( k <= BB-2) ? R2 dtsqrt(k,k+1)    [UPPER]
-        -> ( (k==BB-1) ) ? A(BB-1,BB-1)       [UPPER]
-        -> (k<BB-1) ? V1 dlarfb(k,k+1..BB-1)  [LOWER]
-        -> A(k,k)                             [LOWER]
+        -> (k==BB-1) ? A(BB-1,BB-1) : R2 dtsqrt(k,k+1) [UPPER_TILE]
+        -> (k<BB-1) ? V1 dlarfb(k,k+1..BB-1)           [LOWER_TILE]
+        -> A(k,k)                                      [LOWER_TILE]
 
 /*T == T(k,k)*/
 /*T == T(k,k)*/
-OUT T -> (k<BB-1) ? T dlarfb(k,k+1..BB-1)     [LITTLE_T]
-      -> T(k,k)                               [LITTLE_T]
+/** actual:
+ ** OUT T -> (k<BB-1) ? T dlarfb(k,k+1..BB-1)          [LITTLE_T]
+ **       -> T(k,k)                                    [LITTLE_T]
+ **/
+  INOUT T <- T(k,k)                                    [LITTLE_T]
+          -> (k<BB-1) ? T dlarfb(k,k+1..BB-1)          [LITTLE_T]
+          -> T(k,k)                                    [LITTLE_T]
 
 BODY
 END
@@ -33,25 +37,25 @@ dlarfb(k,n)
   k=0..BB-1
   n=k+1..BB-1
 
-/*C1 == A(k,n)*/
-/*C2 == A(m,n)*/
-INOUT C1 <- (k==0) ? A(0,n) : C2 dssrfb(k-1,n,k) 
-         -> C1 dssrfb(k,n,k+1)  
+  /*C1 == A(k,n)*/
+  /*C2 == A(m,n)*/
+  INOUT C1 <- (k==0) ? A(0,n) : C2 dssrfb(k-1,n,k) 
+           -> C1 dssrfb(k,n,k+1)  
 
-/*V1 == A(k,k)*/
-/*R1 == A(k,k)*/
-IN V1 <- R1 dgeqrt(k) [LOWER]
+  /*V1 == A(k,k)*/
+  /*R1 == A(k,k)*/
+  IN V1 <- R1 dgeqrt(k)                        [LOWER_TILE]
 
-/*T == T(k,k)*/
-/*T == T(k,k)*/
-IN T <- T dgeqrt(k)                          [LITTLE_T]
+  /*T == T(k,k)*/
+  /*T == T(k,k)*/
+  IN T <- T dgeqrt(k)                          [LITTLE_T]
 
 BODY
 END
 
 
 /*************************************************************
- *                        dssrfb(k,n,m)                        *
+ *                        dssrfb(k,n,m)                      *
  *************************************************************/
 dssrfb(k,n,m)
   k=0..BB-1
@@ -75,7 +79,7 @@ IN V3 <- V2 dtsqrt(k,m)
 
 /*T == T(m,k)*/
 /*T == T(m,k)*/
-IN T <- T dtsqrt(k,m)                         [LITTLE_T]
+IN T <- T dtsqrt(k,m)                                [LITTLE_T]
 
 /*C1 == A(k,n,0)*/
 INOUT C1 <- (m==k+1)  ? C1 dlarfb(k,n) : C1 dssrfb(k,n,m-1) 
@@ -96,19 +100,19 @@ dtsqrt(k,m)
 /*V2 == A(m,k)*/
 /*V3 == A(m,k)*/
 /*C2 == A(m,n)*/
-INOUT V2 <- ( (k==0) ) ? A(m,0) : C2 dssrfb(k-1,k,m) 
+INOUT V2 <- (k==0) ? A(m,0) : C2 dssrfb(k-1,k,m) 
          -> V3 dssrfb(k,k+1..BB-1,m)  
          -> A(m,k) 
 
 /*R2 == A(k,k)*/
 /*R1 == A(k,k)*/
-INOUT R2 <- ( (m==k+1) ) ? R1 dgeqrt(k) : R2 dtsqrt(k,m-1)   [UPPER]
-         -> ( (m==BB-1) ) ? A(k,k) : R2 dtsqrt(k,m+1)        [UPPER]
+INOUT R2 <- (m==k+1) ? R1 dgeqrt(k) : R2 dtsqrt(k,m-1)   [UPPER_TILE]
+         -> (m==BB-1) ? A(k,k) : R2 dtsqrt(k,m+1)        [UPPER_TILE]
 
 /*T == T(m,k)*/
-/*T == T(m,k)*/
-OUT T -> T dssrfb(k,k+1..BB-1,m)                          [LITTLE_T]
-        -> T(m,k) 
+INOUT T <- T(m,k)                                        [LITTLE_T]
+        -> T dssrfb(k,k+1..BB-1,m)                       [LITTLE_T]
+        -> T(m,k)                                        [LITTLE_T]
 
 BODY
 END

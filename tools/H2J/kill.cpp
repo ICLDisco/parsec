@@ -5,6 +5,7 @@
 list<dep_t> flow_deps, output_deps, merged_deps;
 map<string,task_t> taskMap;
 string omegaHome;
+bool verbose=false;
 
 // Forward Function Declarations
 int parse_petit_output(std::istream &ifs);
@@ -189,6 +190,10 @@ int main(int argc, char **argv){
     }
   
     fName = argv[1];
+
+    if( argc > 2 && !string(argv[2]).compare("-v") ){
+        verbose = true;
+    }
 
     if( !string(fName).compare("-") ){
         parse_petit_output(cin);
@@ -593,6 +598,9 @@ string send_to_omega(string str){
     fstream filestr ("/tmp/oc_in.txt", fstream::out);
     filestr << str << endl;
     filestr.close();
+
+    if( verbose )
+        cout << str << endl;
 
     FILE *pfp = popen( (omegaHome+"/omega_calc/obj/oc /tmp/oc_in.txt").c_str(), "r");
     stringstream data;

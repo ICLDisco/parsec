@@ -90,18 +90,18 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}    {
 [0-9]+           { yylval.number = atol(yytext);
                    return DPLASMA_INT; }
 
-INOUT          { yylval.operand = (char)SYM_INOUT;
+^{WHITE}*INOUT { yylval.operand = (char)SYM_INOUT;
                  return DPLASMA_DEPENDENCY_TYPE; }
-IN             { yylval.operand = (char)SYM_IN;
+^{WHITE}*IN    { yylval.operand = (char)SYM_IN;
                  return DPLASMA_DEPENDENCY_TYPE; }
-OUT            { yylval.operand = (char)SYM_OUT;
+^{WHITE}*OUT   { yylval.operand = (char)SYM_OUT;
                  return DPLASMA_DEPENDENCY_TYPE; }
 "->"           { yylval.operand = '>';
                  return DPLASMA_ARROW; }
 "<-"           { yylval.operand = '<';
                  return DPLASMA_ARROW; }
-min           { yylval.operand = 'm'; return DPLASMA_OP; }
-max           { yylval.operand = 'M'; return DPLASMA_OP; }
+min            { yylval.operand = 'm'; return DPLASMA_OP; }
+max            { yylval.operand = 'M'; return DPLASMA_OP; }
 [a-zA-Z_]+[a-zA-Z0-9_]* { yylval.string = strdup(yytext);
                           return DPLASMA_VAR; }
 "("            { return DPLASMA_OPEN_PAR; }
