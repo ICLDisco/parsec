@@ -22,6 +22,7 @@ typedef struct symbol symbol_t;
 struct symbol {
     uint32_t flags;
     const char*   name;
+    const char*   type;
     const expr_t* min;
     const expr_t* max;
 };
