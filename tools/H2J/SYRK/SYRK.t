@@ -1,7 +1,7 @@
 ! 0 upper
 ! 1 lower
 
-integer BB, k, i, j
+integer BB, k, m, n
 real A(BB,BB), B(BB,BB)
 real v0, v1, v2, v3, v4, v5, v6
 real v100, v101, v200, v201
@@ -15,23 +15,23 @@ for ii=0 to BB-1 do
     endfor
 endfor
 
-for  i = 0 to BB-1 do
-    for  j = 0 to i-1 do
-        for  k = 0 to BB-1 do
+for m = 0 to BB-1 do
+    for n = 0 to m-1 do
+        for k = 0 to BB-1 do
 !                        INOUT      IN         IN
-!!          task_GEMM( B:B(i,j), A1:A(i,k), A2:A(j,k) )
-            v0 = B(i,j)
-            v1 = A(i,k)
-            v2 = A(j,k)
-            B(i,j) = v3
+!!          task_GEMM( B:B(m,n), A1:A(m,k), A2:A(m,k) )
+            v0 = B(m,n)
+            v1 = A(m,k)
+            v2 = A(n,k)
+            B(m,n) = v3
         endfor
     endfor
-    for  k = 0 to BB-1 do
+    for k = 0 to BB-1 do
 !                    INOUT     IN
-!!      task_SYRK( B:B(i,i), A:A(i,k) )
-        v4 = A(i,k)
-        v5 = B(i,i)
-        B(i,i) = v6
+!!      task_SYRK( B:B(m,m), A:A(m,k) )
+        v4 = A(m,k)
+        v5 = B(m,m)
+        B(m,m) = v6
     endfor
 endfor
 
