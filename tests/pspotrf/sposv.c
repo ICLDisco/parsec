@@ -173,7 +173,7 @@ int main(int argc, char ** argv)
                                    PLASMA_enum, uplo,
                                    PLASMA_desc, descA);
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
-                        gflops = (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
+                        gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
         }
         case DO_DPLASMA: {
@@ -205,7 +205,8 @@ int main(int argc, char ** argv)
             TIME_START();
             dplasma_progress(dplasma);
             TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, gflops = (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(sync_time_elapsed)));
+            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB,
+                             gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
 
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
