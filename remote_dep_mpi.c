@@ -316,25 +316,21 @@ static int remote_dep_nothread_send(int rank, dplasma_remote_deps_t* deps)
 
 static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
 {
-    int ret;
-    int actions;
     dplasma_execution_context_t exec_context;
     
     exec_context.function = (dplasma_t*) (uintptr_t) origin->msg.function;
     for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
-    
-    actions = (DPLASMA_ACTION_GETTYPE_REMOTE_DEPS | DPLASMA_ACTION_DEPS_MASK);
-    
-    ret = exec_context.function->release_deps(NULL, &exec_context, actions, origin, NULL);
-    return ret;
+
+    return exec_context.function->release_deps(NULL, &exec_context,
+                                               DPLASMA_ACTION_GETTYPE_REMOTE_DEPS | DPLASMA_ACTION_DEPS_MASK,
+                                               origin);
 }
 
 static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* origin)
 {
     int ret;
     dplasma_execution_context_t exec_context;
-    gc_data_t* data[MAX_PARAM_COUNT];
     
     exec_context.function = (dplasma_t*) (uintptr_t) origin->msg.function;
     for(int i = 0; i < exec_context.function->nb_locals; i++)
@@ -344,14 +340,14 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
         if(origin->msg.deps & (1 << i))
         {
             assert(origin->msg.which & (1 << i));
-            data[i] = origin->output[i].data;
+            exec_context.pointers[2*i]   = NULL;
+            exec_context.pointers[2*i+1] = origin->output[i].data;
         }
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               DPLASMA_ACTION_NO_PLACEHOLDER | 
-                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | 
-                                              origin->msg.deps, 
-                                              NULL, data);
+                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | origin->msg.deps,
+                                              NULL);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
     return ret;

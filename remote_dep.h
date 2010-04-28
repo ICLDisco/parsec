@@ -32,6 +32,7 @@ typedef void dplasma_remote_dep_datatype_t;
 #define DPLASMA_ACTION_RELEASE_LOCAL_DEPS  0x0800
 #define DPLASMA_ACTION_GETTYPE_REMOTE_DEPS 0x1000
 #define DPLASMA_ACTION_NO_PLACEHOLDER      0x2000
+#define DPLASMA_ACTION_RELEASE_LOCAL_REFS  0x4000
 #define DPLASMA_ACTION_DEPS_MASK           0x00FF
 
 typedef unsigned long remote_dep_datakey_t;

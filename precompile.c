@@ -618,9 +618,9 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
             (symbol->max != NULL) &&
             ((symbol->min->flags & symbol->max->flags) & EXPR_FLAG_CONSTANT) &&
             (symbol->min->value == symbol->max->value) ) {
-            output("static int %s = %d;\n", symbol->name, symbol->min->value);
+            output("static %s %s = %d;\n", (NULL == symbol->type ? "int" : symbol->type), symbol->name, symbol->min->value);
         } else {
-            output("static int %s;\n", symbol->name);
+            output("static %s %s;\n", (NULL == symbol->type ? "int" : symbol->type), symbol->name);
         }
         snprintf(init_func_body + strlen(init_func_body),
                  init_func_body_size - strlen(init_func_body),
@@ -774,7 +774,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                            char *init_func_body,
                                            int init_func_body_size)
 {
-    int i, j, cpt, output_deps;
+    int i, j, k, cpt, pointers_cpt, output_deps;
     char strexpr1[MAX_EXPR_LEN];
     char strexpr2[MAX_EXPR_LEN];
     char local_prepend[MAX_EXPR_LEN], target_prepend[MAX_EXPR_LEN];
@@ -783,8 +783,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     output("\nstatic int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
            "                                   const dplasma_execution_context_t *exec_context,\n"
            "                                   int action_mask,\n"
-           "                                   struct dplasma_remote_deps_t* upstream_remote_deps,\n"
-           "                                   gc_data_t **data)\n"
+           "                                   struct dplasma_remote_deps_t* upstream_remote_deps)\n"
            "{\n"
            "  int ret = 0, remote_deps_count = 0;\n"
            "  data_repo_entry_t *e%s = NULL;\n", 
@@ -823,7 +822,6 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                 if( (NULL != p->dep_out[j]) && (p->dep_out[j]->dplasma->nb_locals > 0) ) {
                     struct dep *dep = p->dep_out[j];
                     dplasma_t* target = dep->dplasma;
-                    int k;
 
                     output("%*s  /**\n"
                            "%*s   * Release %s OUTPUT dependencies for %s(",
@@ -936,7 +934,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                spaces, " ", ( (DPLASMA_HIGH_PRIORITY_TASK & target->flags) ? 1 : -1), target->name);
                     }
 
-                    output( "%*s    e%s->data[%d] = (NULL != data) ? data[%d] : NULL;\n", spaces, "", d->name, cpt, cpt);
+                    output( "%*s    e%s->data[%d] = (gc_data_t*)exec_context->pointers[%d];\n", spaces, "", d->name, cpt, 2*cpt+1);
                     output( "%*s    usage++;\n"
                             "%*s    gc_data_ref( e%s->data[%d] /* %s of %s is used by %s */ );\n",
                             spaces, "",
@@ -986,7 +984,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s      _array_mask = 1 << (_rank %% (8 * sizeof(uint32_t)));\n"                           /* line  8 */
                                     "%*s      DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line  9 */
                                     "%*s      if( !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) ) {\n"          /* line 10 */
-                                    "%*s        remote_deps->output[%d].data = data[%d];\n"                                      /* line 11 */
+                                    "%*s        remote_deps->output[%d].data = (gc_data_t*)exec_context->pointers[%d];\n"        /* line 11 */
                                     "%*s        remote_deps->output[%d].rank_bits[_array_pos] |= _array_mask;\n"                 /* line 12 */
                                     "%*s        remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 13 */
                                     "%*s      }\n"                                                                               /* line 14 */
@@ -1001,7 +999,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     /* line  8 */ spaces, "",
                                     /* line  9 */ spaces, "", output_deps,
                                     /* line 10 */ spaces, "", cpt,
-                                    /* line 11 */ spaces, "", cpt, cpt,
+                                    /* line 11 */ spaces, "", cpt, 2 * cpt + 1,
                                     /* line 12 */ spaces, "", cpt,
                                     /* line 13 */ spaces, "", cpt,
                                     /* line 14 */ spaces, "",
@@ -1046,10 +1044,39 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "                                       remote_deps,\n"                                       /* line  8 */
            "                                       remote_deps_count);\n"                                /* line  9 */
            "  }\n"                                                                                       /* line 10 */
-           "#endif  /* defined(DISTRIBUTED) */\n"                                                        /* line 11 */
-           "  return ret;\n"                                                                             /* line 12 */
-           "}\n\n",                                                                                      /* line 13 */
+           "#endif  /* defined(DISTRIBUTED) */\n\n",                                                     /* line 11 */
            /* line  1 */ d->name, d->name);
+
+    output("  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_REFS) {\n");
+    for(i = pointers_cpt = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+        if( d->inout[i]->sym_type & SYM_IN ) {
+            for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
+                if( d->inout[i]->dep_in[k] != NULL ) {
+                    if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                        if( NULL != d->inout[i]->dep_in[k]->cond ) {
+                            output("    if(%s) {\n"
+                                   "      data_repo_entry_used_once( %s_repo, ((data_repo_entry_t*)(exec_context->pointers[%d]))->key /* e%s */ );\n",
+                                   expression_to_c_inline(d->inout[i]->dep_in[k]->cond, local_prepend, strexpr1, MAX_EXPR_LEN),
+                                   d->inout[i]->dep_in[k]->dplasma->name, 2 * pointers_cpt, d->inout[i]->name);
+                            output("      (void)gc_data_unref((gc_data_t*)(exec_context->pointers[%d]) /* g%s */);\n",
+                                   2 * pointers_cpt + 1, d->inout[i]->name);
+                            output("    }\n");
+                        } else {
+                            output("    data_repo_entry_used_once( %s_repo, ((data_repo_entry_t*)(exec_context->pointers[%d]))->key /* e%s */ );\n",
+                                   d->inout[i]->dep_in[k]->dplasma->name,
+                                   2 * pointers_cpt, d->inout[i]->name);
+                            output("    (void)gc_data_unref((gc_data_t*)(exec_context->pointers[%d]) /* g%s */);\n",
+                                   2 * pointers_cpt + 1,d->inout[i]->name);
+                        }
+                    }
+                }
+            }
+            pointers_cpt++;
+        }
+    }
+    output("  }\n"
+           "  return ret;\n"
+           "}\n\n");
 }
 
 #if defined(DPLASMA_CACHE_AWARENESS)
@@ -1160,8 +1187,6 @@ static char *dplasma_dump_c(const dplasma_t *d,
     int p = 0;
     char strexpr1[MAX_EXPR_LEN];
 
-    (void)pointers_cpt;
-
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    {\n");
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .name   = \"%s\",\n", d->name);
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .flags  = 0x%02x,\n", d->flags);
@@ -1222,7 +1247,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         dplasma_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
 #endif  /* defined(DPLASMA_CACHE_AWARENESS */
 
-        output( "static int %s_hook(dplasma_execution_unit_t* context,"
+        output( "static int %s_hook(dplasma_execution_unit_t* context,\n"
                 "                   dplasma_execution_context_t *exec_context)\n"
                 "{\n"
 				"  (void)context;\n",
@@ -1237,9 +1262,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
         output("  /* remove warnings in case the variable is not used later */\n");
         dplasma_dump_locals_from_context(d, "", DUMP_VOID_LINE, 0);
 
-#if defined(DPLASMA_CACHE_AWARENESS)
         pointers_cpt = 0;
-#endif  /* defined(DPLASMA_CACHE_AWARENESS */
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_IN ) {
                 for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
@@ -1249,15 +1272,11 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             output("    if(%s) {\n", expression_to_c_inline(d->inout[i]->dep_in[k]->cond, "", strexpr1, MAX_EXPR_LEN));
                         }
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
-                            output("      e%s = %s;\n",
+                            output("    e%s = %s;\n",
                                    d->inout[i]->name,
                                    dep_to_data_repo_lookup_entry(d->inout[i]->dep_in[k], ""));
                         }
-#if defined(DPLASMA_CACHE_AWARENESS)
-                        output("      exec_context->pointers[%d] = e%s;\n", 2 * pointers_cpt, d->inout[i]->name);
-#endif  /* defined(DPLASMA_CACHE_AWARENESS */
-                        output("      g%s = ", d->inout[i]->name);
-
+                        output("    g%s = ", d->inout[i]->name);
                         if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
                             cpt = 0;
                             for(j = 0; j < MAX_PARAM_COUNT; j++) {
@@ -1275,11 +1294,10 @@ static char *dplasma_dump_c(const dplasma_t *d,
                         }
                     }
                 }
-                output("    %s = GC_DATA(g%s);\n", d->inout[i]->name, d->inout[i]->name);
-#if defined(DPLASMA_CACHE_AWARENESS)
-                output("    exec_context->pointers[%d] = %s;\n", 2*pointers_cpt + 1, d->inout[i]->name);
+                output("  %s = GC_DATA(g%s);\n", d->inout[i]->name, d->inout[i]->name);
+                output("  exec_context->pointers[%d] = e%s;\n", 2 * pointers_cpt, d->inout[i]->name);
+                output("  exec_context->pointers[%d] = %s;\n", 2*pointers_cpt + 1, d->inout[i]->name);
                 pointers_cpt++;
-#endif  /* defined(DPLASMA_CACHE_AWARENESS */
             } else {
                 output("    (void)%s;\n", d->inout[i]->name);
             }            
@@ -1395,51 +1413,13 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 cpt++;
             }
         }
-        output("  {\n"
-               "    gc_data_t *data[%d];\n",
-               cpt);
-        cpt=0;
-        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-            if( d->inout[i]->sym_type & SYM_OUT ) {
-                output("    data[%d] = g%s;\n", cpt++, d->inout[i]->name);
-            }
-        }
-        output("    %s_release_dependencies(context, exec_context, \n"
-               "          DPLASMA_ACTION_RELEASE_REMOTE_DEPS |\n"
-               "          DPLASMA_ACTION_RELEASE_LOCAL_DEPS |\n"
-               "          DPLASMA_ACTION_DEPS_MASK,\n"
-               "        NULL, data);\n"
-               "  }\n",
+        output("  %s_release_dependencies(context, exec_context, \n"
+               "          DPLASMA_ACTION_RELEASE_REMOTE_DEPS | DPLASMA_ACTION_RELEASE_LOCAL_DEPS |\n"
+               "          DPLASMA_ACTION_DEPS_MASK | DPLASMA_ACTION_RELEASE_LOCAL_REFS,\n"
+               "          NULL);\n"
+               "  return 0;\n"
+               "}\n\n",
                d->name);
-     
-        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-            if( d->inout[i]->sym_type & SYM_IN ) {
-                for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
-                    if( d->inout[i]->dep_in[k] != NULL ) {
-                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
-                            if( NULL != d->inout[i]->dep_in[k]->cond ) {
-                                output("  if(%s) {\n"
-                                       "    data_repo_entry_used_once( %s_repo, e%s->key );\n",
-                                       expression_to_c_inline(d->inout[i]->dep_in[k]->cond, "", strexpr1, MAX_EXPR_LEN),
-                                       d->inout[i]->dep_in[k]->dplasma->name,
-                                       d->inout[i]->name);
-                                output("    (void)gc_data_unref(g%s);\n", d->inout[i]->name);
-                                output("  }\n");
-                            } else {
-                                output("  data_repo_entry_used_once( %s_repo, e%s->key );\n",
-                                       d->inout[i]->dep_in[k]->dplasma->name,
-                                       d->inout[i]->name);
-                                output("  (void)gc_data_unref(g%s);\n", d->inout[i]->name);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        output( "  return 0;\n"
-                "}\n"
-                "\n");
     }
 
     return dp_txt;
