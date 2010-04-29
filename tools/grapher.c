@@ -56,8 +56,7 @@ static int generic_hook( dplasma_execution_unit_t* eu_context,
 static int generic_release_dependencies(dplasma_execution_unit_t *eu_context,
                                         const dplasma_execution_context_t *exec_context,
                                         int action_mask,
-                                        struct dplasma_remote_deps_t* upstream_remote_deps,
-                                        gc_data_t **data)
+                                        struct dplasma_remote_deps_t* upstream_remote_deps)
 {
     char tmp[128];
     dplasma_service_to_string(exec_context, tmp, 128);
@@ -200,10 +199,13 @@ int main(int argc, char *argv[])
     /* Setup generic hook for all services */
     {
         dplasma_t* object;
-        int i;
+        int i, j;
         for( i = 0; NULL != (object = (dplasma_t*)dplasma_element_at(i)); i++ ) {
             object->hook = generic_hook;
             object->release_deps = generic_release_dependencies;
+            for( j = 0; j < MAX_PRED_COUNT; j++ ) {
+                object->preds[j] = NULL;
+            }
             total_nb_tasks += dplasma_compute_nb_tasks( object, 1 );
         }
         // dplasma_register_nb_tasks is waiting an unsigned int.
