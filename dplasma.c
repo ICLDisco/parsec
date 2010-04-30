@@ -14,6 +14,9 @@
 #include <assert.h>
 #include <pthread.h>
 #include <errno.h>
+#if defined(HAVE_GETOPT_H)
+#include <getopt.h>
+#endif  /* defined(HAVE_GETOPT_H) */
 #include "scheduling.h"
 #include "dequeue.h"
 #include "barrier.h"
@@ -209,6 +212,7 @@ typedef struct __dplasma_temporary_thread_initialization_t {
     dplasma_context_t* master_context;
     int th_id;
     int nb_cores;
+    int bindto;
 } __dplasma_temporary_thread_initialization_t;
 
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
@@ -235,16 +239,9 @@ static void push_in_queue_wrapper(void *store, dplasma_list_item_t *elt)
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
-    int bind_to_proc = startup->th_id;
 
-
-#if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
-#if defined(ON_ZOOT)
-    bind_to_proc = distance[startup->th_id];
-#endif
-#endif  /* !defined(DPLASMA_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
-
-    dplasma_bindthread(bind_to_proc);
+    /* Bind to the specified CORE */
+    dplasma_bindthread(startup->bindto);
 
     eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
     if( NULL == eu ) {
@@ -413,13 +410,39 @@ extern int num_events;
 extern char* event_names[];
 #endif
 
+static void dplasma_print_usage(void)
+{
+    fprintf(stderr,
+            "Optional arguments:\n"
+            "   -d --dot <file>        : dump the dot formated trace of the execution in the <file>\n"
+            "   -p --papi              : use PLASMA backend\n"
+            "   -b --bind <start:skip> : define a binding pattern\n");
+}
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int tile_size )
 {
+    int argc = (*pargc), i;
+    char** argv = NULL;
+
+#if defined(HAVE_GETOPT_LONG)
+    struct option long_options[] =
+    {
+        {"dot",         required_argument,  NULL, 'd'},
+        {"papi",        required_argument,  NULL, 'p'},
+        {"bind",        required_argument,  NULL, 'b'},
+        {0, 0, 0, 0}
+    };
+#endif  /* defined(HAVE_GETOPT_LONG) */
     dplasma_context_t* context = (dplasma_context_t*)malloc(sizeof(dplasma_context_t) +
                                                             nb_cores * sizeof(dplasma_execution_unit_t*));
     __dplasma_temporary_thread_initialization_t* startup = 
         (__dplasma_temporary_thread_initialization_t*)malloc(nb_cores * sizeof(__dplasma_temporary_thread_initialization_t));
-    int i;
+    /* Prepare the temporary storage for each thread startup */
+    for( i = 0; i < nb_cores; i++ ) {
+        startup[i].th_id = i;
+        startup[i].master_context = context;
+        startup[i].nb_cores = nb_cores;
+        startup[i].bindto = i;
+    }
 
     DPLASMA_TILE_SIZE = tile_size;
 
@@ -442,45 +465,132 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
     num_events = 0;
 #endif
     
-    for( i = 0; i < *pargc; i++ ) {
-        if( 0 == strcmp( (*pargv)[i], "-dot" ) ) {
+    {
+        int index = 0;
+        /* Check for the upper level arguments */
+        while(1) {
+            if( NULL == (*pargv)[index] )
+                break;
+            if( 0 == strcmp( "--", (*pargv)[index]) ) {
+                argv = &(*pargv)[index];
+                break;
+            }
+            index++;
+        }
+        argc = (*pargc) - index;
+    }
+
+    optind = 1;
+    do {
+        int ret;
+#if defined(HAVE_GETOPT_LONG)
+        int option_index = 0;
+        
+        ret = getopt_long (argc, argv, "d:p:b:",
+                           long_options, &option_index);
+#else
+        ret = getopt (argc, argv, "d:p:b:");
+#endif  /* defined(HAVE_GETOPT_LONG) */
+        if( -1 == ret ) break;  /* we're done */
+
+        switch(ret) {
+        case 'd':
             if( NULL == __dplasma_graph_file ) {
-                int len = strlen((*pargv)[i+1]) + 32;
+                int len = strlen(optarg) + 32;
                 char filename[len];
 #if defined(DISTRIBUTED) && defined(USE_MPI)
                 int rank;
                 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-                snprintf(filename, len, "%s%d", (*pargv)[i+1], rank);
+                snprintf(filename, len, "%s%d", optarg, rank);
 #else
-                snprintf(filename, len, "%s", (*pargv)[i+1]);
+                snprintf(filename, len, "%s", optarg);
 #endif
                 __dplasma_graph_file = fopen( filename, "w");
-                i++;
-            }      
-        }
-        else if( 0 == strcmp( (*pargv)[i], "-papi" ) ) {
-#ifdef USE_PAPI
-            char* dup;
-            char* ptr;
-            ptr = dup = strdup((*pargv)[i+1]);
-            while(NULL != (ptr = strrchr(dup, ',')))
-            {
-                if(num_events >= 2)
-                {
-                    fprintf(stderr, "-papi accepts only up to 3 events\n");
-                    break;
-                }
-                *ptr = '\0';
-                events_names[num_events] = strdup(ptr + 1);
-                num_events++;
             }
-            free(dup);
+            break;
+        case 'p':
+#ifdef USE_PAPI
+            {
+                char* dup;
+                char* ptr;
+                ptr = dup = strdup(optarg);
+                while(NULL != (ptr = strrchr(dup, ','))) {
+                    if(num_events >= 2) {
+                        fprintf(stderr, "-papi accepts only up to 3 events\n");
+                        break;
+                    }
+                    *ptr = '\0';
+                    events_names[num_events] = strdup(ptr + 1);
+                    num_events++;
+                }
+                free(dup);
+            }
 #else 
             fprintf(stderr, "-papi is pointless for this PAPI disabled build\n");
 #endif
+            break;
+         case 'b':
+             {
+                 char* option = strdup(optarg);
+                 char* position;
+                 if( NULL != (position = strchr(option, ':')) ) {
+                     /* range expression such as [start]:[end]:[step] */
+                     int start = 0, end, step = 1;
+                     if( position != option ) {  /* we have a starting position */
+                         start = strtol(option, NULL, 10);
+                     }
+                     end = start + nb_cores;  /* automatically compute the end */
+                     position++;  /* skip the : */
+                     if( '\0' != position[0] ) {
+                         if( ':' != position[0] ) {
+                             end = strtol(position, &position, 10);
+                             position = strchr(position, ':');  /* find the step */
+                         }
+                         if( NULL != position ) position++;  /* skip the : directly into the step */
+                         if( (NULL != position) && ('\0' != position[0]) ) {
+                             step = strtol(position, NULL, 10);
+                         }
+                     }
+                     DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
+                     {
+                         int where = start, skip = 1;
+                         for( i = 0; i < nb_cores; i++ ) {
+                             startup[i].bindto = where;
+                             where += step;
+                             if( where >= end ) {
+                                 where = start + skip;
+                                 skip++;
+                                 if( (skip > step) && (i < (nb_cores - 1))) {
+                                     printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
+                                     break;
+                                 }
+                             }
+                         }
+                     }
+                 } else {
+                     i = 0;
+                     /* array of cores c1,c2,... */
+                     position = option;
+                     while( NULL != position ) {
+                         /* We have more information than the number of cores. Ignore it! */
+                         if( i == nb_cores ) break;
+                         startup[i].bindto = strtol(position, &position, 10);
+                         i++;
+                         if( (',' != position[0]) || ('\0' == position[0]) ) {
+                             break;
+                         }
+                         position++;
+                     }
+                     if( i < nb_cores ) {
+                         printf( "Based on the information provided to --bind some threads are not binded\n" );
+                     }
+                 }
+                 free(option);
+             }
+             break;
         }
-    }
-    
+    } while(1);
+
     /* Initialize the barriers */
     dplasma_barrier_init( &(context->barrier), NULL, nb_cores );
 
@@ -504,13 +614,6 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_construct(&ready_list);
 #endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
-
-    /* Prepare the LIFO task queue for each execution unit */
-    for( i = 0; i < nb_cores; i++ ) {
-        startup[i].th_id = i;
-        startup[i].master_context = context;
-        startup[i].nb_cores = nb_cores;
-    }
 
     if( nb_cores > 1 ) {
         pthread_attr_t thread_attr;

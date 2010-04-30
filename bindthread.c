@@ -33,7 +33,7 @@ int dplasma_bindthread(int cpu)
     marcel_apply_vpset(&vpset); 
   }
 
-#elif defined(DPLASMA_BIND_HWLOC)
+#elif defined(HAVE_HWLOC)
  {
    hwloc_topology_t topology; /* Topology object */
    hwloc_obj_t      obj;      /* Hwloc object    */ 
@@ -56,7 +56,6 @@ int dplasma_bindthread(int cpu)
    /* Get only one logical processor (in case the core is SMT/hyperthreaded).  */
    hwloc_cpuset_singlify(cpuset);
     
-   printf("Try to bind sur le cpu %d\n", cpu);
    /* And try to bind ourself there.  */
    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
      char *str = NULL;
@@ -105,7 +104,7 @@ int dplasma_bindthread(int cpu)
  {
    thread_affinity_policy_data_t ap;
    int                           ret;
-   
+
    ap.affinity_tag = 1; /* non-null affinity tag */
    ret = thread_policy_set(
 			   mach_thread_self(),

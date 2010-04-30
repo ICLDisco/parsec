@@ -46,6 +46,7 @@ colRANK
 rowRANK
 rtileSIZE
 ctileSIZE
+PRI_CHANGE
 
 /**************************************************
  *                      POTRF                     *
@@ -64,7 +65,7 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
         -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
+; (k >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
     CORE(
@@ -104,7 +105,7 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> B GEMM(k, n, k+1..n-1)
         -> A(n, k)
 
-; 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2
+; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2 : 1000000000
 
 BODY
     if( uplo == PlasmaLower ) {
@@ -164,7 +165,7 @@ IN    A <- C TRSM(k, n)
 INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
         -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
 
-; 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1
+; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1 : 1000000000
 
 BODY
     if( uplo == PlasmaLower ) {
@@ -225,7 +226,7 @@ IN    B <- C TRSM(k, m)
 INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
-; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 3
+; (m >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 1 : 1000000000
 
 BODY
     if( uplo == PlasmaLower ) {

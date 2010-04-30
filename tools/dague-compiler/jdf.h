@@ -27,9 +27,19 @@ void jdf_fatal(int lineno, const char *format, ...);
  *            error was encountered
  */
 typedef uint64_t jdf_warning_mask_t;
-#define JDF_WARN_MASKED_GLOBALS        ((jdf_warning_mask_t)(1 <<  0))
-#define JDF_ALL_WARNINGS               ((jdf_warning_mask_t)(0xffffffffffffffff))
+#define JDF_WARN_MASKED_GLOBALS          ((jdf_warning_mask_t)(1 <<  0))
+#define JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS ((jdf_warning_mask_t)(1 <<  0))
+#define JDF_ALL_WARNINGS                 ((jdf_warning_mask_t)(0xffffffffffffffff))
 int jdf_sanity_checks( jdf_warning_mask_t mask );
+
+typedef struct jdf_compiler_global_args {
+    char *input;
+    char *output_c;
+    char *output_h;
+    char *funcid;
+    jdf_warning_mask_t wmask;   
+} jdf_compiler_global_args_t;
+extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 
 /**
  * Toplevel structure: three linked lists: preambles, globals and functions 
@@ -185,6 +195,15 @@ typedef enum { JDF_EQUAL,
                JDF_VAR,
                JDF_CST
 } jdf_expr_operand_t;
+
+#define JDF_OP_IS_UNARY(op)    ( (op) == JDF_NOT )
+#define JDF_OP_IS_TERNARY(op)  ( (op) == JDF_TERNARY )
+#define JDF_OP_IS_CST(op)      ( (op) == JDF_CST )
+#define JDF_OP_IS_VAR(op)      ( (op) == JDF_VAR )
+#define JDF_OP_IS_BINARY(op)   ( !( JDF_OP_IS_UNARY(op) ||              \
+                                    JDF_OP_IS_TERNARY(op) ||            \
+                                    JDF_OP_IS_CST(op) ||                \
+                                    JDF_OP_IS_VAR(op)) )
 
 typedef struct jdf_expr {
     jdf_expr_operand_t op;

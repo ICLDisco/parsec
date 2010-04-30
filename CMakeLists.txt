@@ -13,7 +13,7 @@ option(DPLASMA_DEBUG_HISTORY
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
 option(DPLASMA_SCHED_HWLOC
-  "Enable cache awareness in the scheduling" OFF)
+  "Enable hardware awareness in the scheduling" OFF)
 option(DPLASMA_PAPI
   "Enable PAPI performance hardware counters" OFF)
 option(DPLASMA_PROFILING

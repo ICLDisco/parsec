@@ -26,7 +26,6 @@
 #cmakedefine ARCH_X86_64
 #cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
-#cmakedefine DPLASMA_BIND_HWLOC
 #cmakedefine DPLASMA_SCHED_HWLOC
 #cmakedefine DPLASMA_PROFILING
 #cmakedefine DPLASMA_STATS
