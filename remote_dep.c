@@ -187,7 +187,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    DEBUG((" TOPO: %d (d%d) -> %d (d%d)  root=%d\n", eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
+                    DEBUG((" TOPO: %d (d%d) -> %d (dna)  root=%d\n", eu_context->master_context->my_rank, me, rank, remote_deps->root));
                     
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
@@ -195,7 +195,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     if((me == -1) && (rank > eu_context->master_context->my_rank))
                     {
                         /* the next bit points after me, so I know my dense rank now */
-                        me = him++;
+                        me = ++him;
                     }
                     him++;
                     
