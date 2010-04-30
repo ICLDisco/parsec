@@ -137,8 +137,8 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
         pure = pure >> 1;
     } while(0 == ret);
 
-    if(pure) ret = 0;
-    return ret;
+    if(pure) return 0;
+    return 1;
 }
 
 #define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)

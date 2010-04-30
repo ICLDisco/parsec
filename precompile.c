@@ -805,7 +805,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "  }\n", d->name, dplasma_to_data_repo_lookup_entry(d, local_prepend));
 
     output("#ifdef DISTRIBUTED\n"
-           "  if(action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) {\n");
+           "  if(action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS) {\n");
 
     {
         expr_t *rowpred; 
