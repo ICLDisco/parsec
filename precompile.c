@@ -1008,7 +1008,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s    _array_pos = _rank / (8 * sizeof(uint32_t));\n"                                    /* line  7 */
                                     "%*s    _array_mask = 1 << (_rank %% (8 * sizeof(uint32_t)));\n"                           /* line  8 */
                                     "%*s    DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line  9 */
-                                    "%*s      remote_deps->root = root;\n"
+                                    "%*s    remote_deps->root = root;\n"
                                     "%*s    if( !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) ) {\n"          /* line 10 */
                                     "%*s      remote_deps->output[%d].data = (gc_data_t*)exec_context->pointers[%d];\n"        /* line 11 */
                                     "%*s      remote_deps->output[%d].rank_bits[_array_pos] |= _array_mask;\n"                 /* line 12 */
