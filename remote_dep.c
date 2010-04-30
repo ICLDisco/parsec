@@ -187,6 +187,8 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
+                    DEBUG((" TOPO: %d (d%d) -> %d (d%d)  root=%d\n", eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
+                    
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
 
@@ -197,10 +199,9 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     }
                     him++;
                     
+                    DEBUG((" TOPO: %d (d%d) -> %d (d%d)  root=%d\n", eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
                     if(remote_dep_bcast_child(me, him))
                     {
-                        DEBUG((" TOPO: %d (d%d) -> %d (d%d)\n", eu_context->master_context->my_rank, me, rank, him));
-                        
                         gc_data_ref(remote_deps->output[i].data);
                         if(remote_dep_is_forwarded(eu_context, rank))
                         {
