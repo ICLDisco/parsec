@@ -62,6 +62,7 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int dposv_force_nb = 0;
+int pri_change = 0;
 
 static inline double get_cur_time(){
     double t;
@@ -212,6 +213,7 @@ int main(int argc, char ** argv)
             SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, 
                              gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
 
+            TIME_PRINT(("Dplasma priority change at position \t%d\n", ddescA.nt - pri_change));
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
@@ -233,18 +235,19 @@ static void print_usage(void)
             "Mandatory argument:\n"
             "   number           : the size of the matrix\n"
             "Optional arguments:\n"
-            "   -c --nb-cores    : number of computing threads to use\n"
-            "   -d --dplasma     : use DPLASMA backend (default)\n"
-            "   -p --plasma      : use PLASMA backend\n"
-            "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-            "   -s --stile-row   : number of tile per row in a super tile (default: 1)\n"
-            "   -e --stile-col   : number of tile per col in a super tile (default: 1)\n"
             "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
+            "   -c --nb-cores    : number of computing threads to use\n"
+            "   -d --dplasma     : use DPLASMA backend (default)\n"
+            "   -e --stile-col   : number of tile per col in a super tile (default: 1)\n"
+            "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
+            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
+            "   -p --plasma      : use PLASMA backend\n"
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
+            "   -s --stile-row   : number of tile per row in a super tile (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
-            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
+            "   -P --pri_change  : the position on the diagonal from the end where we switch the priority (default: 0)\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
@@ -267,6 +270,7 @@ static void runtime_init(int argc, char **argv)
         {"plasma",      no_argument,        0, 'p'},
         {"dist-matrix", no_argument,        0, 'm'},
         {"block-size",  required_argument,  0, 'B'},
+        {"pri_change",  required_argument,  0, 'P'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -292,10 +296,10 @@ static void runtime_init(int argc, char **argv)
 #if defined(HAVE_GETOPT_LONG)
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:h",
+        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:P:h",
                          long_options, &option_index);
 #else
-        c = getopt (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:h");
+        c = getopt (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:P:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -403,12 +407,15 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
 
-            case 'h':
-                print_usage();
-                exit(0);
-            case '?': /* getopt_long already printed an error message. */
-            default:
-                break; /* Assume anything else is dplasma/mpi stuff */
+        case 'P':
+                pri_change = atoi(optarg);
+                break;
+        case 'h':
+            print_usage();
+            exit(0);
+        case '?': /* getopt_long already printed an error message. */
+        default:
+            break; /* Assume anything else is dplasma/mpi stuff */
         }
     } while(1);
     
@@ -508,6 +515,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rtileSIZE", constant );
         constant = expr_new_int( ddescA.ncst );
         dplasma_assign_global_symbol( "ctileSIZE", constant );
+        constant = expr_new_int( pri_change );
+        dplasma_assign_global_symbol( "PRI_CHANGE", constant );
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
