@@ -56,7 +56,6 @@ int dplasma_bindthread(int cpu)
    /* Get only one logical processor (in case the core is SMT/hyperthreaded).  */
    hwloc_cpuset_singlify(cpuset);
     
-   printf("Try to bind sur le cpu %d\n", cpu);
    /* And try to bind ourself there.  */
    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
      char *str = NULL;
