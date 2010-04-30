@@ -787,7 +787,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "                                   struct dplasma_remote_deps_t* upstream_remote_deps,\n"
            "                                   gc_data_t **data)\n"
            "{\n"
-           "  int ret = 0, remote_deps_count = 0;\n"
+           "  int ret = 0, remote_deps_count = 0, root = 0;\n"
            "  data_repo_entry_t *e%s = NULL;\n", 
            d->name, d->name);
 
@@ -806,6 +806,34 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "    e%s = %s;\n"
            "  }\n\n", d->name, dplasma_to_data_repo_lookup_entry(d, local_prepend));
 
+    output("#ifdef DISTRIBUTED\n"
+           "  if(action_mask & DPLASMA_ACTION_RELEASE_REMOTE_DEPS) {\n");
+
+    {
+        expr_t *rowpred; 
+        expr_t *colpred;
+        symbol_t *rowsize;
+        symbol_t *colsize;
+        
+        if(dplasma_remote_dep_get_rank_preds((const expr_t **)d->preds, 
+                                             &rowpred, 
+                                             &colpred, 
+                                             &rowsize,
+                                             &colsize) < 0) {
+            output("    DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n");
+        } else {
+            output("    int _rrank, _crank;\n"
+                   "    _rrank = %s;\n"                                                                    /* line  4 */
+                   "    _crank = %s;\n"                                                                    /* line  5 */
+                   "    root = _crank + _rrank * %s;\n"
+                   "  }\n"
+                   "#endif\n\n", 
+                   expression_to_c_inline(rowpred, local_prepend, strexpr1, MAX_EXPR_LEN),
+                   expression_to_c_inline(colpred, local_prepend, strexpr2, MAX_EXPR_LEN),
+                   colsize->name);
+        }
+    }
+    
     for(i = output_deps = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         if( (NULL != d->inout[i]) && (d->inout[i]->sym_type & SYM_OUT) ) {
             output_deps++;

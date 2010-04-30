@@ -333,6 +333,7 @@ static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
 static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* origin)
 {
     int ret;
+    int actions = DPLASMA_ACTION_NO_PLACEHOLDER | DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_RELEASE_REMOTE_DEPS;
     dplasma_execution_context_t exec_context;
     gc_data_t* data[MAX_PARAM_COUNT];
     
@@ -348,8 +349,7 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
         }
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
-                                              DPLASMA_ACTION_NO_PLACEHOLDER | 
-                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | 
+                                              actions | 
                                               origin->msg.deps, 
                                               NULL, data);
     origin->msg.which ^= origin->msg.deps;
@@ -475,8 +475,8 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
 #endif
     }
 
-    MPI_Comm_size(dep_comm, &np);
-    
+    MPI_Comm_size(dep_comm, &np); context->nb_nodes = np;
+    MPI_Comm_rank(dep_comm, &context->my_rank);
     for(i = 0; i < DEP_NB_REQ; i++)
     {        
         dep_req[i] = MPI_REQUEST_NULL;
