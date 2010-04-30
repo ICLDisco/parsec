@@ -171,8 +171,9 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
         if( function->inout[i] == NULL ) continue;
         
         if(remote_deps->root == eu_context->master_context->my_rank) me = 0;
-        else me = -1;
-    
+        else me = -1; 
+        him = 0;
+
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
