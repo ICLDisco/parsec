@@ -732,12 +732,14 @@ static void create_datatypes(void)
     MPI_Type_commit(&LOWER_TILE);
     
     /* LITTLE_L is a NB*IB rectangle (containing IB*IB Lower tiles) */
-    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &LITTLE_L);
+    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LITTLE_L);
     MPI_Type_set_name(LITTLE_L, "L");
     MPI_Type_commit(&LITTLE_L);
     
     /* IPIV is a contiguous of size 1*NB */
-    MPI_Type_contiguous(NB, MPI_INT, &PIVOT_VECT);
+    MPI_Type_contiguous(NB, MPI_INT, &tmp);
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &PIVOT_VECT);
     MPI_Type_set_name(PIVOT_VECT, "IPIV");
     MPI_Type_commit(&PIVOT_VECT);
     
