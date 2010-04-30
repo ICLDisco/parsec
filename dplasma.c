@@ -212,6 +212,7 @@ typedef struct __dplasma_temporary_thread_initialization_t {
     dplasma_context_t* master_context;
     int th_id;
     int nb_cores;
+    int bindto;
 } __dplasma_temporary_thread_initialization_t;
 
 #if !defined(DPLASMA_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
@@ -238,10 +239,9 @@ static void push_in_queue_wrapper(void *store, dplasma_list_item_t *elt)
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
-    int bind_to_proc = startup->th_id;
 
     /* Bind to the specified CORE */
-    dplasma_bindthread(bind_to_proc);
+    dplasma_bindthread(startup->bindto);
 
     eu = (dplasma_execution_unit_t*)malloc(sizeof(dplasma_execution_unit_t));
     if( NULL == eu ) {
@@ -358,8 +358,6 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                     d = dplasma_hwloc_distance(eu->eu_id, id);
                     if( d == 2*level || d == 2*level + 1 ) {
                         eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
-                        /*printf( "th %d bound to %d use at level %d the task queue of %d (%p)\n",
-                          eu->eu_id, bind_to_proc, nq, id, eu->eu_hierarch_queues[nq]);*/
                         DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
                                eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]));
                         nq++;
@@ -422,7 +420,7 @@ static void dplasma_print_usage(void)
 }
 dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int tile_size )
 {
-    int argc = (*pargc);
+    int argc = (*pargc), i;
     char** argv = NULL;
 
 #if defined(HAVE_GETOPT_LONG)
@@ -438,7 +436,13 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
                                                             nb_cores * sizeof(dplasma_execution_unit_t*));
     __dplasma_temporary_thread_initialization_t* startup = 
         (__dplasma_temporary_thread_initialization_t*)malloc(nb_cores * sizeof(__dplasma_temporary_thread_initialization_t));
-    int i;
+    /* Prepare the temporary storage for each thread startup */
+    for( i = 0; i < nb_cores; i++ ) {
+        startup[i].th_id = i;
+        startup[i].master_context = context;
+        startup[i].nb_cores = nb_cores;
+        startup[i].bindto = i;
+    }
 
     DPLASMA_TILE_SIZE = tile_size;
 
@@ -547,17 +551,38 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
                              step = strtol(position, NULL, 10);
                          }
                      }
-                     printf( "core range [%d:%d:%d]\n", start, end, step);
+                     DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
+                     {
+                         int where = start, skip = 1;
+                         for( i = 0; i < nb_cores; i++ ) {
+                             startup[i].bindto = where;
+                             where += step;
+                             if( where >= end ) {
+                                 where = start + skip;
+                                 skip++;
+                                 if( (skip > step) && (i < (nb_cores - 1))) {
+                                     printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
+                                     break;
+                                 }
+                             }
+                         }
+                     }
                  } else {
+                     i = 0;
                      /* array of cores c1,c2,... */
                      position = option;
                      while( NULL != position ) {
-                         int value = strtol(position, &position, 10);
-                         printf( "use core %d\n", value );
+                         /* We have more information than the number of cores. Ignore it! */
+                         if( i == nb_cores ) break;
+                         startup[i].bindto = strtol(position, &position, 10);
+                         i++;
                          if( (',' != position[0]) || ('\0' == position[0]) ) {
                              break;
                          }
                          position++;
+                     }
+                     if( i < nb_cores ) {
+                         printf( "Based on the information provided to --bind some threads are not binded\n" );
                      }
                  }
                  free(option);
@@ -589,13 +614,6 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
 #if defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_construct(&ready_list);
 #endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
-
-    /* Prepare the LIFO task queue for each execution unit */
-    for( i = 0; i < nb_cores; i++ ) {
-        startup[i].th_id = i;
-        startup[i].master_context = context;
-        startup[i].nb_cores = nb_cores;
-    }
 
     if( nb_cores > 1 ) {
         pthread_attr_t thread_attr;
