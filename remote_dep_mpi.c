@@ -49,6 +49,9 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dpla
 /* TODO */
 #endif 
 
+/* Shared LIFO for the TILES */
+dplasma_atomic_lifo_t* internal_alloc_lifo;
+static int internal_alloc_lifo_init = 0;
 
 #include "dequeue.h"
 
@@ -144,6 +147,7 @@ static int remote_dep_dequeue_on(dplasma_context_t* context)
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 1;
         DPLASMA_LIST_ITEM_SINGLETON(item);
+        /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
         return 1;
     }
@@ -159,6 +163,7 @@ static int remote_dep_dequeue_off(dplasma_context_t* context)
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 0;
         DPLASMA_LIST_ITEM_SINGLETON(item);
+        /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
     }
     return 0;
@@ -173,6 +178,7 @@ static int remote_dep_dequeue_fini(dplasma_context_t* context)
         item->action = DEP_CTL;
         item->cmd.ctl.enable = -1;
         DPLASMA_LIST_ITEM_SINGLETON(item);
+        /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
         
         pthread_join(dep_thread_id, (void**) &ret);
@@ -190,6 +196,7 @@ static int remote_dep_dequeue_send(int rank, dplasma_remote_deps_t* deps)
     item->cmd.activate.rank = rank;
     item->cmd.activate.deps = deps;
     DPLASMA_LIST_ITEM_SINGLETON(item);
+    /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
     dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
     return 1;
 }
@@ -201,6 +208,7 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dpla
     item->action = DEP_RELEASE;
     item->cmd.release.deps = origin;
     DPLASMA_LIST_ITEM_SINGLETON(item);
+    /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
     dplasma_dequeue_push_back(&dep_activate_queue, (dplasma_list_item_t*) item);
     return 1;
 }
@@ -215,6 +223,7 @@ static int remote_dep_dequeue_progress(dplasma_execution_unit_t* eu_context)
     {
         assert(DEP_RELEASE == item->action);
         remote_dep_nothread_release(eu_context, item->cmd.release.deps);
+        /*printf("%s:%d Release dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item );*/
         free(item);
         return 1;
     }
@@ -230,6 +239,7 @@ void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, dplasma_remote_dep_dat
     item->cmd.memcpy.datatype = datatype;
     gc_data_ref(src);
     DPLASMA_LIST_ITEM_SINGLETON(item);
+    /*printf( "%s:%d Allocate dep_cmd_item_t at %p (for memcpy)\n", __FILE__, __LINE__, (void*)item);*/
     dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
 }
 
@@ -285,6 +295,7 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
             default:
                 break;
         }
+        /*printf("%s:%d Release dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item );*/
         free(item);
     } while(keep_probing);
     
@@ -483,6 +494,12 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
     }
     dep_enabled = 0;
     remote_dep_mpi_profiling_init();
+
+    assert( 0 == internal_alloc_lifo_init );
+    internal_alloc_lifo = (dplasma_atomic_lifo_t*)malloc(sizeof(dplasma_atomic_lifo_t));
+    dplasma_atomic_lifo_construct( internal_alloc_lifo );
+    internal_alloc_lifo_init = 1;
+
     return np;
 }
 
@@ -546,6 +563,18 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
 {
     if(dep_enabled) remote_dep_mpi_off(context);
     MPI_Comm_free(&dep_comm);
+    {
+        dplasma_list_item_t* item;
+        int nb_allocated_items = 0;
+        while( NULL != (item = dplasma_atomic_lifo_pop(internal_alloc_lifo)) ) {
+            free(item);
+            nb_allocated_items++;
+        }
+        free(internal_alloc_lifo);
+        internal_alloc_lifo = NULL;
+        internal_alloc_lifo_init = 0;
+        fprintf( stderr, "Total number of released TILES = %d\n", nb_allocated_items );
+    }
     return 0;
 }
 
@@ -748,6 +777,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_wire_get_t msg;
     dplasma_t* function = (dplasma_t*) (uintptr_t) task->function;
     dplasma_remote_deps_t* deps = dep_activate_buff[i];
+    void* data;
 
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
 
@@ -768,6 +798,12 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             MPI_Type_get_name(dtt, type_name, &len);
             DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, type_name, size, NEXT_TAG+k));
 #endif
+            {
+                data = (void*)dplasma_atomic_lifo_pop( internal_alloc_lifo );
+                if( NULL == data ) {
+                    data = malloc(size);
+                }
+            }
 #if defined(DPLASMA_STATS)
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
              * the size of the pointed data into the cache_friendliness pointer.
@@ -775,10 +811,11 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
              * garbage collectable pointer
              */            
             assert( size < 0xffffffff );
-            deps->output[k].data = gc_data_new(malloc(size), size > 0 ? (uint32_t)size : 1); 
+            deps->output[k].data = gc_data_new(data, size > 0 ? (uint32_t)size : 1); 
 #else
-            deps->output[k].data = gc_data_new(malloc(size), 1); 
+            deps->output[k].data = gc_data_new(data, 1); 
 #endif
+            /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
             MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
                       dtt, from, NEXT_TAG + k, dep_comm, 

@@ -84,6 +84,10 @@ static inline void __gc_data_ref(gc_data_t *d)
 #define gc_data_unref(d) __gc_data_unref(d)
 #endif
 
+#if defined(USE_MPI)
+extern dplasma_atomic_lifo_t* internal_alloc_lifo;
+#endif  /* defined(USE_MPI) */
+
 #ifdef DPLASMA_DEBUG_HEAVY
 static inline gc_data_t* __gc_data_unref(gc_data_t *d, const char *file, int line)
 #else
@@ -97,7 +101,16 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
         if( 0 == nref ) {
             DEBUG_HEAVY(("Liberating the garbage collectable datar %p pointing on data %p,\n",
                          d, GC_DATA(d)));
+            /*printf( "%s:%d Releasing TILE at %p\n", __FILE__, __LINE__, GC_DATA(d));*/
+#if defined(USE_MPI)
+            {
+                dplasma_list_item_t* item = GC_DATA(d);
+                DPLASMA_LIST_ITEM_SINGLETON(item);
+                dplasma_atomic_lifo_push(internal_alloc_lifo, item);
+            }
+#else
             free(GC_DATA(d));
+#endif  /* defined(USE_MPI) */
 #if defined(DPLASMA_DEBUG_HEAVY)
             GC_POINTER(d)->data = NULL;
             GC_POINTER(d)->refcount = 0;
