@@ -816,7 +816,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             struct param *p = d->inout[i];
 
             output("\n%*s  if( action_mask & (1 << %d) ) { /* Output parameter %s */\n",
-                   spaces, "", cpt, p->name);
+                   spaces, "", i, p->name);
             spaces += 2;
 
             for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
@@ -1030,7 +1030,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                 }
             }
             output("%*s} /* if( action_mask & (1 << %d) ) */ /* Output parameter %s */\n",
-                   spaces, "", cpt, p->name);
+                   spaces, "", i, p->name);
             cpt++;
         }
     }
@@ -1132,7 +1132,7 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
                 }
                 output("e%s->data[%d];\n", param->name, cpt);
             } else {
-                output( "%s;\n", dplasma_dep_dplasma_call_to_c( param->dep_in[k], strexpr1, MAX_EXPR_LEN) );
+                output( "gc_data_new(%s, 0);\n", dplasma_dep_dplasma_call_to_c( param->dep_in[k], strexpr1, MAX_EXPR_LEN) );
             }
             if( NULL != param->dep_in[k]->cond ) {
                 output("    }\n");
