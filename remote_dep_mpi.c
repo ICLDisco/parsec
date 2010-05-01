@@ -329,24 +329,31 @@ static int remote_dep_nothread_get_datatypes(dplasma_remote_deps_t* origin)
 
 static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* origin)
 {
-    int ret;
+    dplasma_t* function = (dplasma_t*) (uintptr_t) origin->msg.function;
     dplasma_execution_context_t exec_context;
+    int ret, i, cnt, mask;
     
-    exec_context.function = (dplasma_t*) (uintptr_t) origin->msg.function;
+    exec_context.function = function;
     for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
-    for(int i = 0; origin->msg.deps >> i; i++)
-    {
-        if(origin->msg.deps & (1 << i))
-        {
-            assert(origin->msg.which & (1 << i));
+
+    for( i = cnt = mask = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++) {
+#if defined(DPLASMA_DEBUG)
+        exec_context.pointers[2*i]   = NULL;
+        exec_context.pointers[2*i+1] = NULL;
+#endif  /* defined(DPLASMA_DEBUG) */
+        if( !(function->inout[i]->sym_type & SYM_OUT) ) continue;
+        if(origin->msg.deps & (1 << cnt)) {
+            assert(origin->msg.which & (1 << cnt));
             exec_context.pointers[2*i]   = NULL;
-            exec_context.pointers[2*i+1] = origin->output[i].data;
+            exec_context.pointers[2*i+1] = origin->output[cnt].data;
+            mask |= (1<< i);
         }
+        cnt++;
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               DPLASMA_ACTION_NO_PLACEHOLDER | 
-                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | origin->msg.deps,
+                                              DPLASMA_ACTION_RELEASE_LOCAL_DEPS | mask,
                                               NULL);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
@@ -598,7 +605,9 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
         {
             if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
             {
-                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith datakey %lx\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128), i, dep_activate_buff[i]->msg.deps));
+                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith datakey %lx\n",
+                       status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128),
+                       i, dep_activate_buff[i]->msg.deps));
                 remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, status.MPI_SOURCE, i);
             } 
             else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
@@ -620,7 +629,8 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     k = i % MAX_PARAM_COUNT;
                     i = i / MAX_PARAM_COUNT;
                     deps = (dplasma_remote_deps_t*) (uintptr_t) dep_get_buff[i].deps;
-                    DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\t(tag=%d)\n", i, k, dep_get_buff[i].deps, status.MPI_TAG));
+                    DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\t(tag=%d)\n",
+                           i, k, dep_get_buff[i].deps, status.MPI_TAG));
                     DEBUG_MARK_DTA_MSG_END_SEND(status.MPI_TAG);
                     gc_data_unref(deps->output[k].data);
                     //TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
