@@ -120,19 +120,25 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 #ifdef DPLASMA_COLLECTIVE
 static inline int remote_dep_bcast_binonial_child(int me, int him)
 {
-    int ret = 0;
-    int pure = him ^ me; /* check if me suffixes him */
+    int k, mask;
     
-    if(me == -1) return 0;
-    if(!pure) return 0;
-    do /* look for the first 1 bit and cancel it */
+    /* flush out the easy cases first */
+    assert(him >= 0);
+    if(him == 0) return 0; /* root is child to nobody */
+    if(me == -1) return 0; /* I don't even know who I am yet... */
+    
+    /* look for the leftmost 1 bit */
+    for(k = sizeof(int) * 8 - 1; k >= 0; k--)
     {
-        ret = pure & 0x1;
-        pure = pure >> 1;
-    } while(0 == ret);
-    
-    if(pure) return 0; /* pure is not pure (2 or more bits are 1) */
-    return 1;
+        mask = 0x1<<k;
+        if(him & mask)
+        {
+            him ^= mask;
+            break;
+        }
+    }
+    /* is the remainder suffix "me" ? */
+    return him == me;
 }
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
 #else
