@@ -365,7 +365,7 @@ static int remote_dep_nothread_release(dplasma_execution_unit_t* eu_context, dpl
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               actions | 
-                                              origin->msg.deps, 
+                                              mask, 
                                               NULL);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
