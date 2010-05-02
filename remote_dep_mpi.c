@@ -752,7 +752,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         dtt = *deps->output[k].type;
 #ifdef DPLASMA_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %d at %p type %s\t(tag=%d)\n", to, i, k, task->deps, data, type_name, tag+k));
+        DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %lx at %p type %s\t(tag=%d)\n", to, i, k, task->deps, data, type_name, tag+k));
 #endif
 
 #if defined(DPLASMA_STATS)
