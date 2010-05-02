@@ -118,14 +118,39 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 }
 
 
+static inline int remote_dep_bcast_star_child(int me, int him)
+{
+    if(me == 0) return 1;
+    else return 0;
+}
+
+static inline int remote_dep_bcast_binonial_child(int me, int him)
+{
+    int ret = 0;
+    uint32_t pure = him - me;
+    
+    if(me == -1) return 0;
+    if(!pure) return 0;
+    do
+    {
+        ret = pure & 0x1;
+        pure = pure >> 1;
+    } while(0 == ret);
+
+    if(pure) return 0;
+    return 1;
+}
+
+#define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
+
 int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                                 const dplasma_execution_context_t* exec_context,
                                 dplasma_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
 {
     dplasma_t* function = exec_context->function;
-    int i, count, array_index, bit_index, current_mask;
-
+    int i, me, him, count, array_index, bit_index, current_mask;
+    
     remote_dep_reset_forwarded(eu_context);
    
 #if defined(DPLASMA_DEBUG)
@@ -141,10 +166,15 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
     remote_dep_get_datatypes(remote_deps);
-
+    
     for( i = 0; remote_deps_count; i++) {
         assert( NULL != function->inout[i] );
         if( 0 == remote_deps->output[i].count ) continue;
+        
+        if(remote_deps->root == eu_context->master_context->my_rank) me = 0;
+        else me = -1; 
+        him = 0;
+
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
@@ -158,14 +188,30 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    gc_data_ref(remote_deps->output[i].data);
-                    if(remote_dep_is_forwarded(eu_context, rank))
+                    DEBUG((" TOPO: %d (d%d) -> %d (dna)  root=%d\n", eu_context->master_context->my_rank, me, rank, remote_deps->root));
+                    
+                    /* root already knows but falsely appear in this bitfield */
+                    if(rank == remote_deps->root) continue;
+
+                    if((me == -1) && (rank > eu_context->master_context->my_rank))
                     {
-                       continue;
+                        /* the next bit points after me, so I know my dense rank now */
+                        me = ++him;
                     }
-                    remote_dep_inc_flying_messages(eu_context->master_context); /* TODO: check this counting for multiple deps */
-                    remote_dep_mark_forwarded(eu_context, rank);
-                    remote_dep_send(rank, remote_deps);
+                    him++;
+                    
+                    DEBUG((" TOPO: %d (d%d) -> %d (d%d)  root=%d\n", eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
+                    if(remote_dep_bcast_child(me, him))
+                    {
+                        gc_data_ref(remote_deps->output[i].data);
+                        if(remote_dep_is_forwarded(eu_context, rank))
+                        {
+                            continue;
+                        }
+                        remote_dep_inc_flying_messages(eu_context->master_context);
+                        remote_dep_mark_forwarded(eu_context, rank);
+                        remote_dep_send(rank, remote_deps);
+                    }
                 }
             }
         }

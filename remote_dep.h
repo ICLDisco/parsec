@@ -56,6 +56,7 @@ struct dplasma_remote_deps_t {
     dplasma_list_item_t                       item;
     struct dplasma_atomic_lifo_t*             origin;
     remote_dep_wire_activate_t                msg;
+    int                                       root;
     uint32_t                                  output_count;
     uint32_t                                  output_sent_count;
     struct { /** Never change this structure without understanding the 
