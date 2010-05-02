@@ -279,7 +279,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
 #endif  /* PLACEHOLDER_SIZE */
 #endif  /* DPLASMA_USE_LIFO */
 
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
     eu->closest_cache = NULL;
 #endif
 
@@ -367,7 +367,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
         }
 #endif
 
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
 #define TILE_SIZE (120*120*sizeof(double))
         for(level = 0; level < dplasma_hwloc_nb_levels(); level++) {
             master = dplasma_hwloc_master_id(level, eu->eu_id);
@@ -394,7 +394,7 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
                        eu->eu_id, master, level,  eu->closest_cache));
             }
         }
-#endif /* DPLASMA_CACHE_AWARENESS */
+#endif /* DPLASMA_CACHE_AWARE */
     }
 #endif  /* defined(HAVE_HWLOC)*/
 
@@ -1152,7 +1152,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
             new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
             DPLASMA_STAT_INCREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
             new_context->pointers[1] = NULL;
 #endif
 

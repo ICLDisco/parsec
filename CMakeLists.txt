@@ -8,36 +8,32 @@ project (DPLASMA C Fortran)
 #
 
 # should we use our own math functions
-option(DPLASMA_DEBUG_HISTORY
-  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
+option(DPLASMA_COLLECTIVE
+  "Use optimized asynchronous operations where collective communication pattern is detected" ON)
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
-option(DPLASMA_SCHED_HWLOC
-  "Enable hardware awareness in the scheduling" OFF)
+option(DPLASMA_CACHE_AWARE "Activate the cache awareness support (only if hardware
+  locality is enabled and discovered" OFF)
+option(DPLASMA_PROFILING
+  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DPLASMA_PAPI
   "Enable PAPI performance hardware counters" OFF)
-option(DPLASMA_PROFILING
-  "Enable the generation of the profiling information during
-  execution" OFF)
 option(DPLASMA_STATS
   "Enable the generation of statistics informations during execution
   (microbenchmarking)" OFF)
+option(DPLASMA_DEBUG_HISTORY
+  "Enable the generation of the profiling information during
+  execution" OFF)
 option(DPLASMA_GRAPHER
   "Enable the generation of the dot output during execution" OFF)
 option(DPLASMA_CALL_TRACE
   "Enable the output of the BLAS kernels call trace during execution" OFF)
 option(DPLASMA_DRY_RUN
   "Disable call to actual BLAS kernels; unfold the dependencies only" OFF)
-option(DPLASMA_WARM_UP
-  "Execute a round of warmup for all tests" ON)
-option(DO_THE_NASTY_VALIDATIONS
-  "Do the validity checks at the end of each test" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
-option(CACHE_AWARENESS "Activate the cache awareness support (only if hardware
-locality is enabled and discored" ON)
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)
 set (DPLASMA_VERSION_MINOR 1)
@@ -185,18 +181,14 @@ find_package(PLASMA REQUIRED)
 #
 # Find optional packages
 #
-if (DPLASMA_SCHED_HWLOC) 
+
+if(DPLASMA_CACHE_AWARE)
   find_package(HWLOC REQUIRED)
-endif (DPLASMA_SCHED_HWLOC)
-if( HAVE_HWLOC )
-  if( CACHE_AWARENESS )
-    SET(DPLASMA_CACHE_AWARENESS 1)
-  else( CACHE_AWARENESS )
-    SET(DPLASMA_CACHE_AWARENESS 0)
-  endif( CACHE_AWARENESS )
-  list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
-  list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-endif( HAVE_HWLOC )
+  if( HAVE_HWLOC )
+    list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
+    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+  endif( HAVE_HWLOC )
+endif(DPLASMA_CACHE_AWARE)
 
 if (DPLASMA_MPI)
   find_package(MPI)

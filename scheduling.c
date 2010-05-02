@@ -59,7 +59,7 @@ int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_contex
 
     new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
     new_context->pointers[1] = NULL;
 #endif
     DPLASMA_LIST_ITEM_SINGLETON( new_context );
@@ -169,7 +169,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 #if defined( HAVE_HWLOC )
-#  if defined(DPLASMA_CACHE_AWARENESS)
+#  if defined(DPLASMA_CACHE_AWARE)
 static  unsigned int ranking_function_bycache(dplasma_list_item_t *elt, void *param)
 {
     unsigned int value;
@@ -193,7 +193,7 @@ static  unsigned int ranking_function_firstfound(dplasma_list_item_t *elt, void 
 #  define DPLASMA_POP(eu_context, queue_name) \
     (dplasma_execution_context_t*)dplasma_atomic_lifo_pop( (eu_context)->queue_name )
 #elif defined(HAVE_HWLOC) 
-#  if defined(DPLASMA_CACHE_AWARENESS)
+#  if defined(DPLASMA_CACHE_AWARE)
 #    define DPLASMA_POP(eu_context, queue_name) \
     (dplasma_execution_context_t*)dplasma_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_bycache, \
@@ -203,7 +203,7 @@ static  unsigned int ranking_function_firstfound(dplasma_list_item_t *elt, void 
     (dplasma_execution_context_t*)dplasma_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_firstfound, \
                                                             NULL)
-#  endif /* DPLASMA_CACHE_AWARENESS */
+#  endif /* DPLASMA_CACHE_AWARE */
 #  define DPLASMA_SYSTEM_POP(eu_context, queue_name) (dplasma_execution_context_t*)dplasma_dequeue_pop_front( (eu_context)->queue_name )
 #else /* Don't use LIFO, Global LIFO or HWLOC (hbbuffer): use dequeue */
 #  define DPLASMA_POP(eu_context, queue_name) \
@@ -348,7 +348,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
             nbiterations++;
             /* Release the execution context */
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
             exec_context->pointers[1] = NULL;
 #endif
             DPLASMA_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);

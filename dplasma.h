@@ -63,7 +63,7 @@ struct dplasma_dependencies_t {
 
 typedef int (dplasma_hook_t)(struct dplasma_execution_unit_t*, dplasma_execution_context_t*);
 typedef int (dplasma_release_deps_t)(struct dplasma_execution_unit_t*, const dplasma_execution_context_t*, int, struct dplasma_remote_deps_t*);
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
 typedef unsigned int (dplasma_cache_rank_function_t)(dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
 #endif
 
@@ -84,7 +84,7 @@ struct dplasma_t {
     param_t*                inout[MAX_PARAM_COUNT];
     expr_t*                 priority;
     dplasma_dependencies_t* deps;
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
     dplasma_cache_rank_function_t *cache_rank_function;
 #endif
     dplasma_hook_t*         hook;

@@ -44,7 +44,7 @@ typedef struct dplasma_execution_unit_t {
     dplasma_hbbuffer_t    **eu_hierarch_queues; 
     uint32_t                eu_nb_hierarch_queues;
     dplasma_dequeue_t      *eu_system_queue;
-#  if defined(DPLASMA_CACHE_AWARENESS)
+#  if defined(DPLASMA_CACHE_AWARE)
     cache_t *closest_cache;
 #  endif
 #endif /* HAVE_HWLOC */

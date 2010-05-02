@@ -1106,7 +1106,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "}\n\n");
 }
 
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
 static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
                                                    char *init_func_body,
                                                    int init_func_body_size)
@@ -1209,7 +1209,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .dependencies_mask = 0x%02x,\n", d->dependencies_mask);
     p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .nb_locals = %d,\n", d->nb_locals);
     
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
     if( NULL != d->body ) {
         p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .cache_rank_function = %s_cache_rank,\n", d->name);
     } else {
@@ -1259,9 +1259,9 @@ static char *dplasma_dump_c(const dplasma_t *d,
 
         dplasma_dump_dependency_helper(d, init_func_body, init_func_body_size);
 
-#if defined(DPLASMA_CACHE_AWARENESS)
+#if defined(DPLASMA_CACHE_AWARE)
         dplasma_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
-#endif  /* defined(DPLASMA_CACHE_AWARENESS */
+#endif  /* defined(DPLASMA_CACHE_AWARE */
 
         output( "static int %s_hook(dplasma_execution_unit_t* context,\n"
                 "                   dplasma_execution_context_t *exec_context)\n"
@@ -1330,11 +1330,11 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "#endif\n"
                 "\n");
 
-        output( "#if defined(DPLASMA_CACHE_AWARENESS)\n");
+        output( "#if defined(DPLASMA_CACHE_AWARE)\n");
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             output("  cache_buf_referenced(context->closest_cache, %s);\n", d->inout[i]->name);
         }
-        output( "#endif /* DPLASMA_CACHE_AWARENESS */\n");
+        output( "#endif /* DPLASMA_CACHE_AWARE */\n");
 
         output( "  TAKE_TIME(context, %s_start_key, %s_hash(",
                 d->name, d->name);
