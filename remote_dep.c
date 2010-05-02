@@ -121,17 +121,17 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 static inline int remote_dep_bcast_binonial_child(int me, int him)
 {
     int ret = 0;
-    int pure = him - me;
+    int pure = him ^ me; /* check if me suffixes him */
     
     if(me == -1) return 0;
     if(!pure) return 0;
-    do
+    do /* look for the first 1 bit and cancel it */
     {
         ret = pure & 0x1;
         pure = pure >> 1;
     } while(0 == ret);
     
-    if(pure) return 0;
+    if(pure) return 0; /* pure is not pure (2 or more bits are 1) */
     return 1;
 }
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
@@ -191,7 +191,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (dna)\n", dplasma_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
+                    DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dplasma_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
                     
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
