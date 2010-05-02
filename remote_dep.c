@@ -152,13 +152,15 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     dplasma_t* function = exec_context->function;
     int i, me, him, count, array_index, bit_index, current_mask;
     
-    remote_dep_reset_forwarded(eu_context);
-   
 #if defined(DPLASMA_DEBUG)
+    char tmp[128];
+    
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
- 
+
+    remote_dep_reset_forwarded(eu_context);
+    
     remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
     remote_deps->msg.function = (uintptr_t) function;
@@ -189,7 +191,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    DEBUG((" TOPO: %d (d%d) -> %d (dna)  root=%d\n", eu_context->master_context->my_rank, me, rank, remote_deps->root));
+                    DEBUG((" TOPO\t%s\t%d (d%d) -> %d (dna)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, remote_deps->root));
                     
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
@@ -203,7 +205,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     
                     if(remote_dep_bcast_child(me, him))
                     {
-                        DEBUG((" TOPO: %d (d%d) -> %d (d%d)  root=%d\n", eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
+                        DEBUG((" TOPO\t%s\t%d (d%d) -> %d (dna)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, remote_deps->root));
                         
                         gc_data_ref(remote_deps->output[i].data);
                         if(remote_dep_is_forwarded(eu_context, rank))
@@ -214,6 +216,11 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                         remote_dep_mark_forwarded(eu_context, rank);
                         remote_dep_send(rank, remote_deps);
                     }
+#ifdef DPLASMA_DEBUG
+                    else {
+                        DEBUG((" TOPO\t%s\t%d (d%d) ][ %d (dna)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, remote_deps->root));
+                    }
+#endif
                 }
             }
         }
