@@ -205,7 +205,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     
                     if(remote_dep_bcast_child(me, him))
                     {
-                        DEBUG((" TOPO\t%s\t%d (d%d) -> %d (dna)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, remote_deps->root));
+                        DEBUG((" TOPO\t%s\t%d (d%d) -> %d (d%d)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
                         
                         gc_data_ref(remote_deps->output[i].data);
                         if(remote_dep_is_forwarded(eu_context, rank))
@@ -218,7 +218,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     }
 #ifdef DPLASMA_DEBUG
                     else {
-                        DEBUG((" TOPO\t%s\t%d (d%d) ][ %d (dna)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, remote_deps->root));
+                        DEBUG((" TOPO\t%s\t%d (d%d) ][ %d (d%d)  root=%d\n", dplasma_service_to_string(exec_context, tmp, 128), eu_context->master_context->my_rank, me, rank, him, remote_deps->root));
                     }
 #endif
                 }
