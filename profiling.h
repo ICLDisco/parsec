@@ -36,6 +36,13 @@ typedef struct dplasma_thread_profiling_t dplasma_thread_profiling_t;
 int dplasma_profiling_init( const char *format, ...);
 
 /**
+ * Add additional information about the current run, under the form key/value.
+ * Keys are strings, values are ints.
+ * Used to store the value of the globals names and values in the current run
+ */
+void dplasma_profiling_add_information( const char *key, int value );
+
+/**
  * Initializes the buffer trace with the specified length.
  * This function must be called once per thread that will use the profiling
  * functions. This creates the profiling_thread_unit_t that must be passed to
