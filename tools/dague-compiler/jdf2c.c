@@ -349,10 +349,14 @@ static char *dump_assignments(void **elem, void *arg)
     assignment_info_t *info = (assignment_info_t*)arg;
     
     string_arena_init(info->sa);
-    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(varname, info->expr) )
+    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(varname, info->expr) ) {
         string_arena_add_string(info->sa, "%s = %s[%d].value;\n", varname, info->holder, info->idx);
-    info->idx++;
-    return string_arena_get_string(info->sa);
+        info->idx++;
+        return string_arena_get_string(info->sa);
+    } else {
+        info->idx++;
+        return NULL;
+    }
 }
 
 /**
