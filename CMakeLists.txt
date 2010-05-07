@@ -9,7 +9,7 @@ project (DPLASMA C Fortran)
 
 # should we use our own math functions
 option(DPLASMA_COLLECTIVE
-  "Use optimized asynchronous operations where collective communication pattern is detected" ON)
+  "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
 option(DPLASMA_MPI
   "Build DPLASMA for distributed memory with MPI backend" ON)
 option(DPLASMA_CACHE_AWARE "Activate the cache awareness support (only if hardware
