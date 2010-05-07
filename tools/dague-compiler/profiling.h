@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef _dplasma_profiling_h
-#define _dplasma_profiling_h
+#ifndef _DAGuE_profiling_h
+#define _DAGuE_profiling_h
 
 #include <stdint.h>
 #include <stdio.h>
@@ -20,7 +20,7 @@
  *  that should happen in parallel.
  */
 
-typedef struct dplasma_thread_profiling_t dplasma_thread_profiling_t;
+typedef struct DAGuE_thread_profiling_t DAGuE_thread_profiling_t;
 
 /**
  * Initializes the profiling engine. Call this ONCE per process.
@@ -33,14 +33,14 @@ typedef struct dplasma_thread_profiling_t dplasma_thread_profiling_t;
  * @return 0    if success, -1 otherwise
  * not thread safe
  */
-int dplasma_profiling_init( const char *format, ...);
+int DAGuE_profiling_init( const char *format, ...);
 
 /**
  * Add additional information about the current run, under the form key/value.
  * Keys are strings, values are ints.
  * Used to store the value of the globals names and values in the current run
  */
-void dplasma_profiling_add_information( const char *key, int value );
+void DAGuE_profiling_add_information( const char *key, int value );
 
 /**
  * Initializes the buffer trace with the specified length.
@@ -54,7 +54,7 @@ void dplasma_profiling_add_information( const char *key, int value );
  * @return pointer to the new thread_profiling structure. NULL if an error.
  * thread safe
  */
-dplasma_thread_profiling_t *dplasma_profiling_thread_init( unsigned int length, const char *format, ...);
+DAGuE_thread_profiling_t *DAGuE_profiling_thread_init( unsigned int length, const char *format, ...);
 
 /**
  * Releases all resources for the tracing. 
@@ -63,7 +63,7 @@ dplasma_thread_profiling_t *dplasma_profiling_thread_init( unsigned int length, 
  * @return 0    if success, -1 otherwise.
  * not thread safe
  */
-int dplasma_profiling_fini( void );
+int DAGuE_profiling_fini( void );
 
 /**
  * Removes all current logged events. Prefer this to fini / init if you want
@@ -73,7 +73,7 @@ int dplasma_profiling_fini( void );
  * @return 0 if succes, -1 otherwise
  * not thread safe
  */
-int dplasma_profiling_reset( void );
+int DAGuE_profiling_reset( void );
 
 /**
  * Changes the Human Readable description of the whole profile
@@ -83,7 +83,7 @@ int dplasma_profiling_reset( void );
  * @return 0 if success, -1 otherwise
  * not thread safe
  */
-int dplasma_profiling_change_profile_attribute( const char *format, ... );
+int DAGuE_profiling_change_profile_attribute( const char *format, ... );
 
 /**
  * Inserts a new keyword in the dictionnary
@@ -98,7 +98,7 @@ int dplasma_profiling_change_profile_attribute( const char *format, ... );
  * @return 0    if success, -1 otherwie.
  * not thread safe
  */
-int dplasma_profiling_add_dictionary_keyword( const char*name, const char* attributes,
+int DAGuE_profiling_add_dictionary_keyword( const char*name, const char* attributes,
                                               int* key_start, int* key_end );
 
 /**
@@ -111,7 +111,7 @@ int dplasma_profiling_add_dictionary_keyword( const char*name, const char* attri
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
-int dplasma_profiling_dictionary_flush( void );
+int DAGuE_profiling_dictionary_flush( void );
 
 /**
  * Traces one event.
@@ -130,7 +130,7 @@ int dplasma_profiling_dictionary_flush( void );
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
-int dplasma_profiling_trace( dplasma_thread_profiling_t* context, int key, unsigned long id );
+int DAGuE_profiling_trace( DAGuE_thread_profiling_t* context, int key, unsigned long id );
 
 /**
  * Dump the current profile in the said filename.
@@ -139,16 +139,16 @@ int dplasma_profiling_trace( dplasma_thread_profiling_t* context, int key, unsig
  * @return 0 if success, -1 otherwise
  * not thread safe
  */
-int dplasma_profiling_dump_xml( const char* filename );
+int DAGuE_profiling_dump_xml( const char* filename );
 
 /**
- * Returns a char * (owned by dplasma_profiling library)
+ * Returns a char * (owned by DAGuE_profiling library)
  * that describes the last error that happened.
  *
  * @return NULL if no error happened before
  *         the char* of the error otherwise.
  * not thread safe
  */
-char *dplasma_profiling_strerror(void);
+char *DAGuE_profiling_strerror(void);
 
-#endif  /* _dplasma_profiling_h */
+#endif  /* _DAGuE_profiling_h */

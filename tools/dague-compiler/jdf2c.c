@@ -326,6 +326,22 @@ static char* dump_predicate(void** elem, void *arg)
 }
 
 /**
+ * Dump a repository line, like
+ * #define F_repo (__DAGuE_object->F_repo)
+ */
+static char *dump_repo(void **elem, void *arg)
+{
+    jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
+    string_arena_t *sa = (string_arena_t*)arg;
+
+    string_arena_init(sa);
+    string_arena_add_string(sa, "%s_repo (__DAGuE_object->%s_repo)",
+                            f->fname, f->fname);
+
+    return string_arena_get_string(sa);
+}
+
+/**
  * Parameters of the dump_assignments function
  */
 typedef struct assignment_info {
@@ -349,10 +365,14 @@ static char *dump_assignments(void **elem, void *arg)
     assignment_info_t *info = (assignment_info_t*)arg;
     
     string_arena_init(info->sa);
-    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(varname, info->expr) )
+    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(varname, info->expr) ) {
         string_arena_add_string(info->sa, "%s = %s[%d].value;\n", varname, info->holder, info->idx);
-    info->idx++;
-    return string_arena_get_string(info->sa);
+        info->idx++;
+        return string_arena_get_string(info->sa);
+    } else {
+        info->idx++;
+        return NULL;
+    }
 }
 
 /**
@@ -576,7 +596,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#include <DAGuE.h>\n\n");
     houtput("DAGuE_object_t *DAGuE_%s_new(%s, %s);\n", jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "DAGUE_ddesc_t *", ", ", ""),
+                                  dump_string, NULL, "", "DAGuE_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
                                   dump_string, NULL, "",  "int ", ", ", ""));
     string_arena_free(sa1);
@@ -589,6 +609,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
 {
     int nbfunctions, nbdata;
     string_arena_t *sa1, *sa2;
+    jdf_preamble_entry_t *p;
 
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
@@ -596,14 +617,35 @@ static void jdf_generate_structure(const jdf_t *jdf)
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
+    for(p = jdf->preambles; p != NULL; p = p->next) {
+        coutput("#line %d \"%s.jdf\"\n"
+                "%s\n"
+                "#line %d \"%s\"\n",
+                p->lineno, jdf_basename,
+                p->preamble,
+                3 + nblines(p->preamble), jdf_cfilename);
+    }
+
     coutput("#include <DAGuE.h>\n"
+            "#include <assignment.h>\n"
+            "#include <remote_dep.h>\n"
             "#include \"%s.h\"\n\n"
             "#define DAGuE_%s_NB_FUNCTIONS %d\n"
-            "#define DAGuE_%s_NB_DATA %d\n", 
+            "#define DAGuE_%s_NB_DATA %d\n"
+            "#if defined(DISTRIBUTED)\n"
+            "#define IFDISTRIBUTED(t) t\n"
+            "#else\n"
+            "#define IFDISTRIBUTED(t) NULL\n"
+            "#endif\n"
+            "#if defined(DAGuE_PROFILING)\n"
+            "#define TAKE_TIME(context, key, id) DAGuE_profiling_trace(context->eu_profile, __DAGuE_object->key, id)\n"
+            "#else\n"
+            "#define TAKE_TIME(context, key, id)\n"
+            "#endif\n", 
             jdf_basename, 
             jdf_basename, nbfunctions, 
             jdf_basename, nbdata);
-    coutput("typedef struct DAGuE_%s {\n", jdf_basename);
+    coutput("typedef struct __DAGuE_%s_object {\n", jdf_basename);
     coutput("  /** All DAGuE_object_t structures hold these two arrays **/\n"
             "  int                    nb_functions;\n"
             "  const DAGuE_t        **functions_array;\n"
@@ -618,6 +660,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "%s", 
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
                                   dump_string, NULL, "", "  DAGuE_ddesc_t *", ";\n", ";\n"));
+    coutput("  /* The list of data repositories */\n"
+            "%s",
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
+                                  dump_string, NULL, "", "  data_repo_t *", "_repo;\n", "_repo;\n"));
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
             "#  if defined(DAGuE_PROFILING)\n"
             "%s", 
@@ -627,7 +673,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  int ", "_end_key;\n", "_end_key;\n"));
     coutput("#  endif /* defined(DAGuE_PROFILING) */\n");
-    coutput("} __DAGuE_%s_t;\n"
+    coutput("} __DAGuE_%s_object_t;\n"
             "\n", jdf_basename);
 
     coutput("/* Globals */\n%s\n",
@@ -642,6 +688,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
             UTIL_DUMP_LIST(sa1, jdf->functions, next,
                            dump_predicate, sa2, "", "#define ", "\n", "\n"));
 
+    coutput("/* Data Repositories */\n%s\n",
+            UTIL_DUMP_LIST(sa1, jdf->functions, next,
+                           dump_repo, sa2, "", "#define ", "\n", "\n"));
+
     string_arena_free(sa1);
     string_arena_free(sa2);
 }
@@ -655,30 +705,48 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
     expr_info_t info;
     assignment_info_t ai;
 
-    info.sa = sa;
-    info.prefix = "";
-    ai.sa = sa3;
-    ai.idx = 0;
-    ai.holder = "assignemnts";
-    ai.expr = e;
-    coutput("static inline int %s_fct(const DAGuE_object_t *__DAGuE_object_parent, const assignment_t *assignments)\n"
-            "{\n"
-            "  const DAGuE_%s_object_t *__DAGuE_object = (const DAGuE_%s_object_t*)__DAGuE_object_parent;\n"
-            "%s\n"
-            "  return %s;\n"
-            "}\n", name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa2, context, next, name, 
-                                 dump_assignments, &ai, "", "  int ", "", ""),
-            dump_expr((void**)&e, &info));
+    if( e->op == JDF_RANGE ) {
+        char *subf = (char*)malloc(strlen(name) + 64);
+        sprintf(subf, "rangemin_of_%s", name);
+        jdf_generate_expression(jdf, context, e->jdf_ba1, subf);
+        sprintf(subf, "rangemax_of_%s", name);
+        jdf_generate_expression(jdf, context, e->jdf_ba2, subf);
+
+        coutput("static const expr_t %s = {\n"
+                "  .op = EXPR_OP_BINARY_RANGE,\n"
+                "  .flags = 0x0,\n"
+                "  .u_expr.binary.op1 = &rangemin_of_%s,\n"
+                "  .u_expr.binary.op2 = &rangemax_of_%s\n"
+                "};\n",
+                name, name, name);
+    } else {
+        info.sa = sa;
+        info.prefix = "";
+        ai.sa = sa3;
+        ai.idx = 0;
+        ai.holder = "assignments";
+        ai.expr = e;
+        coutput("static inline int %s_fct(const DAGuE_object_t *__DAGuE_object_parent, const assignment_t *assignments)\n"
+                "{\n"
+                "  const __DAGuE_%s_object_t *__DAGuE_object = (const __DAGuE_%s_object_t*)__DAGuE_object_parent;\n"
+                "%s\n"
+                "  (void)__DAGuE_object;\n"
+                "  return %s;\n"
+                "}\n", name, jdf_basename, jdf_basename,
+                UTIL_DUMP_LIST_FIELD(sa2, context, next, name, 
+                                     dump_assignments, &ai, "", "  int ", "", ""),
+                dump_expr((void**)&e, &info));
+
+        coutput("static const expr_t %s = {\n"
+                "  .op = EXPR_OP_INLINE,\n"
+                "  .flags = 0x0,\n"
+                "  .inline_func = %s_fct\n"
+                "};\n", name, name);
+    }
+
     string_arena_free(sa);
     string_arena_free(sa2);
     string_arena_free(sa3);
-
-    coutput("static const expr_t %s = {\n"
-            "  .op = EXPR_OP_INLINE,\n"
-            "  .flags = 0x0,\n"
-            "  .u_expr.inline_func = %s_fct\n"
-            "};\n", name, name);
 }
 
 static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t *context,
@@ -688,6 +756,7 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     string_arena_t *sa2 = string_arena_new(64);
     string_arena_t *sa3 = string_arena_new(64);
     string_arena_t *sa4 = string_arena_new(64);
+    string_arena_t *sa5 = string_arena_new(64);
     expr_info_t info;
     assignment_info_t ai;
 
@@ -699,12 +768,17 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     ai.expr = NULL;
     coutput("static inline int %s_fct(const DAGuE_object_t *__DAGuE_object_parent, const assignment_t *assignments)\n"
             "{\n"
-            "  const DAGuE_%s_object_t *__DAGuE_object = (const DAGuE_%s_object_t*)__DAGuE_object_parent;\n"
+            "  const __DAGuE_%s_object_t *__DAGuE_object = (const __DAGuE_%s_object_t*)__DAGuE_object_parent;\n"
             "%s\n"
+            "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
+            "%s\n"
+            "  /* Compute Predicate */\n"
             "  return %s_pred%s;\n"
             "}\n", name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa2, context, next, name, 
                                  dump_assignments, &ai, "", "  int ", "", ""),
+            UTIL_DUMP_LIST_FIELD(sa5, context, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";"),
             fname, 
             UTIL_DUMP_LIST_FIELD(sa4, context, next, name,
                                  dump_string, NULL, "(", "", ", ", ")"));
@@ -712,11 +786,12 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     string_arena_free(sa2);
     string_arena_free(sa3);
     string_arena_free(sa4);
+    string_arena_free(sa5);
 
     coutput("static const expr_t %s = {\n"
             "  .op = EXPR_OP_INLINE,\n"
             "  .flags = 0x0,\n"
-            "  .u_expr.inline_func = %s_fct\n"
+            "  .inline_func = %s_fct\n"
             "};\n", name, name);
 }
 
@@ -773,15 +848,20 @@ static void jdf_generate_dependency( const jdf_t *jdf, const char *datatype,
     string_arena_add_string(sa, 
                             "static const dep_t %s = {\n"
                             "  .cond = %s,\n"
-                            "  .dplasma = NULL; /**< To be filled when all structures are done to link to function %s */\n"
-                            "  .param = NULL;   /**< To be filled when all structures are done to link to param %s of %s */\n"
-                            "  .type  = IFDISTRIBUTED((void*)&%s); /**< Change this for C-code */\n"
+                            "  .DAGuE = &%s_%s,\n",
+                            depname, 
+                            condname,
+                            jdf_basename, call->func_or_mem);
+
+    if( call->var != NULL ) {
+            string_arena_add_string(sa, 
+                                    "  .param = &param_of_%s_%s_for_%s,\n",
+                                    jdf_basename, call->func_or_mem, call->var);
+    }
+    string_arena_add_string(sa, 
+                            "  .type  = IFDISTRIBUTED((void*)&%s), /**< Change this for C-code */\n"
                             "  .call_params = {\n",
-                            depname, condname,
-                            call->func_or_mem,
-                            call->var != NULL ? call->var : "(null)", call->func_or_mem,
-                            datatype != NULL ? datatype : "DAGuE_DEFAULT_DATA_TYPE",
-                            datatype != NULL ? "\"" : "");
+                            datatype != NULL ? datatype : "DAGuE_DEFAULT_DATA_TYPE");
 
     exprname = (char *)malloc(strlen(depname) + 32);
     pre[0] = '\0';
@@ -888,7 +968,6 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     string_arena_add_string(sa, 
                             "static const param_t %s%s = {\n"
                             "  .name = \"%s\",\n"
-                            "  .function = NULL,\n"
                             "  .sym_type = %s,\n"
                             "  .access_type = %s,\n"
                             "  .param_mask = 0x%x,\n"
@@ -955,11 +1034,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
 
     sprintf(prefix, "pred_of_%s_%s_as_expr", jdf_basename, f->fname);
     jdf_generate_predicate_expr(jdf, f->definitions, f->fname, prefix);
-    string_arena_add_string(sa, "  .pred = &%s;\n", prefix);
+    string_arena_add_string(sa, "  .pred = &%s,\n", prefix);
 
     sprintf(prefix, "priority_of_%s_%s_as_expr", jdf_basename, f->fname);
     jdf_generate_expression(jdf, f->definitions, f->priority, prefix);
-    string_arena_add_string(sa, "  .priority = &%s;\n", prefix);
+    string_arena_add_string(sa, "  .priority = &%s,\n", prefix);
 
     sprintf(prefix, "param_of_%s_%s_for_", jdf_basename, f->fname);
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
@@ -973,13 +1052,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             UTIL_DUMP_LIST_FIELD(sa2, f->dataflow, next, flow, dump_dataflow, "OUT",
                                                  "", prefix, ", ", ""));
 
-    sprintf(prefix, "hook_of_%s_%s", jdf_basename, f->fname);
-    jdf_generate_code_hook(jdf, f, prefix);
-    string_arena_add_string(sa, "  .hook = %s;\n", prefix);
-
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_release_deps(jdf, f, prefix);
-    string_arena_add_string(sa, "  .release_deps = %s;\n", prefix);
+    string_arena_add_string(sa, "  .release_deps = %s,\n", prefix);
+
+    sprintf(prefix, "hook_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_code_hook(jdf, f, prefix);
+    string_arena_add_string(sa, "  .hook = %s,\n", prefix);
 
     free(prefix);
 
@@ -1010,42 +1089,73 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     string_arena_free(sa);
 }
 
-static void jdf_generate_initiator_body( const jdf_t *jdf )
+static char *dump_pseudodague(void **elem, void *arg)
+{
+    string_arena_t *sa = (string_arena_t *)arg;
+    char *name = *(char**)elem;
+    string_arena_init(sa);
+    string_arena_add_string(sa,
+                            "static const DAGuE_t %s_%s = {\n"
+                            "  .name = \"%s\",\n"
+                            "  .flags = 0x0,\n"
+                            "  .dependencies_mask = 0x0,\n"
+                            "  .nb_locals = 0,\n"
+                            "  .nb_params = 0,\n"
+                            "  .params = { NULL, },\n"
+                            "  .locals = { NULL, },\n"
+                            "  .pred = NULL,\n"
+                            "  .in = { NULL, },\n"
+                            "  .out = { NULL, },\n"
+                            "  .priority = NULL,\n"
+                            "  .deps = -1,\n"
+                            "  .hook = NULL,\n"
+                            "  .release_deps = NULL,\n"
+                            "  .body = NULL,\n"
+                            "#if defined(DAGuE_CACHE_AWARENESS)\n"
+                            "  .cache_rank_function = NULL,\n"
+                            "#endif /* defined(DAGuE_CACHE_AWARENESS) */\n"
+                            "};\n",
+                            jdf_basename, name, name);
+    return string_arena_get_string(sa);
+}
+
+static void jdf_generate_predeclarations( const jdf_t *jdf )
 {
     jdf_function_entry_t *f;
     int fli, depid;
     jdf_dataflow_list_t *fl;
     jdf_dep_list_t *dl;
+    string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa2 = string_arena_new(64);
 
+    coutput("/** Predeclarations of the DAGuE_t objects */\n");
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        coutput("static const DAGuE_t %s_%s;\n", jdf_basename, f->fname);
+    }
+    coutput("/** Declarations of the pseudo-DAGuE_t objects for data */\n"
+            "%s\n",
+            UTIL_DUMP_LIST_FIELD(sa2, jdf->data, next, dname,
+                                 dump_pseudodague, sa, "", "", "", ""));
+    string_arena_free(sa);
+    string_arena_free(sa2);
+    coutput("/** ¨Predeclarations of the parameters */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         for(fl = f->dataflow; fl != NULL; fl = fl->next) {
             for(depid = 1, dl = fl->flow->deps; dl != NULL; depid++, dl = dl->next) {
                 if( (dl->dep->guard->guard_type == JDF_GUARD_UNCONDITIONAL) ||
                     (dl->dep->guard->guard_type == JDF_GUARD_BINARY) ) {
-                    coutput("  param_of_%s_%s_for_%s_dep%d_atline_%d.dplasma = &%s_%s;\n", 
-                            jdf_basename, f->fname, fl->flow->varname, depid, dl->dep->lineno,
-                            jdf_basename, dl->dep->guard->calltrue->func_or_mem);
                     if( dl->dep->guard->calltrue->var != NULL ) {
-                        coutput("  param_of_%s_%s_for_%s_dep%d_atline_%d.param = &param_of_%s_%s_for_%s;\n", 
-                                jdf_basename, f->fname, fl->flow->varname, depid, dl->dep->lineno,
+                        coutput("static const param_t param_of_%s_%s_for_%s;\n", 
                                 jdf_basename, dl->dep->guard->calltrue->func_or_mem, dl->dep->guard->calltrue->var);
                     } 
                 } else {
                     /* dl->dep->guard->guard_type == JDF_GUARD_TERNARY */
-                    coutput("  param_of_%s_%s_for_%s_dep%d_iftrue_atline_%d.dplasma = &%s_%s;\n", 
-                            jdf_basename, f->fname, fl->flow->varname, depid, dl->dep->lineno,
-                            jdf_basename, dl->dep->guard->calltrue->func_or_mem);
                     if( dl->dep->guard->calltrue->var != NULL ) {
-                        coutput("  param_of_%s_%s_for_%s_dep%d_iftrue_atline_%d.param = &param_of_%s_%s_for_%s;\n", 
-                                jdf_basename, f->fname, fl->flow->varname, depid, dl->dep->lineno,
+                        coutput("static const param_t param_of_%s_%s_for_%s;\n", 
                                 jdf_basename, dl->dep->guard->calltrue->func_or_mem, dl->dep->guard->calltrue->var);
                     } 
-                    coutput("  param_of_%s_%s_for_%s_dep%d_iffalse_atline_%d.dplasma = &%s_%s;\n", 
-                            jdf_basename, f->fname, fl->flow->varname, depid, dl->dep->lineno,
-                            jdf_basename, dl->dep->guard->callfalse->func_or_mem);
                     if( dl->dep->guard->callfalse->var != NULL ) {
-                        coutput("  param_of_%s_%s_for_%s_dep%d_iffalse_atline_%d.param = &param_of_%s_%s_for_%s;\n", 
-                                jdf_basename, f->fname, fl->flow->varname, depid, dl->dep->lineno,
+                        coutput("static const param_t param_of_%s_%s_for_%s;\n", 
                                 jdf_basename, dl->dep->guard->callfalse->func_or_mem, dl->dep->guard->callfalse->var);
                     }
                 }
@@ -1060,31 +1170,20 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int DAGuE_%s_initialized = 0;\n"
-            "\n"
-            "static void DAGuE_%s_init(void)\n"
-            "{\n",
-            jdf_basename, jdf_basename);
-    
-    jdf_generate_initiator_body( jdf );
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
+                                  dump_string, NULL, "", "#undef ", "\n", "\n"));
 
-    coutput("}\n"
-            "\n"
-            "DAGuE_object_t *DAGuE_%s_new(%s, %s)\n{\n", jdf_basename,
+    coutput("DAGuE_object_t *DAGuE_%s_new(%s, %s)\n{\n", jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
                                   dump_string, NULL, "", "DAGuE_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
                                   dump_string, NULL, "",  "int ", ", ", ""));
 
-    coutput("  DAGuE_%s_object_t *res = (DAGuE_%s_object_t *)calloc(sizeof(1, DAGuE_%s_object_t);\n",
-            jdf_basename, jdf_basename, jdf_basename);
-    coutput("  if( 0 == DAGuE_%s_initialized ) {\n"
-            "    DAGuE_%s_init();\n"
-            "    DAGuE_%s_initialized = 1;\n"
-            "  }\n",
+    coutput("  __DAGuE_%s_object_t *res = (__DAGuE_%s_object_t *)calloc(1, sizeof(__DAGuE_%s_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
     coutput("  res->nb_functions    = DAGuE_%s_NB_FUNCTIONS;\n", jdf_basename);
-    coutput("  res->functions_array = (DAGuE_t**)malloc(DAGuE_%s_NB_FUNCTIONS * sizeof(DAGuE_t*));\n",
+    coutput("  res->functions_array = (const DAGuE_t**)malloc(DAGuE_%s_NB_FUNCTIONS * sizeof(DAGuE_t*));\n",
             jdf_basename);
     coutput("  res->dependencies_array = (DAGuE_dependencies_t **)\n"
             "             calloc(DAGuE_%s_NB_FUNCTIONS, sizeof(DAGuE_dependencies_t *));\n",
@@ -1100,6 +1199,27 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     string_arena_free(sa1);
     string_arena_free(sa2);
+}
+
+static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
+{
+    string_arena_t *sa = string_arena_new(64);
+    coutput("static inline int %s_hash%s\n"
+            "{\n",
+            f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                           dump_string, NULL, "(", "int ", ", ", ")"));
+    coutput("  return 0; /** TODO **/\n");
+    coutput("}\n\n");
+    string_arena_free(sa);
+}
+
+static void jdf_generate_hashfunctions(const jdf_t *jdf)
+{
+    jdf_function_entry_t *f;
+
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        jdf_generate_hashfunction_for(jdf, f);
+    }
 }
 
 /** Code Generators */
@@ -1221,7 +1341,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
         UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                              dump_expr, &info, "", "", ", ", "");
         coutput("%s  if( %s != %s(%s) ) {\n"
-                "%s    dplasma_remote_dep_memcpy( %s(%s), g%s, %s );\n"
+                "%s    DAGuE_remote_dep_memcpy( %s(%s), g%s, %s );\n"
                 "%s  }\n",                
                 spaces, f->varname, call->func_or_mem, string_arena_get_string(sa),
                 spaces, call->func_or_mem, string_arena_get_string(sa), f->varname, 
@@ -1322,10 +1442,10 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
     sa = string_arena_new(64);
 
     coutput("#if defined(DPLASMA_GRAPHER)\n"
-            "  if( NULL != __dplasma_graph_file ) {\n"
+            "  if( NULL != __DAGuE_graph_file ) {\n"
             "    char tmp[128];\n"
-            "    dplasma_service_to_string(exec_context, tmp, 128);\n"
-            "    fprintf(__dplasma_graph_file,\n"
+            "    DAGuE_service_to_string(exec_context, tmp, 128);\n"
+            "    fprintf(__DAGuE_graph_file,\n"
             "           \"%%s [shape=\\\"polygon\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
             "            tmp, colors[context->eu_id], tmp, %s_hash(%s));\n"
             "  }\n"
@@ -1371,9 +1491,9 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
             "    gc_data_t *data[%d];\n"
             "%s"
             "    release_deps_of_%s_%s(context, exec_context,\n"
-            "        DPLASMA_ACTION_RELEASE_REMOTE_DEPS |\n"
-            "        DPLASMA_ACTION_RELEASE_LOCAL_DEPS |\n"
-            "        DPLASMA_ACTION_DEPS_MASK,\n"
+            "        DAGuE_ACTION_RELEASE_REMOTE_DEPS |\n"
+            "        DAGuE_ACTION_RELEASE_LOCAL_DEPS |\n"
+            "        DAGuE_ACTION_DEPS_MASK,\n"
             "        NULL, data);\n"
             "  }\n",
             nboutput, string_arena_get_string(sa), jdf_basename, f->fname);
@@ -1455,9 +1575,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     ai.idx = 0;
     ai.holder = "exec_context->locals";
     ai.expr = NULL;
-    coutput("static int %s(DAGuE_execution_unit *context, DAGuE_execution_context_t *exec_context)\n"
+    coutput("static int %s(DAGuE_execution_unit_t *context, DAGuE_execution_context_t *exec_context)\n"
             "{\n"
-            "  DAGuE_%s_object_t *__DAGuE_object = (DAGuE_%s_object_t *)exec_context->DAGuE_object;\n"
+            "  __DAGuE_%s_object_t *__DAGuE_object = (__DAGuE_%s_object_t *)exec_context->DAGuE_object;\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -1509,14 +1629,20 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         jdf_generate_code_flow_memory_release(jdf, f->fname, fl->flow);
     }
 
-    coutput("}\n\n");
+    coutput("  return 0;\n"
+            "}\n\n");
     string_arena_free(sa);
     string_arena_free(sa2);
 }
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-
+    coutput("static int %s(DAGuE_execution_unit_t *eu, const DAGuE_execution_context_t *context, int flags, const DAGuE_remote_deps_t *deps, gc_data_t **data)\n"
+            "{\n"
+            "  return 0;\n"
+            "}\n"
+            "\n",
+            name);
 }
 
 /** Main Function */
@@ -1549,6 +1675,8 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     
     jdf_generate_header_file(jdf);
     jdf_generate_structure(jdf);
+    jdf_generate_hashfunctions(jdf);
+    jdf_generate_predeclarations( jdf );
     jdf_generate_functions_statics(jdf);
 
     /**

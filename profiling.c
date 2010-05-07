@@ -29,11 +29,18 @@ typedef struct dplasma_profiling_output_t {
 #endif /* defined(HAVE_PAPI) */
 } dplasma_profiling_output_t;
 
+typedef struct dplasma_profiling_info {
+    const char *key;
+    int value;
+    struct dplasma_profiling_info *next;
+} dplasma_profiling_info_t;
+
 struct dplasma_thread_profiling_t {
     dplasma_list_item_t list;
     unsigned int events_count;
     unsigned int events_limit;
     char *hr_id;
+    dplasma_profiling_info_t  *infos;
     dplasma_profiling_output_t events[1];
 };
 
@@ -52,6 +59,7 @@ static dplasma_profiling_key_t* dplasma_prof_keys;
 /* Process-global profiling list */
 static dplasma_dequeue_t threads;
 static char *hr_id = NULL;
+static dplasma_profiling_info_t *dplasma_profiling_infos = NULL;
 
 static char *dplasma_profiling_last_error = NULL;
 static void ERROR(const char *format, ...)
@@ -69,6 +77,16 @@ static void ERROR(const char *format, ...)
 char *dplasma_profiling_strerror(void)
 {
     return dplasma_profiling_last_error;
+}
+
+void dplasma_profiling_add_information( const char *key, int value )
+{
+    dplasma_profiling_info_t *n;
+    n = (dplasma_profiling_info_t *)calloc(1, sizeof(dplasma_profiling_info_t));
+    n->key = strdup(key);
+    n->value = value;
+    n->next = dplasma_profiling_infos;
+    dplasma_profiling_infos = n;
 }
 
 int dplasma_profiling_change_profile_attribute( const char *format, ... )
@@ -304,6 +322,7 @@ int dplasma_profiling_dump_xml( const char* filename )
     dplasma_list_item_t *it;
     dplasma_thread_profiling_t* profile;
     FILE* tracefile;
+    dplasma_profiling_info_t *info;
  
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -314,8 +333,13 @@ int dplasma_profiling_dump_xml( const char* filename )
             "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
             "<PROFILING>\n"
             " <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n"
-            " <DICTIONARY>\n",
-            hr_id);
+            "  <INFOS>\n", hr_id);
+    for(info = dplasma_profiling_infos; info != NULL; info = info->next ) {
+        fprintf(tracefile, "    <INFO NAME=\"%s\">%d</INFO>\n", info->key, info->value);
+    }
+    fprintf(tracefile,
+            "  </INFOS>\n"
+            "  <DICTIONARY>\n");
 
     for(i = 0; i < dplasma_prof_keys_count; i++) {
         fprintf(tracefile,

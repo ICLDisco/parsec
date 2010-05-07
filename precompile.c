@@ -1734,6 +1734,14 @@ int dplasma_dump_all_c(char *filename)
                 object->name, colors[i % COLORS_SIZE], object->name, object->name);
     }
 
+    for(i = 0; i < dplasma_symbol_get_count(); i++) {
+        const symbol_t *s = dplasma_symbol_get_element_at( i );
+        if( s->flags & DPLASMA_SYMBOL_IS_GLOBAL ) {
+            output("  dplasma_profiling_add_information( \"%s\", %s );\n",
+                   s->name, s->name);
+        }
+    }
+
     output( "#endif /* DPLASMA_PROFILING */\n"
             "\n"
             "  return 0;\n"
