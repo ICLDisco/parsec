@@ -708,7 +708,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution, info_factorization;
-    double eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
+    double eps = dlamch("Epsilon");
 
     printf("\n");
     printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
@@ -838,7 +838,7 @@ static int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, doub
     
     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
     Rnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
-    
+
     printf("============\n");
     printf("Checking the Residual of the solution \n");
     printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));

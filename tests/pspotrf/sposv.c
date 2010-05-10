@@ -694,7 +694,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution, info_factorization;
-    float eps = (float) 1.0e-5;  /* dlamch("Epsilon");*/
+    float eps = slamch("Epsilon");
 
     printf("\n");
     printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
