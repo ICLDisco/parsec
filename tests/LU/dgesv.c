@@ -986,7 +986,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution;
-    double eps = (double) 1.0e-13;  /* dlamch("Epsilon");*/
+    double eps = dlamch("Epsilon");
     
     printf("\n");
     printf("------ TESTS FOR PLASMA DGETRF + DTRSMPL + DTRSM  ROUTINE -------  \n");
