@@ -59,6 +59,7 @@ struct dplasma_remote_deps_t {
     int                                       root;
     uint32_t                                  output_count;
     uint32_t                                  output_sent_count;
+    uint32_t*                                 remote_dep_fw_mask;
     struct { /** Never change this structure without understanding the 
               *   "subtle" relation with  remote_deps_allocation_init in remote_dep.c
               */
@@ -93,21 +94,22 @@ static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_atomic_lifo
     if( NULL == remote_deps ) {
         remote_deps = (dplasma_remote_deps_t*)calloc(1, elem_size);
         remote_deps->origin = lifo;
-    }    
-    ptr = (char*)(&(remote_deps->output[max_dep_count]));
-    rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
-    for( i = 0; i < max_dep_count; i++ ) {
-        remote_deps->output[i].rank_bits = (uint32_t*)ptr;
-        ptr += rank_bit_size;
+        ptr = (char*)(&(remote_deps->output[max_dep_count]));
+        rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
+        for( i = 0; i < max_dep_count; i++ ) {
+            remote_deps->output[i].rank_bits = (uint32_t*)ptr;
+            ptr += rank_bit_size;
+        }
+        assert( (ptr - (char*)remote_deps) <= elem_size );
+        /* fw_mask immediatly follows outputs */
+        remote_deps->remote_dep_fw_mask = (uint32_t*) &remote_deps->output[max_dep_count + 1];
+        assert(((ptrdiff_t) remote_deps->remote_dep_fw_mask - (ptrdiff_t) remote_deps + sizeof(uint32_t) * (max_nodes_number + 31)/32) <= elem_size);
     }
-    assert( (ptr - (char*)remote_deps) <= elem_size );
     return remote_deps;
 }
 #define DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
-        int _i;                                                                \
         (REMOTE_DEPS) = (dplasma_remote_deps_t*)remote_deps_allocation(&remote_deps_freelist); \
-        (REMOTE_DEPS)->origin = (dplasma_atomic_lifo_t*)&remote_deps_freelist; \
     }
 
 

@@ -12,14 +12,14 @@
 #include <string.h>
 
 /* Clear the already forwarded remote dependency matrix */
-static inline void remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context )
+static inline void remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* rdeps )
 {
     /*DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));*/
-    memset(eu_context->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
+    memset(rdeps->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
 }
 
 /* Mark a rank as already forwarded the termination of the current task */
-static inline void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, int rank )
+static inline void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* rdeps, int rank )
 {
     int boffset;
     uint32_t mask;
@@ -28,11 +28,11 @@ static inline void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_conte
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
-    eu_context->remote_dep_fw_mask[boffset] |= mask;
+    rdeps->remote_dep_fw_mask[boffset] |= mask;
 }
 
 /* Check if rank has already been forwarded the termination of the current task */
-static inline int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, int rank )
+static inline int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* rdeps, int rank )
 {
     int boffset;
     uint32_t mask;
@@ -41,7 +41,7 @@ static inline int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context,
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
     /*DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));*/
-    return (int) ((eu_context->remote_dep_fw_mask[boffset] & mask) != 0);
+    return (int) ((rdeps->remote_dep_fw_mask[boffset] & mask) != 0);
 }
 
 
@@ -75,11 +75,11 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
     if(np > 1)
     {
         context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
-        for(i = 0; i < context->nb_cores; i++)
+/*        for(i = 0; i < context->nb_cores; i++)
         {
             dplasma_execution_unit_t *eu = context->execution_units[i];
             eu->remote_dep_fw_mask = (uint32_t*) calloc(1, context->remote_dep_fw_mask_sizeof);
-        }
+        }*/
     }
     else 
     {
@@ -92,13 +92,13 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
 {
     int i;        
     
-    if(context->nb_nodes > 1)
+/*    if(context->nb_nodes > 1)
     {
         for(i = 0; i < context->nb_cores; i++)
         {
             free(context->execution_units[i]->remote_dep_fw_mask);
         }
-    }
+    }*/
     return remote_dep_fini(context);
 }
 
@@ -165,7 +165,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
 
-    remote_dep_reset_forwarded(eu_context);
+    remote_dep_reset_forwarded(eu_context, remote_deps);
     
     remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
@@ -214,12 +214,12 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                         DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dplasma_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                         
                         gc_data_ref(remote_deps->output[i].data);
-                        if(remote_dep_is_forwarded(eu_context, rank))
+                        if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {
                             continue;
                         }
                         remote_dep_inc_flying_messages(eu_context->master_context);
-                        remote_dep_mark_forwarded(eu_context, rank);
+                        remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     }
 #ifdef DPLASMA_DEBUG
@@ -243,9 +243,10 @@ int remote_deps_allocation_init(int np, int max_output_deps)
     max_dep_count = max_output_deps;
     max_nodes_number = np;
     elem_size = sizeof(dplasma_remote_deps_t) +
-                max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
-                                 sizeof(uint32_t*) + sizeof(dplasma_remote_dep_datatype_t*) +
-                                 sizeof(uint32_t) * (max_nodes_number + 31)/32);
+                (max_dep_count - 1) * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
+                                       sizeof(uint32_t*) + sizeof(dplasma_remote_dep_datatype_t*) +
+                                       sizeof(uint32_t) * (max_nodes_number + 31)/32) +
+                sizeof(uint32_t) * (max_nodes_number + 31)/32;
     dplasma_atomic_lifo_construct(&remote_deps_freelist);
     return 0;
 }
@@ -260,6 +261,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 #else
 #define HDEBUG( args ) do {} while(0)
 #endif 
+
 
 /* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
  * requires it to genrerate correct precompiled code */
