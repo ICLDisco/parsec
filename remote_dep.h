@@ -100,10 +100,9 @@ static inline dplasma_remote_deps_t* remote_deps_allocation( dplasma_atomic_lifo
             remote_deps->output[i].rank_bits = (uint32_t*)ptr;
             ptr += rank_bit_size;
         }
-        assert( (ptr - (char*)remote_deps) <= elem_size );
         /* fw_mask immediatly follows outputs */
-        remote_deps->remote_dep_fw_mask = (uint32_t*) &remote_deps->output[max_dep_count + 1];
-        assert(((ptrdiff_t) remote_deps->remote_dep_fw_mask - (ptrdiff_t) remote_deps + sizeof(uint32_t) * (max_nodes_number + 31)/32) <= elem_size);
+        remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
+        assert( (ptr - (char*)remote_deps) <= elem_size - sizeof(uint32_t) * (max_nodes_number+31)/32);
     }
     return remote_deps;
 }
