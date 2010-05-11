@@ -119,7 +119,7 @@ typedef enum {
 /* globals and argv set values */
 int do_warmup = 0;
 int do_nasty_validations = 0;
-int do_distributed_generation = 0;
+int do_distributed_generation = 1;
 backend_argv_t backend = DO_DPLASMA;
 int cores = 1;
 int nodes = 1;
@@ -287,10 +287,10 @@ static void runtime_init(int argc, char **argv)
         int c;
 #if defined(HAVE_GETOPT_LONG)
         int option_index = 0;
-        c = getopt_long (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:h",
+        c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h",
                          long_options, &option_index);
 #else
-        c = getopt (argc, argv, "dpxmc:n:a:r:b:g:e:s:w::B:h");
+        c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -355,25 +355,14 @@ static void runtime_init(int argc, char **argv)
                 
             case 'x':
                 do_nasty_validations = 1;
+                do_distributed_generation = 0;
+                fprintf(stderr, "Results are checked on rank 0, distributed matrix generation is disabled.\n");
                 if(do_warmup)
                 {
                     fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
                     exit(2);
                 }
-                if(do_distributed_generation)
-                {
-                    fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
-                    exit(2);
-                }
                 break; 
-            case 'm':
-                do_distributed_generation = 1;
-                if(do_nasty_validations)
-                {
-                    fprintf(stderr, "Results cannot be checked with distributed matrix generation! Validations and distributed generation are exclusive; please select only one.\n");
-                    exit(2);
-                }
-                break;
             case 'w':
                 if(optarg)
                     do_warmup = atoi(optarg);
