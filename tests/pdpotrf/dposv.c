@@ -241,7 +241,6 @@ static void print_usage(void)
             "   -d --dplasma     : use DPLASMA backend (default)\n"
             "   -e --stile-col   : number of tile per col in a super tile (default: 1)\n"
             "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
-            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
             "   -p --plasma      : use PLASMA backend\n"
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -s --stile-row   : number of tile per row in a super tile (default: 1)\n"
@@ -268,7 +267,6 @@ static void runtime_init(int argc, char **argv)
         {"warmup",      optional_argument,  0, 'w'},
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
-        {"dist-matrix", no_argument,        0, 'm'},
         {"block-size",  required_argument,  0, 'B'},
         {"pri_change",  required_argument,  0, 'P'},
         {"help",        no_argument,        0, 'h'},

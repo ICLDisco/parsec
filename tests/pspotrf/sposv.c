@@ -240,7 +240,6 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
-            "   -m --dist-matrix : generate tiled matrix in a distributed way\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
@@ -261,7 +260,6 @@ static void runtime_init(int argc, char **argv)
         {"warmup",      optional_argument,  0, 'w'},
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
-        {"dist-matrix", no_argument,        0, 'm'},
         {"block-size",  required_argument,  0, 'B'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
