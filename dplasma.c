@@ -1170,7 +1170,7 @@ int dplasma_release_local_OUT_dependencies( dplasma_execution_unit_t* eu_context
                 new_context->list_item.list_prev = position->list_item.list_prev;
                 new_context->list_item.list_next->list_prev = (dplasma_list_item_t*)new_context;
                 new_context->list_item.list_prev->list_next = (dplasma_list_item_t*)new_context;
-                if( (position == *pready_list) && (position->priority <= new_context->priority) ) {
+                if( (position == *pready_list) && (position->priority < new_context->priority) ) {
                     *pready_list = new_context;
                 }
             }
