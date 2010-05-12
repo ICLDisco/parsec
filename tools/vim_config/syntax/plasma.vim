@@ -24,8 +24,8 @@ syn keyword plasmaCInclusion    %{ %}
 syn keyword plasmaDirection     INOUT IN OUT
 syn keyword plasmaOperator      -> <- min max
 syn keyword plasmaRange         ..
-syn match plasmaStructuring     "\cbody"
-syn match plasmaStructuring     "\cend"
+syn match plasmaStructuring     "\c\<body\>"
+syn match plasmaStructuring     "\c\<end\>"
 syn match plasmaPartition       /^:/
 
 " Default highlighting
