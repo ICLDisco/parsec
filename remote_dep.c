@@ -118,6 +118,14 @@ int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
 }
 
 #ifdef DPLASMA_COLLECTIVE
+static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
+{
+    assert(him >= 0);
+    if(me == -1) return 0;
+    if(him == me+1) return 1;
+    return 0;
+}
+
 static inline int remote_dep_bcast_binonial_child(int me, int him)
 {
     int k, mask;
@@ -140,7 +148,11 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
+# if DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
+#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
+# else 
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
+# endif
 #else
 static inline int remote_dep_bcast_star_child(int me, int him)
 {
