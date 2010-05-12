@@ -818,7 +818,9 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                              &colpred, 
                                              &rowsize,
                                              &colsize) < 0) {
-            output("    DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n");
+            output("    DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
+                   "  }\n"
+                   "#endif /* DISTRIBUTED */\n\n");
         } else {
             output("    int _rrank, _crank;\n"
                    "    _rrank = %s;\n"                                                                    /* line  4 */
