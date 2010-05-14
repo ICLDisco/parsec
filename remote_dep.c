@@ -57,6 +57,7 @@ static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
     dplasma_atomic_dec_32b( &ctx->taskstodo );
 }
 
+#define DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
 
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
@@ -148,7 +149,7 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-# if DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
+# ifdef DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
 # else 
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)

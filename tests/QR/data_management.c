@@ -135,6 +135,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         plasma_context_t *plasma = plasma_context_self();
         Ddesc->ib = PLASMA_IB;
     }
+    Ddesc->mat = Pdesc->mat;
     return ddesc_compute_vals( Ddesc );
 }
 
