@@ -12,9 +12,13 @@ int PLASMA_INFO;
 #include "dplasma.h"
 #include "remote_dep.h"
 
+#include "data_management.h"
+extern DPLASMA_desc ddescA, ddescB, ddescC;
+#define descA ddescA
+#define descB ddescB
+#define descC ddescC
+
 #ifdef DISTRIBUTED
-#   include "data_management.h"
-    extern DPLASMA_desc ddescA, ddescB, ddescC;
 #   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #   define B(m,n) dplasma_get_local_tile_s(&ddescB, m, n)
 #   define C(m,n) dplasma_get_local_tile_s(&ddescC, m, n)

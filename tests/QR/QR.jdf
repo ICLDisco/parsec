@@ -9,23 +9,20 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 
-#if defined(USE_MPI)
-#include <mpi.h>
 #include "data_management.h"
-extern MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 extern DPLASMA_desc ddescA;
 extern DPLASMA_desc ddescT;
+#define descA ddescA
+#define descT ddescT
+
+#if defined(USE_MPI)
+#include <mpi.h>
+extern MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 
 #define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #define T(m,n) dplasma_get_local_tile_s(&ddescT, m, n)
 
-#define descA ddescA
-#define descT ddescT
-
 #else
-extern PLASMA_desc descA;
-extern PLASMA_desc descT;
-
 #define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
 #define T(m,n) &(((double*)descT.mat)[descT.bsiz*(m)+descT.bsiz*descT.lmt*(n)])
 
