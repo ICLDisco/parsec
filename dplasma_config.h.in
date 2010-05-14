@@ -13,6 +13,8 @@
 /* debug */
 #cmakedefine DPLASMA_DEBUG
 #cmakedefine DPLASMA_DEBUG_HISTORY
+/* CUDA Support */
+#cmakedefine DPLASMA_CUDA_SUPPORT
 /* profiling */
 #cmakedefine DPLASMA_PROFILING
 #cmakedefine DPLASMA_STATS
