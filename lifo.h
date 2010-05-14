@@ -89,8 +89,9 @@ static inline dplasma_list_item_t* dplasma_atomic_lifo_pop( dplasma_atomic_lifo_
     }
 
     if( item == &(lifo->lifo_ghost) ) return NULL;
+    item->list_next = item;
+    item->list_prev = item;
 #ifdef DPLASMA_DEBUG
-    item->list_next = NULL;
     item->refcount--;
     item->belong_to_list = NULL;
 #endif  /* DPLASMA_DEBUG */
