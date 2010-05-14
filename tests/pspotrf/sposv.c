@@ -18,6 +18,11 @@
 #include <string.h>
 #include <sys/time.h>
 
+/* CUDA INCLUDE */
+#include <cuda.h>
+#include <cublas.h>
+#include <cuda_runtime_api.h>
+
 #include <cblas.h>
 #include <math.h>
 #include "plasma.h"
@@ -33,6 +38,23 @@
 //#ifdef VTRACE
 //#include "vt_user.h"
 //#endif
+
+/*
+ *  *  * These are used for CUDA in the jdf.
+ *   *   */
+volatile uint32_t *gpu_lock;
+volatile uint32_t *compute_lock;
+int *gpu_counter;
+int *set_device;
+int cpu_counter;
+int use_gpu = 0;
+CUevent eMoveIn;
+CUevent eCompute;
+CUevent eMoveOut;
+int overlap_counter;
+
+/* -1 disable | 0 auto detect */
+int ndevices = 0;
 
 static void runtime_init(int argc, char **argv);
 static void runtime_fini(void);
@@ -135,6 +157,8 @@ PLASMA_enum uplo = PlasmaLower;
 PLASMA_desc descA;
 DPLASMA_desc ddescA;
 
+extern int spotrf_cuda_init( int use_gpu, int tile_nb );
+extern int spotrf_cuda_fini( int use_gpu );
 
 int main(int argc, char ** argv)
 {
@@ -146,7 +170,7 @@ int main(int argc, char ** argv)
     dplasma_context_t* dplasma;
 
     //#ifdef VTRACE
-      // VT_OFF();
+    // VT_OFF();
     //#endif
 
     runtime_init(argc, argv);
@@ -154,12 +178,11 @@ int main(int argc, char ** argv)
     if(0 == rank)
         create_matrix(N, &uplo, &A1, &A2, &B1, &B2, LDA, NRHS, LDB, &descA);
 
-    switch(backend)
-    {
-        case DO_PLASMA: {
-            plasma_context_t* plasma = plasma_context_self();
+    switch(backend) {
+    case DO_PLASMA: {
+        plasma_context_t* plasma = plasma_context_self();
 
-            if(do_warmup)
+        if(do_warmup)
             {
                 TIME_START();
                 plasma_parallel_call_2(plasma_pdpotrf, 
@@ -168,25 +191,25 @@ int main(int argc, char ** argv)
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             }
-            TIME_START();
-            plasma_parallel_call_2(plasma_pdpotrf,
-                                   PLASMA_enum, uplo,
-                                   PLASMA_desc, descA);
-            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
-                        gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
-            break;
-        }
-        case DO_DPLASMA: {
-            scatter_matrix(&descA, &ddescA);
+        TIME_START();
+        plasma_parallel_call_2(plasma_pdpotrf,
+                               PLASMA_enum, uplo,
+                               PLASMA_desc, descA);
+        TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
+                    gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+        break;
+    }
+    case DO_DPLASMA: {
+        scatter_matrix(&descA, &ddescA);
 
-            //#ifdef VTRACE 
-            //    VT_ON();
-            //#endif
+        //#ifdef VTRACE 
+        //    VT_ON();
+        //#endif
     
-            /*** THIS IS THE DPLASMA COMPUTATION ***/
-            TIME_START();
-            dplasma = setup_dplasma(&argc, &argv);
-            if(0 == rank)
+        /*** THIS IS THE DPLASMA COMPUTATION ***/
+        TIME_START();
+        dplasma = setup_dplasma(&argc, &argv);
+        if(0 == rank)
             {
                 dplasma_execution_context_t exec_context;
 
@@ -195,25 +218,69 @@ int main(int argc, char ** argv)
                 dplasma_set_initial_execution_context(&exec_context);
                 dplasma_schedule(dplasma, &exec_context);
             }
-            TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
+        TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
 
-            if(do_warmup)
-                warmup_dplasma(dplasma);
+        if(do_warmup)
+            warmup_dplasma(dplasma);
     
-            /* lets rock! */
-            SYNC_TIME_START();
-            TIME_START();
-            dplasma_progress(dplasma);
-            TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB,
-                             gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
+        /* CUDA */
+        int i,j,tmp;
 
-            cleanup_dplasma(dplasma);
-            /*** END OF DPLASMA COMPUTATION ***/
-
-            gather_matrix(&descA, &ddescA);
-            break;
+        if(use_gpu != -1){
+            if( 0 == spotrf_cuda_init( use_gpu, NB ) ) {
+                overlap_counter = 0;
+                /* cpu counter for GEMM*/
+                cpu_counter = 0;
+                use_gpu = 1;
+            } else {
+                use_gpu = 0;
+            }
         }
+        if( 1 != use_gpu ) {
+            printf("------------------------------------------------------------------------------\n");
+            printf("CUDA: Disable Plus GPU Mode !!\n");
+            printf("------------------------------------------------------------------------------\n");
+        }
+
+        /* lets rock! */
+        SYNC_TIME_START();
+        TIME_START();
+        dplasma_progress(dplasma);
+        TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
+        SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB,
+                         gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
+
+        cleanup_dplasma(dplasma);
+        /*** END OF DPLASMA COMPUTATION ***/
+		
+        /* Cleanup CUDA */
+        {
+            if (use_gpu == 1) {
+                int total = 0;
+                float gtotal = 0.0;
+
+                spotrf_cuda_fini( use_gpu );
+                for(i=0;i<ndevices;i++){
+                    total += gpu_counter[i];
+                }
+                gtotal = total + cpu_counter;
+                printf("------------------------------------------------------------------------------\n");
+                printf("|%-10.2s|%10.4s |%10.1s |\n","PU","GEMM","%");
+                printf("|%-34.34s|\n","------------------------------------");
+                for(i=0;i<ndevices;i++){
+                    printf("|%-4.4s%5d |%10d |%10.2f |\n","GPU:",i,gpu_counter[i],(gpu_counter[i]/gtotal)*100.00);
+                }
+                printf("|%-34.34s|\n","------------------------------------");
+                printf("|%-10.8s|%10d |%10.2f |\n","All GPUs",total,(total/gtotal)*100.00);
+                printf("|%-10.8s|%10d |%10.2f |\n","All CPUs",cpu_counter,(cpu_counter / gtotal)*100.00);
+                printf("|%-34.34s|\n","------------------------------------");
+                printf("|%-10.7s|%10d  %10.5s |\n","Overlap",overlap_counter,"times");
+                printf("------------------------------------------------------------------------------\n");
+            }
+        }
+        gather_matrix(&descA, &ddescA);
+        break;
+    }
     }
 
     if(0 == rank)
@@ -622,7 +689,6 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
-#ifdef USE_MPI
     if(do_distributed_generation)
     {
         TIME_START();
@@ -641,6 +707,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     distribute_data(local, dist);
     /*TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));*/
     
+#ifdef USE_MPI
 #if defined(DATA_VERIFICATIONS)
     if(do_nasty_validations)
     {
@@ -652,9 +719,6 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 #endif /* PRINT_ALL_BLOCKS */
     }
 #endif /* DATA_VERIFICATIONS */
-    
-#else /* NO MPI */
-    dplasma_desc_init(local, dist);
 #endif
 }
 

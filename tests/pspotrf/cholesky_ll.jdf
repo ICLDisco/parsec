@@ -12,12 +12,16 @@ int PLASMA_INFO;
 #include "dplasma.h"
 #include "remote_dep.h"
 
+extern int use_gpu;
+extern int *gpu_counter;
+
+#include "data_management.h"
+extern DPLASMA_desc ddescA;
+
 #ifdef DISTRIBUTED
-#   include "data_management.h"
-    extern DPLASMA_desc ddescA;
 #   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #else
-#   define A(m,n) &(((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#   define A(m,n) &(((float*)ddescA.mat)[ddescA.bsiz*(m)+ddescA.bsiz*ddescA.lmt*(n)])
 #endif
 
 #ifdef DPLASMA_CALL_TRACE
@@ -33,6 +37,9 @@ int PLASMA_INFO;
 #else
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
+
+extern int gpu_sgemm( int uplo, void* A, void*B, void* C, int NB );
+
 %}
 
 /* Globals
@@ -232,6 +239,10 @@ INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
 
 BODY
+    if( use_gpu == 1 ){
+        if( 0 == gpu_sgemm( uplo, A, B, C, NB ) )
+            goto FIN;
+    }
     if( uplo == PlasmaLower ) {
         CORE( 
             sgemm, (
@@ -275,4 +286,5 @@ BODY
                  1.0, k, m, NB /*A.nb*/ )
             );
     }
+FIN:
 END

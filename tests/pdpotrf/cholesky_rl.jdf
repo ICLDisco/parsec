@@ -12,12 +12,12 @@ int PLASMA_INFO = 0;
 #include "dplasma.h"
 #include "remote_dep.h"
 
+#include "data_management.h"
+extern DPLASMA_desc ddescA;
 #ifdef DISTRIBUTED
-#   include "data_management.h"
-    extern DPLASMA_desc ddescA;
 #   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #else
-#   define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#   define A(m,n) &(((double*)ddescA.mat)[ddescA.bsiz*(m)+ddescA.bsiz*ddescA.lmt*(n)])
 #endif
 
 #ifdef DPLASMA_CALL_TRACE

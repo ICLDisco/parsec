@@ -4,20 +4,40 @@ extern "C" %{
     */
 #include <plasma.h>
 #include <core_sblas.h>
+#include "cuda.h"
+#include "cublas.h"
+#include "cuda_runtime_api.h"
 
 extern PLASMA_desc descA;
 extern int uplo;
 int PLASMA_INFO = 0;
 
 #include "dplasma.h"
+
+/* CUDA */
+extern int cpu_counter;
+extern volatile uint32_t *gpu_lock;
+extern volatile uint32_t *compute_lock;
+extern int use_gpu;
+extern int *gpu_counter;
+extern int ndevices;
+int my_gpu = 0;
+extern int cores;
+extern int *set_device;
+extern CUevent eMoveIn;
+extern CUevent eCompute;
+extern CUevent eMoveOut;
+extern int overlap_counter;
+
 #include "remote_dep.h"
 
+#include "data_management.h"
+extern DPLASMA_desc ddescA;
+
 #ifdef DISTRIBUTED
-#   include "data_management.h"
-    extern DPLASMA_desc ddescA;
 #   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
 #else
-#   define A(m,n) &(((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
+#   define A(m,n) &(((float*)ddescA.mat)[ddescA.bsiz*(m)+ddescA.bsiz*ddescA.lmt*(n)])
 #endif
 
 #ifdef DPLASMA_CALL_TRACE
@@ -33,6 +53,8 @@ int PLASMA_INFO = 0;
 #else
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
+
+extern int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB );
 %}
 
 /* Globals
@@ -228,6 +250,12 @@ INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
 
 BODY
+    if( use_gpu == 1 ) {
+        if( 0 == gpu_sgemm( uplo, A, B, C, NB ) )
+	    goto FIN;
+    }
+
+    cpu_counter++;
     if( uplo == PlasmaLower ) {
         CORE(
             sgemm, ( 
@@ -271,4 +299,5 @@ BODY
                  1.0, n, m, NB /*A.nb*/ )
             );
     }
+FIN:
 END
