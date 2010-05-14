@@ -82,13 +82,23 @@ int yywrap()
 
 prog:
     dplasma prog
-    | DPLASMA_VAR DPLASMA_ASSIGNMENT expr
+    | DPLASMA_VAR DPLASMA_ASSIGNMENT expr optional_info
             {
+                symbol_t* symbol;
                 dplasma_add_global_symbol_cst( $1, $3 );
+                if( NULL != $4 ) {
+                    symbol = dplasma_search_global_symbol($1);
+                    symbol->type = $4;
+                }
             } prog
-    | DPLASMA_VAR
+    | DPLASMA_VAR optional_info
             {
+                symbol_t* symbol;
                 dplasma_add_global_symbol( $1 );
+                if( NULL != $2 ) {
+                    symbol = dplasma_search_global_symbol($1);
+                    symbol->type = $2;
+                }
             } prog
     | DPLASMA_EXTERN_DECL {
                              dplasma_precompiler_add_preamble($1.language, $1.code);
