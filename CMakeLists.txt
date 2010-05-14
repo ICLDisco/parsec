@@ -228,6 +228,7 @@ check_function_exists(asprintf HAVE_ASPRINTF)
 check_function_exists(vasprintf HAVE_VASPRINTF)
 check_include_files(getopt.h HAVE_GETOPT_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
+check_function_exists(getrusage HAVE_GETRUSAGE)
 check_include_files(errno.h HAVE_ERRNO_H)
 
 #

@@ -33,7 +33,7 @@ typedef struct _gpu_elem {
         }                                                               \
     } while(0)
 
-#define DPLASMA_USE_GPUS        1
+#define DPLASMA_USE_GPUS        2
 #define DPLASMA_CONTEXT_PER_GPU 1
 
 static dplasma_atomic_lifo_t gpu_devices;
@@ -259,7 +259,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         }
 #endif
         offset = 0;
-        cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 1, 4 );
+        cuFuncSetBlockShape( gpu_device->hcuFunction, 32, 1, 1 );
 
         CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_A );
         CU_PUSH_INT(     gpu_device->hcuFunction, offset, NB );
