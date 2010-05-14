@@ -1,32 +1,44 @@
 if( PLASMA_FOUND )
 
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
-  
+  set( CUDA_BUILD_CUBIN ON )
+  set( CUDA_HOST_COMPILATION_CPP OFF )
+
+  if( CUDA_FOUND)
+    cuda_add_library( mysgemm sgemm.cu)
+  endif (CUDA_FOUND)
+
   if( DPLASMA_MPI AND MPI_FOUND )
-    add_executable(mpi_sposv_ll sposv.c data_management.c cholesky_ll.c)
+    add_library(mpi_sposv STATIC data_management.c gpu_gemm.c sposv.c)
+    set_target_properties(mpi_sposv PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+
+    add_executable(mpi_sposv_ll cholesky_ll.c)
     set_target_properties(mpi_sposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(mpi_sposv_ll PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(mpi_sposv_ll PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(mpi_sposv_ll dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+    target_link_libraries(mpi_sposv_ll dplasma-mpi mpi_sposv ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
-	add_executable(mpi_sposv_rl sposv.c data_management.c cholesky_rl.c)
-	set_target_properties(mpi_sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
-	set_target_properties(mpi_sposv_rl PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
-	set_target_properties(mpi_sposv_rl PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-	target_link_libraries(mpi_sposv_rl dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+    add_executable(mpi_sposv_rl cholesky_rl.c)
+    set_target_properties(mpi_sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
+    set_target_properties(mpi_sposv_rl PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+    set_target_properties(mpi_sposv_rl PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
+    target_link_libraries(mpi_sposv_rl dplasma-mpi mpi_sposv ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   endif( DPLASMA_MPI AND MPI_FOUND )
 
-  add_executable(sposv_ll sposv.c data_management.c cholesky_ll.c)
+  add_library(sposv STATIC data_management.c gpu_gemm.c sposv.c)
+  set_target_properties(mpi_sposv PROPERTIES COMPILE_FLAGS "-DADD_")
+
+  add_executable(sposv_ll cholesky_ll.c)
   set_target_properties(sposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(sposv_ll PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(sposv_ll PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(sposv_ll dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+  target_link_libraries(sposv_ll dplasma sposv ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
-  add_executable(sposv_rl sposv.c data_management.c cholesky_rl.c)
+  add_executable(sposv_rl cholesky_rl.c)
   set_target_properties(sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(sposv_rl PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(sposv_rl PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(sposv_rl dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+  target_link_libraries(sposv_rl dplasma sposv ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
 endif( PLASMA_FOUND )
 
