@@ -636,7 +636,6 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 
 static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
-#ifdef USE_MPI
     if(do_distributed_generation)
     {
         TIME_START();
@@ -651,6 +650,8 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     {
         dplasma_desc_init(local, dist);
     }
+
+#ifdef USE_MPI
     dplasma_desc_bcast(local, dist);
     distribute_data(local, dist);
     /*TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));*/
@@ -666,10 +667,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 #endif /* PRINT_ALL_BLOCKS */
     }
 #endif /* DATA_VERIFICATIONS */
-    
-#else /* NO MPI */
-    dplasma_desc_init(local, dist);
-#endif
+#endif  /* USE_MPI */
 }
 
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)

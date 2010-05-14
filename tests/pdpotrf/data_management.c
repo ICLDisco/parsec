@@ -128,6 +128,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     Ddesc->n = Pdesc->n ;
     Ddesc->mt = Pdesc->mt ;
     Ddesc->nt = Pdesc->nt ;
+    Ddesc->mat = Pdesc->mat;
     return ddesc_compute_vals( Ddesc );
 }
 
