@@ -708,7 +708,6 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     distribute_data(local, dist);
     /*TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));*/
     
-#ifdef USE_MPI
 #if defined(DATA_VERIFICATIONS)
     if(do_nasty_validations)
     {
