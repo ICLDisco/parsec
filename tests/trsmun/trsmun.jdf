@@ -14,8 +14,6 @@ int PLASMA_INFO = 0;
 #include "data_management.h"
 extern DPLASMA_desc ddescA;
 extern DPLASMA_desc ddescB;
-#define descA ddescA
-#define descL ddescL
 
 #ifdef DISTRIBUTED
 #include <mpi.h>
@@ -25,8 +23,8 @@ extern MPI_Datatype TILE, VECTOR;
 #define B(l)   dplasma_get_local_tile_s(&ddescL, l)
 
 #else
-#define A(k,l) &(((double*)descA.mat)[descA.bsiz*(k)+descA.bsiz*descA.lmt*(l)])
-#define B(l)   &(((double*)descB.mat)[descB.bsiz*(l)])
+#define A(k,l) &(((double*)ddescA.mat)[ddescA.bsiz*(k)+ddescA.bsiz*ddescA.lmt*(l)])
+#define B(l)   &(((double*)ddescB.mat)[ddescB.bsiz*(l)])
 #endif
 
 #ifdef DPLASMA_CALL_TRACE

@@ -27,6 +27,11 @@
 #include "profiling.h"
 #endif
 
+/* ENABLE CUDA */
+#include "cuda.h"
+#include "cublas.h"
+#include "cuda_runtime_api.h"
+
 #ifdef HAVE_PAPI
 #include "papi.h"
 #endif
@@ -236,6 +241,52 @@ static void push_in_queue_wrapper(void *store, dplasma_list_item_t *elt)
 }
 #endif
 
+#if defined(HAVE_GETRUSAGE)
+#include <sys/time.h>
+#include <sys/resource.h>
+
+static int _dplasma_rusage_first_call = 1;
+static struct rusage _dplasma_rusage;
+
+static void dplasma_statistics(char* str)
+{
+    struct rusage current;
+
+    getrusage(RUSAGE_SELF, &current);
+
+    if ( !_dplasma_rusage_first_call ) {
+        float   usr, sys;
+
+        usr = ((current.ru_utime.tv_sec - _dplasma_rusage.ru_utime.tv_sec) +
+               (current.ru_utime.tv_usec - _dplasma_rusage.ru_utime.tv_usec) / 1000000.0);
+        sys = ((current.ru_stime.tv_sec - _dplasma_rusage.ru_stime.tv_sec) +
+               (current.ru_stime.tv_usec - _dplasma_rusage.ru_stime.tv_usec) / 1000000.0);
+
+        printf("=============================================================\n");
+        printf("%s: Resource Usage Data...\n", str);
+        printf("-------------------------------------------------------------\n");
+        printf("User Time   (secs)          : %10.3f\n", usr);
+        printf("System Time (secs)          : %10.3f\n", sys);
+        printf("Total Time  (secs)          : %10.3f\n", usr + sys);
+        printf("Minor Page Faults           : %10d\n", (current.ru_minflt  - _dplasma_rusage.ru_minflt));
+        printf("Major Page Faults           : %10d\n", (current.ru_majflt  - _dplasma_rusage.ru_majflt));
+        printf("Swap Count                  : %10d\n", (current.ru_nswap   - _dplasma_rusage.ru_nswap));
+        printf("Voluntary Context Switches  : %10d\n", (current.ru_nvcsw   - _dplasma_rusage.ru_nvcsw));
+        printf("Involuntary Context Switches: %10d\n", (current.ru_nivcsw  - _dplasma_rusage.ru_nivcsw));
+        printf("Block Input Operations      : %10d\n", (current.ru_inblock - _dplasma_rusage.ru_inblock));
+        printf("Block Output Operations     : %10d\n", (current.ru_oublock - _dplasma_rusage.ru_oublock));
+        printf("=============================================================\n");
+    }
+
+    _dplasma_rusage_first_call = !_dplasma_rusage_first_call;
+    _dplasma_rusage = current;
+
+    return;
+}
+#else
+static void dplasma_statistics(char* str) { return; }
+#endif  /* defined(HAVE_GETRUSAGE) */
+
 static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t* startup )
 {
     dplasma_execution_unit_t* eu;
@@ -398,10 +449,62 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     }
 #endif  /* defined(HAVE_HWLOC)*/
 
+#if defined(DPLASMA_CUDA_SUPPORT) && 0
+    /* CUDA */
+    cuInit(0);
+    cublasStatus status;
+    int ndevices;
+    cuDeviceGetCount(&ndevices);
+    status = cublasInit();
+    if(0 == eu->eu_id){
+	    if(CUBLAS_STATUS_SUCCESS == status){
+		    printf("------------------------------------------------------------------------------\n");
+		    printf("Found GPU CUDA(%d)\n",ndevices);
+		    for( int idevice = 0; idevice < ndevices; idevice++ ){
+			    char name[200],buff[4],i;
+			    unsigned int totalMem, clock, map_host_mem, compute_mode;
+			    int dv_version, major,minor;
+			    unsigned int mem_free, mem_total;
+			    CUdevice dev;
+			    cuDeviceGet( &dev, idevice);
+			    cuDeviceGetName( name, sizeof(name), dev );
+			    cuDeviceTotalMem( &totalMem, dev );
+			    
+			    cuMemGetInfo(&mem_free, &mem_total);
+			    cuDeviceGetAttribute( (int*)&clock, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, dev );
+			    printf( "\tDevice %d: %s, %.1f MHz clock, %.1f/%.1f MB memory (dv.",idevice,name, clock/1000.f, mem_free/1024.f/1024.f, mem_total/1024.f/1024.f );
+			    cuDriverGetVersion(&dv_version);
+			    sprintf(buff, "%d", dv_version);
+			    major = dv_version / 100 / 10;
+			    
+			    minor = (dv_version % 100) / 10;
+			    printf ("%d.%d)\n",major,minor);
+			    cuDeviceGetAttribute( (int*)&map_host_mem, CU_DEVICE_ATTRIBUTE_CAN_MAP_HOST_MEMORY, dev);			    
+			    if(map_host_mem)
+				    printf("\t\tMAP_HOST_MEMORY: PASSED\n");
+			    else
+				    printf("\t\tMAP_HOST}MEMORY: FAILED\n");
+			    cuDeviceGetAttribute( (int*)&compute_mode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, dev);
+			    switch(compute_mode){
+                case 0 : printf("\t\tCOMPUTE MODE: (%d)-Default]\n",compute_mode); break;
+                case 1 : printf("\t\tCOMPUTE MODE: (%d)-Exclusive]\n",compute_mode); break;
+                case 2 : printf("\t\tCOMPUTE MODE: (%d)-Prohibited]\n",compute_mode); break;
+					     
+			    }
+		    }
+		    printf("------------------------------------------------------------------------------\n");
+	    }else{
+		    printf("------------------------------------------------------------------------------\n");
+		    printf("CUDA: No CUDA Supported !!\n");
+		    printf("------------------------------------------------------------------------------\n");
+	    }
+    }
+#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
+
     /* The main thread will go back to the user level */
     if( 0 == eu->eu_id )
         return NULL;
-
+    
     return __dplasma_progress(eu);
 }
 
@@ -664,6 +767,7 @@ dplasma_context_t* dplasma_init( int nb_cores, int* pargc, char** pargv[], int t
         }
     }
 #endif
+    dplasma_statistics("DPLASMA");
 
     return context;
 }
@@ -679,6 +783,7 @@ int dplasma_fini( dplasma_context_t** pcontext )
 #ifdef HAVE_PAPI
     PAPI_shutdown();
 #endif
+    dplasma_statistics("DPLASMA");
 
     /* Now wait until every thread is back */
     context->__dplasma_internal_finalization_in_progress = 1;
