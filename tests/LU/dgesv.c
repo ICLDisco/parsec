@@ -226,7 +226,7 @@ int main(int argc, char ** argv)
     //#endif
     
     runtime_init(argc, argv);
-    if(!do_distributed_generation && (0 == rank) )
+    if(0 == rank)
         create_matrix(N, &uplo, &A1, &A2, &B1, &B2, &L, &_IPIV, LDA, NRHS, LDB, &descA, &descL);
 
     switch(backend)
@@ -289,8 +289,7 @@ int main(int argc, char ** argv)
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
-            if( do_nasty_validations &&
-                !do_distributed_generation ) {
+            if(do_nasty_validations) {
                 gather_matrix(&descA, &ddescA);
                 gather_matrix(&descL, &ddescL);
                 gather_ipiv();
@@ -389,6 +388,7 @@ static void runtime_init(int argc, char **argv)
             {
             case 'p': 
                 backend = DO_PLASMA;
+                do_distributed_generation = 0;
                 break; 
             case 'd':
                 backend = DO_DPLASMA;
@@ -861,7 +861,11 @@ static void create_dl_IPIV()
     ddescIPIV.bsiz = ddescA.mb;
     ddescIPIV.ln = ddescA.lnt;
     ddescIPIV.n = ddescIPIV.ln;
-    ddescIPIV.mat=calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescIPIV.bsiz, sizeof(int));
+#ifdef USE_MPI
+    ddescIPIV.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescIPIV.bsiz, sizeof(int));
+#else
+    ddescIPIV.mat = _IPIV;
+#endif
     return;
 }
 

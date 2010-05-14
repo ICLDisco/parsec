@@ -308,6 +308,7 @@ static void runtime_init(int argc, char **argv)
         {
             case 'p': 
                 backend = DO_PLASMA;
+                do_distributed_generation = 0;
                 break; 
             case 'd':
                 backend = DO_DPLASMA;
