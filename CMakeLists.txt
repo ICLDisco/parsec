@@ -209,6 +209,16 @@ if (DPLASMA_PAPI)
   endif (PAPI_FOUND)
 endif (DPLASMA_PAPI)
 
+include (cmake_modules/FindCUDA.cmake)
+set(CUDA_HOST_COMPILATION_CPP OFF)
+find_package(CUDA)
+if (CUDA_FOUND)
+  include_directories(${CUDA_INCLUDE_DIRS})
+  set( DPLASMA_CUDA_SUPPORT 1)
+else (CUDA_FOUND)
+  set( DPLASMA_CUDA_SUPPORT 0)
+endif (CUDA_FOUND)
+
 check_include_files(stdarg.h HAVE_STDARG_H)
 check_function_exists(va_copy HAVE_VA_COPY)
 if (NOT HAVE_VA_COPY)
@@ -228,13 +238,15 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
 set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+#target_link_libraries(dplasma ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
 if (DPLASMA_MPI AND MPI_FOUND)
-    add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-      scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-      freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
-      ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-    set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+  add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
+    scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+    freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
+    ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
+  set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+#  target_link_libraries(dplasma-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 endif (DPLASMA_MPI AND MPI_FOUND)
 
 #
