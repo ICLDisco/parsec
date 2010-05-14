@@ -26,7 +26,7 @@ if( PLASMA_FOUND )
   endif( DPLASMA_MPI AND MPI_FOUND )
 
   add_library(sposv STATIC data_management.c gpu_gemm.c sposv.c)
-  set_target_properties(mpi_sposv PROPERTIES COMPILE_FLAGS "-DADD_")
+  set_target_properties(sposv PROPERTIES COMPILE_FLAGS "-DADD_")
 
   add_executable(sposv_ll cholesky_ll.c)
   set_target_properties(sposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
