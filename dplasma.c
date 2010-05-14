@@ -27,6 +27,11 @@
 #include "profiling.h"
 #endif
 
+/* ENABLE CUDA */
+#include "cuda.h"
+#include "cublas.h"
+#include "cuda_runtime_api.h"
+
 #ifdef HAVE_PAPI
 #include "papi.h"
 #endif
@@ -398,10 +403,62 @@ static void* __dplasma_thread_init( __dplasma_temporary_thread_initialization_t*
     }
 #endif  /* defined(HAVE_HWLOC)*/
 
+#if defined(DPLASMA_CUDA_SUPPORT) && 0
+    /* CUDA */
+    cuInit(0);
+    cublasStatus status;
+    int ndevices;
+    cuDeviceGetCount(&ndevices);
+    status = cublasInit();
+    if(0 == eu->eu_id){
+	    if(CUBLAS_STATUS_SUCCESS == status){
+		    printf("------------------------------------------------------------------------------\n");
+		    printf("Found GPU CUDA(%d)\n",ndevices);
+		    for( int idevice = 0; idevice < ndevices; idevice++ ){
+			    char name[200],buff[4],i;
+			    unsigned int totalMem, clock, map_host_mem, compute_mode;
+			    int dv_version, major,minor;
+			    unsigned int mem_free, mem_total;
+			    CUdevice dev;
+			    cuDeviceGet( &dev, idevice);
+			    cuDeviceGetName( name, sizeof(name), dev );
+			    cuDeviceTotalMem( &totalMem, dev );
+			    
+			    cuMemGetInfo(&mem_free, &mem_total);
+			    cuDeviceGetAttribute( (int*)&clock, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, dev );
+			    printf( "\tDevice %d: %s, %.1f MHz clock, %.1f/%.1f MB memory (dv.",idevice,name, clock/1000.f, mem_free/1024.f/1024.f, mem_total/1024.f/1024.f );
+			    cuDriverGetVersion(&dv_version);
+			    sprintf(buff, "%d", dv_version);
+			    major = dv_version / 100 / 10;
+			    
+			    minor = (dv_version % 100) / 10;
+			    printf ("%d.%d)\n",major,minor);
+			    cuDeviceGetAttribute( (int*)&map_host_mem, CU_DEVICE_ATTRIBUTE_CAN_MAP_HOST_MEMORY, dev);			    
+			    if(map_host_mem)
+				    printf("\t\tMAP_HOST_MEMORY: PASSED\n");
+			    else
+				    printf("\t\tMAP_HOST}MEMORY: FAILED\n");
+			    cuDeviceGetAttribute( (int*)&compute_mode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, dev);
+			    switch(compute_mode){
+                case 0 : printf("\t\tCOMPUTE MODE: (%d)-Default]\n",compute_mode); break;
+                case 1 : printf("\t\tCOMPUTE MODE: (%d)-Exclusive]\n",compute_mode); break;
+                case 2 : printf("\t\tCOMPUTE MODE: (%d)-Prohibited]\n",compute_mode); break;
+					     
+			    }
+		    }
+		    printf("------------------------------------------------------------------------------\n");
+	    }else{
+		    printf("------------------------------------------------------------------------------\n");
+		    printf("CUDA: No CUDA Supported !!\n");
+		    printf("------------------------------------------------------------------------------\n");
+	    }
+    }
+#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
+
     /* The main thread will go back to the user level */
     if( 0 == eu->eu_id )
         return NULL;
-
+    
     return __dplasma_progress(eu);
 }
 
