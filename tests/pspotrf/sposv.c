@@ -91,7 +91,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do {                                \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f s :\t", sync_time_elapsed);*/    \
+            printf("### TIMED %f s :\t", sync_time_elapsed);        \
             printf print;                                           \
         }                                                           \
     } while(0)
@@ -162,14 +162,14 @@ int main(int argc, char ** argv)
             if(do_warmup)
             {
                 TIME_START();
-                plasma_parallel_call_2(plasma_pdpotrf, 
+                plasma_parallel_call_2(plasma_pspotrf, 
                                        PLASMA_enum, uplo, 
                                        PLASMA_desc, descA);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             }
             TIME_START();
-            plasma_parallel_call_2(plasma_pdpotrf,
+            plasma_parallel_call_2(plasma_pspotrf,
                                    PLASMA_enum, uplo,
                                    PLASMA_desc, descA);
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
