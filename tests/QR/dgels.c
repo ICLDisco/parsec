@@ -201,7 +201,6 @@ int main(int argc, char ** argv)
             break;
         }
         case DO_DPLASMA: {
-            
             scatter_matrix(&descA, &ddescA);/*  create/distribute  matrix A */
             create_dT();
             create_datatypes();
@@ -236,8 +235,7 @@ int main(int argc, char ** argv)
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
-            if( do_nasty_validations &&
-                !do_distributed_generation ) {
+            if( do_nasty_validations ) {
                 gather_matrix(&descA, &ddescA);
                 gather_matrix(&descT, &ddescT);
             }
@@ -776,15 +774,23 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
  */
 static void create_dT(void)
 {
-    /* assign same values for both matrix description */
-    ddescT = ddescA; 
+    if(do_distributed_generation)
+    {
+        /* assign same values for both matrix description */
+        ddescT = ddescA;
 
-    /* now change L*/
-    ddescT.mb =  ddescA.ib;
-    ddescT.bsiz = ddescA.nb * ddescA.ib;
-    ddescT.lm = ddescA.lmt * ddescA.ib;
-    ddescT.m = ddescT.lm;
-    ddescT.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescT.bsiz, sizeof(double));
+        /* now change L*/
+        ddescT.mb =  ddescA.ib;
+        ddescT.bsiz = ddescA.nb * ddescA.ib;
+        ddescT.lm = ddescA.lmt * ddescA.ib;
+        ddescT.m = ddescT.lm;
+        ddescT.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescT.bsiz, sizeof(double));
+    }
+    else
+    {
+        ddescT = ddescA;
+        dplasma_desc_init(&descT, &ddescT);
+    }
 }
 
 
