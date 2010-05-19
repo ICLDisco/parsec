@@ -489,7 +489,7 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "colRANK", constant );
         constant = expr_new_int( ddescA.nrst );
         dplasma_assign_global_symbol( "rtileSIZE", constant );
-        constant = expr_new_int( ddescA.nrst );
+        constant = expr_new_int( ddescA.ncst );
         dplasma_assign_global_symbol( "ctileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
