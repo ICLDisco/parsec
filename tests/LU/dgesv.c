@@ -845,6 +845,7 @@ static void create_matrix(int N, PLASMA_enum* uplo,
  */
 static void create_dl_IPIV()
 {
+#ifdef USE_MPI
     /* assign same values for both matrix description */
     ddescL = ddescA; 
     ddescIPIV = ddescA;
@@ -861,10 +862,10 @@ static void create_dl_IPIV()
     ddescIPIV.bsiz = ddescA.mb;
     ddescIPIV.ln = ddescA.lnt;
     ddescIPIV.n = ddescIPIV.ln;
-#ifdef USE_MPI
     ddescIPIV.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescIPIV.bsiz, sizeof(int));
 #else
-    ddescIPIV.mat = _IPIV;
+    ddescL = ddescA;
+    dplasma_desc_init(&descL, &ddescL);
 #endif
     return;
 }
@@ -926,42 +927,42 @@ static void gather_ipiv(void)
 {
 #if USE_MPI
     int i, j, k, _rank;
-
+    
     if( do_distributed_generation )
         return;
-
+    
     if( do_nasty_validations ) {
         k = 0;
         if ( ddescIPIV.mpi_rank == 0 )
-            {
-                for(j = 0; j < ddescIPIV.lnt ; j++)
-                    for (i = 0 ; i < ddescIPIV.lmt ; i++ )
-                        {
-                            _rank = dplasma_get_rank_for_tile(&ddescIPIV, i, j);
-                            if (_rank == 0)
-                                memcpy(&_IPIV[descA.nb*i+descA.nb*descA.lmt*j], 
-                                       dplasma_get_local_IPIV(&ddescIPIV, i, j), 
-                                       ddescIPIV.bsiz * sizeof(int));
-                            else
-                                {
-                                    MPI_Recv(&_IPIV[descA.nb*i+descA.nb*descA.lmt*j], 
-                                             ddescIPIV.bsiz, MPI_INT, _rank, 1, MPI_COMM_WORLD, 
-                                             MPI_STATUS_IGNORE);
-                                }
-                        }
-            }
+        {
+            for(j = 0; j < ddescIPIV.lnt ; j++)
+                for (i = 0 ; i < ddescIPIV.lmt ; i++ )
+                {
+                    _rank = dplasma_get_rank_for_tile(&ddescIPIV, i, j);
+                    if (_rank == 0)
+                        memcpy(&_IPIV[descA.nb*i+descA.nb*descA.lmt*j], 
+                               dplasma_get_local_IPIV(&ddescIPIV, i, j), 
+                               ddescIPIV.bsiz * sizeof(int));
+                    else
+                    {
+                        MPI_Recv(&_IPIV[descA.nb*i+descA.nb*descA.lmt*j], 
+                                 ddescIPIV.bsiz, MPI_INT, _rank, 1, MPI_COMM_WORLD, 
+                                 MPI_STATUS_IGNORE);
+                    }
+                }
+        }
         else
-            {
-                for(j = 0; j < ddescIPIV.lnt ; j++)
-                    for (i = 0 ; i < ddescIPIV.lmt ; i++ )
-                        {
-                            _rank = dplasma_get_rank_for_tile(&ddescIPIV, i, j);
-                            if (_rank == ddescIPIV.mpi_rank)
-                                {
-                                    MPI_Send( dplasma_get_local_IPIV(&ddescIPIV, i, j), ddescIPIV.bsiz, MPI_INT, 0, 1, MPI_COMM_WORLD );
-                                }
-                        }
-            }
+        {
+            for(j = 0; j < ddescIPIV.lnt ; j++)
+                for (i = 0 ; i < ddescIPIV.lmt ; i++ )
+                {
+                    _rank = dplasma_get_rank_for_tile(&ddescIPIV, i, j);
+                    if (_rank == ddescIPIV.mpi_rank)
+                    {
+                        MPI_Send( dplasma_get_local_IPIV(&ddescIPIV, i, j), ddescIPIV.bsiz, MPI_INT, 0, 1, MPI_COMM_WORLD );
+                    }
+                }
+        }
     }
 #endif
 }
