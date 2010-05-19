@@ -773,23 +773,20 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
  */
 static void create_dT(void)
 {
-    if(do_distributed_generation)
-    {
-        /* assign same values for both matrix description */
-        ddescT = ddescA;
+#ifdef USE_MPI
+    /* assign same values for both matrix description */
+    ddescT = ddescA;
 
-        /* now change L*/
-        ddescT.mb =  ddescA.ib;
-        ddescT.bsiz = ddescA.nb * ddescA.ib;
-        ddescT.lm = ddescA.lmt * ddescA.ib;
-        ddescT.m = ddescT.lm;
-        ddescT.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescT.bsiz, sizeof(double));
-    }
-    else
-    {
-        ddescT = ddescA;
-        dplasma_desc_init(&descT, &ddescT);
-    }
+    /* now change L*/
+    ddescT.mb =  ddescA.ib;
+    ddescT.bsiz = ddescA.nb * ddescA.ib;
+    ddescT.lm = ddescA.lmt * ddescA.ib;
+    ddescT.m = ddescT.lm;
+    ddescT.mat = calloc(ddescA.nb_elem_r * ddescA.nb_elem_c * ddescT.bsiz, sizeof(double));
+#else
+    ddescT = ddescA;
+    dplasma_desc_init(&descT, &ddescT);
+#endif
 }
 
 
