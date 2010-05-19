@@ -197,7 +197,6 @@ int main(int argc, char ** argv)
                                    PLASMA_desc, descT);
             TIME_PRINT(("_plasma computation:\t%dx%d %d %f Gflops\n", M, N, PLASMA_NB, 
                         gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
-            descT.mat = ddescT.mat;
             break;
         }
         case DO_DPLASMA: {
