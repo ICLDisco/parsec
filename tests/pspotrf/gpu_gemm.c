@@ -13,6 +13,7 @@ typedef struct _gpu_device {
     dplasma_list_item_t item;
     CUcontext ctx;
     int id;
+    int executed_tasks;
     CUmodule hcuModule;
     CUfunction hcuFunction;
     dplasma_atomic_lifo_t* gpu_mem_lifo;
@@ -37,12 +38,13 @@ typedef struct _gpu_elem {
 #define DPLASMA_CONTEXT_PER_GPU 1
 
 static dplasma_atomic_lifo_t gpu_devices;
-int* gpu_counter;
+volatile int32_t cpu_counter = 0;
+static int ndevices = 0;
 
 int spotrf_cuda_init( int use_gpu, int NB )
 {
     cublasStatus cublas_status;
-    int i, j, k, ndevices, hcuDevice;
+    int i, j, k, hcuDevice;
 
     if(use_gpu != -1){
         cuInit(0);
@@ -131,6 +133,7 @@ int spotrf_cuda_init( int use_gpu, int NB )
                 }
                 gpu_device->id  = i;
                 gpu_device->gpu_mem_lifo = gpu_mem_lifo;
+                gpu_device->executed_tasks = 0;
 
                 status = cuCtxPopCurrent(NULL);
                 DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
@@ -140,8 +143,6 @@ int spotrf_cuda_init( int use_gpu, int NB )
             }
         }
 
-        /* GPU counter for GEMM / each */
-        gpu_counter = calloc(ndevices, sizeof(int));
         return 0;
     }
     return -1;
@@ -154,11 +155,19 @@ int spotrf_cuda_fini( int use_gpu )
     if (use_gpu == 1) {
         gpu_elem_t* gpu_elem;
         gpu_device_t* gpu_device;
+        int total = 0, *gpu_counter, i, overlap_counter;
+        float gtotal = 0.0;
+
+        /* GPU counter for GEMM / each */
+        gpu_counter = calloc(ndevices, sizeof(int));
 
         while( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
             status = cuCtxPushCurrent( gpu_device->ctx );
             DPLASMA_CUDA_CHECK_ERROR( "(FINI) cuCtxPushCurrent ", status,
                                       {continue;} );
+            /* Sum all executed tasks */
+            gpu_counter[gpu_device->id] += gpu_device->executed_tasks;
+
             /**
              * Release the GPU memory.
              */
@@ -171,6 +180,24 @@ int spotrf_cuda_fini( int use_gpu )
                                       {continue;} );
             free(gpu_device);
         }
+        /* Print statisitics */
+        for( i = 0; i < ndevices; i++ ) {
+            total += gpu_counter[i];
+        }
+        gtotal = total + cpu_counter;
+        printf("------------------------------------------------------------------------------\n");
+        printf("|%-10.2s|%10.4s |%10.1s |\n","PU","GEMM","%");
+        printf("|%-34.34s|\n","------------------------------------");
+        for( i = 0; i < ndevices; i++ ) {
+            printf("|%-4.4s%5d |%10d |%10.2f |\n","GPU:", i, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00);
+        }
+        printf("|%-34.34s|\n","------------------------------------");
+        printf("|%-10.8s|%10d |%10.2f |\n","All GPUs", total, (total/gtotal)*100.00);
+        printf("|%-10.8s|%10d |%10.2f |\n","All CPUs", cpu_counter, (cpu_counter / gtotal)*100.00);
+        printf("|%-34.34s|\n","------------------------------------");
+        printf("|%-10.7s|%10d  %10.5s |\n","Overlap", overlap_counter, "times");
+        printf("------------------------------------------------------------------------------\n");
+        free(gpu_counter);
     }
 }
 
@@ -221,7 +248,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         d_C = gpu_elem_C->gpu_mem;
         
 
-        cuStreamCreate(&stream, 0);
+        /*cuStreamCreate(&stream, 0);*/
         /* Push A into the GPU */
         status = cuMemcpyHtoD( d_A, A, sizeof(float)*NB*NB );
         DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
@@ -235,10 +262,10 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
                                   {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
         /* Wait until all data are on the GPU */
-        status = cuStreamSynchronize(stream);
+        /*status = cuStreamSynchronize(stream);
         DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
-                                  {goto release_and_return_error;} );
-
+        {goto release_and_return_error;} );*/
+        printf("Do GEMM on GPU\n");
 #if 0
         if(uplo == PlasmaLower) {
             /*cublasSgemm('N','T', NB, NB, NB, -1.0, (float*)(long)d_B, NB, (float*)(long)d_A, NB, 1.0, (float*)(long)d_C, NB );*/
@@ -291,7 +318,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
 
         /* Everything went fine so far, the result is correct and back in the main memory */
         return_code = 0;
-        gpu_counter[gpu_device->id]++;
+        gpu_device->executed_tasks++;
 
     release_and_return_error:
         if( NULL != gpu_elem_C )
@@ -309,6 +336,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
 
         return return_code;
     }
-
+    dplasma_atomic_inc_32b(&cpu_counter);
     return -1;  /* fails to atomically get the ownership of the device */
 }

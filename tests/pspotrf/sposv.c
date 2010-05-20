@@ -256,26 +256,7 @@ int main(int argc, char ** argv)
         /* Cleanup CUDA */
         {
             if (use_gpu == 1) {
-                int total = 0;
-                float gtotal = 0.0;
-
                 spotrf_cuda_fini( use_gpu );
-                for(i=0;i<ndevices;i++){
-                    total += gpu_counter[i];
-                }
-                gtotal = total + cpu_counter;
-                printf("------------------------------------------------------------------------------\n");
-                printf("|%-10.2s|%10.4s |%10.1s |\n","PU","GEMM","%");
-                printf("|%-34.34s|\n","------------------------------------");
-                for(i=0;i<ndevices;i++){
-                    printf("|%-4.4s%5d |%10d |%10.2f |\n","GPU:",i,gpu_counter[i],(gpu_counter[i]/gtotal)*100.00);
-                }
-                printf("|%-34.34s|\n","------------------------------------");
-                printf("|%-10.8s|%10d |%10.2f |\n","All GPUs",total,(total/gtotal)*100.00);
-                printf("|%-10.8s|%10d |%10.2f |\n","All CPUs",cpu_counter,(cpu_counter / gtotal)*100.00);
-                printf("|%-34.34s|\n","------------------------------------");
-                printf("|%-10.7s|%10d  %10.5s |\n","Overlap",overlap_counter,"times");
-                printf("------------------------------------------------------------------------------\n");
             }
         }
         gather_matrix(&descA, &ddescA);
