@@ -33,7 +33,7 @@ typedef struct _gpu_elem {
         }                                                               \
     } while(0)
 
-#define DPLASMA_USE_GPUS        2
+#define DPLASMA_USE_GPUS        1
 #define DPLASMA_CONTEXT_PER_GPU 1
 
 static dplasma_atomic_lifo_t gpu_devices;
@@ -111,7 +111,8 @@ int spotrf_cuda_init( int use_gpu, int NB )
                     if ( CUDA_SUCCESS != status ) {
                         printf( "cuModuleGetFunction(%s) failed %d\n", "_Z7sgemmNTPKfiS0_iPfiiff", status );
                     }
-                }                
+                    cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
+                }
 
                 /**
                  * Prepare the reusable memory on the GPU.
@@ -258,9 +259,8 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
                 printf( "Unknown Error during the Sgemm\n" );
         }
 #endif
-        offset = 0;
-        cuFuncSetBlockShape( gpu_device->hcuFunction, 32, 1, 1 );
 
+        offset = 0;
         CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_A );
         CU_PUSH_INT(     gpu_device->hcuFunction, offset, NB );
         CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
