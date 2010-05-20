@@ -113,7 +113,7 @@ static inline double get_cur_time(){
 # define SYNC_TIME_PRINT(print) do {                                \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            /*printf("### TIMED %f s :\t", sync_time_elapsed);*/    \
+            printf("### TIMED %f s :\t", sync_time_elapsed);        \
             printf print;                                           \
         }                                                           \
     } while(0)
@@ -185,22 +185,22 @@ int main(int argc, char ** argv)
         if(do_warmup)
             {
                 TIME_START();
-                plasma_parallel_call_2(plasma_pdpotrf, 
+                plasma_parallel_call_2(plasma_pspotrf, 
                                        PLASMA_enum, uplo, 
                                        PLASMA_desc, descA);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             }
-        TIME_START();
-        plasma_parallel_call_2(plasma_pdpotrf,
-                               PLASMA_enum, uplo,
-                               PLASMA_desc, descA);
-        TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
-                    gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
-        break;
-    }
-    case DO_DPLASMA: {
-        scatter_matrix(&descA, &ddescA);
+            TIME_START();
+            plasma_parallel_call_2(plasma_pspotrf,
+                                   PLASMA_enum, uplo,
+                                   PLASMA_desc, descA);
+            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
+                        gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+            break;
+        }
+        case DO_DPLASMA: {
+            scatter_matrix(&descA, &ddescA);
 
         //#ifdef VTRACE 
         //    VT_ON();
@@ -366,7 +366,8 @@ static void runtime_init(int argc, char **argv)
         {
             case 'p': 
                 backend = DO_PLASMA;
-                break; 
+                do_distributed_generation = 0;
+                break;
             case 'd':
                 backend = DO_DPLASMA;
                 break;
@@ -555,7 +556,7 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "colRANK", constant );
         constant = expr_new_int( ddescA.nrst );
         dplasma_assign_global_symbol( "rtileSIZE", constant );
-        constant = expr_new_int( ddescA.nrst );
+        constant = expr_new_int( ddescA.ncst );
         dplasma_assign_global_symbol( "ctileSIZE", constant );
     }
     load_dplasma_hooks(dplasma);
