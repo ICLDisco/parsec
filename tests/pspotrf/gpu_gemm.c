@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dplasma_config.h"
 #include "lifo.h"
 
@@ -36,10 +42,10 @@ typedef struct _gpu_elem {
         }                                                               \
     } while(0)
 
-#define DPLASMA_USE_GPUS        2
-#define DPLASMA_CONTEXT_PER_GPU 2
+#define DPLASMA_CONTEXT_PER_GPU 1
 
 static dplasma_atomic_lifo_t gpu_devices;
+int dplasma_show_detailed_capabilities = 0;
 volatile int32_t cpu_counter = 0;
 static int ndevices = 0;
 
@@ -54,8 +60,8 @@ int spotrf_cuda_init( int use_gpu, int NB )
         dplasma_atomic_lifo_construct(&gpu_devices);
         cuDeviceGetCount( &ndevices );
 
-        if( (-1 != DPLASMA_USE_GPUS) && (ndevices > DPLASMA_USE_GPUS) )
-            ndevices = DPLASMA_USE_GPUS;
+        if( ndevices > use_gpu )
+            ndevices = use_gpu;
 
         if( 0 == ndevices ) {
             return -1;
@@ -81,17 +87,19 @@ int spotrf_cuda_init( int use_gpu, int NB )
             DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {use_gpu = 0; return -1;} );
 
             printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
-            printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
-            printf("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock );
-            printf("\tmaxThreadsDim      : %d\n", devProps.maxThreadsDim );
-            printf("\tconstantMemory     : %d\n", devProps.totalConstantMemory );
-            printf("\tmemPitch           : %d\n", devProps.memPitch );
-            printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
-            printf("\tclockRate          : %d\n", devProps.clockRate );
+            if( dplasma_show_detailed_capabilities ) {
+                printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
+                printf("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock );
+                printf("\tmaxThreadsDim      : %d\n", devProps.maxThreadsDim );
+                printf("\tconstantMemory     : %d\n", devProps.totalConstantMemory );
+                printf("\tmemPitch           : %d\n", devProps.memPitch );
+                printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
+                printf("\tclockRate          : %d\n", devProps.clockRate );
 #if 0
-            > 1.2 printf("\tdeviceOverlap    : %ssupported\n", (devProps.deviceOverlap ? "" : "not ") );
-            > 2.0 printf("\tconcurrentKernels: %ssupported\n", (devProps.concurrentKernels ? "" : "not ") );
+                > 1.2 printf("\tdeviceOverlap    : %ssupported\n", (devProps.deviceOverlap ? "" : "not ") );
+                > 2.0 printf("\tconcurrentKernels: %ssupported\n", (devProps.concurrentKernels ? "" : "not ") );
 #endif
+            }
             for( j = 0; j < DPLASMA_CONTEXT_PER_GPU; j++ ) {
                 cudaError_t cuda_status;
 
@@ -111,9 +119,9 @@ int spotrf_cuda_init( int use_gpu, int NB )
                         printf( "cuModuleLoad failed %d\n", status );
                     }
                     
-                    status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, "_Z7sgemmNTPKfiS0_iPfiiff" );
+                    status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, "sgemmNT" );
                     if ( CUDA_SUCCESS != status ) {
-                        printf( "cuModuleGetFunction(%s) failed %d\n", "_Z7sgemmNTPKfiS0_iPfiiff", status );
+                        printf( "cuModuleGetFunction(%s) failed %d\n", "sgemmNT", status );
                     }
                     cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
                 }

@@ -47,10 +47,7 @@ volatile uint32_t *compute_lock;
 int *gpu_counter;
 int *set_device;
 int cpu_counter;
-int use_gpu = 0;
-CUevent eMoveIn;
-CUevent eCompute;
-CUevent eMoveOut;
+int use_gpu = 10;
 int overlap_counter;
 
 /* -1 disable | 0 auto detect */
@@ -236,11 +233,6 @@ int main(int argc, char ** argv)
                 use_gpu = 0;
             }
         }
-        if( 1 != use_gpu ) {
-            printf("------------------------------------------------------------------------------\n");
-            printf("CUDA: Disable Plus GPU Mode !!\n");
-            printf("------------------------------------------------------------------------------\n");
-        }
 
         /* lets rock! */
         SYNC_TIME_START();
@@ -288,6 +280,7 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
+            "      --gpu         : number of activable GPUs\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
@@ -295,23 +288,24 @@ static void runtime_init(int argc, char **argv)
 {
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
-    {
-        {"nb-cores",    required_argument,  0, 'c'},
-        {"matrix-size", required_argument,  0, 'n'},
-        {"lda",         required_argument,  0, 'a'},
-        {"nrhs",        required_argument,  0, 'r'},
-        {"ldb",         required_argument,  0, 'b'},
-        {"grid-rows",   required_argument,  0, 'g'},
-        {"stile-row",   required_argument,  0, 's'},
-        {"stile-col",   required_argument,  0, 'e'},
-        {"xcheck",      no_argument,        0, 'x'},
-        {"warmup",      optional_argument,  0, 'w'},
-        {"dplasma",     no_argument,        0, 'd'},
-        {"plasma",      no_argument,        0, 'p'},
-        {"block-size",  required_argument,  0, 'B'},
-        {"help",        no_argument,        0, 'h'},
-        {0, 0, 0, 0}
-    };
+        {
+            {"nb-cores",    required_argument,  0, 'c'},
+            {"matrix-size", required_argument,  0, 'n'},
+            {"lda",         required_argument,  0, 'a'},
+            {"nrhs",        required_argument,  0, 'r'},
+            {"ldb",         required_argument,  0, 'b'},
+            {"grid-rows",   required_argument,  0, 'g'},
+            {"stile-row",   required_argument,  0, 's'},
+            {"stile-col",   required_argument,  0, 'e'},
+            {"xcheck",      no_argument,        0, 'x'},
+            {"warmup",      optional_argument,  0, 'w'},
+            {"dplasma",     no_argument,        0, 'd'},
+            {"plasma",      no_argument,        0, 'p'},
+            {"gpu",         required_argument,  0, 'u'},
+            {"block-size",  required_argument,  0, 'B'},
+            {"help",        no_argument,        0, 'h'},
+            {0, 0, 0, 0}
+        };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
 #ifdef USE_MPI
@@ -329,22 +323,21 @@ static void runtime_init(int argc, char **argv)
     ddescA.GRIDrows = 1;
     ddescA.nrst = ddescA.ncst = 1;
     do
-    {
-        int c;
+        {
+            int c;
 #if defined(HAVE_GETOPT_LONG)
-        int option_index = 0;
-        c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h",
-                         long_options, &option_index);
+            int option_index = 0;
+            c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h",
+                             long_options, &option_index);
 #else
-        c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h");
+            c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
-        if (c == -1)
-            break;
+            if (c == -1)
+                break;
         
-        switch (c)
-        {
+            switch (c) {
             case 'p': 
                 backend = DO_PLASMA;
                 do_distributed_generation = 0;
@@ -370,8 +363,7 @@ static void runtime_init(int argc, char **argv)
                 break;
             case 's':
                 ddescA.nrst = atoi(optarg);
-                if(ddescA.nrst <= 0)
-                {
+                if(ddescA.nrst <= 0) {
                     fprintf(stderr, "select a positive value for the row super tile size\n");
                     exit(2);
                 }                
@@ -379,8 +371,7 @@ static void runtime_init(int argc, char **argv)
                 break;
             case 'e':
                 ddescA.ncst = atoi(optarg);
-                if(ddescA.ncst <= 0)
-                {
+                if(ddescA.ncst <= 0) {
                     fprintf(stderr, "select a positive value for the col super tile size\n");
                     exit(2);
                 }                
@@ -404,8 +395,7 @@ static void runtime_init(int argc, char **argv)
                 do_nasty_validations = 1;
                 do_distributed_generation = 0;
                 fprintf(stderr, "Results are checked on rank 0, distributed matrix generation is disabled.\n");
-                if(do_warmup)
-                {
+                if(do_warmup) {
                     fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
                     exit(2);
                 }
@@ -415,44 +405,39 @@ static void runtime_init(int argc, char **argv)
                     do_warmup = atoi(optarg);
                 else
                     do_warmup = 1;
-                if(do_nasty_validations)
-                {
+                if(do_nasty_validations) {
                     fprintf(stderr, "Results cannot be correct with warmup! Validations and warmup are exclusive; please select only one.\n");
                     exit(2);
                 }
                 break;
                 
-        case 'B':
-                if(optarg)
-                {
+            case 'B':
+                if(optarg) {
                     dposv_force_nb = atoi(optarg);
-                }
-                else
-                {
+                } else {
                     fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
                     exit(2);
                 }
                 break;
-
+            case 'u':
+                use_gpu = atoi(optarg);
+                break;
             case 'h':
                 print_usage();
                 exit(0);
             case '?': /* getopt_long already printed an error message. */
             default:
                 break; /* Assume anything else is dplasma/mpi stuff */
-        }
-    } while(1);
+            }
+        } while(1);
     
-    if((DO_PLASMA == backend) && (nodes > 1))
-    {
+    if((DO_PLASMA == backend) && (nodes > 1)) {
         fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
         exit(2);
     }
     
-    while(N == 0)
-    {
-        if(optind < argc)
-        {
+    while(N == 0) {
+        if(optind < argc) {
             N = atoi(argv[optind++]);
             continue;
         }
@@ -461,30 +446,24 @@ static void runtime_init(int argc, char **argv)
     } 
     ddescA.cores = cores;
     ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
-    if((nodes % ddescA.GRIDrows) != 0)
-    {
+    if((nodes % ddescA.GRIDrows) != 0) {
         fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
         exit(2);
     }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
 
     if(LDA <= 0) 
-    {
         LDA = N;
-    }
     if(LDB <= 0) 
-    {
         LDB = N;        
-    }
-    
-    switch(backend)
-    {
-        case DO_PLASMA:
-            PLASMA_Init(cores);
-            break;
-        case DO_DPLASMA:
-            PLASMA_Init(1);
-            break;
+
+    switch(backend) {
+    case DO_PLASMA:
+        PLASMA_Init(cores);
+        break;
+    case DO_DPLASMA:
+        PLASMA_Init(1);
+        break;
     }
 }
 
