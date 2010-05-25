@@ -1,20 +1,21 @@
 if( PLASMA_FOUND )
 
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
+#  set(CUDA_HOST_COMPILATION_CPP OFF)
   set(CUDA_BUILD_CUBIN ON)
-  set(CUDA_HOST_COMPILATION_CPP OFF)
-  set(CUDA_NVCC_FLAGS -maxrregcount 32)
+  set(CUDA_BUILD_EMULATION OFF)
+  set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch=sm_13)
   set(SPOTRF_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
   set(GPU_SUPPORT "")
 
   if( CUDA_FOUND)
-    cuda_add_library( mysgemm sgemm.cu )
+    cuda_add_library( mysgemm sgemm.cu)
     set(SPOTRF_REQUIRED_LIBRARIES ${SPOTRF_REQUIRED_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
     set(GPU_SUPPORT gpu_gemm.c)
   endif (CUDA_FOUND)
 
   if( DPLASMA_MPI AND MPI_FOUND )
-    add_library(mpi_sposv STATIC data_management.c ${GPU_SUPPORT} sposv.c)
+    add_library(mpi_sposv STATIC gpu_data.c data_management.c ${GPU_SUPPORT} sposv.c)
     set_target_properties(mpi_sposv PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
 
     add_executable(mpi_sposv_ll cholesky_ll.c)
@@ -30,7 +31,7 @@ if( PLASMA_FOUND )
     target_link_libraries(mpi_sposv_rl dplasma-mpi mpi_sposv ${MPI_LIBRARIES} ${SPOTRF_REQUIRED_LIBRARIES})
   endif( DPLASMA_MPI AND MPI_FOUND )
 
-  add_library(sposv STATIC data_management.c ${GPU_SUPPORT} sposv.c)
+  add_library(sposv STATIC gpu_data.c data_management.c ${GPU_SUPPORT} sposv.c)
   set_target_properties(sposv PROPERTIES COMPILE_FLAGS "-DADD_")
 
   add_executable(sposv_ll cholesky_ll.c)

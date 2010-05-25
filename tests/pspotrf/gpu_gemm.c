@@ -5,32 +5,14 @@
  */
 
 #include "dplasma_config.h"
-#include "lifo.h"
-
-#include "cuda.h"
-#include "cublas.h"
-#include "cuda_runtime_api.h"
-
-#include <plasma.h>
+#include "gpu_data.h"
 
 #include <stdio.h>
+#include <cublas.h>
+#include <plasma.h>
 
-typedef struct _gpu_device {
-    dplasma_list_item_t item;
-    CUcontext ctx;
-    CUmodule hcuModule;
-    CUfunction hcuFunction;
-    int id;
-    int executed_tasks;
-    uint64_t transferred_data_in;
-    uint64_t transferred_data_out;
-    dplasma_atomic_lifo_t* gpu_mem_lifo;
-} gpu_device_t;
-
-typedef struct _gpu_elem {
-  dplasma_list_item_t item;
-  CUdeviceptr gpu_mem;
-} gpu_elem_t;
+#include "data_management.h"
+extern DPLASMA_desc ddescA;
 
 #define DPLASMA_CUDA_CHECK_ERROR( STR, ERROR, CODE )                    \
     do {                                                                \
@@ -49,7 +31,7 @@ int dplasma_show_detailed_capabilities = 0;
 volatile int32_t cpu_counter = 0;
 static int ndevices = 0;
 
-int spotrf_cuda_init( int use_gpu, int NB )
+int spotrf_cuda_init( int use_gpu )
 {
     cublasStatus cublas_status;
     int i, j, k, hcuDevice;
@@ -129,20 +111,19 @@ int spotrf_cuda_init( int use_gpu, int NB )
                 /**
                  * Prepare the reusable memory on the GPU.
                  */
-                gpu_mem_lifo = (dplasma_atomic_lifo_t*)malloc(sizeof(dplasma_atomic_lifo_t));
-                dplasma_atomic_lifo_construct(gpu_mem_lifo);
+                dplasma_data_map_init( gpu_device, &ddescA );
 
                 for( k = 0; k < 10; k++ ) {
                     gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
-                    DPLASMA_LIST_ITEM_SINGLETON( &(gpu_elem->item) );
+                    dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
 
-                    cuda_status = cuMemAlloc( &(gpu_elem->gpu_mem), NB*NB*sizeof(float));
+                    cuda_status = cuMemAlloc( &(gpu_elem->gpu_mem), ddescA.mb*ddescA.nb*sizeof(float));
                     DPLASMA_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
                                               {use_gpu = 0; return -1;} );
-                    dplasma_atomic_lifo_push( gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem );
+                    gpu_elem->memory = NULL;
+                    dplasma_linked_list_add_tail( gpu_device->gpu_mem_lru, (dplasma_list_item_t*)gpu_elem );
                 }
                 gpu_device->id  = i;
-                gpu_device->gpu_mem_lifo = gpu_mem_lifo;
                 gpu_device->executed_tasks = 0;
                 gpu_device->transferred_data_in = 0;
                 gpu_device->transferred_data_out = 0;
@@ -209,13 +190,14 @@ int spotrf_cuda_fini( int use_gpu )
             /**
              * Release the GPU memory.
              */
-            while( NULL != (gpu_elem = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo )) ) {
+            while( NULL != (gpu_elem = (gpu_elem_t*)dplasma_linked_list_remove_head( gpu_device->gpu_mem_lru )) ) {
                 cuMemFree( gpu_elem->gpu_mem );
                 free( gpu_elem );
             }
             status = cuCtxDestroy( gpu_device->ctx );
             DPLASMA_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
                                       {continue;} );
+            free(gpu_device->gpu_mem_lru);
             free(gpu_device);
         }
         /* Print statisitics */
@@ -275,12 +257,12 @@ int spotrf_cuda_fini( int use_gpu )
             (OFFSET) += sizeof(float);                                  \
         } while (0)
 
-int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
+int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB )
 {
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     CUdeviceptr d_A, d_B, d_C;
     gpu_device_t* gpu_device;
-    int offset, return_code = -1;  /* by default suppose an error */
+    int offset, on_gpu, return_code = -1;  /* by default suppose an error */
     void* ptr;
 
     if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
@@ -292,33 +274,36 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                   {goto return_error;} );
 
-        gpu_elem_A = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
-        d_A = gpu_elem_A->gpu_mem;
-        gpu_elem_B = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
-        d_B = gpu_elem_B->gpu_mem;
-        gpu_elem_C = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
-        d_C = gpu_elem_C->gpu_mem;
-        
-
         /*cuStreamCreate(&stream, 0);*/
-        /* Push A into the GPU */
-        status = cuMemcpyHtoD( d_A, A, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
-                                  {printf("<<%p>>\n", (void*)(long)d_A); goto release_and_return_error;} );
-        gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+        on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, n, k, &gpu_elem_A);
+        d_A = gpu_elem_A->gpu_mem;
+        if( !on_gpu ) {
+            /* Push A into the GPU */
+            status = cuMemcpyHtoD( d_A, A, sizeof(float)*NB*NB );
+            DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
+                                      {printf("<<%p>>\n", (void*)(long)d_A); goto release_and_return_error;} );
+            gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+        }
 
-        /* Push B into the GPU */
-        status = cuMemcpyHtoD( d_B, B, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
-                                  {printf("<<%p>>\n", (void*)(long)d_B); goto release_and_return_error;} );
-        gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+        on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, k, &gpu_elem_B);
+        d_B = gpu_elem_B->gpu_mem;
+        if( !on_gpu ) {
+            /* Push B into the GPU */
+            status = cuMemcpyHtoD( d_B, B, sizeof(float)*NB*NB );
+            DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
+                                      {printf("<<%p>>\n", (void*)(long)d_B); goto release_and_return_error;} );
+            gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+        }
 
-        /* Push C into the GPU */
-        status = cuMemcpyHtoD( d_C, C, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
-                                  {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
-        gpu_device->transferred_data_in += sizeof(float)*NB*NB;
-
+        on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, n, &gpu_elem_C);
+        d_C = gpu_elem_C->gpu_mem;
+        if( !on_gpu ) {
+            /* Push C into the GPU */
+            status = cuMemcpyHtoD( d_C, C, sizeof(float)*NB*NB );
+            DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
+                                      {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
+            gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+        }
         /* Wait until all data are on the GPU */
         /*status = cuStreamSynchronize(stream);
         DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
@@ -369,6 +354,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
                                   {printf("<<%p>>\n", d_C); goto release_and_return_error;} );
         gpu_device->transferred_data_out += sizeof(float)*NB*NB;
+
         /* Wait until the data is back on the memory */
         /*status = cuStreamSynchronize(stream);
         DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
@@ -380,13 +366,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         gpu_device->executed_tasks++;
 
     release_and_return_error:
-        if( NULL != gpu_elem_C )
-            dplasma_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem_C );
-        if( NULL != gpu_elem_B )
-            dplasma_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem_B );
-        if( NULL != gpu_elem_A )
-            dplasma_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem_A );
-
         status = cuCtxPopCurrent(NULL);
         DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                   {goto return_error;} );

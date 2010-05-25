@@ -8,11 +8,11 @@ extern "C" %{
 #include "cublas.h"
 #include "cuda_runtime_api.h"
 
-extern PLASMA_desc descA;
 extern int uplo;
 int PLASMA_INFO = 0;
 
 #include "dplasma.h"
+#include "gpu_data.h"
 
 /* CUDA */
 extern int cpu_counter;
@@ -24,9 +24,6 @@ extern int ndevices;
 int my_gpu = 0;
 extern int cores;
 extern int *set_device;
-extern CUevent eMoveIn;
-extern CUevent eCompute;
-extern CUevent eMoveOut;
 extern int overlap_counter;
 
 #include "remote_dep.h"
@@ -54,7 +51,7 @@ extern DPLASMA_desc ddescA;
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
 
-extern int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB );
+extern int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB );
 %}
 
 /* Globals
@@ -89,6 +86,7 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, k, k );
     CORE(
         spotrf, (
             uplo,
@@ -129,6 +127,8 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 1
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, k );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, n, k );
     if( uplo == PlasmaLower ) {
         CORE(
             strsm, (
@@ -189,6 +189,8 @@ INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 2
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, n, k );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, n, n );
     if( uplo == PlasmaLower ) {
         CORE(
             ssyrk, (
@@ -250,8 +252,11 @@ INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
 
 BODY
-    if( use_gpu == 1 ) {
-        if( 0 == gpu_sgemm( uplo, A, B, C, NB ) )
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, n, k );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, m, k );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, m, n );
+    if( use_gpu > 0 ) {
+        if( 0 == gpu_sgemm( uplo, A, B, C, k, n, m, NB ) )
 	    goto FIN;
     }
 
