@@ -113,7 +113,7 @@ int spotrf_cuda_init( int use_gpu )
                  */
                 dplasma_data_map_init( gpu_device, &ddescA );
 
-                for( k = 0; k < 10; k++ ) {
+                for( k = 0; k < 100; k++ ) {
                     gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
                     dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
 
@@ -206,6 +206,9 @@ int spotrf_cuda_fini( int use_gpu )
             total_data_in += data_in[i];
             total_data_out += data_out[i];
         }
+        if( 0 == total_data_in ) total_data_in = 1;
+        if( 0 == total_data_out ) total_data_out = 1;
+
         gtotal = total + cpu_counter;
         printf("------------------------------------------------------------------------------\n");
         printf("|PU       |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n");
