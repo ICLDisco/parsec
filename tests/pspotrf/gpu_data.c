@@ -44,7 +44,7 @@ int dplasma_data_map_init( gpu_device_t* gpu_device,
  * it check if the version on the GPU match with the one in memory. In all cases, it
  * propose a section in the GPU memory where the data should be transferred.
  *
- * It return 0 if no transfer should be initiated, a positive value if a reansfer is
+ * It return 1 if no transfer should be initiated, a 0 if a transfer is
  * necessary, and a negative value if no memory is currently available on the GPU.
  */
 int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
@@ -71,12 +71,12 @@ int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
         *gpu_elem = this_data;
         dplasma_linked_list_add_tail(gpu_device->gpu_mem_lru, (dplasma_list_item_t*)this_data);
     } else {
-        dplasma_linked_list_remove_item( gpu_device->gpu_mem_lru, (dplasma_list_item_t*)this_data );
+        dplasma_linked_list_remove_item(gpu_device->gpu_mem_lru, (dplasma_list_item_t*)this_data);
         dplasma_linked_list_add_tail(gpu_device->gpu_mem_lru, (dplasma_list_item_t*)this_data);
         *gpu_elem = this_data;
         if( this_data->memory_version == this_data->gpu_version ) {
             /* The GPU version of the data matches the one in memory. We're done */
-            return 0;
+            return 1;
         }
         if( -1 == this_data->gpu_version ) {
             /* No mapping to GPU memory. We have to allocate one */
@@ -85,12 +85,12 @@ int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
         /* The version on the GPU doesn't match the one in memory. Let the
          * upper level know a transfer is required.
          */
-        return 1;
+        return 0;
     }
  allocate_gpu_memory:
     /* No memory on the GPU. Get the least recently used tile on the GPU and
      * attach it.
      */
-    return 1;
+    return 0;
 }
 
