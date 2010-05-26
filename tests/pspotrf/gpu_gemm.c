@@ -113,7 +113,7 @@ int spotrf_cuda_init( int use_gpu )
                  */
                 dplasma_data_map_init( gpu_device, &ddescA );
 
-                for( k = 0; k < 100; k++ ) {
+                for( k = 0; k < 144; k++ ) {
                     gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
                     dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
 
@@ -170,22 +170,27 @@ int spotrf_cuda_fini( int use_gpu )
         gpu_elem_t* gpu_elem;
         gpu_device_t* gpu_device;
         int total = 0, *gpu_counter, i, overlap_counter;
-        uint64_t *data_in, *data_out, total_data_in = 0, total_data_out = 0;
+        uint64_t *transferred_in, *transferred_out, total_data_in = 0, total_data_out = 0;
+        uint64_t *required_in, *required_out;
         float gtotal = 0.0, best_data_in, best_data_out;
         char *data_in_unit, *data_out_unit;
 
         /* GPU counter for GEMM / each */
         gpu_counter = (int*)calloc(ndevices, sizeof(int));
-        data_in     = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
-        data_out    = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
+        transferred_in  = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
+        transferred_out = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
+        required_in     = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
+        required_out    = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
         while( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
             status = cuCtxPushCurrent( gpu_device->ctx );
             DPLASMA_CUDA_CHECK_ERROR( "(FINI) cuCtxPushCurrent ", status,
                                       {continue;} );
             /* Save the statistics */
-            gpu_counter[gpu_device->id] += gpu_device->executed_tasks;
-            data_in[gpu_device->id]     += gpu_device->transferred_data_in;
-            data_out[gpu_device->id]    += gpu_device->transferred_data_out;
+            gpu_counter[gpu_device->id]     += gpu_device->executed_tasks;
+            transferred_in[gpu_device->id]  += gpu_device->transferred_data_in;
+            transferred_out[gpu_device->id] += gpu_device->transferred_data_out;
+            required_in[gpu_device->id]     += gpu_device->required_data_in;
+            required_out[gpu_device->id]    += gpu_device->required_data_out;
 
             /**
              * Release the GPU memory.
@@ -203,8 +208,8 @@ int spotrf_cuda_fini( int use_gpu )
         /* Print statisitics */
         for( i = 0; i < ndevices; i++ ) {
             total += gpu_counter[i];
-            total_data_in += data_in[i];
-            total_data_out += data_out[i];
+            total_data_in  += transferred_in[i];
+            total_data_out += transferred_out[i];
         }
         if( 0 == total_data_in ) total_data_in = 1;
         if( 0 == total_data_out ) total_data_out = 1;
@@ -214,12 +219,12 @@ int spotrf_cuda_fini( int use_gpu )
         printf("|PU       |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n");
         printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
         for( i = 0; i < ndevices; i++ ) {
-            compute_best_unit( data_in[i],  &best_data_in, &data_in_unit );
-            compute_best_unit( data_out[i], &best_data_out, &data_out_unit );
+            compute_best_unit( transferred_in[i],  &best_data_in, &data_in_unit );
+            compute_best_unit( transferred_out[i], &best_data_out, &data_out_unit );
             printf("|GPU:  %2d |%10d | %6.2f |%10.2f%2s | %6.2f |%10.2f%2s | %6.2f |\n",
                    i, gpu_counter[i], (gpu_counter[i]/gtotal)*100.00,
-                   best_data_in, data_in_unit, (((float)data_in[i]) / total_data_in) * 100.0,
-                   best_data_out, data_out_unit, (((float)data_out[i]) / total_data_out) * 100.0 );
+                   best_data_in, data_in_unit, (((float)transferred_in[i]) / required_in[i]) * 100.0,
+                   best_data_out, data_out_unit, (((float)transferred_out[i]) / required_out[i]) * 100.0 );
         }
         printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
         compute_best_unit( total_data_in,  &best_data_in, &data_in_unit );
@@ -235,6 +240,10 @@ int spotrf_cuda_fini( int use_gpu )
           printf("|Overlap  |%10d  %10.5s |\n", overlap_counter, "times");*/
         printf("------------------------------------------------------------------------------\n");
         free(gpu_counter);
+        free(transferred_in);
+        free(transferred_out);
+        free(required_in);
+        free(required_out);
     }
 }
 
@@ -260,12 +269,12 @@ int spotrf_cuda_fini( int use_gpu )
             (OFFSET) += sizeof(float);                                  \
         } while (0)
 
-int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB )
+int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
 {
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     CUdeviceptr d_A, d_B, d_C;
     gpu_device_t* gpu_device;
-    int offset, on_gpu, return_code = -1;  /* by default suppose an error */
+    int offset, on_gpu, return_code = -1, tile_size;  /* by default suppose an error */
     void* ptr;
 
     if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
@@ -276,36 +285,40 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB 
         status = cuCtxPushCurrent(gpu_device->ctx);
         DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                   {goto return_error;} );
+        tile_size = ddescA.mb*ddescA.nb*sizeof(float);
 
         /*cuStreamCreate(&stream, 0);*/
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, n, k, &gpu_elem_A);
         d_A = gpu_elem_A->gpu_mem;
+        gpu_device->required_data_in += tile_size;
         if( !on_gpu ) {
             /* Push A into the GPU */
-            status = cuMemcpyHtoD( d_A, A, sizeof(float)*NB*NB );
+            status = cuMemcpyHtoD( d_A, A, tile_size );
             DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
                                       {printf("<<%p>>\n", (void*)(long)d_A); goto release_and_return_error;} );
-            gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+            gpu_device->transferred_data_in += tile_size;
         }
 
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, k, &gpu_elem_B);
         d_B = gpu_elem_B->gpu_mem;
+        gpu_device->required_data_in += tile_size;
         if( !on_gpu ) {
             /* Push B into the GPU */
-            status = cuMemcpyHtoD( d_B, B, sizeof(float)*NB*NB );
+            status = cuMemcpyHtoD( d_B, B, tile_size );
             DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
                                       {printf("<<%p>>\n", (void*)(long)d_B); goto release_and_return_error;} );
-            gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+            gpu_device->transferred_data_in += tile_size;
         }
 
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, n, &gpu_elem_C);
         d_C = gpu_elem_C->gpu_mem;
+        gpu_device->required_data_in += tile_size;
         if( !on_gpu ) {
             /* Push C into the GPU */
-            status = cuMemcpyHtoD( d_C, C, sizeof(float)*NB*NB );
+            status = cuMemcpyHtoD( d_C, C, tile_size );
             DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
                                       {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
-            gpu_device->transferred_data_in += sizeof(float)*NB*NB;
+            gpu_device->transferred_data_in += tile_size;
         }
         /* Wait until all data are on the GPU */
         /*status = cuStreamSynchronize(stream);
@@ -314,11 +327,11 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB 
 
 #if 0
         if(uplo == PlasmaLower) {
-            /*cublasSgemm('N','T', NB, NB, NB, -1.0, (float*)(long)d_B, NB, (float*)(long)d_A, NB, 1.0, (float*)(long)d_C, NB );*/
-            cublasSgemm('N','T', NB, NB, NB, -1.0, (float*)&d_B, NB, (float*)&d_A, NB, 1.0, (float*)&d_C, NB );
+            /*cublasSgemm('N','T', ddescA.nb, ddescA.nb, ddescA.nb, -1.0, (float*)(long)d_B, ddescA.nb, (float*)(long)d_A, ddescA.nb, 1.0, (float*)(long)d_C, ddescA.nb );*/
+            cublasSgemm('N','T', ddescA.nb, ddescA.nb, ddescA.nb, -1.0, (float*)&d_B, ddescA.nb, (float*)&d_A, ddescA.nb, 1.0, (float*)&d_C, ddescA.nb );
         } else {
-            /*cublasSgemm('T','N', NB, NB, NB, -1.0, (float*)(long)d_A, NB, (float*)(long)d_B, NB, 1.0, (float*)(long)d_C, NB );*/
-            cublasSgemm('T','N', NB, NB, NB, -1.0, (float*)&d_A, NB, (float*)&d_B, NB, 1.0, (float*)&d_C, NB );
+            /*cublasSgemm('T','N', ddescA.nb, ddescA.nb, ddescA.nb, -1.0, (float*)(long)d_A, ddescA.nb, (float*)(long)d_B, ddescA.nb, 1.0, (float*)(long)d_C, ddescA.nb );*/
+            cublasSgemm('T','N', ddescA.nb, ddescA.nb, ddescA.nb, -1.0, (float*)&d_A, ddescA.nb, (float*)&d_B, ddescA.nb, 1.0, (float*)&d_C, ddescA.nb );
         }
         status = cublasGetError();
         if( CUBLAS_STATUS_SUCCESS != status ) {
@@ -335,12 +348,12 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB 
 
         offset = 0;
         CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_A );
-        CU_PUSH_INT(     gpu_device->hcuFunction, offset, NB );
+        CU_PUSH_INT(     gpu_device->hcuFunction, offset, ddescA.nb );
         CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
-        CU_PUSH_INT(     gpu_device->hcuFunction, offset, NB );
+        CU_PUSH_INT(     gpu_device->hcuFunction, offset, ddescA.nb );
         CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_C );
-        CU_PUSH_INT(     gpu_device->hcuFunction, offset, NB );
-        CU_PUSH_INT(     gpu_device->hcuFunction, offset, NB );
+        CU_PUSH_INT(     gpu_device->hcuFunction, offset, ddescA.nb );
+        CU_PUSH_INT(     gpu_device->hcuFunction, offset, ddescA.nb );
         CU_PUSH_FLOAT(   gpu_device->hcuFunction, offset, alpha );
         CU_PUSH_FLOAT(   gpu_device->hcuFunction, offset, beta );
         cuParamSetSize( gpu_device->hcuFunction, offset );
@@ -353,10 +366,11 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m, int NB 
         }
 
         /* Pop C from the GPU */
-        status = cuMemcpyDtoH( C , d_C, sizeof(float)*NB*NB );
+        gpu_device->required_data_out += tile_size;
+        status = cuMemcpyDtoH( C , d_C, tile_size );
         DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
                                   {printf("<<%p>>\n", d_C); goto release_and_return_error;} );
-        gpu_device->transferred_data_out += sizeof(float)*NB*NB;
+        gpu_device->transferred_data_out += tile_size;
 
         /* Wait until the data is back on the memory */
         /*status = cuStreamSynchronize(stream);

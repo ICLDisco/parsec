@@ -23,6 +23,8 @@ typedef struct _gpu_device {
     int executed_tasks;
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
+    uint64_t required_data_in;
+    uint64_t required_data_out;
     dplasma_linked_list_t* gpu_mem_lru;
 } gpu_device_t;
 
