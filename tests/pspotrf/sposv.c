@@ -530,7 +530,7 @@ static void cleanup_dplasma(dplasma_context_t* dplasma)
 #ifdef DPLASMA_PROFILING
     char* filename = NULL;
     
-    asprintf( &filename, "%s.%d.profile", "dposv", rank );
+    asprintf( &filename, "%s.%d.profile", "sposv", rank );
     dplasma_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DPLASMA_PROFILING */

@@ -5,7 +5,9 @@
  */
 
 #include "dplasma_config.h"
+#include "profiling.h"
 #include "gpu_data.h"
+
 
 #include <stdio.h>
 #include <cublas.h>
@@ -25,11 +27,23 @@ extern DPLASMA_desc ddescA;
     } while(0)
 
 #define DPLASMA_CONTEXT_PER_GPU 1
-
+#define DPLASMA_CONTEXT_OVERLAP 0
 static dplasma_atomic_lifo_t gpu_devices;
 int dplasma_show_detailed_capabilities = 0;
 volatile int32_t cpu_counter = 0;
+volatile int32_t entering = 0;
+volatile int32_t computing = 0;
 static int ndevices = 0;
+dplasma_thread_profiling_t *thread_movein;
+dplasma_thread_profiling_t *thread_compute;
+dplasma_thread_profiling_t *thread_moveout; 
+int movein_key_start;
+int movein_key_end;
+int compute_key_start;
+int compute_key_end;
+int moveout_key_start;
+int moveout_key_end;
+
 
 int spotrf_cuda_init( int use_gpu )
 {
@@ -48,6 +62,7 @@ int spotrf_cuda_init( int use_gpu )
         if( 0 == ndevices ) {
             return -1;
         }
+	ndevices = 1;
         for( i = 0; i < ndevices; i++ ) {
             dplasma_atomic_lifo_t* gpu_mem_lifo;
             gpu_device_t* gpu_device;
@@ -85,6 +100,14 @@ int spotrf_cuda_init( int use_gpu )
             for( j = 0; j < DPLASMA_CONTEXT_PER_GPU; j++ ) {
                 cudaError_t cuda_status;
 
+		dplasma_profiling_add_dictionary_keyword("movein","#00FF00",&movein_key_start,&movein_key_end);
+		dplasma_profiling_add_dictionary_keyword("compute","#00FF00",&compute_key_start,&compute_key_end);
+		dplasma_profiling_add_dictionary_keyword("moveout","#00FF00",&moveout_key_start,&moveout_key_end);
+
+		thread_movein = dplasma_profiling_thread_init(2*4096,"GPU HtoD: %d",j);
+		thread_compute = dplasma_profiling_thread_init(2*4096,"GPU Computing %d",j);
+		thread_moveout = dplasma_profiling_thread_init(2*4096,"GPU DtoH %d",j);
+
                 gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
                 DPLASMA_LIST_ITEM_SINGLETON( &(gpu_device->item) );
 
@@ -94,7 +117,7 @@ int spotrf_cuda_init( int use_gpu )
                                           {free(gpu_device); return -1;} );
 
                 {
-                    char *module_path = "./mysgemm.cubin";
+                    char *module_path = "./sgemm.cubin";
 
                     status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
                     if ( CUDA_SUCCESS != status ) {
@@ -277,7 +300,13 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
     int offset, on_gpu, return_code = -1, tile_size;  /* by default suppose an error */
     void* ptr;
 
+#if DPLASMA_CONTEXT_OVERLAP
+    if(!(dplasma_atomic_cas(&entering,0,1) == 1))
+	    return -1;
+#endif
+
     if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
+	dplasma_profiling_trace(thread_movein, movein_key_start,0);
         CUstream stream;
         cudaError_t status;
         float alpha = -1.0, beta = 1.0;
@@ -320,6 +349,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
                                       {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
             gpu_device->transferred_data_in += tile_size;
         }
+	dplasma_profiling_trace(thread_movein,movein_key_end,0);
         /* Wait until all data are on the GPU */
         /*status = cuStreamSynchronize(stream);
         DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
@@ -358,19 +388,27 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
         CU_PUSH_FLOAT(   gpu_device->hcuFunction, offset, beta );
         cuParamSetSize( gpu_device->hcuFunction, offset );
 
+	
         // cuLaunch: we kick off the CUDA
+	dplasma_profiling_trace(thread_compute,compute_key_start,1);
         status = cuLaunch( gpu_device->hcuFunction );
         if ( CUDA_SUCCESS != status ) {
             printf( "cuLaunch failed %d\n", status );
             return -1;
         }
+	dplasma_profiling_trace(thread_compute,compute_key_end,1);
 
+	#if DPLASMA_CONTEXT_OVERLAP
+		entering = 0;		
+	#endif
         /* Pop C from the GPU */
+	dplasma_profiling_trace(thread_moveout,moveout_key_start,2);
         gpu_device->required_data_out += tile_size;
         status = cuMemcpyDtoH( C , d_C, tile_size );
         DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
                                   {printf("<<%p>>\n", d_C); goto release_and_return_error;} );
         gpu_device->transferred_data_out += tile_size;
+	dplasma_profiling_trace(thread_moveout,moveout_key_end,2);
 
         /* Wait until the data is back on the memory */
         /*status = cuStreamSynchronize(stream);
