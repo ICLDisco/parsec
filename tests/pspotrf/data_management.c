@@ -1042,20 +1042,22 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
         gpu_device_t* gpu_device;
 
         gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
-        status = cuCtxPushCurrent( gpu_device->ctx );
-        DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
-                                  {goto normal_alloc;} );
+        if( NULL != gpu_device ) {
+            status = cuCtxPushCurrent( gpu_device->ctx );
+            DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
+                                      {goto normal_alloc;} );
 
-        status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
-        if( CUDA_SUCCESS != status ) {
-            DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuMemHostAlloc ", status,
+            status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
+            if( CUDA_SUCCESS != status ) {
+                DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuMemHostAlloc ", status,
+                                          {} );
+                mat = NULL;
+            }
+            status = cuCtxPopCurrent(NULL);
+            DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                       {} );
-            mat = NULL;
+            dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
         }
-        status = cuCtxPopCurrent(NULL);
-        DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                  {} );
-        dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
     }
  normal_alloc:
 #endif  /* defined(DPLASMA_CUDA_SUPPORT) */
