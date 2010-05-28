@@ -135,7 +135,6 @@ int spotrf_cuda_init( int* puse_gpu )
                 tile_size = ddescA.mb*ddescA.nb*sizeof(float);
                 chunk_size = (tile_size + 1024*1024-1) & ~(1024*1024);
                 memory_left_for_context = (total_mem - total_mem / 100) / DPLASMA_CONTEXT_PER_GPU;
-                printf( "tile size %u\n", tile_size );
                 for( k = 0; tile_size < memory_left_for_context; k++ ) {
                     gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
                     dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
