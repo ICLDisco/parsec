@@ -17,7 +17,7 @@ int PLASMA_INFO = 0;
 #   define OUTPUT(ARG)
 #endif
 
-#ifdef DPLASMA_DRY_RUN
+#if 1 || defined( DPLASMA_DRY_RUN )
 #   define CORE(FN, ARGS)
 #else
 #   define CORE(FN, ARGS) CORE_##FN ARGS
