@@ -21,6 +21,7 @@ static const char *jdf_cfilename;
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
 
 /** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
@@ -354,10 +355,10 @@ typedef struct assignment_info {
 /**
  * dump_assignments:
  *  Takes the pointer to the name of a parameter,
- *  a pointer to a dump_info, and display k = assignments[dump_info.idx] into assignment_info.sa
- *  for each variable k that belong to the expression that is going to be used. This expression
- *  is passed into assignment_info->expr. If assignment_info->expr is NULL, all variables
- *  are assigned.
+ *  a pointer to a dump_info, and prints <assignment_info.holder>k = assignments[<assignment_info.idx>] 
+ *  into assignment_info.sa for each variable k that belong to the expression that is going
+ *  to be used. This expression is passed into assignment_info->expr. If assignment_info->expr 
+ *  is NULL, all variables are assigned.
  */
 static char *dump_assignments(void **elem, void *arg)
 {
@@ -1052,6 +1053,10 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             UTIL_DUMP_LIST_FIELD(sa2, f->dataflow, next, flow, dump_dataflow, "OUT",
                                                  "", prefix, ", ", ""));
 
+    sprintf(prefix, "preorder_traversal_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_code_preorder_traversal(jdf, f, prefix);
+    string_arena_add_string(sa, "  .preorder = %s,\n", prefix);
+
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_release_deps(jdf, f, prefix);
     string_arena_add_string(sa, "  .release_deps = %s,\n", prefix);
@@ -1644,6 +1649,237 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "\n",
             name);
 }
+
+static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *jdf, const jdf_call_t *call, 
+                                         int lineno, const char *prefix, const char *var, const char *ordertype)
+{
+    jdf_function_entry_t *t;
+    jdf_expr_list_t *el;
+    jdf_name_list_t *nl;
+    int i;
+    expr_info_t info;
+    string_arena_t *sa2;
+    string_arena_t *sa_close;
+    int nbopen;
+
+    string_arena_init(sa_open);
+
+    for(t = jdf->functions; t != NULL; t = t->next) 
+        if( !strcmp(t->fname, call->func_or_mem) )
+            break;
+
+    if( NULL == t ) {
+         jdf_fatal(lineno, 
+                   "During code generation: unable to find function %s referenced in this call.\n",
+                   call->func_or_mem);
+         exit(1);
+    }
+
+    sa2 = string_arena_new(64);
+    info.sa = sa2;
+    info.prefix = "";
+
+    sa_close = string_arena_new(64);
+
+    nbopen = 0;
+    for(el = call->parameters, nl = t->parameters, i = 0; 
+        el != NULL && nl != NULL; 
+        el = el->next, nl = nl->next, i++) {
+        
+        string_arena_add_string(sa_open, 
+                                "%s%*s{\n"
+                                "%s%*s  int %s_%s;\n",
+                                prefix, nbopen, "  ",
+                                prefix, nbopen, "  ", t->fname, nl->name);
+        string_arena_add_string(sa_close,
+                                "%s%*s}\n", prefix, nbopen, "  ");
+
+        if( el->expr->op == JDF_RANGE ) {
+            string_arena_add_string(sa_open, "%s%*s  for( %s_%s = %s;",
+                                    prefix, nbopen, "  ", t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info));
+            string_arena_add_string(sa_open, " %s_%s <= %s; %s_%s++ ) {\n",
+                                    t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba2, &info), t->fname, nl->name);
+            string_arena_add_string(sa_close,
+                                    "%s%*s}\n", prefix, nbopen, "  ");
+            nbopen++;
+        } else {
+            string_arena_add_string(sa_open, "%s%*s  %s_%s = %s;\n", prefix, nbopen, "  ", t->fname, nl->name, dump_expr((void**)&el->expr, &info));
+        }
+            jdf_def_list_t *def;
+            expr_info_t linfo;
+            char *p = (char*)malloc(strlen(t->fname) + 2);
+            sprintf(p, "%s_", t->fname);
+
+            linfo.sa = sa2;
+            linfo.prefix = p;
+
+
+            for(def = t->definitions; NULL != def; def = def->next)
+                if( !strcmp(def->name, nl->name) )
+                    break;
+            
+            if( def == NULL ) {
+                jdf_fatal(lineno, "During code generation: parameter %s of function %s has no definition ?!?\n",
+                          nl->name, t->fname);
+                exit(1);
+            }
+
+            if( def->expr->op == JDF_RANGE ) {
+                string_arena_add_string(sa_open, 
+                                        "%s%*s  if( (%s_%s >= (%s))", 
+                                        prefix, nbopen, "  ", t->fname, nl->name, 
+                                        dump_expr((void**)&def->expr->jdf_ba1, &linfo));
+                string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
+                                        t->fname, nl->name, 
+                                        dump_expr((void**)&def->expr->jdf_ba2, &linfo));
+                string_arena_add_string(sa_close, "%s%*s}\n", prefix,nbopen, "  ");
+                nbopen++;
+            } else {
+                string_arena_add_string(sa_open, 
+                                        "%s%*s  if( (%s_%s == (%s))", 
+                                        prefix, nbopen, "  ", t->fname, nl->name, 
+                                        dump_expr((void**)&def->expr, &linfo));
+                string_arena_add_string(sa_close, "%s%*s}\n", prefix,nbopen, "  ");
+                nbopen++;
+            }
+
+            free(p);
+
+        string_arena_add_string(sa_open, "%s%*s  %s.locals[%d].value = %s_%s;\n", 
+                                prefix, nbopen, "  ", var, i, 
+                                t->fname, nl->name);
+
+        nbopen++;
+    }
+
+
+    string_arena_add_string(sa_open, "%s%*s  %s.function = (const DAGuE_t*)&%s_%s;\n",
+                            prefix, nbopen, "  ", var, jdf_basename, t->fname);
+    string_arena_add_string(sa_open, "%s%*s  %s_%s.%s(eu, &%s, depth+1, ontask, ontask_arg);\n",
+                            prefix, nbopen, "  ", jdf_basename, t->fname, ordertype, var);
+
+    string_arena_add_string(sa_open, "%s\n", string_arena_get_string(sa_close));
+
+    string_arena_free(sa_close);
+    string_arena_free(sa2);
+
+    if( (void*)el != (void*)nl) {
+        jdf_fatal(lineno,
+                  "During code generation: call to %s at this line has not the same number of parameters as the function definition.\n",
+                  call->func_or_mem);
+        exit(1);        
+    }
+
+    return string_arena_get_string(sa_open);
+}
+
+static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
+{
+    jdf_dataflow_list_t *fl;
+    jdf_dep_list_t *dl;
+    int flowempty, noflows;
+    string_arena_t *sa1 = string_arena_new(64);
+    string_arena_t *sa2 = string_arena_new(64);
+
+    assignment_info_t ai;
+    expr_info_t info;
+
+    info.sa = sa2;
+    info.prefix = "";
+
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "exec_context->locals";
+    ai.expr = NULL;
+    coutput("static void %s(DAGuE_execution_unit_t *eu, const DAGuE_execution_context_t *exec_context,\n"
+            "               int depth,\n"
+            "               DAGuE_ontask_function_t *ontask, void *ontask_arg)\n"
+            "{\n"
+            "  DAGuE_execution_context_t nc;\n"
+            "  const __DAGuE_cholesky_object_t *__DAGuE_object = (const __DAGuE_cholesky_object_t*)exec_context->DAGuE_object;\n"
+            "%s\n",
+            name, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
+                                       dump_assignments, &ai, "", "  int ", "", ""));
+
+    coutput("\n"
+            "  if( ontask(eu, exec_context, depth, ontask_arg) == DAGuE_TRAVERSE_STOP )\n"
+            "    return;\n"
+            "\n");
+
+    coutput("  memcpy(&nc, exec_context, sizeof(DAGuE_execution_context_t));\n");
+
+    for(fl = f->dataflow; fl != NULL; fl = fl->next) {
+        coutput("  /* Flow of Data %s */\n", fl->flow->varname);
+        flowempty = 1;
+
+        for(dl = fl->flow->deps; dl != NULL; dl = dl->next) {
+            if( dl->dep->type & JDF_DEP_TYPE_OUT )  {
+                switch( dl->dep->guard->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                    if( NULL != dl->dep->guard->calltrue->var) {
+                        flowempty = 0;
+                        
+                        coutput("%s\n",
+                                jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->calltrue, dl->dep->lineno, 
+                                                            "  ", "nc", "preorder") );
+                    }
+                    break;
+                case JDF_GUARD_BINARY:
+                    if( NULL != dl->dep->guard->calltrue->var ) {
+                        flowempty = 0;
+                        coutput("  if( %s ) {\n"
+                                "%s\n"
+                                "  }\n",
+                                dump_expr((void**)&dl->dep->guard->guard, &info),
+                                jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->calltrue, dl->dep->lineno, 
+                                                            "    ", "nc", "preorder") );
+                    }
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( NULL != dl->dep->guard->calltrue->var ) {
+                        flowempty = 0;
+                        coutput("  if( %s ) {\n"
+                                "%s\n"
+                                "  }",
+                                dump_expr((void**)&dl->dep->guard->guard, &info),
+                                jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->calltrue, dl->dep->lineno, 
+                                                            "    ", "nc", "preorder"));
+                        
+                        if( NULL != dl->dep->guard->callfalse->var ) {
+                            coutput(" else {\n"
+                                    "%s\n"
+                                    "  }\n", 
+                                    jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->callfalse, dl->dep->lineno, 
+                                                                "    ", "nc", "preorder") );
+                        } else {
+                            coutput("\n");
+                        }
+                    } else {
+                        if( NULL != dl->dep->guard->callfalse->var ) {
+                            flowempty = 0;
+                            coutput("  if( !(%s) ) {\n"
+                                    "%s\n"
+                                    "  }\n",
+                                    dump_expr((void**)&dl->dep->guard->guard, &info),
+                                    jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->callfalse, dl->dep->lineno, 
+                                                                "    ", "nc", "preorder") );
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        if( 1 == flowempty ) {
+            coutput("  /* This flow has only IN dependencies, or OUT dependencies to memory */\n");
+        }
+        coutput("\n");
+    }
+
+    coutput("}\n"
+            "\n");
+}
+
 
 /** Main Function */
 

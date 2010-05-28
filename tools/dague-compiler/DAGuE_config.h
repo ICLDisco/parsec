@@ -14,7 +14,7 @@
 /* #undef DAGuE_DEBUG */
 /* #undef DAGuE_DEBUG_HISTORY */
 /* profiling */
-#define DAGuE_PROFILING
+/* #undef DAGuE_PROFILING */
 /* #undef DAGuE_STATS */
 /* #undef DAGuE_GRAPHER */
 /* #undef DAGuE_CALL_TRACE */
