@@ -184,12 +184,15 @@ find_package(PLASMA REQUIRED)
 # Find optional packages
 #
 
+find_package(HWLOC REQUIRED)
+if( HAVE_HWLOC )
+  list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
+  list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+endif( HAVE_HWLOC )
 if(DPLASMA_CACHE_AWARE)
-  find_package(HWLOC REQUIRED)
-  if( HAVE_HWLOC )
-    list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
-    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-  endif( HAVE_HWLOC )
+  if( !HAVE_HWLOC )
+    message( error "Cache awarness requires hwloc" )
+  endif( !HAVE_HWLOC )
 endif(DPLASMA_CACHE_AWARE)
 
 if (DPLASMA_MPI)
