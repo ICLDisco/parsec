@@ -319,28 +319,6 @@ int spotrf_cuda_fini( int use_gpu )
             (OFFSET) += sizeof(float);                                  \
         } while (0)
 
-#define CHECK_GPU_FLOAT_DATA( GPU_DATA, TEMP, ORIG, NBELEM, STR )       \
-    {                                                                   \
-        float* localA = (float*)(ORIG);                                 \
-        int length = NBELEM, index = 0;                              \
-        cudaError_t status;                                             \
-                                                                        \
-        status = cuMemcpyDtoH( (TEMP), (GPU_DATA), (NBELEM)*sizeof(float) ); \
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device ", status, \
-                                  {printf("<<%p>>\n", (void*)(long)(GPU_DATA));} ); \
-                                                                        \
-        while( length > 0 ) {                                           \
-            if( localA[index] != (TEMP)[index] ) {                      \
-                printf("%s Error during data transfer at index %d\n",   \
-                       STR, index);                                     \
-            }                                                           \
-            length--;                                                   \
-            index++;                                                    \
-        }                                                               \
-    }
-
-#include <plasma.h>
-#include <core_sblas.h>
 int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
 {
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
@@ -348,7 +326,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
     gpu_device_t* gpu_device;
     int offset, on_gpu, return_code = -1, tile_size;  /* by default suppose an error */
     void* ptr;
-    /*float* tempArray;*/
 
     if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
         CUstream stream;
@@ -359,7 +336,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
         DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                   {goto return_error;} );
         tile_size = ddescA.mb*ddescA.nb*sizeof(float);
-        /*tempArray = (float*)malloc(tile_size);*/
 
 #if defined(DPLASMA_PROFILING)
         dplasma_profiling_trace( gpu_device->profiling, movein_key_start, 0 );
@@ -374,8 +350,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
             DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
                                       {printf("<<%p>>\n", (void*)(long)d_A); goto release_and_return_error;} );
             gpu_device->transferred_data_in += tile_size;
-
-            /*CHECK_GPU_FLOAT_DATA( d_A, tempArray, (float*)A, ddescA.mb*ddescA.nb, "checking A" );*/
         }
 
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, k, &gpu_elem_B);
@@ -387,8 +361,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
             DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
                                       {printf("<<%p>>\n", (void*)(long)d_B); goto release_and_return_error;} );
             gpu_device->transferred_data_in += tile_size;
-            
-            /*CHECK_GPU_FLOAT_DATA( d_A, tempArray, (float*)A, ddescA.mb*ddescA.nb, "checking A" );*/
         }
 
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, n, &gpu_elem_C);
@@ -400,8 +372,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
             DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
                                       {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
             gpu_device->transferred_data_in += tile_size;
-
-            /*CHECK_GPU_FLOAT_DATA( d_C, tempArray, (float*)C, ddescA.mb*ddescA.nb, "checking C" );*/
         }
 #if defined(DPLASMA_PROFILING)
         dplasma_profiling_trace( gpu_device->profiling, movein_key_end, 0 );
@@ -427,7 +397,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
         cuParamSetSize( gpu_device->hcuFunction, offset );
 	
         // cuLaunch: we kick off the CUDA
-        /*status = cuLaunch( gpu_device->hcuFunction );*/
         status = cuLaunchGrid( gpu_device->hcuFunction,
                                ddescA.nb / 64,
                                ddescA.nb / 16 );
@@ -435,15 +404,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
             printf( "cuLaunch failed %d\n", status );
             return -1;
         }
-#if 0
-        CORE_sgemm( PlasmaNoTrans, PlasmaTrans,
-                    ddescA.nb, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                    ddescA.nb, /*A.nb,*/
-                    ddescA.nb, /*A.nb,*/
-                    -1.0, B /*A(m, k)*/, ddescA.nb, /*A.nb,*/
-                    A /*A(n, k)*/, ddescA.nb, /*A.nb,*/
-                    1.0, C /*A(m, n)*/, ddescA.nb /*A.nb*/ );
-#endif    
         status = cuCtxSynchronize();
         DPLASMA_CUDA_CHECK_ERROR( "cuCtxSynchronize", status,
                                   {goto release_and_return_error;} );
@@ -466,28 +426,6 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
 #if defined(DPLASMA_PROFILING)
             dplasma_profiling_trace( gpu_device->profiling, moveout_key_end, 2 );
 #endif  /* defined(PROFILING) */
-#if 0
-            if( 1 ) {
-                int length = ddescA.nb*ddescA.nb, index = 0, only_one = 0;
-
-                while( length > 0 ) {
-                    if( tempArray[index] != ((float*)C)[index] ) {
-                        if( 0 == only_one ) {
-                            printf("GEMM(%d,%d,%d) @ pos(%d,%d) local != GPU  %f != %f (diff %f)\n", k, n, m,
-                                   index / ddescA.nb, index % ddescA.nb,
-                                   tempArray[index], ((float*)C)[index],
-                                   tempArray[index] - ((float*)C)[index]);
-                        }
-                        only_one++;
-                    }
-                    length--;
-                    index++;
-                }
-                if( 0 != only_one ) {
-                    printf("GEMM(%d,%d,%d) @ had %d/%d mismatch\n", k, n, m, only_one, ddescA.nb*ddescA.nb);
-                }
-            }
-#endif
         }
 
         /* Wait until the data is back on the memory */
