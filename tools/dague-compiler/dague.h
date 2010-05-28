@@ -63,6 +63,15 @@ struct DAGuE_dependencies_t {
 
 typedef int (DAGuE_hook_t)(struct DAGuE_execution_unit_t*, DAGuE_execution_context_t*);
 typedef int (DAGuE_release_deps_t)(struct DAGuE_execution_unit_t*, const DAGuE_execution_context_t*, int, const struct DAGuE_remote_deps_t *, gc_data_t **data);
+
+typedef enum  {
+    DAGuE_TRAVERSE_STOP,
+    DAGuE_TRAVERSE_CONTINUE
+} DAGuE_ontask_iterate_t;
+
+typedef DAGuE_ontask_iterate_t (DAGuE_ontask_function_t)(struct DAGuE_execution_unit_t *, const DAGuE_execution_context_t *, int, void *);
+typedef void (DAGuE_traverse_function_t)(struct DAGuE_execution_unit_t *, const DAGuE_execution_context_t *, int, DAGuE_ontask_function_t *, void *);
+
 #if defined(DAGuE_CACHE_AWARE)
 typedef unsigned int (DAGuE_cache_rank_function_t)(DAGuE_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
 #endif
@@ -89,6 +98,7 @@ struct DAGuE_t {
     DAGuE_cache_rank_function_t *cache_rank_function;
 #endif
     DAGuE_hook_t*         hook;
+    DAGuE_traverse_function_t *preorder;
     DAGuE_release_deps_t* release_deps;
     char*                 body;
 };
