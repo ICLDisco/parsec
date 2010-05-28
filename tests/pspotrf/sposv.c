@@ -50,9 +50,6 @@ int cpu_counter;
 int use_gpu = 10;
 int overlap_counter;
 
-/* -1 disable | 0 auto detect */
-int ndevices = 0;
-
 static void runtime_init(int argc, char **argv);
 static void runtime_fini(void);
 
@@ -154,7 +151,7 @@ PLASMA_enum uplo = PlasmaLower;
 PLASMA_desc descA;
 DPLASMA_desc ddescA;
 
-extern int spotrf_cuda_init( int use_gpu, int tile_nb );
+extern int spotrf_cuda_init( int* use_gpu );
 extern int spotrf_cuda_fini( int use_gpu );
 
 int main(int argc, char ** argv)
@@ -188,17 +185,15 @@ int main(int argc, char ** argv)
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             }
-            TIME_START();
-            plasma_parallel_call_2(plasma_pspotrf,
-                                   PLASMA_enum, uplo,
-                                   PLASMA_desc, descA);
-            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
-                        gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
-            break;
-        }
-        case DO_DPLASMA: {
-            scatter_matrix(&descA, &ddescA);
-
+        TIME_START();
+        plasma_parallel_call_2(plasma_pspotrf,
+                               PLASMA_enum, uplo,
+                               PLASMA_desc, descA);
+        TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
+                    gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+        break;
+    }
+    case DO_DPLASMA: {
         //#ifdef VTRACE 
         //    VT_ON();
         //#endif
@@ -206,34 +201,59 @@ int main(int argc, char ** argv)
         /*** THIS IS THE DPLASMA COMPUTATION ***/
         TIME_START();
         dplasma = setup_dplasma(&argc, &argv);
-        if(0 == rank)
-            {
-                dplasma_execution_context_t exec_context;
 
-                /* I know what I'm doing ;) */
-                exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-                dplasma_set_initial_execution_context(&exec_context);
-                dplasma_schedule(dplasma, &exec_context);
-            }
-        TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
+        if( 0 != dplasma_description_init(&ddescA, LDA, LDB, NRHS, uplo) ) {
+            printf("Failed to initialize the matrix\n");
+            exit(-2);
+        }
 
-        if(do_warmup)
-            warmup_dplasma(dplasma);
-    
-        /* CUDA */
-        int i,j,tmp;
-
-        if(use_gpu != -1){
-            if( 0 == spotrf_cuda_init( use_gpu, NB ) ) {
+        if(use_gpu != -1) {
+            if( 0 == spotrf_cuda_init( &use_gpu ) ) {
                 overlap_counter = 0;
                 /* cpu counter for GEMM*/
                 cpu_counter = 0;
-                use_gpu = 1;
-            } else {
-                use_gpu = 0;
             }
         }
 
+        scatter_matrix(&descA, &ddescA);
+        TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
+        /**
+         * Now the last step of the DPLASMA initialization.
+         */
+        {
+            expr_t* constant;
+        
+            constant = expr_new_int( ddescA.nb );
+            dplasma_assign_global_symbol( "NB", constant );
+            constant = expr_new_int( ddescA.nt );
+            dplasma_assign_global_symbol( "SIZE", constant );
+            constant = expr_new_int( ddescA.GRIDrows );
+            dplasma_assign_global_symbol( "GRIDrows", constant );
+            constant = expr_new_int( ddescA.GRIDcols );
+            dplasma_assign_global_symbol( "GRIDcols", constant );
+            constant = expr_new_int( ddescA.rowRANK );
+            dplasma_assign_global_symbol( "rowRANK", constant );
+            constant = expr_new_int( ddescA.colRANK );
+            dplasma_assign_global_symbol( "colRANK", constant );
+            constant = expr_new_int( ddescA.nrst );
+            dplasma_assign_global_symbol( "rtileSIZE", constant );
+            constant = expr_new_int( ddescA.ncst );
+            dplasma_assign_global_symbol( "ctileSIZE", constant );
+        }
+        load_dplasma_hooks(dplasma);
+        nbtasks = enumerate_dplasma_tasks(dplasma);
+
+        if(0 == rank) {
+            dplasma_execution_context_t exec_context;
+
+            /* I know what I'm doing ;) */
+            exec_context.function = (dplasma_t*)dplasma_find("POTRF");
+            dplasma_set_initial_execution_context(&exec_context);
+            dplasma_schedule(dplasma, &exec_context);
+        }
+        if(do_warmup)
+            warmup_dplasma(dplasma);
+    
         /* lets rock! */
         SYNC_TIME_START();
         TIME_START();
@@ -247,7 +267,7 @@ int main(int argc, char ** argv)
 		
         /* Cleanup CUDA */
         {
-            if (use_gpu == 1) {
+            if (use_gpu > 0) {
                 spotrf_cuda_fini( use_gpu );
             }
         }
@@ -499,28 +519,6 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
 #endif  /* USE_MPI */
 
     load_dplasma_objects(dplasma);
-    {
-        expr_t* constant;
-        
-        constant = expr_new_int( ddescA.nb );
-        dplasma_assign_global_symbol( "NB", constant );
-        constant = expr_new_int( ddescA.nt );
-        dplasma_assign_global_symbol( "SIZE", constant );
-        constant = expr_new_int( ddescA.GRIDrows );
-        dplasma_assign_global_symbol( "GRIDrows", constant );
-        constant = expr_new_int( ddescA.GRIDcols );
-        dplasma_assign_global_symbol( "GRIDcols", constant );
-        constant = expr_new_int( ddescA.rowRANK );
-        dplasma_assign_global_symbol( "rowRANK", constant );
-        constant = expr_new_int( ddescA.colRANK );
-        dplasma_assign_global_symbol( "colRANK", constant );
-        constant = expr_new_int( ddescA.nrst );
-        dplasma_assign_global_symbol( "rtileSIZE", constant );
-        constant = expr_new_int( ddescA.ncst );
-        dplasma_assign_global_symbol( "ctileSIZE", constant );
-    }
-    load_dplasma_hooks(dplasma);
-    nbtasks = enumerate_dplasma_tasks(dplasma);
     
     return dplasma;
 }
@@ -652,8 +650,9 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 {
     if(do_distributed_generation)
     {
-        TIME_START();
-        dplasma_description_init(dist, LDA, LDB, NRHS, uplo);
+        /* Allocate memory for matrices in block layout */
+        dist->mat = dplasma_allocate_matrix( dist->nb_elem_r * dist->nb_elem_c * dist->bsiz * sizeof(float),
+                                             use_gpu);
         rand_dist_matrix(dist);
         /*TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));*/
         return;
@@ -709,7 +708,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
     float eps = slamch("Epsilon");
 
     printf("\n");
-    printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
+    printf("------ TESTS FOR PLASMA SPOTRF + SPOTRS ROUTINE -------  \n");
     printf("            Size of the Matrix %d by %d\n", N, N);
     printf("\n");
     printf(" The matrix A is randomly generated for each test.\n");
@@ -728,7 +727,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
         if((info_solution == 0) && (info_factorization == 0)) 
         {
             printf("****************************************************\n");
-            printf(" ---- TESTING DPOTRF + DPOTRS ............ PASSED ! \n");
+            printf(" ---- TESTING SPOTRF + SPOTRS ............ PASSED ! \n");
             printf("****************************************************\n");
             printf(" ---- GFLOPS ............................. %.4f\n", gflops);
             printf("****************************************************\n");
@@ -736,7 +735,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
         else 
         {
             printf("*****************************************************\n");
-            printf(" ---- TESTING DPOTRF + DPOTRS ............ FAILED !  \n");
+            printf(" ---- TESTING SPOTRF + SPOTRS ............ FAILED !  \n");
             printf("*****************************************************\n");
         }
         free(A1); free(B1); free(B2);
@@ -744,7 +743,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
     else
     {
         printf("****************************************************\n");
-        printf(" ---- TESTING DPOTRF + DPOTRS ............ SKIPPED !\n");
+        printf(" ---- TESTING SPOTRF + SPOTRS ............ SKIPPED !\n");
         printf("****************************************************\n");
         printf(" ---- n= %d np= %d nc= %d g= %dx%d\t %.4f GFLOPS\n", N, nodes, cores, ddescA.GRIDrows, ddescA.GRIDcols, gflops);
         printf("****************************************************\n");

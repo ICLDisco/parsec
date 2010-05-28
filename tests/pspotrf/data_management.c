@@ -40,18 +40,8 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
     int nbstile_c;
     
     /* computing colRANK and rowRANK */
-    Ddesc->colRANK = 0;
-    Ddesc->rowRANK = 0;
-    i = Ddesc->mpi_rank;
-    
-    /* find rowRANK */
-    while ( i >= Ddesc->GRIDcols)
-    {
-        Ddesc->rowRANK = Ddesc->rowRANK + 1;
-        i = i - Ddesc->GRIDcols;
-    }
-    /* affect colRANK */
-    Ddesc->colRANK = i;
+    Ddesc->rowRANK = (Ddesc->mpi_rank)/(Ddesc->GRIDcols);
+    Ddesc->colRANK = (Ddesc->mpi_rank)%(Ddesc->GRIDcols);
         
     /* computing the number of rows of super-tile */
     nbstile_r = Ddesc->lmt / Ddesc->nrst;
@@ -100,7 +90,8 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
         Ddesc->nb_elem_c += ((Ddesc->lnt) - i);
         break;
     }
-    printf("process %d(%d,%d) handles %d x %d tiles\n", Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);
+    printf("process %d(%d,%d) handles %d x %d tiles\n",
+           Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);
     return 0;
 }
 
@@ -246,9 +237,9 @@ int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc *
     NT = (N%NB==0) ? (N/NB) : (N/NB+1);
 
     /* Allocate memory for matrices in block layout */
-    Abdl = (float *)plasma_shared_alloc(plasma, NT*NT*PLASMA_NBNBSIZE, PlasmaRealFloat);
+    Abdl = dplasma_allocate_matrix(NT*NT*PLASMA_NBNBSIZE*sizeof(float), 0);
     if (Abdl == NULL) {
-        plasma_error("PLASMA_dpotrf", "plasma_shared_alloc() failed");
+        printf("PLASMA_dpotrf", "Allocating %d bytes of memory failed", NT*NT*PLASMA_NBNBSIZE*sizeof(float));
         return PLASMA_ERR_OUT_OF_RESOURCES;
     }
 
@@ -962,7 +953,6 @@ int rand_dist_matrix(DPLASMA_desc * Ddesc)
     return 0;
 }
 
-
 int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo)
 {
 
@@ -997,9 +987,9 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
         }
 
     /* Tune NB depending on M, N & NRHS; Set NBNBSIZE */
-    status = plasma_tune(PLASMA_FUNC_DPOSV, Ddesc->n, Ddesc->n, NRHS);
+    status = plasma_tune(PLASMA_FUNC_SPOSV, Ddesc->n, Ddesc->n, NRHS);
     if (status != PLASMA_SUCCESS) {
-        plasma_error("PLASMA_dpotrf", "plasma_tune() failed");
+        plasma_error("dplasma_description_init", "plasma_tune() failed");
         return status;
     }
 
@@ -1030,68 +1020,53 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
     Ddesc->mt = ((Ddesc->i)+(Ddesc->m)-1)/(Ddesc->nb) - (Ddesc->i)/(Ddesc->nb) + 1;
     Ddesc->nt = ((Ddesc->j)+(Ddesc->n)-1)/(Ddesc->nb) - (Ddesc->j)/(Ddesc->nb) + 1;
 
+    ddesc_compute_vals(Ddesc);
 
-    /* computing colRANK and rowRANK */
-    Ddesc->rowRANK = (Ddesc->mpi_rank)/(Ddesc->GRIDcols);
-    Ddesc->colRANK = (Ddesc->mpi_rank)%(Ddesc->GRIDcols);
-
-
-    /* computing the number of rows of super-tile */
-    nbstile_r = Ddesc->lmt / Ddesc->nrst;
-    if((Ddesc->lmt % Ddesc->nrst) != 0)
-        nbstile_r++;
-
-    /* computing the number of colums of super-tile*/
-    nbstile_c = Ddesc->lnt / Ddesc->ncst;
-    if((Ddesc->lnt % Ddesc->ncst) != 0)
-        nbstile_c++;
-
-    if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
-        {
-            printf("The process grid chosen is %dx%d, block distribution choosen is %d, %d : cannot generate matrix \n",
-                   Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
-            return -1;
-        }
-    printf("matrix to be generated distributed by block of %d x %d tiles \n", nbstile_r, nbstile_c);    
-
-    /* find the number of tiles this process will handle */
-    Ddesc->nb_elem_r = 0;
-    i = Ddesc->rowRANK * Ddesc->nrst; /* row coordinate of the first tile to handle */
-    while ( i < Ddesc->lmt)
-        {
-            if ( (i  + (Ddesc->nrst)) < Ddesc->lmt)
-                {
-                    Ddesc->nb_elem_r += (Ddesc->nrst);
-                    i += ((Ddesc->GRIDrows) * (Ddesc->nrst));
-                    continue;
-                }
-            Ddesc->nb_elem_r += ((Ddesc->lmt) - i);
-            break;
-        }
-
-    Ddesc->nb_elem_c = 0;
-    i = Ddesc->colRANK * Ddesc->ncst;
-    while ( i < Ddesc->lnt)
-        {
-            if ( (i  + (Ddesc->ncst)) < Ddesc->lnt)
-                {
-                    Ddesc->nb_elem_c += (Ddesc->ncst);
-                    i += (Ddesc->GRIDcols) * (Ddesc->ncst);
-                    continue;
-                }
-            Ddesc->nb_elem_c += ((Ddesc->lnt) - i);
-            break;
-        }
-    printf("process %d(%d,%d) handles %d x %d tiles\n",
-           Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);
-
-    /* Allocate memory for matrices in block layout */
-    Ddesc->mat =(float *)plasma_shared_alloc(plasma, Ddesc->nb_elem_r*Ddesc->nb_elem_c * Ddesc->bsiz, PlasmaRealFloat);
-    if (Ddesc->mat == NULL)
-        {
-            plasma_error("PLASMA_spotrf", "plasma_shared_alloc() failed");
-            return PLASMA_ERR_OUT_OF_RESOURCES;
-        }
     return 0;
+}
 
+#if defined(DPLASMA_CUDA_SUPPORT)
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include "lifo.h"
+#include "gpu_data.h"
+extern dplasma_atomic_lifo_t gpu_devices;
+#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
+
+void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
+{
+    void* mat = NULL;
+#if defined(DPLASMA_CUDA_SUPPORT)
+    if( use_gpu ) {
+        CUresult status;
+        gpu_device_t* gpu_device;
+
+        gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
+        status = cuCtxPushCurrent( gpu_device->ctx );
+        DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
+                                  {goto normal_alloc;} );
+
+        status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
+        if( CUDA_SUCCESS != status ) {
+            DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuMemHostAlloc ", status,
+                                      {} );
+            mat = NULL;
+        }
+        status = cuCtxPopCurrent(NULL);
+        DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                  {} );
+        dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
+    }
+ normal_alloc:
+#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
+    /* If nothing else worked so far, allocate the memory using PLASMA */
+    if( NULL == mat ) {
+        mat = (float*)malloc( matrix_size );
+    }
+
+    if( NULL == mat ) {
+        plasma_error("dplasma_description_init", "plasma_shared_alloc() failed");
+        return NULL;
+    }
+    return mat;
 }
