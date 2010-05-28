@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) || (defined(__ICC) && (__ICC > 1100))
+#if defined(DPLASMA_ATOMIC_USE_GCC_32_BUILTINS)
 #include "atomic-gcc.h"
 #elif defined(MAC_OS_X)
 #include "atomic-macosx.h"
