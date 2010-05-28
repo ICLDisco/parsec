@@ -141,6 +141,7 @@ int untiling(PLASMA_enum * uplo, int N, float *A, int LDA, PLASMA_desc * descA);
 /* set values of the DPLASMA_desc structure and allocate memory for matrix data
  */
 int dplasma_description_init(DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
+void* dplasma_allocate_matrix( int matrix_size, int use_gpu);
 
 /* affecting the complete local view of a distributed matrix with random values */
 int rand_dist_matrix(DPLASMA_desc * Ddesc);
