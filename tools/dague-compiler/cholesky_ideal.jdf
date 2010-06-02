@@ -3,8 +3,11 @@ extern "C" %{
     * PLASMA include for defined and constants.
     */
 #include "DAGuE.h"
+
+#if 0
 #include <plasma.h>
 #include <core_dblas.h>
+#endif
 
 extern int uplo;
 int PLASMA_INFO = 0;
