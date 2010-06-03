@@ -5,8 +5,8 @@ HWLOC_OPTS=""
 # the above line is necessary only when using gcc and gfortran 4.4
 # from fink. If using stock gcc and hpc gfortran, or port,
 # it is not necessary. 
-export CC=gcc-4
-PLASMA_DIR=/Users/bouteill/dague/plasma
-#HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
+#export CC=gcc-4
+PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
+HWLOC_OPTS="-DHWLOC_DIR=/opt/local"
 
 cmake -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON ${HWLOC_OPTS}
