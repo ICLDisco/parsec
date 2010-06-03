@@ -10,14 +10,14 @@
  * @param [IN]  code the code for the preamble in this language
  *
  */
-void dplasma_precompiler_add_preamble(const char *language, const char *code);
+void DAGuE_precompiler_add_preamble(const char *language, const char *code);
 
 /**
- * Dump all defined dplasma_t objetcs in a C-like format in the out file
+ * Dump all defined DAGuE_t objetcs in a C-like format in the out file
  *
  * @param [IN] the file to dump to
  * @return 0 if succesfull, -1 if the file cannot be opened
  */
-int dplasma_dump_all_c( char *filename );
+int DAGuE_dump_all_c( char *filename );
 
 #endif

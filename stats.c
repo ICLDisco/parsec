@@ -1,21 +1,21 @@
-#include "dplasma_config.h"
+#include "dague_config.h"
 
-#if defined(DPLASMA_STATS)
+#if defined(DAGuE_STATS)
 
-#define DPLASMA_STATS_C_DECLARE
+#define DAGuE_STATS_C_DECLARE
 #include "stats.h"
 #undef _statsinternal_h
 #undef stats_h
 #undef DECLARE_STAT
 #undef DECLARE_STATMAX
 #undef DECLARE_STATACC
-#undef DPLASMA_STATS_C_DECLARE
+#undef DAGuE_STATS_C_DECLARE
 
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
-void dplasma_stats_dump(char *filename, char *prefix)
+void dague_stats_dump(char *filename, char *prefix)
 {
     FILE *statfile;
 
@@ -29,7 +29,7 @@ void dplasma_stats_dump(char *filename, char *prefix)
         statfile = stdout;
     }
 
-#define DPLASMA_STATS_C_DUMP
+#define DAGuE_STATS_C_DUMP
 #include "stats.h"
 
     if( strcmp(filename, "-") ) {
@@ -37,4 +37,4 @@ void dplasma_stats_dump(char *filename, char *prefix)
     }
 }
 
-#endif /* defined (DPLASMA_STATS) */
+#endif /* defined (DAGuE_STATS) */

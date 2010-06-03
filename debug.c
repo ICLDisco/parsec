@@ -4,10 +4,10 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include "debug.h"
 
-#include "dplasma.h"
+#include "dague.h"
 #include "remote_dep.h"
 #include "atomic.h"
 
@@ -82,10 +82,10 @@ int vasprintf(char **ptr, const char *fmt, va_list ap)
 }
 #endif  /* !defined(HAVE_VASPRINTF) */
 
-#if defined(DPLASMA_DEBUG_HISTORY)
+#if defined(DAGuE_DEBUG_HISTORY)
 
 typedef struct {
-    dplasma_t *function;
+    dague_t *function;
     assignment_t locals[MAX_LOCAL_COUNT];
 } execution_mark_t;
 
@@ -123,13 +123,13 @@ static mark_t   marks[MAX_MARKS];
 
 static inline mark_t *get_my_mark(void)
 {
-    uint32_t mymark_idx = dplasma_atomic_inc_32b(&nextmark) - 1;
+    uint32_t mymark_idx = dague_atomic_inc_32b(&nextmark) - 1;
     mymark_idx %= MAX_MARKS;
     
     return (&marks[mymark_idx]);
 }
 
-void debug_mark_exe(int core, const struct dplasma_execution_context_t *ctx)
+void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
 {
     int i;
     mark_t  *mymark = get_my_mark();
@@ -253,7 +253,7 @@ void debug_mark_display_history(void)
     mark_t  *m;
     char msg[512];
     int pos, len = 512;
-    dplasma_t *f;
+    dague_t *f;
 
     current_mark = current_mark > MAX_MARKS ? MAX_MARKS : current_mark;
     for(i = nextmark % MAX_MARKS; i != (nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
@@ -268,7 +268,7 @@ void debug_mark_display_history(void)
                                 reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n",
                                 m->u.comm.buffer);
-                f = (dplasma_t*)m->u.comm.msg.activate.function;
+                f = (dague_t*)m->u.comm.msg.activate.function;
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_locals; j++) {
                     pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
@@ -285,7 +285,7 @@ void debug_mark_display_history(void)
                                 reali(i), m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
-                f = (dplasma_t*)m->u.comm.msg.activate.function;
+                f = (dague_t*)m->u.comm.msg.activate.function;
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_locals; j++) {
                     pos += snprintf(msg+pos, len-pos, "%s=%d%s", 

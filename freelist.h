@@ -4,43 +4,43 @@
  *                         reserved.
  */
 
-#ifndef DPLASMA_FREE_LIST_H_HAS_BEEN_INCLUDED
-#define DPLASMA_FREE_LIST_H_HAS_BEEN_INCLUDED
+#ifndef DAGuE_FREE_LIST_H_HAS_BEEN_INCLUDED
+#define DAGuE_FREE_LIST_H_HAS_BEEN_INCLUDED
 
-#include "dplasma_config.h"
+#include "DAGuE_config.h"
 #include "lifo.h"
 
-typedef struct dplasma_freelist_t {
-    dplasma_atomic_lifo_t lifo;
+typedef struct DAGuE_freelist_t {
+    DAGuE_atomic_lifo_t lifo;
     size_t elem_size; /** The size of the elements in the freelist */
     int ondemand;     /** If allocation on demand is allowed */
-} dplasma_freelist_t;
+} DAGuE_freelist_t;
 
-typedef struct dplasma_freelist_item_t {
+typedef struct DAGuE_freelist_item_t {
     union {
-        dplasma_list_item_t                 item;
-        dplasma_freelist_t*                 origin;
+        DAGuE_list_item_t                 item;
+        DAGuE_freelist_t*                 origin;
     } upstream;
-} dplasma_freelist_item_t;
+} DAGuE_freelist_item_t;
 
 /**
  *
  */
-int dplasma_freelist_init( dplasma_freelist_t* freelist, size_t elem_size, int ondemand );
+int DAGuE_freelist_init( DAGuE_freelist_t* freelist, size_t elem_size, int ondemand );
 
 /**
  *
  */
-int dplasma_freelist_fini( dplasma_freelist_t* freelist );
+int DAGuE_freelist_fini( DAGuE_freelist_t* freelist );
 
 /**
  *
  */
-dplasma_list_item_t* dplasma_freelist_get(dplasma_freelist_t* freelist);
+DAGuE_list_item_t* DAGuE_freelist_get(DAGuE_freelist_t* freelist);
 
 /**
  *
  */
-int dplasma_freelist_release( dplasma_freelist_item_t* item );
+int DAGuE_freelist_release( DAGuE_freelist_item_t* item );
 
-#endif  /* DPLASMA_FREE_LIST_H_HAS_BEEN_INCLUDED */
+#endif  /* DAGuE_FREE_LIST_H_HAS_BEEN_INCLUDED */

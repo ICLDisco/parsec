@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef DPLASMA_BARRIER_H_HAS_BEEN_INCLUDED
-#define DPLASMA_BARRIER_H_HAS_BEEN_INCLUDED
+#ifndef DAGuE_BARRIER_H_HAS_BEEN_INCLUDED
+#define DAGuE_BARRIER_H_HAS_BEEN_INCLUDED
 
 #include <unistd.h>
 #include <pthread.h>
@@ -18,28 +18,28 @@
  */
 #if defined(_POSIX_BARRIERS) && (_POSIX_BARRIERS - 20012L) >= 0 && 0
 
-typedef pthread_barrier_t dplasma_barrier_t;
-#define dplasma_barrier_init pthread_barrier_init
-#define dplasma_barrier_wait pthread_barrier_wait
-#define dplasma_barrier_destroy pthread_barrier_destroy
-#define DPLASMA_IMPLEMENT_BARRIERS 0
+typedef pthread_barrier_t DAGuE_barrier_t;
+#define DAGuE_barrier_init pthread_barrier_init
+#define DAGuE_barrier_wait pthread_barrier_wait
+#define DAGuE_barrier_destroy pthread_barrier_destroy
+#define DAGuE_IMPLEMENT_BARRIERS 0
 
 #else
 
-typedef struct dplasma_barrier_t {
+typedef struct DAGuE_barrier_t {
     int                 count;
     volatile int        curcount;
     volatile int        generation;
     pthread_mutex_t     mutex;
     pthread_cond_t      cond;
-} dplasma_barrier_t;
+} DAGuE_barrier_t;
 
-int dplasma_barrier_init(dplasma_barrier_t *barrier, const void *pthread_mutex_attr, unsigned int count);
-int dplasma_barrier_wait(dplasma_barrier_t*);
-int dplasma_barrier_destroy(dplasma_barrier_t*);
-#define DPLASMA_IMPLEMENT_BARRIERS 1
+int DAGuE_barrier_init(DAGuE_barrier_t *barrier, const void *pthread_mutex_attr, unsigned int count);
+int DAGuE_barrier_wait(DAGuE_barrier_t*);
+int DAGuE_barrier_destroy(DAGuE_barrier_t*);
+#define DAGuE_IMPLEMENT_BARRIERS 1
 
 #endif
 
 
-#endif  /* DPLASMA_BARRIER_H_HAS_BEEN_INCLUDED */
+#endif  /* DAGuE_BARRIER_H_HAS_BEEN_INCLUDED */

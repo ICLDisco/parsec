@@ -4,12 +4,12 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include "barrier.h"
 
-#if DPLASMA_IMPLEMENT_BARRIERS
+#if DAGuE_IMPLEMENT_BARRIERS
 
-int dplasma_barrier_init(dplasma_barrier_t* barrier, const void* attr, unsigned int count)
+int dague_barrier_init(dague_barrier_t* barrier, const void* attr, unsigned int count)
 {
     int rc;
 
@@ -27,7 +27,7 @@ int dplasma_barrier_init(dplasma_barrier_t* barrier, const void* attr, unsigned 
     return 0;
 }
 
-int dplasma_barrier_wait(dplasma_barrier_t* barrier)
+int dague_barrier_wait(dague_barrier_t* barrier)
 {
     int generation;
 
@@ -51,7 +51,7 @@ int dplasma_barrier_wait(dplasma_barrier_t* barrier)
     return 0;
 }
 
-int dplasma_barrier_destroy(dplasma_barrier_t* barrier)
+int dague_barrier_destroy(dague_barrier_t* barrier)
 {
     pthread_mutex_destroy( &(barrier->mutex) );
     pthread_cond_destroy( &(barrier->cond) );

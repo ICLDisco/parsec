@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +20,7 @@ void dep_dump(const dep_t *d, const char *prefix)
         printf(" then ");
     }
     printf( "%s %s(",
-            (d->param == NULL ? "" : d->param->name), d->dplasma->name);
+            (d->param == NULL ? "" : d->param->name), d->dague->name);
     for(i = 0; i < MAX_CALL_PARAM_COUNT && NULL != d->call_params[i]; i++) {
         expr_dump(stdout, d->call_params[i]);
         if( i+1 < MAX_CALL_PARAM_COUNT && NULL != d->call_params[i+1] ) {

@@ -14,10 +14,10 @@ typedef struct symbol symbol_t;
 #include <stdint.h>
 
 /* This symbol is a global one. */
-#define DPLASMA_SYMBOL_IS_GLOBAL      0x0001
+#define DAGuE_SYMBOL_IS_GLOBAL      0x0001
 /* This symbol doesn't depend on any other local symbols. However,
  * it can depend on global symbols */
-#define DPLASMA_SYMBOL_IS_STANDALONE  0x0002
+#define DAGuE_SYMBOL_IS_STANDALONE  0x0002
 
 struct symbol {
     uint32_t flags;
@@ -30,15 +30,15 @@ struct symbol {
 /**
  * Returns the number of symbols registered in the symbol array
  */
-int dplasma_symbol_get_count(void);
+int DAGuE_symbol_get_count(void);
 
 /**
  * Returns the symbol stored at element i of the symbol array
  *
  * @param [IN] i the index of the element to return
- * @return     NULL if i >= dplasma_symbol_get_count(), the symbol otherwise.
+ * @return     NULL if i >= DAGuE_symbol_get_count(), the symbol otherwise.
  */
-const symbol_t *dplasma_symbol_get_element_at( int i );
+const symbol_t *DAGuE_symbol_get_element_at( int i );
 
 /**
  * Dump the specified symbol.
@@ -46,7 +46,7 @@ const symbol_t *dplasma_symbol_get_element_at( int i );
 void symbol_dump(const symbol_t *s, const char *prefix);
 
 /**
- * helper for dumping the c structure representing the dplasma object
+ * helper for dumping the c structure representing the DAGuE object
  */
 int symbol_c_index_lookup( const symbol_t *symbol );
 
@@ -58,32 +58,32 @@ void symbol_dump_all( const char* prefix );
 /**
  * Search for a global symbol.
  */
-symbol_t* dplasma_search_global_symbol( const char* name );
+symbol_t* DAGuE_search_global_symbol( const char* name );
 
-void dplasma_load_symbols( symbol_t **array, int size );
+void DAGuE_load_symbols( symbol_t **array, int size );
 
 /**
  * Return 1 if the symbol is global.
  */
-static inline int dplasma_symbol_is_global( const symbol_t* symbol )
+static inline int DAGuE_symbol_is_global( const symbol_t* symbol )
 {
-    return (symbol->flags & DPLASMA_SYMBOL_IS_GLOBAL ? 1 : 0);
+    return (symbol->flags & DAGuE_SYMBOL_IS_GLOBAL ? 1 : 0);
 }
 
 /**
  * Add a (constant) global symbol.
  */
-int dplasma_add_global_symbol_cst( const char* name, const expr_t* expr );
+int DAGuE_add_global_symbol_cst( const char* name, const expr_t* expr );
 
 /**
  * Add a non-assigned global symbol.
  */
-int dplasma_add_global_symbol( const char* name );
+int DAGuE_add_global_symbol( const char* name );
 
 /**
  * Assign an existing global symbol that wasn't constant before
  */
-int dplasma_assign_global_symbol( const char *name, const expr_t *expr ); 
+int DAGuE_assign_global_symbol( const char *name, const expr_t *expr ); 
  
 
 /**
@@ -95,7 +95,7 @@ int dplasma_assign_global_symbol( const char *name, const expr_t *expr );
  * @return  0 if the symbol is standalone.
  * @return -1 otherwise (no specific error returned).
  */
-int dplasma_symbol_is_standalone( const symbol_t* symbol );
+int DAGuE_symbol_is_standalone( const symbol_t* symbol );
 
 /**
  * Return the first acceptable value for a specific symbol. As a result the symbol
@@ -114,7 +114,7 @@ int dplasma_symbol_is_standalone( const symbol_t* symbol );
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_first_value( const symbol_t* symbol,
+int DAGuE_symbol_get_first_value( const symbol_t* symbol,
                                     const expr_t** predicates,
                                     assignment_t* local_context,
                                     int* pvalue );
@@ -135,7 +135,7 @@ int dplasma_symbol_get_first_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_last_value( const symbol_t* symbol,
+int DAGuE_symbol_get_last_value( const symbol_t* symbol,
                                    const expr_t** predicates,
                                    assignment_t* local_context,
                                    int* pvalue );
@@ -157,7 +157,7 @@ int dplasma_symbol_get_last_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_next_value( const symbol_t* symbol,
+int DAGuE_symbol_get_next_value( const symbol_t* symbol,
                                    const expr_t** predicates,
                                    assignment_t* local_context,
                                    int* pvalue );
@@ -178,7 +178,7 @@ int dplasma_symbol_get_next_value( const symbol_t* symbol,
  * @return  0 if the current value of the symbol in the local_context is valid.
  * @return -1 if something bad happened or the value is out-of-bounds
  */
-int dplasma_symbol_validate_value( const symbol_t* symbol,
+int DAGuE_symbol_validate_value( const symbol_t* symbol,
                                    const expr_t** predicates,
                                    assignment_t* local_context );
 
@@ -193,7 +193,7 @@ int dplasma_symbol_validate_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,
+int DAGuE_symbol_get_absolute_minimum_value( const symbol_t* symbol,
                                                int* pvalue );
 
 /**
@@ -210,7 +210,7 @@ int dplasma_symbol_get_absolute_minimum_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dplasma_symbol_get_absolute_maximum_value( const symbol_t* symbol,
+int DAGuE_symbol_get_absolute_maximum_value( const symbol_t* symbol,
                                                int* pvalue );
 
 #endif

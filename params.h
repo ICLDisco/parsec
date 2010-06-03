@@ -16,16 +16,20 @@ typedef struct param param_t;
 #define SYM_OUT    0x02
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
+#define ACCESS_READ     0x01
+#define ACCESS_WRITE    0x02
+#define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)
+
 #define MAX_DEP_IN_COUNT  10
 #define MAX_DEP_OUT_COUNT 10
 
 struct param {
     char*               name;
-    struct dplasma_t*   function;
     unsigned char       sym_type;
+    unsigned char       access_type;
     unsigned char       param_mask;
-    dep_t*              dep_in[MAX_DEP_IN_COUNT];
-    dep_t*              dep_out[MAX_DEP_OUT_COUNT];
+    const dep_t*        dep_in[MAX_DEP_IN_COUNT];
+    const dep_t*        dep_out[MAX_DEP_OUT_COUNT];
 };
 
 void param_dump(const param_t *p, const char *prefix);
@@ -33,6 +37,6 @@ void param_dump(const param_t *p, const char *prefix);
 /**
  *
  */
-param_t* dplasma_find_or_create_param(struct dplasma_t* function, char* param_name);
+param_t* DAGuE_find_or_create_param(struct DAGuE_t* function, char* param_name);
 
 #endif

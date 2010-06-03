@@ -4,10 +4,10 @@
  *                         reserved.
  */
 
-#ifndef _dplasma_scheduling_h
-#define _dplasma_scheduling_h
+#ifndef _DAGuE_scheduling_h
+#define _DAGuE_scheduling_h
 
-#include "dplasma.h"
+#include "DAGuE.h"
 
 /**
  * Mark a execution context as being ready to be scheduled, i.e. all
@@ -22,13 +22,13 @@
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int dplasma_schedule( dplasma_context_t*, const dplasma_execution_context_t* );
-int __dplasma_schedule( dplasma_execution_unit_t*, dplasma_execution_context_t*, int use_placeholder );
+int DAGuE_schedule( DAGuE_context_t*, const DAGuE_execution_context_t* );
+int __DAGuE_schedule( DAGuE_execution_unit_t*, DAGuE_execution_context_t*, int use_placeholder );
 
-int dplasma_progress(dplasma_context_t* context);
-void* __dplasma_progress(dplasma_execution_unit_t* eu_context);
+int DAGuE_progress(DAGuE_context_t* context);
+void* __DAGuE_progress(DAGuE_execution_unit_t* eu_context);
 
-void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
+void DAGuE_register_nb_tasks(DAGuE_context_t* context, int32_t n);
 
 
 
@@ -44,10 +44,10 @@ void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong. 
  */
-int dplasma_trigger_dependencies( dplasma_execution_unit_t*,
-                                 const dplasma_execution_context_t*,
+int DAGuE_trigger_dependencies( DAGuE_execution_unit_t*,
+                                 const DAGuE_execution_context_t*,
                                  int forward_remote );
 //#endif /* DEPRECATED */
 
-#endif  /* _dplasma_scheduling_h */
+#endif  /* _DAGuE_scheduling_h */
 

@@ -1,0 +1,57 @@
+#ifndef DAGuE_CONFIG_H_HAS_BEEN_INCLUDED
+#define DAGuE_CONFIG_H_HAS_BEEN_INCLUDED
+
+#define DAGuE_VERSION_MAJOR @DAGuE_VERSION_MAJOR@
+#define DAGuE_VERSION_MINOR @DAGuE_VERSION_MINOR@
+
+/* Communication engine */
+#cmakedefine DAGuE_COLLECTIVE
+#cmakedefine DAGuE_MPI
+/* Scheduling engine */
+#cmakedefine HAVE_HWLOC
+#cmakedefine DAGuE_CACHE_AWARE
+/* debug */
+#cmakedefine DAGuE_DEBUG
+#cmakedefine DAGuE_DEBUG_HISTORY
+/* CUDA Support */
+#cmakedefine DAGuE_CUDA_SUPPORT
+/* profiling */
+#cmakedefine DAGuE_PROFILING
+#cmakedefine DAGuE_STATS
+#cmakedefine DAGuE_GRAPHER
+#cmakedefine DAGuE_CALL_TRACE
+#cmakedefine DAGuE_DRY_RUN
+#cmakedefine HAVE_PAPI
+/* system */
+#cmakedefine HAVE_PTHREAD
+#cmakedefine HAVE_SCHED_SETAFFINITY
+#cmakedefine HAVE_CLOCK_GETTIME
+#cmakedefine DAGuE_ATOMIC_USE_GCC_32_BUILTINS
+#cmakedefine DAGuE_ATOMIC_USE_GCC_64_BUILTINS
+#cmakedefine DAGuE_ATOMIC_USE_MIPOSPRO_32_BUILTINS
+#cmakedefine DAGuE_ATOMIC_USE_MIPOSPRO_64_BUILTINS
+#cmakedefine DAGuE_ATOMIC_USE_SUN_32
+#cmakedefine DAGuE_ATOMIC_USE_SUN_64
+#cmakedefine HAVE_ASPRINTF
+#cmakedefine HAVE_VASPRINTF
+#cmakedefine HAVE_STDARG_H
+#cmakedefine HAVE_VA_COPY
+#cmakedefine HAVE_UNDERSCORE_VA_COPY
+#cmakedefine HAVE_GETOPT_LONG
+#cmakedefine HAVE_GETOPT_H
+#cmakedefine HAVE_ERRNO_H
+#cmakedefine ARCH_X86
+#cmakedefine ARCH_X86_64
+#cmakedefine ARCH_PPC
+#cmakedefine MAC_OS_X
+
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif  /* !defined(_GNU_SOURCE) */
+
+#ifdef ARCH_PPC
+#define inline __inline__
+#define restrict 
+#endif
+
+#endif  /*DAGuE_CONFIG_H_HAS_BEEN_INCLUDED */

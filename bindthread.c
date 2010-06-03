@@ -1,4 +1,4 @@
-#include "dplasma_config.h"
+#include "dague_config.h"
 #if defined(HAVE_HWLOC)
 #  include <hwloc.h>
 #elif defined(ARCH_COMPAQ)
@@ -23,7 +23,7 @@ extern kern_return_t thread_policy_set( thread_t               thread,
                                         mach_msg_type_number_t count);
 #endif  /* define(HAVE_HWLOC) */
 
-int dplasma_bindthread(int cpu)
+int dague_bindthread(int cpu)
 {
 #ifdef MARCEL
 

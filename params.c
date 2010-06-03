@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
-#include "dplasma.h"
+#include "dague_config.h"
+#include "dague.h"
 #include "remote_dep.h"
 
 #include <stdio.h>
@@ -38,7 +38,7 @@ void param_dump(const param_t *p, const char *prefix)
     }
 }
 
-param_t* dplasma_find_or_create_param(dplasma_t* function, char* param_name)
+param_t* dague_find_or_create_param(dague_t* function, char* param_name)
 {
     param_t* param;
     int i;

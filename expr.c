@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -138,7 +138,7 @@ static int expr_eval_symbol(const symbol_t *sym, const assignment_t *assignments
     assignment_t* assignment;
 
     /* look at the global symbols first */
-    const symbol_t *gsym = dplasma_search_global_symbol( sym->name );
+    const symbol_t *gsym = dague_search_global_symbol( sym->name );
     if( gsym != NULL ){
         int int_res;
         if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, &int_res) ){
@@ -147,7 +147,7 @@ static int expr_eval_symbol(const symbol_t *sym, const assignment_t *assignments
         }
     }
 
-    if( EXPR_SUCCESS == dplasma_find_assignment(sym->name, assignments, nbassignments, &assignment) ) {
+    if( EXPR_SUCCESS == dague_find_assignment(sym->name, assignments, nbassignments, &assignment) ) {
         *res = assignment->value;
         return EXPR_SUCCESS;
     }
@@ -298,7 +298,7 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
 
     if( EXPR_OP_SYMB == expr->op ) {
         const symbol_t* symbol = expr->variable;
-        const symbol_t* gsym = dplasma_search_global_symbol( symbol->name );
+        const symbol_t* gsym = dague_search_global_symbol( symbol->name );
         if( gsym != NULL ) {
             if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, storage) ) {
                 return EXPR_SUCCESS;
@@ -419,7 +419,7 @@ expr_t *expr_new_var(const symbol_t *symb)
     expr_t *r = (expr_t*)calloc(1, sizeof(expr_t));
     r->op = EXPR_OP_SYMB;
     r->variable = (symbol_t*)symb;
-    if( dplasma_symbol_is_global(symb) &&
+    if( dague_symbol_is_global(symb) &&
         ((NULL != symb->min) && (symb->min->flags & EXPR_FLAG_CONSTANT)) ) {
         r->flags = EXPR_FLAG_CONSTANT;
         r->value = symb->min->value;
@@ -729,7 +729,7 @@ void expr_dump(FILE *out, const expr_t *e)
         fprintf(out,  "{%d:", e->value );
     }
     if( EXPR_OP_SYMB == e->op ) {
-        if( dplasma_symbol_is_global(e->variable) ) {
+        if( dague_symbol_is_global(e->variable) ) {
             fprintf(out, "%s", e->variable->name);
         } else {
             int res;

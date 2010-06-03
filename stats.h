@@ -2,12 +2,12 @@
 #define stats_h
 
 /* stats-internal define
- *  DPLASMA_STAT_INCREASE(name, value)
- *  DPLASMA_STAT_DECREASE(name, value)
+ *  DAGuE_STAT_INCREASE(name, value)
+ *  DAGuE_STAT_DECREASE(name, value)
  * and
- *  void dplasma_stats_dump(char *filename, char *prefix);
+ *  void DAGuE_stats_dump(char *filename, char *prefix);
  *
- * Call dplasma_stats_dump to dump the stats. prefix is prepended to each
+ * Call DAGuE_stats_dump to dump the stats. prefix is prepended to each
  * line that will look like
  *  prefix: name_of_stat   MAX = %llu
  *

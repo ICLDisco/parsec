@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include "remote_dep.h"
 #include "scheduling.h"
 #include "execution_unit.h"
@@ -12,14 +12,14 @@
 #include <string.h>
 
 /* Clear the already forwarded remote dependency matrix */
-static inline void remote_dep_reset_forwarded( dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* rdeps )
+static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps )
 {
     /*DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));*/
     memset(rdeps->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
 }
 
 /* Mark a rank as already forwarded the termination of the current task */
-static inline void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* rdeps, int rank )
+static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps, int rank )
 {
     int boffset;
     uint32_t mask;
@@ -32,7 +32,7 @@ static inline void remote_dep_mark_forwarded( dplasma_execution_unit_t* eu_conte
 }
 
 /* Check if rank has already been forwarded the termination of the current task */
-static inline int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context, dplasma_remote_deps_t* rdeps, int rank )
+static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps, int rank )
 {
     int boffset;
     uint32_t mask;
@@ -46,18 +46,18 @@ static inline int remote_dep_is_forwarded( dplasma_execution_unit_t* eu_context,
 
 
 /* make sure we don't leave before serving all data deps */
-static inline void remote_dep_inc_flying_messages(dplasma_context_t* ctx)
+static inline void remote_dep_inc_flying_messages(dague_context_t* ctx)
 {
-    dplasma_atomic_inc_32b( &ctx->taskstodo );
+    dague_atomic_inc_32b( &ctx->taskstodo );
 }
 
 /* allow for termination when all deps have been served */
-static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
+static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
 {
-    dplasma_atomic_dec_32b( &ctx->taskstodo );
+    dague_atomic_dec_32b( &ctx->taskstodo );
 }
 
-#define DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
+#define DAGuE_COLLECTIVE_TYPE_CHAINPIPELINE
 
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
@@ -67,7 +67,7 @@ static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
 
 
 #ifdef DISTRIBUTED
-int dplasma_remote_dep_init(dplasma_context_t* context)
+int dague_remote_dep_init(dague_context_t* context)
 {
     int i;
     int np;
@@ -78,7 +78,7 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
         context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
 /*        for(i = 0; i < context->nb_cores; i++)
         {
-            dplasma_execution_unit_t *eu = context->execution_units[i];
+            dague_execution_unit_t *eu = context->execution_units[i];
             eu->remote_dep_fw_mask = (uint32_t*) calloc(1, context->remote_dep_fw_mask_sizeof);
         }*/
     }
@@ -89,7 +89,7 @@ int dplasma_remote_dep_init(dplasma_context_t* context)
     return np;
 }
 
-int dplasma_remote_dep_fini(dplasma_context_t* context)
+int dague_remote_dep_fini(dague_context_t* context)
 {
     int i;        
     
@@ -103,22 +103,22 @@ int dplasma_remote_dep_fini(dplasma_context_t* context)
     return remote_dep_fini(context);
 }
 
-int dplasma_remote_dep_on(dplasma_context_t* context)
+int dague_remote_dep_on(dague_context_t* context)
 {
     return remote_dep_on(context);
 }
 
-int dplasma_remote_dep_off(dplasma_context_t* context)
+int dague_remote_dep_off(dague_context_t* context)
 {
     return remote_dep_off(context);
 }
 
-int dplasma_remote_dep_progress(dplasma_execution_unit_t* eu_context)
+int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 {
     return remote_dep_progress(eu_context);
 }
 
-#ifdef DPLASMA_COLLECTIVE
+#ifdef DAGuE_COLLECTIVE
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
@@ -149,7 +149,7 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-# ifdef DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
+# ifdef DAGuE_COLLECTIVE_TYPE_CHAINPIPELINE
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
 # else 
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
@@ -163,15 +163,15 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
-int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
-                                const dplasma_execution_context_t* exec_context,
-                                dplasma_remote_deps_t* remote_deps,
+int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
+                                const dague_execution_context_t* exec_context,
+                                dague_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
 {
-    dplasma_t* function = exec_context->function;
+    dague_t* function = exec_context->function;
     int i, me, him, count, array_index, bit_index, current_mask;
     
-#if defined(DPLASMA_DEBUG)
+#if defined(DAGuE_DEBUG)
     char tmp[128];
     
     /* make valgrind happy */
@@ -210,7 +210,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dplasma_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
+                    DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
                     
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
@@ -224,7 +224,7 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                     
                     if(remote_dep_bcast_child(me, him))
                     {
-                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dplasma_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
+                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                         
                         gc_data_ref(remote_deps->output[i].data);
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
@@ -235,9 +235,9 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     }
-#ifdef DPLASMA_DEBUG
+#ifdef DAGuE_DEBUG
                     else {
-                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n", dplasma_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
+                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                     }
 #endif
                 }
@@ -248,19 +248,19 @@ int dplasma_remote_dep_activate(dplasma_execution_unit_t* eu_context,
 }
 
 
-dplasma_atomic_lifo_t remote_deps_freelist;
+dague_atomic_lifo_t remote_deps_freelist;
 uint32_t max_dep_count, max_nodes_number, elem_size;
 
 int remote_deps_allocation_init(int np, int max_output_deps)
 { /* compute the maximum size of the dependencies array */
     max_dep_count = max_output_deps;
     max_nodes_number = np;
-    elem_size = sizeof(dplasma_remote_deps_t) +
+    elem_size = sizeof(dague_remote_deps_t) +
                 max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
-                                 sizeof(uint32_t*) + sizeof(dplasma_remote_dep_datatype_t*) +
+                                 sizeof(uint32_t*) + sizeof(dague_remote_dep_datatype_t*) +
                                  sizeof(uint32_t) * (max_nodes_number + 31)/32) +
                 sizeof(uint32_t) * (max_nodes_number + 31)/32;
-    dplasma_atomic_lifo_construct(&remote_deps_freelist);
+    dague_atomic_lifo_construct(&remote_deps_freelist);
     return 0;
 }
 
@@ -269,7 +269,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 
 
 #define HEAVY_DEBUG
-#if defined(DPLASMA_DEBUG) && defined(HEAVY_DEBUG)
+#if defined(DAGuE_DEBUG) && defined(HEAVY_DEBUG)
 #define HDEBUG( args ) do { args ; } while(0)
 #else
 #define HDEBUG( args ) do {} while(0)
@@ -278,7 +278,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 
 /* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
  * requires it to genrerate correct precompiled code */
-int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
+int dague_remote_dep_get_rank_preds(const expr_t **predicates,
                                       expr_t **rowpred,
                                       expr_t **colpred, 
                                       symbol_t **rowsize,
@@ -286,8 +286,8 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
 {
     int pred_index;
     symbol_t *rowSymbol, *colSymbol;
-    rowSymbol = dplasma_search_global_symbol( "rowRANK" );
-    colSymbol = dplasma_search_global_symbol( "colRANK" );
+    rowSymbol = dague_search_global_symbol( "rowRANK" );
+    colSymbol = dague_search_global_symbol( "colRANK" );
     *rowpred = *colpred = NULL;
     
     if(NULL == rowSymbol) return -1;
@@ -334,8 +334,8 @@ int dplasma_remote_dep_get_rank_preds(const expr_t **predicates,
     if(NULL == *rowpred) return -1;
     if(NULL == *colpred) return -2;
 
-    *rowsize = dplasma_search_global_symbol( "GRIDrows" );
-    *colsize = dplasma_search_global_symbol( "GRIDcols" );
+    *rowsize = dague_search_global_symbol( "GRIDrows" );
+    *colsize = dague_search_global_symbol( "GRIDcols" );
     if(NULL == *rowsize) return -3;
     if(NULL == *colsize) return -4;
     

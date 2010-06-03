@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include "profiling.h"
 #include <stdlib.h>
 #include <string.h>
@@ -20,76 +20,76 @@
 #include "os-spec-timing.h"
 #include "dequeue.h"
 
-typedef struct dplasma_profiling_output_t {
+typedef struct dague_profiling_output_t {
     int key;
     unsigned long id;
-    dplasma_time_t timestamp;
+    dague_time_t timestamp;
 #if defined(HAVE_PAPI)
     long long counter_value;
 #endif /* defined(HAVE_PAPI) */
-} dplasma_profiling_output_t;
+} dague_profiling_output_t;
 
-typedef struct dplasma_profiling_info {
+typedef struct dague_profiling_info {
     const char *key;
     int value;
-    struct dplasma_profiling_info *next;
-} dplasma_profiling_info_t;
+    struct dague_profiling_info *next;
+} dague_profiling_info_t;
 
-struct dplasma_thread_profiling_t {
-    dplasma_list_item_t list;
+struct dague_thread_profiling_t {
+    dague_list_item_t list;
     unsigned int events_count;
     unsigned int events_limit;
     char *hr_id;
-    dplasma_profiling_info_t  *infos;
-    dplasma_profiling_output_t events[1];
+    dague_profiling_info_t  *infos;
+    dague_profiling_output_t events[1];
 };
 
-typedef struct dplasma_profiling_key_t {
+typedef struct dague_profiling_key_t {
     char* name;
     char* attributes;
-} dplasma_profiling_key_t;
+} dague_profiling_key_t;
 
 #define START_KEY(key)  ( (key) * 2 )
 #define END_KEY(key)    ( (key) * 2 + 1 )
 
 /* Process-global dictionnary */
-static int dplasma_prof_keys_count, dplasma_prof_keys_number;
-static dplasma_profiling_key_t* dplasma_prof_keys;
+static int dague_prof_keys_count, dague_prof_keys_number;
+static dague_profiling_key_t* dague_prof_keys;
 
 /* Process-global profiling list */
-static dplasma_dequeue_t threads;
+static dague_dequeue_t threads;
 static char *hr_id = NULL;
-static dplasma_profiling_info_t *dplasma_profiling_infos = NULL;
+static dague_profiling_info_t *dague_profiling_infos = NULL;
 
-static char *dplasma_profiling_last_error = NULL;
+static char *dague_profiling_last_error = NULL;
 static void ERROR(const char *format, ...)
 {
     va_list ap;
 
-    if( dplasma_profiling_last_error != NULL ) {
-        free(dplasma_profiling_last_error);
+    if( dague_profiling_last_error != NULL ) {
+        free(dague_profiling_last_error);
     }
     va_start(ap, format);
-    vasprintf(&dplasma_profiling_last_error, format, ap);
+    vasprintf(&dague_profiling_last_error, format, ap);
     va_end(ap);
 }
 
-char *dplasma_profiling_strerror(void)
+char *dague_profiling_strerror(void)
 {
-    return dplasma_profiling_last_error;
+    return dague_profiling_last_error;
 }
 
-void dplasma_profiling_add_information( const char *key, int value )
+void dague_profiling_add_information( const char *key, int value )
 {
-    dplasma_profiling_info_t *n;
-    n = (dplasma_profiling_info_t *)calloc(1, sizeof(dplasma_profiling_info_t));
+    dague_profiling_info_t *n;
+    n = (dague_profiling_info_t *)calloc(1, sizeof(dague_profiling_info_t));
     n->key = strdup(key);
     n->value = value;
-    n->next = dplasma_profiling_infos;
-    dplasma_profiling_infos = n;
+    n->next = dague_profiling_infos;
+    dague_profiling_infos = n;
 }
 
-int dplasma_profiling_change_profile_attribute( const char *format, ... )
+int dague_profiling_change_profile_attribute( const char *format, ... )
 {
     va_list ap;
 
@@ -104,12 +104,12 @@ int dplasma_profiling_change_profile_attribute( const char *format, ... )
     return 0;
 }
 
-int dplasma_profiling_init( const char *format, ... )
+int dague_profiling_init( const char *format, ... )
 {
     va_list ap;
 
     if( hr_id != NULL ) {
-        ERROR("dplasma_profiling_init: profiling already initialized");
+        ERROR("dague_profiling_init: profiling already initialized");
         return -1;
     }
 
@@ -117,27 +117,27 @@ int dplasma_profiling_init( const char *format, ... )
     vasprintf(&hr_id, format, ap);
     va_end(ap);
 
-    dplasma_dequeue_construct( &threads );
+    dague_dequeue_construct( &threads );
 
-    dplasma_prof_keys = (dplasma_profiling_key_t*)calloc(128, sizeof(dplasma_profiling_key_t));
-    dplasma_prof_keys_count = 0;
-    dplasma_prof_keys_number = 128;
+    dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
+    dague_prof_keys_count = 0;
+    dague_prof_keys_number = 128;
 
     return 0;
 }
 
-dplasma_thread_profiling_t *dplasma_profiling_thread_init( unsigned int length, const char *format, ...)
+dague_thread_profiling_t *dague_profiling_thread_init( unsigned int length, const char *format, ...)
 {
     va_list ap;
-    dplasma_thread_profiling_t *res;
+    dague_thread_profiling_t *res;
 
     /** Remark: maybe calloc would be less perturbing for the measurements,
      *  if we consider that we don't care about the _init phase, but only
      *  about the measurement phase that happens later.
      */
-    res = (dplasma_thread_profiling_t*)malloc( sizeof(dplasma_thread_profiling_t) + (length-1) * sizeof(dplasma_profiling_output_t) );
+    res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + (length-1) * sizeof(dague_profiling_output_t) );
     if( NULL == res ) {
-        ERROR("dplasma_profiling_thread_init: unable to allocate %u output elements", length);
+        ERROR("dague_profiling_thread_init: unable to allocate %u output elements", length);
         return NULL;
     }
 
@@ -148,18 +148,18 @@ dplasma_thread_profiling_t *dplasma_profiling_thread_init( unsigned int length, 
     res->events_limit = length;
     res->events_count = 0;
 
-    dplamsa_dequeue_item_construct( (dplasma_list_item_t*)res );
-    dplasma_dequeue_push_back( &threads, (dplasma_list_item_t*)res );
+    dplamsa_dequeue_item_construct( (dague_list_item_t*)res );
+    dague_dequeue_push_back( &threads, (dague_list_item_t*)res );
 
     return res;
 }
 
-int dplasma_profiling_fini( void )
+int dague_profiling_fini( void )
 {
-    dplasma_thread_profiling_t *t;
+    dague_thread_profiling_t *t;
     
-    while( !dplasma_dequeue_is_empty( &threads ) ) {
-        t = (dplasma_thread_profiling_t*)dplasma_dequeue_pop_front( &threads );
+    while( !dague_dequeue_is_empty( &threads ) ) {
+        t = (dague_thread_profiling_t*)dague_dequeue_pop_front( &threads );
         if( NULL == t ) 
             continue;
         free(t->hr_id);
@@ -168,81 +168,81 @@ int dplasma_profiling_fini( void )
 
     free(hr_id);
 
-    dplasma_profiling_dictionary_flush();
-    free(dplasma_prof_keys);
-    dplasma_prof_keys_number = 0;
+    dague_profiling_dictionary_flush();
+    free(dague_prof_keys);
+    dague_prof_keys_number = 0;
 
     return 0;
 }
 
-int dplasma_profiling_reset( void )
+int dague_profiling_reset( void )
 {
-    dplasma_thread_profiling_t *t;
-    dplasma_list_item_t *it;
+    dague_thread_profiling_t *t;
+    dague_list_item_t *it;
     
-    dplasma_atomic_lock( &threads.atomic_lock );
-    for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
+    dague_atomic_lock( &threads.atomic_lock );
+    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
          it != &threads.ghost_element; 
-         it = (dplasma_list_item_t*)it->list_next ) {
-        t = (dplasma_thread_profiling_t*)it;
+         it = (dague_list_item_t*)it->list_next ) {
+        t = (dague_thread_profiling_t*)it;
         t->events_count = 0;
     }
-    dplasma_atomic_unlock( &threads.atomic_lock );
+    dague_atomic_unlock( &threads.atomic_lock );
 
     return 0;
 }
 
-int dplasma_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
+int dague_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
                                               int* key_start, int* key_end )
 {
     int i, pos = -1;
 
-    for( i = 0; i < dplasma_prof_keys_count; i++ ) {
-        if( NULL == dplasma_prof_keys[i].name ) {
+    for( i = 0; i < dague_prof_keys_count; i++ ) {
+        if( NULL == dague_prof_keys[i].name ) {
             if( -1 == pos ) {
                 pos = i;
             }
             continue;
         }
-        if( 0 == strcmp(dplasma_prof_keys[i].name, key_name) ) {
+        if( 0 == strcmp(dague_prof_keys[i].name, key_name) ) {
             *key_start = START_KEY(i);
             *key_end = END_KEY(i);
             return 0;
         }
     }
     if( -1 == pos ) {
-        if( dplasma_prof_keys_count == dplasma_prof_keys_number ) {
-            ERROR("dplasma_profiling_add_dictionary_keyword: Number of keyword limits reached");
+        if( dague_prof_keys_count == dague_prof_keys_number ) {
+            ERROR("dague_profiling_add_dictionary_keyword: Number of keyword limits reached");
             return -1;
         }
-        pos = dplasma_prof_keys_count;
+        pos = dague_prof_keys_count;
     }
 
-    dplasma_prof_keys[pos].name = strdup(key_name);
-    dplasma_prof_keys[pos].attributes = strdup(attributes);
+    dague_prof_keys[pos].name = strdup(key_name);
+    dague_prof_keys[pos].attributes = strdup(attributes);
 
     *key_start = START_KEY(pos);
     *key_end = END_KEY(pos);
-    dplasma_prof_keys_count++;
+    dague_prof_keys_count++;
     return 0;
 }
 
-int dplasma_profiling_dictionary_flush( void )
+int dague_profiling_dictionary_flush( void )
 {
     int i;
 
-    for( i = 0; i < dplasma_prof_keys_count; i++ ) {
-        if( NULL != dplasma_prof_keys[i].name ) {
-            free(dplasma_prof_keys[i].name);
-            free(dplasma_prof_keys[i].attributes);
+    for( i = 0; i < dague_prof_keys_count; i++ ) {
+        if( NULL != dague_prof_keys[i].name ) {
+            free(dague_prof_keys[i].name);
+            free(dague_prof_keys[i].attributes);
         }
     }
-    dplasma_prof_keys_count = 0;
+    dague_prof_keys_count = 0;
 
     return 0;
 }
 
-int dplasma_profiling_trace( dplasma_thread_profiling_t* context, int key, unsigned long id )
+int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id )
 {
     int my_event = context->events_count++;
 
@@ -256,15 +256,15 @@ int dplasma_profiling_trace( dplasma_thread_profiling_t* context, int key, unsig
     return 0;
 }
 
-static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *profile, 
+static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile, 
                                            FILE *out,
-                                           dplasma_time_t relative )
+                                           dague_time_t relative )
 {
     int key, start_idx, end_idx, displayed_key;
     uint64_t start, end;
     static int displayed_error_message = 0;
 
-    for( key = 0; key < dplasma_prof_keys_count; key++ ) {
+    for( key = 0; key < dague_prof_keys_count; key++ ) {
         displayed_key = 0;
         for( start_idx = 0; start_idx < min(profile->events_count, profile->events_limit); start_idx++ ) {
             /* if not my current start_idx key, ignore */
@@ -315,14 +315,14 @@ static int dplasma_profiling_dump_one_xml( const dplasma_thread_profiling_t *pro
     return 0;
 }
 
-int dplasma_profiling_dump_xml( const char* filename )
+int dague_profiling_dump_xml( const char* filename )
 {
     int i, last_timestamp, foundone;
-    dplasma_time_t relative = ZERO_TIME, latest = ZERO_TIME;
-    dplasma_list_item_t *it;
-    dplasma_thread_profiling_t* profile;
+    dague_time_t relative = ZERO_TIME, latest = ZERO_TIME;
+    dague_list_item_t *it;
+    dague_thread_profiling_t* profile;
     FILE* tracefile;
-    dplasma_profiling_info_t *info;
+    dague_profiling_info_t *info;
  
     tracefile = fopen(filename, "w");
     if( NULL == tracefile ) {
@@ -334,30 +334,30 @@ int dplasma_profiling_dump_xml( const char* filename )
             "<PROFILING>\n"
             " <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n"
             "  <INFOS>\n", hr_id);
-    for(info = dplasma_profiling_infos; info != NULL; info = info->next ) {
+    for(info = dague_profiling_infos; info != NULL; info = info->next ) {
         fprintf(tracefile, "    <INFO NAME=\"%s\">%d</INFO>\n", info->key, info->value);
     }
     fprintf(tracefile,
             "  </INFOS>\n"
             "  <DICTIONARY>\n");
 
-    for(i = 0; i < dplasma_prof_keys_count; i++) {
+    for(i = 0; i < dague_prof_keys_count; i++) {
         fprintf(tracefile,
                 "   <KEY ID=\"%d\">\n"
                 "    <NAME>%s</NAME>\n"
                 "    <ATTRIBUTES><![CDATA[%s]]></ATTRIBUTES>\n"
                 "   </KEY>\n",
-                i, dplasma_prof_keys[i].name, dplasma_prof_keys[i].attributes);
+                i, dague_prof_keys[i].name, dague_prof_keys[i].attributes);
     }
     fprintf(tracefile, " </DICTIONARY>\n");
 
     foundone = 0;
    
-    dplasma_atomic_lock( &threads.atomic_lock );
-    for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
+    dague_atomic_lock( &threads.atomic_lock );
+    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
          it != &threads.ghost_element; 
-         it = (dplasma_list_item_t*)it->list_next ) {
-        profile = (dplasma_thread_profiling_t*)it;
+         it = (dague_list_item_t*)it->list_next ) {
+        profile = (dague_thread_profiling_t*)it;
 
         if( profile->events_count == 0 ) {
             continue;
@@ -383,19 +383,19 @@ int dplasma_profiling_dump_xml( const char* filename )
     fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%"PRIu64"\" TIME_UNIT=\""TIMER_UNIT"\">\n",
             diff_time(relative, latest));
 
-    for( it = (dplasma_list_item_t*)threads.ghost_element.list_next; 
+    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
          it != &threads.ghost_element; 
-         it = (dplasma_list_item_t*)it->list_next ) {
-        profile = (dplasma_thread_profiling_t*)it;
+         it = (dague_list_item_t*)it->list_next ) {
+        profile = (dague_thread_profiling_t*)it;
 
         fprintf(tracefile, 
                 "   <THREAD>\n"
                 "    <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n", profile->hr_id);
-        dplasma_profiling_dump_one_xml(profile, tracefile, relative);
+        dague_profiling_dump_one_xml(profile, tracefile, relative);
         fprintf(tracefile, 
                 "   </THREAD>\n");
     }
-    dplasma_atomic_unlock( &threads.atomic_lock );
+    dague_atomic_unlock( &threads.atomic_lock );
 
     fprintf(tracefile, 
             " </PROFILES>\n"

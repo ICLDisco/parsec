@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
-#include "dplasma.h"
+#include "dague_config.h"
+#include "dague.h"
 
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>
@@ -17,7 +17,7 @@
 static hwloc_topology_t topology;
 #endif  /* defined(HAVE_HWLOC) */
 
-int dplasma_hwloc_init(void)
+int dague_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
     hwloc_topology_init(&topology);
@@ -28,7 +28,7 @@ int dplasma_hwloc_init(void)
     return 0;
 }
 
-int dplasma_hwloc_fini(void)
+int dague_hwloc_fini(void)
 {
 #if defined(HAVE_HWLOC)
     hwloc_topology_destroy(topology);
@@ -36,7 +36,7 @@ int dplasma_hwloc_fini(void)
     return 0;
 }
 
-int dplasma_hwloc_distance( int id1, int id2 )
+int dague_hwloc_distance( int id1, int id2 )
 {
 #if defined(HAVE_HWLOC)
     int count = 0;
@@ -56,7 +56,7 @@ int dplasma_hwloc_distance( int id1, int id2 )
     return 0;
 }
 
-int dplasma_hwloc_master_id( int level, int processor_id )
+int dague_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
     int count = 0, i, div = 0, real_cores, cores, test = 0;
@@ -89,7 +89,7 @@ int dplasma_hwloc_master_id( int level, int processor_id )
     return -1;
 }    
  
-unsigned int dplasma_hwloc_nb_cores( int level, int master_id )
+unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
     int i;
@@ -108,7 +108,7 @@ unsigned int dplasma_hwloc_nb_cores( int level, int master_id )
 }
  
  
-int dplasma_hwloc_nb_levels(void)
+int dague_hwloc_nb_levels(void)
 {
 #if defined(HAVE_HWLOC)
     return hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);    
@@ -116,7 +116,7 @@ int dplasma_hwloc_nb_levels(void)
 }
  
     
-size_t dplasma_hwloc_cache_size( int level, int master_id )
+size_t dague_hwloc_cache_size( int level, int master_id )
 {	    
 #if defined(HAVE_HWLOC)
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);

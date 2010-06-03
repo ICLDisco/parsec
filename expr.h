@@ -57,7 +57,8 @@ typedef struct expr expr_t;
  */
 #define EXPR_FLAG_CONSTANT   0x01
 
-typedef int (*expr_op_inline_func_t)(const assignment_t *assignments);
+struct DAGuE_object;
+typedef int (*expr_op_inline_func_t)(const struct DAGuE_object *__DAGuE_object_parent, const assignment_t *assignments);
 
 struct expr {
     unsigned char op;
@@ -68,18 +69,18 @@ struct expr {
                            */
     union {
         struct {
-            struct expr *cond;
-            struct expr *op1;
-            struct expr *op2;
+            const struct expr *cond;
+            const struct expr *op1;
+            const struct expr *op2;
         } tertiar;
         struct {
-            struct expr *op1;
-            struct expr *op2;
+            const struct expr *op1;
+            const struct expr *op2;
         } binary;
         struct {
-            struct expr *op1;
+            const struct expr *op1;
         } unary;
-        symbol_t *var;
+        const symbol_t *var;
         expr_op_inline_func_t inline_func;
     } u_expr;
 };

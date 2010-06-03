@@ -4,12 +4,12 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include "scheduling.h"
 #include "dequeue.h"
 #include "profiling.h"
 #include "remote_dep.h"
-#include "dplasma.h"
+#include "dague.h"
 #include "stats.h"
 
 #include <string.h>
@@ -21,27 +21,27 @@
 #include <linux/unistd.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
-#if defined(DPLASMA_PROFILING) && 0
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  dplasma_profiling_trace((EU_PROFILE), (KEY), (ID))
+#if defined(DAGuE_PROFILING) && 0
+#define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-static int dplasma_execute( dplasma_execution_unit_t*, dplasma_execution_context_t* );
+static int dague_execute( dague_execution_unit_t*, dague_execution_context_t* );
 
-static inline void set_tasks_todo(dplasma_context_t* context, uint32_t n)
+static inline void set_tasks_todo(dague_context_t* context, uint32_t n)
 {
     context->taskstodo = n;
 }
 
-static inline int all_tasks_done(dplasma_context_t* context)
+static inline int all_tasks_done(dague_context_t* context)
 {
     return (context->taskstodo == 0);
 }
 
-static inline void done_task(dplasma_context_t* context)
+static inline void done_task(dague_context_t* context)
 {
-    dplasma_atomic_dec_32b( &(context->taskstodo) );
+    dague_atomic_dec_32b( &(context->taskstodo) );
 }
 
 /**
@@ -50,29 +50,29 @@ static inline void done_task(dplasma_context_t* context)
  * attached hook if any. At the end of the execution the dependencies
  * are released.
  */
-int dplasma_schedule( dplasma_context_t* context, const dplasma_execution_context_t* exec_context )
+int dague_schedule( dague_context_t* context, const dague_execution_context_t* exec_context )
 {
-    dplasma_execution_context_t* new_context;
-    dplasma_execution_unit_t* eu_context;
+    dague_execution_context_t* new_context;
+    dague_execution_unit_t* eu_context;
 
     eu_context = context->execution_units[0];
 
-    new_context = (dplasma_execution_context_t*)malloc(sizeof(dplasma_execution_context_t));
-    memcpy( new_context, exec_context, sizeof(dplasma_execution_context_t) );
-#if defined(DPLASMA_CACHE_AWARE)
+    new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
+    memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
+#if defined(DAGuE_CACHE_AWARE)
     new_context->pointers[1] = NULL;
 #endif
-    DPLASMA_LIST_ITEM_SINGLETON( new_context );
-    return __dplasma_schedule( eu_context, new_context, 1);
+    DAGuE_LIST_ITEM_SINGLETON( new_context );
+    return __dague_schedule( eu_context, new_context, 1);
 }
 
-int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
-                        dplasma_execution_context_t* new_context, int use_placeholder )
+int __dague_schedule( dague_execution_unit_t* eu_context,
+                        dague_execution_context_t* new_context, int use_placeholder )
 {
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
 
-#  if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
-    dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+#  if defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO)
+    dague_atomic_lifo_push( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
     {
 #    if defined(USE_HIERARCHICAL_QUEUES)
@@ -80,8 +80,8 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
         for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++) {
             /** Be nice: share. Push in the closest buffer that is not ideally filled 
              *  (mine if I'm starving) */
-            if( dplasma_hbbuffer_push_ideal_nonrec( eu_context->eu_hierarch_queues[i], 
-                                                    (dplasma_list_item_t**)&new_context ) ) {
+            if( dague_hbbuffer_push_ideal_nonrec( eu_context->eu_hierarch_queues[i], 
+                                                    (dague_list_item_t**)&new_context ) ) {
                 /** Every contexts were pushed at this level or below */
                 goto done_pushing_tasks;
             }
@@ -90,7 +90,7 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
         /** We couldn't push more: everybody above me (and myself) are ideally full, so 
          *  let's overfill, potentially pushing recursively in the system queue
          */
-        dplasma_hbbuffer_push_all( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
+        dague_hbbuffer_push_all( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
     }
 #  else
 #    if PLACEHOLDER_SIZE
@@ -103,39 +103,39 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
             eu_context->placeholder[eu_context->placeholder_push] = new_context;
             eu_context->placeholder_push = (eu_context->placeholder_push + 1) % PLACEHOLDER_SIZE;
 
-            if( new_context->list_item.list_next == (dplasma_list_item_t*)new_context )
+            if( new_context->list_item.list_next == (dague_list_item_t*)new_context )
                 goto done_pushing_tasks;
 
             new_context->list_item.list_next->list_prev = new_context->list_item.list_prev;
             new_context->list_item.list_prev->list_next = new_context->list_item.list_next;
-            new_context = (dplasma_execution_context_t*)new_context->list_item.list_next;
+            new_context = (dague_execution_context_t*)new_context->list_item.list_next;
         }
     }
 #    endif  /* PLACEHOLDER_SIZE */
-    if( new_context->function->flags & DPLASMA_HIGH_PRIORITY_TASK ) {
-        dplasma_dequeue_push_front( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
+    if( new_context->function->flags & DAGuE_HIGH_PRIORITY_TASK ) {
+        dague_dequeue_push_front( eu_context->eu_task_queue, (dague_list_item_t*)new_context);
     } else {
-        dplasma_dequeue_push_back( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context);
+        dague_dequeue_push_back( eu_context->eu_task_queue, (dague_list_item_t*)new_context);
     }
-#  endif  /* DPLASMA_USE_LIFO */
+#  endif  /* DAGuE_USE_LIFO */
  done_pushing_tasks:
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
-# ifdef DPLASMA_DEBUG
+# ifdef DAGuE_DEBUG
     {
         char tmp[128];
-        DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
+        DEBUG(( "Schedule %s\n", dague_service_to_string(new_context, tmp, 128)));
     }
 # endif
     return 0;
 }
 
-void dplasma_register_nb_tasks(dplasma_context_t* context, int n)
+void dague_register_nb_tasks(dague_context_t* context, int n)
 {
-#if defined(DPLASMA_PROFILING)
+#if defined(DAGuE_PROFILING)
     /* Reset the profiling information */
-    dplasma_profiling_reset();
-#endif  /* defined(DPLASMA_PROFILING) */
+    dague_profiling_reset();
+#endif  /* defined(DAGuE_PROFILING) */
         
     set_tasks_todo(context, (uint32_t)n);
 }
@@ -169,12 +169,12 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 #if defined( HAVE_HWLOC )
-#  if defined(DPLASMA_CACHE_AWARE)
-static  unsigned int ranking_function_bycache(dplasma_list_item_t *elt, void *param)
+#  if defined(DAGuE_CACHE_AWARE)
+static  unsigned int ranking_function_bycache(dague_list_item_t *elt, void *param)
 {
     unsigned int value;
     cache_t *cache = (cache_t*)param;
-    dplasma_execution_context_t *exec = (dplasma_execution_context_t*)elt;
+    dague_execution_context_t *exec = (dague_execution_context_t*)elt;
     
     /* TODO: fix this, depends on the depth */
     value = exec->function->cache_rank_function(exec, cache, 128);
@@ -182,55 +182,55 @@ static  unsigned int ranking_function_bycache(dplasma_list_item_t *elt, void *pa
     return value;
 }
 #  else
-static  unsigned int ranking_function_firstfound(dplasma_list_item_t *elt, void *_)
+static  unsigned int ranking_function_firstfound(dague_list_item_t *elt, void *_)
 {
     return 1;
 }
 #  endif
 #endif
 
-#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
-#  define DPLASMA_POP(eu_context, queue_name) \
-    (dplasma_execution_context_t*)dplasma_atomic_lifo_pop( (eu_context)->queue_name )
+#if defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO)
+#  define DAGuE_POP(eu_context, queue_name) \
+    (dague_execution_context_t*)dague_atomic_lifo_pop( (eu_context)->queue_name )
 #elif defined(HAVE_HWLOC) 
-#  if defined(DPLASMA_CACHE_AWARE)
-#    define DPLASMA_POP(eu_context, queue_name) \
-    (dplasma_execution_context_t*)dplasma_hbbuffer_pop_best((eu_context)->queue_name, \
+#  if defined(DAGuE_CACHE_AWARE)
+#    define DAGuE_POP(eu_context, queue_name) \
+    (dague_execution_context_t*)dague_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_bycache, \
                                                             (eu_context)->closest_cache)
 #  else
-#    define DPLASMA_POP(eu_context, queue_name) \
-    (dplasma_execution_context_t*)dplasma_hbbuffer_pop_best((eu_context)->queue_name, \
+#    define DAGuE_POP(eu_context, queue_name) \
+    (dague_execution_context_t*)dague_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_firstfound, \
                                                             NULL)
-#  endif /* DPLASMA_CACHE_AWARE */
-#  define DPLASMA_SYSTEM_POP(eu_context, queue_name) (dplasma_execution_context_t*)dplasma_dequeue_pop_front( (eu_context)->queue_name )
+#  endif /* DAGuE_CACHE_AWARE */
+#  define DAGuE_SYSTEM_POP(eu_context, queue_name) (dague_execution_context_t*)dague_dequeue_pop_front( (eu_context)->queue_name )
 #else /* Don't use LIFO, Global LIFO or HWLOC (hbbuffer): use dequeue */
-#  define DPLASMA_POP(eu_context, queue_name) \
-    (dplasma_execution_context_t*)dplasma_dequeue_pop_front( (eu_context)->queue_name )
+#  define DAGuE_POP(eu_context, queue_name) \
+    (dague_execution_context_t*)dague_dequeue_pop_front( (eu_context)->queue_name )
 #endif
 
-static inline dplasma_execution_context_t *choose_local_job( dplasma_execution_unit_t *eu_context )
+static inline dague_execution_context_t *choose_local_job( dague_execution_unit_t *eu_context )
 {
-    dplasma_execution_context_t *exec_context = NULL;
+    dague_execution_context_t *exec_context = NULL;
 
-#if !defined(DPLASMA_USE_LIFO) && !defined(DPLASMA_USE_GLOBAL_LIFO) && !defined(HAVE_HWLOC) && PLACEHOLDER_SIZE
+#if !defined(DAGuE_USE_LIFO) && !defined(DAGuE_USE_GLOBAL_LIFO) && !defined(HAVE_HWLOC) && PLACEHOLDER_SIZE
     if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
         exec_context = eu_context->placeholder[eu_context->placeholder_pop];
         eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
     } 
     else
 #endif
-        exec_context = DPLASMA_POP(eu_context, eu_task_queue);
+        exec_context = DAGuE_POP(eu_context, eu_task_queue);
     return exec_context;
 }
 
 #if defined(HAVE_HWLOC)
-static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
+static int force_feed_hbbuffers(dague_execution_unit_t *eu_context)
 {
     int i, nb;
-    dplasma_execution_context_t *exec_context;
-    dplasma_list_item_t *item;
+    dague_execution_context_t *exec_context;
+    dague_list_item_t *item;
 
     /* Assume that because this is called, the whole hierarchy is empty. 
      * -- There is a high probability that another thread is doing the same
@@ -256,10 +256,10 @@ static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
         }
 
         /* The current level can take another more */
-        exec_context = DPLASMA_SYSTEM_POP(eu_context, eu_system_queue);
+        exec_context = DAGuE_SYSTEM_POP(eu_context, eu_system_queue);
         if( NULL == exec_context ) {
             /* Arf, the system queue is empty -- waste of time... */
-#if defined(DPLASMA_DEBUG)
+#if defined(DAGuE_DEBUG)
             if( nb > 0 ) {
                 DEBUG(("%d force fed up to %d elements in one go up to level %d, but now the system is really starving\n",
                        eu_context->eu_id, nb, i));
@@ -271,21 +271,21 @@ static int force_feed_hbbuffers(dplasma_execution_unit_t *eu_context)
             return nb;
         }
         /* Isolate this element */
-        item = DPLASMA_LIST_ITEM_SINGLETON( exec_context );
+        item = DAGuE_LIST_ITEM_SINGLETON( exec_context );
         /* And push it in the current queue level */
-        dplasma_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
+        dague_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
         nb++;
     }
 }
 #endif
 
-void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
+void* __dague_progress( dague_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
     uint64_t misses_in_a_row;
-    dplasma_context_t* master_context = eu_context->master_context;
-    int32_t my_barrier_counter = master_context->__dplasma_internal_finalization_counter;
-    dplasma_execution_context_t* exec_context;
+    dague_context_t* master_context = eu_context->master_context;
+    int32_t my_barrier_counter = master_context->__dague_internal_finalization_counter;
+    dague_execution_context_t* exec_context;
     int nbiterations = 0;
     struct timespec rqtp;
 
@@ -298,20 +298,20 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         __do_some_computations();
 
         /* Wait until all threads are done binding themselves 
-         * (see dplasma_init) */
-        dplasma_barrier_wait( &(master_context->barrier) );
+         * (see dague_init) */
+        dague_barrier_wait( &(master_context->barrier) );
         my_barrier_counter = 1;
     }
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
-    dplasma_barrier_wait( &(master_context->barrier) );
+    dague_barrier_wait( &(master_context->barrier) );
 
-    if( master_context->__dplasma_internal_finalization_in_progress ) {
+    if( master_context->__dague_internal_finalization_in_progress ) {
         my_barrier_counter++;
-        for(; my_barrier_counter <= master_context->__dplasma_internal_finalization_counter; my_barrier_counter++ ) {
-            dplasma_barrier_wait( &(master_context->barrier) );
+        for(; my_barrier_counter <= master_context->__dague_internal_finalization_counter; my_barrier_counter++ ) {
+            dague_barrier_wait( &(master_context->barrier) );
         }
         goto finalize_progress;
     }
@@ -323,7 +323,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
-            DPLASMA_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
+            DAGuE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
@@ -344,22 +344,22 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             /* Update the number of remaining tasks before the execution */
             done_task(master_context);
             /* We're good to go ... */
-            dplasma_execute( eu_context, exec_context );
+            dague_execute( eu_context, exec_context );
             DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
             nbiterations++;
             /* Release the execution context */
-#if defined(DPLASMA_CACHE_AWARE)
+#if defined(DAGuE_CACHE_AWARE)
             exec_context->pointers[1] = NULL;
 #endif
-            DPLASMA_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);
+            DAGuE_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);
             free( exec_context );
         } else {
-#if !defined(DPLASMA_USE_GLOBAL_LIFO)
+#if !defined(DAGuE_USE_GLOBAL_LIFO)
             miss_local++;
 #endif
 #if defined(DISTRIBUTED)
             /* check for remote deps completion */
-            if(dplasma_remote_dep_progress(eu_context) > 0)  {
+            if(dague_remote_dep_progress(eu_context) > 0)  {
                 found_remote++;
                 
                 exec_context = choose_local_job(eu_context);
@@ -371,7 +371,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             }
 #endif /* DISTRIBUTED */
 
-#if !defined(DPLASMA_USE_GLOBAL_LIFO)
+#if !defined(DAGuE_USE_GLOBAL_LIFO)
             /* Work stealing from the other workers */
             {
                 int i;
@@ -381,13 +381,13 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 
 #if !defined(USE_HIERARCHICAL_QUEUES)
                 if( master_context->taskstodo < 2 * master_context->nb_cores ) {
-                    int nbc = dplasma_hwloc_nb_cores( 1, eu_context->eu_id );
+                    int nbc = dague_hwloc_nb_cores( 1, eu_context->eu_id );
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
                 }
 #endif
 
                 for(i = 0; i < max; i++ ) {
-                    exec_context = DPLASMA_POP( eu_context, eu_hierarch_queues[i] );
+                    exec_context = DAGuE_POP( eu_context, eu_hierarch_queues[i] );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;
                         found_victim++;
@@ -395,7 +395,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                     }
                     miss_victim++;
                 }
-                exec_context = DPLASMA_SYSTEM_POP( eu_context, eu_system_queue );
+                exec_context = DAGuE_SYSTEM_POP( eu_context, eu_system_queue );
                 if( NULL != exec_context ) {
                     misses_in_a_row = 0;
                     found_victim++;
@@ -404,7 +404,7 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 miss_victim++;
 #  else 
                 for(i = 0; i < master_context->nb_cores; i++ ) {
-                    exec_context = DPLASMA_POP( master_context->execution_units[i], eu_task_queue );
+                    exec_context = DAGuE_POP( master_context->execution_units[i], eu_task_queue );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;
                         found_victim++;
@@ -414,23 +414,23 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                 }
 #  endif
             }
-#endif  /* DPLASMA_USE_GLOBAL_LIFO */
+#endif  /* DAGuE_USE_GLOBAL_LIFO */
             misses_in_a_row++;
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
     }
 
-#if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
-    assert(dplasma_atomic_lifo_is_empty(eu_context->eu_task_queue));
+#if defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO)
+    assert(dague_atomic_lifo_is_empty(eu_context->eu_task_queue));
 #elif defined(HAVE_HWLOC)
-    assert(dplasma_hbbuffer_is_empty(eu_context->eu_task_queue));
+    assert(dague_hbbuffer_is_empty(eu_context->eu_task_queue));
 #else
-    assert(dplasma_dequeue_is_empty(eu_context->eu_task_queue));
-#endif  /* defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO) */
+    assert(dague_dequeue_is_empty(eu_context->eu_task_queue));
+#endif  /* defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO) */
 
     /* We're all done ? */
-    dplasma_barrier_wait( &(master_context->barrier) );
+    dague_barrier_wait( &(master_context->barrier) );
 
     if( 0 != eu_context->eu_id ) {
         my_barrier_counter++;
@@ -438,8 +438,8 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
     }
 
  finalize_progress:
-#if defined(DPLASMA_REPORT_STATISTICS)
-#if defined(DPLASMA_USE_GLOBAL_LIFO)
+#if defined(DAGuE_REPORT_STATISTICS)
+#if defined(DAGuE_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
     printf("# th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
@@ -448,58 +448,58 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
-#endif  /* defined(DPLASMA_USE_GLOBAL_LIFO) */
-#endif  /* DPLASMA_REPORT_STATISTICS */
+#endif  /* defined(DAGuE_USE_GLOBAL_LIFO) */
+#endif  /* DAGuE_REPORT_STATISTICS */
 
     return (void*)(long)nbiterations;
 }
 
-int dplasma_progress(dplasma_context_t* context)
+int dague_progress(dague_context_t* context)
 {
     int ret;
-    dplasma_remote_dep_on(context);
+    dague_remote_dep_on(context);
     
-    ret = (int)(long)__dplasma_progress( context->execution_units[0] );
+    ret = (int)(long)__dague_progress( context->execution_units[0] );
 
-    context->__dplasma_internal_finalization_counter++;
-    dplasma_remote_dep_off(context);
+    context->__dague_internal_finalization_counter++;
+    dague_remote_dep_off(context);
     return ret;
 }
 
-static int dplasma_execute( dplasma_execution_unit_t* eu_context,
-                            dplasma_execution_context_t* exec_context )
+static int dague_execute( dague_execution_unit_t* eu_context,
+                            dague_execution_context_t* exec_context )
 {
-    dplasma_t* function = exec_context->function;
-#ifdef DPLASMA_DEBUG
+    dague_t* function = exec_context->function;
+#ifdef DAGuE_DEBUG
     char tmp[128];
 #endif
     
-    DEBUG(( "Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128)));
-    DPLASMA_STAT_DECREASE(counter_nbtasks, 1ULL);
+    DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
+    DAGuE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );
     }
 #ifdef DEPRECATED
-    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    return dague_trigger_dependencies( eu_context, exec_context, 1 );
 #else
     return 0; 
 #endif
 }
 
 
-int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
-                                const dplasma_execution_context_t* exec_context,
+int dague_trigger_dependencies( dague_execution_unit_t* eu_context,
+                                const dague_execution_context_t* exec_context,
                                 int forward_remote )
 {
     param_t* param;
     dep_t* dep;
-    dplasma_t* function = exec_context->function;
-    dplasma_execution_context_t new_context;
+    dague_t* function = exec_context->function;
+    dague_execution_context_t new_context;
     int i, j, k, value;    
 
 #if 0 /*DISTRIBUTED this code is outdated, does not work in distributed anymore */
-    dplasma_remote_dep_reset_forwarded(eu_context);
+    dague_remote_dep_reset_forwarded(eu_context);
 #endif
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
@@ -519,16 +519,16 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
                     continue;
                 }
             }
-            new_context.function = dep->dplasma;
+            new_context.function = dep->dague;
             /* Nothing to do is this is not a real function */
             if( 0 == new_context.function->nb_locals ) continue;
 
-            DEBUG(( " -> %s( ", dep->dplasma->name ));
+            DEBUG(( " -> %s( ", dep->dague->name ));
             /* Check to see if any of the params are conditionals or ranges and if they are
              * if they match. If yes, then set the correct values.
              */
             for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
-                new_context.locals[k].sym = dep->dplasma->locals[k];
+                new_context.locals[k].sym = dep->dague->locals[k];
                 if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
                     (void)expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
                     new_context.locals[k].min = new_context.locals[k].max = value;
@@ -560,7 +560,7 @@ int dplasma_trigger_dependencies( dplasma_execution_unit_t* eu_context,
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
-            dplasma_release_OUT_dependencies( eu_context,
+            dague_release_OUT_dependencies( eu_context,
                                               exec_context, param,
                                               &new_context, dep->param, forward_remote );
         }

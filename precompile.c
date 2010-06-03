@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dplasma_config.h"
-#include "dplasma.h"
+#include "dague_config.h"
+#include "dague.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -21,11 +21,11 @@
 #define INIT_FUNC_BODY_SIZE 8192
 #define FNAME_SIZE            64
 #define DEPENDENCY_SIZE     1024
-#define DPLASMA_SIZE        4096
+#define DAGuE_SIZE        4096
 #define SYMBOL_CODE_SIZE    4096
 #define PARAM_CODE_SIZE     4096
 #define DEP_CODE_SIZE       4096
-#define DPLASMA_ALL_SIZE    8192
+#define DAGuE_ALL_SIZE    8192
 #define DATA_REPO_LOOKUP_SIZE 4096
 #define MAX_EXPR_LEN         512
 
@@ -132,7 +132,7 @@ typedef struct dumped_param_list {
 } dumped_param_list_t;
 
 static char *dump_c_symbol(const symbol_t *s, char *init_func_body, int init_func_body_size);
-static char *dump_c_param(const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it);
+static char *dump_c_param(const dague_t *dague, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it);
 
 static FILE *out;
 static int current_line;
@@ -169,7 +169,7 @@ static void output(char *format, ...)
     }
 }
 
-void dplasma_precompiler_add_preamble(const char *language, const char *code)
+void dague_precompiler_add_preamble(const char *language, const char *code)
 {
     preamble_list_t *n = (preamble_list_t*)calloc(1, sizeof(preamble_list_t));
     n->language = language;
@@ -199,7 +199,7 @@ static char *expression_to_c_inline(const expr_t *e, char* prepend, char *res, i
         if( EXPR_OP_CONST_INT == e->op ) {
             WIR((res, reslen, "%d", e->value));
         } else if( EXPR_OP_SYMB == e->op ) {
-            if( e->variable->flags & DPLASMA_SYMBOL_IS_GLOBAL ) {
+            if( e->variable->flags & DAGuE_SYMBOL_IS_GLOBAL ) {
                 WIR((res, reslen, "%s", e->variable->name));
             } else {
                 WIR((res, reslen, "%s%s", prepend, e->variable->name));
@@ -300,12 +300,12 @@ static char *expression_to_c_inline(const expr_t *e, char* prepend, char *res, i
     return res;
 }
 
-static char *dplasma_dep_dplasma_call_to_c(const dep_t *d, char *res, int reslen)
+static char *dague_dep_dague_call_to_c(const dep_t *d, char *res, int reslen)
 {
     int i;
     int p, r, dump = 0;
     char strexpr[MAX_EXPR_LEN];
-    p = snprintf(res, reslen, "%s(", d->dplasma->name);
+    p = snprintf(res, reslen, "%s(", d->dague->name);
     if( p > reslen )
         goto error;
 
@@ -326,7 +326,7 @@ static char *dplasma_dep_dplasma_call_to_c(const dep_t *d, char *res, int reslen
     return res;
 
  error:
-    fprintf(stderr, "Unable to create dplasma function call: a buffer of %d is not large enough\n",
+    fprintf(stderr, "Unable to create dague function call: a buffer of %d is not large enough\n",
             reslen);
     return NULL;
 }
@@ -445,7 +445,7 @@ static char *dump_c_expression(const expr_t *e, char *init_func_body, int init_f
     return name;
 }
 
-static char *dump_c_dep(const dplasma_t *dplasma, const dep_t *d, char *init_func_body, int init_func_body_size)
+static char *dump_c_dep(const dague_t *dague, const dep_t *d, char *init_func_body, int init_func_body_size)
 {
     static unsigned int dep_idx = 0;
     static char name[FNAME_SIZE];
@@ -475,20 +475,20 @@ static char *dump_c_dep(const dplasma_t *dplasma, const dep_t *d, char *init_fun
         dumped_deps = dumped;
         
         p += snprintf(whole + p, DEP_CODE_SIZE-p, 
-                      "static dep_t dep%u = { .cond = %s, .type = IFDISTRIBUTED((void*)&%s), .dplasma = NULL,\n"
+                      "static dep_t dep%u = { .cond = %s, .type = IFDISTRIBUTED((void*)&%s), .dague = NULL,\n"
                       "                       .call_params = {",
-                      my_idx, dump_c_expression_inline(d->cond, (const symbol_t**)dplasma->locals, dplasma->nb_locals, init_func_body, init_func_body_size),
-                      NULL == d->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char*)d->type);
+                      my_idx, dump_c_expression_inline(d->cond, (const symbol_t**)dague->locals, dague->nb_locals, init_func_body, init_func_body_size),
+                      NULL == d->type ? "DAGuE_DEFAULT_DATA_TYPE" : (char*)d->type);
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
-                     "  dep%d.dplasma = &dplasma_array[%d];\n", my_idx, dplasma_dplasma_index( d->dplasma ));
+                     "  dep%d.dague = &dague_array[%d];\n", my_idx, dague_dague_index( d->dague ));
         if(i + body_length >= init_func_body_size ) {
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
         }
         body_length = strlen(init_func_body);
         i = snprintf(init_func_body + body_length, init_func_body_size - body_length,
-                     "  dep%d.param = %s;\n", my_idx, dump_c_param(dplasma, d->param, init_func_body, init_func_body_size, 0));
+                     "  dep%d.param = %s;\n", my_idx, dump_c_param(dague, d->param, init_func_body, init_func_body_size, 0));
         if(i + body_length >= init_func_body_size ) {
             fprintf(stderr, "Ah! Thomas told us so: %d is too short for the initialization body function\n",
                     init_func_body_size);
@@ -505,7 +505,7 @@ static char *dump_c_dep(const dplasma_t *dplasma, const dep_t *d, char *init_fun
     return name;
 }
 
-static char *dump_c_param(const dplasma_t *dplasma, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
+static char *dump_c_param(const dague_t *dague, const param_t *p, char *init_func_body, int init_func_body_size, int dump_it)
 {
     static unsigned int param_idx = 0;
     static dumped_param_list_t *dumped_params = NULL;
@@ -548,12 +548,12 @@ static char *dump_c_param(const dplasma_t *dplasma, const param_t *p, char *init
                       "static param_t param%u = { .name = \"%s\", .sym_type = %d, .param_mask = 0x%02x,\n"
                       "     .dep_in  = {", my_idx, p->name, p->sym_type, p->param_mask);
         for(i = 0; i < MAX_DEP_IN_COUNT; i++) {
-            dep_name = dump_c_dep(dplasma, p->dep_in[i], init_func_body, init_func_body_size);
+            dep_name = dump_c_dep(dague, p->dep_in[i], init_func_body, init_func_body_size);
             l += snprintf(param + l, PARAM_CODE_SIZE-l, "%s%s", dep_name, i < MAX_DEP_IN_COUNT-1 ? ", " : "},\n"
                           "     .dep_out = {");
         }
         for(i = 0; i < MAX_DEP_OUT_COUNT; i++) {
-            dep_name = dump_c_dep(dplasma, p->dep_out[i], init_func_body, init_func_body_size);
+            dep_name = dump_c_dep(dague, p->dep_out[i], init_func_body, init_func_body_size);
             l += snprintf(param + l, PARAM_CODE_SIZE-l, "%s%s", dep_name, i < MAX_DEP_OUT_COUNT-1 ? ", " : "} };\n");
         }
         output("%s", param);
@@ -600,19 +600,19 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
     char whole[SYMBOL_CODE_SIZE];
     const symbol_t* symbol;
 
-    l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "static symbol_t *dplasma_symbols[] = {\n");
-    for(i = 0; i < dplasma_symbol_get_count(); i++) {
+    l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "static symbol_t *dague_symbols[] = {\n");
+    for(i = 0; i < dague_symbol_get_count(); i++) {
         l += snprintf(whole+l, SYMBOL_CODE_SIZE-l, "   %s%s", 
-                      dump_c_symbol(dplasma_symbol_get_element_at(i), init_func_body, init_func_body_size),
-                      (i < (dplasma_symbol_get_count()-1)) ? ",\n" : "};\n");
+                      dump_c_symbol(dague_symbol_get_element_at(i), init_func_body, init_func_body_size),
+                      (i < (dague_symbol_get_count()-1)) ? ",\n" : "};\n");
     }
     output("%s", whole);
 
     output("\n");
 
-    for(i = 0; i < dplasma_symbol_get_count(); i++) {
+    for(i = 0; i < dague_symbol_get_count(); i++) {
         char* current_symbol_pointer;
-        symbol = dplasma_symbol_get_element_at(i);
+        symbol = dague_symbol_get_element_at(i);
         current_symbol_pointer = dump_c_symbol(symbol, init_func_body, init_func_body_size);
         if( (symbol->min != NULL) &&
             (symbol->max != NULL) &&
@@ -626,7 +626,7 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
                  init_func_body_size - strlen(init_func_body),
                  "  {\n"
                  "    int rc;\n"
-                 "    symbol_t* symbol = dplasma_search_global_symbol((%s)->name);\n"
+                 "    symbol_t* symbol = dague_search_global_symbol((%s)->name);\n"
                  "    if( NULL == symbol ) symbol = %s;\n"
                  "    if( 0 != (rc = expr_eval( symbol->min, NULL, 0, &%s)) ) {\n"
                  "      return rc;\n"
@@ -637,7 +637,7 @@ static void dump_all_global_symbols_c(char *init_func_body, int init_func_body_s
     output("\n");
 }
 
-static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_body, int init_func_body_size)
+static char *dump_c_dependency_list(dague_dependencies_t *d, char *init_func_body, int init_func_body_size)
 {
     static char dname[FNAME_SIZE];
     static int  ndx = 0;
@@ -649,10 +649,10 @@ static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_b
         snprintf(dname, FNAME_SIZE, "NULL");
     } else {
         my_idx = ndx++;
-        p += snprintf(b+p, DEPENDENCY_SIZE-p, "static struct dplasma_dependencies_t deplist%d = {\n", my_idx);
+        p += snprintf(b+p, DEPENDENCY_SIZE-p, "static struct dague_dependencies_t deplist%d = {\n", my_idx);
         p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .flags = 0x%04x, .min = %d, .max = %d, .symbol = %s,\n",
                       d->flags, d->min, d->max, dump_c_symbol(d->symbol, init_func_body, init_func_body_size));
-        if(  DPLASMA_DEPENDENCIES_FLAG_NEXT & d->flags ) {
+        if(  DAGuE_DEPENDENCIES_FLAG_NEXT & d->flags ) {
             p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .u.next = {%s} };\n", dump_c_dependency_list(d->u.next[0], init_func_body, init_func_body_size));
         } else {
             p += snprintf(b+p, DEPENDENCY_SIZE-p, "  .u.dependencies = { 0x%02x } };\n", d->u.dependencies[0]);
@@ -665,7 +665,7 @@ static char *dump_c_dependency_list(dplasma_dependencies_t *d, char *init_func_b
 
 #include "remote_dep.h"
 
-static void dplasma_dump_context_holder(const dplasma_t *d,
+static void dague_dump_context_holder(const dague_t *d,
                                         char *init_func_body,
                                         int init_func_body_size)
 {
@@ -710,7 +710,7 @@ static void dplasma_dump_context_holder(const dplasma_t *d,
              d->name, k);
 }
 
-static char *dplasma_to_data_repo_lookup_entry( const dplasma_t *d, char* prepend )
+static char *dague_to_data_repo_lookup_entry( const dague_t *d, char* prepend )
 {
     int i, p;
     static char res[DATA_REPO_LOOKUP_SIZE];
@@ -733,11 +733,11 @@ static char *dep_to_data_repo_lookup_entry( const dep_t *d, char* prepend )
     char expr[MAX_EXPR_LEN];
 
     p = snprintf(res, DATA_REPO_LOOKUP_SIZE, "data_repo_lookup_entry( %s_repo, %s_hash(",
-                 d->dplasma->name, d->dplasma->name);
-    for(i = 0; i < d->dplasma->nb_locals; i++) {
+                 d->dague->name, d->dague->name);
+    for(i = 0; i < d->dague->nb_locals; i++) {
         p += snprintf(res + p, DATA_REPO_LOOKUP_SIZE-p, "%s%s", 
                       expression_to_c_inline( d->call_params[i], prepend, expr, MAX_EXPR_LEN ),
-                      i == d->dplasma->nb_locals - 1 ? "))" : ", ");
+                      i == d->dague->nb_locals - 1 ? "))" : ", ");
     }
     
     return res;
@@ -746,7 +746,7 @@ static char *dep_to_data_repo_lookup_entry( const dep_t *d, char* prepend )
 #define DUMP_DECLARATION         0x1
 #define DUMP_ASSIGNMENT_LINE     0x2
 #define DUMP_VOID_LINE           0x4
-static void dplasma_dump_locals_from_context(const dplasma_t *d,
+static void dague_dump_locals_from_context(const dague_t *d,
                                              char* prepend,
                                              int dump_what,
                                              int additional_spaces)
@@ -770,7 +770,7 @@ static void dplasma_dump_locals_from_context(const dplasma_t *d,
     }
 }
 
-static void dplasma_dump_dependency_helper(const dplasma_t *d,
+static void dague_dump_dependency_helper(const dague_t *d,
                                            char *init_func_body,
                                            int init_func_body_size)
 {
@@ -780,32 +780,32 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
     char local_prepend[MAX_EXPR_LEN], target_prepend[MAX_EXPR_LEN];
 
     snprintf(local_prepend, MAX_EXPR_LEN, "s%s_", d->name);
-    output("\nstatic int %s_release_dependencies(dplasma_execution_unit_t *context,\n"
-           "                                   const dplasma_execution_context_t *exec_context,\n"
+    output("\nstatic int %s_release_dependencies(dague_execution_unit_t *context,\n"
+           "                                   const dague_execution_context_t *exec_context,\n"
            "                                   int action_mask,\n"
-           "                                   struct dplasma_remote_deps_t* upstream_remote_deps)\n"
+           "                                   struct dague_remote_deps_t* upstream_remote_deps)\n"
            "{\n"
            "  int ret = 0, remote_deps_count = 0, root = 0;\n"
            "  data_repo_entry_t *e%s = NULL;\n", 
            d->name, d->name);
 
-    output("  dplasma_execution_context_t*   ready_list = NULL;\n"
-           "  dplasma_remote_deps_t* remote_deps = upstream_remote_deps;\n"
+    output("  dague_execution_context_t*   ready_list = NULL;\n"
+           "  dague_remote_deps_t* remote_deps = upstream_remote_deps;\n"
            "  uint32_t usage = 0;\n"
-           "  dplasma_execution_context_t new_context = { .function = NULL, .locals = {");
+           "  dague_execution_context_t new_context = { .function = NULL, .locals = {");
     for(j = 0; j < MAX_LOCAL_COUNT; j++) {
         output(" {.sym = NULL}%s", j+1 == MAX_LOCAL_COUNT ? "}};\n" : ", ");
     }
 
-    dplasma_dump_locals_from_context(d, local_prepend, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
+    dague_dump_locals_from_context(d, local_prepend, DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
 
     
-    output("\n  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n"
+    output("\n  if(action_mask & DAGuE_ACTION_RELEASE_LOCAL_DEPS) {\n"
            "    e%s = %s;\n"
-           "  }\n", d->name, dplasma_to_data_repo_lookup_entry(d, local_prepend));
+           "  }\n", d->name, dague_to_data_repo_lookup_entry(d, local_prepend));
 
     output("#ifdef DISTRIBUTED\n"
-           "  if(action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS) {\n");
+           "  if(action_mask & DAGuE_ACTION_INIT_REMOTE_DEPS) {\n");
 
     {
         expr_t *rowpred; 
@@ -813,7 +813,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
         symbol_t *rowsize;
         symbol_t *colsize;
         
-        if(dplasma_remote_dep_get_rank_preds((const expr_t **)d->preds, 
+        if(dague_remote_dep_get_rank_preds((const expr_t **)d->preds, 
                                              &rowpred, 
                                              &colpred, 
                                              &rowsize,
@@ -850,15 +850,15 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             spaces += 2;
 
             for(j = 0; j < MAX_DEP_OUT_COUNT; j++) {
-                if( (NULL != p->dep_out[j]) && (p->dep_out[j]->dplasma->nb_locals > 0) ) {
+                if( (NULL != p->dep_out[j]) && (p->dep_out[j]->dague->nb_locals > 0) ) {
                     struct dep *dep = p->dep_out[j];
-                    dplasma_t* target = dep->dplasma;
+                    dague_t* target = dep->dague;
 
                     output("\n%*s  /**\n"
                            "%*s   * Release %s OUTPUT dependencies for %s %s(",
                            spaces, "", spaces, "", 
-                           p->name, dep->param->name, dep->dplasma->name);
-                    snprintf(target_prepend, MAX_EXPR_LEN, "d%s_", dep->dplasma->name);
+                           p->name, dep->param->name, dep->dague->name);
+                    snprintf(target_prepend, MAX_EXPR_LEN, "d%s_", dep->dague->name);
                     /* Prepare the list of locals on the target */
                     for(k = 0; k < MAX_CALL_PARAM_COUNT; k++) {
                         if( NULL == dep->call_params[k] ) break;
@@ -875,23 +875,23 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     output(")\n%*s   */\n", spaces, " ");
 
                     output("#if defined(DISTRIBUTED)\n"
-                           "%*s    if(action_mask & DPLASMA_ACTION_GETTYPE_REMOTE_DEPS) {\n"
+                           "%*s    if(action_mask & DAGuE_ACTION_GETTYPE_REMOTE_DEPS) {\n"
                            "%*s      remote_deps->output[%d].type = exec_context->function->inout[%d]->dep_out[%d]->type;\n"
-                           "%*s    } /* if(action_mask & DPLASMA_ACTION_GETTYPE_REMOTE_DEPS) */\n"
+                           "%*s    } /* if(action_mask & DAGuE_ACTION_GETTYPE_REMOTE_DEPS) */\n"
                            "#endif /* DISTRIBUTED */\n", 
                            spaces, " ", 
                            spaces, " ", cpt, i, j,
                            spaces, " ");
 
-                    output("%*s    assert( strcmp( exec_context->function->inout[%d]->dep_out[%d]->dplasma->name, \"%s\") == 0 );\n"
-                           "%*s    new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dplasma; /* %s */\n",
-                           spaces, "", i, j, dep->dplasma->name,
-                           spaces, "", i, j, dep->dplasma->name);
+                    output("%*s    assert( strcmp( exec_context->function->inout[%d]->dep_out[%d]->dague->name, \"%s\") == 0 );\n"
+                           "%*s    new_context.function = exec_context->function->inout[%d]->dep_out[%d]->dague; /* %s */\n",
+                           spaces, "", i, j, dep->dague->name,
+                           spaces, "", i, j, dep->dague->name);
                     if( NULL != dep->cond ) {
-                        output("%*s    if((action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS)) && %s) {\n",
+                        output("%*s    if((action_mask & (DAGuE_ACTION_RELEASE_LOCAL_DEPS | DAGuE_ACTION_INIT_REMOTE_DEPS)) && %s) {\n",
                                spaces, "", expression_to_c_inline(dep->cond, local_prepend, strexpr1, MAX_EXPR_LEN));
                     } else {
-                        output("%*s    if( action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS) ) {\n",
+                        output("%*s    if( action_mask & (DAGuE_ACTION_RELEASE_LOCAL_DEPS | DAGuE_ACTION_INIT_REMOTE_DEPS) ) {\n",
                                spaces, "");
                     }
                     spaces += 2;
@@ -903,7 +903,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                             if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
                                 output(" = %s", expression_to_c_inline(dep->call_params[k], local_prepend, strexpr1, MAX_EXPR_LEN));
                             }
-                            output(";  /* %s local variable %s */\n", dep->dplasma->name, target->locals[k]->name);
+                            output(";  /* %s local variable %s */\n", dep->dague->name, target->locals[k]->name);
                         }
                     }
 
@@ -930,13 +930,13 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                     }
                     output(" ) {\n"); spaces += 2;
 
-                    output("%*s    if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n", spaces, " "); spaces += 2;
-                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                    output("%*s    if(action_mask & DAGuE_ACTION_RELEASE_LOCAL_DEPS) {\n", spaces, " "); spaces += 2;
+                    for(k = 0; k < dep->dague->nb_locals; k++) {
                         if( 0 == k ) {
-                            output("%*s    struct dplasma_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
+                            output("%*s    struct dague_dependencies_t** %s_placeholder = &(new_context.function->deps);\n",
                                    spaces, " ", target->locals[0]->name);
                         } else {
-                            output("%*s    struct dplasma_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[%s%s - (*%s_placeholder)->min]);\n",
+                            output("%*s    struct dague_dependencies_t** %s_placeholder = &((*%s_placeholder)->u.next[%s%s - (*%s_placeholder)->min]);\n",
                                    spaces, " ", target->locals[k]->name, target->locals[k-1]->name, target_prepend, target->locals[k-1]->name, target->locals[k-1]->name);
                         }
                     }
@@ -958,18 +958,18 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output(");  /* priority of %s */\n", target->name );
                     } else {
                         output("%*s    new_context.priority = %d;  /* no priority defined for %s */\n",
-                               spaces, " ", ( (DPLASMA_HIGH_PRIORITY_TASK & target->flags) ? 1 : -1), target->name);
+                               spaces, " ", ( (DAGuE_HIGH_PRIORITY_TASK & target->flags) ? 1 : -1), target->name);
                     }
 
                     output( "%*s    e%s->data[%d] = (gc_data_t*)exec_context->pointers[%d];\n"                             /* line 1 */
                             "%*s    usage++;\n"                                                                            /* line 2 */
                             "%*s    gc_data_ref( e%s->data[%d] /* %s of %s is used by %s */ );\n"                          /* line 3 */
-                            "%*s    ret += dplasma_release_local_OUT_dependencies(context, exec_context, \n"               /* line 4 */
+                            "%*s    ret += dague_release_local_OUT_dependencies(context, exec_context, \n"               /* line 4 */
                             "%*s                     exec_context->function->inout[%d/*i*/],\n"                            /* line 5 */
                             "%*s                     &new_context,\n"                                                      /* line 6 */
                             "%*s                     exec_context->function->inout[%d/*i*/]->dep_out[%d/*j*/]->param,\n"   /* line 7 */
                             "%*s                     %s_placeholder, &ready_list);\n"                                      /* line 8 */
-                            "%*s  } /* if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) */\n",                          /* line 9 */
+                            "%*s  } /* if(action_mask & DAGuE_ACTION_RELEASE_LOCAL_DEPS) */\n",                          /* line 9 */
                             /* line 1 */ spaces, "", d->name, cpt, 2*i+1,
                             /* line 2 */ spaces, "",
                             /* line 3 */ spaces, "", d->name, cpt, p->name, d->name, target->name,
@@ -989,12 +989,12 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         symbol_t *rowsize;
                         symbol_t *colsize;
                             
-                        if(dplasma_remote_dep_get_rank_preds((const expr_t **)target->preds, 
+                        if(dague_remote_dep_get_rank_preds((const expr_t **)target->preds, 
                                                              &rowpred, 
                                                              &colpred, 
                                                              &rowsize,
                                                              &colsize) < 0) {
-                            output("%*s    } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS) {\n"
+                            output("%*s    } else if (action_mask & DAGuE_ACTION_INIT_REMOTE_DEPS) {\n"
                                    "%*s      DEBUG((\"GRID is not defined in JDF, but predicates are not verified. Your jdf is incomplete or your predicates false.\\n\"));\n"
                                    "%*s    }\n", 
                                    spaces, "",
@@ -1002,14 +1002,14 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                    spaces, "");
                         } else {
                             output( "#if defined(DISTRIBUTED)\n"                                                               /* line  1 */
-                                    "%*s  } else if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) {\n"                      /* line  2 */
+                                    "%*s  } else if (action_mask & DAGuE_ACTION_INIT_REMOTE_DEPS ) {\n"                      /* line  2 */
                                     "%*s    int _rank, _rrank, _crank, _array_pos, _array_mask;\n"                             /* line  3 */
                                     "%*s    _rrank = %s;\n"                                                                    /* line  4 */
                                     "%*s    _crank = %s;\n"                                                                    /* line  5 */
                                     "%*s    _rank = _crank + _rrank * %s;\n"                                                   /* line  6 */
                                     "%*s    _array_pos = _rank / (8 * sizeof(uint32_t));\n"                                    /* line  7 */
                                     "%*s    _array_mask = 1 << (_rank %% (8 * sizeof(uint32_t)));\n"                           /* line  8 */
-                                    "%*s    DPLASMA_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line  9 */
+                                    "%*s    DAGuE_ALLOCATE_REMOTE_DEPS_IF_NULL(remote_deps, exec_context, %d);\n"            /* line  9 */
                                     "%*s    remote_deps->root = root;\n"
                                     "%*s    if( !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) ) {\n"          /* line 10 */
                                     "%*s      remote_deps->output[%d].data = (gc_data_t*)exec_context->pointers[%d];\n"        /* line 11 */
@@ -1017,7 +1017,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                     "%*s      remote_deps->output[%d].count++; remote_deps_count++;\n"                         /* line 13 */
                                     "%*s    }  /* !(remote_deps->output[%d].rank_bits[_array_pos] & _array_mask) */\n"         /* line 14 */
                                     "#endif  /* defined(DISTRIBUTED) */\n"                                                     /* line 15 */
-                                    "%*s  }  /* if (action_mask & DPLASMA_ACTION_INIT_REMOTE_DEPS ) */\n",                     /* line 16 */
+                                    "%*s  }  /* if (action_mask & DAGuE_ACTION_INIT_REMOTE_DEPS ) */\n",                     /* line 16 */
                                     /* line  2 */ spaces, "",
                                     /* line  3 */ spaces, "",
                                     /* line  4 */ spaces, "", expression_to_c_inline(rowpred, target_prepend, strexpr1, MAX_EXPR_LEN),
@@ -1055,7 +1055,7 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         output("%*s  }  /* if(%s) */\n", spaces, "", 
                                expression_to_c_inline(dep->cond, local_prepend, strexpr1, MAX_EXPR_LEN));
                     } else {
-                        output("%*s}  /* if( action_mask & (DPLASMA_ACTION_RELEASE_LOCAL_DEPS | DPLASMA_ACTION_INIT_REMOTE_DEPS) ) */\n",
+                        output("%*s}  /* if( action_mask & (DAGuE_ACTION_RELEASE_LOCAL_DEPS | DAGuE_ACTION_INIT_REMOTE_DEPS) ) */\n",
                                spaces, "");
                     }
                     spaces -= 2;
@@ -1066,14 +1066,14 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
             cpt++;
         }
     }
-    output("  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_DEPS) {\n"
+    output("  if(action_mask & DAGuE_ACTION_RELEASE_LOCAL_DEPS) {\n"
            "    data_repo_entry_addto_usage_limit(%s_repo, e%s->key, usage);\n"                            /* line  1 */
            "    if( NULL != ready_list )\n"                                                                /* line  2 */
-           "      __dplasma_schedule(context, ready_list, !(DPLASMA_ACTION_NO_PLACEHOLDER & action_mask));\n"
+           "      __dague_schedule(context, ready_list, !(DAGuE_ACTION_NO_PLACEHOLDER & action_mask));\n"
            "  }\n"
            "#if defined(DISTRIBUTED)\n"                                                                  /* line  4 */
-           "  if( (action_mask & DPLASMA_ACTION_SEND_REMOTE_DEPS) && remote_deps_count ) {\n"            /* line  5 */
-           "    ret += dplasma_remote_dep_activate(context,\n"                                           /* line  6 */
+           "  if( (action_mask & DAGuE_ACTION_SEND_REMOTE_DEPS) && remote_deps_count ) {\n"            /* line  5 */
+           "    ret += dague_remote_dep_activate(context,\n"                                           /* line  6 */
            "                                       exec_context,\n"                                      /* line  7 */
            "                                       remote_deps,\n"                                       /* line  8 */
            "                                       remote_deps_count);\n"                                /* line  9 */
@@ -1081,24 +1081,24 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "#endif  /* defined(DISTRIBUTED) */\n\n",                                                     /* line 11 */
            /* line  1 */ d->name, d->name);
 
-    output("  if(action_mask & DPLASMA_ACTION_RELEASE_LOCAL_REFS) {\n");
+    output("  if(action_mask & DAGuE_ACTION_RELEASE_LOCAL_REFS) {\n");
     for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
         param_t* param = d->inout[i];
         if( !(param->sym_type & SYM_IN) ) continue;
         for(k = 0; k < MAX_DEP_IN_COUNT; k++) {
-            if( (NULL == param->dep_in[k]) || (0 == param->dep_in[k]->dplasma->nb_locals) ) continue;
+            if( (NULL == param->dep_in[k]) || (0 == param->dep_in[k]->dague->nb_locals) ) continue;
             if( NULL != param->dep_in[k]->cond ) {
                 output("    if(%s) {\n"
                        "      data_repo_entry_used_once( %s_repo, ((data_repo_entry_t*)(exec_context->pointers[%d]))->key /* e%s */ );\n"
                        "      (void)gc_data_unref((gc_data_t*)(exec_context->pointers[%d]) /* g%s */);\n"
                        "    }\n",
                        expression_to_c_inline(param->dep_in[k]->cond, local_prepend, strexpr1, MAX_EXPR_LEN),
-                       param->dep_in[k]->dplasma->name, 2 * i, param->name,
+                       param->dep_in[k]->dague->name, 2 * i, param->name,
                        2 * i + 1, param->name);
             } else {
                 output("    data_repo_entry_used_once( %s_repo, ((data_repo_entry_t*)(exec_context->pointers[%d]))->key /* e%s */ );\n"
                        "    (void)gc_data_unref((gc_data_t*)(exec_context->pointers[%d]) /* g%s */);\n",
-                       param->dep_in[k]->dplasma->name, 2 * i, param->name,
+                       param->dep_in[k]->dague->name, 2 * i, param->name,
                        2 * i + 1, param->name);
             }
         }
@@ -1108,14 +1108,14 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
            "}\n\n");
 }
 
-#if defined(DPLASMA_CACHE_AWARE)
-static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
+#if defined(DAGuE_CACHE_AWARE)
+static void dague_dump_cache_evaluation_function(const dague_t *d,
                                                    char *init_func_body,
                                                    int init_func_body_size)
 {
     int i, j, k, cpt;
     char strexpr1[MAX_EXPR_LEN];
-    output( "static unsigned int %s_cache_rank(dplasma_execution_context_t *exec_context, const cache_t *cache, unsigned int reward)\n"
+    output( "static unsigned int %s_cache_rank(dague_execution_context_t *exec_context, const cache_t *cache, unsigned int reward)\n"
             "{\n"
             "  int result = 0, r;\n"
             "  const cache_t *c;\n",
@@ -1125,7 +1125,7 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
             output("  gc_data_t *%s;\n", d->inout[i]->name);
             output("  data_repo_entry_t *e%s;\n", d->inout[i]->name);
         }
-	dplasma_dump_locals_from_context(d, "", DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
+	dague_dump_locals_from_context(d, "", DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
 
     output("  if( NULL == exec_context->pointers[1] ) {\n");
 
@@ -1136,7 +1136,7 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
             if( NULL == param->dep_in[k] ) continue;
             if( NULL != param->dep_in[k]->cond ) {
                 output("    if(%s) {\n", expression_to_c_inline(param->dep_in[k]->cond, "", strexpr1, MAX_EXPR_LEN));
-                if( param->dep_in[k]->dplasma->nb_locals != 0 ) {
+                if( param->dep_in[k]->dague->nb_locals != 0 ) {
                     output("      e%s = %s;\n", 
                            param->name, dep_to_data_repo_lookup_entry(param->dep_in[k], ""));
                     output("      exec_context->pointers[%d] = e%s;\n", 2 * i, param->name);
@@ -1145,7 +1145,7 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
                 }
                 output("      exec_context->pointers[%d] = ", 2 * i + 1);
             } else {
-                if( param->dep_in[k]->dplasma->nb_locals != 0 ) {
+                if( param->dep_in[k]->dague->nb_locals != 0 ) {
                     output("    e%s = %s;\n", 
                            param->name, dep_to_data_repo_lookup_entry(param->dep_in[k], ""));
                     output("    exec_context->pointers[%d] = e%s;\n", 2 * i, param->name);
@@ -1154,17 +1154,17 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
                 }
                 output("    exec_context->pointers[%d] = ", 2 * i + 1);
             }
-            if( param->dep_in[k]->dplasma->nb_locals != 0 ) {
+            if( param->dep_in[k]->dague->nb_locals != 0 ) {
                 cpt = 0;
                 for(j = 0; j < MAX_PARAM_COUNT; j++) {
-                    if( param->dep_in[k]->dplasma->inout[j] == param->dep_in[k]->param )
+                    if( param->dep_in[k]->dague->inout[j] == param->dep_in[k]->param )
                         break;
-                    if( param->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
+                    if( param->dep_in[k]->dague->inout[j]->sym_type & SYM_OUT )
                         cpt++;
                 }
                 output("e%s->data[%d];\n", param->name, cpt);
             } else {
-                output( "gc_data_new(%s, 0);\n", dplasma_dep_dplasma_call_to_c( param->dep_in[k], strexpr1, MAX_EXPR_LEN) );
+                output( "gc_data_new(%s, 0);\n", dague_dep_dague_call_to_c( param->dep_in[k], strexpr1, MAX_EXPR_LEN) );
             }
             if( NULL != param->dep_in[k]->cond ) {
                 output("    }\n");
@@ -1196,82 +1196,82 @@ static void dplasma_dump_cache_evaluation_function(const dplasma_t *d,
 }
 #endif
 
-static char *dplasma_dump_c(const dplasma_t *d,
+static char *dague_dump_c(const dague_t *d,
                             char *init_func_body,
                             int init_func_body_size)
 {
-    static char dp_txt[DPLASMA_SIZE];
+    static char dp_txt[DAGuE_SIZE];
     static int next_shape_idx = 0;
     int i, j, k, cpt, p = 0;
     char strexpr1[MAX_EXPR_LEN];
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    {\n");
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .name   = \"%s\",\n", d->name);
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .flags  = 0x%02x,\n", d->flags);
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .dependencies_mask = 0x%02x,\n", d->dependencies_mask);
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .nb_locals = %d,\n", d->nb_locals);
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "    {\n");
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .name   = \"%s\",\n", d->name);
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .flags  = 0x%02x,\n", d->flags);
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .dependencies_mask = 0x%02x,\n", d->dependencies_mask);
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .nb_locals = %d,\n", d->nb_locals);
     
-#if defined(DPLASMA_CACHE_AWARE)
+#if defined(DAGuE_CACHE_AWARE)
     if( NULL != d->body ) {
-        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .cache_rank_function = %s_cache_rank,\n", d->name);
+        p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .cache_rank_function = %s_cache_rank,\n", d->name);
     } else {
-        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .cache_rank_function = NULL,\n");
+        p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .cache_rank_function = NULL,\n");
     }
 #endif
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .locals = {");
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .locals = {");
     for(i = 0; i < d->nb_locals; i++) {
         if( symbol_c_index_lookup(d->locals[i]) > -1 ) {
-            p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "dplasma_symbols[%d]%s", 
+            p += snprintf(dp_txt+p, DAGuE_SIZE-p, "dague_symbols[%d]%s", 
                           symbol_c_index_lookup(d->locals[i]),
                           i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
         } else {
-            p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s", 
+            p += snprintf(dp_txt+p, DAGuE_SIZE-p, "%s%s", 
                           dump_c_symbol(d->locals[i], init_func_body, init_func_body_size),
                           i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
         }
     }
     for(; i < MAX_LOCAL_COUNT; i++) {
-        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "NULL%s",
+        p += snprintf(dp_txt+p, DAGuE_SIZE-p, "NULL%s",
                       i < MAX_LOCAL_COUNT-1 ? ", " : "},\n");
     }
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .preds = {");
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .preds = {");
     for(i = 0; i < MAX_PRED_COUNT; i++) {
-        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
+        p += snprintf(dp_txt+p, DAGuE_SIZE-p, "%s%s",
                       dump_c_expression_inline(d->preds[i], (const symbol_t**)d->locals, d->nb_locals, init_func_body, init_func_body_size),
                       i < MAX_PRED_COUNT-1 ? ", " : "},\n");
     }
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .inout= {");
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .inout= {");
     for(i = 0; i < MAX_PARAM_COUNT; i++) {
-        p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "%s%s",
+        p += snprintf(dp_txt+p, DAGuE_SIZE-p, "%s%s",
                       dump_c_param(d, d->inout[i], init_func_body, init_func_body_size, 1),
                       i < MAX_PARAM_COUNT-1 ? ", " : "},\n");
     }
 
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .deps = %s,\n", dump_c_dependency_list(d->deps, init_func_body, init_func_body_size));
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .hook = NULL\n");
-    //    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "      .body = \"%s\"\n", d->body);
-    p += snprintf(dp_txt+p, DPLASMA_SIZE-p, "    }");
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .deps = %s,\n", dump_c_dependency_list(d->deps, init_func_body, init_func_body_size));
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .hook = NULL\n");
+    //    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "      .body = \"%s\"\n", d->body);
+    p += snprintf(dp_txt+p, DAGuE_SIZE-p, "    }");
     
     /* d->body == NULL <=> IN or OUT. Is it the good test? */
     if( NULL != d->body ) {
         int body_lines;
 
-        dplasma_dump_dependency_helper(d, init_func_body, init_func_body_size);
+        dague_dump_dependency_helper(d, init_func_body, init_func_body_size);
 
-#if defined(DPLASMA_CACHE_AWARE)
-        dplasma_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
-#endif  /* defined(DPLASMA_CACHE_AWARE */
+#if defined(DAGuE_CACHE_AWARE)
+        dague_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
+#endif  /* defined(DAGuE_CACHE_AWARE */
 
-        output( "static int %s_hook(dplasma_execution_unit_t* context,\n"
-                "                   dplasma_execution_context_t *exec_context)\n"
+        output( "static int %s_hook(dague_execution_unit_t* context,\n"
+                "                   dague_execution_context_t *exec_context)\n"
                 "{\n"
 				"  (void)context;\n",
                 d->name);
 
-        dplasma_dump_locals_from_context(d, "", DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
+        dague_dump_locals_from_context(d, "", DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++)  {
             if( d->inout[i]->sym_type & SYM_IN ) {
                 output("  data_repo_entry_t *e%s = NULL;\n", d->inout[i]->name);
@@ -1280,7 +1280,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
             output("  void *%s = NULL;\n", d->inout[i]->name);
         }
         output("  /* remove warnings in case the variable is not used later */\n");
-        dplasma_dump_locals_from_context(d, "", DUMP_VOID_LINE, 0);
+        dague_dump_locals_from_context(d, "", DUMP_VOID_LINE, 0);
 
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             if( d->inout[i]->sym_type & SYM_IN ) {
@@ -1290,23 +1290,23 @@ static char *dplasma_dump_c(const dplasma_t *d,
                         if( NULL != d->inout[i]->dep_in[k]->cond ) {
                             output("    if(%s) {\n", expression_to_c_inline(d->inout[i]->dep_in[k]->cond, "", strexpr1, MAX_EXPR_LEN));
                         }
-                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                        if( d->inout[i]->dep_in[k]->dague->nb_locals != 0 ) {
                             output("    e%s = %s;\n",
                                    d->inout[i]->name,
                                    dep_to_data_repo_lookup_entry(d->inout[i]->dep_in[k], ""));
                         }
                         output("    g%s = ", d->inout[i]->name);
-                        if( d->inout[i]->dep_in[k]->dplasma->nb_locals != 0 ) {
+                        if( d->inout[i]->dep_in[k]->dague->nb_locals != 0 ) {
                             cpt = 0;
                             for(j = 0; j < MAX_PARAM_COUNT; j++) {
-                                if( d->inout[i]->dep_in[k]->dplasma->inout[j] == d->inout[i]->dep_in[k]->param )
+                                if( d->inout[i]->dep_in[k]->dague->inout[j] == d->inout[i]->dep_in[k]->param )
                                     break;
-                                if( d->inout[i]->dep_in[k]->dplasma->inout[j]->sym_type & SYM_OUT )
+                                if( d->inout[i]->dep_in[k]->dague->inout[j]->sym_type & SYM_OUT )
                                     cpt++;
                             }
                             output("e%s->data[%d];\n", d->inout[i]->name, cpt);
                         } else {
-                            output( "gc_data_new(%s, 0);\n", dplasma_dep_dplasma_call_to_c( d->inout[i]->dep_in[k], strexpr1, MAX_EXPR_LEN) );
+                            output( "gc_data_new(%s, 0);\n", dague_dep_dague_call_to_c( d->inout[i]->dep_in[k], strexpr1, MAX_EXPR_LEN) );
                         }
                         if( NULL != d->inout[i]->dep_in[k]->cond ) {
                             output("    }\n");
@@ -1332,11 +1332,11 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "#endif\n"
                 "\n");
 
-        output( "#if defined(DPLASMA_CACHE_AWARE)\n");
+        output( "#if defined(DAGuE_CACHE_AWARE)\n");
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
             output("  cache_buf_referenced(context->closest_cache, %s);\n", d->inout[i]->name);
         }
-        output( "#endif /* DPLASMA_CACHE_AWARE */\n");
+        output( "#endif /* DAGuE_CACHE_AWARE */\n");
 
         output( "  TAKE_TIME(context, %s_start_key, %s_hash(",
                 d->name, d->name);
@@ -1359,18 +1359,18 @@ static char *dplasma_dump_c(const dplasma_t *d,
             param_t* param = d->inout[i];
             if( !(param->sym_type & SYM_OUT) ) continue;
             for(k = 0; k < MAX_DEP_OUT_COUNT; k++) {
-                if( (NULL == param->dep_out[k]) || (0 != param->dep_out[k]->dplasma->nb_locals) ) continue;
+                if( (NULL == param->dep_out[k]) || (0 != param->dep_out[k]->dague->nb_locals) ) continue;
                 if( NULL != param->dep_out[k]->cond ) {
                     output("  if(%s) {\n  ", expression_to_c_inline(param->dep_out[k]->cond, "", strexpr1, MAX_EXPR_LEN));
                 }
-                dplasma_dep_dplasma_call_to_c(param->dep_out[k], strexpr1, MAX_EXPR_LEN);
+                dague_dep_dague_call_to_c(param->dep_out[k], strexpr1, MAX_EXPR_LEN);
                 output("%s  if(%s != %s) {\n"
-                       "%s    dplasma_remote_dep_memcpy( %s, g%s, %s );\n"
+                       "%s    dague_remote_dep_memcpy( %s, g%s, %s );\n"
                        "%s    DEBUG((\"memcpy(%%p, %%p)\\n\", %s, g%s));\n"
                        "%s  }\n",
                        NULL != param->dep_out[k]->cond ? "  " : "", param->name, strexpr1,
                        NULL != param->dep_out[k]->cond ? "  " : "", strexpr1, param->name,
-                       NULL == param->dep_out[k]->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char *)param->dep_out[k]->type,
+                       NULL == param->dep_out[k]->type ? "DAGuE_DEFAULT_DATA_TYPE" : (char *)param->dep_out[k]->type,
                        NULL != param->dep_out[k]->cond ? "  " : "" , strexpr1, param->name,
                        NULL != param->dep_out[k]->cond ? "  " : "");
                 if( NULL != param->dep_out[k]->cond ) {
@@ -1405,11 +1405,11 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 "#endif\n"
                 "\n", d->name);
         
-        output( "#if defined(DPLASMA_GRAPHER)\n"
-                "if( NULL != __dplasma_graph_file ) {\n"
+        output( "#if defined(DAGuE_GRAPHER)\n"
+                "if( NULL != __dague_graph_file ) {\n"
                 "  char tmp[128];\n"
-                "  dplasma_service_to_string(exec_context, tmp, 128);\n"
-                "  fprintf(__dplasma_graph_file,\n"
+                "  dague_service_to_string(exec_context, tmp, 128);\n"
+                "  fprintf(__dague_graph_file,\n"
                 "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
                 "          tmp, colors[context->eu_id], tmp, %s_hash(",
                 shapes[next_shape_idx++ % SHAPES_SIZE], d->name, d->name);
@@ -1421,7 +1421,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
                 output(", ");
         }
         output("}\n"
-               "#endif /* defined(DPLASMA_GRAPHER) */\n");
+               "#endif /* defined(DAGuE_GRAPHER) */\n");
 
         cpt = 0;
         for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
@@ -1430,8 +1430,8 @@ static char *dplasma_dump_c(const dplasma_t *d,
             }
         }
         output("  %s_release_dependencies(context, exec_context, \n"
-               "          DPLASMA_ACTION_RELEASE_REMOTE_DEPS | DPLASMA_ACTION_RELEASE_LOCAL_DEPS |\n"
-               "          DPLASMA_ACTION_DEPS_MASK | DPLASMA_ACTION_RELEASE_LOCAL_REFS,\n"
+               "          DAGuE_ACTION_RELEASE_REMOTE_DEPS | DAGuE_ACTION_RELEASE_LOCAL_DEPS |\n"
+               "          DAGuE_ACTION_DEPS_MASK | DAGuE_ACTION_RELEASE_LOCAL_REFS,\n"
                "          NULL);\n"
                "  return 0;\n"
                "}\n\n",
@@ -1441,7 +1441,7 @@ static char *dplasma_dump_c(const dplasma_t *d,
     return dp_txt;
 }
 
-static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int init_func_body_size)
+static void dump_tasks_enumerator(const dague_t *d, char *init_func_body, int init_func_body_size)
 {
     int spaces;
     size_t spaces_length;
@@ -1461,12 +1461,12 @@ static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int 
     for(s = 0; s < d->nb_locals; s++) {
         output("%*sint %s, %s_start, %s_end;\n", spaces, "", d->locals[s]->name, d->locals[s]->name, d->locals[s]->name );
         output("%*sint %s_min, %s_max;\n", spaces, "", d->locals[s]->name, d->locals[s]->name );
-        output("%*sdplasma_dependencies_t **%s_deps_location;\n", spaces, "", d->locals[s]->name);
+        output("%*sdague_dependencies_t **%s_deps_location;\n", spaces, "", d->locals[s]->name);
     }
     for(p = 0; d->preds[p]!=NULL; p++) {
         output("%*sint pred%d;\n", spaces, "", p);
     }
-    output("%*sfunction = (dplasma_t*)dplasma_find( \"%s\" );\n"
+    output("%*sfunction = (dague_t*)dague_find( \"%s\" );\n"
            "%*sfunction->deps = NULL;\n", 
            spaces, "", d->name, 
            spaces, "");
@@ -1565,12 +1565,12 @@ static void dump_tasks_enumerator(const dplasma_t *d, char *init_func_body, int 
     output("%*s}\n", spaces, "");
 }
 
-int dplasma_dump_all_c(char *filename)
+int dague_dump_all_c(char *filename)
 {
-    char whole[DPLASMA_ALL_SIZE];
+    char whole[DAGuE_ALL_SIZE];
     char body[INIT_FUNC_BODY_SIZE];
     preamble_list_t *n;
-    const dplasma_t* object;
+    const dague_t* object;
     int i, j, k, p = 0, object_output_deps, max_output_deps;
     
     out = fopen(filename, "w");
@@ -1599,7 +1599,7 @@ int dplasma_dump_all_c(char *filename)
             "#include \"lifo.h\"\n"
             "#include \"remote_dep.h\"\n"
             "#include \"datarepo.h\"\n\n"
-            "#define TILE_SIZE (DPLASMA_TILE_SIZE*DPLASMA_TILE_SIZE*sizeof(double))\n"
+            "#define TILE_SIZE (DAGuE_TILE_SIZE*DAGuE_TILE_SIZE*sizeof(double))\n"
             "#if defined(USE_MPI)\n"
             "# define IFDISTRIBUTED(n) n\n"
             "#else\n"
@@ -1610,9 +1610,9 @@ int dplasma_dump_all_c(char *filename)
             "extern int eventSet;\n"
             "#endif\n"
             "\n"
-            "#if defined(DPLASMA_GRAPHER)\n"
+            "#if defined(DAGuE_GRAPHER)\n"
             "#include <stdio.h>\n"
-            "extern FILE *__dplasma_graph_file;\n"
+            "extern FILE *__dague_graph_file;\n"
             "#define COLORS_SIZE %d\n"
             "static char *colors[%d] = {\n",
             COLORS_SIZE, COLORS_SIZE);
@@ -1621,25 +1621,25 @@ int dplasma_dump_all_c(char *filename)
         output("  \"%s\"%s", colors[i], i==COLORS_SIZE-1 ? "\n};\n" : ",\n");
     }
 
-    output( "#endif /* defined(DPLASMA_GRAPHER) */\n"
-            "#ifdef DPLASMA_PROFILING\n"
+    output( "#endif /* defined(DAGuE_GRAPHER) */\n"
+            "#ifdef DAGuE_PROFILING\n"
             "#include \"profiling.h\"\n");
-    for(i = 0; i < dplasma_nb_elements(); i++) {
-        object = dplasma_element_at(i);
+    for(i = 0; i < dague_nb_elements(); i++) {
+        object = dague_element_at(i);
         output("static int %s_start_key, %s_end_key;\n", object->name, object->name);
     }
-    output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dplasma_profiling_trace((EU_CONTEXT)->eu_profile, (KEY), (ID))\n"
+    output( "#define TAKE_TIME(EU_CONTEXT, KEY, ID)  dague_profiling_trace((EU_CONTEXT)->eu_profile, (KEY), (ID))\n"
             "#else\n"
             "#define TAKE_TIME(EU_CONTEXT, KEY, ID)\n"
-            "#endif  /* DPLASMA_PROFILING */\n"
+            "#endif  /* DAGuE_PROFILING */\n"
             "\n"
             "#include \"scheduling.h\"\n"
             "#include \"stats.h\"\n"
             "\n");
     /* Dump Macros for all predicates */
-    for( i = 0; i < dplasma_nb_elements(); i++ ) {
+    for( i = 0; i < dague_nb_elements(); i++ ) {
         char strexpr1[MAX_EXPR_LEN];
-        const dplasma_t *object = dplasma_element_at(i);
+        const dague_t *object = dague_element_at(i);
         for( j = 0; j < MAX_PRED_COUNT; j++ ) {
             if( NULL == object->preds[j] ) break;
             output("#define %s_pred%d(%s", object->name, j, object->locals[0]->name);
@@ -1657,57 +1657,57 @@ int dplasma_dump_all_c(char *filename)
         }
     }
 
-    p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "static dplasma_t dplasma_array[%d] = {\n", dplasma_nb_elements());
+    p += snprintf(whole+p, DAGuE_ALL_SIZE-p, "static dague_t dague_array[%d] = {\n", dague_nb_elements());
 
-    for(i = 0; i < dplasma_nb_elements(); i++) {
-        const dplasma_t *d = dplasma_element_at(i);
+    for(i = 0; i < dague_nb_elements(); i++) {
+        const dague_t *d = dague_element_at(i);
         if( d->nb_locals != 0 ) {
-            dplasma_dump_context_holder(d, body, INIT_FUNC_BODY_SIZE);
+            dague_dump_context_holder(d, body, INIT_FUNC_BODY_SIZE);
         }
     }
 
-    for(i = 0; i < dplasma_nb_elements(); i++) {
-        p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "%s", dplasma_dump_c(dplasma_element_at(i), body, INIT_FUNC_BODY_SIZE));
-        if( i < dplasma_nb_elements()-1) {
-            p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, ",\n");
+    for(i = 0; i < dague_nb_elements(); i++) {
+        p += snprintf(whole+p, DAGuE_ALL_SIZE-p, "%s", dague_dump_c(dague_element_at(i), body, INIT_FUNC_BODY_SIZE));
+        if( i < dague_nb_elements()-1) {
+            p += snprintf(whole+p, DAGuE_ALL_SIZE-p, ",\n");
         }
     }
-    p += snprintf(whole+p, DPLASMA_ALL_SIZE-p, "};\n");
+    p += snprintf(whole+p, DAGuE_ALL_SIZE-p, "};\n");
     output( "%s\n"
             "\n"
-            "static int __dplasma_init(void)\n"
+            "static int __dague_init(void)\n"
             "{\n"
             "%s\n"
             "  return 0;\n"
             "}\n"
             , whole, body);
 
-    output( "int load_dplasma_objects( dplasma_context_t* context )\n"
+    output( "int load_dague_objects( dague_context_t* context )\n"
             "{\n"
 			"  (void)context;\n"
-            "  dplasma_load_array( dplasma_array, %d );\n"
-            "  dplasma_load_symbols( dplasma_symbols, %d );\n"
+            "  dague_load_array( dague_array, %d );\n"
+            "  dague_load_symbols( dague_symbols, %d );\n"
             "  return 0;\n"
             "}\n"
             "\n",
-            dplasma_nb_elements(),
-            dplasma_symbol_get_count());
+            dague_nb_elements(),
+            dague_symbol_get_count());
 
-    output( "int load_dplasma_hooks( dplasma_context_t* context )\n"
+    output( "int load_dague_hooks( dague_context_t* context )\n"
             "{\n"
-            "  dplasma_t* object;\n"
+            "  dague_t* object;\n"
             "\n"
 			"  (void)context;\n"
-            "  if( 0 != __dplasma_init()) {\n"
+            "  if( 0 != __dague_init()) {\n"
             "     return -1;\n"
             "  }\n"
             "\n");
 
-    for(i = max_output_deps = 0; i < dplasma_nb_elements(); i++) {
-        object = dplasma_element_at(i);
+    for(i = max_output_deps = 0; i < dague_nb_elements(); i++) {
+        object = dague_element_at(i);
         /* Specials IN and OUT test */
         if( object->body != NULL ) {
-            output("  object = (dplasma_t*)dplasma_find(\"%s\");\n"
+            output("  object = (dague_t*)dague_find(\"%s\");\n"
                    "  object->hook = %s_hook;\n"
                    "  object->release_deps = %s_release_dependencies;\n\n",
                    object->name, object->name, object->name);
@@ -1727,24 +1727,24 @@ int dplasma_dump_all_c(char *filename)
            "#endif  /* defined(DISTRIBUTED) */\n\n", max_output_deps
            );
 
-    output("#ifdef DPLASMA_PROFILING\n");
+    output("#ifdef DAGuE_PROFILING\n");
 
-    for(i = 0; i < dplasma_nb_elements(); i++) {
-        object = dplasma_element_at(i);
-        output( "  dplasma_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
+    for(i = 0; i < dague_nb_elements(); i++) {
+        object = dague_element_at(i);
+        output( "  dague_profiling_add_dictionary_keyword( \"%s\", \"fill:%s\",\n"
                 "                                            &%s_start_key, &%s_end_key);\n",
                 object->name, colors[i % COLORS_SIZE], object->name, object->name);
     }
 
-    for(i = 0; i < dplasma_symbol_get_count(); i++) {
-        const symbol_t *s = dplasma_symbol_get_element_at( i );
-        if( s->flags & DPLASMA_SYMBOL_IS_GLOBAL ) {
-            output("  dplasma_profiling_add_information( \"%s\", %s );\n",
+    for(i = 0; i < dague_symbol_get_count(); i++) {
+        const symbol_t *s = dague_symbol_get_element_at( i );
+        if( s->flags & DAGuE_SYMBOL_IS_GLOBAL ) {
+            output("  dague_profiling_add_information( \"%s\", %s );\n",
                    s->name, s->name);
         }
     }
 
-    output( "#endif /* DPLASMA_PROFILING */\n"
+    output( "#endif /* DAGuE_PROFILING */\n"
             "\n"
             "  return 0;\n"
             "}\n");
@@ -1752,33 +1752,33 @@ int dplasma_dump_all_c(char *filename)
            "do { \\\n"
            "  int _vmin = (vMIN); \\\n"
            "  int _vmax = (vMAX); \\\n"
-           "  (DEPS) = (dplasma_dependencies_t*)calloc(1, sizeof(dplasma_dependencies_t) + \\\n"
-           "                                           (_vmax - _vmin) * sizeof(dplasma_dependencies_union_t)); \\\n"
+           "  (DEPS) = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) + \\\n"
+           "                                           (_vmax - _vmin) * sizeof(dague_dependencies_union_t)); \\\n"
            "  /*DEBUG((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\", */\\\n"
            "  /*       (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP))); */\\\n"
-           "  (DEPS)->flags = DPLASMA_DEPENDENCIES_FLAG_ALLOCATED | DPLASMA_DEPENDENCIES_FLAG_FINAL; \\\n"
-           "  DPLASMA_STAT_INCREASE(mem_bitarray,  sizeof(dplasma_dependencies_t) + STAT_MALLOC_OVERHEAD + \\\n"
-           "                                           (_vmax - _vmin) * sizeof(dplasma_dependencies_union_t)); \\\n"
+           "  (DEPS)->flags = DAGuE_DEPENDENCIES_FLAG_ALLOCATED | DAGuE_DEPENDENCIES_FLAG_FINAL; \\\n"
+           "  DAGuE_STAT_INCREASE(mem_bitarray,  sizeof(dague_dependencies_t) + STAT_MALLOC_OVERHEAD + \\\n"
+           "                                           (_vmax - _vmin) * sizeof(dague_dependencies_union_t)); \\\n"
            "  (DEPS)->symbol = (vSYMBOL); \\\n"
            "  (DEPS)->min = _vmin; \\\n"
            "  (DEPS)->max = _vmax; \\\n"
            "  (DEPS)->prev = (PREVDEP); /* chain them backward */ \\\n"
            "  if( NULL != (PREVDEP) ) {\\\n"
-           "    (PREVDEP)->flags = DPLASMA_DEPENDENCIES_FLAG_NEXT | DPLASMA_DEPENDENCIES_FLAG_ALLOCATED;\\\n"
+           "    (PREVDEP)->flags = DAGuE_DEPENDENCIES_FLAG_NEXT | DAGuE_DEPENDENCIES_FLAG_ALLOCATED;\\\n"
            "  }\\\n"
            "} while (0)\\\n"
            "\n"
-           "int enumerate_dplasma_tasks(dplasma_context_t* context)\n"
+           "int enumerate_dague_tasks(dague_context_t* context)\n"
            "{\n"
            "  int nbtasks = 0;\n"
-           "  dplasma_t* function;\n"
-           "  dplasma_dependencies_t *deps;\n");
+           "  dague_t* function;\n"
+           "  dague_dependencies_t *deps;\n");
 
-    for(i = 0; i < dplasma_nb_elements(); i++) {
-        dump_tasks_enumerator(dplasma_element_at(i), NULL, 0);
+    for(i = 0; i < dague_nb_elements(); i++) {
+        dump_tasks_enumerator(dague_element_at(i), NULL, 0);
     }
 
-    output( "  dplasma_register_nb_tasks(context, nbtasks);\n"
+    output( "  dague_register_nb_tasks(context, nbtasks);\n"
             "  return nbtasks;\n"
             "}\n"
             "\n");

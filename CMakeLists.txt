@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (DPLASMA C Fortran)
+project (DAGuE C Fortran)
 
 #
 # Do NOT remove this. Make sure it is set to OFF to
@@ -8,37 +8,37 @@ project (DPLASMA C Fortran)
 #
 
 # should we use our own math functions
-option(DPLASMA_COLLECTIVE
+option(DAGuE_COLLECTIVE
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
-option(DPLASMA_MPI
-  "Build DPLASMA for distributed memory with MPI backend" ON)
-option(DPLASMA_CACHE_AWARE "Activate the cache awareness support (only if hardware
+option(DAGuE_MPI
+  "Build DAGuE for distributed memory with MPI backend" ON)
+option(DAGuE_CACHE_AWARE "Activate the cache awareness support (only if hardware
   locality is enabled and discovered" OFF)
-option(DPLASMA_PROFILING
+option(DAGuE_PROFILING
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
-option(DPLASMA_PAPI
+option(DAGuE_PAPI
   "Enable PAPI performance hardware counters" OFF)
-option(DPLASMA_STATS
+option(DAGuE_STATS
   "Enable the generation of statistics informations during execution
   (microbenchmarking)" OFF)
-option(DPLASMA_DEBUG_HISTORY
+option(DAGuE_DEBUG_HISTORY
   "Enable the generation of the profiling information during
   execution" OFF)
-option(DPLASMA_GRAPHER
+option(DAGuE_GRAPHER
   "Enable the generation of the dot output during execution" OFF)
-option(DPLASMA_CALL_TRACE
+option(DAGuE_CALL_TRACE
   "Enable the output of the BLAS kernels call trace during execution" OFF)
-option(DPLASMA_DRY_RUN
+option(DAGuE_DRY_RUN
   "Disable call to actual BLAS kernels; unfold the dependencies only" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
-option(DPLASMA_CUDA
+option(DAGuE_CUDA
   "Enable dupport for CUDA" ON)
 # The current version number
-set (DPLASMA_VERSION_MAJOR 0)
-set (DPLASMA_VERSION_MINOR 1)
+set (DAGuE_VERSION_MAJOR 0)
+set (DAGuE_VERSION_MINOR 1)
 
 set( PROJECT_INCLUDE_DIR ./)
 
@@ -87,7 +87,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-  set(DPLASMA_DEBUG 1)
+  set(DAGuE_DEBUG 1)
 endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
 
 # Check for available functions
@@ -107,9 +107,6 @@ IF( HAVE_STD_C99 )
   SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
 ENDIF( HAVE_STD_C99 )
 
-BISON_TARGET(dplasma_yacc dplasma.y ${CMAKE_CURRENT_BINARY_DIR}/dplasma.tab.c)
-FLEX_TARGET(dplasma_flex dplasma.l  ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
-ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
@@ -162,45 +159,45 @@ find_package(PLASMA REQUIRED)
 
 find_package(HWLOC REQUIRED)
 if( HAVE_HWLOC )
-  list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
+  list(APPEND EXTRA_SOURCES dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
 endif( HAVE_HWLOC )
-if(DPLASMA_CACHE_AWARE)
+if(DAGuE_CACHE_AWARE)
   if( !HAVE_HWLOC )
     message( error "Cache awarness requires hwloc" )
   endif( !HAVE_HWLOC )
-endif(DPLASMA_CACHE_AWARE)
+endif(DAGuE_CACHE_AWARE)
 
-if (DPLASMA_MPI)
+if (DAGuE_MPI)
   find_package(MPI)
   if (MPI_FOUND)
     include_directories( ${MPI_INCLUDE_PATH} ) 
   else (MPI_FOUND)
-    message("MPI support is required in order to build the distributed version of DPLASMA."
+    message("MPI support is required in order to build the distributed version of DAGuE."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
-endif (DPLASMA_MPI)
+endif (DAGuE_MPI)
 
-if (DPLASMA_PAPI)
+if (DAGuE_PAPI)
   find_package(PAPI REQUIRED)
   if (PAPI_FOUND)
     list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
     include_directories( ${PAPI_INCLUDE_DIR} )
   endif (PAPI_FOUND)
-endif (DPLASMA_PAPI)
+endif (DAGuE_PAPI)
 
-if( DPLASMA_CUDA )
+if( DAGuE_CUDA )
   include (cmake_modules/FindCUDA.cmake)
   set(CUDA_HOST_COMPILATION_CPP OFF)
   find_package(CUDA)
   if (CUDA_FOUND)
     include_directories(${CUDA_INCLUDE_DIRS})
-    set( DPLASMA_CUDA_SUPPORT 1)
+    set( DAGuE_CUDA_SUPPORT 1)
   else (CUDA_FOUND)
-    set( DPLASMA_CUDA_SUPPORT 0)
+    set( DAGuE_CUDA_SUPPORT 0)
   endif (CUDA_FOUND)
-endif( DPLASMA_CUDA )
+endif( DAGuE_CUDA )
 
 check_include_files(stdarg.h HAVE_STDARG_H)
 check_function_exists(va_copy HAVE_VA_COPY)
@@ -216,21 +213,19 @@ check_include_files(errno.h HAVE_ERRNO_H)
 #
 # Setup targets
 #
-add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
+add_library(dague STATIC dague.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-  freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
-  ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-#target_link_libraries(dplasma ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+  freelist.c debug.c bindthread.c ${EXTRA_SOURCES})
+set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+#target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
-if (DPLASMA_MPI AND MPI_FOUND)
-  add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
+if (DAGuE_MPI AND MPI_FOUND)
+  add_library(dague-mpi STATIC dague.c symbol.c assignment.c expr.c params.c dep.c
     scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-    freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
-    ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS})
-  set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
-#  target_link_libraries(dplasma-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
-endif (DPLASMA_MPI AND MPI_FOUND)
+    freelist.c debug.c bindthread.c ${EXTRA_SOURCES})
+  set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+#  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+endif (DAGuE_MPI AND MPI_FOUND)
 
 #
 # Now continue with compiling the tests.
@@ -240,6 +235,5 @@ add_subdirectory(tools)
 
 # Configuration header
 configure_file (
-  "${PROJECT_INCLUDE_DIR}/dplasma_config.h.in"
-  "${PROJECT_INCLUDE_DIR}/dplasma_config.h")
-
+  "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
+  "${PROJECT_INCLUDE_DIR}/dague_config.h")

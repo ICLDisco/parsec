@@ -4,4 +4,4 @@ rm -rf CMakeCache.txt CMakeFiles
 export CC=icc
 export F77=ifort
 
-cmake -G "Unix Makefiles" ./ -DPLASMA_INCLUDE_DIR=/home/bosilca/unstable/dplasma/plasma-installer/build/plasma_2.1.0/include -DPLASMA_LIBRARIES=/home/bosilca/unstable/dplasma/plasma-installer/build/plasma_2.1.0/lib -DBLAS_LIBRARIES="-L/mnt/scratch/sw/intel/F-11.0.083/mkl/lib/em64t -lmkl_core -lmkl_sequential -lmkl_em64t" -DLAPACK_LIBRARIES="-llapack" -DHWLOC_DIR=/home/bosilca/opt/64/ -DDPLASMA_SCHED_HWLOC=ON
+cmake -G "Unix Makefiles" ./ -DAGuE_INCLUDE_DIR=/home/bosilca/unstable/dague/plasma-installer/build/plasma_2.1.0/include -DAGuE_LIBRARIES=/home/bosilca/unstable/dague/plasma-installer/build/plasma_2.1.0/lib -DBLAS_LIBRARIES="-L/mnt/scratch/sw/intel/F-11.0.083/mkl/lib/em64t -lmkl_core -lmkl_sequential -lmkl_em64t" -DLAPACK_LIBRARIES="-llapack" -DHWLOC_DIR=/home/bosilca/opt/64/ -DDAGuE_SCHED_HWLOC=ON
