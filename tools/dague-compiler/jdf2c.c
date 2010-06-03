@@ -21,7 +21,7 @@ static const char *jdf_cfilename;
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
-static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
+static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
 
 /** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
@@ -1053,9 +1053,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             UTIL_DUMP_LIST_FIELD(sa2, f->dataflow, next, flow, dump_dataflow, "OUT",
                                                  "", prefix, ", ", ""));
 
-    sprintf(prefix, "preorder_traversal_of_%s_%s", jdf_basename, f->fname);
-    jdf_generate_code_preorder_traversal(jdf, f, prefix);
-    string_arena_add_string(sa, "  .preorder = %s,\n", prefix);
+    sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_code_iterate_successors(jdf, f, prefix);
+    string_arena_add_string(sa, "  .iterate_successors = %s,\n", prefix);
 
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_release_deps(jdf, f, prefix);
@@ -1651,7 +1651,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 }
 
 static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *jdf, const jdf_call_t *call, 
-                                         int lineno, const char *prefix, const char *var, const char *ordertype)
+                                         int lineno, const char *prefix, const char *var)
 {
     jdf_function_entry_t *t;
     jdf_expr_list_t *el;
@@ -1755,8 +1755,15 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
 
     string_arena_add_string(sa_open, "%s%*s  %s.function = (const DAGuE_t*)&%s_%s;\n",
                             prefix, nbopen, "  ", var, jdf_basename, t->fname);
-    string_arena_add_string(sa_open, "%s%*s  %s_%s.%s(eu, &%s, depth+1, ontask, ontask_arg);\n",
-                            prefix, nbopen, "  ", jdf_basename, t->fname, ordertype, var);
+
+    string_arena_add_string(sa_open, 
+                            "\n"
+                            "%s%*s  if( ontask(eu, &%s, ontask_arg) == DAGuE_ITERATE_STOP )\n"
+                            "%s%*s    return;\n"
+                            "\n",
+                            prefix, nbopen, "  ",
+                            var,
+                            prefix, nbopen, "  ");
 
     string_arena_add_string(sa_open, "%s\n", string_arena_get_string(sa_close));
 
@@ -1773,7 +1780,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     return string_arena_get_string(sa_open);
 }
 
-static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
+static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
     jdf_dataflow_list_t *fl;
     jdf_dep_list_t *dl;
@@ -1792,7 +1799,6 @@ static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_fun
     ai.holder = "exec_context->locals";
     ai.expr = NULL;
     coutput("static void %s(DAGuE_execution_unit_t *eu, const DAGuE_execution_context_t *exec_context,\n"
-            "               int depth,\n"
             "               DAGuE_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  DAGuE_execution_context_t nc;\n"
@@ -1800,11 +1806,6 @@ static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_fun
             "%s\n",
             name, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
-
-    coutput("\n"
-            "  if( ontask(eu, exec_context, depth, ontask_arg) == DAGuE_TRAVERSE_STOP )\n"
-            "    return;\n"
-            "\n");
 
     coutput("  memcpy(&nc, exec_context, sizeof(DAGuE_execution_context_t));\n");
 
@@ -1821,7 +1822,7 @@ static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_fun
                         
                         coutput("%s\n",
                                 jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->calltrue, dl->dep->lineno, 
-                                                            "  ", "nc", "preorder") );
+                                                            "  ", "nc") );
                     }
                     break;
                 case JDF_GUARD_BINARY:
@@ -1832,7 +1833,7 @@ static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_fun
                                 "  }\n",
                                 dump_expr((void**)&dl->dep->guard->guard, &info),
                                 jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->calltrue, dl->dep->lineno, 
-                                                            "    ", "nc", "preorder") );
+                                                            "    ", "nc") );
                     }
                     break;
                 case JDF_GUARD_TERNARY:
@@ -1843,14 +1844,14 @@ static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_fun
                                 "  }",
                                 dump_expr((void**)&dl->dep->guard->guard, &info),
                                 jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->calltrue, dl->dep->lineno, 
-                                                            "    ", "nc", "preorder"));
+                                                            "    ", "nc"));
                         
                         if( NULL != dl->dep->guard->callfalse->var ) {
                             coutput(" else {\n"
                                     "%s\n"
                                     "  }\n", 
                                     jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->callfalse, dl->dep->lineno, 
-                                                                "    ", "nc", "preorder") );
+                                                                "    ", "nc") );
                         } else {
                             coutput("\n");
                         }
@@ -1862,7 +1863,7 @@ static void jdf_generate_code_preorder_traversal(const jdf_t *jdf, const jdf_fun
                                     "  }\n",
                                     dump_expr((void**)&dl->dep->guard->guard, &info),
                                     jdf_dump_context_assignment(sa1, jdf, dl->dep->guard->callfalse, dl->dep->lineno, 
-                                                                "    ", "nc", "preorder") );
+                                                                "    ", "nc") );
                         }
                     }
                     break;
