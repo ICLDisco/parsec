@@ -7,6 +7,7 @@
 .*\.tab\.c
 .*\.tab\.h
 .*\.profile
+dague_config.h
 lex\.yy\.c
 CMakeCache.txt
 CMakeScripts
