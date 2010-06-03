@@ -1,3 +1,6 @@
+#ifndef _buf2cache_h
+#define _buf2cache_h
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,3 +33,5 @@ const void *cache_buf_referenced(cache_t *cache, const void *ptr);
 int cache_buf_isLocal(const cache_t *cache, const void *tile_ptr);
 int cache_buf_distance(const cache_t *cache, const void *tile_ptr);
 int cache_buf_age(const cache_t *cache, const void *tile_ptr);
+
+#endif

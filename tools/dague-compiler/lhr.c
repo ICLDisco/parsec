@@ -1,21 +1,32 @@
 #include "dague.h"
 #include "cholesky.h"
 
-static DAGuE_ontask_iterate_t printit(DAGuE_execution_unit_t *_eu, const DAGuE_execution_context_t *context, int depth, void *_)
+static DAGuE_ontask_iterate_t printit(DAGuE_execution_unit_t *_eu, const DAGuE_execution_context_t *context, void *_)
 {
     if( !strcmp(context->function->name, "POTRF") ) {
-        printf("%*s -> %s(%d)\n", depth, "  ", context->function->name, context->locals[0].value);
+        printf(" -> %s(%d)\n", context->function->name, 
+               context->locals[0].value);
     }
     if( !strcmp(context->function->name, "SYRK") ) {
-        printf("%*s -> %s(%d, %d)\n", depth, "  ", context->function->name, context->locals[0].value, context->locals[1].value);
+        printf(" -> %s(%d, %d)\n", context->function->name, 
+               context->locals[0].value, 
+               context->locals[1].value);
     }
     if( !strcmp(context->function->name, "TRSM") ) {
-        printf("%*s -> %s(%d, %d)\n", depth, "  ", context->function->name, context->locals[0].value, context->locals[2].value);
+        printf(" -> %s(%d, %d)\n", context->function->name, 
+               context->locals[0].value, 
+               context->locals[1].value);
     }
     if( !strcmp(context->function->name, "GEMM") ) {
-        printf("%*s -> %s(%d, %d, %d)\n", depth, "  ", context->function->name, context->locals[0].value, context->locals[1].value, context->locals[2].value);
+        printf(" -> %s(%d, %d, %d)\n", context->function->name, 
+               context->locals[0].value, 
+               context->locals[1].value, 
+               context->locals[2].value);
     }
-    return DAGuE_TRAVERSE_CONTINUE;
+
+    context->function->iterate_successors(NULL, context, printit, NULL);
+
+    return DAGuE_ITERATE_CONTINUE;
 }
 
 int main(int argc, char *argv[])
@@ -26,11 +37,10 @@ int main(int argc, char *argv[])
     init.DAGuE_object = o;
     init.function = (DAGuE_t*)o->functions_array[3];
     init.locals[0].value = 0;
-    init.locals[1].value = 0;
-    init.locals[2].value = 0;
-    init.locals[3].value = 0;
+
+    printit(NULL, &init, NULL);
     
-    o->functions_array[3]->preorder(NULL, &init, 0, printit, NULL);
+    o->functions_array[3]->iterate_successors(NULL, &init, printit, NULL);
 
     return 0;
 }
