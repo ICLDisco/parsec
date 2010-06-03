@@ -6,12 +6,12 @@ import commands
 
 EXE = ["./sposv_rl"]
 repeat = 10
-tile_size = 120
-gpu_array = [0,1]
+tile_size = 256
+gpu_array = [0,1,2]
 core_array = [1, 2, 4, 8]
 
 def get_nb(exe):
-  n = 500
+  n = 256
   cores = 1
   gpu = 1
   cmd = "env GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 %s -c %d --gpu %d %d" % (exe, cores, gpu, n)
@@ -35,14 +35,18 @@ def find_perf_line(txt):
       return l
   return "Cannot find '%s' in this:\n%s" % (s, txt)
 
-def run(n, exe):
+def run(file, n, exe):
   for cores in core_array:
     for gpu in gpu_array:
       cmd = "env GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1  %s -c %d --gpu %d -B %d %d" % (exe, cores, gpu, tile_size, n)
       print "####", cmd
       for count in range(0, repeat, 1):
         st, out = commands.getstatusoutput(cmd)
-        print cores, "x", n, " ", find_perf_line(out)
+        perf_output = str(cores) + " x " + str(gpu) + " x " + str(n) + " " + find_perf_line(out)
+        print perf_output
+        temp = "\n#\n# " + perf_output + "\n#\n"
+        file.write(temp)
+        file.write(out)
         sys.stdout.flush()
 
 def test_exe(fname):
@@ -56,10 +60,12 @@ def main(argv):
   for exe in (EXE):
       test_exe(exe)
 
-  tile_size = nb = get_nb(EXE[0])
+  nb = tile_size
   for exe in (EXE):
+    file = open(exe + "_" + str(tile_size) + ".dat", 'w')
     for n in range(nb, 50 * nb + 1, nb):
-      run(n, exe)
+      run(file, n, exe)
+    file.close()
 
   return 0
 
