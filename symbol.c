@@ -55,7 +55,7 @@ void dague_load_symbols( symbol_t **array, int size )
     }
 }
 
-void symbol_dump(const symbol_t *s, const char *prefix)
+void symbol_dump(const symbol_t *s, const struct dague_object *dague_object, const char *prefix)
 {
     if( NULL == s->name ) {
         return;
@@ -66,34 +66,34 @@ void symbol_dump(const symbol_t *s, const char *prefix)
             printf("%s%s:%s%s = {%d = ", prefix, s->name,
                    (DAGUE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
                    (DAGUE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"), s->min->value);
-            expr_dump(stdout, s->min);
+            expr_dump(stdout, dague_object, s->min);
             printf("}\n" );
         } else {
             printf("%s%s:%s%s = ", prefix, s->name,
                    (DAGUE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
                    (DAGUE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
-            expr_dump(stdout, s->min);
+            expr_dump(stdout, dague_object, s->min);
             printf("\n" );
         }
     } else {
         printf("%s%s:%s%s = [", prefix, s->name,
                (DAGUE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
                (DAGUE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
-        expr_dump(stdout, s->min);
+        expr_dump(stdout, dague_object, s->min);
         printf(" .. ");
-        expr_dump(stdout, s->max);
+        expr_dump(stdout, dague_object, s->max);
         printf("]\n");
     }
 }
 
-void symbol_dump_all( const char* prefix )
+void symbol_dump_all( const char* prefix, const struct dague_object *dague_object )
 {
     const symbol_t* symbol;
     int i;
 
     for( i = 0; i < dague_symbol_array_count; i++ ) {
         symbol = dague_symbol_array[i];
-        symbol_dump( symbol, prefix );
+        symbol_dump( symbol, dague_object, prefix );
     }
 }
 
@@ -206,20 +206,21 @@ int dague_symbol_is_standalone( const symbol_t* symbol )
     return EXPR_FAILURE_UNKNOWN;
 }
 
-int dague_symbol_get_first_value( const symbol_t* symbol,
-                                    const expr_t** predicates,
-                                    assignment_t* local_context,
-                                    int* pvalue )
+int dague_symbol_get_first_value( const dague_object_t *dague_object,
+                                  const symbol_t* symbol,
+                                  const expr_t* predicate,
+                                  assignment_t* local_context,
+                                  int* pvalue )
 {
     assignment_t* assignment;
-    int rc, min, max, val, old_value, pred_index, pred_val, valid_value;
+    int rc, min, max, val, pred_val;
 
-    rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
+    rc = expr_eval( dague_object, symbol->min, local_context, MAX_LOCAL_COUNT, &min );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the min expression for symbol %s\n", symbol->name);
         return rc;
     }
-    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    rc = expr_eval( dague_object, symbol->max, local_context, MAX_LOCAL_COUNT, &max );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
         return rc;
@@ -237,61 +238,44 @@ int dague_symbol_get_first_value( const symbol_t* symbol,
         return EXPR_FAILURE_UNKNOWN;
     }
 
-    /* If there are no predicates we're good to go */
-    if( NULL == predicates ) {
+    /* If there are no predicate we're good to go */
+    if( NULL == predicate ) {
         assignment->value = min;
         *pvalue = min;
         return EXPR_SUCCESS;
     }
 
-    old_value = assignment->value;
-
     for( val = min; val <= max; val++ ) {
-        /* Update the variable */
-        assignment->value = val;
-        valid_value = 1;  /* suppose this is the right value */
-        /* Any valid value have to match all predicats. */
-        for( pred_index = 0;
-             (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
-             pred_index++ ) {
-            /* If we fail to evaluate the expression, let's suppose we don't have
-             * all the required symbols in the assignment array.
-             */
-            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
-                                          local_context, MAX_LOCAL_COUNT,
-                                          &pred_val) ) {
-                if( 0 == pred_val ) {
-                    /* This particular value doesn't fit. Go to the next one */
-                    valid_value = 0;
-                    break;
-                }
+        /* If this value matches the predicate, we are done */
+        if( EXPR_SUCCESS == expr_eval(dague_object, predicate,
+                                      local_context, MAX_LOCAL_COUNT,
+                                      &pred_val) ) {
+            if( 0 != pred_val ) {
+                assignment->value = val;
+                *pvalue = val;
+                return EXPR_SUCCESS;
             }
         }
-        if( 1 == valid_value ) {
-            /* If we're here, then we have the correct value. */
-            *pvalue = val;
-            return EXPR_SUCCESS;
-        }
     }
-
-    assignment->value = old_value; /* restore the old value */
+    
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
-int dague_symbol_get_last_value( const symbol_t* symbol,
-                                   const expr_t** predicates,
-                                   assignment_t* local_context,
-                                   int* pvalue )
+int dague_symbol_get_last_value( const dague_object_t *dague_object,
+                                 const symbol_t* symbol,
+                                 const expr_t* predicate,
+                                 assignment_t* local_context,
+                                 int* pvalue )
 {
     assignment_t* assignment;
-    int rc, min, max, val, old_value, pred_index, pred_val, valid_value;
+    int rc, min, max, val, pred_val;
 
-    rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
+    rc = expr_eval( dague_object, symbol->min, local_context, MAX_LOCAL_COUNT, &min );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the min expression for symbol %s\n", symbol->name);
         return rc;
     }
-    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    rc = expr_eval( dague_object, symbol->max, local_context, MAX_LOCAL_COUNT, &max );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
         return rc;
@@ -304,53 +288,37 @@ int dague_symbol_get_last_value( const symbol_t* symbol,
     }
 
     /* If there are no predicates we're good to go */
-    if( NULL == predicates ) {
+    if( NULL == predicate ) {
         assignment->value = max;
         *pvalue = max;
         return EXPR_SUCCESS;
     }
 
-    old_value = assignment->value;
-
     for( val = max; val >= min; val-- ) {
-        assignment->value = val;
-        valid_value = 1;  /* suppose this is the right value */
-        for( pred_index = 0;
-             (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
-             pred_index++ ) {
-            /* If we fail to evaluate the expression, let's suppose we don't have
-             * all the required symbols in the assignment array.
-             */
-            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
-                                          local_context, MAX_LOCAL_COUNT,
-                                          &pred_val) ) {
-                if( 0 == pred_val ) {
-                    /* This particular value doesn't fit. Go to the next one */
-                    valid_value = 0;
-                    break;
-                }
+        if( EXPR_SUCCESS == expr_eval(dague_object, predicate,
+                                      local_context, MAX_LOCAL_COUNT,
+                                      &pred_val) ) {
+            if( 0 != pred_val ) {
+                assignment->value = val;
+                *pvalue = val;
+                return EXPR_SUCCESS;
             }
-        }
-        if( 1 == valid_value ) {
-            /* If we're here, then we have the correct value. */
-            *pvalue = val;
-            return EXPR_SUCCESS;
         }
     }
 
-    assignment->value = old_value; /* restore the old value */
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
-int dague_symbol_get_next_value( const symbol_t* symbol,
-                                   const expr_t** predicates,
-                                   assignment_t* local_context,
-                                   int* pvalue )
+int dague_symbol_get_next_value( const dague_object_t *dague_object,
+                                 const symbol_t* symbol,
+                                 const expr_t* predicate,
+                                 assignment_t* local_context,
+                                 int* pvalue )
 {
     assignment_t* assignment;
-    int rc, max, val, old_value, pred_index, pred_val, valid_value;
+    int rc, max, val, pred_val;
 
-    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    rc = expr_eval( dague_object, symbol->max, local_context, MAX_LOCAL_COUNT, &max );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
         return rc;
@@ -364,7 +332,7 @@ int dague_symbol_get_next_value( const symbol_t* symbol,
         return rc;
     }
     /* If there are no predicates we're good to go */
-    if( NULL == predicates ) {
+    if( NULL == predicate ) {
         val = assignment->value + 1;
         if( val <= max ) {
             *pvalue = val;
@@ -373,44 +341,30 @@ int dague_symbol_get_next_value( const symbol_t* symbol,
         }
         return EXPR_FAILURE_UNKNOWN;
     }
-    old_value = assignment->value;
 
     for( val = assignment->value + 1; val <= max; val++ ) {
-        assignment->value = val;
-        valid_value = 1;
-        for( pred_index = 0;
-             (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
-             pred_index++ ) {
-            /* If we fail to evaluate the expression, let's suppose we don't have
-             * all the required symbols in the assignment array.
-             */
-            if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
-                                          local_context, MAX_LOCAL_COUNT,
-                                          &pred_val) ) {
-                if( 0 == pred_val ) {
-                    /* This particular value doesn't fit. Go to the next one */
-                    valid_value = 0;
-                    break;
-                }
+        if( EXPR_SUCCESS == expr_eval(dague_object,
+                                      predicate,
+                                      local_context, MAX_LOCAL_COUNT,
+                                      &pred_val) ) {
+            if( 0 != pred_val ) {
+                assignment->value = val;
+                *pvalue = val;
+                return EXPR_SUCCESS;
             }
-        }
-        if( 1 == valid_value ) {
-            /* If we're here, then we have the correct value. */
-            *pvalue = val;
-            return EXPR_SUCCESS;
         }
     }
 
-    assignment->value = old_value; /* restore the old value */
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
-int dague_symbol_validate_value( const symbol_t* symbol,
-                                   const expr_t** predicates,
-                                   assignment_t* local_context )
+int dague_symbol_validate_value( const dague_object_t *dague_object,
+                                 const symbol_t* symbol,
+                                 const expr_t* predicate,
+                                 assignment_t* local_context )
 {
     assignment_t* assignment;
-    int rc, min, max, pred_index, pred_val, valid_value = 1;
+    int rc, min, max, pred_val;
 
     rc = dague_find_assignment( symbol->name, local_context, MAX_LOCAL_COUNT, &assignment );
     if( DAGUE_ASSIGN_ERROR == rc ) {
@@ -420,13 +374,13 @@ int dague_symbol_validate_value( const symbol_t* symbol,
         return rc;
     }
 
-    rc = expr_eval( symbol->min, local_context, MAX_LOCAL_COUNT, &min );
+    rc = expr_eval( dague_object, symbol->min, local_context, MAX_LOCAL_COUNT, &min );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the min expression for symbol %s\n", symbol->name);
         return rc;
     }
 
-    rc = expr_eval( symbol->max, local_context, MAX_LOCAL_COUNT, &max );
+    rc = expr_eval( dague_object, symbol->max, local_context, MAX_LOCAL_COUNT, &max );
     if( EXPR_SUCCESS != rc ) {
         printf(" Cannot evaluate the max expression for symbol %s\n", symbol->name);
         return rc;
@@ -438,43 +392,38 @@ int dague_symbol_validate_value( const symbol_t* symbol,
     }
 
     /* If there are no predicates we're good to go */
-    if( NULL == predicates ) {
+    if( NULL == predicate ) {
         return EXPR_SUCCESS;
     }
 
-    for( pred_index = 0;
-         (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
-         pred_index++ ) {
-        if( EXPR_SUCCESS == expr_eval(predicates[pred_index],
-                                      local_context, MAX_LOCAL_COUNT,
-                                      &pred_val) ) {
-            if( 0 == pred_val ) {
-                /* This particular value doesn't fit. Return */
-                valid_value = 0;
-                break;
-            }
+    if( EXPR_SUCCESS == expr_eval(dague_object, predicate,
+                                  local_context, MAX_LOCAL_COUNT,
+                                  &pred_val) ) {
+        if( 0 == pred_val ) {
+            return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
         }
+        return EXPR_SUCCESS;
     }
     
-    return ( 1 == valid_value ? EXPR_SUCCESS : EXPR_FAILURE_CANNOT_EVALUATE_RANGE);
+    return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
-int dague_symbol_get_absolute_minimum_value( const symbol_t* symbol,
+int dague_symbol_get_absolute_minimum_value( const dague_object_t *dague_object, const symbol_t* symbol,
                                                int* pvalue )
 {
     int rc, min_min, min_max;
 
-    rc = expr_absolute_range( symbol->min, &min_min, &min_max );
+    rc = expr_absolute_range( dague_object, symbol->min, &min_min, &min_max );
     *pvalue = min_min;
     return rc;
 }
 
-int dague_symbol_get_absolute_maximum_value( const symbol_t* symbol,
+int dague_symbol_get_absolute_maximum_value( const dague_object_t *dague_object, const symbol_t* symbol,
                                                int* pvalue )
 {
     int rc, max_min, max_max;
 
-    rc = expr_absolute_range( symbol->max, &max_min, &max_max );
+    rc = expr_absolute_range( dague_object, symbol->max, &max_min, &max_max );
     *pvalue = max_max;
     return rc;
 }

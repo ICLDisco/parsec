@@ -469,7 +469,7 @@ int dague_progress(dague_context_t* context)
 static int dague_execute( dague_execution_unit_t* eu_context,
                             dague_execution_context_t* exec_context )
 {
-    dague_t* function = exec_context->function;
+    const dague_t* function = exec_context->function;
 #ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
@@ -488,13 +488,13 @@ static int dague_execute( dague_execution_unit_t* eu_context,
 }
 
 
-int dague_trigger_dependencies( dague_execution_unit_t* eu_context,
+int dague_trigger_dependencies( const dague_object_t *dague_object, dague_execution_unit_t* eu_context,
                                 const dague_execution_context_t* exec_context,
                                 int forward_remote )
 {
-    param_t* param;
-    dep_t* dep;
-    dague_t* function = exec_context->function;
+    const param_t* param;
+    const dep_t* dep;
+    const dague_t* function = exec_context->function;
     dague_execution_context_t new_context;
     int i, j, k, value;    
 
@@ -502,19 +502,16 @@ int dague_trigger_dependencies( dague_execution_unit_t* eu_context,
     dague_remote_dep_reset_forwarded(eu_context);
 #endif
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
-        param = function->inout[i];
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->out[i]); i++ ) {
+        param = function->out[i];
         
-        if( !(SYM_OUT & param->sym_type) ) {
-            continue;  /* this is only an INPUT dependency */
-        }
         for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
             int dont_generate = 0;
             
             dep = param->dep_out[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
-                (void)expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                (void)expr_eval( dague_object, dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
                 if( 0 == value ) {
                     continue;
                 }
@@ -530,12 +527,12 @@ int dague_trigger_dependencies( dague_execution_unit_t* eu_context,
             for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
                 new_context.locals[k].sym = dep->dague->locals[k];
                 if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
-                    (void)expr_eval( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
+                    (void)expr_eval( dague_object, dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
                     new_context.locals[k].min = new_context.locals[k].max = value;
                     DEBUG(( "%d ", value ));
                 } else {
                     int min, max;
-                    (void)expr_range_to_min_max( dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
+                    (void)expr_range_to_min_max( dague_object, dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
                     if( min > max ) {
                         dont_generate = 1;
                         DEBUG(( " -- skipped" ));
@@ -560,7 +557,7 @@ int dague_trigger_dependencies( dague_execution_unit_t* eu_context,
             if( k < MAX_CALL_PARAM_COUNT ) {
                 new_context.locals[k].sym = NULL;
             }
-            dague_release_OUT_dependencies( eu_context,
+            dague_release_OUT_dependencies( dague_object, eu_context,
                                               exec_context, param,
                                               &new_context, dep->param, forward_remote );
         }

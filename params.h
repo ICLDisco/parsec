@@ -32,11 +32,6 @@ struct param {
     const dep_t*        dep_out[MAX_DEP_OUT_COUNT];
 };
 
-void param_dump(const param_t *p, const char *prefix);
-
-/**
- *
- */
-param_t* dague_find_or_create_param(struct dague_t* function, char* param_name);
+void param_dump(const param_t *p, const struct dague_object *dague_object, const char *prefix);
 
 #endif

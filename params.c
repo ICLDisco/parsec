@@ -13,7 +13,7 @@
 #include <string.h>
 #include <strings.h>
 
-void param_dump(const param_t *p, const char *prefix)
+void param_dump(const param_t *p, const struct dague_object *dague_object, const char *prefix)
 {
     int i, length;
     char *pref2 = (char*)malloc(strlen(prefix)+8);
@@ -24,42 +24,16 @@ void param_dump(const param_t *p, const char *prefix)
                     (p->sym_type & SYM_OUT) ? "OUT" : "   ");
 
     if( NULL != p->dep_in[0] ) {
-        dep_dump(p->dep_in[0], "<- " );
+        dep_dump(p->dep_in[0], dague_object, "<- " );
         for( i = sprintf( pref2, "%s", prefix ); i < length; pref2[i] = ' ', i++ );
         sprintf( pref2 + length, "<- " );
     }
     for(i = 1; NULL != p->dep_in[i] && i < MAX_DEP_IN_COUNT; i++) {
-        dep_dump( p->dep_in[i], pref2 );
+        dep_dump( p->dep_in[i], dague_object, pref2 );
     }
 
     sprintf( pref2 + length, "-> " );
     for(i = 0; i < MAX_DEP_OUT_COUNT && NULL != p->dep_out[i]; i++) {
-        dep_dump( p->dep_out[i], pref2 );
+        dep_dump( p->dep_out[i], dague_object, pref2 );
     }
-}
-
-param_t* dague_find_or_create_param(dague_t* function, char* param_name)
-{
-    param_t* param;
-    int i;
-
-    for( i = 0; i < MAX_PARAM_COUNT; i++ ) {
-        if( NULL != function->inout[i] ) {
-            param = function->inout[i];
-            if( 0 == strcmp(param->name, param_name) ) {
-                return param;
-            }
-        } else {
-            param = (param_t*)calloc(1, sizeof(param_t));
-            param->name = strdup((const char*)param_name);
-            param->function = function;
-            param->param_mask = (unsigned char)(1 << i);
-            function->inout[i] = param;
-            return param;
-        }
-    }
-    assert( MAX_PARAM_COUNT == i );
-    fprintf( stderr, "Too many parameters for function %s (stopped at %s)\n",
-             function->name, param_name );
-    return NULL;
 }

@@ -8,6 +8,7 @@
 #define _expr_h
 
 typedef struct expr expr_t;
+struct dague_object;
 
 #include <stdio.h>
 
@@ -104,6 +105,7 @@ struct expr {
 /**
  * Evaluates an expression in the current assignment context.
  *
+ * @param  [IN] dague_object: the dague object holding current constants
  * @param  [IN]  expr the expression to evaluate
  * @param  [IN]  assignments the array of pairs (symbol, value) that define the evaluation context
  * @param  [IN]  nbassignments the size of assignments
@@ -112,7 +114,8 @@ struct expr {
  * @return EXPR_SUCCESS in case of success. *res holds the evaluated value.
  * @return EXPR_FAILURE_* in case of error.
  */
-int expr_eval( const expr_t *expr,
+int expr_eval( const struct dague_object *parent, 
+               const expr_t *expr,
                const assignment_t *assignments,
                unsigned int nbassignments,
                int *res);
@@ -159,7 +162,8 @@ int expr_parse_symbols( const expr_t* expr,
  * @return EXPR_SUCCESS in case of success.
  * @return EXPR_FAILURE_* in case of error.
  */
-int expr_range_to_min_max( const expr_t *expr,
+int expr_range_to_min_max( const struct dague_object *dague_object,
+                           const expr_t *expr,
                            const assignment_t *assignments,
                            unsigned int nbassignments,
                            int *min,
@@ -168,6 +172,7 @@ int expr_range_to_min_max( const expr_t *expr,
 /**
  * Evaluates the absolute minimum and maximum value of an expression/
  *
+ * @param  [IN] dague_object: the dague object holding current constants
  * @param  [IN]  expr the expression to be evaluated
  * @param  [OUT] pmin pointer to the evaluated minimum value
  * @param  [OUT] pmax pointer to the evaluated maximum value
@@ -175,7 +180,7 @@ int expr_range_to_min_max( const expr_t *expr,
  * @return EXPR_SUCCESS in case of success.
  * @return EXPR_FAILURE_* in case of error.
  */
-int expr_absolute_range(const expr_t* expr,
+int expr_absolute_range(const struct dague_object *dague_object, const expr_t* expr,
                         int* pmin, int* pmax);
 
 /**
@@ -190,7 +195,7 @@ char *expr_error(void);
  *
  * @param [IN]  e the expression to dump
  */
-void expr_dump(FILE *out, const expr_t *e);
+void expr_dump(FILE *out, const struct dague_object *dague_object, const expr_t *e);
 
 /**
  * Creates a new expression from a variable name

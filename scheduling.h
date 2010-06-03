@@ -44,9 +44,10 @@ void dague_register_nb_tasks(dague_context_t* context, int32_t n);
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong. 
  */
-int dague_trigger_dependencies( dague_execution_unit_t*,
-                                 const dague_execution_context_t*,
-                                 int forward_remote );
+int dague_trigger_dependencies( const struct dague_object *dague_object,
+                                dague_execution_unit_t*,
+                                const dague_execution_context_t*,
+                                int forward_remote );
 //#endif /* DEPRECATED */
 
 #endif  /* _DAGUE_scheduling_h */

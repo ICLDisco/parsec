@@ -22,6 +22,6 @@ struct dep {
     void*            type;
 };
 
-void dep_dump(const dep_t *d, const char *prefix);
+void dep_dump(const dep_t *d, const struct dague_object *dague_object, const char *prefix);
 
 #endif

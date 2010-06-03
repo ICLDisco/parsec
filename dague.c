@@ -55,78 +55,6 @@ char* event_names[MAX_EVENTS];
 
 int DAGUE_TILE_SIZE = 0;
 
-void dague_dump(const dague_t *d, const char *prefix)
-{
-    char *pref2 = malloc(strlen(prefix)+3);
-    int i;
-
-    sprintf(pref2, "%s  ", prefix);
-    printf("%sDAGuE Function: %s\n", prefix, d->name);
-
-    printf("%s Parameter Variables:\n", prefix);
-    for(i = 0; i < d->nb_params; i++) {
-        symbol_dump(d->params[i], pref2);
-    }
-
-    printf("%s Local Variables:\n", prefix);
-    for(i = 0; i < MAX_LOCAL_COUNT && NULL != d->locals[i]; i++) {
-        symbol_dump(d->locals[i], pref2);
-    }
-
-    printf("%s Predicates:\n", prefix);
-    for(i = 0; i < MAX_PRED_COUNT && NULL != d->preds[i]; i++) {
-        printf("%s", pref2);
-        expr_dump(stdout, d->preds[i]);
-        printf("\n");
-    }
-
-    if( NULL != d->priority ) {
-        printf("%s Priority:\n", prefix);
-        expr_dump(stdout, d->priority);
-        printf("\n");
-    }
-
-    printf("%s Parameters and Dependencies:\n", prefix);
-    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-        param_dump(d->inout[i], pref2);
-    }
-
-    printf("%s Required dependencies mask: 0x%x (%s/%s/%s)\n", prefix,
-           (int)d->dependencies_mask, (d->flags & DAGUE_HAS_IN_IN_DEPENDENCIES ? "I" : "N"),
-           (d->flags & DAGUE_HAS_OUT_OUT_DEPENDENCIES ? "O" : "N"),
-           (d->flags & DAGUE_HAS_IN_STRONG_DEPENDENCIES ? "S" : "N"));
-    printf("%s Body:\n", prefix);
-    printf("%s  %s\n", prefix, d->body);
-
-    if( NULL != d->deps ) {
-        
-        printf( "Current dependencies\n" );
-    }
-
-    free(pref2);
-}
-
-int dague_dague_index( const dague_t *d )
-{
-    int i;
-    for(i = 0; i < dague_array_count; i++) {
-        if( dague_array[i] == d ) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-void dague_dump_all( void )
-{
-    int i;
-
-    for( i = 0; i < dague_array_count; i++ ) {
-        printf("/**\n * dague_t object named %s index %d\n */\n", dague_array[i]->name, i );
-        dague_dump( dague_array[i], "" );
-    }
-}
-
 int dague_push( const dague_t* d )
 {
     if( dague_array_count >= dague_array_size ) {
@@ -758,11 +686,12 @@ int dague_fini( dague_context_t** pcontext )
  * are in the range and validate all possible predicates. If such values do
  * not exist this function returns -1.
  */
-int dague_set_initial_execution_context( dague_execution_context_t* exec_context )
+int dague_set_initial_execution_context( const dague_object_t *dague_object,
+                                         dague_execution_context_t* exec_context )
 {
     int i, min, rc;
     const dague_t* object = exec_context->function;
-    const expr_t** predicates = (const expr_t**)object->preds;
+    const expr_t* predicate = (const expr_t*)object->pred;
 
     /* Compute the number of local values */
     if( 0 == object->nb_locals ) {
@@ -772,23 +701,25 @@ int dague_set_initial_execution_context( dague_execution_context_t* exec_context
 
     /**
      * Find the minimum values for all locals. Note this is done
-     * with NULL predicates, so no validation on the values
+     * with NULL predicate, so no validation on the values
      * is performed.
      */
     for( i = 0; i < object->nb_locals; i++ ) {
         exec_context->locals[i].sym = object->locals[i];
-        rc = dague_symbol_get_first_value(object->locals[i], NULL,
-                                            exec_context->locals, &min);
+        rc = dague_symbol_get_first_value(dague_object,
+                                          object->locals[i], NULL,
+                                          exec_context->locals, &min);
         exec_context->locals[i].value = min;
     }
     /**
      * Now fix these values, by walking up and down the locals
      * stack and validate the selected values through the
-     * predicates.
+     * predicate.
      */
     for( i = 0; i < object->nb_locals; i++ ) {
-        rc = dague_symbol_get_first_value(object->locals[i], predicates,
-                                            exec_context->locals, &min);
+        rc = dague_symbol_get_first_value(dague_object,
+                                          object->locals[i], predicate,
+                                          exec_context->locals, &min);
         while ( rc != EXPR_SUCCESS ) {
             i--;
             if( i < 0 ) {
@@ -796,8 +727,9 @@ int dague_set_initial_execution_context( dague_execution_context_t* exec_context
                 return -1;
             }
 
-            rc = dague_symbol_get_next_value(object->locals[i], predicates,
-                                               exec_context->locals, &min );
+            rc = dague_symbol_get_next_value(dague_object,
+                                             object->locals[i], predicate,
+                                             exec_context->locals, &min );
         }
     }
     if( i < MAX_LOCAL_COUNT ) {
@@ -810,18 +742,15 @@ int dague_set_initial_execution_context( dague_execution_context_t* exec_context
  * Check is there is any of the input parameters that do depend on some
  * other service. 
  */
-int dague_service_can_be_startup( dague_execution_context_t* exec_context )
+int dague_service_can_be_startup( const dague_object_t *dague_object, dague_execution_context_t* exec_context )
 {
     const dague_t* function = exec_context->function;
-    param_t* param;
-    dep_t* dep;
+    const param_t* param;
+    const dep_t* dep;
     int i, j, value;
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
-        param = function->inout[i];
-        if( !(SYM_IN & param->sym_type) ) {
-            continue;
-        }
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
+        param = function->in[i];
 
         for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
             dep = param->dep_in[j];
@@ -834,7 +763,7 @@ int dague_service_can_be_startup( dague_execution_context_t* exec_context )
                 continue;
             }
             /* TODO: Check to see if the condition can be applied in the current context */
-            (void)expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+            (void)expr_eval( dague_object, dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
             if( value == 1 ) {
                 if( dep->dague->nb_locals != 0 ) {
                     return -1;
@@ -887,10 +816,10 @@ char* dague_dependency_to_string( const dague_execution_context_t* from,
  * This function generate all possible execution context for a given function with
  * respect to the predicates.
  */
-int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
+int dague_compute_nb_tasks( const dague_object_t *dague_object, const dague_t* object, int use_predicate )
 {
     dague_execution_context_t* exec_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
-    const expr_t** predicates = (const expr_t**)object->preds;
+    const expr_t* predicate = (const expr_t*)object->pred;
     int rc, actual_loop, nb_tasks = 0;
 
     DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
@@ -903,7 +832,7 @@ int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
         return 0;
     }
 
-    if( 0 != dague_set_initial_execution_context(exec_context) ) {
+    if( 0 != dague_set_initial_execution_context(dague_object, exec_context) ) {
         /* if we can't initialize the execution context then there is no reason to
          * continue.
          */
@@ -911,7 +840,7 @@ int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
     }
 
     /* Clear the predicates if not needed */
-    if( !use_predicates ) predicates = NULL;
+    if( !use_predicate ) predicate = NULL;
 
     actual_loop = object->nb_locals - 1;
     while(1) {
@@ -921,8 +850,9 @@ int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
         nb_tasks++;
 
         /* Go to the next valid value for this loop context */
-        rc = dague_symbol_get_next_value( object->locals[actual_loop], predicates,
-                                            exec_context->locals, &value );
+        rc = dague_symbol_get_next_value( dague_object,
+                                          object->locals[actual_loop], predicate,
+                                          exec_context->locals, &value );
 
         /* If no more valid values, go to the previous loop,
          * compute the next valid value and redo and reinitialize all other loops.
@@ -936,16 +866,18 @@ int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
                 goto end_of_all_loops;
             }
             actual_loop--;  /* one level up */
-            rc = dague_symbol_get_next_value( object->locals[actual_loop], predicates,
-                                                exec_context->locals, &value );
+            rc = dague_symbol_get_next_value( dague_object,
+                                              object->locals[actual_loop], predicate,
+                                              exec_context->locals, &value );
             if( rc != EXPR_SUCCESS ) {
                 goto one_loop_up;
             }
             DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
                    object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
             for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
-                rc = dague_symbol_get_first_value(object->locals[actual_loop], predicates,
-                                                    exec_context->locals, &value );
+                rc = dague_symbol_get_first_value( dague_object,
+                                                   object->locals[actual_loop], predicate,
+                                                   exec_context->locals, &value );
                 if( rc != EXPR_SUCCESS ) {  /* no values for this symbol in this context */
                     goto one_loop_up;
                 }
@@ -966,28 +898,25 @@ int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
 /**
  * Resolve all IN() dependencies for this particular instance of execution.
  */
-static int dague_check_IN_dependencies( const dague_execution_context_t* exec_context )
+static int dague_check_IN_dependencies( const dague_object_t *dague_object, const dague_execution_context_t* exec_context )
 {
     const dague_t* function = exec_context->function;
     int i, j, value, mask = 0;
-    param_t* param;
-    dep_t* dep;
+    const param_t* param;
+    const dep_t* dep;
 
     if( !(function->flags & DAGUE_HAS_IN_IN_DEPENDENCIES) ) {
         return 0;
     }
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++ ) {
-        param = function->inout[i];
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
+        param = function->in[i];
 
-        if( !(SYM_IN & param->sym_type) ) {
-            continue;  /* this is only an OUTPUT dependency */
-        }
         for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
             dep = param->dep_in[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
-                (void)expr_eval( dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                (void)expr_eval( dague_object, dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
                 if( 0 == value ) {
                     continue;
                 }
@@ -1002,12 +931,13 @@ static int dague_check_IN_dependencies( const dague_execution_context_t* exec_co
 
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
-static void malloc_deps(dague_execution_unit_t* eu_context, 
+static void malloc_deps(dague_object_t *dague_object,
+                        dague_execution_unit_t* eu_context, 
                         dague_execution_context_t* exec_context, 
                         dague_dependencies_t** deps_location)
 {
-    dague_t* function = exec_context->function;
-    deps_location = &(function->deps);
+    const dague_t* function = exec_context->function;
+    deps_location = &(dague_object->dependencies_array[function->deps]);
     dague_dependencies_t* deps = *deps_location;
     dague_dependencies_t* last_deps = NULL;
     int i;
@@ -1022,8 +952,8 @@ static void malloc_deps(dague_execution_unit_t* eu_context,
             /* TODO: optimize this section (and the similar one few tens of lines down
              * the code) to work on local ranges instead of absolute ones.
              */
-            dague_symbol_get_absolute_minimum_value( function->locals[i], &min );
-            dague_symbol_get_absolute_maximum_value( function->locals[i], &max );
+            dague_symbol_get_absolute_minimum_value( dague_object, function->locals[i], &min );
+            dague_symbol_get_absolute_maximum_value( dague_object, function->locals[i], &max );
             number = max - min;
             DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
                    number, function->locals[i]->name, min, max));
@@ -1067,15 +997,16 @@ static void malloc_deps(dague_execution_unit_t* eu_context,
  * supported and the task is supposed to be valid (no input/output tasks) and
  * local.
  */
-int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
-                                            const dague_execution_context_t* restrict origin,
-                                            const param_t* restrict origin_param,
-                                            dague_execution_context_t* restrict exec_context,
-                                            const param_t* restrict dest_param,
-                                            dague_dependencies_t **deps_location,
-                                            dague_execution_context_t** pready_list )
+int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
+                                          dague_execution_unit_t* eu_context,
+                                          const dague_execution_context_t* restrict origin,
+                                          const param_t* restrict origin_param,
+                                          dague_execution_context_t* restrict exec_context,
+                                          const param_t* restrict dest_param,
+                                          dague_dependencies_t **deps_location,
+                                          dague_execution_context_t** pready_list )
 {
-    dague_t* function = exec_context->function;
+    const dague_t* function = exec_context->function;
     dague_dependencies_t *deps;
     int i, updated_deps, mask;
 #ifdef DAGUE_DEBUG
@@ -1085,7 +1016,7 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
     DEBUG(("Activate dependencies for %s priority %d\n",
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
     if( NULL == *deps_location ) {
-        malloc_deps(eu_context, exec_context, deps_location);
+        malloc_deps(dague_object, eu_context, exec_context, deps_location);
     }
     deps = *deps_location;
     
@@ -1104,7 +1035,7 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
     mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
-        mask |= dague_check_IN_dependencies( exec_context );
+        mask |= dague_check_IN_dependencies( dague_object, exec_context );
 #ifdef DAGUE_DEBUG
         if( mask > 0 ) {
             DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
@@ -1192,20 +1123,20 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
  * Check if a particular instance of the service can be executed based on the
  * values of the arguments and the ranges specified.
  */
-static int dague_is_valid( dague_execution_context_t* exec_context )
+static int dague_is_valid( const dague_object_t *dague_object, dague_execution_context_t* exec_context )
 {
-    dague_t* function = exec_context->function;
+    const dague_t* function = exec_context->function;
     int i, rc, min, max;
     
     for( i = 0; i < function->nb_locals; i++ ) {
-        symbol_t* symbol = function->locals[i];
+        const symbol_t* symbol = function->locals[i];
         
-        rc = expr_eval( symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
+        rc = expr_eval( dague_object, symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
         if( EXPR_SUCCESS != rc ) {
             fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
             return rc;
         }
-        rc = expr_eval( symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
+        rc = expr_eval( dague_object, symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
         if( EXPR_SUCCESS != rc ) {
             fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
             return rc;
@@ -1224,14 +1155,15 @@ static int dague_is_valid( dague_execution_context_t* exec_context )
 /**
  * Release all OUT dependencies for this particular instance of the service.
  */
-int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
-                                      const dague_execution_context_t* restrict origin,
-                                      const param_t* restrict origin_param,
-                                      dague_execution_context_t* restrict exec_context,
-                                      const param_t* restrict dest_param,
-                                      int forward_remote )
+int dague_release_OUT_dependencies( const dague_object_t *dague_object,
+                                    dague_execution_unit_t* eu_context,
+                                    const dague_execution_context_t* restrict origin,
+                                    const param_t* restrict origin_param,
+                                    dague_execution_context_t* restrict exec_context,
+                                    const param_t* restrict dest_param,
+                                    int forward_remote )
 {
-    dague_t* function = exec_context->function;
+    const dague_t* function = exec_context->function;
     dague_dependencies_t *deps, **deps_location, *last_deps;
 #ifdef DAGUE_DEBUG
     char tmp[128];
@@ -1245,15 +1177,16 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
     }
 
     DEBUG(("Activate dependencies for %s\n", dague_service_to_string(exec_context, tmp, 128)));
-    deps_location = &(function->deps);
+    deps_location = &(dague_object->dependencies_array[function->deps]);
     deps = *deps_location;
     last_deps = NULL;
 
     for( i = 0; i < function->nb_locals; i++ ) {
     restart_validation:
-        rc = dague_symbol_validate_value( function->locals[i],
-                                            (const expr_t**)function->preds,
-                                            exec_context->locals );
+        rc = dague_symbol_validate_value( dague_object,
+                                          function->locals[i],
+                                          function->pred,
+                                          exec_context->locals );
         if( 0 != rc ) {
 #if defined(DISTRIBUTED) && 0
             /* This is a valid value for this parameter, but it is executed 
@@ -1282,7 +1215,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                 goto pick_next_value;
             }
             if( 0 == i ) {
-                deps_location = &(function->deps);
+                deps_location = &(dague_object->dependencies_array[function->deps]);
             } else {
                 deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
             }
@@ -1294,8 +1227,8 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
             /* TODO: optimize this section (and the similar one few tens of lines down
              * the code) to work on local ranges instead of absolute ones.
              */
-            dague_symbol_get_absolute_minimum_value( function->locals[i], &min );
-            dague_symbol_get_absolute_maximum_value( function->locals[i], &max );
+            dague_symbol_get_absolute_minimum_value( dague_object, function->locals[i], &min );
+            dague_symbol_get_absolute_maximum_value( dague_object, function->locals[i], &max );
             /* Make sure we stay in the expected ranges */
             if( exec_context->locals[i].min < min ) {
                 DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
@@ -1361,7 +1294,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
 #endif  /* defined(DAGUE_GRAPHER) */
         int updated_deps, mask;
 
-        if( 0 != dague_is_valid(exec_context) ) {
+        if( 0 != dague_is_valid(dague_object, exec_context) ) {
             char tmp[128], tmp1[128];
             dague_service_to_string(origin, tmp, 128);
             dague_service_to_string(exec_context, tmp1, 128);
@@ -1383,7 +1316,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
         mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
         /* Mark the dependencies and check if this particular instance can be executed */
         if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
-            mask |= dague_check_IN_dependencies( exec_context );
+            mask |= dague_check_IN_dependencies( dague_object, exec_context );
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
@@ -1472,8 +1405,8 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                 last_deps = deps;  /* save the deps */
                 if( NULL == *deps_location ) {
                     int min, max, number;
-                    dague_symbol_get_absolute_minimum_value( function->locals[actual_loop], &min );
-                    dague_symbol_get_absolute_maximum_value( function->locals[actual_loop], &max );
+                    dague_symbol_get_absolute_minimum_value( dague_object, function->locals[actual_loop], &min );
+                    dague_symbol_get_absolute_maximum_value( dague_object, function->locals[actual_loop], &max );
                     number = max - min;
                     DEBUG(("Allocate %d spaces for loop %s index %d value %d (min %d max %d)\n",
                            number, function->locals[actual_loop]->name, CURRENT_DEPS_INDEX(actual_loop-1),

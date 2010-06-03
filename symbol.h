@@ -43,7 +43,7 @@ const symbol_t *dague_symbol_get_element_at( int i );
 /**
  * Dump the specified symbol.
  */
-void symbol_dump(const symbol_t *s, const char *prefix);
+void symbol_dump(const symbol_t *s, const struct dague_object *dague_object, const char *prefix);
 
 /**
  * helper for dumping the c structure representing the DAGUE object
@@ -53,7 +53,7 @@ int symbol_c_index_lookup( const symbol_t *symbol );
 /**
  * Dump all globally defined symbols.
  */
-void symbol_dump_all( const char* prefix );
+void symbol_dump_all( const char* prefix, const struct dague_object *dague_object );
 
 /**
  * Search for a global symbol.
@@ -101,90 +101,96 @@ int dague_symbol_is_standalone( const symbol_t* symbol );
  * Return the first acceptable value for a specific symbol. As a result the symbol
  * will be either added or updated on the assignment array.
  *
- * @param [IN]  The symbol to be analyzed. Cannot be NULL.
- * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
- *              symbol to be analyzed. Can be NULL if no predicated
- *              are imposed.
- * @param [IN]  The list of symbols and their current values in the
+ * @param [IN]  dague_object: the dague object holding the constants, etc...
+ * @param [IN]  symbol: The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  predicate: the predicates potentially regarding the symbol to be 
+ *                         analyzed. Can be NULL if no predicate is imposed.
+ * @param [IN]  local_context: The list of symbols and their current values in the
  *              current execution context.
- * @param [OUT] The first acceptable value for this symbol.
+ * @param [OUT] pvalue: The first acceptable value for this symbol.
  *
- * @return  0 if the symbol was correctly resolved and the return value
+ * @return  EXPR_SUCCESS if the symbol was correctly resolved and the return value
  *            has a meaning.
- * @return -1 if something bad happened and the returned value cannot
+ * @return an EXPR_ERROR if something bad happened and the returned value cannot
  *            be used.
  */
-int dague_symbol_get_first_value( const symbol_t* symbol,
-                                    const expr_t** predicates,
-                                    assignment_t* local_context,
-                                    int* pvalue );
+int dague_symbol_get_first_value( const struct dague_object *dague_object,
+                                  const symbol_t* symbol,
+                                  const expr_t* predicate,
+                                  assignment_t* local_context,
+                                  int* pvalue );
 /**
  * Return the last acceptable value for a specific symbol. As a result the symbol
  * will be either added or updated on the assignment array.
  *
- * @param [IN]  The symbol to be analyzed. Cannot be NULL.
- * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
- *              symbol to be analyzed. Can be NULL if no predicated
- *              are imposed.
- * @param [IN]  The list of symbols and their current values in the
+ * @param [IN]  dague_object: the dague object holding the constants, etc...
+ * @param [IN]  symbol: The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  predicate: the predicate, potentially regarding the
+ *              symbol to be analyzed. Can be NULL if no predicate
+ *              is imposed.
+ * @param [IN]  local_context: The list of symbols and their current values in the
  *              current execution context.
- * @param [OUT] The last acceptable value for this symbol.
+ * @param [OUT] pvalue The last acceptable value for this symbol.
  *
- * @return  0 if the symbol was correctly resolved and the return value
+ * @return  EXPR_SUCCESS if the symbol was correctly resolved and the return value
  *            has a meaning.
- * @return -1 if something bad happened and the returned value cannot
+ * @return and EXPR_ERROR if something bad happened and the returned value cannot
  *            be used.
  */
-int dague_symbol_get_last_value( const symbol_t* symbol,
-                                   const expr_t** predicates,
-                                   assignment_t* local_context,
-                                   int* pvalue );
+int dague_symbol_get_last_value( const struct dague_object *dague_object,
+                                 const symbol_t* symbol,
+                                 const expr_t* predicate,
+                                 assignment_t* local_context,
+                                 int* pvalue );
 /**
  * Return the next acceptable value for a specific symbol. As a result the symbol
  * will be either added or updated on the assignment array.
  *
- * @param [IN]  The symbol to be analyzed. Cannot be NULL.
- * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
- *              symbol to be analyzed. Can be NULL if no predicated
- *              are imposed.
- * @param [IN]  The list of symbols and their current values in the
+ * @param [IN]  dague_object: the dague object holding the constants, etc...
+ * @param [IN]  symbol: The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  predicate: the predicates, potentially regarding the
+ *              symbol to be analyzed. Can be NULL if no predicate
+ *              is imposed.
+ * @param [IN]  local_context: The list of symbols and their current values in the
  *              current execution context.
- * @param [INOUT] On input it contains the current value of the symbol,
+ * @param [INOUT] pvalue: On input it contains the current value of the symbol,
  *                while on output it contains the next acceptable value.
  *
- * @return  0 if the symbol was correctly resolved and the return value
+ * @return  EXPR_SUCCESS if the symbol was correctly resolved and the return value
  *            has a meaning.
- * @return -1 if something bad happened and the returned value cannot
+ * @return an EXPR_ERROR if something bad happened and the returned value cannot
  *            be used.
  */
-int dague_symbol_get_next_value( const symbol_t* symbol,
-                                   const expr_t** predicates,
-                                   assignment_t* local_context,
-                                   int* pvalue );
+int dague_symbol_get_next_value( const struct dague_object *dague_object,
+                                 const symbol_t* symbol,
+                                 const expr_t* predicate,
+                                 assignment_t* local_context,
+                                 int* pvalue );
 
 /**
  * Return 0 if the current value is an acceptable value for a specific symbol. The symbol
  * is supposed to be already set in the assignment lists.
  *
- * @param [IN]  The symbol to be analyzed. Cannot be NULL.
- * @param [IN]  A NULL terminated array of predicates, eventually some regarding the
- *              symbol to be analyzed. Can be NULL if no predicated
- *              are imposed.
- * @param [IN]  The list of symbols and their current values in the
+ * @param [IN]  dague_object: the dague object holding the constants, etc...
+ * @param [IN]  symbol: The symbol to be analyzed. Cannot be NULL.
+ * @param [IN]  predicate: the predicate, potentially regarding the
+ *              symbol to be analyzed. Can be NULL if no predicate
+ *              is imposed.
+ * @param [IN]  local_contex:t The list of symbols and their current values in the
  *              current execution context.
- * @param [INOUT] On input it contains the current value of the symbol,
- *                while on output it contains the next acceptable value.
  *
- * @return  0 if the current value of the symbol in the local_context is valid.
- * @return -1 if something bad happened or the value is out-of-bounds
+ * @return  EXPR_SUCCESS if the current value of the symbol in the local_context is valid.
+ * @return an EXPR_ERROR if something bad happened or the value is out-of-bounds
  */
-int dague_symbol_validate_value( const symbol_t* symbol,
-                                   const expr_t** predicates,
-                                   assignment_t* local_context );
+int dague_symbol_validate_value( const struct dague_object *dague_object,
+                                 const symbol_t* symbol,
+                                 const expr_t* predicate,
+                                 assignment_t* local_context );
 
 /**
  * Return the absolute minimal value for a specific symbol.
  *
+ * @param [IN]  dague_object: the object holding current values for the constants
  * @param [IN]  The symbol to be analyzed. Cannot be NULL.
  * @param [OUT] The absolute minimal acceptable value for this symbol.
  *
@@ -193,12 +199,13 @@ int dague_symbol_validate_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dague_symbol_get_absolute_minimum_value( const symbol_t* symbol,
+int dague_symbol_get_absolute_minimum_value( const struct dague_object *dague_object, const symbol_t* symbol,
                                                int* pvalue );
 
 /**
  * Return the absolute maximal value for a specific symbol.
  *
+ * @param [IN]  dague_object: the object holding current values for the constants
  * @param [IN]  The symbol to be analyzed. Cannot be NULL.
  * @param [IN]  A NULL terminated array of symbols from the same dplama_t object, which
  *              might create dependencies with the analyzed one. In the case this list is NULL,
@@ -210,7 +217,7 @@ int dague_symbol_get_absolute_minimum_value( const symbol_t* symbol,
  * @return -1 if something bad happened and the returned value cannot
  *            be used.
  */
-int dague_symbol_get_absolute_maximum_value( const symbol_t* symbol,
+int dague_symbol_get_absolute_maximum_value( const struct dague_object *dague_object, const symbol_t* symbol,
                                                int* pvalue );
 
 #endif

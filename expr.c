@@ -22,7 +22,7 @@
 #define EXPR_EVAL_ERROR_SIZE   512
 static char expr_eval_error[EXPR_EVAL_ERROR_SIZE];
 
-static int expr_eval_unary(unsigned char op, const expr_t *op1,
+static int expr_eval_unary(const struct dague_object *parent, unsigned char op, const expr_t *op1,
                            const assignment_t *assignments, unsigned int nbassignments,
                            int *v)
 {
@@ -31,7 +31,7 @@ static int expr_eval_unary(unsigned char op, const expr_t *op1,
     
     assert( EXPR_IS_UNARY(op) );
 
-    rc = expr_eval(op1, assignments, nbassignments, &v1);
+    rc = expr_eval(parent, op1, assignments, nbassignments, &v1);
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
@@ -45,7 +45,8 @@ static int expr_eval_unary(unsigned char op, const expr_t *op1,
     return EXPR_SUCCESS;
 }
 
-static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *op2,
+static int expr_eval_binary(const struct dague_object *parent, 
+                            unsigned char op, const expr_t *op1, const expr_t *op2,
                             const assignment_t *assignments, unsigned int nbassignments,
                             int *v)
 {
@@ -54,11 +55,11 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
 
     assert( EXPR_IS_BINARY(op) );
 
-    rc = expr_eval(op1, assignments, nbassignments, &v1);
+    rc = expr_eval(parent, op1, assignments, nbassignments, &v1);
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
-    rc = expr_eval(op2, assignments, nbassignments, &v2);
+    rc = expr_eval(parent, op2, assignments, nbassignments, &v2);
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
@@ -133,7 +134,7 @@ static int expr_eval_binary(unsigned char op, const expr_t *op1, const expr_t *o
     return EXPR_SUCCESS;
 }
 
-static int expr_eval_symbol(const symbol_t *sym, const assignment_t *assignments, unsigned int nbassignments, int *res)
+static int expr_eval_symbol(const struct dague_object *parent, const symbol_t *sym, const assignment_t *assignments, unsigned int nbassignments, int *res)
 {
     assignment_t* assignment;
 
@@ -141,7 +142,7 @@ static int expr_eval_symbol(const symbol_t *sym, const assignment_t *assignments
     const symbol_t *gsym = dague_search_global_symbol( sym->name );
     if( gsym != NULL ){
         int int_res;
-        if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, &int_res) ){
+        if( EXPR_SUCCESS == expr_eval(parent, (expr_t *)gsym->min, NULL, 0, &int_res) ){
             *res = int_res;
             return EXPR_SUCCESS;
         }
@@ -156,7 +157,8 @@ static int expr_eval_symbol(const symbol_t *sym, const assignment_t *assignments
     return EXPR_FAILURE_SYMBOL_NOT_FOUND;
 }
 
-int expr_eval(const expr_t *expr,
+int expr_eval(const struct dague_object *parent,
+              const expr_t *expr,
               const assignment_t *assignments, unsigned int nbassignments,
               int *res)
 {
@@ -170,29 +172,29 @@ int expr_eval(const expr_t *expr,
     assert( EXPR_OP_CONST_INT != expr->op );
 
     if( likely( EXPR_IS_INLINE(expr->op) ) ) {
-        *res = expr->inline_func(assignments);
+        *res = expr->inline_func(parent, assignments);
         return EXPR_SUCCESS;
     }
 
     if( EXPR_OP_SYMB == expr->op ) {
-        int ret_val = expr_eval_symbol(expr->variable, assignments, nbassignments, res);
+        int ret_val = expr_eval_symbol(parent, expr->variable, assignments, nbassignments, res);
         return ret_val;
     }
     if ( EXPR_IS_UNARY(expr->op) ) {
-        return expr_eval_unary(expr->op, expr->uop1, assignments, nbassignments, res);
+        return expr_eval_unary(parent, expr->op, expr->uop1, assignments, nbassignments, res);
     }
     if ( EXPR_IS_BINARY(expr->op) ) {
-        return expr_eval_binary(expr->op, expr->bop1, expr->bop2, assignments, nbassignments, res);
+        return expr_eval_binary(parent, expr->op, expr->bop1, expr->bop2, assignments, nbassignments, res);
     }
     if ( EXPR_IS_TERTIAR(expr->op) ) {
-        int ret_val = expr_eval(expr->tcond, assignments, nbassignments, res);
+        int ret_val = expr_eval(parent, expr->tcond, assignments, nbassignments, res);
         if( EXPR_SUCCESS != ret_val )
             return ret_val;
 
         if( 0 != res ) {
-            return expr_eval(expr->top1, assignments, nbassignments, res);
+            return expr_eval(parent, expr->top1, assignments, nbassignments, res);
         }
-        return expr_eval(expr->top2, assignments, nbassignments, res);
+        return expr_eval(parent, expr->top2, assignments, nbassignments, res);
     }
     snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Unkown operand %d in expression", expr->op);
     return EXPR_FAILURE_UNKNOWN_OP;
@@ -275,7 +277,8 @@ int expr_depend_on_symbol( const expr_t* expr,
 #define EXPR_ABSOLUTE_RANGE_MIN 1
 #define EXPR_ABSOLUTE_RANGE_MAX 2
 
-static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
+static int __expr_absolute_range_recursive( const struct dague_object *dague_object,
+                                            const expr_t* expr, int direction,
                                             int* pmin, int* pmax )
 {
     int rc, *storage, lmin, lmax, rmin, rmax;
@@ -300,15 +303,15 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         const symbol_t* symbol = expr->variable;
         const symbol_t* gsym = dague_search_global_symbol( symbol->name );
         if( gsym != NULL ) {
-            if( EXPR_SUCCESS == expr_eval((expr_t *)gsym->min, NULL, 0, storage) ) {
+            if( EXPR_SUCCESS == expr_eval(dague_object, (expr_t *)gsym->min, NULL, 0, storage) ) {
                 return EXPR_SUCCESS;
             }
             return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
         }
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
-            rc = __expr_absolute_range_recursive( symbol->min, direction, pmin, pmax );
+            rc = __expr_absolute_range_recursive( dague_object, symbol->min, direction, pmin, pmax );
         } else {
-            rc = __expr_absolute_range_recursive( symbol->max, direction, pmin, pmax );
+            rc = __expr_absolute_range_recursive( dague_object, symbol->max, direction, pmin, pmax );
         }
         return rc;
     }
@@ -327,8 +330,8 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
     case EXPR_OP_BINARY_NOT_EQUAL:
         return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
     case EXPR_OP_BINARY_PLUS:
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
             *pmin = lmin + rmin;
         } else {
@@ -336,8 +339,8 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         }
         return EXPR_SUCCESS;
     case EXPR_OP_BINARY_MINUS:
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
             *pmin = lmin - rmin;
         } else {
@@ -345,8 +348,8 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         }
         return EXPR_SUCCESS;
     case EXPR_OP_BINARY_TIMES:
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
             *pmin = lmin * rmin;
         } else {
@@ -354,8 +357,8 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
         }
         return EXPR_SUCCESS;
     case EXPR_OP_BINARY_SHL:
-        rc = __expr_absolute_range_recursive( expr->bop1, direction, &lmin, &lmax );
-        rc = __expr_absolute_range_recursive( expr->bop2, direction, &rmin, &rmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop1, direction, &lmin, &lmax );
+        rc = __expr_absolute_range_recursive( dague_object, expr->bop2, direction, &rmin, &rmax );
         if( EXPR_ABSOLUTE_RANGE_MIN == direction ) {
             *pmin = lmin << rmin;
         } else {
@@ -377,16 +380,17 @@ static int __expr_absolute_range_recursive( const expr_t* expr, int direction,
     return EXPR_FAILURE_CANNOT_EVALUATE_RANGE;
 }
 
-int expr_absolute_range(const expr_t* expr,
+int expr_absolute_range(const struct dague_object *dague_object,
+                        const expr_t* expr,
                         int* pmin, int* pmax)
 {
     int rc, unused;
 
-    rc = __expr_absolute_range_recursive( expr, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
+    rc = __expr_absolute_range_recursive( dague_object, expr, EXPR_ABSOLUTE_RANGE_MIN, pmin, &unused );
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
-    rc = __expr_absolute_range_recursive( expr, EXPR_ABSOLUTE_RANGE_MAX, &unused, pmax );
+    rc = __expr_absolute_range_recursive( dague_object, expr, EXPR_ABSOLUTE_RANGE_MAX, &unused, pmax );
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
@@ -394,7 +398,8 @@ int expr_absolute_range(const expr_t* expr,
     return EXPR_SUCCESS;
 }
 
-int expr_range_to_min_max(const expr_t *expr,
+int expr_range_to_min_max(const struct dague_object *dague_object,
+                          const expr_t *expr,
                           const assignment_t *assignments, unsigned int nbassignments,
                           int *min, int *max)
 {
@@ -402,11 +407,11 @@ int expr_range_to_min_max(const expr_t *expr,
 
     assert( expr->op == EXPR_OP_BINARY_RANGE );
 
-    rc = expr_eval(expr->bop1, assignments, nbassignments, min);
+    rc = expr_eval(dague_object, expr->bop1, assignments, nbassignments, min);
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
-    rc = expr_eval(expr->bop2, assignments, nbassignments, max);
+    rc = expr_eval(dague_object, expr->bop2, assignments, nbassignments, max);
     if( EXPR_SUCCESS != rc ) {
         return rc;
     }
@@ -591,7 +596,7 @@ char *expr_error(void)
     return expr_eval_error;
 }
 
-static void expr_dump_unary(FILE *out, unsigned char op, const expr_t *op1)
+static void expr_dump_unary(FILE *out, const struct dague_object *dague_object, unsigned char op, const expr_t *op1)
 {
     switch(op) {
     case EXPR_OP_UNARY_NOT:
@@ -602,88 +607,88 @@ static void expr_dump_unary(FILE *out, unsigned char op, const expr_t *op1)
     if( NULL == op1 ) {
         fprintf(out, "NULL");
     } else {
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         if( op == EXPR_OP_UNARY_NOT ){
             fprintf(out, ")");
         }
     }
 }
 
-static void expr_dump_binary(FILE *out, unsigned char op, const expr_t *op1, const expr_t *op2)
+static void expr_dump_binary(FILE *out, const struct dague_object *dague_object, unsigned char op, const expr_t *op1, const expr_t *op2)
 {
     if( EXPR_OP_BINARY_RANGE == op ) {
         fprintf(out,  " [" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " .. " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  "] " );
         return;
     }
 
     if( EXPR_OP_BINARY_EQUAL == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " == " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_NOT_EQUAL == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " != " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_LESS == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " < " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_LESS_OR_EQUAL == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " <= " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_MORE == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " > " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_MORE_OR_EQUAL == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " >= " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
     if( EXPR_OP_BINARY_SHL == op ) {
         fprintf(out,  " (" );
-        expr_dump(out, op1);
+        expr_dump(out, dague_object, op1);
         fprintf(out,  " << " );
-        expr_dump(out, op2);
+        expr_dump(out, dague_object, op2);
         fprintf(out,  ") " );
         return;
     }
 
-    expr_dump(out, op1);
+    expr_dump(out, dague_object, op1);
 
     switch( op ) {
     case EXPR_OP_BINARY_PLUS:
@@ -712,10 +717,10 @@ static void expr_dump_binary(FILE *out, unsigned char op, const expr_t *op1, con
         break;
     }
 
-    expr_dump(out, op2);
+    expr_dump(out, dague_object, op2);
 }
 
-void expr_dump(FILE *out, const expr_t *e)
+void expr_dump(FILE *out, const struct dague_object *dague_object, const expr_t *e)
 {
     if( NULL == e ) {
         fprintf(out, "NULL");
@@ -733,7 +738,7 @@ void expr_dump(FILE *out, const expr_t *e)
             fprintf(out, "%s", e->variable->name);
         } else {
             int res;
-            if( EXPR_SUCCESS == expr_eval_symbol(e->variable, NULL, 0, &res)){
+            if( EXPR_SUCCESS == expr_eval_symbol(dague_object, e->variable, NULL, 0, &res)){
                 fprintf(out, "%d", res);
             }else{
                 fprintf(out, "%s", e->variable->name);
@@ -742,16 +747,16 @@ void expr_dump(FILE *out, const expr_t *e)
     } else if( EXPR_OP_CONST_INT == e->op ) {
         fprintf(out, "%d", e->value);
     } else if( EXPR_IS_UNARY(e->op) ) {
-        expr_dump_unary(out, e->op, e->uop1);
+        expr_dump_unary(out, dague_object, e->op, e->uop1);
     } else if( EXPR_IS_BINARY(e->op) ) {
-        expr_dump_binary(out, e->op, e->bop1, e->bop2);
+        expr_dump_binary(out, dague_object, e->op, e->bop1, e->bop2);
     } else if( EXPR_IS_TERTIAR(e->op) ) {
         fprintf( out, "(");
-        expr_dump(out, e->tcond);
+        expr_dump(out, dague_object, e->tcond);
         fprintf( out, " ? " );
-        expr_dump(out, e->top1);
+        expr_dump(out, dague_object, e->top1);
         fprintf( out, " : ");
-        expr_dump(out, e->top2);
+        expr_dump(out, dague_object, e->top2);
         fprintf( out, ")");
     } else {
         fprintf(stderr, "[%s:%d] Unkown operand %d in expression\n", __FILE__, __LINE__, e->op);

@@ -335,7 +335,7 @@ static int remote_dep_nothread_get_datatypes(dague_remote_deps_t* origin)
 
     return exec_context.function->release_deps(NULL, &exec_context,
                                                DAGUE_ACTION_GETTYPE_REMOTE_DEPS | DAGUE_ACTION_DEPS_MASK,
-                                               origin);
+                                               origin, NULL);
 }
 
 static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin)
@@ -349,12 +349,11 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
     for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
-    for( i = cnt = mask = 0; (i < MAX_PARAM_COUNT) && (NULL != function->inout[i]); i++) {
+    for( i = cnt = mask = 0; (i < MAX_PARAM_COUNT) && (NULL != function->out[i]); i++) {
 #if defined(DAGUE_DEBUG)
         exec_context.pointers[2*i]   = NULL;
         exec_context.pointers[2*i+1] = NULL;
 #endif  /* defined(DAGUE_DEBUG) */
-        if( !(function->inout[i]->sym_type & SYM_OUT) ) continue;
         if(origin->msg.deps & (1 << cnt)) {
             assert(origin->msg.which & (1 << cnt));
             exec_context.pointers[2*i]   = NULL;
@@ -366,7 +365,7 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               actions | 
                                               mask, 
-                                              NULL);
+                                              origin, NULL);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
     return ret;

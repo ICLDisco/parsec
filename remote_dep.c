@@ -168,7 +168,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 dague_remote_deps_t* remote_deps,
                                 uint32_t remote_deps_count )
 {
-    dague_t* function = exec_context->function;
+    const dague_t* function = exec_context->function;
     int i, me, him, count, array_index, bit_index, current_mask;
     
 #if defined(DAGUE_DEBUG)
@@ -190,7 +190,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     remote_dep_get_datatypes(remote_deps);
     
     for( i = 0; remote_deps_count; i++) {
-        assert( NULL != function->inout[i] );
         if( 0 == remote_deps->output[i].count ) continue;
         
         if(remote_deps->root == eu_context->master_context->my_rank) me = 0;
@@ -279,10 +278,10 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 /* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
  * requires it to genrerate correct precompiled code */
 int dague_remote_dep_get_rank_preds(const expr_t **predicates,
-                                      expr_t **rowpred,
-                                      expr_t **colpred, 
-                                      symbol_t **rowsize,
-                                      symbol_t **colsize)
+                                    const expr_t **rowpred,
+                                    const expr_t **colpred, 
+                                    const symbol_t **rowsize,
+                                    const symbol_t **colsize)
 {
     int pred_index;
     symbol_t *rowSymbol, *colSymbol;

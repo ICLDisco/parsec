@@ -53,7 +53,7 @@ typedef union {
 
 struct dague_dependencies_t {
     int                     flags;
-    symbol_t*               symbol;
+    const symbol_t*         symbol;
     int                     min;
     int                     max;
     dague_dependencies_t* prev;
@@ -139,5 +139,13 @@ typedef struct dague_ddesc {
    data_of_fct_t data_of;
    int           myrank;
 } dague_ddesc_t;
+
+int dague_release_OUT_dependencies( const dague_object_t *dague_object,
+                                    dague_execution_unit_t* eu_context,
+                                    const dague_execution_context_t* restrict origin,
+                                    const param_t* restrict origin_param,
+                                    dague_execution_context_t* restrict exec_context,
+                                    const param_t* restrict dest_param,
+                                    int forward_remote );
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

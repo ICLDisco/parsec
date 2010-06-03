@@ -74,10 +74,10 @@ struct dague_remote_deps_t {
 /* Gives pointers to expr_t allowing for evaluation of GRID predicates, needed 
  * by the precompiler only */
 int dague_remote_dep_get_rank_preds(const expr_t **predicates,
-                                      expr_t **rowpred,
-                                      expr_t **colpred, 
-                                      symbol_t **rowsize,
-                                      symbol_t **colsize);
+                                    const expr_t **rowpred,
+                                    const expr_t **colpred, 
+                                    const symbol_t **rowsize,
+                                    const symbol_t **colsize);
 
 #if defined(DISTRIBUTED)
 
