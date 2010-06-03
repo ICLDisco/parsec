@@ -21,7 +21,7 @@
 #include <linux/unistd.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
-#if defined(DAGuE_PROFILING) && 0
+#if defined(DAGUE_PROFILING) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -59,10 +59,10 @@ int dague_schedule( dague_context_t* context, const dague_execution_context_t* e
 
     new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
     memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
-#if defined(DAGuE_CACHE_AWARE)
+#if defined(DAGUE_CACHE_AWARE)
     new_context->pointers[1] = NULL;
 #endif
-    DAGuE_LIST_ITEM_SINGLETON( new_context );
+    DAGUE_LIST_ITEM_SINGLETON( new_context );
     return __dague_schedule( eu_context, new_context, 1);
 }
 
@@ -71,7 +71,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
 
-#  if defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO)
+#  if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_push( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
     {
@@ -112,16 +112,16 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         }
     }
 #    endif  /* PLACEHOLDER_SIZE */
-    if( new_context->function->flags & DAGuE_HIGH_PRIORITY_TASK ) {
+    if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
         dague_dequeue_push_front( eu_context->eu_task_queue, (dague_list_item_t*)new_context);
     } else {
         dague_dequeue_push_back( eu_context->eu_task_queue, (dague_list_item_t*)new_context);
     }
-#  endif  /* DAGuE_USE_LIFO */
+#  endif  /* DAGUE_USE_LIFO */
  done_pushing_tasks:
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
-# ifdef DAGuE_DEBUG
+# ifdef DAGUE_DEBUG
     {
         char tmp[128];
         DEBUG(( "Schedule %s\n", dague_service_to_string(new_context, tmp, 128)));
@@ -132,10 +132,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 
 void dague_register_nb_tasks(dague_context_t* context, int n)
 {
-#if defined(DAGuE_PROFILING)
+#if defined(DAGUE_PROFILING)
     /* Reset the profiling information */
     dague_profiling_reset();
-#endif  /* defined(DAGuE_PROFILING) */
+#endif  /* defined(DAGUE_PROFILING) */
         
     set_tasks_todo(context, (uint32_t)n);
 }
@@ -169,7 +169,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 #if defined( HAVE_HWLOC )
-#  if defined(DAGuE_CACHE_AWARE)
+#  if defined(DAGUE_CACHE_AWARE)
 static  unsigned int ranking_function_bycache(dague_list_item_t *elt, void *param)
 {
     unsigned int value;
@@ -189,24 +189,24 @@ static  unsigned int ranking_function_firstfound(dague_list_item_t *elt, void *_
 #  endif
 #endif
 
-#if defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO)
-#  define DAGuE_POP(eu_context, queue_name) \
+#if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
+#  define DAGUE_POP(eu_context, queue_name) \
     (dague_execution_context_t*)dague_atomic_lifo_pop( (eu_context)->queue_name )
 #elif defined(HAVE_HWLOC) 
-#  if defined(DAGuE_CACHE_AWARE)
-#    define DAGuE_POP(eu_context, queue_name) \
+#  if defined(DAGUE_CACHE_AWARE)
+#    define DAGUE_POP(eu_context, queue_name) \
     (dague_execution_context_t*)dague_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_bycache, \
                                                             (eu_context)->closest_cache)
 #  else
-#    define DAGuE_POP(eu_context, queue_name) \
+#    define DAGUE_POP(eu_context, queue_name) \
     (dague_execution_context_t*)dague_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_firstfound, \
                                                             NULL)
-#  endif /* DAGuE_CACHE_AWARE */
-#  define DAGuE_SYSTEM_POP(eu_context, queue_name) (dague_execution_context_t*)dague_dequeue_pop_front( (eu_context)->queue_name )
+#  endif /* DAGUE_CACHE_AWARE */
+#  define DAGUE_SYSTEM_POP(eu_context, queue_name) (dague_execution_context_t*)dague_dequeue_pop_front( (eu_context)->queue_name )
 #else /* Don't use LIFO, Global LIFO or HWLOC (hbbuffer): use dequeue */
-#  define DAGuE_POP(eu_context, queue_name) \
+#  define DAGUE_POP(eu_context, queue_name) \
     (dague_execution_context_t*)dague_dequeue_pop_front( (eu_context)->queue_name )
 #endif
 
@@ -214,14 +214,14 @@ static inline dague_execution_context_t *choose_local_job( dague_execution_unit_
 {
     dague_execution_context_t *exec_context = NULL;
 
-#if !defined(DAGuE_USE_LIFO) && !defined(DAGuE_USE_GLOBAL_LIFO) && !defined(HAVE_HWLOC) && PLACEHOLDER_SIZE
+#if !defined(DAGUE_USE_LIFO) && !defined(DAGUE_USE_GLOBAL_LIFO) && !defined(HAVE_HWLOC) && PLACEHOLDER_SIZE
     if( eu_context->placeholder_pop != eu_context->placeholder_push ) {
         exec_context = eu_context->placeholder[eu_context->placeholder_pop];
         eu_context->placeholder_pop = ((eu_context->placeholder_pop + 1) % PLACEHOLDER_SIZE);
     } 
     else
 #endif
-        exec_context = DAGuE_POP(eu_context, eu_task_queue);
+        exec_context = DAGUE_POP(eu_context, eu_task_queue);
     return exec_context;
 }
 
@@ -256,10 +256,10 @@ static int force_feed_hbbuffers(dague_execution_unit_t *eu_context)
         }
 
         /* The current level can take another more */
-        exec_context = DAGuE_SYSTEM_POP(eu_context, eu_system_queue);
+        exec_context = DAGUE_SYSTEM_POP(eu_context, eu_system_queue);
         if( NULL == exec_context ) {
             /* Arf, the system queue is empty -- waste of time... */
-#if defined(DAGuE_DEBUG)
+#if defined(DAGUE_DEBUG)
             if( nb > 0 ) {
                 DEBUG(("%d force fed up to %d elements in one go up to level %d, but now the system is really starving\n",
                        eu_context->eu_id, nb, i));
@@ -271,7 +271,7 @@ static int force_feed_hbbuffers(dague_execution_unit_t *eu_context)
             return nb;
         }
         /* Isolate this element */
-        item = DAGuE_LIST_ITEM_SINGLETON( exec_context );
+        item = DAGUE_LIST_ITEM_SINGLETON( exec_context );
         /* And push it in the current queue level */
         dague_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
         nb++;
@@ -323,7 +323,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
-            DAGuE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
+            DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
@@ -348,13 +348,13 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
             nbiterations++;
             /* Release the execution context */
-#if defined(DAGuE_CACHE_AWARE)
+#if defined(DAGUE_CACHE_AWARE)
             exec_context->pointers[1] = NULL;
 #endif
-            DAGuE_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);
+            DAGUE_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);
             free( exec_context );
         } else {
-#if !defined(DAGuE_USE_GLOBAL_LIFO)
+#if !defined(DAGUE_USE_GLOBAL_LIFO)
             miss_local++;
 #endif
 #if defined(DISTRIBUTED)
@@ -371,7 +371,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 #endif /* DISTRIBUTED */
 
-#if !defined(DAGuE_USE_GLOBAL_LIFO)
+#if !defined(DAGUE_USE_GLOBAL_LIFO)
             /* Work stealing from the other workers */
             {
                 int i;
@@ -387,7 +387,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 #endif
 
                 for(i = 0; i < max; i++ ) {
-                    exec_context = DAGuE_POP( eu_context, eu_hierarch_queues[i] );
+                    exec_context = DAGUE_POP( eu_context, eu_hierarch_queues[i] );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;
                         found_victim++;
@@ -395,7 +395,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                     }
                     miss_victim++;
                 }
-                exec_context = DAGuE_SYSTEM_POP( eu_context, eu_system_queue );
+                exec_context = DAGUE_SYSTEM_POP( eu_context, eu_system_queue );
                 if( NULL != exec_context ) {
                     misses_in_a_row = 0;
                     found_victim++;
@@ -404,7 +404,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 miss_victim++;
 #  else 
                 for(i = 0; i < master_context->nb_cores; i++ ) {
-                    exec_context = DAGuE_POP( master_context->execution_units[i], eu_task_queue );
+                    exec_context = DAGUE_POP( master_context->execution_units[i], eu_task_queue );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;
                         found_victim++;
@@ -414,20 +414,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 }
 #  endif
             }
-#endif  /* DAGuE_USE_GLOBAL_LIFO */
+#endif  /* DAGUE_USE_GLOBAL_LIFO */
             misses_in_a_row++;
         }
 
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
     }
 
-#if defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO)
+#if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
     assert(dague_atomic_lifo_is_empty(eu_context->eu_task_queue));
 #elif defined(HAVE_HWLOC)
     assert(dague_hbbuffer_is_empty(eu_context->eu_task_queue));
 #else
     assert(dague_dequeue_is_empty(eu_context->eu_task_queue));
-#endif  /* defined(DAGuE_USE_LIFO) || defined(DAGuE_USE_GLOBAL_LIFO) */
+#endif  /* defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO) */
 
     /* We're all done ? */
     dague_barrier_wait( &(master_context->barrier) );
@@ -438,8 +438,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
  finalize_progress:
-#if defined(DAGuE_REPORT_STATISTICS)
-#if defined(DAGuE_USE_GLOBAL_LIFO)
+#if defined(DAGUE_REPORT_STATISTICS)
+#if defined(DAGUE_USE_GLOBAL_LIFO)
     printf("# th <%3d> done %d\n", eu_context->eu_id, nbiterations);
 #else
     printf("# th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
@@ -448,8 +448,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
-#endif  /* defined(DAGuE_USE_GLOBAL_LIFO) */
-#endif  /* DAGuE_REPORT_STATISTICS */
+#endif  /* defined(DAGUE_USE_GLOBAL_LIFO) */
+#endif  /* DAGUE_REPORT_STATISTICS */
 
     return (void*)(long)nbiterations;
 }
@@ -470,12 +470,12 @@ static int dague_execute( dague_execution_unit_t* eu_context,
                             dague_execution_context_t* exec_context )
 {
     dague_t* function = exec_context->function;
-#ifdef DAGuE_DEBUG
+#ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
     
     DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
-    DAGuE_STAT_DECREASE(counter_nbtasks, 1ULL);
+    DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
         function->hook( eu_context, exec_context );

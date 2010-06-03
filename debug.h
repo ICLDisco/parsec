@@ -7,7 +7,7 @@
 #ifndef DEBUG_H_HAS_BEEN_INCLUDED
 #define DEBUG_H_HAS_BEEN_INCLUDED
 
-#include "DAGuE_config.h"
+#include "dague_config.h"
 
 #if defined(HAVE_STDARG_H)
 #include <stdarg.h>
@@ -19,7 +19,7 @@ int asprintf(char **ret, const char *format, ...);
 int vasprintf(char **ret, const char *format, va_list ap);
 #endif  /* !defined(HAVE_VASPRINTF) */
 
-#ifdef DAGuE_DEBUG
+#ifdef DAGUE_DEBUG
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -56,17 +56,17 @@ static inline char* arprintf(const char* fmt, ...)
 
 #   endif /* USE_MPI */
 
-#else /* DAGuE_DEBUG */
+#else /* DAGUE_DEBUG */
 
 #define DEBUG(ARG)
 
-#endif /* DAGuE_DEBUG */
+#endif /* DAGUE_DEBUG */
 
 
-#ifdef DAGuE_DEBUG_HISTORY
+#ifdef DAGUE_DEBUG_HISTORY
 
-struct DAGuE_execution_context_t;
-void debug_mark_exe(int core, const struct DAGuE_execution_context_t *ctx);
+struct dague_execution_context_t;
+void debug_mark_exe(int core, const struct dague_execution_context_t *ctx);
 #define DEBUG_MARK_EXE(core, ctx) debug_mark_exe(core, ctx)
 
 struct remote_dep_wire_activate_t;
@@ -92,7 +92,7 @@ void debug_mark_dta_msg_end_recv(int tag);
 
 void debug_mark_display_history(void);
 
-#else /* DAGuE_DEBUG_HISTORY */
+#else /* DAGUE_DEBUG_HISTORY */
 
 #define DEBUG_MARK_EXE(core, ctx)
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(to, buffer, message)
@@ -104,7 +104,7 @@ void debug_mark_display_history(void);
 #define DEBUG_MARK_DTA_MSG_END_SEND(tag)
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag)
 
-#endif /* DAGuE_DEBUG_HISTORY */
+#endif /* DAGUE_DEBUG_HISTORY */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
 

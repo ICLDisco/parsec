@@ -1,15 +1,15 @@
 #include "dague_config.h"
 
-#if defined(DAGuE_STATS)
+#if defined(DAGUE_STATS)
 
-#define DAGuE_STATS_C_DECLARE
+#define DAGUE_STATS_C_DECLARE
 #include "stats.h"
 #undef _statsinternal_h
 #undef stats_h
 #undef DECLARE_STAT
 #undef DECLARE_STATMAX
 #undef DECLARE_STATACC
-#undef DAGuE_STATS_C_DECLARE
+#undef DAGUE_STATS_C_DECLARE
 
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +29,7 @@ void dague_stats_dump(char *filename, char *prefix)
         statfile = stdout;
     }
 
-#define DAGuE_STATS_C_DUMP
+#define DAGUE_STATS_C_DUMP
 #include "stats.h"
 
     if( strcmp(filename, "-") ) {
@@ -37,4 +37,4 @@ void dague_stats_dump(char *filename, char *prefix)
     }
 }
 
-#endif /* defined (DAGuE_STATS) */
+#endif /* defined (DAGUE_STATS) */

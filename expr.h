@@ -57,8 +57,8 @@ typedef struct expr expr_t;
  */
 #define EXPR_FLAG_CONSTANT   0x01
 
-struct DAGuE_object;
-typedef int (*expr_op_inline_func_t)(const struct DAGuE_object *__DAGuE_object_parent, const assignment_t *assignments);
+struct dague_object;
+typedef int (*expr_op_inline_func_t)(const struct dague_object *__dague_object_parent, const assignment_t *assignments);
 
 struct expr {
     unsigned char op;

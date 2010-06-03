@@ -82,7 +82,7 @@ int vasprintf(char **ptr, const char *fmt, va_list ap)
 }
 #endif  /* !defined(HAVE_VASPRINTF) */
 
-#if defined(DAGuE_DEBUG_HISTORY)
+#if defined(DAGUE_DEBUG_HISTORY)
 
 typedef struct {
     dague_t *function;

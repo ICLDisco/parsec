@@ -8,7 +8,7 @@
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
-static inline int DAGuE_atomic_bor_32b( volatile uint32_t* location,
+static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t mask )
 {
 #if !defined(__IBMC__)
@@ -29,7 +29,7 @@ static inline int DAGuE_atomic_bor_32b( volatile uint32_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-static inline int DAGuE_atomic_band_32b( volatile uint32_t* location,
+static inline int dague_atomic_band_32b( volatile uint32_t* location,
                                           uint32_t mask )
 {
 #if !defined(__IBMC__)
@@ -50,7 +50,7 @@ static inline int DAGuE_atomic_band_32b( volatile uint32_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-static inline int DAGuE_atomic_cas_32b( volatile uint32_t* location,
+static inline int dague_atomic_cas_32b( volatile uint32_t* location,
                                           uint32_t old_value,
                                           uint32_t new_value )
 {
@@ -74,7 +74,7 @@ static inline int DAGuE_atomic_cas_32b( volatile uint32_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-static inline int DAGuE_atomic_cas_64b( volatile uint64_t* location,
+static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
 {
@@ -98,8 +98,8 @@ static inline int DAGuE_atomic_cas_64b( volatile uint64_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-#define DAGuE_ATOMIC_HAS_ATOMIC_INC_32B
-static inline uint32_t DAGuE_atomic_inc_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
+static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 {
 #if !defined(__IBMC__)
    int32_t t;
@@ -119,8 +119,8 @@ static inline uint32_t DAGuE_atomic_inc_32b( volatile uint32_t *location )
 #endif  /* !defined(__IBMC__) */
 }
 
-#define DAGuE_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline uint32_t DAGuE_atomic_dec_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
+static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 {
 #if !defined(__IBMC__)
    int32_t t;

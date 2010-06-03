@@ -4,10 +4,10 @@
  *                         reserved.
  */
 
-#ifndef _DAGuE_scheduling_h
-#define _DAGuE_scheduling_h
+#ifndef _DAGUE_scheduling_h
+#define _DAGUE_scheduling_h
 
-#include "DAGuE.h"
+#include "dague.h"
 
 /**
  * Mark a execution context as being ready to be scheduled, i.e. all
@@ -22,13 +22,13 @@
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int DAGuE_schedule( DAGuE_context_t*, const DAGuE_execution_context_t* );
-int __DAGuE_schedule( DAGuE_execution_unit_t*, DAGuE_execution_context_t*, int use_placeholder );
+int dague_schedule( dague_context_t*, const dague_execution_context_t* );
+int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*, int use_placeholder );
 
-int DAGuE_progress(DAGuE_context_t* context);
-void* __DAGuE_progress(DAGuE_execution_unit_t* eu_context);
+int dague_progress(dague_context_t* context);
+void* __dague_progress(dague_execution_unit_t* eu_context);
 
-void DAGuE_register_nb_tasks(DAGuE_context_t* context, int32_t n);
+void dague_register_nb_tasks(dague_context_t* context, int32_t n);
 
 
 
@@ -44,10 +44,10 @@ void DAGuE_register_nb_tasks(DAGuE_context_t* context, int32_t n);
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong. 
  */
-int DAGuE_trigger_dependencies( DAGuE_execution_unit_t*,
-                                 const DAGuE_execution_context_t*,
+int dague_trigger_dependencies( dague_execution_unit_t*,
+                                 const dague_execution_context_t*,
                                  int forward_remote );
 //#endif /* DEPRECATED */
 
-#endif  /* _DAGuE_scheduling_h */
+#endif  /* _DAGUE_scheduling_h */
 

@@ -18,9 +18,9 @@ struct assignment {
     int        max;
 };
 
-#define DAGuE_ASSIGN_FOUND   0
-#define DAGuE_ASSIGN_ADDED   1
-#define DAGuE_ASSIGN_ERROR  -1
+#define DAGUE_ASSIGN_FOUND   0
+#define DAGUE_ASSIGN_ADDED   1
+#define DAGUE_ASSIGN_ERROR  -1
 
 /**
  * Returns the assignment pointer if a symbol with the specified name is
@@ -33,11 +33,11 @@ struct assignment {
  * @param [OUT] The pointer to the assignment related to this symbol if
  *              the symbol was found. Otherwise this value is not modified.
  *
- * @return DAGuE_ASSIGN_FOUND if the symbol is correctly resolved and the
+ * @return DAGUE_ASSIGN_FOUND if the symbol is correctly resolved and the
  *                              return value has a meaning.
- * @return DAGuE_ASSIGN_ERROR if the symbol is not in the assignments list. 
+ * @return DAGUE_ASSIGN_ERROR if the symbol is not in the assignments list. 
  */
-int DAGuE_find_assignment( const char* name,
+int dague_find_assignment( const char* name,
                              const assignment_t* context,
                              unsigned int context_size,
                              assignment_t** where);
@@ -54,13 +54,13 @@ int DAGuE_find_assignment( const char* name,
  * @param [OUT] The pointer to the assignment related to this symbol if
  *              the symbol was found. Otherwise this value is not modified.
  *
- * @return DAGuE_ASSIGN_FOUND if the symbol was already in the assignment list.
- * @return DAGuE_ASSIGN_ADDED is the symbol was not initially in the assignments
+ * @return DAGUE_ASSIGN_FOUND if the symbol was already in the assignment list.
+ * @return DAGUE_ASSIGN_ADDED is the symbol was not initially in the assignments
  *                              list, and it was succesfully added.
- * @return DAGuE_ASSIGN_ERROR if something bad happened. The assignments list
+ * @return DAGUE_ASSIGN_ERROR if something bad happened. The assignments list
  *                              is untouched.
  */
-int DAGuE_add_assignment( const symbol_t* symbol,
+int dague_add_assignment( const symbol_t* symbol,
                             assignment_t* context,
                             unsigned int context_size,
                             assignment_t** where );

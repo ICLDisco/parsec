@@ -6,16 +6,16 @@
 #if defined(HAVE_CLOCK_GETTIME)
 #include <unistd.h>
 #include <time.h>
-typedef struct timespec DAGuE_time_t;
-static inline DAGuE_time_t take_time(void)
+typedef struct timespec dague_time_t;
+static inline dague_time_t take_time(void)
 {
-    DAGuE_time_t ret;
+    dague_time_t ret;
     clock_gettime(CLOCK_REALTIME, &ret);
     return ret;
 }
 
 #define TIMER_UNIT "nanosecond"
-static inline uint64_t diff_time( DAGuE_time_t start, DAGuE_time_t end )
+static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 {
     uint64_t diff;
     diff = (end.tv_sec - start.tv_sec) * 1000000000 +
@@ -23,7 +23,7 @@ static inline uint64_t diff_time( DAGuE_time_t start, DAGuE_time_t end )
     return diff;
 }
 
-static int time_less( DAGuE_time_t start, DAGuE_time_t end )
+static int time_less( dague_time_t start, dague_time_t end )
 {
     return start.tv_sec < end.tv_sec ||
         (start.tv_sec == end.tv_sec &&
@@ -31,45 +31,45 @@ static int time_less( DAGuE_time_t start, DAGuE_time_t end )
 }
 #define ZERO_TIME {0,0}
 #elif defined(__IA64)
-typedef uint64_t DAGuE_time_t;
-static inline DAGuE_time_t take_time(void)
+typedef uint64_t dague_time_t;
+static inline dague_time_t take_time(void)
 {
-    DAGuE_time_t ret;
+    dague_time_t ret;
     __asm__ __volatile__ ("mov %0=ar.itc" : "=r"(ret));
     return ret;
 }
 #define TIMER_UNIT "cycles"
-static inline uint64_t diff_time( DAGuE_time_t start, DAGuE_time_t end )
+static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 {
     return (end - start);
 }
-static int time_less( DAGuE_time_t start, DAGuE_time_t end )
+static int time_less( dague_time_t start, dague_time_t end )
 {
     return start < end;
 }
 #define ZERO_TIME 0
 #elif defined(__X86)
-typedef uint64_t DAGuE_time_t;
-static inline DAGuE_time_t take_time(void)
+typedef uint64_t dague_time_t;
+static inline dague_time_t take_time(void)
 {
-    DAGuE_time_t ret;
+    dague_time_t ret;
     __asm__ __volatile__("rdtsc" : "=A"(ret));
     return ret;
 }
 #define TIMER_UNIT "cycles"
-static inline uint64_t diff_time( DAGuE_time_t start, DAGuE_time_t end )
+static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 {
     return (end - start);
 }
-static int time_less( DAGuE_time_t start, DAGuE_time_t end )
+static int time_less( dague_time_t start, dague_time_t end )
 {
     return start < end;
 }
 #define ZERO_TIME 0
 #else
 #include <sys/time.h>
-typedef struct timeval DAGuE_time_t;
-static inline DAGuE_time_t take_time(void)
+typedef struct timeval dague_time_t;
+static inline dague_time_t take_time(void)
 {
     struct timeval tv;
 
@@ -77,14 +77,14 @@ static inline DAGuE_time_t take_time(void)
     return tv;
 }
 #define TIMER_UNIT "microseconds"
-static inline uint64_t diff_time( DAGuE_time_t start, DAGuE_time_t end )
+static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 {
     uint64_t diff;
     diff = (end.tv_sec - start.tv_sec) * 1000000 +
            (end.tv_usec - start.tv_usec);
     return diff;
 }
-static int time_less( DAGuE_time_t start, DAGuE_time_t end )
+static int time_less( dague_time_t start, dague_time_t end )
 {
     return start.tv_sec < end.tv_sec ||
         (start.tv_sec == end.tv_sec &&

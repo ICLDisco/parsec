@@ -4,43 +4,43 @@
  *                         reserved.
  */
 
-#ifndef DAGuE_FREE_LIST_H_HAS_BEEN_INCLUDED
-#define DAGuE_FREE_LIST_H_HAS_BEEN_INCLUDED
+#ifndef DAGUE_FREE_LIST_H_HAS_BEEN_INCLUDED
+#define DAGUE_FREE_LIST_H_HAS_BEEN_INCLUDED
 
-#include "DAGuE_config.h"
+#include "dague_config.h"
 #include "lifo.h"
 
-typedef struct DAGuE_freelist_t {
-    DAGuE_atomic_lifo_t lifo;
+typedef struct dague_freelist_t {
+    dague_atomic_lifo_t lifo;
     size_t elem_size; /** The size of the elements in the freelist */
     int ondemand;     /** If allocation on demand is allowed */
-} DAGuE_freelist_t;
+} dague_freelist_t;
 
-typedef struct DAGuE_freelist_item_t {
+typedef struct dague_freelist_item_t {
     union {
-        DAGuE_list_item_t                 item;
-        DAGuE_freelist_t*                 origin;
+        dague_list_item_t                 item;
+        dague_freelist_t*                 origin;
     } upstream;
-} DAGuE_freelist_item_t;
+} dague_freelist_item_t;
 
 /**
  *
  */
-int DAGuE_freelist_init( DAGuE_freelist_t* freelist, size_t elem_size, int ondemand );
+int dague_freelist_init( dague_freelist_t* freelist, size_t elem_size, int ondemand );
 
 /**
  *
  */
-int DAGuE_freelist_fini( DAGuE_freelist_t* freelist );
+int dague_freelist_fini( dague_freelist_t* freelist );
 
 /**
  *
  */
-DAGuE_list_item_t* DAGuE_freelist_get(DAGuE_freelist_t* freelist);
+dague_list_item_t* dague_freelist_get(dague_freelist_t* freelist);
 
 /**
  *
  */
-int DAGuE_freelist_release( DAGuE_freelist_item_t* item );
+int dague_freelist_release( dague_freelist_item_t* item );
 
-#endif  /* DAGuE_FREE_LIST_H_HAS_BEEN_INCLUDED */
+#endif  /* DAGUE_FREE_LIST_H_HAS_BEEN_INCLUDED */

@@ -4,21 +4,21 @@
  *                         reserved.
  */
 
-static inline int DAGuE_atomic_bor_32b( volatile uint32_t* location,
+static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {
     uint32_t old_value = __sync_fetch_and_or(location, value);
     return old_value | value;
 }
 
-static inline int DAGuE_atomic_band_32b( volatile uint32_t* location,
+static inline int dague_atomic_band_32b( volatile uint32_t* location,
                                            uint32_t value )
 {
     uint32_t old_value = __sync_fetch_and_and(location, value);
     return old_value & value;
 }
 
-static inline int DAGuE_atomic_cas_32b( volatile uint32_t* location,
+static inline int dague_atomic_cas_32b( volatile uint32_t* location,
                                           uint32_t old_value,
                                           uint32_t new_value )
 {
@@ -26,7 +26,7 @@ static inline int DAGuE_atomic_cas_32b( volatile uint32_t* location,
 }
 
 #if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8) || (defined(__ICL) && (__ICC > 1100))
-static inline int DAGuE_atomic_cas_64b( volatile uint64_t* location,
+static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
 {
@@ -35,7 +35,7 @@ static inline int DAGuE_atomic_cas_64b( volatile uint64_t* location,
 #else
 #include <stdlib.h>
 #include <stdio.h>
-static inline int DAGuE_atomic_cas_64b( volatile uint64_t* location,
+static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
 {
@@ -45,14 +45,14 @@ static inline int DAGuE_atomic_cas_64b( volatile uint64_t* location,
 }
 #endif
 
-#define DAGuE_ATOMIC_HAS_ATOMIC_INC_32B
-static inline uint32_t DAGuE_atomic_inc_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
+static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
 {
     return __sync_add_and_fetch(location, (uint32_t)1);
 }
 
-#define DAGuE_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline uint32_t DAGuE_atomic_dec_32b( volatile uint32_t *location )
+#define DAGUE_ATOMIC_HAS_ATOMIC_DEC_32B
+static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 {
     return __sync_sub_and_fetch(location, (uint32_t)1);
 }

@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef _DAGuE_profiling_h
-#define _DAGuE_profiling_h
+#ifndef _DAGUE_profiling_h
+#define _DAGUE_profiling_h
 
 #include <stdint.h>
 #include <stdio.h>
@@ -20,7 +20,7 @@
  *  that should happen in parallel.
  */
 
-typedef struct DAGuE_thread_profiling_t DAGuE_thread_profiling_t;
+typedef struct dague_thread_profiling_t dague_thread_profiling_t;
 
 /**
  * Initializes the profiling engine. Call this ONCE per process.
@@ -33,14 +33,14 @@ typedef struct DAGuE_thread_profiling_t DAGuE_thread_profiling_t;
  * @return 0    if success, -1 otherwise
  * not thread safe
  */
-int DAGuE_profiling_init( const char *format, ...);
+int dague_profiling_init( const char *format, ...);
 
 /**
  * Add additional information about the current run, under the form key/value.
  * Keys are strings, values are ints.
  * Used to store the value of the globals names and values in the current run
  */
-void DAGuE_profiling_add_information( const char *key, int value );
+void dague_profiling_add_information( const char *key, int value );
 
 /**
  * Initializes the buffer trace with the specified length.
@@ -54,7 +54,7 @@ void DAGuE_profiling_add_information( const char *key, int value );
  * @return pointer to the new thread_profiling structure. NULL if an error.
  * thread safe
  */
-DAGuE_thread_profiling_t *DAGuE_profiling_thread_init( unsigned int length, const char *format, ...);
+dague_thread_profiling_t *dague_profiling_thread_init( unsigned int length, const char *format, ...);
 
 /**
  * Releases all resources for the tracing. 
@@ -63,7 +63,7 @@ DAGuE_thread_profiling_t *DAGuE_profiling_thread_init( unsigned int length, cons
  * @return 0    if success, -1 otherwise.
  * not thread safe
  */
-int DAGuE_profiling_fini( void );
+int dague_profiling_fini( void );
 
 /**
  * Removes all current logged events. Prefer this to fini / init if you want
@@ -73,7 +73,7 @@ int DAGuE_profiling_fini( void );
  * @return 0 if succes, -1 otherwise
  * not thread safe
  */
-int DAGuE_profiling_reset( void );
+int dague_profiling_reset( void );
 
 /**
  * Changes the Human Readable description of the whole profile
@@ -83,7 +83,7 @@ int DAGuE_profiling_reset( void );
  * @return 0 if success, -1 otherwise
  * not thread safe
  */
-int DAGuE_profiling_change_profile_attribute( const char *format, ... );
+int dague_profiling_change_profile_attribute( const char *format, ... );
 
 /**
  * Inserts a new keyword in the dictionnary
@@ -98,7 +98,7 @@ int DAGuE_profiling_change_profile_attribute( const char *format, ... );
  * @return 0    if success, -1 otherwie.
  * not thread safe
  */
-int DAGuE_profiling_add_dictionary_keyword( const char*name, const char* attributes,
+int dague_profiling_add_dictionary_keyword( const char*name, const char* attributes,
                                               int* key_start, int* key_end );
 
 /**
@@ -111,7 +111,7 @@ int DAGuE_profiling_add_dictionary_keyword( const char*name, const char* attribu
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
-int DAGuE_profiling_dictionary_flush( void );
+int dague_profiling_dictionary_flush( void );
 
 /**
  * Traces one event.
@@ -130,7 +130,7 @@ int DAGuE_profiling_dictionary_flush( void );
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
-int DAGuE_profiling_trace( DAGuE_thread_profiling_t* context, int key, unsigned long id );
+int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id );
 
 /**
  * Dump the current profile in the said filename.
@@ -139,16 +139,16 @@ int DAGuE_profiling_trace( DAGuE_thread_profiling_t* context, int key, unsigned 
  * @return 0 if success, -1 otherwise
  * not thread safe
  */
-int DAGuE_profiling_dump_xml( const char* filename );
+int dague_profiling_dump_xml( const char* filename );
 
 /**
- * Returns a char * (owned by DAGuE_profiling library)
+ * Returns a char * (owned by dague_profiling library)
  * that describes the last error that happened.
  *
  * @return NULL if no error happened before
  *         the char* of the error otherwise.
  * not thread safe
  */
-char *DAGuE_profiling_strerror(void);
+char *dague_profiling_strerror(void);
 
-#endif  /* _DAGuE_profiling_h */
+#endif  /* _DAGUE_profiling_h */

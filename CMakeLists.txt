@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (DAGuE C Fortran)
+project (DAGUE C Fortran)
 
 #
 # Do NOT remove this. Make sure it is set to OFF to
@@ -8,37 +8,37 @@ project (DAGuE C Fortran)
 #
 
 # should we use our own math functions
-option(DAGuE_COLLECTIVE
+option(DAGUE_COLLECTIVE
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
-option(DAGuE_MPI
+option(DAGUE_MPI
   "Build DAGuE for distributed memory with MPI backend" ON)
-option(DAGuE_CACHE_AWARE "Activate the cache awareness support (only if hardware
+option(DAGUE_CACHE_AWARE "Activate the cache awareness support (only if hardware
   locality is enabled and discovered" OFF)
-option(DAGuE_PROFILING
+option(DAGUE_PROFILING
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
-option(DAGuE_PAPI
+option(DAGUE_PAPI
   "Enable PAPI performance hardware counters" OFF)
-option(DAGuE_STATS
+option(DAGUE_STATS
   "Enable the generation of statistics informations during execution
   (microbenchmarking)" OFF)
-option(DAGuE_DEBUG_HISTORY
+option(DAGUE_DEBUG_HISTORY
   "Enable the generation of the profiling information during
   execution" OFF)
-option(DAGuE_GRAPHER
+option(DAGUE_GRAPHER
   "Enable the generation of the dot output during execution" OFF)
-option(DAGuE_CALL_TRACE
+option(DAGUE_CALL_TRACE
   "Enable the output of the BLAS kernels call trace during execution" OFF)
-option(DAGuE_DRY_RUN
+option(DAGUE_DRY_RUN
   "Disable call to actual BLAS kernels; unfold the dependencies only" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
-option(DAGuE_CUDA
+option(DAGUE_CUDA
   "Enable dupport for CUDA" ON)
 # The current version number
-set (DAGuE_VERSION_MAJOR 0)
-set (DAGuE_VERSION_MINOR 1)
+set (DAGUE_VERSION_MAJOR 0)
+set (DAGUE_VERSION_MINOR 1)
 
 set( PROJECT_INCLUDE_DIR ./)
 
@@ -87,7 +87,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-  set(DAGuE_DEBUG 1)
+  set(DAGUE_DEBUG 1)
 endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
 
 # Check for available functions
@@ -162,13 +162,13 @@ if( HAVE_HWLOC )
   list(APPEND EXTRA_SOURCES dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
 endif( HAVE_HWLOC )
-if(DAGuE_CACHE_AWARE)
+if(DAGUE_CACHE_AWARE)
   if( !HAVE_HWLOC )
     message( error "Cache awarness requires hwloc" )
   endif( !HAVE_HWLOC )
-endif(DAGuE_CACHE_AWARE)
+endif(DAGUE_CACHE_AWARE)
 
-if (DAGuE_MPI)
+if (DAGUE_MPI)
   find_package(MPI)
   if (MPI_FOUND)
     include_directories( ${MPI_INCLUDE_PATH} ) 
@@ -177,27 +177,27 @@ if (DAGuE_MPI)
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
-endif (DAGuE_MPI)
+endif (DAGUE_MPI)
 
-if (DAGuE_PAPI)
+if (DAGUE_PAPI)
   find_package(PAPI REQUIRED)
   if (PAPI_FOUND)
     list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
     include_directories( ${PAPI_INCLUDE_DIR} )
   endif (PAPI_FOUND)
-endif (DAGuE_PAPI)
+endif (DAGUE_PAPI)
 
-if( DAGuE_CUDA )
+if( DAGUE_CUDA )
   include (cmake_modules/FindCUDA.cmake)
   set(CUDA_HOST_COMPILATION_CPP OFF)
   find_package(CUDA)
   if (CUDA_FOUND)
     include_directories(${CUDA_INCLUDE_DIRS})
-    set( DAGuE_CUDA_SUPPORT 1)
+    set( DAGUE_CUDA_SUPPORT 1)
   else (CUDA_FOUND)
-    set( DAGuE_CUDA_SUPPORT 0)
+    set( DAGUE_CUDA_SUPPORT 0)
   endif (CUDA_FOUND)
-endif( DAGuE_CUDA )
+endif( DAGUE_CUDA )
 
 check_include_files(stdarg.h HAVE_STDARG_H)
 check_function_exists(va_copy HAVE_VA_COPY)
@@ -214,18 +214,18 @@ check_include_files(errno.h HAVE_ERRNO_H)
 # Setup targets
 #
 add_library(dague STATIC dague.c symbol.c assignment.c expr.c params.c dep.c
-  scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+  scheduling.c profiling.c stats.c remote_dep.c barrier.c Buf2Cache/buf2cache.c
   freelist.c debug.c bindthread.c ${EXTRA_SOURCES})
 set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
-if (DAGuE_MPI AND MPI_FOUND)
+if (DAGUE_MPI AND MPI_FOUND)
   add_library(dague-mpi STATIC dague.c symbol.c assignment.c expr.c params.c dep.c
-    scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
+    scheduling.c profiling.c stats.c remote_dep.c barrier.c Buf2Cache/buf2cache.c
     freelist.c debug.c bindthread.c ${EXTRA_SOURCES})
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
 #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
-endif (DAGuE_MPI AND MPI_FOUND)
+endif (DAGUE_MPI AND MPI_FOUND)
 
 #
 # Now continue with compiling the tests.

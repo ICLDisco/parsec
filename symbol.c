@@ -64,21 +64,21 @@ void symbol_dump(const symbol_t *s, const char *prefix)
     if( s->min == s->max ) {
         if( EXPR_FLAG_CONSTANT & s->min->flags ) {
             printf("%s%s:%s%s = {%d = ", prefix, s->name,
-                   (DAGuE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
-                   (DAGuE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"), s->min->value);
+                   (DAGUE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
+                   (DAGUE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"), s->min->value);
             expr_dump(stdout, s->min);
             printf("}\n" );
         } else {
             printf("%s%s:%s%s = ", prefix, s->name,
-                   (DAGuE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
-                   (DAGuE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
+                   (DAGUE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
+                   (DAGUE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
             expr_dump(stdout, s->min);
             printf("\n" );
         }
     } else {
         printf("%s%s:%s%s = [", prefix, s->name,
-               (DAGuE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
-               (DAGuE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
+               (DAGUE_SYMBOL_IS_GLOBAL & s->flags ? "G" : "L"),
+               (DAGUE_SYMBOL_IS_STANDALONE & s->flags ? "S" : "D"));
         expr_dump(stdout, s->min);
         printf(" .. ");
         expr_dump(stdout, s->max);
@@ -146,7 +146,7 @@ int dague_add_global_symbol( const char *name )
     }
 
     symbol = (symbol_t*)calloc(1, sizeof(symbol_t));
-    symbol->flags = DAGuE_SYMBOL_IS_GLOBAL;
+    symbol->flags = DAGUE_SYMBOL_IS_GLOBAL;
     symbol->name = strdup(name);
 
     dague_symbol_array[dague_symbol_array_count] = symbol;
@@ -181,7 +181,7 @@ static int dague_expr_parse_callback( const symbol_t* symbol, void* data )
 {
     int* pvalue = (int*)data;
 
-    if( !(DAGuE_SYMBOL_IS_GLOBAL & symbol->flags) ) {
+    if( !(DAGUE_SYMBOL_IS_GLOBAL & symbol->flags) ) {
         /* Allow us to count the number of local symbols in the expression */
         (*pvalue)++;
     }
@@ -226,7 +226,7 @@ int dague_symbol_get_first_value( const symbol_t* symbol,
     }
 
     rc = dague_add_assignment( symbol, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( DAGuE_ASSIGN_ERROR == rc ) {
+    if( DAGUE_ASSIGN_ERROR == rc ) {
         /* the symbol cannot be added to the local context. Bail out */
         return rc;
     }
@@ -298,7 +298,7 @@ int dague_symbol_get_last_value( const symbol_t* symbol,
     }
 
     rc = dague_add_assignment( symbol, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( DAGuE_ASSIGN_ERROR == rc ) {
+    if( DAGUE_ASSIGN_ERROR == rc ) {
         /* the symbol cannot be added to the local context. Bail out */
         return rc;
     }
@@ -357,7 +357,7 @@ int dague_symbol_get_next_value( const symbol_t* symbol,
     }
 
     rc = dague_find_assignment( symbol->name, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( DAGuE_ASSIGN_ERROR == rc ) {
+    if( DAGUE_ASSIGN_ERROR == rc ) {
         /* the symbol is not yet on the assignment list, so there is ABSOLUTELY
          * no reason to ask for the next value.
          */
@@ -413,7 +413,7 @@ int dague_symbol_validate_value( const symbol_t* symbol,
     int rc, min, max, pred_index, pred_val, valid_value = 1;
 
     rc = dague_find_assignment( symbol->name, local_context, MAX_LOCAL_COUNT, &assignment );
-    if( DAGuE_ASSIGN_ERROR == rc ) {
+    if( DAGUE_ASSIGN_ERROR == rc ) {
         /* the symbol is not yet on the assignment list, so there is ABSOLUTELY
          * no reason to ask for the next value.
          */

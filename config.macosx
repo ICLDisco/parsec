@@ -9,4 +9,4 @@ HWLOC_OPTS=""
 PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
 HWLOC_OPTS="-DHWLOC_DIR=/opt/local"
 
-cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGuE_MPI=ON ${HWLOC_OPTS}
+cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${HWLOC_OPTS}

@@ -1,7 +1,7 @@
 #include "dague.h"
 #include "cholesky.h"
 
-static DAGuE_ontask_iterate_t printit(DAGuE_execution_unit_t *_eu, const DAGuE_execution_context_t *context, void *_)
+static dague_ontask_iterate_t printit(dague_execution_unit_t *_eu, const dague_execution_context_t *context, void *_)
 {
     if( !strcmp(context->function->name, "POTRF") ) {
         printf(" -> %s(%d)\n", context->function->name, 
@@ -26,16 +26,16 @@ static DAGuE_ontask_iterate_t printit(DAGuE_execution_unit_t *_eu, const DAGuE_e
 
     context->function->iterate_successors(NULL, context, printit, NULL);
 
-    return DAGuE_ITERATE_CONTINUE;
+    return DAGUE_ITERATE_CONTINUE;
 }
 
 int main(int argc, char *argv[])
 {
-    DAGuE_object_t *o = DAGuE_cholesky_new(NULL, 4, 10);
-    DAGuE_execution_context_t init;
+    dague_object_t *o = dague_cholesky_new(NULL, 4, 10);
+    dague_execution_context_t init;
 
-    init.DAGuE_object = o;
-    init.function = (DAGuE_t*)o->functions_array[3];
+    init.dague_object = o;
+    init.function = (dague_t*)o->functions_array[3];
     init.locals[0].value = 0;
 
     printit(NULL, &init, NULL);

@@ -37,6 +37,6 @@ void param_dump(const param_t *p, const char *prefix);
 /**
  *
  */
-param_t* DAGuE_find_or_create_param(struct DAGuE_t* function, char* param_name);
+param_t* dague_find_or_create_param(struct dague_t* function, char* param_name);
 
 #endif

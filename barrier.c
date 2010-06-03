@@ -7,7 +7,7 @@
 #include "dague_config.h"
 #include "barrier.h"
 
-#if DAGuE_IMPLEMENT_BARRIERS
+#if DAGUE_IMPLEMENT_BARRIERS
 
 int dague_barrier_init(dague_barrier_t* barrier, const void* attr, unsigned int count)
 {

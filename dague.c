@@ -23,7 +23,7 @@
 #include "remote_dep.h"
 #include "bindthread.h"
 
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
 #include "profiling.h"
 #endif
 
@@ -38,12 +38,12 @@
 
 FILE *__dague_graph_file = NULL;
 
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
 int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
-#endif  /* DAGuE_PROFILING */
+#endif  /* DAGUE_PROFILING */
 
 static const dague_t** dague_array = NULL;
 static int dague_array_size = 0, dague_array_count = 0;
@@ -53,7 +53,7 @@ int num_events = 0;
 char* event_names[MAX_EVENTS];
 #endif
 
-int DAGuE_TILE_SIZE = 0;
+int DAGUE_TILE_SIZE = 0;
 
 void dague_dump(const dague_t *d, const char *prefix)
 {
@@ -92,9 +92,9 @@ void dague_dump(const dague_t *d, const char *prefix)
     }
 
     printf("%s Required dependencies mask: 0x%x (%s/%s/%s)\n", prefix,
-           (int)d->dependencies_mask, (d->flags & DAGuE_HAS_IN_IN_DEPENDENCIES ? "I" : "N"),
-           (d->flags & DAGuE_HAS_OUT_OUT_DEPENDENCIES ? "O" : "N"),
-           (d->flags & DAGuE_HAS_IN_STRONG_DEPENDENCIES ? "S" : "N"));
+           (int)d->dependencies_mask, (d->flags & DAGUE_HAS_IN_IN_DEPENDENCIES ? "I" : "N"),
+           (d->flags & DAGUE_HAS_OUT_OUT_DEPENDENCIES ? "O" : "N"),
+           (d->flags & DAGUE_HAS_IN_STRONG_DEPENDENCIES ? "S" : "N"));
     printf("%s Body:\n", prefix);
     printf("%s  %s\n", prefix, d->body);
 
@@ -204,9 +204,9 @@ int dague_nb_elements( void )
 /**
  *
  */
-#if defined(DAGuE_USE_GLOBAL_LIFO)
+#if defined(DAGUE_USE_GLOBAL_LIFO)
 dague_atomic_lifo_t ready_list;
-#endif  /* defined(DAGuE_USE_GLOBAL_LIFO) */
+#endif  /* defined(DAGUE_USE_GLOBAL_LIFO) */
 
 typedef struct __dague_temporary_thread_initialization_t {
     dague_context_t* master_context;
@@ -215,7 +215,7 @@ typedef struct __dague_temporary_thread_initialization_t {
     int bindto;
 } __dague_temporary_thread_initialization_t;
 
-#if !defined(DAGuE_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
+#if !defined(DAGUE_USE_GLOBAL_LIFO) && defined(HAVE_HWLOC)
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
@@ -228,7 +228,7 @@ static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
     /* Store is a lifo or a dequeue */
-#if defined(DAGuE_USE_LIFO)
+#if defined(DAGUE_USE_LIFO)
     dague_atomic_lifo_push( (dague_atomic_lifo_t*)store, elt );
 #else
     dague_dequeue_push_back( (dague_dequeue_t*)store, elt );
@@ -251,17 +251,17 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->master_context = startup->master_context;
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
     eu->eu_profile = dague_profiling_thread_init( 8192, "DAGuE Thread %d", eu->eu_id );
 #endif
-#ifdef DAGuE_USE_LIFO
+#ifdef DAGUE_USE_LIFO
     eu->eu_task_queue = (dague_atomic_lifo_t*)malloc( sizeof(dague_atomic_lifo_t) );
     if( NULL == eu->eu_task_queue ) {
         free(eu);
         return NULL;
     }
     dague_atomic_lifo_construct( eu->eu_task_queue );
-#elif defined(DAGuE_USE_GLOBAL_LIFO)
+#elif defined(DAGUE_USE_GLOBAL_LIFO)
     /* Everybody share the same global LIFO */
     eu->eu_task_queue = &ready_list;
 #elif defined(HAVE_HWLOC)
@@ -277,9 +277,9 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->placeholder_pop  = 0;
     eu->placeholder_push = 0;
 #endif  /* PLACEHOLDER_SIZE */
-#endif  /* DAGuE_USE_LIFO */
+#endif  /* DAGUE_USE_LIFO */
 
-#if defined(DAGuE_CACHE_AWARE)
+#if defined(DAGUE_CACHE_AWARE)
     eu->closest_cache = NULL;
 #endif
 
@@ -367,7 +367,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         }
 #endif
 
-#if defined(DAGuE_CACHE_AWARE)
+#if defined(DAGUE_CACHE_AWARE)
 #define TILE_SIZE (120*120*sizeof(double))
         for(level = 0; level < dague_hwloc_nb_levels(); level++) {
             master = dague_hwloc_master_id(level, eu->eu_id);
@@ -394,7 +394,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                        eu->eu_id, master, level,  eu->closest_cache));
             }
         }
-#endif /* DAGuE_CACHE_AWARE */
+#endif /* DAGUE_CACHE_AWARE */
     }
 #endif  /* defined(HAVE_HWLOC)*/
 
@@ -444,7 +444,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
         startup[i].bindto = i;
     }
 
-    DAGuE_TILE_SIZE = tile_size;
+    DAGUE_TILE_SIZE = tile_size;
 
 #if defined(USE_MPI)
     /* Change this to pass the MPI Datatype as parameter to dague_init, or 
@@ -598,7 +598,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
         fprintf(__dague_graph_file, "digraph G {\n");
         fflush(__dague_graph_file);
     }
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
     dague_profiling_init( "%s", (*pargv)[0] );
 
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
@@ -609,11 +609,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
                                               &schedule_push_begin, &schedule_push_end);
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                               &schedule_sleep_begin, &schedule_sleep_end);
-#endif  /* DAGuE_PROFILING */
+#endif  /* DAGUE_PROFILING */
 
-#if defined(DAGuE_USE_GLOBAL_LIFO)
+#if defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_construct(&ready_list);
-#endif  /* defined(DAGuE_USE_GLOBAL_LIFO) */
+#endif  /* defined(DAGUE_USE_GLOBAL_LIFO) */
 
     if( nb_cores > 1 ) {
         pthread_attr_t thread_attr;
@@ -692,10 +692,10 @@ int dague_fini( dague_context_t** pcontext )
     (void) dague_remote_dep_fini( context );
     
     for(i = 1; i < context->nb_cores; i++) {
-#if defined(DAGuE_USE_LIFO) && !defined(DAGuE_USE_GLOBAL_LIFO)
+#if defined(DAGUE_USE_LIFO) && !defined(DAGUE_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
         context->execution_units[i]->eu_task_queue = NULL;
-#endif  /* defined(DAGuE_USE_LIFO) && !defined(DAGuE_USE_GLOBAL_LIFO) */
+#endif  /* defined(DAGUE_USE_LIFO) && !defined(DAGUE_USE_GLOBAL_LIFO) */
 #if defined(HAVE_HWLOC)
         /**
          * TODO: use HWLOC to know who is responsible to free this, 
@@ -706,12 +706,12 @@ int dague_fini( dague_context_t** pcontext )
         context->execution_units[i]->eu_nb_hierarch_queues = 0;
         //free(context->execution_units[i]->eu_system_queue);
         context->execution_units[i]->eu_system_queue = NULL;
-#endif  /* !defined(DAGuE_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
+#endif  /* !defined(DAGUE_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
     }
     
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
     dague_profiling_fini( );
-#endif  /* DAGuE_PROFILING */
+#endif  /* DAGUE_PROFILING */
 
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
@@ -730,7 +730,7 @@ int dague_fini( dague_context_t** pcontext )
     dague_hwloc_fini();
 #endif  /* defined(HWLOC) */
 
-#if defined(DAGuE_STATS)
+#if defined(DAGUE_STATS)
     {
         char filename[64];
         char prefix[32];
@@ -893,7 +893,7 @@ int dague_compute_nb_tasks( const dague_t* object, int use_predicates )
     const expr_t** predicates = (const expr_t**)object->preds;
     int rc, actual_loop, nb_tasks = 0;
 
-    DAGuE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
+    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
     exec_context->function = (dague_t*)object;
 
@@ -973,7 +973,7 @@ static int dague_check_IN_dependencies( const dague_execution_context_t* exec_co
     param_t* param;
     dep_t* dep;
 
-    if( !(function->flags & DAGuE_HAS_IN_IN_DEPENDENCIES) ) {
+    if( !(function->flags & DAGUE_HAS_IN_IN_DEPENDENCIES) ) {
         return 0;
     }
 
@@ -1012,7 +1012,7 @@ static void malloc_deps(dague_execution_unit_t* eu_context,
     dague_dependencies_t* last_deps = NULL;
     int i;
     
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
     dague_profiling_trace(eu_context->eu_profile, MEMALLOC_start_key, 0);
 #endif
     
@@ -1029,9 +1029,9 @@ static void malloc_deps(dague_execution_unit_t* eu_context,
                    number, function->locals[i]->name, min, max));
             deps = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +
                                                    number * sizeof(dague_dependencies_union_t));
-            DAGuE_STAT_INCREASE(mem_contexts, sizeof(dague_dependencies_t) +
+            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_dependencies_t) +
                   number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD); 
-            deps->flags = DAGuE_DEPENDENCIES_FLAG_ALLOCATED | DAGuE_DEPENDENCIES_FLAG_FINAL;
+            deps->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | DAGUE_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;
             deps->max = max;
@@ -1039,12 +1039,12 @@ static void malloc_deps(dague_execution_unit_t* eu_context,
             if( 0 == dague_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
                 /* Some other thread manage to set it before us. Not a big deal. */
                 free(deps);
-                DAGuE_STAT_DECREASE(mem_contexts,  sizeof(dague_dependencies_t) +
+                DAGUE_STAT_DECREASE(mem_contexts,  sizeof(dague_dependencies_t) +
                                       number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                 goto deps_created_by_another_thread;
             }
             if( NULL != last_deps ) {
-                last_deps->flags = DAGuE_DEPENDENCIES_FLAG_NEXT | DAGuE_DEPENDENCIES_FLAG_ALLOCATED;
+                last_deps->flags = DAGUE_DEPENDENCIES_FLAG_NEXT | DAGUE_DEPENDENCIES_FLAG_ALLOCATED;
             }
         } else {
         deps_created_by_another_thread:
@@ -1056,7 +1056,7 @@ static void malloc_deps(dague_execution_unit_t* eu_context,
         deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
         last_deps = deps;
     }
-#ifdef DAGuE_PROFILING
+#ifdef DAGUE_PROFILING
     dague_profiling_trace(eu_context->eu_profile, MEMALLOC_end_key, 0);
 #endif    
 }
@@ -1078,7 +1078,7 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
     dague_t* function = exec_context->function;
     dague_dependencies_t *deps;
     int i, updated_deps, mask;
-#ifdef DAGuE_DEBUG
+#ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
 
@@ -1101,20 +1101,20 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
     }
     assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
 #endif  /* !defined(NDEBUG) */
-    mask = DAGuE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
+    mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
     /* Mark the dependencies and check if this particular instance can be executed */
-    if( !(DAGuE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
+    if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
         mask |= dague_check_IN_dependencies( exec_context );
-#ifdef DAGuE_DEBUG
+#ifdef DAGUE_DEBUG
         if( mask > 0 ) {
             DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
         }
-#endif /* DAGuE_DEBUG */
+#endif /* DAGUE_DEBUG */
     }
 
     updated_deps = dague_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
 
-#if defined(DAGuE_GRAPHER) || 1
+#if defined(DAGUE_GRAPHER) || 1
     if( NULL != __dague_graph_file ) {
         char tmp[128];
         fprintf(__dague_graph_file, 
@@ -1123,7 +1123,7 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
                 ((updated_deps & function->dependencies_mask) == function->dependencies_mask) ? "solid" : "dashed");
         fflush(__dague_graph_file);
     }
-#endif  /* defined(DAGuE_GRAPHER) */
+#endif  /* defined(DAGUE_GRAPHER) */
 
     if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
 
@@ -1150,14 +1150,14 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
         {
             dague_execution_context_t* new_context;
             new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
-            DAGuE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
+            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
-#if defined(DAGuE_CACHE_AWARE)
+#if defined(DAGUE_CACHE_AWARE)
             new_context->pointers[1] = NULL;
 #endif
 
             if( NULL == *pready_list ) {
-                DAGuE_LIST_ITEM_SINGLETON(new_context);
+                DAGUE_LIST_ITEM_SINGLETON(new_context);
                 *pready_list = new_context;
             } else {
                 dague_execution_context_t* position = *pready_list;
@@ -1176,12 +1176,12 @@ int dague_release_local_OUT_dependencies( dague_execution_unit_t* eu_context,
             }
         }
 
-        DAGuE_STAT_INCREASE(counter_nbtasks, 1ULL);
+        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
     } else {
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
-               (int)(updated_deps & (~DAGuE_DEPENDENCIES_HACK_IN)),
+               (int)(updated_deps & (~DAGUE_DEPENDENCIES_HACK_IN)),
                (int)(updated_deps)));
     }
 
@@ -1233,7 +1233,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
 {
     dague_t* function = exec_context->function;
     dague_dependencies_t *deps, **deps_location, *last_deps;
-#ifdef DAGuE_DEBUG
+#ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
     int i, actual_loop, rc;
@@ -1314,9 +1314,9 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                    number, function->locals[i]->name, min, max));
             deps = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +
                                                    number * sizeof(dague_dependencies_union_t));
-            DAGuE_STAT_INCREASE(mem_contexts,  sizeof(dague_dependencies_t) +
+            DAGUE_STAT_INCREASE(mem_contexts,  sizeof(dague_dependencies_t) +
                                   number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-            deps->flags = DAGuE_DEPENDENCIES_FLAG_ALLOCATED | DAGuE_DEPENDENCIES_FLAG_FINAL;
+            deps->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | DAGUE_DEPENDENCIES_FLAG_FINAL;
             deps->symbol = function->locals[i];
             deps->min = min;
             deps->max = max;
@@ -1324,12 +1324,12 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
             if( 0 == dague_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
                 /* Some other thread manage to set it before us. Not a big deal. */
                 free(deps);
-                DAGuE_STAT_DECREASE(mem_contexts,  sizeof(dague_dependencies_t) +
+                DAGUE_STAT_DECREASE(mem_contexts,  sizeof(dague_dependencies_t) +
                                       number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                 goto deps_created_by_another_thread;
             }
             if( NULL != last_deps ) {
-                last_deps->flags = DAGuE_DEPENDENCIES_FLAG_NEXT | DAGuE_DEPENDENCIES_FLAG_ALLOCATED;
+                last_deps->flags = DAGUE_DEPENDENCIES_FLAG_NEXT | DAGUE_DEPENDENCIES_FLAG_ALLOCATED;
             }
         } else {
         deps_created_by_another_thread:
@@ -1356,9 +1356,9 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
 
     actual_loop = function->nb_locals - 1;
     while(1) {
-#if defined(DAGuE_GRAPHER) || 1
+#if defined(DAGUE_GRAPHER) || 1
         int first_encounter = 0;
-#endif  /* defined(DAGuE_GRAPHER) */
+#endif  /* defined(DAGUE_GRAPHER) */
         int updated_deps, mask;
 
         if( 0 != dague_is_valid(exec_context) ) {
@@ -1380,23 +1380,23 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
         }
         assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & dest_param->param_mask) );
 #endif  /* !defined(NDEBUG) */
-        mask = DAGuE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
+        mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
         /* Mark the dependencies and check if this particular instance can be executed */
-        if( !(DAGuE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
+        if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
             mask |= dague_check_IN_dependencies( exec_context );
             if( mask > 0 ) {
                 DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
             }
-#if defined(DAGuE_GRAPHER) || 1
+#if defined(DAGUE_GRAPHER) || 1
             first_encounter = 1;
-#endif  /* defined(DAGuE_GRAPHER) */
+#endif  /* defined(DAGUE_GRAPHER) */
         }
 
         updated_deps = dague_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
                                            mask);
 
         if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
-#if defined(DAGuE_GRAPHER) || 1
+#if defined(DAGUE_GRAPHER) || 1
             if( NULL != __dague_graph_file ) {
                 char tmp[128];
                 fprintf(__dague_graph_file,
@@ -1404,7 +1404,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                         origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
                 fflush(__dague_graph_file);
             }
-#endif  /* defined(DAGuE_GRAPHER) */
+#endif  /* defined(DAGUE_GRAPHER) */
             execution_step++;
 
 #if !defined(NDEBUG)
@@ -1430,9 +1430,9 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
         } else {
             DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                    dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
-                   (int)(updated_deps & (~DAGuE_DEPENDENCIES_HACK_IN)),
+                   (int)(updated_deps & (~DAGUE_DEPENDENCIES_HACK_IN)),
                    (int)(updated_deps)));
-#if defined(DAGuE_GRAPHER) || 1
+#if defined(DAGUE_GRAPHER) || 1
             if( NULL != __dague_graph_file ) {
                 char tmp[128];
                 fprintf(__dague_graph_file,
@@ -1440,7 +1440,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                         origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
                 fflush(__dague_graph_file);
             }
-#endif  /* defined(DAGuE_GRAPHER) */
+#endif  /* defined(DAGUE_GRAPHER) */
         }
 
     next_value:
@@ -1480,9 +1480,9 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                            exec_context->locals[actual_loop].value, min, max));
                     deps = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +
                                                            number * sizeof(dague_dependencies_union_t));
-                    DAGuE_STAT_INCREASE(mem_contexts, sizeof(dague_dependencies_t) +
+                    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_dependencies_t) +
                                           number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-                    deps->flags = DAGuE_DEPENDENCIES_FLAG_ALLOCATED | DAGuE_DEPENDENCIES_FLAG_FINAL;
+                    deps->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | DAGUE_DEPENDENCIES_FLAG_FINAL;
                     deps->symbol = function->locals[actual_loop];
                     deps->min = min;
                     deps->max = max;
@@ -1492,7 +1492,7 @@ int dague_release_OUT_dependencies( dague_execution_unit_t* eu_context,
                      * thread. Keep going.
                      */
                     if( !dague_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
-                        DAGuE_STAT_DECREASE(mem_contexts, sizeof(dague_dependencies_t) +
+                        DAGUE_STAT_DECREASE(mem_contexts, sizeof(dague_dependencies_t) +
                                               number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
                         free(deps);
                     }

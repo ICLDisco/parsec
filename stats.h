@@ -2,12 +2,12 @@
 #define stats_h
 
 /* stats-internal define
- *  DAGuE_STAT_INCREASE(name, value)
- *  DAGuE_STAT_DECREASE(name, value)
+ *  DAGUE_STAT_INCREASE(name, value)
+ *  DAGUE_STAT_DECREASE(name, value)
  * and
- *  void DAGuE_stats_dump(char *filename, char *prefix);
+ *  void dague_stats_dump(char *filename, char *prefix);
  *
- * Call DAGuE_stats_dump to dump the stats. prefix is prepended to each
+ * Call dague_stats_dump to dump the stats. prefix is prepended to each
  * line that will look like
  *  prefix: name_of_stat   MAX = %llu
  *

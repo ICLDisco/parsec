@@ -95,21 +95,21 @@ static char *dump_string(void **elt, void *_)
 
 /**
  * dump_globals:
- *   Dump a global symbol like #define ABC (__DAGuE_object->ABC)
+ *   Dump a global symbol like #define ABC (__dague_object->ABC)
  */
 static char* dump_globals(void** elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
 
     string_arena_init(sa);
-    string_arena_add_string(sa, "%s (__DAGuE_object->%s)", (char*)*elem, (char*)*elem );
+    string_arena_add_string(sa, "%s (__dague_object->%s)", (char*)*elem, (char*)*elem );
     return string_arena_get_string(sa);
 }
 
 /**
  * dump_data:
  *   Dump a global symbol like
- *     #define ABC(A0, A1) (__DAGuE_object->ABC->data_of(__DAGuE_object->ABC, A0, A1))
+ *     #define ABC(A0, A1) (__dague_object->ABC->data_of(__dague_object->ABC, A0, A1))
  */
 static char* dump_data(void** elem, void *arg)
 {
@@ -122,7 +122,7 @@ static char* dump_data(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (__DAGuE_object->%s->data_of(__DAGuE_object->%s", 
+    string_arena_add_string(sa, ")  (__dague_object->%s->data_of(__dague_object->%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -294,7 +294,7 @@ static char * dump_expr(void **elem, void *arg)
 
 /**
  * Dump a predicate like 
- *  #define F_pred(k, n, m) (__DAGuE_object->ABC->rank == __DAGuE_object->ABC->rank_of(__DAGuE_object->ABC, k, n, m))
+ *  #define F_pred(k, n, m) (__dague_object->ABC->rank == __dague_object->ABC->rank_of(__dague_object->ABC, k, n, m))
  */
 static char* dump_predicate(void** elem, void *arg)
 {
@@ -315,7 +315,7 @@ static char* dump_predicate(void** elem, void *arg)
                                                  "", "", ", ", ""));
     expr_info.sa = sa3;
     expr_info.prefix = "";
-    string_arena_add_string(sa, "(__DAGuE_object->%s->myrank == __DAGuE_object->%s->rank_of(__DAGuE_object->%s, %s))", 
+    string_arena_add_string(sa, "(__dague_object->%s->myrank == __dague_object->%s->rank_of(__dague_object->%s, %s))", 
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, f->predicate->parameters, next, expr,
                                                  dump_expr, &expr_info,
@@ -328,7 +328,7 @@ static char* dump_predicate(void** elem, void *arg)
 
 /**
  * Dump a repository line, like
- * #define F_repo (__DAGuE_object->F_repo)
+ * #define F_repo (__dague_object->F_repo)
  */
 static char *dump_repo(void **elem, void *arg)
 {
@@ -336,7 +336,7 @@ static char *dump_repo(void **elem, void *arg)
     string_arena_t *sa = (string_arena_t*)arg;
 
     string_arena_init(sa);
-    string_arena_add_string(sa, "%s_repo (__DAGuE_object->%s_repo)",
+    string_arena_add_string(sa, "%s_repo (__dague_object->%s_repo)",
                             f->fname, f->fname);
 
     return string_arena_get_string(sa);
@@ -594,10 +594,10 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include <DAGuE.h>\n\n");
-    houtput("DAGuE_object_t *DAGuE_%s_new(%s, %s);\n", jdf_basename,
+    houtput("#include <dague.h>\n\n");
+    houtput("dague_object_t *dague_%s_new(%s, %s);\n", jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "DAGuE_ddesc_t *", ", ", ""),
+                                  dump_string, NULL, "", "dague_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
                                   dump_string, NULL, "",  "int ", ", ", ""));
     string_arena_free(sa1);
@@ -627,30 +627,30 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 3 + nblines(p->preamble), jdf_cfilename);
     }
 
-    coutput("#include <DAGuE.h>\n"
+    coutput("#include <dague.h>\n"
             "#include <assignment.h>\n"
             "#include <remote_dep.h>\n"
             "#include \"%s.h\"\n\n"
-            "#define DAGuE_%s_NB_FUNCTIONS %d\n"
-            "#define DAGuE_%s_NB_DATA %d\n"
+            "#define DAGUE_%s_NB_FUNCTIONS %d\n"
+            "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DISTRIBUTED)\n"
             "#define IFDISTRIBUTED(t) t\n"
             "#else\n"
             "#define IFDISTRIBUTED(t) NULL\n"
             "#endif\n"
-            "#if defined(DAGuE_PROFILING)\n"
-            "#define TAKE_TIME(context, key, id) DAGuE_profiling_trace(context->eu_profile, __DAGuE_object->key, id)\n"
+            "#if defined(DAGUE_PROFILING)\n"
+            "#define TAKE_TIME(context, key, id) dague_profiling_trace(context->eu_profile, __dague_object->key, id)\n"
             "#else\n"
             "#define TAKE_TIME(context, key, id)\n"
             "#endif\n", 
             jdf_basename, 
             jdf_basename, nbfunctions, 
             jdf_basename, nbdata);
-    coutput("typedef struct __DAGuE_%s_object {\n", jdf_basename);
-    coutput("  /** All DAGuE_object_t structures hold these two arrays **/\n"
+    coutput("typedef struct __dague_%s_object {\n", jdf_basename);
+    coutput("  /** All dague_object_t structures hold these two arrays **/\n"
             "  int                    nb_functions;\n"
-            "  const DAGuE_t        **functions_array;\n"
-            "  DAGuE_dependencies_t **dependencies_array;\n"
+            "  const dague_t        **functions_array;\n"
+            "  dague_dependencies_t **dependencies_array;\n"
             "  /*** Here begins the %s-specific part ***/\n",
             jdf_basename);
     coutput("  /* The list of globals */\n"
@@ -660,21 +660,21 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("  /* The list of data */\n"
             "%s", 
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "  DAGuE_ddesc_t *", ";\n", ";\n"));
+                                  dump_string, NULL, "", "  dague_ddesc_t *", ";\n", ";\n"));
     coutput("  /* The list of data repositories */\n"
             "%s",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  data_repo_t *", "_repo;\n", "_repo;\n"));
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
-            "#  if defined(DAGuE_PROFILING)\n"
+            "#  if defined(DAGUE_PROFILING)\n"
             "%s", 
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  int ", "_start_key;\n", "_start_key;\n"));
     coutput("%s", 
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  int ", "_end_key;\n", "_end_key;\n"));
-    coutput("#  endif /* defined(DAGuE_PROFILING) */\n");
-    coutput("} __DAGuE_%s_object_t;\n"
+    coutput("#  endif /* defined(DAGUE_PROFILING) */\n");
+    coutput("} __dague_%s_object_t;\n"
             "\n", jdf_basename);
 
     coutput("/* Globals */\n%s\n",
@@ -727,11 +727,11 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
         ai.idx = 0;
         ai.holder = "assignments";
         ai.expr = e;
-        coutput("static inline int %s_fct(const DAGuE_object_t *__DAGuE_object_parent, const assignment_t *assignments)\n"
+        coutput("static inline int %s_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
                 "{\n"
-                "  const __DAGuE_%s_object_t *__DAGuE_object = (const __DAGuE_%s_object_t*)__DAGuE_object_parent;\n"
+                "  const __dague_%s_object_t *__dague_object = (const __dague_%s_object_t*)__dague_object_parent;\n"
                 "%s\n"
-                "  (void)__DAGuE_object;\n"
+                "  (void)__dague_object;\n"
                 "  return %s;\n"
                 "}\n", name, jdf_basename, jdf_basename,
                 UTIL_DUMP_LIST_FIELD(sa2, context, next, name, 
@@ -767,9 +767,9 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     ai.idx = 0;
     ai.holder = "assignments";
     ai.expr = NULL;
-    coutput("static inline int %s_fct(const DAGuE_object_t *__DAGuE_object_parent, const assignment_t *assignments)\n"
+    coutput("static inline int %s_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
-            "  const __DAGuE_%s_object_t *__DAGuE_object = (const __DAGuE_%s_object_t*)__DAGuE_object_parent;\n"
+            "  const __dague_%s_object_t *__dague_object = (const __dague_%s_object_t*)__dague_object_parent;\n"
             "%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
             "%s\n"
@@ -849,7 +849,7 @@ static void jdf_generate_dependency( const jdf_t *jdf, const char *datatype,
     string_arena_add_string(sa, 
                             "static const dep_t %s = {\n"
                             "  .cond = %s,\n"
-                            "  .DAGuE = &%s_%s,\n",
+                            "  .dague = &%s_%s,\n",
                             depname, 
                             condname,
                             jdf_basename, call->func_or_mem);
@@ -862,7 +862,7 @@ static void jdf_generate_dependency( const jdf_t *jdf, const char *datatype,
     string_arena_add_string(sa, 
                             "  .type  = IFDISTRIBUTED((void*)&%s), /**< Change this for C-code */\n"
                             "  .call_params = {\n",
-                            datatype != NULL ? datatype : "DAGuE_DEFAULT_DATA_TYPE");
+                            datatype != NULL ? datatype : "DAGUE_DEFAULT_DATA_TYPE");
 
     exprname = (char *)malloc(strlen(depname) + 32);
     pre[0] = '\0';
@@ -1007,7 +1007,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_coutput_prettycomment('*', "%s", f->fname);
     
     string_arena_add_string(sa, 
-                            "static const DAGuE_t %s_%s = {\n"
+                            "static const dague_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
                             "  .flags = %s,\n"
@@ -1017,7 +1017,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             jdf_basename, f->fname,
                             f->fname,
                             dep_index,
-                            (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGuE_HIGH_PRIORITY_TASK" : "0x0",
+                            (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                             nbparameters,
                             nbdataflow);
 
@@ -1082,7 +1082,7 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     int i;
 
     sa = string_arena_new(64);
-    string_arena_add_string(sa, "static const DAGuE_t *%s_functions[] = {\n",
+    string_arena_add_string(sa, "static const dague_t *%s_functions[] = {\n",
                             jdf_basename);
     for(i = 0, f = jdf->functions; NULL != f; f = f->next, i++) {
         jdf_generate_one_function(jdf, f, i);
@@ -1100,7 +1100,7 @@ static char *dump_pseudodague(void **elem, void *arg)
     char *name = *(char**)elem;
     string_arena_init(sa);
     string_arena_add_string(sa,
-                            "static const DAGuE_t %s_%s = {\n"
+                            "static const dague_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .flags = 0x0,\n"
                             "  .dependencies_mask = 0x0,\n"
@@ -1116,9 +1116,9 @@ static char *dump_pseudodague(void **elem, void *arg)
                             "  .hook = NULL,\n"
                             "  .release_deps = NULL,\n"
                             "  .body = NULL,\n"
-                            "#if defined(DAGuE_CACHE_AWARENESS)\n"
+                            "#if defined(DAGUE_CACHE_AWARENESS)\n"
                             "  .cache_rank_function = NULL,\n"
-                            "#endif /* defined(DAGuE_CACHE_AWARENESS) */\n"
+                            "#endif /* defined(DAGUE_CACHE_AWARENESS) */\n"
                             "};\n",
                             jdf_basename, name, name);
     return string_arena_get_string(sa);
@@ -1133,11 +1133,11 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    coutput("/** Predeclarations of the DAGuE_t objects */\n");
+    coutput("/** Predeclarations of the dague_t objects */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        coutput("static const DAGuE_t %s_%s;\n", jdf_basename, f->fname);
+        coutput("static const dague_t %s_%s;\n", jdf_basename, f->fname);
     }
-    coutput("/** Declarations of the pseudo-DAGuE_t objects for data */\n"
+    coutput("/** Declarations of the pseudo-dague_t objects for data */\n"
             "%s\n",
             UTIL_DUMP_LIST_FIELD(sa2, jdf->data, next, dname,
                                  dump_pseudodague, sa, "", "", "", ""));
@@ -1179,27 +1179,27 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
                                   dump_string, NULL, "", "#undef ", "\n", "\n"));
 
-    coutput("DAGuE_object_t *DAGuE_%s_new(%s, %s)\n{\n", jdf_basename,
+    coutput("dague_object_t *dague_%s_new(%s, %s)\n{\n", jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "DAGuE_ddesc_t *", ", ", ""),
+                                  dump_string, NULL, "", "dague_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
                                   dump_string, NULL, "",  "int ", ", ", ""));
 
-    coutput("  __DAGuE_%s_object_t *res = (__DAGuE_%s_object_t *)calloc(1, sizeof(__DAGuE_%s_object_t));\n",
+    coutput("  __dague_%s_object_t *res = (__dague_%s_object_t *)calloc(1, sizeof(__dague_%s_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
-    coutput("  res->nb_functions    = DAGuE_%s_NB_FUNCTIONS;\n", jdf_basename);
-    coutput("  res->functions_array = (const DAGuE_t**)malloc(DAGuE_%s_NB_FUNCTIONS * sizeof(DAGuE_t*));\n",
+    coutput("  res->nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
+    coutput("  res->functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename);
-    coutput("  res->dependencies_array = (DAGuE_dependencies_t **)\n"
-            "             calloc(DAGuE_%s_NB_FUNCTIONS, sizeof(DAGuE_dependencies_t *));\n",
+    coutput("  res->dependencies_array = (dague_dependencies_t **)\n"
+            "             calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",
             jdf_basename);
-    coutput("  memcpy(res->functions_array, %s_functions, DAGuE_%s_NB_FUNCTIONS * sizeof(DAGuE_t*));\n",
+    coutput("  memcpy(res->functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename, jdf_basename);
     coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->data, next, dname,
                                        dump_resinit, sa2, "", "  ", "\n", "\n"));
     coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
                                        dump_resinit, sa2, "", "  ", "\n", "\n"));
-    coutput("  return (DAGuE_object_t*)res;\n"
+    coutput("  return (dague_object_t*)res;\n"
             "}\n\n");
 
     string_arena_free(sa1);
@@ -1346,11 +1346,11 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
         UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                              dump_expr, &info, "", "", ", ", "");
         coutput("%s  if( %s != %s(%s) ) {\n"
-                "%s    DAGuE_remote_dep_memcpy( %s(%s), g%s, %s );\n"
+                "%s    dague_remote_dep_memcpy( %s(%s), g%s, %s );\n"
                 "%s  }\n",                
                 spaces, f->varname, call->func_or_mem, string_arena_get_string(sa),
                 spaces, call->func_or_mem, string_arena_get_string(sa), f->varname, 
-                datatype == NULL ? "DAGuE_DEFAULT_DATA_TYPE" : datatype,
+                datatype == NULL ? "DAGUE_DEFAULT_DATA_TYPE" : datatype,
                 spaces);
     }
 
@@ -1447,10 +1447,10 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
     sa = string_arena_new(64);
 
     coutput("#if defined(DPLASMA_GRAPHER)\n"
-            "  if( NULL != __DAGuE_graph_file ) {\n"
+            "  if( NULL != __dague_graph_file ) {\n"
             "    char tmp[128];\n"
-            "    DAGuE_service_to_string(exec_context, tmp, 128);\n"
-            "    fprintf(__DAGuE_graph_file,\n"
+            "    dague_service_to_string(exec_context, tmp, 128);\n"
+            "    fprintf(__dague_graph_file,\n"
             "           \"%%s [shape=\\\"polygon\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
             "            tmp, colors[context->eu_id], tmp, %s_hash(%s));\n"
             "  }\n"
@@ -1467,9 +1467,9 @@ static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf
     sa = string_arena_new(64);
     
     coutput("  /** Cache Awareness Accounting */\n"
-            "#if defined(DAGuE_CACHE_AWARENESS)\n"
+            "#if defined(DAGUE_CACHE_AWARENESS)\n"
             "%s"
-            "#endif /* DAGuE_CACHE_AWARENESS */\n",
+            "#endif /* DAGUE_CACHE_AWARENESS */\n",
             UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
                                  dump_dataflow_varname, NULL, 
                                  "", "  cache_buf_referenced(context->closest_cache, ", ");\n", ");\n"));
@@ -1496,9 +1496,9 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
             "    gc_data_t *data[%d];\n"
             "%s"
             "    release_deps_of_%s_%s(context, exec_context,\n"
-            "        DAGuE_ACTION_RELEASE_REMOTE_DEPS |\n"
-            "        DAGuE_ACTION_RELEASE_LOCAL_DEPS |\n"
-            "        DAGuE_ACTION_DEPS_MASK,\n"
+            "        DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
+            "        DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
+            "        DAGUE_ACTION_DEPS_MASK,\n"
             "        NULL, data);\n"
             "  }\n",
             nboutput, string_arena_get_string(sa), jdf_basename, f->fname);
@@ -1580,9 +1580,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     ai.idx = 0;
     ai.holder = "exec_context->locals";
     ai.expr = NULL;
-    coutput("static int %s(DAGuE_execution_unit_t *context, DAGuE_execution_context_t *exec_context)\n"
+    coutput("static int %s(dague_execution_unit_t *context, dague_execution_context_t *exec_context)\n"
             "{\n"
-            "  __DAGuE_%s_object_t *__DAGuE_object = (__DAGuE_%s_object_t *)exec_context->DAGuE_object;\n"
+            "  __dague_%s_object_t *__dague_object = (__dague_%s_object_t *)exec_context->dague_object;\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -1642,7 +1642,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    coutput("static int %s(DAGuE_execution_unit_t *eu, const DAGuE_execution_context_t *context, int flags, const DAGuE_remote_deps_t *deps, gc_data_t **data)\n"
+    coutput("static int %s(dague_execution_unit_t *eu, const dague_execution_context_t *context, int flags, const dague_remote_deps_t *deps, gc_data_t **data)\n"
             "{\n"
             "  return 0;\n"
             "}\n"
@@ -1753,12 +1753,12 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     }
 
 
-    string_arena_add_string(sa_open, "%s%*s  %s.function = (const DAGuE_t*)&%s_%s;\n",
+    string_arena_add_string(sa_open, "%s%*s  %s.function = (const dague_t*)&%s_%s;\n",
                             prefix, nbopen, "  ", var, jdf_basename, t->fname);
 
     string_arena_add_string(sa_open, 
                             "\n"
-                            "%s%*s  if( ontask(eu, &%s, ontask_arg) == DAGuE_ITERATE_STOP )\n"
+                            "%s%*s  if( ontask(eu, &%s, ontask_arg) == DAGUE_ITERATE_STOP )\n"
                             "%s%*s    return;\n"
                             "\n",
                             prefix, nbopen, "  ",
@@ -1798,16 +1798,16 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     ai.idx = 0;
     ai.holder = "exec_context->locals";
     ai.expr = NULL;
-    coutput("static void %s(DAGuE_execution_unit_t *eu, const DAGuE_execution_context_t *exec_context,\n"
-            "               DAGuE_ontask_function_t *ontask, void *ontask_arg)\n"
+    coutput("static void %s(dague_execution_unit_t *eu, const dague_execution_context_t *exec_context,\n"
+            "               dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
-            "  DAGuE_execution_context_t nc;\n"
-            "  const __DAGuE_cholesky_object_t *__DAGuE_object = (const __DAGuE_cholesky_object_t*)exec_context->DAGuE_object;\n"
+            "  dague_execution_context_t nc;\n"
+            "  const __dague_cholesky_object_t *__dague_object = (const __dague_cholesky_object_t*)exec_context->dague_object;\n"
             "%s\n",
             name, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
-    coutput("  memcpy(&nc, exec_context, sizeof(DAGuE_execution_context_t));\n");
+    coutput("  memcpy(&nc, exec_context, sizeof(dague_execution_context_t));\n");
 
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         coutput("  /* Flow of Data %s */\n", fl->flow->varname);

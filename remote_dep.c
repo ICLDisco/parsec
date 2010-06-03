@@ -57,7 +57,7 @@ static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
     dague_atomic_dec_32b( &ctx->taskstodo );
 }
 
-#define DAGuE_COLLECTIVE_TYPE_CHAINPIPELINE
+#define DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
 
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
@@ -118,7 +118,7 @@ int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
     return remote_dep_progress(eu_context);
 }
 
-#ifdef DAGuE_COLLECTIVE
+#ifdef DAGUE_COLLECTIVE
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
@@ -149,7 +149,7 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-# ifdef DAGuE_COLLECTIVE_TYPE_CHAINPIPELINE
+# ifdef DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
 # else 
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
@@ -171,7 +171,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     dague_t* function = exec_context->function;
     int i, me, him, count, array_index, bit_index, current_mask;
     
-#if defined(DAGuE_DEBUG)
+#if defined(DAGUE_DEBUG)
     char tmp[128];
     
     /* make valgrind happy */
@@ -235,7 +235,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     }
-#ifdef DAGuE_DEBUG
+#ifdef DAGUE_DEBUG
                     else {
                         DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                     }
@@ -269,7 +269,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 
 
 #define HEAVY_DEBUG
-#if defined(DAGuE_DEBUG) && defined(HEAVY_DEBUG)
+#if defined(DAGUE_DEBUG) && defined(HEAVY_DEBUG)
 #define HDEBUG( args ) do { args ; } while(0)
 #else
 #define HDEBUG( args ) do {} while(0)

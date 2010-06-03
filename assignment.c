@@ -21,10 +21,10 @@ int dague_find_assignment( const char* name,
         assignment = &context[i];
         if( 0 == strcmp(assignment->sym->name, name) ) {
             *where = (assignment_t*)assignment;
-            return DAGuE_ASSIGN_FOUND;
+            return DAGUE_ASSIGN_FOUND;
         }
     }
-    return DAGuE_ASSIGN_ERROR;
+    return DAGUE_ASSIGN_ERROR;
 }
 
 int dague_add_assignment( const symbol_t* symbol,
@@ -37,13 +37,13 @@ int dague_add_assignment( const symbol_t* symbol,
     for( i = 0; (i < context_size) && (NULL != context[i].sym); i++ ) {
         if( 0 == strcmp(context[i].sym->name, symbol->name) ) {
             *where = &context[i];
-            return DAGuE_ASSIGN_FOUND;
+            return DAGUE_ASSIGN_FOUND;
         }
     }
     if( i < context_size ) {
         context[i].sym = (symbol_t*)symbol;
         *where = &context[i];
-        return DAGuE_ASSIGN_ADDED;
+        return DAGUE_ASSIGN_ADDED;
     }
-    return DAGuE_ASSIGN_ERROR;
+    return DAGUE_ASSIGN_ERROR;
 }
