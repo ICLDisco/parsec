@@ -7,7 +7,7 @@
 #define __DATA_MANAGEMENT__
 
 
-#include "plasma.h"
+#include "dague.h"
 #if defined(USE_MPI)
 #include <mpi.h>
 #endif  /* defined(USE_MPI) */
@@ -22,7 +22,7 @@
 
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
-typedef struct dplasma_desc_t {
+typedef struct dague_desc_t {
     void *mat;          // pointer to the beginning of the matrix
     PLASMA_enum dtyp;   // precision of the matrix
     int mb;             // number of rows in a tile
@@ -49,7 +49,7 @@ typedef struct dplasma_desc_t {
     int rowRANK;        // process row rank in the process grid - derived parameter
     int nb_elem_r;      // number of row tiles  handled by this process
     int nb_elem_c;      // number of column tiles handled by this process
-} DPLASMA_desc;
+} DAGUE_desc;
 
 typedef struct tile_coordinate{
     int row;
@@ -68,44 +68,44 @@ typedef struct tile_coordinate{
 
 // #define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 /* initialize Ddesc from Pdesc */
-int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
+int dague_desc_init(const PLASMA_desc * Pdesc, DAGUE_desc * Ddesc);
 
 /* allocate the inner storage */
-int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc );
+int dague_desc_workspace_allocate( DAGUE_desc * Ddesc );
 
 
 /* initialize and bcast Ddesc from Pdesc */
-int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
+int dague_desc_bcast(const PLASMA_desc * Pdesc, DAGUE_desc *Ddesc);
 
 /* computing the mpi process rank that should handle tile A(m,n) */
 
-int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n);
+int dague_get_rank_for_tile(DAGUE_desc * Ddesc, int m, int n);
 
 #if 0
 /* get a pointer to a specific LOCAL tile */
-static inline void* dplasma_get_local_tile(DPLASMA_desc* Ddesc, int m, int n)
+static inline void* dague_get_local_tile(DAGUE_desc* Ddesc, int m, int n)
 {    
     return &((double*)Ddesc->mat)[Ddesc->bsiz * (m + Ddesc->lmt * n)];
 }
 #else 
-#define dplasma_get_local_tile(d, m, n) dplasma_get_local_tile_s(d, m, n)
+#define dague_get_local_tile(d, m, n) dague_get_local_tile_s(d, m, n)
 #endif
 
 /* get a pointer to a specific tile 
  * if the tile is remote, it is downloaded first */
-/* void * dplasma_get_tile(DPLASMA_desc * Ddesc, int m, int n); */
+/* void * dague_get_tile(DAGUE_desc * Ddesc, int m, int n); */
 
 /* get a pointer to a specific LOCAL tile, with supertile management. */
-void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n);
+void * dague_get_local_tile_s(DAGUE_desc * Ddesc, int m, int n);
 
 
 /* set new data to tile
  * return 0 if success, >0 if not
  */
-int dplasma_set_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff);
+int dague_set_tile(DAGUE_desc * Ddesc, int m, int n, void * buff);
 
 /* translate a position in the matrix buffer to the tile it belongs */
-void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile);
+void pos_to_coordinate(DAGUE_desc * Ddesc, double * position, tile_coordinate_t * tile);
 
 
 /************************************************************************
@@ -115,11 +115,11 @@ void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_
 /* distribute the matrix to the different mpi ranks 
  * 
  */
-int distribute_data(PLASMA_desc * Pdesc , DPLASMA_desc * Ddesc);
+int distribute_data(PLASMA_desc * Pdesc , DAGUE_desc * Ddesc);
 
 /* regroup the distributed tiles to the rank 0 */
 /* Pdesc is NULL except on rank 0 */
-int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
+int gather_data(PLASMA_desc * Pdesc, DAGUE_desc *Ddesc);
 
 /*********************************************************************
  *  matrix generation, Lapack/Plasma format conversion, shared memory
@@ -138,23 +138,23 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
  * Distributed matrix generation
  **********************************************************************/
 
-/* set values of the DPLASMA_desc structure and allocate memory for matrix data
+/* set values of the DAGUE_desc structure and allocate memory for matrix data
  */
-int dplasma_description_init(DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
+int dague_description_init(DAGUE_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo);
 
 /* affecting the complete local view of a distributed matrix with random values */
-int rand_dist_matrix(DPLASMA_desc * Ddesc);
+int rand_dist_matrix(DAGUE_desc * Ddesc);
 
 
 /*********************************************************************
  * Debugging functions
  *********************************************************************/
 /* debugging print of blocks */
-void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc );
-int data_dump(DPLASMA_desc * Ddesc);
+void data_dist_verif(PLASMA_desc * Pdesc, DAGUE_desc * Ddesc );
+int data_dump(DAGUE_desc * Ddesc);
 int plasma_dump(PLASMA_desc * Pdesc);
-int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, double precision);
-int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, double precision);
+int compare_matrices(DAGUE_desc * A, DAGUE_desc * B, double precision);
+int compare_distributed_tiles(DAGUE_desc * A, DAGUE_desc * B, int row, int col, double precision);
 int compare_plasma_matrices(PLASMA_desc * A, PLASMA_desc * B, double precision);
 
 

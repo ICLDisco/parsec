@@ -33,15 +33,15 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT cholesky_rl.c
-  COMMAND ../../tools/dpc cholesky_rl.jdf cholesky_rl.c
+  COMMAND ../../tools/dague-compiler/dc -i cholesky_rl.jdf -o cholesky_rl
   MAIN_DEPENDENCY cholesky_rl.jdf
-  DEPENDS dpc
+  DEPENDS dc
   )
  
 add_custom_command (
   OUTPUT cholesky_ll.c
-  COMMAND ../../tools/dpc cholesky_ll.jdf cholesky_ll.c
+  COMMAND ../../tools/dague-compiler/dc -i cholesky_ll.jdf -o cholesky_ll
   MAIN_DEPENDENCY cholesky_ll.jdf
-  DEPENDS dpc
+  DEPENDS dc
   )
  

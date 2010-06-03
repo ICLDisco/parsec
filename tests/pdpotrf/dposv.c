@@ -5,7 +5,7 @@
  */
 
 
-#include "dplasma.h"
+#include "dague.h"
 #ifdef USE_MPI
 #include "remote_dep.h"
 #include <mpi.h>
@@ -38,16 +38,16 @@
 static void runtime_init(int argc, char **argv);
 static void runtime_fini(void);
 
-static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[]);
-static void cleanup_dplasma(dplasma_context_t* context);
-static void warmup_dplasma(dplasma_context_t* dplasma);
+static dague_context_t *setup_dague(int* pargc, char** pargv[]);
+static void cleanup_dague(dague_context_t* context);
+static void warmup_dague(dague_context_t* dague);
 
 static void create_matrix(int N, PLASMA_enum* uplo, 
                           double** pA1, double** pA2, 
                           double** pB1, double** pB2, 
                           int LDA, int NRHS, int LDB, PLASMA_desc* local);
-static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
-static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist);
+static void scatter_matrix(PLASMA_desc* local, DAGUE_desc* dist);
+static void gather_matrix(PLASMA_desc* local, DAGUE_desc* dist);
 static void check_matrix(int N, PLASMA_enum* uplo, 
                          double* A1, double* A2, 
                          double* B1, double* B2,
@@ -115,14 +115,14 @@ static inline double get_cur_time(){
 
 typedef enum {
     DO_PLASMA,
-    DO_DPLASMA
+    DO_DAGUE
 } backend_argv_t;
 
 /* globals and argv set values */
 int do_warmup = 0;
 int do_nasty_validations = 0;
 int do_distributed_generation = 1;
-backend_argv_t backend = DO_DPLASMA;
+backend_argv_t backend = DO_DAGUE;
 int cores = 1;
 int nodes = 1;
 int nbtasks = -1;
@@ -135,7 +135,7 @@ int LDB = 0;
 PLASMA_enum uplo = PlasmaLower;
 
 PLASMA_desc descA;
-DPLASMA_desc ddescA;
+DAGUE_desc ddescA;
 
 #if defined(USE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
@@ -148,7 +148,7 @@ int main(int argc, char ** argv)
     double *A2;
     double *B1;
     double *B2;
-    dplasma_context_t* dplasma;
+    dague_context_t* dague;
 
     //#ifdef VTRACE
       // VT_OFF();
@@ -181,41 +181,41 @@ int main(int argc, char ** argv)
                         gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
         }
-        case DO_DPLASMA: {
+        case DO_DAGUE: {
             scatter_matrix(&descA, &ddescA);
 
             //#ifdef VTRACE 
             //    VT_ON();
             //#endif
     
-            /*** THIS IS THE DPLASMA COMPUTATION ***/
+            /*** THIS IS THE DAGUE COMPUTATION ***/
             TIME_START();
-            dplasma = setup_dplasma(&argc, &argv);
+            dague = setup_dague(&argc, &argv);
             if(0 == rank)
             {
-                dplasma_execution_context_t exec_context;
+                dague_execution_context_t exec_context;
 
                 /* I know what I'm doing ;) */
-                exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-                dplasma_set_initial_execution_context(&exec_context);
-                dplasma_schedule(dplasma, &exec_context);
+                exec_context.function = (dague_t*)dague_find("POTRF");
+                dague_set_initial_execution_context(&exec_context);
+                dague_schedule(dague, &exec_context);
             }
-            TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
+            TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
 
             if(do_warmup)
-                warmup_dplasma(dplasma);
+                warmup_dague(dague);
     
             /* lets rock! */
             SYNC_TIME_START();
             TIME_START();
-            dplasma_progress(dplasma);
-            TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-            SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB, 
+            dague_progress(dague);
+            TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
+            SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB, 
                              gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
 
-            TIME_PRINT(("Dplasma priority change at position \t%d\n", ddescA.nt - pri_change));
-            cleanup_dplasma(dplasma);
-            /*** END OF DPLASMA COMPUTATION ***/
+            TIME_PRINT(("Dague priority change at position \t%d\n", ddescA.nt - pri_change));
+            cleanup_dague(dague);
+            /*** END OF DAGUE COMPUTATION ***/
 
             gather_matrix(&descA, &ddescA);
             break;
@@ -238,7 +238,7 @@ static void print_usage(void)
             "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
             "   -c --nb-cores    : number of computing threads to use\n"
-            "   -d --dplasma     : use DPLASMA backend (default)\n"
+            "   -d --dague     : use DAGUE backend (default)\n"
             "   -e --stile-col   : number of tile per col in a super tile (default: 1)\n"
             "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
             "   -p --plasma      : use PLASMA backend\n"
@@ -265,7 +265,7 @@ static void runtime_init(int argc, char **argv)
         {"stile-col",   required_argument,  0, 'e'},
         {"xcheck",      no_argument,        0, 'x'},
         {"warmup",      optional_argument,  0, 'w'},
-        {"dplasma",     no_argument,        0, 'd'},
+        {"dague",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
         {"block-size",  required_argument,  0, 'B'},
         {"pri_change",  required_argument,  0, 'P'},
@@ -311,7 +311,7 @@ static void runtime_init(int argc, char **argv)
                 do_distributed_generation = 0;
                 break; 
             case 'd':
-                backend = DO_DPLASMA;
+                backend = DO_DAGUE;
                 break;
 
             case 'c':
@@ -403,13 +403,13 @@ static void runtime_init(int argc, char **argv)
             exit(0);
         case '?': /* getopt_long already printed an error message. */
         default:
-            break; /* Assume anything else is dplasma/mpi stuff */
+            break; /* Assume anything else is dague/mpi stuff */
         }
     } while(1);
     
     if((DO_PLASMA == backend) && (nodes > 1))
     {
-        fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DPLASMA (-d, --dplasma), or run in single node mode.\n");
+        fprintf(stderr, "using the PLASMA backend for distributed runs is meaningless. Either use DAGUE (-d, --dague), or run in single node mode.\n");
         exit(2);
     }
     
@@ -446,7 +446,7 @@ static void runtime_init(int argc, char **argv)
         case DO_PLASMA:
             PLASMA_Init(cores);
             break;
-        case DO_DPLASMA:
+        case DO_DAGUE:
             PLASMA_Init(1);
             break;
     }
@@ -462,81 +462,81 @@ static void runtime_fini(void)
 
 
 
-static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
+static dague_context_t *setup_dague(int* pargc, char** pargv[])
 {
-    dplasma_context_t *dplasma;
+    dague_context_t *dague;
    
-    dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
+    dague = dague_init(cores, pargc, pargv, ddescA.nb);
 
 #ifdef USE_MPI
     /**
-     * Redefine the default type after dplasma_init.
+     * Redefine the default type after dague_init.
      */
     {
         char type_name[MPI_MAX_OBJECT_NAME];
     
         snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", NB, NB);
     
-        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &DPLASMA_DEFAULT_DATA_TYPE);
-        MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
-        MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
+        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &DAGUE_DEFAULT_DATA_TYPE);
+        MPI_Type_set_name(DAGUE_DEFAULT_DATA_TYPE, type_name);
+        MPI_Type_commit(&DAGUE_DEFAULT_DATA_TYPE);
     }
 #endif  /* USE_MPI */
 
-    load_dplasma_objects(dplasma);
+    load_dague_objects(dague);
     {
         expr_t* constant;
         
         constant = expr_new_int( ddescA.nb );
-        dplasma_assign_global_symbol( "NB", constant );
+        dague_assign_global_symbol( "NB", constant );
         constant = expr_new_int( ddescA.nt );
-        dplasma_assign_global_symbol( "SIZE", constant );
+        dague_assign_global_symbol( "SIZE", constant );
         constant = expr_new_int( ddescA.GRIDrows );
-        dplasma_assign_global_symbol( "GRIDrows", constant );
+        dague_assign_global_symbol( "GRIDrows", constant );
         constant = expr_new_int( ddescA.GRIDcols );
-        dplasma_assign_global_symbol( "GRIDcols", constant );
+        dague_assign_global_symbol( "GRIDcols", constant );
         constant = expr_new_int( ddescA.rowRANK );
-        dplasma_assign_global_symbol( "rowRANK", constant );
+        dague_assign_global_symbol( "rowRANK", constant );
         constant = expr_new_int( ddescA.colRANK );
-        dplasma_assign_global_symbol( "colRANK", constant );
+        dague_assign_global_symbol( "colRANK", constant );
         constant = expr_new_int( ddescA.nrst );
-        dplasma_assign_global_symbol( "rtileSIZE", constant );
+        dague_assign_global_symbol( "rtileSIZE", constant );
         constant = expr_new_int( ddescA.ncst );
-        dplasma_assign_global_symbol( "ctileSIZE", constant );
+        dague_assign_global_symbol( "ctileSIZE", constant );
         constant = expr_new_int( pri_change );
-        dplasma_assign_global_symbol( "PRI_CHANGE", constant );
+        dague_assign_global_symbol( "PRI_CHANGE", constant );
     }
-    load_dplasma_hooks(dplasma);
-    nbtasks = enumerate_dplasma_tasks(dplasma);
+    load_dague_hooks(dague);
+    nbtasks = enumerate_dague_tasks(dague);
     
-    return dplasma;
+    return dague;
 }
 
-static void cleanup_dplasma(dplasma_context_t* dplasma)
+static void cleanup_dague(dague_context_t* dague)
 {
-#ifdef DPLASMA_PROFILING
+#ifdef DAGUE_PROFILING
     char* filename = NULL;
     
     asprintf( &filename, "%s.%d.profile", "dposv", rank );
-    dplasma_profiling_dump_xml(filename);
+    dague_profiling_dump_xml(filename);
     free(filename);
-#endif  /* DPLASMA_PROFILING */
+#endif  /* DAGUE_PROFILING */
     
-    dplasma_fini(&dplasma);
+    dague_fini(&dague);
 }
 
-static void warmup_dplasma(dplasma_context_t* dplasma)
+static void warmup_dague(dague_context_t* dague)
 {
     TIME_START();
-    dplasma_progress(dplasma);
+    dague_progress(dague);
     TIME_PRINT(("Warmup on rank %d:\t%d %d\n", rank, N, NB));
     
-    enumerate_dplasma_tasks(dplasma);
+    enumerate_dague_tasks(dague);
     
     if(0 == rank)    
     {
         /* warm the cache for the first tile */
-        dplasma_execution_context_t exec_context;
+        dague_execution_context_t exec_context;
         if(do_warmup > 1)
         {
             int i, j;
@@ -549,9 +549,9 @@ static void warmup_dplasma(dplasma_context_t* dplasma)
         }
 
         /* Ok, now get ready for the same thing again. */
-        exec_context.function = (dplasma_t*)dplasma_find("POTRF");
-        dplasma_set_initial_execution_context(&exec_context);
-        dplasma_schedule(dplasma, &exec_context);
+        exec_context.function = (dague_t*)dague_find("POTRF");
+        dague_set_initial_execution_context(&exec_context);
+        dague_schedule(dague, &exec_context);
     }
 # ifdef USE_MPI
     /* Make sure everybody is done with warmup before proceeding */
@@ -635,12 +635,12 @@ static void create_matrix(int N, PLASMA_enum* uplo,
 #undef B2 
 }
 
-static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
+static void scatter_matrix(PLASMA_desc* local, DAGUE_desc* dist)
 {
     if(do_distributed_generation)
     {
         TIME_START();
-        dplasma_description_init(dist, LDA, LDB, NRHS, uplo);
+        dague_description_init(dist, LDA, LDB, NRHS, uplo);
         rand_dist_matrix(dist);
         /*TIME_PRINT(("distributed matrix generation on rank %d\n", dist->mpi_rank));*/
         return;
@@ -649,11 +649,11 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
     TIME_START();
     if(0 == rank)
     {
-        dplasma_desc_init(local, dist);
+        dague_desc_init(local, dist);
     }
 
 #ifdef USE_MPI
-    dplasma_desc_bcast(local, dist);
+    dague_desc_bcast(local, dist);
     distribute_data(local, dist);
     /*TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));*/
     
@@ -671,7 +671,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
 #endif  /* USE_MPI */
 }
 
-static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
+static void gather_matrix(PLASMA_desc* local, DAGUE_desc* dist)
 {
     if(do_distributed_generation) 
     {

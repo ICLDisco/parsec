@@ -23,7 +23,7 @@
 #include "../src/context.h"
 #include "../src/allocate.h"
 #include "data_management.h"
-#include "dplasma.h"
+#include "dague.h"
 #include "bindthread.h"
 
 extern int dposv_force_nb;
@@ -35,7 +35,7 @@ static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 
 }
 
-static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
+static int ddesc_compute_vals( DAGUE_desc * Ddesc )
 {
     int i;
     int nbstile_r;
@@ -106,13 +106,13 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
     return 0;
 }
 
-int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc ) 
+int dague_desc_workspace_allocate( DAGUE_desc * Ddesc ) 
 {
     Ddesc->mat = malloc(sizeof(double) * Ddesc->nb_elem_c * Ddesc->nb_elem_r * Ddesc->bsiz);
     return 0;
 }
 
-int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+int dague_desc_init(const PLASMA_desc * Pdesc, DAGUE_desc * Ddesc)
 {
     Ddesc->dtyp = Pdesc->dtyp;
     Ddesc->mb = Pdesc->mb;
@@ -132,7 +132,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     return ddesc_compute_vals( Ddesc );
 }
 
-int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+int dague_desc_bcast(const PLASMA_desc * Pdesc, DAGUE_desc * Ddesc)
 {
 #ifdef USE_MPI
     int tmp_ints[20];
@@ -193,7 +193,7 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         }
     }
     
-    return dplasma_desc_workspace_allocate(Ddesc);
+    return dague_desc_workspace_allocate(Ddesc);
 #else /* USE_MPI */
     
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
@@ -306,7 +306,7 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
 }
 
 
-int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
+int dague_get_rank_for_tile(DAGUE_desc * Ddesc, int m, int n)
 {
     int stc, cr;
     int str, rr;
@@ -329,21 +329,21 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 
 /* #if 0 /\*def USE_MPI*\/ */
 /* /\* empty stub for now, should allow for async data transfer from recv side *\/ */
-/* void * dplasma_get_tile_async(DPLASMA_desc *Ddesc, int m, int n, MPI_Request *req) */
+/* void * dague_get_tile_async(DAGUE_desc *Ddesc, int m, int n, MPI_Request *req) */
 /* { */
     
 /*     return NULL; */
 /* } */
 
-/* void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n) */
+/* void * dague_get_tile(DAGUE_desc *Ddesc, int m, int n) */
 /* { */
 /*     int tile_rank; */
     
-/*     tile_rank = dplasma_get_rank_for_tile(Ddesc, m, n); */
+/*     tile_rank = dague_get_rank_for_tile(Ddesc, m, n); */
 /*     if(Ddesc->mpi_rank == tile_rank) */
 /*     { */
 /*         //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n); */
-/*         return dplasma_get_local_tileDdesc, m, n); */
+/*         return dague_get_local_tileDdesc, m, n); */
 /*     } */
 /* #ifdef USE_MPI */
 /*     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank); */
@@ -356,15 +356,15 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 /* } */
 
 /* #else  */
-/* /\*#define dplasma_get_local_tile_s dplasma_get_local_tile*\/ */
+/* /\*#define dague_get_local_tile_s dague_get_local_tile*\/ */
 /* #endif */
 
-void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
+void * dague_get_local_tile_s(DAGUE_desc * Ddesc, int m, int n)
 {
     int pos;
     int nb_elem_r, last_c_size;
 
-    assert(Ddesc->mpi_rank == dplasma_get_rank_for_tile(Ddesc, m, n));
+    assert(Ddesc->mpi_rank == dague_get_rank_for_tile(Ddesc, m, n));
 
     /**********************************/
 
@@ -399,10 +399,10 @@ void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
     return &(((double *) Ddesc->mat)[pos * Ddesc->bsiz]);
 }
 
-int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
+int dague_set_local_tile(DAGUE_desc * Ddesc, int m, int n, void * buff)
 {
     double * tile;
-    tile = dplasma_get_local_tile(Ddesc, m, n);
+    tile = dague_get_local_tile(Ddesc, m, n);
     if (tile == NULL)
         {
             return 2;
@@ -414,7 +414,7 @@ int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
 
 
 
-int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+int distribute_data(PLASMA_desc * Pdesc, DAGUE_desc * Ddesc)
 {
 #ifdef USE_MPI
     int i, j, k, nb, pos, rank;
@@ -442,7 +442,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         for (i = 0 ; i < stc; i++) /* for each super tile column */
             for (j = 0 ; j < str ; j++) /* for each super tile row in that column */
             {
-                rank = dplasma_get_rank_for_tile(Ddesc, j*Ddesc->nrst, i*Ddesc->ncst);
+                rank = dague_get_rank_for_tile(Ddesc, j*Ddesc->nrst, i*Ddesc->ncst);
                 //  printf("tile (%d,%d) belongs to %d\n", j*Ddesc->nrst, i*Ddesc->ncst, rank);
                 if (rank == 0) /* this tile belongs to me */
                 {
@@ -489,7 +489,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         for (i = 0 ; i < stc; i++) /* for each super tile column */
             for (j = 0 ; j < str ; j++) /* for each super tile row in that column */
             {
-                rank = dplasma_get_rank_for_tile(Ddesc, j*Ddesc->nrst, i*Ddesc->ncst);
+                rank = dague_get_rank_for_tile(Ddesc, j*Ddesc->nrst, i*Ddesc->ncst);
                 if (rank == Ddesc->mpi_rank) /* this tile belongs to me */
                 {
                     tile_size = min(Ddesc->nrst, Ddesc->lmt-(j*Ddesc->nrst));
@@ -519,7 +519,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 #endif
 }
 
-int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc) 
+int gather_data(PLASMA_desc * Pdesc, DAGUE_desc * Ddesc) 
 {
 #ifdef USE_MPI
     int i, j, k, rank;
@@ -533,9 +533,9 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         for (i = 0 ; i < Ddesc->lmt ; i++ )
             for(j = 0; j < Ddesc->lnt ; j++)
             {
-                rank = dplasma_get_rank_for_tile(Ddesc, i, j);
+                rank = dague_get_rank_for_tile(Ddesc, i, j);
                 if (rank == 0)
-                    memcpy(plasma_A(Pdesc, i, j ), dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(double)) ;
+                    memcpy(plasma_A(Pdesc, i, j ), dague_get_local_tile(Ddesc, i, j), Ddesc->bsiz * sizeof(double)) ;
                 else
                 {
                     MPI_Irecv( plasma_A(Pdesc, i, j), Ddesc->bsiz, MPI_DOUBLE, rank, 1, MPI_COMM_WORLD, &reqs[k++]);
@@ -552,10 +552,10 @@ int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         for (i = 0 ; i < Ddesc->lmt ; i++ )
             for(j = 0; j < Ddesc->lnt ; j++)
             {
-                rank = dplasma_get_rank_for_tile(Ddesc, i, j);
+                rank = dague_get_rank_for_tile(Ddesc, i, j);
                 if (rank == Ddesc->mpi_rank)
                 {
-                    MPI_Isend( dplasma_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &reqs[k++] );
+                    MPI_Isend( dague_get_local_tile(Ddesc, i, j), Ddesc->bsiz, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &reqs[k++] );
                     if(0 == (k % NBREQS))
                     {
                         MPI_Waitall(k, reqs, MPI_STATUSES_IGNORE);
@@ -593,7 +593,7 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
 }
 #endif
 
-void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+void data_dist_verif(PLASMA_desc * Pdesc, DAGUE_desc * Ddesc)
 {
 #ifdef USE_MPI
     int m, n, k, rank;
@@ -605,12 +605,12 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         {
             MPI_Barrier(MPI_COMM_WORLD);
             
-            rank = dplasma_get_rank_for_tile(Ddesc, m, n);
+            rank = dague_get_rank_for_tile(Ddesc, m, n);
             
             if ((rank == 0) && (Ddesc->mpi_rank == 0))/* this proc is rank 0 and handles the tile*/
             {
                 buff = plasma_A(Pdesc, m, n);
-                buff2 = dplasma_get_local_tile(Ddesc, m, n);
+                buff2 = dague_get_local_tile(Ddesc, m, n);
                 for ( k = 0; k < Ddesc->bsiz ; k++)
                 {
                     if(buff[k] != buff2[k])
@@ -628,7 +628,7 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
             
             if (Ddesc->mpi_rank == rank)
             {
-                buff = dplasma_get_local_tile(Ddesc, m, n);
+                buff = dague_get_local_tile(Ddesc, m, n);
                 printf("Check: rank %d has tile %d, %d\n", Ddesc->mpi_rank, m, n);
                 print_block("Dist tile", m, n, buff, Ddesc->nb, Ddesc->bsiz);
             }
@@ -641,7 +641,7 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 #endif    
 }
 
-int data_dump(DPLASMA_desc * Ddesc){
+int data_dump(DAGUE_desc * Ddesc){
     FILE * tmpf;
     int i, j, k;
     double * buf;
@@ -654,9 +654,9 @@ int data_dump(DPLASMA_desc * Ddesc){
     for (i = 0 ; i < Ddesc->lmt ; i++)
         for ( j = 0 ; j< Ddesc->lnt ; j++)
             {
-                if (dplasma_get_rank_for_tile(Ddesc, i, j) == Ddesc->mpi_rank)
+                if (dague_get_rank_for_tile(Ddesc, i, j) == Ddesc->mpi_rank)
                     {
-                        buf = (double*)dplasma_get_local_tile(Ddesc, i, j);
+                        buf = (double*)dague_get_local_tile(Ddesc, i, j);
                         for (k = 0 ; k < Ddesc->bsiz ; k++)
                             {
                                 fprintf(tmpf, "%e ", buf[k]);
@@ -692,7 +692,7 @@ int plasma_dump(PLASMA_desc * Pdesc){
     return 0;
 }
 
-int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, double precision)
+int compare_distributed_tiles(DAGUE_desc * A, DAGUE_desc * B, int row, int col, double precision)
 {
     int i;
     double * a;
@@ -700,8 +700,8 @@ int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int c
     double c;
 
     /* check memory locality of the tiles */
-    if (   (A->mpi_rank != dplasma_get_rank_for_tile(A, row, col))
-        || (B->mpi_rank != dplasma_get_rank_for_tile(B, row, col))
+    if (   (A->mpi_rank != dague_get_rank_for_tile(A, row, col))
+        || (B->mpi_rank != dague_get_rank_for_tile(B, row, col))
         || (A->mpi_rank != B->mpi_rank))
         {
             printf("Compare tile failed: (%d, %d) is not local to process %d\n", row, col, A->mpi_rank);
@@ -709,8 +709,8 @@ int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int c
         }
     
     /* assign values */
-    a = (double *)dplasma_get_local_tile_s(A, row, col);
-    b = (double *)dplasma_get_local_tile_s(B, row, col);
+    a = (double *)dague_get_local_tile_s(A, row, col);
+    b = (double *)dague_get_local_tile_s(B, row, col);
     /* compare each value*/
     for(i = 0 ; i < A->bsiz ; i++)
         {
@@ -726,7 +726,7 @@ int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int c
     return 1;
 }
 
-int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, double precision)
+int compare_matrices(DAGUE_desc * A, DAGUE_desc * B, double precision)
 {
     int i, j, mt, nt, rank;
     int res = 1;
@@ -735,7 +735,7 @@ int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, double precision)
     for (i = 0 ; i < mt ; i++)
         for( j = 0 ; i < nt ; j++)
             {
-                rank = dplasma_get_rank_for_tile(A, i, j);
+                rank = dague_get_rank_for_tile(A, i, j);
                 if (rank == A->mpi_rank)
                     {
                         res &= compare_distributed_tiles(A, B, i, j, precision);
@@ -812,7 +812,7 @@ Rnd64_jump(unsigned long long int n) {
  *distributed matrix generation
  ************************************************************/
 /* affect one tile with random values  */
-static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int col)
+static void create_tile(DAGUE_desc * Ddesc, double * position,  int row, int col)
 {
     int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     double *x = position;
@@ -840,7 +840,7 @@ static void create_tile(DPLASMA_desc * Ddesc, double * position,  int row, int c
 
 
 typedef struct dist_tiles{
-    DPLASMA_desc * Ddesc;
+    DAGUE_desc * Ddesc;
     int th_id;
     int nb_elements;
     double * starting_position;
@@ -851,7 +851,7 @@ typedef struct dist_tiles{
   given a position in the matrix array, retrieve to which tile it belongs
 
  */
-void pos_to_coordinate(DPLASMA_desc * Ddesc, double * position, tile_coordinate_t * tile) 
+void pos_to_coordinate(DAGUE_desc * Ddesc, double * position, tile_coordinate_t * tile) 
 { 
     int nb_tiles;
     int shift;
@@ -891,7 +891,7 @@ static void * rand_dist_tiles(void * tiles)
     /* bind thread to cpu */
     int bind_to_proc = ((dist_tiles_t *)tiles)->th_id;
     
-    dplasma_bindthread(bind_to_proc);
+    dague_bindthread(bind_to_proc);
 
     /*printf("generating matrix on process %d, thread %d: %d tiles\n",
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
@@ -909,7 +909,7 @@ static void * rand_dist_tiles(void * tiles)
 }
 
 /* affecting the complete local view of a distributed matrix with random values */
-int rand_dist_matrix(DPLASMA_desc * Ddesc)
+int rand_dist_matrix(DAGUE_desc * Ddesc)
 {
     dist_tiles_t * tiles;
     int i;
@@ -966,7 +966,7 @@ int rand_dist_matrix(DPLASMA_desc * Ddesc)
 }
 
 
-int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo)
+int dague_description_init( DAGUE_desc * Ddesc, int LDA, int LDB, int NRHS, PLASMA_enum uplo)
 {
 
     int i,  status;

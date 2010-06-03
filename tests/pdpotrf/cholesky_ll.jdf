@@ -9,11 +9,11 @@ extern PLASMA_desc descA;
 extern int uplo;
 int PLASMA_INFO;
 
-#include "dplasma.h"
+#include "dague.h"
 #include "remote_dep.h"
 
 #include "data_management.h"
-extern DPLASMA_desc ddescA;
+extern dague_desc_t ddescA;
 #ifdef DISTRIBUTED
     extern MPI_Datatype SYNCHRO;
 #   define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
@@ -39,14 +39,8 @@ extern DPLASMA_desc ddescA;
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-GRIDrows
-GRIDcols
 NB
 SIZE
-colRANK
-rowRANK
-rtileSIZE
-ctileSIZE
 
 /**************************************************
  *                      POTRF                     *
@@ -57,8 +51,7 @@ POTRF(k) (high_priority)
 k = 0..SIZE-1
 
 // Parallel partitioning
-: (k / rtileSIZE) % GRIDrows == rowRANK
-: (k / ctileSIZE) % GRIDcols == colRANK
+: A(k, k)
 
 // Parameters
 INOUT T <- (k == 0) ? A(k, k) : T SYRK(k, k-1)
@@ -95,8 +88,7 @@ k = 0..SIZE-1
 m = k+1..SIZE-1
 
 // Parallel partitioning
-: (m / rtileSIZE) % GRIDrows == rowRANK
-: (k / ctileSIZE) % GRIDcols == colRANK
+: A(m, k)
 
 // Parameters
 IN    T <- T POTRF(k)
@@ -158,8 +150,7 @@ k = 1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (n / rtileSIZE) % GRIDrows == rowRANK
-: (n / ctileSIZE) % GRIDcols == colRANK
+:A(n, n)
 
 //Parameters
 IN    A <- C TRSM(n, k)
@@ -220,8 +211,7 @@ m = k+1..SIZE-1
 n = 0..k-1
 
 // Parallel partitioning
-: (m / rtileSIZE) % GRIDrows == rowRANK
-: (k / ctileSIZE) % GRIDcols == colRANK
+: A(m, k)
 
 // Parameters
 IN    A <- C TRSM(n, k)
