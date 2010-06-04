@@ -822,9 +822,9 @@ static void jdf_generate_symbols( const jdf_t *jdf, const jdf_def_list_t *def, c
         }
 
         if( jdf_symbol_is_global(jdf->globals, d->name) ) {
-            string_arena_add_string(sa, " .flags = DPLASMA_SYMBOL_IS_GLOBAL");
+            string_arena_add_string(sa, " .flags = DAGUE_SYMBOL_IS_GLOBAL");
         } else if ( jdf_symbol_is_standalone(d->name, jdf->globals, d->expr) ) {
-            string_arena_add_string(sa, " .flags = DPLASMA_SYMBOL_IS_STANDALONE");
+            string_arena_add_string(sa, " .flags = DAGUE_SYMBOL_IS_STANDALONE");
         } else {
             string_arena_add_string(sa, " .flags = 0x0");
         }
@@ -1446,7 +1446,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
     string_arena_t *sa;
     sa = string_arena_new(64);
 
-    coutput("#if defined(DPLASMA_GRAPHER)\n"
+    coutput("#if defined(DAGUE_GRAPHER)\n"
             "  if( NULL != __dague_graph_file ) {\n"
             "    char tmp[128];\n"
             "    dague_service_to_string(exec_context, tmp, 128);\n"
@@ -1454,7 +1454,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
             "           \"%%s [shape=\\\"polygon\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
             "            tmp, colors[context->eu_id], tmp, %s_hash(%s));\n"
             "  }\n"
-            "#endif /* DPLASMA_GRAPHER */\n",
+            "#endif /* DAGUE_GRAPHER */\n",
             f->fname, f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                                      dump_string, NULL, "", "", ", ", ""));
     
@@ -1802,9 +1802,11 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "               dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  dague_execution_context_t nc;\n"
-            "  const __dague_cholesky_object_t *__dague_object = (const __dague_cholesky_object_t*)exec_context->dague_object;\n"
+            "  const __dague_%s_object_t *__dague_object = (const __dague_%s_object_t*)exec_context->dague_object;\n"
             "%s\n",
-            name, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
+            name,
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
     coutput("  memcpy(&nc, exec_context, sizeof(dague_execution_context_t));\n");

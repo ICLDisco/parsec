@@ -74,3 +74,4 @@ tools/dague-compiler/dc
 tools/dague-compiler/lhr
 tools/dague-compiler/cholesky.c
 tools/dague-compiler/cholesky.h
+tests/pdpotrf/cholesky_ll\.h
