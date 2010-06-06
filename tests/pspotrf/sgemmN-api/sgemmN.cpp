@@ -30,16 +30,23 @@ inline float mmax( float a, float b ) { return a > b ? a : b; }
 	time /= n_iterations;\
 }
 
-void error( char *message )
+void error( const char *message )
 {
 	fprintf( stderr, "ERROR: %s\n", message );
 	exit (1);
 }
 
+void cuerror( const char* cuerror, const char *message )
+{
+	fprintf( stderr, "ERROR: %s (%s)\n", message, cuerror );
+	exit (1);
+}
+
 #define assert( condition, ... ) { if( !( condition ) ) error( __VA_ARGS__ ); }
-inline void Q( cudaError_t status ) { assert( status == cudaSuccess, "CUDA Runtime fails" ); }
-inline void Q( cublasStatus status ){ assert( status == CUBLAS_STATUS_SUCCESS, "CUBLAS fails" ); }
-inline void Q( CUresult status ) { assert( status == CUDA_SUCCESS, "CUDA Driver fails" ); }
+#define cuassert( condition, ... ) { if( !( condition ) ) cuerror( __VA_ARGS__ ); }
+inline void Q( cudaError_t status ) { cuassert( status == cudaSuccess, cudaGetErrorString((cudaError_t)status), "CUDA Runtime fails" ); }
+inline void Q( cublasStatus status ){ cuassert( status == CUBLAS_STATUS_SUCCESS, cudaGetErrorString((cudaError_t)status), "CUBLAS fails" ); }
+inline void Q( CUresult status ) { cuassert( status == CUDA_SUCCESS, cudaGetErrorString((cudaError_t)status), "CUDA Driver fails" ); }
 
 CUmodule module;
 CUfunction sgemmNN, sgemmNT;
@@ -57,9 +64,19 @@ struct sgemm_params_t
 	float beta;
 };
 
-void setup_sgemm( )
+void setup_sgemm( int device )
 {
-	Q( cuModuleLoad( &module, "sgemmN.cubin" ) );
+        CUdevice dev;
+        int major, minor;
+        char sgemmfile[128];
+
+        Q( cuDeviceGet( &dev, device ) );
+        Q( cuDeviceComputeCapability( &major, &minor, dev ) );
+
+        snprintf( sgemmfile, 128, "sgemmN-%d%d.cubin", major, minor );
+        printf( "Load cubin from %s\n", sgemmfile );
+
+	Q( cuModuleLoad( &module, sgemmfile ) );
 	Q( cuModuleGetFunction( &sgemmNN, module, "sgemmNN" ) );
 	Q( cuModuleGetFunction( &sgemmNT, module, "sgemmNT" ) );
 	Q( cuFuncSetBlockShape( sgemmNN, 16, 4, 1 ) );
@@ -158,7 +175,7 @@ int main(int argc, char* argv[])
 
         fprintf(stderr,"1\n");
 
-	setup_sgemm( );
+	setup_sgemm(device );
 
 	fprintf(stderr,"2\n");
 	
@@ -306,7 +323,7 @@ int main(int argc, char* argv[])
 	cuEventDestroy( start );
 	cuEventDestroy( end );
 
-	setup_sgemm( );
+	//setup_sgemm(device );
 	Q( cuCtxDetach( context ) );
 	Q( cublasShutdown( ) );
 	
