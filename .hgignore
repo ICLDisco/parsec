@@ -33,12 +33,13 @@ tests/gemm/dgemm
 tests/gemm/mpi_dgemm
 tests/pdgemm/gemm.c
 tests/psgemm/gemm.c
-tests/cholesky/mpi_dposv_ll
-tests/cholesky/mpi_dposv_rl
-tests/cholesky/dposv_ll
-tests/cholesky/dposv_rl
-tests/cholesky/cholesky_rl.c
-tests/cholesky/cholesky_ll.c
+tests/pdpotrf/mpi_dposv_ll
+tests/pdpotrf/mpi_dposv_rl
+tests/pdpotrf/dposv_ll
+tests/pdpotrf/dposv_rl
+tests/pdpotrf/cholesky_rl\.c
+tests/pdpotrf/cholesky_ll\.c
+tests/pdpotrf/cholesky\.h
 tests/LU/LU-auto.c
 tests/cholesky/cholesky_mpi.c
 tests/gemm/gemm.c
@@ -52,8 +53,6 @@ tests/debug/types.c
 tests/debug/mpi_pingpong
 tests/debug/pingpong.c
 tests/LU/LU_kmn.c
-tests/pdpotrf/cholesky_ll.c
-tests/pdpotrf/cholesky_rl.c
 hostfile
 tests/pspotrf/cholesky_ll.c
 tests/pspotrf/cholesky_rl.c
@@ -62,10 +61,6 @@ tests/pspotrf/mpi_sposv_rl
 tests/pspotrf/sposv_ll
 tests/pspotrf/sposv_rl
 \.\#.*
-tests/pdpotrf/dposv_ll
-tests/pdpotrf/dposv_rl
-tests/pdpotrf/mpi_dposv_ll
-tests/pdpotrf/mpi_dposv_rl
 tests/pdgemm/dgemm
 tests/pdgemm/pdgemm
 tests/psgemm/psgemm
@@ -74,4 +69,3 @@ tools/dague-compiler/dc
 tools/dague-compiler/lhr
 tools/dague-compiler/cholesky.c
 tools/dague-compiler/cholesky.h
-tests/pdpotrf/cholesky_ll\.h
