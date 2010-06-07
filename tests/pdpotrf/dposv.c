@@ -31,6 +31,8 @@
 #include "profiling.h"
 #include "data_management.h"
 
+#include "cholesky.h"
+
 //#ifdef VTRACE
 //#include "vt_user.h"
 //#endif
@@ -126,16 +128,17 @@ backend_argv_t backend = DO_DAGUE;
 int cores = 1;
 int nodes = 1;
 int nbtasks = -1;
-#define N (ddescA.n)
-#define NB (ddescA.nb)
-#define rank (ddescA.mpi_rank)
+#define N (chocho->SIZE)
+#define NB (chocho->NB)
+#define rank (chocho->A->myrank)
 int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
 PLASMA_enum uplo = PlasmaLower;
 
 PLASMA_desc descA;
-DAGUE_desc ddescA;
+dague_ddesc_t ddescA;
+dague_cholesky_object_t *chocho;
 
 #if defined(USE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
