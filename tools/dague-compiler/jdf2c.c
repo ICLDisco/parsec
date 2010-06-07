@@ -102,7 +102,7 @@ static char* dump_globals(void** elem, void *arg)
     string_arena_t *sa = (string_arena_t*)arg;
 
     string_arena_init(sa);
-    string_arena_add_string(sa, "%s (__dague_object->%s)", (char*)*elem, (char*)*elem );
+    string_arena_add_string(sa, "%s (__dague_object->super.%s)", (char*)*elem, (char*)*elem );
     return string_arena_get_string(sa);
 }
 
@@ -122,7 +122,7 @@ static char* dump_data(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (__dague_object->%s->data_of(__dague_object->%s", 
+    string_arena_add_string(sa, ")  (__dague_object->super.%s->data_of(__dague_object->super.%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -315,7 +315,7 @@ static char* dump_predicate(void** elem, void *arg)
                                                  "", "", ", ", ""));
     expr_info.sa = sa3;
     expr_info.prefix = "";
-    string_arena_add_string(sa, "(__dague_object->%s->myrank == __dague_object->%s->rank_of(__dague_object->%s, %s))", 
+    string_arena_add_string(sa, "(__dague_object->super.%s->myrank == __dague_object->super.%s->rank_of(__dague_object->super.%s, %s))", 
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, f->predicate->parameters, next, expr,
                                                  dump_expr, &expr_info,
@@ -413,7 +413,7 @@ static char *dump_resinit(void **elem, void *arg)
     char *varname = *(char**)elem;
     string_arena_init(sa);
 
-    string_arena_add_string(sa, "res->%s = %s;", varname, varname);
+    string_arena_add_string(sa, "res->super.%s = %s;", varname, varname);
 
     return string_arena_get_string(sa);
 }
@@ -595,7 +595,20 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
     houtput("#include <dague.h>\n\n");
-    houtput("dague_object_t *dague_%s_new(%s, %s);\n", jdf_basename,
+
+    houtput("typedef struct dague_%s_object {\n", jdf_basename);
+    houtput("  dague_object_t super;\n");
+    houtput("  /* The list of globals */\n"
+            "%s",
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
+                                  dump_string, NULL, "", "  int ", ";\n", ";\n"));
+    houtput("  /* The list of data */\n"
+            "%s", 
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
+                                  dump_string, NULL, "", "  dague_ddesc_t *", ";\n", ";\n"));
+    houtput("} dague_%s_object_t;\n", jdf_basename);
+    
+    houtput("dague_%s_object_t *dague_%s_new(%s, %s);\n", jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
                                   dump_string, NULL, "", "dague_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
@@ -646,21 +659,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             jdf_basename, 
             jdf_basename, nbfunctions, 
             jdf_basename, nbdata);
-    coutput("typedef struct __dague_%s_object {\n", jdf_basename);
-    coutput("  /** All dague_object_t structures hold these two arrays **/\n"
-            "  int                    nb_functions;\n"
-            "  const dague_t        **functions_array;\n"
-            "  dague_dependencies_t **dependencies_array;\n"
-            "  /*** Here begins the %s-specific part ***/\n",
+    coutput("typedef struct __dague_%s_internal_object {\n", jdf_basename);
+    coutput(" dague_%s_object_t super;\n",
             jdf_basename);
-    coutput("  /* The list of globals */\n"
-            "%s",
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
-                                  dump_string, NULL, "", "  int ", ";\n", ";\n"));
-    coutput("  /* The list of data */\n"
-            "%s", 
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "  dague_ddesc_t *", ";\n", ";\n"));
     coutput("  /* The list of data repositories */\n"
             "%s",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
@@ -674,7 +675,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  int ", "_end_key;\n", "_end_key;\n"));
     coutput("#  endif /* defined(DAGUE_PROFILING) */\n");
-    coutput("} __dague_%s_object_t;\n"
+    coutput("} __dague_%s_internal_object_t;\n"
             "\n", jdf_basename);
 
     coutput("/* Globals */\n%s\n",
@@ -729,7 +730,7 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
         ai.expr = e;
         coutput("static inline int %s_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
                 "{\n"
-                "  const __dague_%s_object_t *__dague_object = (const __dague_%s_object_t*)__dague_object_parent;\n"
+                "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
                 "%s\n"
                 "  (void)__dague_object;\n"
                 "  return %s;\n"
@@ -769,7 +770,7 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     ai.expr = NULL;
     coutput("static inline int %s_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)\n"
             "{\n"
-            "  const __dague_%s_object_t *__dague_object = (const __dague_%s_object_t*)__dague_object_parent;\n"
+            "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
             "%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
             "%s\n"
@@ -1179,28 +1180,28 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
                                   dump_string, NULL, "", "#undef ", "\n", "\n"));
 
-    coutput("dague_object_t *dague_%s_new(%s, %s)\n{\n", jdf_basename,
+    coutput("dague_%s_object_t *dague_%s_new(%s, %s)\n{\n", jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
                                   dump_string, NULL, "", "dague_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
                                   dump_string, NULL, "",  "int ", ", ", ""));
 
-    coutput("  __dague_%s_object_t *res = (__dague_%s_object_t *)calloc(1, sizeof(__dague_%s_object_t));\n",
+    coutput("  __dague_%s_internal_object_t *res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
-    coutput("  res->nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
-    coutput("  res->functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
+    coutput("  res->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
+    coutput("  res->super.super.functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename);
-    coutput("  res->dependencies_array = (dague_dependencies_t **)\n"
+    coutput("  res->super.super.dependencies_array = (dague_dependencies_t **)\n"
             "             calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",
             jdf_basename);
-    coutput("  memcpy(res->functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
+    coutput("  memcpy(res->super.super.functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename, jdf_basename);
     coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->data, next, dname,
                                        dump_resinit, sa2, "", "  ", "\n", "\n"));
     coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
                                        dump_resinit, sa2, "", "  ", "\n", "\n"));
-    coutput("  return (dague_object_t*)res;\n"
-            "}\n\n");
+    coutput("  return (dague_%s_object_t*)res;\n"
+            "}\n\n", jdf_basename);
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -1401,6 +1402,7 @@ static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const char *fn
                 coutput("  if( !(%s) ) {\n",
                         dump_expr((void**)&dl->dep->guard->guard, &info));
                 jdf_generate_code_call_final_write( jdf, dl->dep->guard->callfalse, dl->dep->datatype, f->lineno, fname, f, "  " );
+                coutput("  }\n");
             }
             break;
         }
@@ -1582,7 +1584,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     ai.expr = NULL;
     coutput("static int %s(dague_execution_unit_t *context, dague_execution_context_t *exec_context)\n"
             "{\n"
-            "  __dague_%s_object_t *__dague_object = (__dague_%s_object_t *)exec_context->dague_object;\n"
+            "  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)exec_context->dague_object;\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -1802,7 +1804,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "               dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  dague_execution_context_t nc;\n"
-            "  const __dague_%s_object_t *__dague_object = (const __dague_%s_object_t*)exec_context->dague_object;\n"
+            "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)exec_context->dague_object;\n"
             "%s\n",
             name,
             jdf_basename, jdf_basename,
