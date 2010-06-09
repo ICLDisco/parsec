@@ -22,7 +22,7 @@ typedef void DAGuE_remote_dep_datatype_t;
 #include "lifo.h"
 #include "execution_unit.h"
 #include "datarepo.h"
-#include "DAGuE.h"
+#include "dague.h"
 
 #define DAGuE_ACTION_INIT_REMOTE_DEPS    0x0100
 #define DAGuE_ACTION_SEND_REMOTE_DEPS    0x0200

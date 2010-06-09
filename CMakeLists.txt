@@ -160,7 +160,7 @@ find_package(PLASMA REQUIRED)
 # Find optional packages
 #
 
-find_package(HWLOC REQUIRED)
+find_package(HWLOC)
 if( HAVE_HWLOC )
   list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
@@ -235,6 +235,7 @@ endif (DPLASMA_MPI AND MPI_FOUND)
 #
 # Now continue with compiling the tests.
 #
+#add_subdirectory(data_dist)
 add_subdirectory(tests)
 add_subdirectory(tools)
 

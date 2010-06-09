@@ -6,6 +6,7 @@
 #ifndef __TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __TWO_DIM_RECTANGLE_CYCLIC_H__
 
+#include "data_distribution.h"
 #include "matrix.h"
 
 /*
