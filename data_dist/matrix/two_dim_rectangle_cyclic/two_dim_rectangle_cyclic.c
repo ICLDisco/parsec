@@ -632,32 +632,4 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 /*     return 1; */
 /* } */
 
-/*
- Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
- generating threads only read Rnd64seed. It is safe to set Rnd64seed before
- and after any calls to create_tile(). The only problem can be caused if
- Rnd64seed is changed during the matrix generation time.
- */
-unsigned long long int Rnd64seed = 100;
-#define Rnd64_A 6364136223846793005ULL
-#define Rnd64_C 1ULL
-
-unsigned long long int
-Rnd64_jump(unsigned long long int n) {
-  unsigned long long int a_k, c_k, ran;
-  int i;
-
-  a_k = Rnd64_A;
-  c_k = Rnd64_C;
-
-  ran = Rnd64seed;
-  for (i = 0; n; n >>= 1, ++i) {
-    if (n & 1)
-      ran = a_k * ran + c_k;
-    c_k *= (a_k + 1);
-    a_k *= a_k;
-  }
-
-  return ran;
-}
 
