@@ -1,5 +1,6 @@
 #!/usr/bin/php -q
 <?php
+openlog("profile2svg", LOG_PID | LOG_PERROR, LOG_LOCAL0);
 
 $WIDTH= 1600;
 $THREAD_HEIGHT = 25.0;
@@ -167,6 +168,32 @@ $y = $BASE_HEIGHT;
 foreach ($ALLXML as $xml) {
     echo "      <g id='drawingarea$proc'>\n";
     
+    $computekey = "";
+    $gemmkey = "";
+    foreach ( $xml->DICTIONARY->KEY as $dk ) {
+        if( ($dk->NAME . "") == "compute" ) {
+            $computekey = $dk['ID'];
+        }
+        if( ($dk->NAME . "") == "GEMM" ) {
+            $gemmkey = $dk['ID'];
+        }
+    }
+    if( $computekey == "" || $gemmkey == "" ) {
+        syslog(LOG_ERR, "Unable to find compute key or gemm key in dictionnary: is this the GPU version?");
+        exit(1);
+    }
+
+    $gpus = array();
+    foreach ( $xml->PROFILES->THREAD as $th ) {
+        if( preg_match("/GPU/i", $th->IDENTIFIER ) ) {
+            foreach ( $th->KEY as $dk ) {
+                if( ($dk['ID'] . "") == $computekey ) {
+                    $gpus[] = $dk;
+                }
+            }
+        }
+    }
+
     $i = 0;
     foreach ( $xml->PROFILES->THREAD as $th ) {
         echo "       <g id='P${proc}T$i'>\n";
@@ -186,9 +213,30 @@ foreach ($ALLXML as $xml) {
                 continue;
             }
             $name = $my_dk->NAME;
-            $attributes = $my_dk->ATTRIBUTES;
             
             foreach ( $key->EVENT as $event ) {
+
+                $normalevent = true;
+                $gpuid = 0;
+                if( ($key['ID'] . "") == $gemmkey ) {
+                    foreach( $gpus as $gpu ) {
+                        foreach( $gpu->EVENT as $gpuevent ) {
+                            if( ($gpuevent->ID . "") == ($event->ID . "") ) {
+                                $normalevent = false;
+                                break 2;
+                            }
+                        }
+                        $gpuid++;
+                    }
+                }
+
+                if( $normalevent ) {
+                    $attributes = $my_dk->ATTRIBUTES;
+                } else {
+                    $attributes = sprintf("fill:#%02X%02X%02X", 
+                                          ($gpuid+4) * 255 / 8,  ($gpuid+4) * 255 / 8,  ($gpuid+4) * 255 / 8);
+                }
+
                 $duration = ($event->END - $event->START);
                 $x = $event->START * $scale;
                 $w = $duration * $scale;
