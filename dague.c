@@ -45,8 +45,6 @@ int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
 #endif  /* DAGUE_PROFILING */
 
-static const dague_t** dague_array = NULL;
-static int dague_array_size = 0, dague_array_count = 0;
 #ifdef HAVE_PAPI
 int eventSet = PAPI_NULL;
 int num_events = 0;
@@ -55,79 +53,20 @@ char* event_names[MAX_EVENTS];
 
 int DAGUE_TILE_SIZE = 0;
 
-int dague_push( const dague_t* d )
-{
-    if( dague_array_count >= dague_array_size ) {
-        if( 0 == dague_array_size ) {
-            dague_array_size = 4;
-        } else {
-            dague_array_size *= 2;
-        }
-        dague_array = (const dague_t**)realloc( dague_array, dague_array_size * sizeof(dague_t*) );
-        if( NULL == dague_array ) {
-            return -1;  /* No more available memory */
-        }
-    }
-    dague_array[dague_array_count] = d;
-    dague_array_count++;
-    return 0;
-}
-
-const dague_t* dague_find( const char* name )
+const dague_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
     int i;
     const dague_t* object;
 
-    for( i = 0; i < dague_array_count; i++ ) {
-        object = dague_array[i];
-        if( 0 == strcmp( object->name, name ) ) {
+    for( i = 0; i < dague_object->nb_functions; i++ ) {
+        object = dague_object->functions_array[i];
+        if( 0 == strcmp( object->name, fname ) ) {
             return object;
         }
     }
     return NULL;
 }
 
-dague_t* dague_find_or_create( const char* name )
-{
-    dague_t* object;
-
-    object = (dague_t*)dague_find(name);
-    if( NULL != object ) {
-        return object;
-    }
-    object = (dague_t*)calloc(1, sizeof(dague_t));
-    object->name = strdup(name);
-    if( 0 == dague_push(object) ) {
-        return object;
-    }
-    free(object);
-    return NULL;
-}
-
-void dague_load_array( dague_t *array, int size )
-{
-    int i;
-
-    dague_array_size = size;
-    dague_array_count = size;
-    dague_array = (const dague_t**)calloc(size, sizeof(dague_t*));
-    for(i = 0; i < size; i++) {
-        dague_array[i] = &(array[i]);
-    }
-}
-
-const dague_t* dague_element_at( int i )
-{
-    if( i < dague_array_count ){
-        return dague_array[i];
-    }
-    return NULL;
-}
-
-int dague_nb_elements( void )
-{
-    return dague_array_count;
-}
 
 /**
  *
@@ -346,6 +285,7 @@ static void dague_print_usage(void)
             "   -p --papi              : use PLASMA backend\n"
             "   -b --bind <start:skip> : define a binding pattern\n");
 }
+
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_size )
 {
     int argc = (*pargc), i;
@@ -682,63 +622,6 @@ int dague_fini( dague_context_t** pcontext )
 }
 
 /**
- * Compute the correct initial values for an execution context. These values
- * are in the range and validate all possible predicates. If such values do
- * not exist this function returns -1.
- */
-int dague_set_initial_execution_context( const dague_object_t *dague_object,
-                                         dague_execution_context_t* exec_context )
-{
-    int i, min, rc;
-    const dague_t* object = exec_context->function;
-    const expr_t* predicate = (const expr_t*)object->pred;
-
-    /* Compute the number of local values */
-    if( 0 == object->nb_locals ) {
-        /* special case for the IN/OUT objects */
-        return 0;
-    }
-
-    /**
-     * Find the minimum values for all locals. Note this is done
-     * with NULL predicate, so no validation on the values
-     * is performed.
-     */
-    for( i = 0; i < object->nb_locals; i++ ) {
-        exec_context->locals[i].sym = object->locals[i];
-        rc = dague_symbol_get_first_value(dague_object,
-                                          object->locals[i], NULL,
-                                          exec_context->locals, &min);
-        exec_context->locals[i].value = min;
-    }
-    /**
-     * Now fix these values, by walking up and down the locals
-     * stack and validate the selected values through the
-     * predicate.
-     */
-    for( i = 0; i < object->nb_locals; i++ ) {
-        rc = dague_symbol_get_first_value(dague_object,
-                                          object->locals[i], predicate,
-                                          exec_context->locals, &min);
-        while ( rc != EXPR_SUCCESS ) {
-            i--;
-            if( i < 0 ) {
-                printf( "Impossible to find initial values. Giving up\n" );
-                return -1;
-            }
-
-            rc = dague_symbol_get_next_value(dague_object,
-                                             object->locals[i], predicate,
-                                             exec_context->locals, &min );
-        }
-    }
-    if( i < MAX_LOCAL_COUNT ) {
-        exec_context->locals[i].sym = NULL;
-    }
-    return 0;
-}
-
-/**
  * Check is there is any of the input parameters that do depend on some
  * other service. 
  */
@@ -810,89 +693,6 @@ char* dague_dependency_to_string( const dague_execution_context_t* from,
     index += snprintf( tmp + index, length - index, " -> " );
     dague_service_to_string( to, tmp + index, length - index );
     return tmp;
-}
-
-/**
- * This function generate all possible execution context for a given function with
- * respect to the predicates.
- */
-int dague_compute_nb_tasks( const dague_object_t *dague_object, const dague_t* object, int use_predicate )
-{
-    dague_execution_context_t* exec_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
-    const expr_t* predicate = (const expr_t*)object->pred;
-    int rc, actual_loop, nb_tasks = 0;
-
-    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
-
-    exec_context->function = (dague_t*)object;
-
-    DEBUG(( "Function %s (loops %d)\n", object->name, object->nb_locals ));
-    if( 0 == object->nb_locals ) {
-        /* special case for the IN/OUT obejcts */
-        return 0;
-    }
-
-    if( 0 != dague_set_initial_execution_context(dague_object, exec_context) ) {
-        /* if we can't initialize the execution context then there is no reason to
-         * continue.
-         */
-        return -1;
-    }
-
-    /* Clear the predicates if not needed */
-    if( !use_predicate ) predicate = NULL;
-
-    actual_loop = object->nb_locals - 1;
-    while(1) {
-        int value;
-
-        /* Do whatever we have to do for this context */
-        nb_tasks++;
-
-        /* Go to the next valid value for this loop context */
-        rc = dague_symbol_get_next_value( dague_object,
-                                          object->locals[actual_loop], predicate,
-                                          exec_context->locals, &value );
-
-        /* If no more valid values, go to the previous loop,
-         * compute the next valid value and redo and reinitialize all other loops.
-         */
-        if( rc != EXPR_SUCCESS ) {
-            int current_loop = actual_loop;
-        one_loop_up:
-            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
-                   actual_loop, object->locals[actual_loop]->name));
-            if( 0 == actual_loop ) {  /* we're done */
-                goto end_of_all_loops;
-            }
-            actual_loop--;  /* one level up */
-            rc = dague_symbol_get_next_value( dague_object,
-                                              object->locals[actual_loop], predicate,
-                                              exec_context->locals, &value );
-            if( rc != EXPR_SUCCESS ) {
-                goto one_loop_up;
-            }
-            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
-                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
-                rc = dague_symbol_get_first_value( dague_object,
-                                                   object->locals[actual_loop], predicate,
-                                                   exec_context->locals, &value );
-                if( rc != EXPR_SUCCESS ) {  /* no values for this symbol in this context */
-                    goto one_loop_up;
-                }
-                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
-                       object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            }
-            actual_loop = current_loop;  /* go back to the original loop */
-        } else {
-            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
-                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-        }
-    }
- end_of_all_loops:
-
-    return nb_tasks;
 }
 
 /**

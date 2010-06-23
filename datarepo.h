@@ -9,6 +9,8 @@
 
 #define DEBUG_HEAVY(p)
 
+#define MAX_DATAREPO_HASH 4096
+
 static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 {
     while( !dague_atomic_cas( atomic_lock, 0, 1) )

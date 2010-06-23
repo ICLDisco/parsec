@@ -170,7 +170,7 @@ static void * rand_dist_tiles(void * info)
     /* bind thread to cpu */
     int bind_to_proc = ((info_tiles_t *)info)->th_id;
 
-    dplasma_bindthread(bind_to_proc);
+    dague_bindthread(bind_to_proc);
 
     /*printf("generating matrix on process %d, thread %d: %d tiles\n",
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,

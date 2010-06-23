@@ -125,6 +125,7 @@ extern int schedule_sleep_begin, schedule_sleep_end;
 typedef struct dague_object {
   /** All dague_object_t structures hold these two arrays **/
   int                    nb_functions;
+  int                    nb_local_tasks;
   const dague_t        **functions_array;
   dague_dependencies_t **dependencies_array;
 } dague_object_t;
@@ -147,5 +148,8 @@ int dague_release_OUT_dependencies( const dague_object_t *dague_object,
                                     dague_execution_context_t* restrict exec_context,
                                     const param_t* restrict dest_param,
                                     int forward_remote );
+
+const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
+int dague_fini( dague_context_t** pcontext );
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

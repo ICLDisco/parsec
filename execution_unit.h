@@ -80,4 +80,7 @@ struct dague_context_t {
     dague_execution_unit_t* execution_units[1];
 };
 
+dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_size );
+
+
 #endif  /* DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */

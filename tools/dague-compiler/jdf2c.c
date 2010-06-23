@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "jdf.h"
 #include "string_arena.h"
@@ -336,7 +337,7 @@ static char *dump_repo(void **elem, void *arg)
     string_arena_t *sa = (string_arena_t*)arg;
 
     string_arena_init(sa);
-    string_arena_add_string(sa, "%s_repo (__dague_object->%s_repo)",
+    string_arena_add_string(sa, "%s_repo (__dague_object->%s_repository)",
                             f->fname, f->fname);
 
     return string_arena_get_string(sa);
@@ -449,6 +450,105 @@ static char *dump_dataflow_varname(void **elem, void *_)
 {
     jdf_dataflow_t *f = *(jdf_dataflow_t **)elem;
     return f->varname;
+}
+
+static double unique_rgb_color_saturation;
+static double unique_rgb_color_value;
+
+static void init_unique_rgb_color(void)
+{
+    unique_rgb_color_value = 0.5 + (0.5 * (double)rand() / (double)RAND_MAX);
+    unique_rgb_color_saturation = 0.5 + (0.5 * (double)rand() / (double)RAND_MAX);
+}
+
+static void get_unique_rgb_color(float ratio, unsigned char *r, unsigned char *g, unsigned char *b)
+{
+    double h, s, v, r1, g1, b1;
+
+    h = ratio;
+    s = 0.8;
+    v = 0.8;
+
+    if ( s == 0.0 ) {
+        *r = (unsigned char)(v * 255);
+        *g = (unsigned char)(v * 255);
+        *b = (unsigned char)(v * 255);
+    } else {
+        double var_h = (h == 1.0) ? 0.0 : h * 6.0;
+        int var_i = (int)floor(var_h);
+        float var_1 = (v * ( 1.0 - s ));
+        float var_2 = (v * ( 1.0 - s * ( var_h - var_i )));
+        float var_3 = (v * ( 1.0 - s * ( 1.0 - ( var_h - var_i ) ) ));
+       
+        if      ( var_i == 0 ) { r1 = v     ; g1 = var_3 ; b1 = var_1; }
+        else if ( var_i == 1 ) { r1 = var_2 ; g1 = v     ; b1 = var_1; }
+        else if ( var_i == 2 ) { r1 = var_1 ; g1 = v     ; b1 = var_3; }
+        else if ( var_i == 3 ) { r1 = var_1 ; g1 = var_2 ; b1 = v;     }
+        else if ( var_i == 4 ) { r1 = var_3 ; g1 = var_1 ; b1 = v;     }
+        else                   { r1 = v     ; g1 = var_1 ; b1 = var_2; }
+
+        *r = (unsigned char)(r1 * 255);
+        *g = (unsigned char)(g1 * 255);
+        *b = (unsigned char)(b1 * 255);
+    }
+}
+
+/**
+ * Parameters of the dump_profiling_init function
+ */
+typedef struct profiling_init_info {
+    string_arena_t *sa;
+    int idx;
+    int maxidx;
+} profiling_init_info_t;
+
+/**
+ * dump_profiling_init:
+ *  Takes the pointer to the name of a function, an index in
+ *  a pointer to a dump_profiling_init, and prints 
+ *    dague_profiling_add_dictionary_keyword( "elem", attribute[idx], &elem_key_start, &elem_key_end);
+ *  into profiling_init_info.sa
+ */
+static char *dump_profiling_init(void **elem, void *arg)
+{
+    unsigned char R, G, B;
+    char *fname = *(char**)elem;
+    profiling_init_info_t *info = (profiling_init_info_t*)arg;
+    
+    string_arena_init(info->sa);
+
+    get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
+    info->idx++;
+
+    string_arena_add_string(info->sa,
+                            "dague_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
+                            "                                         &res->%s_start_key,\n"
+                            "                                         &res->%s_end_key);",
+                            fname, R, G, B, fname, fname);
+
+    return string_arena_get_string(info->sa);
+}
+
+static char *dump_data_repository_constructor(void **elem, void *arg)
+{
+    string_arena_t *sa = (string_arena_t*)arg;
+    jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
+    int nbdata;
+
+    string_arena_init(sa);
+
+    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_list_t, next, nbdata);
+
+    string_arena_add_string(sa, 
+                            "  %s_nblocal_tasks = %s_%s_enumerate_local_tasks(res);\n"
+                            "  res->%s_repository = data_repo_create_nothreadsafe(\n"
+                            "         ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
+                            "         MAX_DATAREPO_HASH :\n"
+                            "         ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);",
+                            f->fname, jdf_basename, f->fname,
+                            f->fname, f->fname, f->fname, nbdata);
+
+    return string_arena_get_string(sa);
 }
 
 /** Utils: observers for the jdf **/
@@ -665,7 +765,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("  /* The list of data repositories */\n"
             "%s",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "  data_repo_t *", "_repo;\n", "_repo;\n"));
+                                  dump_string, NULL, "", "  data_repo_t *", "_repository;\n", "_repository;\n"));
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
             "#  if defined(DAGUE_PROFILING)\n"
             "%s", 
@@ -990,6 +1090,58 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     string_arena_free(sa);
 }
 
+static void jdf_generate_enumerate_locals(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
+{
+    string_arena_t *sa;
+    jdf_def_list_t *dl;
+    int nesting;
+    expr_info_t info;
+
+
+
+    sa = string_arena_new(64);
+
+    coutput("static int %s(const __dague_cholesky_internal_object_t *__dague_object)\n"
+            "{\n"
+            "%s"
+            "  int nb = 0;\n",
+            fname,
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, dump_string, NULL,
+                                 "", "  int ", ";\n", ";\n"));
+
+    info.sa = sa;
+    info.prefix = "";
+
+    nesting = 0;
+    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+        if(dl->expr->op == JDF_RANGE) {
+            coutput("%*s  for(%s = %s; %s <= %s; %s++) {\n",
+                    nesting, "  ", 
+                    dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info),
+                    dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info),
+                    dl->name);
+            nesting++;
+        } else {
+            coutput("%*s  %s = %s;\n", nesting, "  ", dl->name, dump_expr((void**)&dl->expr, &info));
+        }
+    }
+
+    coutput("%*s    if( %s_pred(%s) ) nb++;\n",
+            nesting, "  ", f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                                          dump_string, NULL, 
+                                                          "", "", ", ", ""));
+
+    string_arena_free(sa);    
+
+    for(; nesting > 0; nesting--) {
+        coutput("%*s  }\n", nesting, "  ");
+    }
+
+    coutput("  return nb;\n"
+            "}\n"
+            "\n");
+}
+
 static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entry_t *f, int dep_index )
 {
     string_arena_t *sa, *sa2;
@@ -1066,6 +1218,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_generate_code_hook(jdf, f, prefix);
     string_arena_add_string(sa, "  .hook = %s,\n", prefix);
 
+    sprintf(prefix, "%s_%s_enumerate_local_tasks", jdf_basename, f->fname);
+    jdf_generate_enumerate_locals(jdf, f, prefix);
+
     free(prefix);
 
     string_arena_add_string(sa, "};\n");
@@ -1092,6 +1247,7 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     }
     string_arena_add_string(sa, "};\n\n");
     coutput("%s", string_arena_get_string(sa));
+
     string_arena_free(sa);
 }
 
@@ -1173,6 +1329,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
 static void jdf_generate_constructor( const jdf_t* jdf )
 {
     string_arena_t *sa1,*sa2;
+    profiling_init_info_t pi;
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
@@ -1188,6 +1345,13 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __dague_%s_internal_object_t *res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
+
+
+    string_arena_init(sa1);
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
+                                  dump_string, NULL, "", "  int ", "_nblocal_tasks;\n", "_nblocal_tasks;\n") );
+
     coutput("  res->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
     coutput("  res->super.super.functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename);
@@ -1196,10 +1360,34 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             jdf_basename);
     coutput("  memcpy(res->super.super.functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename, jdf_basename);
+
+    coutput("  /* Now the Parameter-dependent structures: */\n");
+
     coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->data, next, dname,
                                        dump_resinit, sa2, "", "  ", "\n", "\n"));
     coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
                                        dump_resinit, sa2, "", "  ", "\n", "\n"));
+
+    pi.sa = sa2;
+    pi.idx = 0;
+    JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
+    coutput("  /* If profiling is enabled, the keys for profiling */\n"
+            "#  if defined(DAGUE_PROFILING)\n"
+            "%s"
+            "#  endif /* defined(DAGUE_PROFILING) */\n", 
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
+                                  dump_profiling_init, &pi, "", "  ", "\n", "\n"));
+
+    coutput("  /* Create the data repositories for this object */\n"
+            "%s",
+            UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
+                            "", "", "\n", "\n"));
+
+    string_arena_init(sa1);
+    coutput("  res->super.super.nb_local_tasks = %s;\n",
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
+                                  dump_string, NULL, "", "", "_nblocal_tasks + ", "_nblocal_tasks") );
+
     coutput("  return (dague_%s_object_t*)res;\n"
             "}\n\n", jdf_basename);
 
@@ -1891,6 +2079,8 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename, const jdf_t *jdf)
 {
     int ret = 0;
+
+    init_unique_rgb_color();
 
     jdf_cfilename = output_c;
     jdf_basename = _jdf_basename;
