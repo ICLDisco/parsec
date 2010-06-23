@@ -21,7 +21,7 @@ enum matrix_type {
 };
 
 typedef struct tiled_matrix_desc_t {
-    DAGuE_ddesc_t super;
+    dague_ddesc_t super;
     enum matrix_type mtype;   // precision of the matrix
     int mb;             // number of rows in a tile
     int nb;             // number of columns in a tile

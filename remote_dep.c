@@ -277,7 +277,8 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 
 /* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
  * requires it to genrerate correct precompiled code */
-int dague_remote_dep_get_rank_preds(const expr_t **predicates,
+int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
+                                    const expr_t **predicates,
                                     const expr_t **rowpred,
                                     const expr_t **colpred, 
                                     const symbol_t **rowsize,
@@ -326,7 +327,7 @@ int dague_remote_dep_get_rank_preds(const expr_t **predicates,
         } 
         else 
         {
-            HDEBUG(         DEBUG(("SKIP\t"));expr_dump(stdout, predicates[pred_index]);DEBUG(("\n")));
+            HDEBUG(         DEBUG(("SKIP\t")); expr_dump(stdout, dague_object, predicates[pred_index]); DEBUG(("\n")));
         }
     }
 

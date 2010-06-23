@@ -12,6 +12,12 @@ if( PLASMA_FOUND )
 
   endif( DAGUE_MPI AND MPI_FOUND )
 
+    add_executable(llt llt.c  cholesky.c)
+    set_target_properties(llt PROPERTIES LINKER_LANGUAGE Fortran)
+    set_target_properties(llt PROPERTIES COMPILE_FLAGS "-DADD_")
+   set_target_properties(llt PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
+    target_link_libraries(llt dague ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+ 
 endif( PLASMA_FOUND )
 
 # add the command to generate the source code

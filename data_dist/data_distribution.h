@@ -11,13 +11,13 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-typedef struct DAGuE_ddesc {
+typedef struct dague_ddesc {
     uint32_t myrank;                  // process rank
     uint32_t cores;                   // number of cores used for computation per node
     uint32_t nodes;                   // number of nodes involved in the computation
-    uint32_t (*rank_of)(struct DAGuE_ddesc *mat, ...);
-    void *   (*data_of)(struct DAGuE_ddesc *mat, ...);
-} DAGuE_ddesc_t;
+    uint32_t (*rank_of)(struct dague_ddesc *mat, ...);
+    void *   (*data_of)(struct dague_ddesc *mat, ...);
+} dague_ddesc_t;
 
 
 

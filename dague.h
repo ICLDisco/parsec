@@ -132,14 +132,7 @@ typedef struct dague_object {
 
 struct dague_ddesc;
 
-typedef int (*rank_of_fct_t)(struct dague_ddesc *mat, ...);
-typedef void *(*data_of_fct_t)(struct dague_ddesc *mat, ...);
-
-typedef struct dague_ddesc {
-   rank_of_fct_t rank_of;
-   data_of_fct_t data_of;
-   int           myrank;
-} dague_ddesc_t;
+#include "data_distribution.h"
 
 int dague_release_OUT_dependencies( const dague_object_t *dague_object,
                                     dague_execution_unit_t* eu_context,
@@ -151,5 +144,8 @@ int dague_release_OUT_dependencies( const dague_object_t *dague_object,
 
 const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
 int dague_fini( dague_context_t** pcontext );
+char* dague_service_to_string( const dague_execution_context_t* exec_context,
+                               char* tmp,
+                               size_t length );
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

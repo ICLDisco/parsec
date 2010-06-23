@@ -1092,46 +1092,52 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
 
 static void jdf_generate_enumerate_locals(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
-    string_arena_t *sa;
+    string_arena_t *sa1, *sa2;
     jdf_def_list_t *dl;
     int nesting;
-    expr_info_t info;
+    expr_info_t info1, info2;
 
-
-
-    sa = string_arena_new(64);
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
 
     coutput("static int %s(const __dague_cholesky_internal_object_t *__dague_object)\n"
             "{\n"
             "%s"
             "  int nb = 0;\n",
             fname,
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
                                  "", "  int ", ";\n", ";\n"));
 
-    info.sa = sa;
-    info.prefix = "";
+    string_arena_init(sa1);
+
+    info1.sa = sa1;
+    info1.prefix = "";
+
+    info2.sa = sa2;
+    info2.prefix = "";
 
     nesting = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
             coutput("%*s  for(%s = %s; %s <= %s; %s++) {\n",
                     nesting, "  ", 
-                    dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info),
-                    dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info),
+                    dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
+                    dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
                     dl->name);
             nesting++;
         } else {
-            coutput("%*s  %s = %s;\n", nesting, "  ", dl->name, dump_expr((void**)&dl->expr, &info));
+            coutput("%*s  %s = %s;\n", nesting, "  ", dl->name, dump_expr((void**)&dl->expr, &info1));
         }
     }
 
+    string_arena_init(sa1);
     coutput("%*s    if( %s_pred(%s) ) nb++;\n",
-            nesting, "  ", f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+            nesting, "  ", f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
                                                           dump_string, NULL, 
                                                           "", "", ", ", ""));
 
-    string_arena_free(sa);    
+    string_arena_free(sa1);    
+    string_arena_free(sa2);
 
     for(; nesting > 0; nesting--) {
         coutput("%*s  }\n", nesting, "  ");

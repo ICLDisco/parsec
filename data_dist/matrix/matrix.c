@@ -180,7 +180,7 @@ static void * rand_dist_tiles(void * info)
         {
             ((info_tiles_t *)info)->gen_fct(((info_tiles_t *)info)->Ddesc,
                                               ((info_tiles_t *)info)->Ddesc->super.data_of(
-                                                                                           ((struct DAGuE_ddesc *)((info_tiles_t *)info)->Ddesc),
+                                                                                           ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
                                                                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
                                                                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
@@ -206,7 +206,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
         for ( j = 0 ; j < Mdesc->lnt ; j++)
             {
                 if(Mdesc->super.myrank ==
-                   Mdesc->super.rank_of((DAGuE_ddesc_t *)Mdesc, i, j ))
+                   Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j ))
                     {
                         if (pos == tiles_coord_size)
                             {

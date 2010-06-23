@@ -26,7 +26,7 @@
 }
 */
 
-static uint32_t twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
+static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
     int stc, cr, m, n;
     int str, rr;
@@ -85,7 +85,7 @@ static uint32_t twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
 /* /\*#define dplasma_get_local_tile_s dplasma_get_local_tile*\/ */
 /* #endif */
 
-static void * twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
+static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
     int pos, m, n;
     int nb_elem_r, last_c_size;
