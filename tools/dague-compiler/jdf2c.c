@@ -1404,11 +1404,41 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
     string_arena_t *sa = string_arena_new(64);
-    coutput("static inline int %s_hash%s\n"
-            "{\n",
-            f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                           dump_string, NULL, "(", "int ", ", ", ")"));
-    coutput("  return 0; /** TODO **/\n");
+    jdf_def_list_t *dl;
+    expr_info_t info;
+
+    coutput("static inline int %s_hash(const __dague_%s_internal_object_t *__dague_object, %s)\n"
+            "{\n"
+            "  int __h = 0;\n",
+            f->fname, jdf_basename, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                                         dump_string, NULL, "", "int ", ", ", ""));
+
+    info.prefix = "";
+    info.sa = sa;
+
+    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+        string_arena_init(sa);
+        if( dl->expr->op == JDF_RANGE ) {
+            coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info));
+            if( dl->next != NULL ) {
+                coutput("  int %s_range = %s - %s_min + 1;\n", 
+                        dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info), dl->name);
+            }
+        } else {
+            coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr, &info));
+            if( dl->next != NULL ) {
+                coutput("  int %s_range = 1;\n", dl->name);
+            }
+        }
+    }
+
+    string_arena_init(sa);
+    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+        coutput("  __h += (%s - %s_min)%s;\n",dl->name, dl->name, string_arena_get_string(sa));
+        string_arena_add_string(sa, " * %s_range", dl->name);
+    }
+
+    coutput("  return __h;\n");
     coutput("}\n\n");
     string_arena_free(sa);
 }
@@ -1458,7 +1488,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 exit(1);
             }
         }
-        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( %s ));\n"
+        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, %s ));\n"
                 "%s  g%s = e%s->data[%d];\n",
                 spaces, f->varname, call->func_or_mem, call->func_or_mem, 
                 UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
@@ -1648,7 +1678,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
             "    dague_service_to_string(exec_context, tmp, 128);\n"
             "    fprintf(__dague_graph_file,\n"
             "           \"%%s [shape=\\\"polygon\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
-            "            tmp, colors[context->eu_id], tmp, %s_hash(%s));\n"
+            "            tmp, colors[context->eu_id], tmp, %s_hash( __dague_object, %s ));\n"
             "  }\n"
             "#endif /* DAGUE_GRAPHER */\n",
             f->fname, f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
@@ -1798,7 +1828,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     jdf_generate_code_cache_awareness_update(jdf, f);
 
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
-    coutput("  TAKE_TIME(context, %s_start_key, %s_hash(%s));\n",
+    coutput("  TAKE_TIME(context, %s_start_key, %s_hash( __dague_object, %s ));\n",
             f->fname, f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""));
@@ -1807,7 +1837,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             f->body,
             cfile_lineno + 2 + nblines(f->body), jdf_cfilename);
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
-    coutput("  TAKE_TIME(context, %s_end_key, %s_hash(%s));\n",
+    coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ));\n",
             f->fname, f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""));
