@@ -69,7 +69,10 @@ typedef enum  {
     DAGUE_ITERATE_CONTINUE
 } dague_ontask_iterate_t;
 
-typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_t *, const dague_execution_context_t *, void *);
+typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_t *eu, 
+                                                         const dague_execution_context_t *newcontext, 
+                                                         const dague_execution_context_t *oldcontext, 
+                                                         int param_index, int outdep_index, void *param);
 typedef void (dague_traverse_function_t)(struct dague_execution_unit_t *, const dague_execution_context_t *, dague_ontask_function_t *, void *);
 
 #if defined(DAGUE_CACHE_AWARE)
@@ -105,13 +108,18 @@ struct dague_t {
 
 struct dague_object;
 
+typedef struct {
+    data_repo_entry_t *data_repo;
+    gc_data_t *gc_data;
+} dague_data_pair_t;
+
 struct dague_execution_context_t {
     dague_list_item_t list_item;
     struct dague_object *dague_object;
     const  dague_t      *function;
-    int32_t      priority;
-    void        *pointers[MAX_PARAM_COUNT*2];
-    assignment_t locals[MAX_LOCAL_COUNT];
+    int32_t              priority;
+    dague_data_pair_t    data[MAX_PARAM_COUNT];
+    assignment_t         locals[MAX_LOCAL_COUNT];
 };
 
 extern int DAGUE_TILE_SIZE;

@@ -351,13 +351,13 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
 
     for( i = cnt = mask = 0; (i < MAX_PARAM_COUNT) && (NULL != function->out[i]); i++) {
 #if defined(DAGUE_DEBUG)
-        exec_context.pointers[2*i]   = NULL;
-        exec_context.pointers[2*i+1] = NULL;
+        exec_context.data[i].data_repo = NULL;
+        exec_context.data[i].gc_data   = NULL;
 #endif  /* defined(DAGUE_DEBUG) */
         if(origin->msg.deps & (1 << cnt)) {
             assert(origin->msg.which & (1 << cnt));
-            exec_context.pointers[2*i]   = NULL;
-            exec_context.pointers[2*i+1] = origin->output[cnt].data;
+            exec_context.data[i].data_repo = NULL;
+            exec_context.data[i].gc_data   = origin->output[cnt].data;
             mask |= (1<< i);
         }
         cnt++;
