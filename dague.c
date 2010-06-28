@@ -802,7 +802,7 @@ static dague_dependencies_t *find_deps(dague_object_t *dague_object,
 
     for(p = 0; p < exec_context->function->nb_locals - 1; p++) {
         assert( deps->flags & DAGUE_DEPENDENCIES_FLAG_NEXT != 0 );
-        deps = deps->u.next[exec_context->locals[p].value];
+        deps = deps->u.next[exec_context->locals[p].value - deps->min];
         assert( NULL != deps );
     }
 

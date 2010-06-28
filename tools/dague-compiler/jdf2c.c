@@ -743,6 +743,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     }
 
     coutput("#include <dague.h>\n"
+            "#include <scheduling.h>\n"
             "#include <assignment.h>\n"
             "#include <remote_dep.h>\n"
             "#include \"%s.h\"\n\n"
@@ -802,17 +803,19 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  int _vmin = (vMIN);                                                                        \\\n"
             "  int _vmax = (vMAX);                                                                        \\\n"
             "  (DEPS) = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +                   \\\n"
-            "                   (_vmax - _vmin - 1) * sizeof(dague_dependencies_union_t));                \\\n"
+            "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
             "  /*DEBUG((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\", */         \\\n"
             "  /*       (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP))); */ \\\n"
             "  (DEPS)->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                                \\\n"
             "  DAGUE_STAT_INCREASE(mem_bitarray,  sizeof(dague_dependencies_t) + STAT_MALLOC_OVERHEAD +   \\\n"
-            "                   (_vmax - _vmin - 1) * sizeof(dague_dependencies_union_t));                \\\n"
+            "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
             "  (DEPS)->symbol = (vSYMBOL);                                                                \\\n"
             "  (DEPS)->min = _vmin;                                                                       \\\n"
             "  (DEPS)->max = _vmax;                                                                       \\\n"
             "  (DEPS)->prev = (PREVDEP); /* chain them backward */                                        \\\n"
-            "} while (0)                                                                                  \n\n");
+            "} while (0)                                                                                  \n\n"
+            "#define MIN(a, b) ( ((a)<(b)) ? (a) : (b) )\n"
+            "#define MAX(a, b) ( ((a)>(b)) ? (a) : (b) )\n");
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -1234,10 +1237,10 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
                                                           dump_string, NULL, 
                                                           "", "", ", ", ""));
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        coutput("%*s    %s_max = ( (%s < %s_max) ? %s_max : %s );\n"
-                "%*s    %s_min = ( (%s > %s_min) ? %s_min : %s );\n",
-                nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name,
-                nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name);
+        coutput("%*s    %s_max = MAX(%s_max, %s);\n"
+                "%*s    %s_min = MIN(%s_min, %s);\n",
+                nesting, "  ", dl->name, dl->name, dl->name,
+                nesting, "  ", dl->name, dl->name, dl->name);
     }
 
     for(; nesting > 0; nesting--) {
@@ -1268,8 +1271,8 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
                         nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
                 coutput("%*s  %s_end = %s;\n", 
                         nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
-                coutput("%*s  for(%s = (%s_min < %s_start ? %s_start : %s_min); %s <= (%s_end < %s_max ? %s_end : %s_max); %s++) {\n",
-                        nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
+                coutput("%*s  for(%s = MAX(%s_start, %s_min); %s <= MIN(%s_end, %s_max); %s++) {\n",
+                        nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
                 coutput("%*s  %s = %s_start = %s_end = %s;\n", 
@@ -2111,7 +2114,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
             "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n"
             "    if( NULL != arg.ready_list ) {\n"
-            "      __dague_schedule(context, arg.ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));\n"
+            "      __dague_schedule(eu, arg.ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));\n"
             "    }\n"
             "  }\n",
             f->fname);
