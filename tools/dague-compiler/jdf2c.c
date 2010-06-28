@@ -1190,9 +1190,9 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
     coutput("%s"
             "%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int ", "_min;\n", "_min;\n"),
+                                 "", "  uint32_t ", "_min = 0xffffffff;\n", "_min = 0xffffffff;\n"),
             UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int ", "_max;\n", "_max;\n"));
+                                 "", "  uint32_t ", "_max = 0;\n", "_max = 0;\n"));
     coutput("%s"
             "%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
@@ -1214,16 +1214,16 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
     nesting = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
-            coutput("%*s  %s_start = %s_max = %s;\n", 
-                    nesting, "  ", dl->name, dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
-            coutput("%*s  %s_end = %s_min = %s;\n", 
-                    nesting, "  ", dl->name, dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
+            coutput("%*s  %s_start = %s;\n", 
+                    nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
+            coutput("%*s  %s_end = %s;\n", 
+                    nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
             coutput("%*s  for(%s = %s_start; %s <= %s_end; %s++) {\n",
                     nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name);
             nesting++;
         } else {
-            coutput("%*s  %s = %s_start = %s_end = %s_min = %s_max = %s;\n", 
-                    nesting, "  ", dl->name, dl->name, dl->name, dl->name, 
+            coutput("%*s  %s = %s_start = %s_end = %s;\n", 
+                    nesting, "  ", dl->name, dl->name, 
                     dl->name, dl->name, dump_expr((void**)&dl->expr, &info1));
         }
     }
@@ -1234,8 +1234,8 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
                                                           dump_string, NULL, 
                                                           "", "", ", ", ""));
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        coutput("%*s    %s_max = %s < %s_max ? %s_max : %s;\n"
-                "%*s    %s_min = %s > %s_min ? %s_min : %s;\n",
+        coutput("%*s    %s_max = ( (%s < %s_max) ? %s_max : %s );\n"
+                "%*s    %s_min = ( (%s > %s_min) ? %s_min : %s );\n",
                 nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name,
                 nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name);
     }
@@ -1310,7 +1310,7 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
                     nesting, "  ");
             string_arena_init(sa2);
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
-            string_arena_add_string(sa1, "->u.next[%s]", dl->name);
+            string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
         }
         
         for(; nesting > 0; nesting--) {
