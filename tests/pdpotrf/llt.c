@@ -501,6 +501,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 
     dague_cholesky = (dague_object_t*)dague_cholesky_new( (dague_ddesc_t*)&ddescA, 
                                                           ddescA.super.nb, ddescA.super.nt, pri_change );
+    dague->taskstodo += dague_cholesky->nb_local_tasks;
 
     printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     return dague;

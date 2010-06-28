@@ -62,7 +62,7 @@ struct dague_dependencies_t {
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit_t*, dague_execution_context_t*);
-typedef int (dague_release_deps_t)(struct dague_execution_unit_t*, const dague_execution_context_t*, int, const struct dague_remote_deps_t *, gc_data_t **data);
+typedef int (dague_release_deps_t)(struct dague_execution_unit_t*, dague_execution_context_t*, int, struct dague_remote_deps_t *, gc_data_t **data);
 
 typedef enum  {
     DAGUE_ITERATE_STOP,
@@ -70,10 +70,12 @@ typedef enum  {
 } dague_ontask_iterate_t;
 
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_t *eu, 
-                                                         const dague_execution_context_t *newcontext, 
-                                                         const dague_execution_context_t *oldcontext, 
-                                                         int param_index, int outdep_index, void *param);
-typedef void (dague_traverse_function_t)(struct dague_execution_unit_t *, const dague_execution_context_t *, dague_ontask_function_t *, void *);
+                                                         dague_execution_context_t *newcontext, 
+                                                         dague_execution_context_t *oldcontext, 
+                                                         int param_index, int outdep_index, 
+                                                         int rank_src, int rank_dst,
+                                                         void *param);
+typedef void (dague_traverse_function_t)(struct dague_execution_unit_t *, dague_execution_context_t *, dague_ontask_function_t *, void *);
 
 #if defined(DAGUE_CACHE_AWARE)
 typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
@@ -142,6 +144,13 @@ struct dague_ddesc;
 
 #include "data_distribution.h"
 
+int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
+                                          dague_execution_unit_t* eu_context,
+                                          const dague_execution_context_t* restrict origin,
+                                          const param_t* restrict origin_param,
+                                          dague_execution_context_t* restrict exec_context,
+                                          const param_t* restrict dest_param,
+                                          dague_execution_context_t** pready_list );
 int dague_release_OUT_dependencies( const dague_object_t *dague_object,
                                     dague_execution_unit_t* eu_context,
                                     const dague_execution_context_t* restrict origin,
@@ -155,5 +164,30 @@ int dague_fini( dague_context_t** pcontext );
 char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                char* tmp,
                                size_t length );
+
+/* This must be included here for the DISTRIBUTED macro, and after many constants have been defined */
+#include "remote_dep.h"
+
+typedef struct {
+    int nb_released;
+    uint32_t output_usage;
+    data_repo_entry_t *output_entry;
+    int action_mask;
+    dague_remote_deps_t *deps;
+    gc_data_t **data;
+    dague_execution_context_t* ready_list;
+#if defined(DISTRIBUTED)
+    int root;
+    int remote_deps_count;
+    dague_remote_deps_t *remote_deps;
+#endif
+} dague_release_dep_fct_arg_t;
+
+dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu, 
+                                             dague_execution_context_t *newcontext, 
+                                             dague_execution_context_t *oldcontext, 
+                                             int param_index, int outdep_index, 
+                                             int rank_src, int rank_dst,
+                                             void *param);
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

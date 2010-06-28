@@ -791,6 +791,23 @@ static void malloc_deps(dague_object_t *dague_object,
 #endif    
 }
 
+static dague_dependencies_t *find_deps(dague_object_t *dague_object,
+                                       dague_execution_context_t* restrict exec_context)
+{
+    dague_dependencies_t *deps;
+    int p;
+
+    deps = dague_object->dependencies_array[exec_context->function->deps];
+    assert( NULL != deps );
+
+    for(p = 0; p < exec_context->function->nb_locals - 1; p++) {
+        assert( deps->flags & DAGUE_DEPENDENCIES_FLAG_NEXT != 0 );
+        deps = deps->u.next[exec_context->locals[p].value];
+        assert( NULL != deps );
+    }
+
+    return deps;
+}
 
 /**
  * Release the OUT dependencies for a single instance of a task. No ranges are
@@ -803,7 +820,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           const param_t* restrict origin_param,
                                           dague_execution_context_t* restrict exec_context,
                                           const param_t* restrict dest_param,
-                                          dague_dependencies_t **deps_location,
                                           dague_execution_context_t** pready_list )
 {
     const dague_t* function = exec_context->function;
@@ -815,10 +831,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     DEBUG(("Activate dependencies for %s priority %d\n",
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
-    if( NULL == *deps_location ) {
-        malloc_deps(dague_object, eu_context, exec_context, deps_location);
-    }
-    deps = *deps_location;
+
+    deps = find_deps(dague_object, exec_context);
     
     i = function->nb_locals - 1;
 
@@ -1250,3 +1264,45 @@ int dague_release_OUT_dependencies( const dague_object_t *dague_object,
     return 0;
 }
 
+dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu, 
+                                             dague_execution_context_t *newcontext, 
+                                             dague_execution_context_t *oldcontext, 
+                                             int param_index, int outdep_index, 
+                                             int src_rank, int dst_rank,
+                                             void *param)
+{
+    dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
+
+    if( arg->action_mask & (1 << param_index) ) {
+#if defined(DISTRIBUTED)
+        if( arg->action_mask & DAGUE_ACTION_GETTYPE_REMOTE_DEPS ) {
+            /* TODO: find a test to check the indices on this line */
+            arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
+        }
+#endif
+        if(arg->action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_INIT_REMOTE_DEPS)) {
+#if defined(DISTRIBUTED)
+            if( src_rank == dst_rank ) {
+#endif
+                if(arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
+                    arg->output_entry->data[outdep_index] = oldcontext->data[param_index].gc_data;
+                    arg->output_usage++;
+                    gc_data_ref( arg->output_entry->data[outdep_index] );
+                    arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
+                                                                             eu, oldcontext,
+                                                                             oldcontext->function->out[param_index],
+                                                                             newcontext,
+                                                                             oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
+                                                                             &arg->ready_list);
+                }
+#if defined(DISTRIBUTED)                
+            } else {
+
+            }
+#endif /* defined(DISTRIBUTED) */
+        }
+
+    }
+
+    return DAGUE_ITERATE_CONTINUE;
+}
