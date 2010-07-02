@@ -214,7 +214,7 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 
 
-include_directories(data_dist data_dist/matrix data_dist/matrix/two_dim_rectangle_cyclic)
+include_directories(data_dist data_dist/matrix data_dist/matrix/two_dim_rectangle_cyclic data_dist/matrix/sym_two_dim_rectangle_cyclic)
 
 
 #
@@ -224,7 +224,8 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
   freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
   ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS} data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c)
+  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
+  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
 set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dplasma ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
@@ -233,7 +234,8 @@ if (DPLASMA_MPI AND MPI_FOUND)
     scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
     freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
     ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS} data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c)
+  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
+  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
 #  target_link_libraries(dplasma-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 endif (DPLASMA_MPI AND MPI_FOUND)
