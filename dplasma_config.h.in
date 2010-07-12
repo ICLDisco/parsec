@@ -9,6 +9,9 @@
 #cmakedefine DPLASMA_MPI
 /* Scheduling engine */
 #cmakedefine HAVE_HWLOC
+#cmakedefine HAVE_HWLOC_PARENT_MEMBER
+#cmakedefine HAVE_HWLOC_CACHE_ATTR
+#cmakedefine HAVE_HWLOC_OBJ_PU
 #cmakedefine DPLASMA_CACHE_AWARE
 /* debug */
 #cmakedefine DPLASMA_DEBUG
