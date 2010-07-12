@@ -57,6 +57,7 @@ static inline void remote_dep_dec_flying_messages(dplasma_context_t* ctx)
     dplasma_atomic_dec_32b( &ctx->taskstodo );
 }
 
+#undef DPLASMA_COLLECTIVE_TYPE_BINOMIAL
 #define DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
 
 #ifdef USE_MPI
@@ -151,8 +152,10 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
 }
 # ifdef DPLASMA_COLLECTIVE_TYPE_CHAINPIPELINE
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
-# else 
+# elif defined(DPLASMA_COLLECTIVE_TYPE_BINOMIAL)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
+# else
+#  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
 # endif
 #else
 static inline int remote_dep_bcast_star_child(int me, int him)
