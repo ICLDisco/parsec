@@ -49,8 +49,15 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dpla
 /* TODO */
 #endif 
 
+
+static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
+static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i);
+
+static void remote_dep_mpi_short_get_data(int from, int i);
+
 /* Shared LIFO for the TILES */
 dplasma_atomic_lifo_t* internal_alloc_lifo;
+uint64_t internal_alloc_lifo_num_used;
 static int internal_alloc_lifo_init = 0;
 
 #include "dequeue.h"
@@ -60,8 +67,8 @@ typedef enum dep_cmd_action_t
     DEP_ACTIVATE,
     DEP_RELEASE,
 /*    DEP_PROGRESS,
-    DEP_PUT_DATA,
-    DEP_GET_DATA,*/
+    DEP_PUT_DATA,*/
+    DEP_GET_DATA,
     DEP_CTL,
     DEP_MEMCPY,
 } dep_cmd_action_t;
@@ -72,6 +79,10 @@ typedef union dep_cmd_t
         int rank;
         dplasma_remote_deps_t* deps;
     } activate;
+    struct {
+        int rank;
+        int i;
+    } get;
     struct {
         dplasma_remote_deps_t* deps;
     } release;
@@ -270,6 +281,9 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
         {
             case DEP_ACTIVATE:
                 remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
+                break;
+            case DEP_GET_DATA:
+                remote_dep_mpi_short_get_data(item->cmd.get.rank, item->cmd.get.i);
                 break;
             case DEP_CTL:
                 ctl = item->cmd.ctl.enable;
@@ -614,9 +628,6 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
 }
 
 
-static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
-static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i);
-
 static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
 {
 #ifdef DPLASMA_DEBUG
@@ -771,6 +782,12 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 }
 
 static int get = 1;
+#define FLOW_CONTROL_MEM_CONSTRAINT 200
+
+static void remote_dep_mpi_short_get_data(int from, int i)
+{
+    remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
+}
 
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i)
 {
@@ -808,7 +825,24 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             {
                 data = (void*)dplasma_atomic_lifo_pop( internal_alloc_lifo );
                 if( NULL == data ) {
-                    data = malloc(size);
+                    /* basic attempt at flow control */
+                    if( (internal_alloc_lifo_num_used < FLOW_CONTROL_MEM_CONSTRAINT) || (size > sizeof(dep_cmd_item_t)) )
+                    {                        
+                        data = malloc(size);
+                        assert(data != NULL);
+                        internal_alloc_lifo_num_used++;
+                    }
+                    else
+                    {
+                        /* do it later */
+                        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+                        item->action = DEP_GET_DATA;
+                        item->cmd.get.rank = from;
+                        item->cmd.get.i = i;
+                        DPLASMA_LIST_ITEM_SINGLETON(item);
+                        dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
+                        return;
+                    }
                 }
             }
 #if defined(DPLASMA_STATS)

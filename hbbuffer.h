@@ -100,9 +100,9 @@ static inline int dplasma_hbbuffer_push_ideal_nonrec(dplasma_hbbuffer_t *b, dpla
     dplasma_list_item_t *next;
     int i, nbelt;
 
-    next = (*elt);
     nbelt = 0;
     dplasma_atomic_lock(&b->lock);
+    next = (*elt);
     for(i = 0; (b->nbelt < b->ideal_fill) && (i < b->size); i++) {
         if( NULL != b->items[i] )
             continue;

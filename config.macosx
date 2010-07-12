@@ -9,4 +9,4 @@ export CC=gcc-4
 PLASMA_DIR=/Users/bouteill/dague/plasma
 #HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
 
-cmake -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON ${HWLOC_OPTS}
+cmake -DBUILD_64bits=off -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON ${HWLOC_OPTS}

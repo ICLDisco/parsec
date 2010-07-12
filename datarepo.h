@@ -86,6 +86,7 @@ static inline void __gc_data_ref(gc_data_t *d)
 
 #if defined(USE_MPI)
 extern dplasma_atomic_lifo_t* internal_alloc_lifo;
+extern uint64_t internal_alloc_lifo_num_used;
 #endif  /* defined(USE_MPI) */
 
 #ifdef DPLASMA_DEBUG_HEAVY
@@ -99,7 +100,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
         nref = dplasma_atomic_dec_32b( &GC_POINTER(d)->refcount );
         DEBUG_HEAVY(("%p is unreferenced by %s:%d\n", d, file, line));
         if( 0 == nref ) {
-            DEBUG_HEAVY(("Liberating the garbage collectable datar %p pointing on data %p,\n",
+            DEBUG_HEAVY(("Liberating the garbage collectable data %p pointing on data %p,\n",
                          d, GC_DATA(d)));
             /*printf( "%s:%d Releasing TILE at %p\n", __FILE__, __LINE__, GC_DATA(d));*/
 #if defined(USE_MPI)
@@ -107,6 +108,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
                 dplasma_list_item_t* item = GC_DATA(d);
                 DPLASMA_LIST_ITEM_SINGLETON(item);
                 dplasma_atomic_lifo_push(internal_alloc_lifo, item);
+                internal_alloc_lifo_num_used--;
             }
 #else
             free(GC_DATA(d));
