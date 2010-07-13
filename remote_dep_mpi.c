@@ -848,9 +848,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                     if( (internal_alloc_lifo_num_used < FLOW_CONTROL_MEM_CONSTRAINT) || (size < sizeof(dep_cmd_item_t)) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                     {                        
                         data = malloc(size);
-			printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-			assert(data != NULL);
-                        dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
+                        printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                        assert(data != NULL);
                     }
                     else
                     {
@@ -866,6 +865,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                     }
                 }
             }
+            dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
+
 #if defined(DPLASMA_STATS)
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
              * the size of the pointed data into the cache_friendliness pointer.
