@@ -53,11 +53,11 @@ static int remote_dep_dequeue_release(dplasma_execution_unit_t* eu_context, dpla
 static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i);
 
-static void remote_dep_mpi_short_get_data(int from, int i);
+static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, int i);
 
 /* Shared LIFO for the TILES */
 dplasma_atomic_lifo_t* internal_alloc_lifo;
-uint64_t internal_alloc_lifo_num_used;
+volatile uint32_t internal_alloc_lifo_num_used = 0;
 static int internal_alloc_lifo_init = 0;
 
 #include "dequeue.h"
@@ -283,8 +283,8 @@ static void* remote_dep_dequeue_main(dplasma_context_t* context)
                 remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
                 break;
             case DEP_GET_DATA:
-                remote_dep_mpi_short_get_data(item->cmd.get.rank, item->cmd.get.i);
-                break;
+                remote_dep_mpi_short_get_data(context, item->cmd.get.rank, item->cmd.get.i);
+		break;
             case DEP_CTL:
                 ctl = item->cmd.ctl.enable;
                 assert((ctl * ctl) <= 1);
@@ -517,6 +517,7 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
     internal_alloc_lifo = (dplasma_atomic_lifo_t*)malloc(sizeof(dplasma_atomic_lifo_t));
     dplasma_atomic_lifo_construct( internal_alloc_lifo );
     internal_alloc_lifo_init = 1;
+    internal_alloc_lifo_num_used = 0;
 
     return np;
 }
@@ -783,10 +784,28 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 
 static int get = 1;
 #define FLOW_CONTROL_MEM_CONSTRAINT 200
+#define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
+static int stalls = 0;
+static int old_context = -1;
 
-static void remote_dep_mpi_short_get_data(int from, int i)
+static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, int i)
 {
-    remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
+    if((context->taskstodo == old_context) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME))
+    {
+        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+        item->action = DEP_GET_DATA;
+        item->cmd.get.rank = from;
+        item->cmd.get.i = i;
+        DPLASMA_LIST_ITEM_SINGLETON(item);
+        dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
+        stalls++;
+    }
+    else
+    {
+        old_context = context->taskstodo;
+        remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
+	stalls = 0;
+    }
 }
 
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i)
@@ -826,16 +845,17 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                 data = (void*)dplasma_atomic_lifo_pop( internal_alloc_lifo );
                 if( NULL == data ) {
                     /* basic attempt at flow control */
-                    if( (internal_alloc_lifo_num_used < FLOW_CONTROL_MEM_CONSTRAINT) || (size > sizeof(dep_cmd_item_t)) )
+                    if( (internal_alloc_lifo_num_used < FLOW_CONTROL_MEM_CONSTRAINT) || (size < sizeof(dep_cmd_item_t)) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                     {                        
                         data = malloc(size);
-                        assert(data != NULL);
-                        internal_alloc_lifo_num_used++;
+			printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+			assert(data != NULL);
+                        dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
                     }
                     else
                     {
                         /* do it later */
-                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
                         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
                         item->action = DEP_GET_DATA;
                         item->cmd.get.rank = from;

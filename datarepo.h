@@ -86,7 +86,7 @@ static inline void __gc_data_ref(gc_data_t *d)
 
 #if defined(USE_MPI)
 extern dplasma_atomic_lifo_t* internal_alloc_lifo;
-extern uint64_t internal_alloc_lifo_num_used;
+extern volatile uint32_t internal_alloc_lifo_num_used;
 #endif  /* defined(USE_MPI) */
 
 #ifdef DPLASMA_DEBUG_HEAVY
@@ -108,7 +108,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
                 dplasma_list_item_t* item = GC_DATA(d);
                 DPLASMA_LIST_ITEM_SINGLETON(item);
                 dplasma_atomic_lifo_push(internal_alloc_lifo, item);
-                internal_alloc_lifo_num_used--;
+                dplasma_atomic_dec_32b(&internal_alloc_lifo_num_used);
             }
 #else
             free(GC_DATA(d));
