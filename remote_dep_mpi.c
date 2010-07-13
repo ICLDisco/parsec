@@ -835,6 +835,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                     else
                     {
                         /* do it later */
+                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
                         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
                         item->action = DEP_GET_DATA;
                         item->cmd.get.rank = from;
