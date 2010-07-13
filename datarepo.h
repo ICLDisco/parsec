@@ -86,7 +86,7 @@ static inline void __gc_data_ref(gc_data_t *d)
 
 #if defined(USE_MPI)
 extern dplasma_atomic_lifo_t* internal_alloc_lifo;
-extern volatile uint32_t internal_alloc_lifo_num_used;
+extern volatile int32_t internal_alloc_lifo_num_used;
 #endif  /* defined(USE_MPI) */
 
 #ifdef DPLASMA_DEBUG_HEAVY

@@ -57,7 +57,7 @@ static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, 
 
 /* Shared LIFO for the TILES */
 dplasma_atomic_lifo_t* internal_alloc_lifo;
-volatile uint32_t internal_alloc_lifo_num_used = 0;
+volatile int32_t internal_alloc_lifo_num_used = 0;
 static int internal_alloc_lifo_init = 0;
 
 #include "dequeue.h"
