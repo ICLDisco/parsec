@@ -800,20 +800,21 @@ static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, 
         DPLASMA_LIST_ITEM_SINGLETON(item);
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
         if(old_context != context->taskstodo)
-	{
+        {
            old_context = context->taskstodo;
            stalls = 0;
-	} else
-	{
-	    stalls++;
-	}
+        } 
+        else
+        {
+            stalls++;
+        }
     }
     else
     {
-        DEBUG(("Stall finished after %d tries\n", stalls));
-        old_context = context->taskstodo;
+        DEBUG(("Stall finished after %d tries, %d of %d arena used\n", stalls, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
         remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
-	stalls = 0;
+        old_context = context->taskstodo;
+        stalls = 0;
     }
 }
 
@@ -862,7 +863,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                         DEBUG(("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
                         assert(data != NULL);
 #ifdef FLOW_CONTROL
-      		    }
+                    }
                     else
                     {
                         /* do it later */
@@ -879,7 +880,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                 }
             }
 #ifdef FLOW_CONTROL
-	    dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
+            dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
 #endif
 
 #if defined(DPLASMA_STATS)
