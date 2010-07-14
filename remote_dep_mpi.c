@@ -816,6 +816,7 @@ static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, 
         old_context = context->taskstodo;
         stalls = 0;
     }
+    remote_dep_mpi_progress(context->execution_units[0]);
 }
 
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i)
