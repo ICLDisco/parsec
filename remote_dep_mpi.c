@@ -14,6 +14,7 @@
 
 #define DPLASMA_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
+#define FLOW_CONTROL
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -783,14 +784,14 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 }
 
 static int get = 1;
-#define FLOW_CONTROL_MEM_CONSTRAINT 200
-#define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
+#define FLOW_CONTROL_MEM_CONSTRAINT 20
+#define ATTEMPTS_STALLS_BEFORE_RESUME 30000
 static int stalls = 0;
 static int old_context = -1;
 
 static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, int i)
 {
-    if((context->taskstodo == old_context) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME))
+    if((internal_alloc_lifo_num_used > FLOW_CONTROL_MEM_CONSTRAINT) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME))
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         item->action = DEP_GET_DATA;
@@ -798,10 +799,18 @@ static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, 
         item->cmd.get.i = i;
         DPLASMA_LIST_ITEM_SINGLETON(item);
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
-        stalls++;
+        if(old_context != context->taskstodo)
+	{
+           old_context = context->taskstodo;
+           stalls = 0;
+	} else
+	{
+	    stalls++;
+	}
     }
     else
     {
+        DEBUG(("Stall finished after %d tries\n", stalls));
         old_context = context->taskstodo;
         remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
 	stalls = 0;
@@ -844,17 +853,20 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             {
                 data = (void*)dplasma_atomic_lifo_pop( internal_alloc_lifo );
                 if( NULL == data ) {
-                    /* basic attempt at flow control */
-                    if( (internal_alloc_lifo_num_used < FLOW_CONTROL_MEM_CONSTRAINT) || (size < sizeof(dep_cmd_item_t)) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
+#ifdef FLOW_CONTROL
+		    /* basic attempt at flow control */
+                    if( (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (size < sizeof(dep_cmd_item_t)) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                     {                        
+#endif
                         data = malloc(size);
-                        printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                        DEBUG(("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
                         assert(data != NULL);
-                    }
+#ifdef FLOW_CONTROL
+      		    }
                     else
                     {
                         /* do it later */
-                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                        DEBUG(("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
                         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
                         item->action = DEP_GET_DATA;
                         item->cmd.get.rank = from;
@@ -863,9 +875,12 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
                         return;
                     }
+#endif
                 }
             }
-            dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
+#ifdef FLOW_CONTROL
+	    dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
+#endif
 
 #if defined(DPLASMA_STATS)
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
