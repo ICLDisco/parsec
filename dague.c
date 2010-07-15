@@ -836,16 +836,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     
     i = function->nb_locals - 1;
 
-#if !defined(NDEBUG)
+#if defined(DAGUE_DEBUG)
     if( deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask ) {
         char tmp[128], tmp1[128];
-        fprintf( stderr, "Output dependencies %2x from %s (param %s) activate an already existing dependency %2x on %s (param %s)\n",
-                 dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
-                 deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
-                 dague_service_to_string(exec_context, tmp1, 128),  dest_param->name );
+        DEBUG(("Output dependencies %2x from %s (param %s) activate an already existing dependency %2x on %s (param %s)\n",
+               dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
+               deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+               dague_service_to_string(exec_context, tmp1, 128),  dest_param->name ));
     }
     assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
-#endif  /* !defined(NDEBUG) */
+#endif  
     mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
