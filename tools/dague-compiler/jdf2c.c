@@ -1339,30 +1339,64 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     string_arena_t *sa, *sa2;
     int nbparameters;
     int nbdataflow;
-    int i;
+    int inputmask, nbinput;
+    int i, has_in_in_dep, foundin;
     jdf_dataflow_list_t *fl;
+    jdf_dep_list_t *dl;
     char *prefix;
 
     sa = string_arena_new(64);
     sa2 = string_arena_new(64);
 
     JDF_COUNT_LIST_ENTRIES(f->parameters, jdf_name_list_t, next, nbparameters);
-    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_list_t, next, nbdataflow);
     
+    inputmask = 0;
+    nbinput = 0;
+    nbdataflow = 0;
+    has_in_in_dep = 0;
+    for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
+        nbdataflow++;
+
+        foundin = 0;
+        for( dl = fl->flow->deps; NULL != dl; dl = dl->next ) {
+            if( dl->dep->type & JDF_DEP_TYPE_IN ) {
+                
+                switch( dl->dep->guard->guard_type ) {
+                case JDF_GUARD_TERNARY:
+                    if( NULL == dl->dep->guard->callfalse->var )
+                        has_in_in_dep = 1;
+
+                case JDF_GUARD_UNCONDITIONAL:
+                case JDF_GUARD_BINARY:
+                    if( NULL == dl->dep->guard->calltrue->var )
+                        has_in_in_dep = 1;
+                }
+
+                if( foundin == 0 ) {
+                    inputmask |= (1 << nbinput);
+                    nbinput++;
+                    foundin = 1;
+                }
+            }
+        }
+    }
+
     jdf_coutput_prettycomment('*', "%s", f->fname);
     
     string_arena_add_string(sa, 
                             "static const dague_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
-                            "  .flags = %s,\n"
-                            "  .dependencies_mask = 0x0,\n"
+                            "  .flags = %s%s,\n"
+                            "  .dependencies_mask = 0x%x,\n"
                             "  .nb_locals = %d,\n"
                             "  .nb_params = %d,\n",
                             jdf_basename, f->fname,
                             f->fname,
                             dep_index,
                             (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
+                            has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+                            inputmask,
                             nbparameters,
                             nbdataflow);
 
