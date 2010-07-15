@@ -831,6 +831,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_wire_get_t msg;
     dplasma_t* function = (dplasma_t*) (uintptr_t) task->function;
     dplasma_remote_deps_t* deps = dep_activate_buff[i];
+    int doall = 0;
     void* data;
 
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
@@ -857,7 +858,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                 if( NULL == data ) {
 #ifdef FLOW_CONTROL
 		    /* basic attempt at flow control */
-                    if( (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
+                    if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                     {
 #endif
                         data = malloc(size);
@@ -881,7 +882,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                 }
             }
 #ifdef FLOW_CONTROL
-            stalls = ATTEMPTS_STALLS_BEFORE_RESUME; /* if we do one, do all */
+            doall = 1; /* if we do one, do all */
             dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
 #endif    
 
