@@ -730,6 +730,7 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     remote_dep_release(eu_context, deps);
                     if(deps->msg.which == deps->msg.deps)
                     {
+                        dplasma_atomic_dec_32b(&internal_alloc_lifo_num_used);
                         MPI_Start(&dep_activate_req[i]);
                     }
                     ret++;
@@ -858,17 +859,17 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 #ifdef FLOW_CONTROL
 		    /* basic attempt at flow control */
                     if( (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
-                    {                        
+                    {
 #endif
                         data = malloc(size);
-                        DEBUG(("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
+                        printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
                         assert(data != NULL);
 #ifdef FLOW_CONTROL
                     }
                     else
                     {
                         /* do it later */
-                        DEBUG(("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
+                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
                         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
                         item->action = DEP_GET_DATA;
                         item->cmd.get.rank = from;
