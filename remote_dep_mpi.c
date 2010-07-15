@@ -730,7 +730,6 @@ static int remote_dep_mpi_progress(dplasma_execution_unit_t* eu_context)
                     remote_dep_release(eu_context, deps);
                     if(deps->msg.which == deps->msg.deps)
                     {
-                        dplasma_atomic_dec_32b(&internal_alloc_lifo_num_used);
                         MPI_Start(&dep_activate_req[i]);
                     }
                     ret++;
@@ -881,6 +880,10 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 #endif
                 }
             }
+#ifdef FLOW_CONTROL
+            stalls = ATTEMPTS_STALLS_BEFORE_RESUME; /* if we do one, do all */
+            dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
+#endif    
 
 #if defined(DPLASMA_STATS)
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
@@ -901,9 +904,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             DEBUG_MARK_DTA_MSG_START_RECV(from, GC_DATA(deps->output[k].data), NEXT_TAG + k);
         }
     }
-#ifdef FLOW_CONTROL
-    dplasma_atomic_inc_32b(&internal_alloc_lifo_num_used);
-#endif    
+    stalls = 0;
     INC_NEXT_TAG(MAX_PARAM_COUNT);
     task->deps = 0; /* now this is the mask of finished deps */
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
