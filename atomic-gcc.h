@@ -1,8 +1,13 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+static inline void dplasma_mfence( void )
+{
+    __sync_synchronize();
+}
 
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
@@ -56,4 +61,3 @@ static inline uint32_t dplasma_atomic_dec_32b( volatile uint32_t *location )
 {
     return __sync_sub_and_fetch(location, (uint32_t)1);
 }
-

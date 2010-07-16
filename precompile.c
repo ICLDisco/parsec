@@ -941,6 +941,16 @@ static void dplasma_dump_dependency_helper(const dplasma_t *d,
                         }
                     }
 
+                    /* Check the boundaries */
+                    for(k = 0; k < dep->dplasma->nb_locals; k++) {
+                        output("%*s    assert( (%s%s >= (*%s_placeholder)->min) && (%s%s <= (*%s_placeholder)->max) );\n",
+                               spaces, " ",
+                               target_prepend, target->locals[k]->name,
+                               target->locals[k]->name,
+                               target_prepend, target->locals[k]->name,
+                               target->locals[k]->name);
+                    }
+
                     for(k = 0; k < target->nb_locals; k++) {
                         output("%*s    new_context.locals[%d].sym = new_context.function->locals[%d]; /* task %s */\n"
                                "%*s    new_context.locals[%d].value = %s%s;  /* task %s local %s */\n",

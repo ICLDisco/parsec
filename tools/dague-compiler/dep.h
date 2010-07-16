@@ -9,7 +9,7 @@
 
 typedef struct dep dep_t;
 
-#include "DAGuE.h"
+#include "dague.h"
 #include "expr.h"
 
 #define MAX_CALL_PARAM_COUNT    MAX_PARAM_COUNT

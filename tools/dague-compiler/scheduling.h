@@ -7,7 +7,7 @@
 #ifndef _DAGuE_scheduling_h
 #define _DAGuE_scheduling_h
 
-#include "DAGuE.h"
+#include "dague.h"
 
 /**
  * Mark a execution context as being ready to be scheduled, i.e. all

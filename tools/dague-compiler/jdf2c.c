@@ -594,7 +594,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include <DAGuE.h>\n\n");
+    houtput("#include <dague.h>\n\n");
     houtput("DAGuE_object_t *DAGuE_%s_new(%s, %s);\n", jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
                                   dump_string, NULL, "", "DAGuE_ddesc_t *", ", ", ""),
@@ -627,7 +627,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 3 + nblines(p->preamble), jdf_cfilename);
     }
 
-    coutput("#include <DAGuE.h>\n"
+    coutput("#include <dague.h>\n"
             "#include <assignment.h>\n"
             "#include <remote_dep.h>\n"
             "#include \"%s.h\"\n\n"
