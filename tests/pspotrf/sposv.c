@@ -217,6 +217,21 @@ int main(int argc, char ** argv)
 
         scatter_matrix(&descA, &ddescA);
         TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
+#ifdef USE_MPI
+        /**
+         * Redefine the default type after dplasma_init.
+         */
+        {
+            char type_name[MPI_MAX_OBJECT_NAME];
+    
+            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", NB, NB);
+    
+            MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DPLASMA_DEFAULT_DATA_TYPE);
+            MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
+            MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
+        }
+#endif  /* USE_MPI */
+
         /**
          * Now the last step of the DPLASMA initialization.
          */
@@ -334,6 +349,7 @@ static void runtime_init(int argc, char **argv)
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    /*sleep(20);*/
 #else
     nodes = 1;
     rank = 0;
@@ -502,21 +518,6 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
     dplasma_context_t *dplasma;
    
     dplasma = dplasma_init(cores, pargc, pargv, ddescA.nb);
-
-#ifdef USE_MPI
-    /**
-     * Redefine the default type after dplasma_init.
-     */
-    {
-        char type_name[MPI_MAX_OBJECT_NAME];
-    
-        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", NB, NB);
-    
-        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DPLASMA_DEFAULT_DATA_TYPE);
-        MPI_Type_set_name(DPLASMA_DEFAULT_DATA_TYPE, type_name);
-        MPI_Type_commit(&DPLASMA_DEFAULT_DATA_TYPE);
-    }
-#endif  /* USE_MPI */
 
     load_dplasma_objects(dplasma);
     
