@@ -1285,9 +1285,9 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
             if( src_rank == dst_rank ) {
 #endif
                 if(arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
-                    arg->output_entry->data[outdep_index] = oldcontext->data[param_index].gc_data;
+                    arg->output_entry->data[param_index] = oldcontext->data[param_index].gc_data;
                     arg->output_usage++;
-                    gc_data_ref( arg->output_entry->data[outdep_index] );
+                    gc_data_ref( arg->output_entry->data[param_index] );
                     arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                              eu, oldcontext,
                                                                              oldcontext->function->out[param_index],
