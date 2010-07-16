@@ -89,4 +89,20 @@ static inline uint32_t dplasma_atomic_dec_32b( volatile uint32_t *location )
 }
 #endif  /* DPLASMA_ATOMIC_HAS_ATOMIC_DEC_32B */
 
+static inline void dplasma_atomic_lock( volatile uint32_t* atomic_lock )
+{
+    while( !dplasma_atomic_cas( atomic_lock, 0, 1) )
+        /* nothing */;
+}
+
+static inline void dplasma_atomic_unlock( volatile uint32_t* atomic_lock )
+{
+    *atomic_lock = 0;
+}
+
+static inline int dplasma_atomic_trylock( volatile uint32_t* atomic_lock )
+{
+    return dplasma_atomic_cas( atomic_lock, 0, 1);
+}
+
 #endif  /* ATOMIC_H_HAS_BEEN_INCLUDED */

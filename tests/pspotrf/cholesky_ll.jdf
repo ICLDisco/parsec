@@ -10,6 +10,11 @@ extern int uplo;
 int PLASMA_INFO;
 
 #include "dplasma.h"
+#include "gpu_data.h"
+
+/* CUDA */
+extern int use_gpu;
+
 #include "remote_dep.h"
 
 extern int use_gpu;
@@ -38,8 +43,7 @@ extern DPLASMA_desc ddescA;
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
 
-extern int gpu_sgemm( int uplo, void* A, void*B, void* C, int NB );
-
+extern int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m );
 %}
 
 /* Globals
@@ -75,6 +79,7 @@ OUT   F -> F GEMM(k, k+1..SIZE-1, 0)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, k, k );
     CORE(
         spotrf, (
             uplo,
@@ -116,6 +121,8 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 1
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, k );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, m, k );
     if( uplo == PlasmaLower ) {
         CORE(
             strsm, (
@@ -176,6 +183,8 @@ INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 2
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, n );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, k, k );
     if( uplo == PlasmaLower ) {
         CORE(
             ssyrk, (
@@ -239,10 +248,14 @@ INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
 ; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
 
 BODY
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, n );
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, m );
     if( use_gpu == 1 ){
-        if( 0 == gpu_sgemm( uplo, A, B, C, NB ) )
+        if( 0 == gpu_sgemm( uplo, A, B, C, k, n, m ) )
             goto FIN;
     }
+    dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, m, k );
+
     if( uplo == PlasmaLower ) {
         CORE( 
             sgemm, (

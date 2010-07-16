@@ -15,22 +15,6 @@ typedef struct dplasma_dequeue_t {
     uint32_t atomic_lock;
 } dplasma_dequeue_t;
 
-static inline void dplasma_atomic_lock( volatile uint32_t* atomic_lock )
-{
-    while( !dplasma_atomic_cas( atomic_lock, 0, 1) )
-        /* nothing */;
-}
-
-static inline void dplasma_atomic_unlock( volatile uint32_t* atomic_lock )
-{
-    *atomic_lock = 0;
-}
-
-static inline int dplasma_atomic_trylock( volatile uint32_t* atomic_lock )
-{
-    return dplasma_atomic_cas( atomic_lock, 0, 1);
-}
-
 static inline void dplasma_dequeue_construct( dplasma_dequeue_t* dequeue )
 {
     dequeue->ghost_element.list_next = &(dequeue->ghost_element);
