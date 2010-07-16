@@ -29,10 +29,10 @@ typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(dplasma_list_item_t *elt,
 typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_item_t *elt);
 
 typedef struct dplasma_hbbuffer_t {
+    volatile uint32_t lock;     /**< lock on the buffer */
     size_t size;       /**< the size of the buffer, in number of void* */
 	size_t nbelt;      /**< Number of elemnts in the buffer currently */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
-    volatile uint32_t lock;     /**< lock on the buffer */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dplasma_hbbuffer_parent_push_fct_t parent_push_fct;
@@ -139,16 +139,17 @@ static inline int dplasma_hbbuffer_is_empty(dplasma_hbbuffer_t *b)
     return ret;
 }
 
-static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t *b, 
-                                                             dplasma_hbbuffer_ranking_fct_t rank_function, 
-                                                             void *rank_function_param)
+static dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t *b,
+                                                      dplasma_hbbuffer_ranking_fct_t rank_function,
+                                                      void *rank_function_param)
 {
     int idx;
     dplasma_list_item_t *best_elt = NULL;
-    int best_idx = 0;   
+    int best_idx = -1;
     unsigned int best_rank = 0, rank;
 
     dplasma_atomic_lock(&b->lock);
+    dplasma_mfence();
     for(idx = 0; idx < b->size; idx++) {
         if( NULL == b->items[idx] )
             continue;
@@ -156,7 +157,7 @@ static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t 
         DEBUG(("Found non NULL element in %p at position %d/%d\n", b, idx, (int)b->size));
 
         rank = rank_function(b->items[idx], rank_function_param);
-        if( (NULL == best_elt) || (rank > best_rank) ) {
+        if( rank > best_rank ) {
             best_rank = rank;
             best_elt  =  b->items[idx];
             best_idx  = idx;
@@ -164,8 +165,8 @@ static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t 
     }
     /** Removes the element from the buffer. */
 	if( best_elt != NULL ) {
-      b->items[best_idx] = NULL;
-	  b->nbelt--;
+        b->items[best_idx] = NULL;
+        b->nbelt--;
 	}
     dplasma_atomic_unlock(&b->lock);
 

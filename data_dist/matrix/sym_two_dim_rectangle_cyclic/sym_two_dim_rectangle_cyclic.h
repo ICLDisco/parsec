@@ -10,7 +10,18 @@
 #include "matrix.h"
 
 /*
- * General distribution of data. Suppose exists a matrix in process of mpi rank 0
+ * Symmetrical matrix. 2D block cyclic distribution, lower tiles dsitributed only
+ *
+ * --
+ *|0 |
+ * --|--
+ *|2 |3 |
+ *|--|--|--
+ *|0 |1 |0 |
+ *|--|--|--|--
+ *|2 |3 |2 |3 |
+ * -----------
+ *
  */
 
 
@@ -20,18 +31,14 @@
 
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
-typedef struct two_dim_block_cyclic {
+typedef struct sym_two_dim_block_cyclic {
     tiled_matrix_desc_t super;
     void *mat;          // pointer to the beginning of the matrix
-    int nrst;           // max number of tile rows in a super-tile
-    int ncst;           // max number of tile columns in a super tiles
     int GRIDrows;       // number of processes rows in the process grid
     int GRIDcols;       // number of processes cols in the process grid - derived parameter
     int colRANK;        // process column rank in the process grid - derived parameter
     int rowRANK;        // process row rank in the process grid - derived parameter
-    int nb_elem_r;      // number of row of tiles  handled by this process - derived parameter
-    int nb_elem_c;      // number of column of tiles handled by this process - derived parameter
-} two_dim_block_cyclic_t;
+} sym_two_dim_block_cyclic_t;
 
 /************************************************
  *   mpi ranks distribution in the process grid
@@ -42,7 +49,6 @@ typedef struct two_dim_block_cyclic {
  *   -----------------
  ************************************************/
 
-// #define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
 
 /**
  * Initialize the description of a  2-D block cyclic distributed matrix.
@@ -59,11 +65,9 @@ typedef struct two_dim_block_cyclic {
  * @param j starting column index for the computation on a submatrix
  * @param m number of rows of the entire submatrix
  * @param n numbr of column of the entire submatrix
- * @param nrst number of rows of tiles for block distribution
- * @param ncst number of column of tiles for block distribution
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows );
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int process_GridRows );
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

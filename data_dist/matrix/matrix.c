@@ -11,9 +11,41 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "data_distribution.h"
 #include "matrix.h"
 #include "bindthread.h"
+
+/*
+ Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
+ generating threads only read Rnd64seed. It is safe to set Rnd64seed before
+ and after any calls to create_tile(). The only problem can be caused if
+ Rnd64seed is changed during the matrix generation time.
+ */
+
+unsigned long long int Rnd64seed = 100;
+#define Rnd64_A 6364136223846793005ULL
+#define Rnd64_C 1ULL
+
+unsigned long long int
+Rnd64_jump(unsigned long long int n) {
+  unsigned long long int a_k, c_k, ran;
+  int i;
+
+  a_k = Rnd64_A;
+  c_k = Rnd64_C;
+
+  ran = Rnd64seed;
+  for (i = 0; n; n >>= 1, ++i) {
+    if (n & 1)
+      ran = a_k * ran + c_k;
+    c_k *= (a_k + 1);
+    a_k *= a_k;
+  }
+
+  return ran;
+}
+
 
 void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
 {
@@ -37,13 +69,13 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  i
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
       for (i = 0; i < nb; ++i)
-        position[i + i * nb] += mn_max;
+          ((float *) position)[i + i * nb] += mn_max;
     }
 }
 
 void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    int i, j, first_row, first_col, nb = Ddesc->nb;
     float *x = position;
     unsigned long long int ran;
 
@@ -85,13 +117,13 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
       for (i = 0; i < nb; ++i)
-        position[i + i * nb] += mn_max;
+          ((double*)position)[i + i * nb] += mn_max;
     }
 }
 
 void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    int i, j, first_row, first_col, nb = Ddesc->nb;
     double *x = position;
     unsigned long long int ran;
 
@@ -135,8 +167,6 @@ typedef struct info_tiles{
 static void * rand_dist_tiles(void * info)
 {
     int i;
-    void * pos;
-    tile_coordinate_t current_tile;
     /* bind thread to cpu */
     int bind_to_proc = ((info_tiles_t *)info)->th_id;
 
@@ -146,15 +176,17 @@ static void * rand_dist_tiles(void * info)
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
            ((dist_tiles_t*)tiles)->th_id,
            ((dist_tiles_t*)tiles)->nb_elements);*/
-    for(i = 0 ; i < info->nb_elements ; i++ )
+    for(i = 0 ; i < ((info_tiles_t *)info)->nb_elements ; i++ )
         {
-            ((info_tiles_t *)info)->gen_fct_t(info->Ddesc,
-                                              info->Ddesc->super->dataof(info->Ddesc,
-                                                                         info->tiles[info->starting_position + i].row,
-                                                                         info->tiles[info->starting_position + i].col ),
-                                              info->tiles[info->starting_position + i].row,
-                                              info->tiles[info->starting_position + i].col);
+            ((info_tiles_t *)info)->gen_fct(((info_tiles_t *)info)->Ddesc,
+                                              ((info_tiles_t *)info)->Ddesc->super.data_of(
+                                                                                           ((struct DAGuE_ddesc *)((info_tiles_t *)info)->Ddesc),
+                                                                                           ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
+                                                                                           ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
+                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
+                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col);
         }
+    return NULL;
 }
 
 /* affecting the complete local view of a distributed matrix with random values */
@@ -166,15 +198,15 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
     pthread_t *threads;
     pthread_attr_t thread_attr;
     info_tiles_t * info_gen;
-    tiles_coord_size = (Mdesc->lmt * Mdesc->lnt) / Mdesc->super->nodes; /* average number of tiles per nodes */
+    tiles_coord_size = (Mdesc->lmt * Mdesc->lnt) / Mdesc->super.nodes; /* average number of tiles per nodes */
     tiles_coord_size = (3*tiles_coord_size)/2; /* consider imbalance in distribution */
-    tiles = malloc(tiles_coord_size*sizeof(tile_coordinate_t));
+    tiles = malloc(tiles_coord_size * sizeof(tile_coordinate_t));
     
     for ( i = 0 ; i < Mdesc->lmt ; i++) /* check which tiles to generate */
         for ( j = 0 ; j < Mdesc->lnt ; j++)
             {
-                if(Mdesc->super->myrank ==
-                   Mdesc->super->rankof((DAGuE_ddesc_t *)Mdesc, i, j ))
+                if(Mdesc->super.myrank ==
+                   Mdesc->super.rank_of((DAGuE_ddesc_t *)Mdesc, i, j ))
                     {
                         if (pos == tiles_coord_size)
                             {
@@ -195,13 +227,13 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 
     /* have 'pos' tiles to generate, knowing which ones. Now gererating them */
     j = 0;
-    info_gen = malloc(sizeof(info_tiles_t) * Mdesc->super->cores);
-    for ( i = 0 ; i < Mdesc->super->cores ; i++ )
+    info_gen = malloc(sizeof(info_tiles_t) * Mdesc->super.cores);
+    for ( i = 0 ; i < Mdesc->super.cores ; i++ )
         {
             info_gen[i].th_id = i;
             info_gen[i].tiles = tiles;
             info_gen[i].Ddesc = Mdesc;
-            info_gen[i].nb_elements = pos / Mdesc->super->cores;
+            info_gen[i].nb_elements = pos / Mdesc->super.cores;
             info_gen[i].starting_position = j;
             j += info_gen[i].nb_elements;
             if (mtype) /* cholesky like generation (symetric, diagonal dominant) */
@@ -242,23 +274,23 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
                         }
                 }
         }
-    info_gen[i - 1].nb_elements += pos % Mdesc->super->cores;
+    info_gen[i - 1].nb_elements += pos % Mdesc->super.cores;
 
-    if (Ddesc->cores > 1)
+    if (Mdesc->super.cores > 1)
         {
             pthread_attr_init(&thread_attr);
             pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 #ifdef __linux
-            pthread_setconcurrency(Mdesc->super->cores);
+            pthread_setconcurrency(Mdesc->super.cores);
 #endif            
-            threads = malloc((Mdesc->super->cores - 1) * sizeof(pthread_t));
+            threads = malloc((Mdesc->super.cores - 1) * sizeof(pthread_t));
             if (NULL == threads)
                 {
                     perror("No memory for generating matrix\n");
                     exit(-1);
                 }
                 
-            for ( i = 1 ; i < Mdesc->super->cores ; i++)
+            for ( i = 1 ; i < Mdesc->super.cores ; i++)
                 {
                     pthread_create( &(threads[i-1]),
                                     &thread_attr,
@@ -269,15 +301,15 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 
     rand_dist_tiles((void*) &(info_gen[0]));
 
-    if (Ddesc->cores > 1)
+    if (Mdesc->super.cores > 1)
         {
-            for(i = 0 ; i < Mdesc->super->cores - 1 ; i++)
+            for(i = 0 ; i < Mdesc->super.cores - 1 ; i++)
                 pthread_join(threads[i],NULL);
             free (threads);
         }
     free(info_gen);
     free(tiles);
-    return 0;
+    return;
 }
 
 void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc)

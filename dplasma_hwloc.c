@@ -17,6 +17,12 @@
 static hwloc_topology_t topology;
 #endif  /* defined(HAVE_HWLOC) */
 
+#if defined(HAVE_HWLOC_PARENT_MEMBER)
+#define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
+#else
+#define HWLOC_GET_PARENT(OBJ)  (OBJ)->father
+#endif  /* defined(HAVE_HWLOC_PARENT_MEMBER) */
+
 int dplasma_hwloc_init(void)
 {
 #if defined(HAVE_HWLOC)
@@ -48,8 +54,8 @@ int dplasma_hwloc_distance( int id1, int id2 )
         if(obj == obj2 ) {
             return count*2;
         }
-        obj = obj->parent;
-        obj2 = obj2->parent;
+        obj = HWLOC_GET_PARENT(obj);
+        obj2 = HWLOC_GET_PARENT(obj2);
         count++;
     }
 #endif  /* defined(HAVE_HWLOC) */
@@ -119,16 +125,24 @@ int dplasma_hwloc_nb_levels(void)
 size_t dplasma_hwloc_cache_size( int level, int master_id )
 {	    
 #if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC_OBJ_PU)
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);
-	     
+#else
+    hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PROC, master_id);
+#endif  /* defined(HAVE_HWLOC_OBJ_PU) */
+
     while (obj) {
         if(obj->depth == level){
             if(obj->type == HWLOC_OBJ_CACHE){
+#if defined(HAVE_HWLOC_CACHE_ATTR)
                 return obj->attr->cache.size;
+#else
+                return obj->attr->cache.memory_kB;
+#endif  /* defined(HAVE_HWLOC_CACHE_ATTR) */
             }
             return 0;
         }
-        obj = obj->parent;
+        obj = HWLOC_GET_PARENT(obj);
     }
 #endif  /* defined(HAVE_HWLOC) */
 	 

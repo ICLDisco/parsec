@@ -8,6 +8,11 @@
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
+static inline void dplasma_mfence( void )
+{
+    __asm__ __volatile__ ("lwsync\n\t":::"memory");
+}
+
 static inline int dplasma_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t mask )
 {

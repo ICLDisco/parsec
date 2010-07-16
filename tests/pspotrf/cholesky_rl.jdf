@@ -56,6 +56,7 @@ colRANK
 rowRANK
 rtileSIZE
 ctileSIZE
+PRI_CHANGE=0
 
 /**************************************************
  *                      POTRF                     *
@@ -74,7 +75,8 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
         -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
+//; (k >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
+; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, k, k );
@@ -115,7 +117,8 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> B GEMM(k, n, k+1..n-1)
         -> A(n, k)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 1
+//; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2 : 1000000000
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, k );
@@ -130,7 +133,8 @@ BODY
                      C /*A(n, k)*/, NB /*A.nb*/ )
             );
         OUTPUT(( 
-            "CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+            "[%14p:%14p] CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                (void*)context, (void*)exec_context,
                 "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -148,7 +152,8 @@ BODY
                      C /*A(k, n)*/, NB /*A.nb*/ )
             );
        OUTPUT((
-            "CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+            "[%14p:%14p] CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                (void*)context, (void*)exec_context,
                 "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -177,7 +182,8 @@ IN    A <- C TRSM(k, n)
 INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
         -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 2
+//; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1 : 1000000000
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, n, k );
@@ -192,7 +198,8 @@ BODY
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "[%14p:%14p] CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                (void*)context, (void*)exec_context,
                 "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -209,7 +216,8 @@ BODY
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "[%14p:%14p] CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                (void*)context, (void*)exec_context,
                 "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -240,7 +248,8 @@ IN    B <- C TRSM(k, m)
 INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
+//; (m >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 1 : 1000000000
+; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, n, k );
@@ -263,7 +272,8 @@ BODY
                  1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "[%14p:%14p] CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                (void*)context, (void*)exec_context,
                 "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -284,7 +294,8 @@ BODY
                  1.0, C /*A(n, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "[%14p:%14p] CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                (void*)context, (void*)exec_context,
                 "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
