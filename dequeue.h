@@ -19,6 +19,7 @@ static inline void dague_atomic_lock( volatile uint32_t* atomic_lock )
 {
     while( !dague_atomic_cas( atomic_lock, 0, 1) )
         /* nothing */;
+    dague_mfence();
 }
 
 static inline void dague_atomic_unlock( volatile uint32_t* atomic_lock )

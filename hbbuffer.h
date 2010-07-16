@@ -149,7 +149,6 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
     unsigned int best_rank = 0, rank;
 
     dague_atomic_lock(&b->lock);
-    dague_mfence();
 
     for(idx = 0; idx < b->size; idx++) {
         if( NULL == b->items[idx] )
