@@ -99,8 +99,9 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     if ( desc->myrank != twoDBC_get_rank_for_tile(desc, m, n) )
         {
             printf("Tile (%d, %d) is looked for on process %d but is not local\n", m, n, desc->myrank);
+            assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
         }
-    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
+    
 
     /**********************************/
 

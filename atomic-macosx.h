@@ -10,6 +10,11 @@
 
 #include <libkern/OSAtomic.h>
 
+static inline void dague_mfence( void )
+{
+    OSMemoryBarrier();
+}
+
 static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t value )
 {

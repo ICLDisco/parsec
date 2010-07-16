@@ -29,10 +29,10 @@ typedef unsigned int (*dague_hbbuffer_ranking_fct_t)(dague_list_item_t *elt, voi
 typedef void (*dague_hbbuffer_parent_push_fct_t)(void *store, dague_list_item_t *elt);
 
 typedef struct dague_hbbuffer_t {
+    volatile uint32_t lock;     /**< lock on the buffer */
     size_t size;       /**< the size of the buffer, in number of void* */
 	size_t nbelt;      /**< Number of elemnts in the buffer currently */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
-    volatile uint32_t lock;     /**< lock on the buffer */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dague_hbbuffer_parent_push_fct_t parent_push_fct;
@@ -40,8 +40,8 @@ typedef struct dague_hbbuffer_t {
 } dague_hbbuffer_t;
 
 static inline dague_hbbuffer_t *dague_hbbuffer_new(size_t size,  size_t ideal_fill,
-                                                       dague_hbbuffer_parent_push_fct_t parent_push_fct,
-                                                       void *parent_store)
+                                                   dague_hbbuffer_parent_push_fct_t parent_push_fct,
+                                                   void *parent_store)
 {
     /** Must use calloc to ensure that all ites are set to NULL */
     dague_hbbuffer_t *n = (dague_hbbuffer_t*)calloc(1, sizeof(dague_hbbuffer_t) + (size-1)*sizeof(dague_list_item_t*));
@@ -145,10 +145,12 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
 {
     int idx;
     dague_list_item_t *best_elt = NULL;
-    int best_idx = 0;   
+    int best_idx = -1;
     unsigned int best_rank = 0, rank;
 
     dague_atomic_lock(&b->lock);
+    dague_mfence();
+
     for(idx = 0; idx < b->size; idx++) {
         if( NULL == b->items[idx] )
             continue;
@@ -164,8 +166,8 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
     }
     /** Removes the element from the buffer. */
 	if( best_elt != NULL ) {
-      b->items[best_idx] = NULL;
-	  b->nbelt--;
+        b->items[best_idx] = NULL;
+        b->nbelt--;
 	}
     dague_atomic_unlock(&b->lock);
 

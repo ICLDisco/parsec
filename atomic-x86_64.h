@@ -4,6 +4,11 @@
  *                         reserved.
  */
 
+static inline void dague_mfence( void )
+{
+    __asm__ __volatile__ ("mfence\n\t":::"memory");
+}
+
 static inline int dague_atomic_cas_32b( volatile uint32_t* location,
                                           uint32_t old_value,
                                           uint32_t new_value )

@@ -70,17 +70,41 @@ ENDIF (_mach_ppc)
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 
 #
-# If we are on a 64 bits machine make sure to compile in 64 bits mode.
+# Fix the building system for 32 or 64 bits.
 #
+# On MAC OS X there is a easy solution, by setting the 
+# CMAKE_OSX_ARCHITECTURES to a subset of the following values:
+# ppc;ppc64;i386;x86_64.
+# On Linux this is a little bit tricky. We have to check that the
+# compiler supports the -m32/-m64 flags as well as the linker.
+# Once this issue resolved the CMAKE_C_FLAGS and CMAKE_C_LDFLAGS
+# have to be updated accordingly.
+#
+# TODO: Same trick for the Fortran compiler...
+#       no idea how to correctly detect if the required/optional
+#          libraries are in the correct format.
+#
+set(LOCAL_FORTRAN_LINK_FLAGS "")
+
+include(${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
+set(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 if (BUILD_64bits)
-  include(${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
-  check_c_compiler_flag("-m64" C_M64)
-  if (C_M64)
-    message(STATUS "Add -m64 to the compiler flags")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
-    set(CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} -m64")
-  endif (C_M64)
+  set( ARCH_BUILD "-m64" )
+else (BUILD_64bits)
+  set( ARCH_BUILD "-m32" )
 endif (BUILD_64bits)
+
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${ARCH_BUILD}")
+check_c_compiler_flag(${ARCH_BUILD} C_M32or64)
+
+if (C_M32or64)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARCH_BUILD}")
+  set(CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} ${ARCH_BUILD}")
+  set(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${ARCH_BUILD}")
+else (C_M32or64)
+  set(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+endif (C_M32or64)
+unset( SAVE_CMAKE_REQUIRED_FLAGS )
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
@@ -142,13 +166,13 @@ endif( HAVE_CLOCK_GETTIME )
 STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
 IF (_match_ifort)
     MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "-nofor_main")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
 ENDIF (_match_ifort)
 
 STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
 IF (_match_ftn)
     MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "-Mnomain -Bstatic")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
 ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
@@ -161,6 +185,9 @@ find_package(HWLOC)
 if( HAVE_HWLOC )
   list(APPEND EXTRA_SOURCES dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+  check_struct_has_member( "struct hwloc_obj" parent hwloc.h HAVE_HWLOC_PARENT_MEMBER)
+  check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR)
+  check_symbol_exists(HWLOC_OBJ_PU hwloc.h HAVE_HWLOC_OBJ_PU)
 endif( HAVE_HWLOC )
 if(DAGUE_CACHE_AWARE)
   if( !HAVE_HWLOC )
@@ -211,7 +238,7 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 
 
-include_directories(data_dist data_dist/matrix data_dist/matrix/two_dim_rectangle_cyclic)
+include_directories(data_dist data_dist/matrix data_dist/matrix/two_dim_rectangle_cyclic data_dist/matrix/sym_two_dim_rectangle_cyclic)
 
 
 #

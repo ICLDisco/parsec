@@ -58,6 +58,7 @@ static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
 }
 
 #define DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
+#undef  DAGUE_COLLECTIVE_TYPE_BINOMIAL
 
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
@@ -151,8 +152,10 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
 }
 # ifdef DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
-# else 
+# elif defined(DPLASMA_COLLECTIVE_TYPE_BINOMIAL)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
+# else
+#  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
 # endif
 #else
 static inline int remote_dep_bcast_star_child(int me, int him)

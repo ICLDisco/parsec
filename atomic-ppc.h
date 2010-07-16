@@ -8,6 +8,11 @@
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
+static inline void dague_mfence( void )
+{
+    __asm__ __volatile__ ("lwsync\n\t":::"memory");
+}
+
 static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t mask )
 {
