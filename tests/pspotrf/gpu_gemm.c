@@ -342,6 +342,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
 #endif  /* defined(PROFILING) */
         /*cuStreamCreate(&stream, 0);*/
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, n, k, &gpu_elem_A);
+        gpu_elem_A->memory_elem->memory = A;
         d_A = gpu_elem_A->gpu_mem;
         gpu_device->required_data_in += tile_size;
         if( !on_gpu ) {
@@ -354,6 +355,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
 
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, k, &gpu_elem_B);
         d_B = gpu_elem_B->gpu_mem;
+        gpu_elem_B->memory_elem->memory = B;
         gpu_device->required_data_in += tile_size;
         if( !on_gpu ) {
             /* Push B into the GPU */
@@ -365,6 +367,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
 
         on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, n, &gpu_elem_C);
         d_C = gpu_elem_C->gpu_mem;
+        gpu_elem_C->memory_elem->memory = C;
         gpu_device->required_data_in += tile_size;
         if( !on_gpu ) {
             /* Push C into the GPU */

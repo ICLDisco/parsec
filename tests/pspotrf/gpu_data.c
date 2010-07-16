@@ -63,7 +63,7 @@ int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
         memory_elem->memory_version = 0;
         memory_elem->readers = 0;
         memory_elem->writer = 0;
-        memory_elem->memory = dplasma_get_local_tile_s(data, col, row);
+        memory_elem->memory = NULL;
         if( 0 == dplasma_atomic_cas( &(data_map[col * data->lnt + row]), NULL, memory_elem ) ) {
             free(memory_elem);
             memory_elem = data_map[col * data->lnt + row];
