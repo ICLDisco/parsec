@@ -4,4 +4,4 @@ rm -rf CMakeCache.txt CMakeFiles
 #PLASMA_DIR=/home/bosilca/unstable/dplasma/plasma-svn/
 PLASMA_DIR=/opt/plasma
 
-cmake . -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=/opt/hwloc
+cmake . -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=${PLASMA_DIR} -DDPLASMA_MPI=ON -DCUDA_DIR=/opt/cuda-2.3 -DHWLOC_DIR=/opt/hwloc

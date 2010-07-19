@@ -23,7 +23,7 @@
 #include "../src/lapack.h"
 #include "../src/context.h"
 #include "../src/allocate.h"
-
+#include "gpu_data.h"
 extern int dposv_force_nb;
 
 //#define A(m,n) &((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
@@ -1040,8 +1040,11 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
     if( use_gpu ) {
         CUresult status;
         gpu_device_t* gpu_device;
-
-        gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
+#if DPLASMA_SMART_SCHEDULING
+	gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[0].gpu_devices));
+#else
+     	gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
+#endif
         if( NULL != gpu_device ) {
             status = cuCtxPushCurrent( gpu_device->ctx );
             DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
@@ -1056,7 +1059,11 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
             status = cuCtxPopCurrent(NULL);
             DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                       {} );
+#if DPLASMA_SMART_SCHEDULING	    
+	    dplasma_atomic_lifo_push(&(gpu_array[0].gpu_devices), (dplasma_list_item_t*)gpu_device);
+#else
             dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
+#endif
         }
     }
  normal_alloc:
