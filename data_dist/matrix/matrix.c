@@ -321,3 +321,54 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc)
 {
     rand_dist_matrix(Mdesc, 0);
 }
+
+
+
+#if defined(DPLASMA_CUDA_SUPPORT)
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include "lifo.h"
+#include "gpu_data.h"
+extern dplasma_atomic_lifo_t gpu_devices;
+extern int use_gpu;
+#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
+
+void* dplasma_allocate_matrix(int matrix_size)
+{
+    void* mat = NULL;
+#if defined(DPLASMA_CUDA_SUPPORT)
+    if( use_gpu ) {
+        CUresult status;
+        gpu_device_t* gpu_device;
+
+        gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
+        if( NULL != gpu_device ) {
+            status = cuCtxPushCurrent( gpu_device->ctx );
+            DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
+                                      {goto normal_alloc;} );
+
+            status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
+            if( CUDA_SUCCESS != status ) {
+                DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuMemHostAlloc ", status,
+                                          {} );
+                mat = NULL;
+            }
+            status = cuCtxPopCurrent(NULL);
+            DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                      {} );
+            dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
+        }
+    }
+ normal_alloc:
+#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
+    /* If nothing else worked so far, allocate the memory using PLASMA */
+    if( NULL == mat ) {
+        mat = malloc( matrix_size );
+    }
+
+    if( NULL == mat ) {
+        plasma_error("dplasma_description_init", "plasma_shared_alloc() failed");
+        return NULL;
+    }
+    return mat;
+}
