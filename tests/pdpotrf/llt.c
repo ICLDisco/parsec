@@ -503,6 +503,9 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
                                                           ddescA.super.nb, ddescA.super.nt, pri_change );
     dague->taskstodo += dague_cholesky->nb_local_tasks;
 
+    printf("Cholesky %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
+           ddescA.super.nb, ddescA.super.nt, dague_cholesky->nb_local_tasks, dague->taskstodo);
+
     printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     return dague;
 }
