@@ -470,10 +470,13 @@ static int dague_execute( dague_execution_unit_t* eu_context,
                             dague_execution_context_t* exec_context )
 {
     const dague_t* function = exec_context->function;
-#ifdef DAGUE_DEBUG
+#if defined(DAGUE_DEBUG)
     char tmp[128];
 #endif
-    
+    DEBUG(("%s is executed on thread %d\n",
+          dague_service_to_string(exec_context, tmp, 128),
+          eu_context->eu_id));
+ 
     DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 

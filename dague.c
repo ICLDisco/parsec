@@ -882,8 +882,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                               tmp_mask, (tmp_mask | (1<<30)) );
                 if( !success || (tmp_mask & (1<<30)) ) {
                     char tmp[128];
-                    fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice !!!\n",
-                            success, tmp_mask, dague_service_to_string(exec_context, tmp, 128));
+		    char tmp2[128];
+                    fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
+                            success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
+			    dague_service_to_string(origin, tmp2, 128));
                     assert(0);
                 }
             } while (0);
@@ -894,10 +896,18 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          * argument.
          */
         {
+	    char tmp[128], tmp2[128];
             dague_execution_context_t* new_context;
             new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
+
+	    DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
+                   dague_service_to_string(exec_context, tmp, 128),
+		   dague_service_to_string(origin, tmp2, 128),
+                   deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+                   eu_context->eu_id));
+
 #if defined(DAGUE_CACHE_AWARE)
             new_context->pointers[1] = NULL;
 #endif
