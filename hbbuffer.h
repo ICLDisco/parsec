@@ -79,7 +79,6 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         elt->list_prev->list_next = elt->list_next;
         elt->list_prev = elt;
         elt->list_next = elt;
-        DEBUG(("Pushing (all) %p in %p\n", elt, b));
         b->items[i] = elt;
         nbelt++;
 
@@ -154,8 +153,6 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
         if( NULL == b->items[idx] )
             continue;
 
-        DEBUG(("Found non NULL element in %p at position %d/%d\n", b, idx, (int)b->size));
-
         rank = rank_function(b->items[idx], rank_function_param);
         if( (NULL == best_elt) || (rank > best_rank) ) {
             best_rank = rank;
@@ -165,12 +162,11 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
     }
     /** Removes the element from the buffer. */
 	if( best_elt != NULL ) {
+        DEBUG(("Found best element at position %d\n", best_idx));
         b->items[best_idx] = NULL;
         b->nbelt--;
 	}
     dague_atomic_unlock(&b->lock);
-
-    DEBUG(("pop best %p from %p\n", best_elt, b));
 
     return best_elt;
 }
