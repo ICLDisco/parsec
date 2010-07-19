@@ -328,6 +328,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     context->nb_cores = (int32_t) nb_cores;
     context->__dague_internal_finalization_in_progress = 0;
     context->__dague_internal_finalization_counter = 0;
+    context->taskstodo = 0;
 
 #ifdef USE_PAPI
     num_events = 0;
