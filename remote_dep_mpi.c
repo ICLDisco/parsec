@@ -14,7 +14,7 @@
 
 #define DPLASMA_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
-#define FLOW_CONTROL
+#undef FLOW_CONTROL
 
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
@@ -784,13 +784,18 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 }
 
 static int get = 1;
-#define FLOW_CONTROL_MEM_CONSTRAINT 20
-#define ATTEMPTS_STALLS_BEFORE_RESUME 30000
+#define FLOW_CONTROL_MEM_CONSTRAINT 200
+#define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
 static int stalls = 0;
 static int old_context = -1;
 
 static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, int i)
 {
+        if(old_context != context->taskstodo)
+        {
+           old_context = context->taskstodo;
+           stalls = ATTEMPTS_STALLS_BEFORE_RESUME;
+        } 
     if((internal_alloc_lifo_num_used > FLOW_CONTROL_MEM_CONSTRAINT) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME))
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
@@ -799,20 +804,12 @@ static void remote_dep_mpi_short_get_data(dplasma_context_t* context, int from, 
         item->cmd.get.i = i;
         DPLASMA_LIST_ITEM_SINGLETON(item);
         dplasma_dequeue_push_back(&dep_cmd_queue, (dplasma_list_item_t*) item);
-        if(old_context != context->taskstodo)
-        {
-           old_context = context->taskstodo;
-           stalls = 0;
-        } 
-        else
-        {
-            stalls++;
-        }
-        remote_dep_mpi_progress(context->execution_units[0]);
+    	stalls++;
+    	remote_dep_mpi_progress(context->execution_units[0]);
     }
     else
     {
-        DEBUG(("Stall finished after %d tries, %d of %d arena used\n", stalls, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT));
+        printf("Stall finished after %d tries, %d of %d arena used\n", stalls, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
         remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
         old_context = context->taskstodo;
         stalls = 0;
@@ -831,7 +828,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_wire_get_t msg;
     dplasma_t* function = (dplasma_t*) (uintptr_t) task->function;
     dplasma_remote_deps_t* deps = dep_activate_buff[i];
-    int doall = 0;
+    int doall;
     void* data;
 
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
@@ -843,6 +840,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_get_datatypes(deps);
     
     assert(dep_enabled);
+    doall = 0;
     for(int k = 0; task->which>>k; k++)
     {        
         if((1<<k) & msg.which)
@@ -905,7 +903,6 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             DEBUG_MARK_DTA_MSG_START_RECV(from, GC_DATA(deps->output[k].data), NEXT_TAG + k);
         }
     }
-    stalls = 0;
     INC_NEXT_TAG(MAX_PARAM_COUNT);
     task->deps = 0; /* now this is the mask of finished deps */
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
