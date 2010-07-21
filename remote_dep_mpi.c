@@ -860,7 +860,9 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                     {
 #endif
                         data = malloc(size);
-                        printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+#ifdef FLOW_CONTROL
+			printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+#endif
                         assert(data != NULL);
 #ifdef FLOW_CONTROL
                     }

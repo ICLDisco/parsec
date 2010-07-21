@@ -114,8 +114,10 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
                 dplasma_list_item_t* item = GC_DATA(d);
                 DPLASMA_LIST_ITEM_SINGLETON(item);
                 dplasma_atomic_lifo_push(internal_alloc_lifo, item);
-                dplasma_atomic_dec_32b(&internal_alloc_lifo_num_used);
-            }
+#if defined(FLOW_CONTROL)
+		dplasma_atomic_dec_32b(&internal_alloc_lifo_num_used);
+#endif
+	    }
 #else
             free(GC_DATA(d));
 #endif  /* defined(USE_MPI) */
