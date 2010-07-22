@@ -201,9 +201,10 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
     tiles_coord_size = (Mdesc->lmt * Mdesc->lnt) / Mdesc->super.nodes; /* average number of tiles per nodes */
     tiles_coord_size = (3*tiles_coord_size)/2; /* consider imbalance in distribution */
     tiles = malloc(tiles_coord_size * sizeof(tile_coordinate_t));
-    
-    for ( i = 0 ; i < Mdesc->lmt ; i++) /* check which tiles to generate */
-        for ( j = 0 ; j < Mdesc->lnt ; j++)
+
+    /* check which tiles to generate */
+    for ( j = 0 ; j < Mdesc->lnt ; j++)
+        for ( i = 0 ; i < Mdesc->lmt ; i++)
             {
                 if(Mdesc->super.myrank ==
                    Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j ))
