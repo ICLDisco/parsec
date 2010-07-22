@@ -16,6 +16,8 @@
 #include "matrix.h"
 #include "bindthread.h"
 
+void plasma_error(const char*, const char *);
+
 /*
  Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
  generating threads only read Rnd64seed. It is safe to set Rnd64seed before
@@ -321,4 +323,55 @@ void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc)
 void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc)
 {
     rand_dist_matrix(Mdesc, 0);
+}
+
+
+
+#if defined(DAGUE_CUDA_SUPPORT)
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include "lifo.h"
+#include "gpu_data.h"
+extern dague_atomic_lifo_t gpu_devices;
+extern int use_gpu;
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+void* dague_allocate_matrix(int matrix_size)
+{
+    void* mat = NULL;
+#if defined(DAGUE_CUDA_SUPPORT)
+    if( use_gpu ) {
+        CUresult status;
+        gpu_device_t* gpu_device;
+
+        gpu_device = (gpu_device_t*)dague_atomic_lifo_pop(&gpu_devices);
+        if( NULL != gpu_device ) {
+            status = cuCtxPushCurrent( gpu_device->ctx );
+            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+                                      {goto normal_alloc;} );
+
+            status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
+            if( CUDA_SUCCESS != status ) {
+                DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc ", status,
+                                          {} );
+                mat = NULL;
+            }
+            status = cuCtxPopCurrent(NULL);
+            DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                      {} );
+            dague_atomic_lifo_push(&gpu_devices, (dague_list_item_t*)gpu_device);
+        }
+    }
+ normal_alloc:
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+    /* If nothing else worked so far, allocate the memory using PLASMA */
+    if( NULL == mat ) {
+        mat = malloc( matrix_size );
+    }
+
+    if( NULL == mat ) {
+        plasma_error("dague_description_init", "plasma_shared_alloc() failed");
+        return NULL;
+    }
+    return mat;
 }

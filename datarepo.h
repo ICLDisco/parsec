@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _datarepo_h_
 #define _datarepo_h_
 
@@ -88,6 +94,7 @@ static inline void __gc_data_ref(gc_data_t *d)
 
 #if defined(USE_MPI)
 extern dague_atomic_lifo_t* internal_alloc_lifo;
+extern volatile int32_t internal_alloc_lifo_num_used;
 #endif  /* defined(USE_MPI) */
 
 #ifdef DAGUE_DEBUG_HEAVY
@@ -101,7 +108,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
         nref = dague_atomic_dec_32b( &GC_POINTER(d)->refcount );
         DEBUG_HEAVY(("%p is unreferenced by %s:%d\n", d, file, line));
         if( 0 == nref ) {
-            DEBUG_HEAVY(("Liberating the garbage collectable datar %p pointing on data %p,\n",
+            DEBUG_HEAVY(("Liberating the garbage collectable data %p pointing on data %p,\n",
                          d, GC_DATA(d)));
             /*printf( "%s:%d Releasing TILE at %p\n", __FILE__, __LINE__, GC_DATA(d));*/
 #if defined(USE_MPI)
@@ -109,6 +116,9 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
                 dague_list_item_t* item = GC_DATA(d);
                 DAGUE_LIST_ITEM_SINGLETON(item);
                 dague_atomic_lifo_push(internal_alloc_lifo, item);
+#if defined(FLOW_CONTROL)
+                dague_atomic_dec_32b(&internal_alloc_lifo_num_used);
+#endif
             }
 #else
             free(GC_DATA(d));

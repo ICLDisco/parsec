@@ -9,6 +9,9 @@
 #cmakedefine DAGUE_MPI
 /* Scheduling engine */
 #cmakedefine HAVE_HWLOC
+#cmakedefine HAVE_HWLOC_PARENT_MEMBER
+#cmakedefine HAVE_HWLOC_CACHE_ATTR
+#cmakedefine HAVE_HWLOC_OBJ_PU
 #cmakedefine DAGUE_CACHE_AWARE
 /* debug */
 #cmakedefine DAGUE_DEBUG

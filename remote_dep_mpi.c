@@ -14,6 +14,7 @@
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
+#undef FLOW_CONTROL
 
 static int remote_dep_mpi_init(dague_context_t* context);
 static int remote_dep_mpi_fini(dague_context_t* context);
@@ -49,8 +50,15 @@ static int remote_dep_dequeue_release(dague_execution_unit_t* eu_context, dague_
 /* TODO */
 #endif 
 
+
+static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
+static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i);
+
+static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, int i);
+
 /* Shared LIFO for the TILES */
 dague_atomic_lifo_t* internal_alloc_lifo;
+volatile int32_t internal_alloc_lifo_num_used = 0;
 static int internal_alloc_lifo_init = 0;
 
 #include "dequeue.h"
@@ -60,8 +68,8 @@ typedef enum dep_cmd_action_t
     DEP_ACTIVATE,
     DEP_RELEASE,
 /*    DEP_PROGRESS,
-    DEP_PUT_DATA,
-    DEP_GET_DATA,*/
+    DEP_PUT_DATA,*/
+    DEP_GET_DATA,
     DEP_CTL,
     DEP_MEMCPY,
 } dep_cmd_action_t;
@@ -72,6 +80,10 @@ typedef union dep_cmd_t
         int rank;
         dague_remote_deps_t* deps;
     } activate;
+    struct {
+        int rank;
+        int i;
+    } get;
     struct {
         dague_remote_deps_t* deps;
     } release;
@@ -270,6 +282,9 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
         {
             case DEP_ACTIVATE:
                 remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
+                break;
+            case DEP_GET_DATA:
+                remote_dep_mpi_short_get_data(context, item->cmd.get.rank, item->cmd.get.i);
                 break;
             case DEP_CTL:
                 ctl = item->cmd.ctl.enable;
@@ -502,6 +517,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
     internal_alloc_lifo = (dague_atomic_lifo_t*)malloc(sizeof(dague_atomic_lifo_t));
     dague_atomic_lifo_construct( internal_alloc_lifo );
     internal_alloc_lifo_init = 1;
+    internal_alloc_lifo_num_used = 0;
 
     return np;
 }
@@ -612,9 +628,6 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
     return 1;
 }
 
-
-static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
-static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i);
 
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 {
@@ -770,6 +783,37 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 }
 
 static int get = 1;
+#define FLOW_CONTROL_MEM_CONSTRAINT 200
+#define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
+static int stalls = 0;
+static int old_context = -1;
+
+static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, int i)
+{
+        if(old_context != context->taskstodo)
+        {
+           old_context = context->taskstodo;
+           stalls = ATTEMPTS_STALLS_BEFORE_RESUME;
+        } 
+    if((internal_alloc_lifo_num_used > FLOW_CONTROL_MEM_CONSTRAINT) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME))
+    {
+        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+        item->action = DEP_GET_DATA;
+        item->cmd.get.rank = from;
+        item->cmd.get.i = i;
+        DAGUE_LIST_ITEM_SINGLETON(item);
+        dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+        stalls++;
+        remote_dep_mpi_progress(context->execution_units[0]);
+    }
+    else
+    {
+        printf("Stall finished after %d tries, %d of %d arena used\n", stalls, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+        remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
+        old_context = context->taskstodo;
+        stalls = 0;
+    }
+}
 
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i)
 {
@@ -783,6 +827,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_wire_get_t msg;
     dague_t* function = (dague_t*) (uintptr_t) task->function;
     dague_remote_deps_t* deps = dep_activate_buff[i];
+    int doall;
     void* data;
 
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
@@ -794,6 +839,7 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_get_datatypes(deps);
     
     assert(dep_enabled);
+    doall = 0;
     for(int k = 0; task->which>>k; k++)
     {        
         if((1<<k) & msg.which)
@@ -807,9 +853,38 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             {
                 data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
                 if( NULL == data ) {
-                    data = malloc(size);
+#ifdef FLOW_CONTROL
+            /* basic attempt at flow control */
+                    if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
+                    {
+#endif
+                        data = malloc(size);
+#ifdef FLOW_CONTROL
+            printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+#endif
+                        assert(data != NULL);
+#ifdef FLOW_CONTROL
+                    }
+                    else
+                    {
+                        /* do it later */
+                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+                        item->action = DEP_GET_DATA;
+                        item->cmd.get.rank = from;
+                        item->cmd.get.i = i;
+                        DAGUE_LIST_ITEM_SINGLETON(item);
+                        dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+                        return;
+                    }
+#endif
                 }
             }
+#ifdef FLOW_CONTROL
+            doall = 1; /* if we do one, do all */
+            dague_atomic_inc_32b(&internal_alloc_lifo_num_used);
+#endif    
+
 #if defined(DAGUE_STATS)
             /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
              * the size of the pointed data into the cache_friendliness pointer.

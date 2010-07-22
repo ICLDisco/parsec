@@ -58,5 +58,9 @@ void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc);
  */
 void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc);
 
+/**
+ * allocate a buffer to hold the matrix
+ */
+void* dague_allocate_matrix( int matrix_size);
 
 #endif /* _MATRIX_H_ */
