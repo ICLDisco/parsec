@@ -199,8 +199,9 @@ int spotrf_cuda_init( int* puse_gpu )
                                           {free(gpu_device); return -1;} );
 
                 {
-                    char *module_path = "./mysgemm_generated_sgemm.cu.o.cubin.txt";
-
+                    char module_path[20];
+                    assert(major < 10 && minor < 10);
+                    snprintf(module_path, 20, "mysgemm-sm_%1d%1d.cubin", major, minor);
                     status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
                     DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
                                               {
