@@ -74,24 +74,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 #  if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_push( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
-    {
-#    if defined(USE_HIERARCHICAL_QUEUES)
-        int i;
-        for(i = 0; i < eu_context->eu_nb_hierarch_queues; i++) {
-            /** Be nice: share. Push in the closest buffer that is not ideally filled 
-             *  (mine if I'm starving) */
-            if( dague_hbbuffer_push_ideal_nonrec( eu_context->eu_hierarch_queues[i], 
-                                                    (dague_list_item_t**)&new_context ) ) {
-                /** Every contexts were pushed at this level or below */
-                goto done_pushing_tasks;
-            }
-        }
-#    endif /* USE_HIERARCHICAL_QUEUES */
-        /** We couldn't push more: everybody above me (and myself) are ideally full, so 
-         *  let's overfill, potentially pushing recursively in the system queue
-         */
-        dague_hbbuffer_push_all( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
-    }
+    dague_hbbuffer_push_all( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  else
 #    if PLACEHOLDER_SIZE
     if(use_placeholder) {
@@ -184,7 +167,7 @@ static  unsigned int ranking_function_bycache(dague_list_item_t *elt, void *para
 #  else
 static  unsigned int ranking_function_firstfound(dague_list_item_t *elt, void *_)
 {
-    return 1;
+    return DAGUE_RANKING_FUNCTION_BEST;
 }
 #  endif
 #endif
@@ -225,63 +208,9 @@ static inline dague_execution_context_t *choose_local_job( dague_execution_unit_
     return exec_context;
 }
 
-#if defined(HAVE_HWLOC)
-static int force_feed_hbbuffers(dague_execution_unit_t *eu_context)
-{
-    int i, nb;
-    dague_execution_context_t *exec_context;
-    dague_list_item_t *item;
-
-    /* Assume that because this is called, the whole hierarchy is empty. 
-     * -- There is a high probability that another thread is doing the same
-     *    thing at the same time, though. So we'll fill up only until ideally_fill
-     *    of each level.
-     */
-
-    nb = 0;
-
-    /* me first */
-    i = 0;
-    for(;;) {
-        /* Don't take the lock to check that: if we overfill, it's allright */
-        while( i < eu_context->eu_nb_hierarch_queues &&
-               eu_context->eu_hierarch_queues[i]->nbelt >= eu_context->eu_hierarch_queues[i]->ideal_fill )
-            i++;
-
-        if(i == eu_context->eu_nb_hierarch_queues) {
-            /* ok, can't do best */
-            DEBUG(("%d force fed all the buffers of its hierarchy: put %d elements in one go\n",
-                   eu_context->eu_id, nb));
-            return nb;
-        }
-
-        /* The current level can take another more */
-        exec_context = DAGUE_SYSTEM_POP(eu_context, eu_system_queue);
-        if( NULL == exec_context ) {
-            /* Arf, the system queue is empty -- waste of time... */
-#if defined(DAGUE_DEBUG)
-            if( nb > 0 ) {
-                DEBUG(("%d force fed up to %d elements in one go up to level %d, but now the system is really starving\n",
-                       eu_context->eu_id, nb, i));
-            } else {
-                DEBUG(("%d couldn't force feed the hierarchy: the system is starving\n",
-                       eu_context->eu_id));
-            }
-#endif
-            return nb;
-        }
-        /* Isolate this element */
-        item = DAGUE_LIST_ITEM_SINGLETON( exec_context );
-        /* And push it in the current queue level */
-        dague_hbbuffer_push_all( eu_context->eu_hierarch_queues[i], item );        
-        nb++;
-    }
-}
-#endif
-
 void* __dague_progress( dague_execution_unit_t* eu_context )
 {
-    uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
+    uint64_t found_local, miss_local, found_victim, miss_victim, found_remote, system_victim;
     uint64_t misses_in_a_row;
     dague_context_t* master_context = eu_context->master_context;
     int32_t my_barrier_counter = master_context->__dague_internal_finalization_counter;
@@ -290,7 +219,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
-    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
+    found_local = miss_local = found_victim = miss_victim = found_remote = system_victim = 0;
     misses_in_a_row = 1;
     
     if( 0 != eu_context->eu_id ) {
@@ -315,9 +244,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
         goto finalize_progress;
     }
-
-    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
-    misses_in_a_row = 1;
         
     while( !all_tasks_done(master_context) ) {
 
@@ -327,10 +253,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_begin, nbiterations);
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
-            
-#if defined(HAVE_HWLOC) && defined(USE_HIERARCHICAL_QUEUES)
-            force_feed_hbbuffers(eu_context);
-#endif
         }
         
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
@@ -385,6 +307,13 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
                 }
 #endif
+                exec_context = DAGUE_SYSTEM_POP( eu_context, eu_system_queue );
+                if( NULL != exec_context ) {
+                    misses_in_a_row = 0;
+                    system_victim++;
+                    goto do_some_work;
+                }
+                miss_victim++;
 
                 for(i = 0; i < max; i++ ) {
                     exec_context = DAGUE_POP( eu_context, eu_hierarch_queues[i] );
@@ -395,13 +324,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                     }
                     miss_victim++;
                 }
-                exec_context = DAGUE_SYSTEM_POP( eu_context, eu_system_queue );
-                if( NULL != exec_context ) {
-                    misses_in_a_row = 0;
-                    found_victim++;
-                    goto do_some_work;
-                }
-                miss_victim++;
+
 #  else 
                 for(i = 0; i < master_context->nb_cores; i++ ) {
                     exec_context = DAGUE_POP( master_context->execution_units[i], eu_task_queue );
@@ -473,9 +396,6 @@ static int dague_execute( dague_execution_unit_t* eu_context,
 #if defined(DAGUE_DEBUG)
     char tmp[128];
 #endif
-    DEBUG(("%s is executed on thread %d\n",
-          dague_service_to_string(exec_context, tmp, 128),
-          eu_context->eu_id));
  
     DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
@@ -489,82 +409,3 @@ static int dague_execute( dague_execution_unit_t* eu_context,
     return 0; 
 #endif
 }
-
-
-int dague_trigger_dependencies( const dague_object_t *dague_object, dague_execution_unit_t* eu_context,
-                                const dague_execution_context_t* exec_context,
-                                int forward_remote )
-{
-    const param_t* param;
-    const dep_t* dep;
-    const dague_t* function = exec_context->function;
-    dague_execution_context_t new_context;
-    int i, j, k, value;    
-
-#if 0 /*DISTRIBUTED this code is outdated, does not work in distributed anymore */
-    dague_remote_dep_reset_forwarded(eu_context);
-#endif
-
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->out[i]); i++ ) {
-        param = function->out[i];
-        
-        for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != param->dep_out[j]); j++ ) {
-            int dont_generate = 0;
-            
-            dep = param->dep_out[j];
-            if( NULL != dep->cond ) {
-                /* Check if the condition apply on the current setting */
-                (void)expr_eval( dague_object, dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
-                if( 0 == value ) {
-                    continue;
-                }
-            }
-            new_context.function = dep->dague;
-            /* Nothing to do is this is not a real function */
-            if( 0 == new_context.function->nb_locals ) continue;
-
-            DEBUG(( " -> %s( ", dep->dague->name ));
-            /* Check to see if any of the params are conditionals or ranges and if they are
-             * if they match. If yes, then set the correct values.
-             */
-            for( k = 0; (k < MAX_CALL_PARAM_COUNT) && (NULL != dep->call_params[k]); k++ ) {
-                new_context.locals[k].sym = dep->dague->locals[k];
-                if( EXPR_OP_BINARY_RANGE != dep->call_params[k]->op ) {
-                    (void)expr_eval( dague_object, dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &value );
-                    new_context.locals[k].min = new_context.locals[k].max = value;
-                    DEBUG(( "%d ", value ));
-                } else {
-                    int min, max;
-                    (void)expr_range_to_min_max( dague_object, dep->call_params[k], exec_context->locals, MAX_LOCAL_COUNT, &min, &max );
-                    if( min > max ) {
-                        dont_generate = 1;
-                        DEBUG(( " -- skipped" ));
-                        break;  /* No reason to continue here */
-                    }
-                    new_context.locals[k].min = min;
-                    new_context.locals[k].max = max;
-                    if( min == max ) {
-                        DEBUG(( "%d ", min ));
-                    } else {
-                        DEBUG(( "[%d..%d] ", min, max ));
-                    }
-                }
-                new_context.locals[k].value = new_context.locals[k].min;
-            }
-            DEBUG(( ")\n" ));
-            if( dont_generate ) {
-                continue;
-            }
-            
-            /* Mark the end of the list */
-            if( k < MAX_CALL_PARAM_COUNT ) {
-                new_context.locals[k].sym = NULL;
-            }
-            dague_release_OUT_dependencies( dague_object, eu_context,
-                                              exec_context, param,
-                                              &new_context, dep->param, forward_remote );
-        }
-    }
-    return 0;
-}
-

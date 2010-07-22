@@ -28,7 +28,7 @@
 #endif
 
 #ifdef HAVE_PAPI
-#include "papi.h"
+#include <papime.h>
 #endif
 
 #ifdef HAVE_HWLOC
@@ -119,7 +119,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
 #ifdef DAGUE_PROFILING
-    eu->eu_profile = dague_profiling_thread_init( 8192, "DAGuE Thread %d", eu->eu_id );
+    eu->eu_profile = dague_profiling_thread_init( 16384, "DAGuE Thread %d", eu->eu_id );
 #endif
 #ifdef DAGUE_USE_LIFO
     eu->eu_task_queue = (dague_atomic_lifo_t*)malloc( sizeof(dague_atomic_lifo_t) );
@@ -312,6 +312,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
         startup[i].bindto = i;
     }
 
+#if defined(HAVE_PAPI)
+   papime_start();
+#endif
+
     DAGUE_TILE_SIZE = tile_size;
 
 #if defined(USE_MPI)
@@ -376,27 +380,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
 #endif
                 __dague_graph_file = fopen( filename, "w");
             }
-            break;
-        case 'p':
-#ifdef USE_PAPI
-            {
-                char* dup;
-                char* ptr;
-                ptr = dup = strdup(optarg);
-                while(NULL != (ptr = strrchr(dup, ','))) {
-                    if(num_events >= 2) {
-                        fprintf(stderr, "-papi accepts only up to 3 events\n");
-                        break;
-                    }
-                    *ptr = '\0';
-                    events_names[num_events] = strdup(ptr + 1);
-                    num_events++;
-                }
-                free(dup);
-            }
-#else 
-            fprintf(stderr, "-papi is pointless for this PAPI disabled build\n");
-#endif
             break;
          case 'b':
              {
@@ -546,7 +529,7 @@ int dague_fini( dague_context_t** pcontext )
     int i;
 
 #ifdef HAVE_PAPI
-    PAPI_shutdown();
+    papime_stop();
 #endif
 
     /* Now wait until every thread is back */
@@ -742,7 +725,7 @@ static void malloc_deps(dague_object_t *dague_object,
     dague_dependencies_t* deps = *deps_location;
     dague_dependencies_t* last_deps = NULL;
     int i;
-    
+   
 #ifdef DAGUE_PROFILING
     dague_profiling_trace(eu_context->eu_profile, MEMALLOC_start_key, 0);
 #endif
@@ -882,10 +865,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                               tmp_mask, (tmp_mask | (1<<30)) );
                 if( !success || (tmp_mask & (1<<30)) ) {
                     char tmp[128];
-		    char tmp2[128];
+                    char tmp2[128];
                     fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
                             success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
-			    dague_service_to_string(origin, tmp2, 128));
+                            dague_service_to_string(origin, tmp2, 128));
                     assert(0);
                 }
             } while (0);
@@ -896,15 +879,15 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          * argument.
          */
         {
-	    char tmp[128], tmp2[128];
+            char tmp[128], tmp2[128];
             dague_execution_context_t* new_context;
             new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
 
-	    DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
+            DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),
-		   dague_service_to_string(origin, tmp2, 128),
+                   dague_service_to_string(origin, tmp2, 128),
                    deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
                    eu_context->eu_id));
 
@@ -974,304 +957,6 @@ static int dague_is_valid( const dague_object_t *dague_object, dague_execution_c
             return -1;
         }
     }
-    return 0;
-}
-
-/**
- * Release all OUT dependencies for this particular instance of the service.
- */
-int dague_release_OUT_dependencies( const dague_object_t *dague_object,
-                                    dague_execution_unit_t* eu_context,
-                                    const dague_execution_context_t* restrict origin,
-                                    const param_t* restrict origin_param,
-                                    dague_execution_context_t* restrict exec_context,
-                                    const param_t* restrict dest_param,
-                                    int forward_remote )
-{
-    const dague_t* function = exec_context->function;
-    dague_dependencies_t *deps, **deps_location, *last_deps;
-#ifdef DAGUE_DEBUG
-    char tmp[128];
-#endif
-    int i, actual_loop, rc;
-    static int execution_step = 2;
-
-    if( 0 == function->nb_locals ) {
-        /* special case for the IN/OUT objects */
-        return 0;
-    }
-
-    DEBUG(("Activate dependencies for %s\n", dague_service_to_string(exec_context, tmp, 128)));
-    deps_location = &(dague_object->dependencies_array[function->deps]);
-    deps = *deps_location;
-    last_deps = NULL;
-
-    for( i = 0; i < function->nb_locals; i++ ) {
-    restart_validation:
-        rc = dague_symbol_validate_value( dague_object,
-                                          function->locals[i],
-                                          function->pred,
-                                          exec_context->locals );
-        if( 0 != rc ) {
-#if defined(DISTRIBUTED) && 0
-            /* This is a valid value for this parameter, but it is executed 
-             * on a remote resource according to the data mapping 
-             */
-            if(EXPR_FAILURE_CANNOT_EVALUATE_RANGE == rc)
-            {
-                if(forward_remote)
-                {
-                   dague_remote_dep_activate(eu_context, origin, origin_param, exec_context, dest_param);
-                }
-            }
-#endif
-            /* This is not a valid value for this parameter on this host. 
-             * Try the next one */
-        pick_next_value:
-            exec_context->locals[i].value++;
-            if( exec_context->locals[i].value > exec_context->locals[i].max ) {
-                exec_context->locals[i].value = exec_context->locals[i].min;
-                if( --i < 0 ) {
-                    /* No valid value has been found. Return ! */
-                    return -1;
-                }
-                deps = deps->prev;
-                last_deps = deps;
-                goto pick_next_value;
-            }
-            if( 0 == i ) {
-                deps_location = &(dague_object->dependencies_array[function->deps]);
-            } else {
-                deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
-            }
-            goto restart_validation;
-        }
-
-        if( NULL == (*deps_location) ) {
-            int min, max, number;
-            /* TODO: optimize this section (and the similar one few tens of lines down
-             * the code) to work on local ranges instead of absolute ones.
-             */
-            dague_symbol_get_absolute_minimum_value( dague_object, function->locals[i], &min );
-            dague_symbol_get_absolute_maximum_value( dague_object, function->locals[i], &max );
-            /* Make sure we stay in the expected ranges */
-            if( exec_context->locals[i].min < min ) {
-                DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
-                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, min));
-                exec_context->locals[i].min = min;
-                exec_context->locals[i].value = min;
-            }
-            if( exec_context->locals[i].max > max ) {
-                DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
-                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].max, max));
-                exec_context->locals[i].max = max;
-            }
-            assert( (min <= exec_context->locals[i].value) && (max >= exec_context->locals[i].value) );
-            number = max - min;
-            DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
-                   number, function->locals[i]->name, min, max));
-            deps = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +
-                                                   number * sizeof(dague_dependencies_union_t));
-            DAGUE_STAT_INCREASE(mem_contexts,  sizeof(dague_dependencies_t) +
-                                  number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-            deps->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | DAGUE_DEPENDENCIES_FLAG_FINAL;
-            deps->symbol = function->locals[i];
-            deps->min = min;
-            deps->max = max;
-            deps->prev = last_deps; /* chain them backward */
-            if( 0 == dague_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
-                /* Some other thread manage to set it before us. Not a big deal. */
-                free(deps);
-                DAGUE_STAT_DECREASE(mem_contexts,  sizeof(dague_dependencies_t) +
-                                      number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-                goto deps_created_by_another_thread;
-            }
-            if( NULL != last_deps ) {
-                last_deps->flags = DAGUE_DEPENDENCIES_FLAG_NEXT | DAGUE_DEPENDENCIES_FLAG_ALLOCATED;
-            }
-        } else {
-        deps_created_by_another_thread:
-            deps = *deps_location;
-            /* Make sure we stay in bounds */
-            if( exec_context->locals[i].min < deps->min ) {
-                DEBUG(("Readjust the minimum range in function %s for argument %s from %d to %d\n",
-                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].min, deps->min));
-                exec_context->locals[i].min = deps->min;
-                exec_context->locals[i].value = deps->min;
-            }
-            if( exec_context->locals[i].max > deps->max ) {
-                DEBUG(("Readjust the maximum range in function %s for argument %s from %d to %d\n",
-                       function->name, exec_context->locals[i].sym->name, exec_context->locals[i].max, deps->max));
-                exec_context->locals[i].max = deps->max;
-            }
-        }
-
-        DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
-               exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
-        deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
-        last_deps = deps;
-    }
-
-    actual_loop = function->nb_locals - 1;
-    while(1) {
-#if defined(DAGUE_GRAPHER) || 1
-        int first_encounter = 0;
-#endif  /* defined(DAGUE_GRAPHER) */
-        int updated_deps, mask;
-
-        if( 0 != dague_is_valid(dague_object, exec_context) ) {
-            char tmp[128], tmp1[128];
-            dague_service_to_string(origin, tmp, 128);
-            dague_service_to_string(exec_context, tmp1, 128);
-            fprintf( stderr, "Output dependencies of %s generate an invalid call to %s for param %s\n",
-                     tmp, tmp1, dest_param->name );
-            goto next_value;
-        }
-
-#if !defined(NDEBUG)
-        if( deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & dest_param->param_mask ) {
-            char tmp[128], tmp1[128];
-            fprintf( stderr, "Output dependencies %2x from %s (param %s) activate an already existing dependency %2x on %s (param %s)\n",
-                     dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
-                     deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
-                     dague_service_to_string(exec_context, tmp1, 128),  dest_param->name );
-        }
-        assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)] & dest_param->param_mask) );
-#endif  /* !defined(NDEBUG) */
-        mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
-        /* Mark the dependencies and check if this particular instance can be executed */
-        if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)]) ) {
-            mask |= dague_check_IN_dependencies( dague_object, exec_context );
-            if( mask > 0 ) {
-                DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
-            }
-#if defined(DAGUE_GRAPHER) || 1
-            first_encounter = 1;
-#endif  /* defined(DAGUE_GRAPHER) */
-        }
-
-        updated_deps = dague_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
-                                           mask);
-
-        if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
-#if defined(DAGUE_GRAPHER) || 1
-            if( NULL != __dague_graph_file ) {
-                char tmp[128];
-                fprintf(__dague_graph_file,
-                        "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\" headlabel=%d]\n", dague_dependency_to_string(origin, exec_context, tmp, 128),
-                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "solid", execution_step);
-                fflush(__dague_graph_file);
-            }
-#endif  /* defined(DAGUE_GRAPHER) */
-            execution_step++;
-
-#if !defined(NDEBUG)
-            {
-                int success, tmp_mask;
-                do {
-                    tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)];
-                    success = dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(actual_loop)],
-                                                  tmp_mask, (tmp_mask | (1<<30)) );
-                    if( !success || (tmp_mask & (1<<30)) ) {
-                        char tmp[128];
-                        fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice !!!\n",
-                                success, tmp_mask, dague_service_to_string(exec_context, tmp, 128));
-                        assert(0);
-                    }
-                } while (0);
-            }
-#endif  /* !defined(NDEBUG) */
-            /* This service is ready to be executed as all dependencies are solved. Let the
-             * scheduler knows about this and keep going.
-             */
-            dague_schedule(eu_context->master_context, exec_context);
-        } else {
-            DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
-                   dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
-                   (int)(updated_deps & (~DAGUE_DEPENDENCIES_HACK_IN)),
-                   (int)(updated_deps)));
-#if defined(DAGUE_GRAPHER) || 1
-            if( NULL != __dague_graph_file ) {
-                char tmp[128];
-                fprintf(__dague_graph_file,
-                        "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dague_dependency_to_string(origin, exec_context, tmp, 128),
-                        origin_param->name, dest_param->name, (first_encounter ? "#00FF00" : "#FF0000"), "dashed");
-                fflush(__dague_graph_file);
-            }
-#endif  /* defined(DAGUE_GRAPHER) */
-        }
-
-    next_value:
-        /* Go to the next valid value for this loop context */
-        exec_context->locals[actual_loop].value++;
-        if( exec_context->locals[actual_loop].max < exec_context->locals[actual_loop].value ) {
-            /* We're out of the range for this variable */
-            int current_loop = actual_loop;
-        one_loop_up:
-            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
-                   actual_loop, function->locals[actual_loop]->name));
-            if( 0 == actual_loop ) {  /* we're done */
-                goto end_of_all_loops;
-            }
-            actual_loop--;  /* one level up */
-            deps = deps->prev;
-
-            exec_context->locals[actual_loop].value++;
-            if( exec_context->locals[actual_loop].max < exec_context->locals[actual_loop].value ) {
-                goto one_loop_up;
-            }
-            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
-                   function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);
-            DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
-                   exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
-            for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
-                exec_context->locals[actual_loop].value = exec_context->locals[actual_loop].min;
-                last_deps = deps;  /* save the deps */
-                if( NULL == *deps_location ) {
-                    int min, max, number;
-                    dague_symbol_get_absolute_minimum_value( dague_object, function->locals[actual_loop], &min );
-                    dague_symbol_get_absolute_maximum_value( dague_object, function->locals[actual_loop], &max );
-                    number = max - min;
-                    DEBUG(("Allocate %d spaces for loop %s index %d value %d (min %d max %d)\n",
-                           number, function->locals[actual_loop]->name, CURRENT_DEPS_INDEX(actual_loop-1),
-                           exec_context->locals[actual_loop].value, min, max));
-                    deps = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +
-                                                           number * sizeof(dague_dependencies_union_t));
-                    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_dependencies_t) +
-                                          number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-                    deps->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | DAGUE_DEPENDENCIES_FLAG_FINAL;
-                    deps->symbol = function->locals[actual_loop];
-                    deps->min = min;
-                    deps->max = max;
-                    deps->prev = last_deps; /* chain them backward */
-                    /**
-                     * If we fail then the dependencies array has been allocated by another
-                     * thread. Keep going.
-                     */
-                    if( !dague_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
-                        DAGUE_STAT_DECREASE(mem_contexts, sizeof(dague_dependencies_t) +
-                                              number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-                        free(deps);
-                    }
-                }
-                deps = *deps_location;
-                deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(actual_loop)]);
-                DEBUG(("Prepare storage for next loop variable (value %d) at %d\n",
-                       exec_context->locals[actual_loop].value, CURRENT_DEPS_INDEX(actual_loop)));
-                last_deps = deps;
-
-                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
-                       function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            }
-            actual_loop = current_loop;  /* go back to the original loop */
-        } else {
-            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
-                   function->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-        }
-    }
- end_of_all_loops:
-
     return 0;
 }
 

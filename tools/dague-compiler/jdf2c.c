@@ -632,6 +632,23 @@ static int jdf_data_output_index(const jdf_t *jdf, const char *fname, const char
     return -2;
 }
 
+static int jdf_data_input_index(const jdf_function_entry_t *f, const char *varname)
+{
+    int i;
+    jdf_dataflow_list_t *fl;
+    
+    i = 0;
+    for( fl = f->dataflow; fl != NULL; fl = fl->next) {
+        if( jdf_dataflow_type(fl->flow) & JDF_DEP_TYPE_IN ) {
+            if( !strcmp(fl->flow->varname, varname) ) {
+                return i;
+            }
+            i++;
+        }
+    }
+    return -1;
+}
+
 static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 {
     int ls, rs, i;
@@ -746,6 +763,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include <scheduling.h>\n"
             "#include <assignment.h>\n"
             "#include <remote_dep.h>\n"
+	    "#if defined(HAVE_PAPI)\n"
+	    "#include <papime.h>\n"
+	    "#endif\n"
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
@@ -1865,33 +1885,17 @@ static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const char *fn
 static void jdf_generate_code_papi_events_before(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
     coutput("  /** PAPI events */\n"
-            "#if defined(HAVE_PAPI)\n"
-            "  {\n"
-            "    int i, num_events;\n"
-            "    int events[MAX_EVENTS];\n"
-            "    PAPI_list_events(eventSet, &events, &num_events);\n"
-            "    long long values[num_events];\n"
-            "    PAPI_start(eventSet);\n"
-            "  }\n"
-            "#endif /* HAVE_PAPI */\n");
+	    "#if defined(HAVE_PAPI)\n"
+	    "  papime_start_thread_counters();\n"
+	    "#endif\n");
 }
 
 static void jdf_generate_code_papi_events_after(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
     coutput("  /** PAPI events */\n"
             "#if defined(HAVE_PAPI)\n"
-            "  PAPI_stop(eventSet, &values);\n"
-            "  if(num_events > 0) {\n"
-            "    printf(\"PAPI counter values from  %s (thread=%%ld): \", context->eu_id);\n"
-            "    for(i=0; i<num_events; ++i) {\n"
-            "      char event_name[PAPI_MAX_STR_LEN];\n"
-            "      PAPI_event_code_to_name(events[i], &event_name);\n"
-            "      printf(\"   %%s  %%lld \", event_name, values[i]);\n"
-            "    }\n"
-            "    printf(\"\\n\");\n"
-            "  }\n"
-            "#endif /** HAVE_PAPI */\n",
-            f->fname);
+	    "  papime_stop_thread_counters();\n"
+	    "#endif\n");
 }
 
 static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -2098,6 +2102,83 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     string_arena_free(sa2);
 }
 
+static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_function_entry_t *f)
+{
+    jdf_dataflow_list_t *dl;
+    jdf_dep_list_t *dep;
+    expr_info_t info;
+    string_arena_t *sa1 = string_arena_new(64);
+    int i;
+
+    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS) {\n");
+    for( dl = f->dataflow; dl != NULL; dl = dl->next ) {
+        for( dep = dl->flow->deps; dep != NULL; dep = dep->next ) {
+            if( dep->dep->type & JDF_DEP_TYPE_IN ) {
+                i = jdf_data_input_index(f, dl->flow->varname);
+
+                switch( dep->dep->guard->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                    if( NULL != dep->dep->guard->calltrue->var ) {
+                        coutput("    data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "    (void)gc_data_unref(context->data[%d].gc_data);\n",
+                                dep->dep->guard->calltrue->func_or_mem, i,
+                                i);
+                    }
+                    break;
+                case JDF_GUARD_BINARY:
+                    if( NULL != dep->dep->guard->calltrue->var ) {
+                        info.prefix = "";
+                        info.sa = sa1;
+                        coutput("    if( %s ) {\n"
+                                "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "      (void)gc_data_unref(context->data[%d].gc_data);\n"
+                                "    }\n",
+                                dump_expr((void**)&dep->dep->guard->guard, &info),
+                                dep->dep->guard->calltrue->func_or_mem, i,
+                                i);
+                    }
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( NULL != dep->dep->guard->calltrue->var ) {
+                        info.prefix = "";
+                        info.sa = sa1;
+                        coutput("    if( %s ) {\n"
+                                "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "      (void)gc_data_unref(context->data[%d].gc_data);\n"
+                                "    }\n",
+                                dump_expr((void**)&dep->dep->guard->guard, &info),
+                                dep->dep->guard->calltrue->func_or_mem, i,
+                                i);
+                        if( NULL != dep->dep->guard->callfalse->var ) {
+                            coutput(" else {\n"
+                                    "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                    "      (void)gc_data_unref(context->data[%d].gc_data);\n"
+                                    "    }\n",
+                                    dep->dep->guard->callfalse->func_or_mem, i,
+                                    i);
+                        }
+                    } else if( NULL != dep->dep->guard->callfalse->var ) {
+                        info.prefix = "";
+                        info.sa = sa1;
+                        coutput("    if( !(%s) ) {\n"
+                                "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "      (void)gc_data_unref(context->data[%d].gc_data);\n"
+                                "    }\n",
+                                dump_expr((void**)&dep->dep->guard->guard, &info),
+                                dep->dep->guard->callfalse->func_or_mem, i,
+                                i);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    coutput("  }\n"
+            "\n");
+
+    string_arena_free(sa1);
+}
+
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
     string_arena_t *sa = string_arena_new(64);
@@ -2157,8 +2238,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && arg.remote_deps_count ) {\n"
             "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
             "  }\n"
-            "#endif\n"
-            "\n"
+            "#endif\n");
+
+    jdf_generate_code_free_hash_table_entry(jdf, f);
+
+    coutput("\n"
             "  return arg.nb_released;\n"
             "}\n"
             "\n");
