@@ -19,6 +19,8 @@ extern DPLASMA_desc ddescA;
 #if DPLASMA_SMART_SCHEDULING
 	float	cpu_usage = 4.0;		/* CPU core is slower than the fastest GPU 7.0 times */
 	gpu_device_t* get_best_gpu(int);	/* Function to get best choice of avaiblable Contexts !! */
+	int *waiting;
+	int max_wait = 1;
 #else						/* I don't use gpu_devices anymore, I will be subset of gpu-array */
 						/* gpu_array - list of GPU by order of their performance */
 	dplasma_atomic_lifo_t gpu_devices;	
@@ -125,12 +127,9 @@ int spotrf_cuda_init( int* puse_gpu )
 		}
 	}
 	/* Setup default vaule */
-	for( i = 0; i < ndevices ; i++){
-		/* every GPU has their own queue fix at 10 */
-		gpu_array[i].waiting = (int*)calloc(10, sizeof(int));
-		for( j = 0; j < 10 - 1; j++){
-			gpu_array[i].waiting[j] = 0;
-		}
+	waiting = (int*)calloc(max_wait, sizeof(int));
+	for( i = 0; i < max_wait ; i++){
+		waiting[i] = 0;
 	}
 #endif
 
@@ -599,111 +598,41 @@ cuEventElapsedTime(&elapsedTime, start, stop);
 }
 #if DPLASMA_SMART_SCHEDULING
 gpu_device_t* get_best_gpu(int priority){
-	/* priority made for supporting 2 many functions , default is 0 */
-	int i,j,diff,still = 0;
+	/* catch gpu first */ 
+	int gpu_id;
 	gpu_device_t* gpu_device;
-	/* get assigned gpu before waiting for that GPU */
-	int assigned,x,w;
-	int a_future = 1; /* if plus [1] is future                */
-	/* if plus [2] is future + being working*/
-	int b_future = 1;
-	/* a : this card */
-	/* b : next card */
-	if(priority != 0){
-		/* HOW ?? */
-		/* if GPU is being used less than 2 ,  let's go !!! , just my first idea :) */
-		for(i = 0; i < ndevices ; i++){ /*  if(gpu_array[i].func1_current == 0 && gpu_array[i].func2_current < 2 && gpu_array[i].working == 0){ */
-			if(gpu_array[i].func1_current == 0 && gpu_array[i].func2_current == 0){
-				dplasma_atomic_inc_32b(&(gpu_array[i].func2_current));
-				assigned = i;
-				/*                  printf("choose gpu %d\n",i);*/
-				goto catchseat;                                                                                                                                      }
-		}
-		return NULL;
-	}
-	for(i = 0; i < ndevices; i++){
-		if(gpu_array[i].working == 1)
-			a_future = 2;
-		else
-			a_future = 1;
-		if(gpu_array[i+1].working == 1 )
-			b_future = 2;
-		else
-			b_future = 1;
-		/* comparing with next gpu (choose if this GPU will give result faster */
-		if(i < ndevices - 1){
-			if(gpu_array[i].func1_usage * (gpu_array[i].func1_current + a_future) < gpu_array[i+1].func1_usage * ( gpu_array[i+1].func1_current + b_future) ){
-				dplasma_atomic_inc_32b(&(gpu_array[i].func1_current));
-				assigned = i;
-				/*  printf("choose gpu %d\n",i);*/
-				goto catchseat;
-			}
-		}else{
-			if(gpu_array[i].func1_usage * (gpu_array[i].func1_current + a_future ) < cpu_usage){
-				/* if(gpu_array[i].current >= 0 ){
-				 * 			 * 				 *     printf("slow gpu already have %d task\n",gpu_array[i].current);
-				 * 			 			 * 				 				 *  }*/
-				dplasma_atomic_inc_32b(&(gpu_array[i].func1_current));
-				assigned = i;
-				/*                              printf("choose gpu %d\n",i);*/
-				goto catchseat;
-			}
-		}
-	}
-
-	/* compare every GPU with CPU !! */
-	for(i = 0; i < ndevices; i++){
-		if(gpu_array[i].working == 1)
-			a_future = 2;
-		else
-			a_future = 1;
-		
-		if(gpu_array[i].func1_usage * (gpu_array[i].func1_current + a_future) < cpu_usage){
-			dplasma_atomic_inc_32b(&(gpu_array[i].func1_current));
-			assigned = i;
-			/*printf("choose gpu %d ANYWAY !!\n",i);*/
-			goto catchseat;
-		}
-	}
-	
-/*	printf("choose CPU !!!!\n");*/
-	/* hadn't better to use GPU */
-	return NULL;
-catchseat:
-w = 9;
-
-if(dplasma_atomic_cas(&(gpu_array[assigned].waiting[w]),0,1) == 1){
-	while(w > 0){
-			if(dplasma_atomic_cas(&(gpu_array[assigned].waiting[w-1]),0,1) == 1){
-				if( w-1 > 0){
-					gpu_array[assigned].waiting[w] = 0;
-					w--;
-				}else if(w-1 == 0){
-					gpu_array[assigned].waiting[w] = 0;
-					w--;
-				}
-				if(w == 0){
-					goto catchgpu;
-				}
-			}else{
-				continue;
-			}
-		}
-	}
-catchgpu:
-	for(;;){
-		if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[assigned].gpu_devices)))){
+	for(gpu_id = 0; gpu_id < ndevices; gpu_id++){
+		if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[gpu_id].gpu_devices)))){
 			/* unleash seat -- concurreny !! to sgemm function now !*/
-			gpu_array[assigned].waiting[w] = 0;
-			if(priority == 0)
-				dplasma_atomic_dec_32b(&(gpu_array[assigned].func1_current));
-			else
-				dplasma_atomic_dec_32b(&(gpu_array[assigned].func2_current));
-			gpu_array[assigned].working = 1;
+			gpu_array[gpu_id].working = 1;
 			return gpu_device;
 		}
 	}
-	
+	/* there is no GPU available */
+	int w;
+	w = max_wait-1;
+	for(;;){
+		if(dplasma_atomic_cas(&(waiting[w]),0,1) == 1){
+			w--;
+			if(w < max_wait-1 && w >= 0){
+				waiting[w+1] = 0;	
+			}else if(w < 0){
+				for(;;){
+					for(gpu_id = 0; gpu_id < ndevices; gpu_id++){
+						if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[gpu_id].gpu_devices)))){
+							/* unleash seat -- concurreny !! to sgemm function now !*/
+							gpu_array[gpu_id].working = 1;
+							waiting[0] = 0;
+							return gpu_device;
+						}
+					}       
+				}
+			}
+		}else{
+			return NULL;
+		}
+	}
+	return NULL;
 }
 #endif
 
