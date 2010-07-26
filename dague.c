@@ -119,7 +119,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
 #ifdef DAGUE_PROFILING
-    eu->eu_profile = dague_profiling_thread_init( 16384, "DAGuE Thread %d", eu->eu_id );
+    eu->eu_profile = dague_profiling_thread_init( 65536, "DAGuE Thread %d", eu->eu_id );
 #endif
 #ifdef DAGUE_USE_LIFO
     eu->eu_task_queue = (dague_atomic_lifo_t*)malloc( sizeof(dague_atomic_lifo_t) );
