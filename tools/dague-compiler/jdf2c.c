@@ -1955,6 +1955,7 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
             "    release_deps_of_%s_%s(context, exec_context,\n"
             "        DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
             "        DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
+            "        DAGUE_ACTION_RELEASE_LOCAL_REFS |\n"
             "        DAGUE_ACTION_DEPS_MASK,\n"
             "        NULL, data);\n"
             "  }\n",
@@ -2090,11 +2091,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     jdf_generate_code_grapher_task_done(jdf, f);
 
     jdf_generate_code_call_release_dependencies(jdf, f);
-
-    coutput("  /** Release the hash tables entries of the input data */\n");
-    for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
-        jdf_generate_code_flow_memory_release(jdf, f->fname, fl->flow);
-    }
 
     coutput("  return 0;\n"
             "}\n\n");
