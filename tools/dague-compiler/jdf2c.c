@@ -2293,6 +2293,9 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
 
     sa_close = string_arena_new(64);
 
+    string_arena_add_string(sa_open, "%s%*s%s.function = (const dague_t*)&%s_%s;\n",
+                            prefix, nbopen, "  ", var, jdf_basename, t->fname);
+
     nbopen = 0;
     for(el = call->parameters, nl = t->parameters, i = 0; 
         el != NULL && nl != NULL; 
@@ -2363,9 +2366,6 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     free(p);
     linfo.prefix = NULL;
 
-    string_arena_add_string(sa_open, "%s%*s  %s.function = (const dague_t*)&%s_%s;\n",
-                            prefix, nbopen, "  ", var, jdf_basename, t->fname);
-
     string_arena_add_string(sa_open, "%s%*s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
                             prefix, nbopen, "  ", var, jdf_basename, t->fname);
     
@@ -2423,7 +2423,12 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
-    coutput("  memcpy(&nc, exec_context, sizeof(dague_execution_context_t));\n");
+    coutput("  nc.dague_object = exec_context->dague_object;\n");
+    coutput("  rank_src =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n",
+            f->predicate->func_or_mem, f->predicate->func_or_mem,
+            UTIL_DUMP_LIST_FIELD(sa, f->predicate->parameters, next, expr,
+                                 dump_expr, &info,
+                                 "", "", ", ", ""));
 
     flownb = 0;
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
@@ -2436,11 +2441,6 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             if( dl->dep->type & JDF_DEP_TYPE_OUT )  {
 
                 string_arena_init(sa_src);
-                string_arena_add_string(sa_src, "  rank_src =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n",
-                                        f->predicate->func_or_mem, f->predicate->func_or_mem,
-                                        UTIL_DUMP_LIST_FIELD(sa, f->predicate->parameters, next, expr,
-                                                             dump_expr, &info,
-                                                             "", "", ", ", ""));
 
                 string_arena_init(sa);
                 string_arena_add_string(sa, "ontask(eu, &nc, exec_context, %d, %d, rank_src, rank_dst, ontask_arg)",
