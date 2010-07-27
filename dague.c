@@ -178,8 +178,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
                 /* The master(s) create the shared queues */               
                 eu->eu_hierarch_queues[idx] = dague_hbbuffer_new( queue_size, nbcores,
-                                                                    level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
-                                                                    level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
+                                                                  level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
+                                                                  level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
                 DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
                        eu->eu_id, queue_size, nbcores,
                        level, idx, eu->eu_hierarch_queues[idx],
@@ -209,7 +209,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
             eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
             /* Each thread creates its own "local" queue, connected to the shared dequeue */
             eu->eu_task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
-                                                      (void*)eu->eu_system_queue);
+                                                    (void*)eu->eu_system_queue);
             eu->eu_hierarch_queues[0] =  eu->eu_task_queue;
 
             dague_barrier_wait( &startup->master_context->barrier );
@@ -981,7 +981,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
             if( src_rank == dst_rank ) {
 #endif
                 if(arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
-                    arg->output_entry->data[param_index] = oldcontext->data[param_index].gc_data;
+                    arg->output_entry->data[param_index] = arg->data[param_index];
                     arg->output_usage++;
                     gc_data_ref( arg->output_entry->data[param_index] );
                     arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
