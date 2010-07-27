@@ -391,6 +391,7 @@ int main(int argc, char ** argv)
             /* matrix generation */
             generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
             printf("matrix generated\n");
+	    
         }
     else
         if(0 == rank)
@@ -451,6 +452,7 @@ int main(int argc, char ** argv)
                              gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
 
             TIME_PRINT(("Dague priority change at position \t%d\n", ddescA.super.nt - pri_change));
+	    data_dump((tiled_matrix_desc_t *) &ddescA);
             cleanup_dague(dague);
             /*** END OF DAGUE COMPUTATION ***/
 
@@ -463,6 +465,8 @@ int main(int argc, char ** argv)
     if(0 == rank)
         check_matrix(N, &uplo, A1, A2, B1, B2, LDA, NRHS, LDB, &descA, gflops);
 
+    
+    
     runtime_fini();
     return 0;
 }

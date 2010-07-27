@@ -63,4 +63,6 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc);
  */
 void* dague_allocate_matrix( int matrix_size);
 
+int data_dump(tiled_matrix_desc_t * Ddesc);
+
 #endif /* _MATRIX_H_ */

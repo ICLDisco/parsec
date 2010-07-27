@@ -375,3 +375,30 @@ void* dague_allocate_matrix(int matrix_size)
     }
     return mat;
 }
+
+int data_dump(tiled_matrix_desc_t * Ddesc){
+  FILE * tmpf;
+  int i, j, k;
+  double * buf;
+  tmpf = fopen("tmp_dague_local_data_dump.txt", "w");
+  if(NULL == tmpf)
+    {
+      perror("opening file: tmp_local_data_dump.txt" );
+      return -1;
+    }
+  for (i = 0 ; i < Ddesc->lmt ; i++)
+    for ( j = 0 ; j< Ddesc->lnt ; j++)
+      {
+	if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
+	  {
+	    buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+	    for (k = 0 ; k < Ddesc->bsiz ; k++)
+	      {
+		fprintf(tmpf, "%e ", buf[k]);
+	      }
+	    fprintf(tmpf, "\n");
+	  }
+      }
+  fclose(tmpf);
+  return 0;
+}
