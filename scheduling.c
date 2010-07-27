@@ -71,6 +71,20 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
 
+#if defined(DAGUE_DEBUG)
+    {
+        char tmp[128];
+        dague_list_item_t* item = (dague_list_item_t*)new_context, *next;
+
+        do {
+            next = (dague_list_item_t*)item->list_next;
+            DEBUG(( "thread %d Schedule %s\n", eu_context->eu_id, dague_service_to_string((dague_execution_context_t*)item, tmp, 128)));
+            printf( "thread %d Schedule %s\n", eu_context->eu_id, dague_service_to_string((dague_execution_context_t*)item, tmp, 128));
+            item = next;
+        } while ( item != (dague_list_item_t*)new_context );
+    }
+# endif
+
 #  if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_push( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
@@ -104,12 +118,6 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
  done_pushing_tasks:
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
-# ifdef DAGUE_DEBUG
-    {
-        char tmp[128];
-        DEBUG(( "Schedule %s\n", dague_service_to_string(new_context, tmp, 128)));
-    }
-# endif
     return 0;
 }
 
@@ -244,7 +252,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
         goto finalize_progress;
     }
-        
+
     while( !all_tasks_done(master_context) ) {
 
         if( misses_in_a_row > 1 ) {
@@ -307,14 +315,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
                 }
 #endif
-                exec_context = DAGUE_SYSTEM_POP( eu_context, eu_system_queue );
-                if( NULL != exec_context ) {
-                    misses_in_a_row = 0;
-                    system_victim++;
-                    goto do_some_work;
-                }
-                miss_victim++;
-
                 for(i = 0; i < max; i++ ) {
                     exec_context = DAGUE_POP( eu_context, eu_hierarch_queues[i] );
                     if( NULL != exec_context ) {
@@ -324,7 +324,13 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                     }
                     miss_victim++;
                 }
-
+                exec_context = DAGUE_SYSTEM_POP( eu_context, eu_system_queue );
+                if( NULL != exec_context ) {
+                    misses_in_a_row = 0;
+                    system_victim++;
+                    goto do_some_work;
+                }
+                miss_victim++;
 #  else 
                 for(i = 0; i < master_context->nb_cores; i++ ) {
                     exec_context = DAGUE_POP( master_context->execution_units[i], eu_task_queue );
