@@ -86,7 +86,7 @@ static void print_usage(void)
             "   -a --lda         : leading dimension of the matrix A (equal matrix size by default)\n"
             "   -b --ldb         : leading dimension of the RHS B (equal matrix size by default)\n"
             "   -c --nb-cores    : number of computing threads to use\n"
-            "   -d --dague     : use DAGUE backend (default)\n"
+            "   -d --dague       : use DAGUE backend (default)\n"
             "   -e --stile-col   : number of tile per col in a super tile (default: 1)\n"
             "   -g --grid-rows   : number of processes row in the process grid (must divide the total number of processes (default: 1)\n"
             "   -p --plasma      : use PLASMA backend\n"
@@ -113,7 +113,7 @@ static void runtime_init(int argc, char **argv)
         {"stile-col",   required_argument,  0, 'e'},
         {"xcheck",      no_argument,        0, 'x'},
         {"warmup",      optional_argument,  0, 'w'},
-        {"dague",     no_argument,        0, 'd'},
+        {"dague",       no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
         {"block-size",  required_argument,  0, 'B'},
         {"pri_change",  required_argument,  0, 'P'},
@@ -422,6 +422,12 @@ int main(int argc, char ** argv)
         case DO_DAGUE: {
 
     
+            if(do_warmup) {
+                dague = setup_dague(&argc, &argv);
+                warmup_dague(dague);
+                cleanup_dague(dague);
+            }
+
             /*** THIS IS THE DAGUE COMPUTATION ***/
             TIME_START();
             dague = setup_dague(&argc, &argv);
@@ -439,9 +445,6 @@ int main(int argc, char ** argv)
             }
             TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
 
-            if(do_warmup)
-                warmup_dague(dague);
-    
             /* lets rock! */
             SYNC_TIME_START();
             TIME_START();
@@ -452,7 +455,7 @@ int main(int argc, char ** argv)
                              gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
 
             TIME_PRINT(("Dague priority change at position \t%d\n", ddescA.super.nt - pri_change));
-	    data_dump((tiled_matrix_desc_t *) &ddescA);
+	    /*data_dump((tiled_matrix_desc_t *) &ddescA);*/
             cleanup_dague(dague);
             /*** END OF DAGUE COMPUTATION ***/
 
