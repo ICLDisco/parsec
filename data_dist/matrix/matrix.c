@@ -16,6 +16,8 @@
 #include "matrix.h"
 #include "bindthread.h"
 
+void plasma_error(const char *, const char *);
+
 /*
  Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
  generating threads only read Rnd64seed. It is safe to set Rnd64seed before
