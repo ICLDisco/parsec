@@ -30,7 +30,7 @@ static inline int dplasma_atomic_cas_32b( volatile uint32_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 
-#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8) || (defined(__ICL) && (__ICC > 1100))
+#if defined(DPLASMA_ATOMIC_USE_GCC_64_BUILTINS)
 static inline int dplasma_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
