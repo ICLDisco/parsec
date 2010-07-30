@@ -17,7 +17,12 @@
  * and serves as input to the pop_best function.
  * pop_best will pop the first element it finds in the bounded buffer
  * that has the highest score with this ranking function
+ * 
+ * @return an integer value for the element. Bigger is better.
+ *         DPLASMA_RANKING_FUNCTION_BEST means that no other element 
+ *         can be better than this element.
  */
+#define DPLASMA_RANKING_FUNCTION_BEST 0xffffff
 typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(dplasma_list_item_t *elt, void *param);
 
 /** 
@@ -29,19 +34,17 @@ typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(dplasma_list_item_t *elt,
 typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_item_t *elt);
 
 typedef struct dplasma_hbbuffer_t {
-    volatile uint32_t lock;     /**< lock on the buffer */
     size_t size;       /**< the size of the buffer, in number of void* */
-	size_t nbelt;      /**< Number of elemnts in the buffer currently */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dplasma_hbbuffer_parent_push_fct_t parent_push_fct;
-    dplasma_list_item_t *items[1]; /**< array of elements */
+    volatile dplasma_list_item_t *items[1]; /**< array of elements */
 } dplasma_hbbuffer_t;
 
 static inline dplasma_hbbuffer_t *dplasma_hbbuffer_new(size_t size,  size_t ideal_fill,
-                                                       dplasma_hbbuffer_parent_push_fct_t parent_push_fct,
-                                                       void *parent_store)
+                                                   dplasma_hbbuffer_parent_push_fct_t parent_push_fct,
+                                                   void *parent_store)
 {
     /** Must use calloc to ensure that all ites are set to NULL */
     dplasma_hbbuffer_t *n = (dplasma_hbbuffer_t*)calloc(1, sizeof(dplasma_hbbuffer_t) + (size-1)*sizeof(dplasma_list_item_t*));
@@ -62,115 +65,110 @@ static inline void dplasma_hbbuffer_destroy(dplasma_hbbuffer_t *b)
 static inline void dplasma_hbbuffer_push_all(dplasma_hbbuffer_t *b, dplasma_list_item_t *elt)
 {
     dplasma_list_item_t *next;
-    int nbelt, i;
+    int i, nbelt;
+
 
     nbelt = 0;
     next = elt;
-    dplasma_atomic_lock(&b->lock);
-    for(i = 0; (i < b->size) && (NULL != elt); i++) {
-        if( NULL != b->items[i] )
-            continue;
-
+    while( NULL != elt ) {
+        /* Assume that we're going to push elt.
+         * Remove the first element from the list, keeping the rest of the list in next
+         */
         next = (dplasma_list_item_t *)elt->list_next;
         if(next == elt) {
             next = NULL;
         }
         elt->list_next->list_prev = elt->list_prev;
         elt->list_prev->list_next = elt->list_next;
+
         elt->list_prev = elt;
         elt->list_next = elt;
-        DEBUG(("Pushing (all) %p in %p\n", elt, b));
-        b->items[i] = elt;
-        nbelt++;
+
+        /* Try to find a room for elt */
+        for(i = 0; i < b->size; i++) {
+            if( dplasma_atomic_cas(&b->items[i], NULL, elt) == 0 )
+                continue;
+
+            /* Found an empty space to push the first element. */
+            nbelt++;
+            break;
+        }
+
+        if( i == b->size ) {
+            /* It was impossible to push elt */
+            break;
+        }
 
         elt = next;
     }
-	b->nbelt += nbelt;
-    dplasma_atomic_unlock(&b->lock);
 
     DEBUG(("pushed %d elements. %s\n", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done"));
 
-    if( NULL != next ) {
-        b->parent_push_fct(b->parent_store, next);
-    }
-}
+    if( elt != NULL ) {
 
-static inline int dplasma_hbbuffer_push_ideal_nonrec(dplasma_hbbuffer_t *b, dplasma_list_item_t **elt)
-{
-    dplasma_list_item_t *next;
-    int i, nbelt;
-
-    next = (*elt);
-    nbelt = 0;
-    dplasma_atomic_lock(&b->lock);
-    for(i = 0; (b->nbelt < b->ideal_fill) && (i < b->size); i++) {
-        if( NULL != b->items[i] )
-            continue;
-
-        next = (dplasma_list_item_t *)(*elt)->list_next;
-        if(next == (*elt)) {
-            next = NULL;
+        if( NULL != next ) {
+            /* Rechain elt to next */
+            elt->list_next = next;
+            elt->list_prev = next->list_prev;
+            next->list_prev->list_next = elt;
+            next->list_prev = elt;
         }
-        (*elt)->list_next->list_prev = (*elt)->list_prev;
-        (*elt)->list_prev->list_next = (*elt)->list_next;
-        (*elt)->list_prev = (*elt);
-        (*elt)->list_next = (*elt);
-        DEBUG(("Pushing (ideal) %p in %p\n", (*elt), b));
-        b->items[i] = (*elt);
-        b->nbelt++;
-        nbelt++;
 
-        if( next == NULL )
-            break;
-        (*elt) = next;
+        b->parent_push_fct(b->parent_store, elt);
     }
-    dplasma_atomic_unlock(&b->lock);
-
-    DEBUG(("pushed %d elements. %s\n", nbelt, NULL != next ? "I'm ideally filled up" : "Everything pushed - I could still take more"));
-    return (NULL == next);
 }
 
+/* This code is unsafe, since another thread may be inserting new elements.
+ * Use is_empty in safe-checking only 
+ */
 static inline int dplasma_hbbuffer_is_empty(dplasma_hbbuffer_t *b)
 {
-    int ret = 1, i;
-    dplasma_atomic_lock(&b->lock);
-	ret = (b->nbelt == 0);
-    dplasma_atomic_unlock(&b->lock);
-    return ret;
+    int i;
+    for(i = 0; i < b->size; i++)
+        if( NULL != b->items[i] )
+            return 0;
+    return 1;
 }
 
-static dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t *b,
-                                                      dplasma_hbbuffer_ranking_fct_t rank_function,
-                                                      void *rank_function_param)
+static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t *b, 
+                                                         dplasma_hbbuffer_ranking_fct_t rank_function, 
+                                                         void *rank_function_param)
 {
     int idx;
     dplasma_list_item_t *best_elt = NULL;
     int best_idx = -1;
     unsigned int best_rank = 0, rank;
+    dplasma_list_item_t *candidate;
+    
+    do {
+        best_elt = NULL;
+        best_idx = -1;
+        best_rank = 0;
 
-    dplasma_atomic_lock(&b->lock);
-    dplasma_mfence();
-    for(idx = 0; idx < b->size; idx++) {
-        if( NULL == b->items[idx] )
-            continue;
+        for(idx = 0; idx < b->size; idx++) {
+            if( NULL == (candidate = (dplasma_list_item_t *)b->items[idx]) )
+                continue;
 
-        DEBUG(("Found non NULL element in %p at position %d/%d\n", b, idx, (int)b->size));
+            rank = rank_function(candidate, rank_function_param);
+            if( (NULL == best_elt) || (rank == DPLASMA_RANKING_FUNCTION_BEST) || (rank > best_rank) ) {
+                best_rank = rank;
+                best_elt  = candidate;
+                best_idx  = idx;
 
-        rank = rank_function(b->items[idx], rank_function_param);
-        if( rank > best_rank ) {
-            best_rank = rank;
-            best_elt  =  b->items[idx];
-            best_idx  = idx;
+                if( DPLASMA_RANKING_FUNCTION_BEST == rank )
+                    break;
+            }
         }
-    }
+        
+        if( NULL == best_elt)
+            break;
+
+    } while( dplasma_atomic_cas( &b->items[best_idx], best_elt, NULL ) == 0 );
+
     /** Removes the element from the buffer. */
 	if( best_elt != NULL ) {
-        b->items[best_idx] = NULL;
-        b->nbelt--;
+        DEBUG(("Found best element at position %d\n", best_idx));
 	}
-    dplasma_atomic_unlock(&b->lock);
-
-    DEBUG(("pop best %p from %p\n", best_elt, b));
 
     return best_elt;
 }
