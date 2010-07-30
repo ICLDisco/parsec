@@ -38,7 +38,7 @@ typedef struct _gpu_device {
 } gpu_device_t;
 
 #if DPLASMA_SMART_SCHEDULING
-typedef struct _gpu_item{
+typedef struct _gpu_item {
 	int gpu_id;
 	int func1_usage;
 	int func1_current;
@@ -47,7 +47,7 @@ typedef struct _gpu_item{
 	int working;
 	volatile int32_t *waiting;
 	dplasma_atomic_lifo_t gpu_devices;
-}gpu_item_t;
+} gpu_item_t;
 gpu_item_t* gpu_array;
 #endif
 

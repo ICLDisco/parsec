@@ -17,13 +17,15 @@ extern DPLASMA_desc ddescA;
 #define DPLASMA_CONTEXT_PER_GPU 1
 
 #if DPLASMA_SMART_SCHEDULING
-	float	cpu_usage = 4.0;		/* CPU core is slower than the fastest GPU 7.0 times */
-	gpu_device_t* get_best_gpu(int);	/* Function to get best choice of avaiblable Contexts !! */
-#else						/* I don't use gpu_devices anymore, I will be subset of gpu-array */
-						/* gpu_array - list of GPU by order of their performance */
-	dplasma_atomic_lifo_t gpu_devices;	
+float	cpu_usage = 4.0;                 /* CPU core is slower than the fastest GPU 7.0 times */
+static gpu_device_t* get_best_gpu(int);  /* Function to get best choice of avaiblable Contexts !! */
+#else						/* We don't use gpu_devices, instead we use a subset of gpu-array
+                             * gpu_array - list of GPU by order of their performance
+                             */
+dplasma_atomic_lifo_t gpu_devices;	
 #endif
-int dplasma_show_detailed_capabilities = 0;
+
+int dplasma_show_detailed_capabilities = 1;
 volatile int32_t cpu_counter = 0;
 int ndevices = 0;
 #if defined(DPLASMA_PROFILING)
@@ -39,34 +41,35 @@ int spotrf_cuda_init( int* puse_gpu )
 {
     cublasStatus cublas_status;
     CUdevice hcuDevice;
-    int i, j, k;
+    int i, j;
 
-    if( (*puse_gpu) != -1){
-        cuInit(0);
+    if( (*puse_gpu) == -1 ) {
+        return -1;  /* Nothing to do around here */
+    }
+    cuInit(0);
 #if DPLASMA_SMART_SCHEDULING
 	/* do not need to construct gpu_devices ! */
 #else
-        dplasma_atomic_lifo_construct(&gpu_devices);
+    dplasma_atomic_lifo_construct(&gpu_devices);
 #endif
-        cuDeviceGetCount( &ndevices );
+    cuDeviceGetCount( &ndevices );
 
-        if( ndevices > (*puse_gpu) )
-            ndevices = (*puse_gpu);
-        /* Update the number of GPU for the upper layer */
-        *puse_gpu = ndevices;
-        if( 0 == ndevices ) {
-            return -1;
-        }	
+    if( ndevices > (*puse_gpu) )
+        ndevices = (*puse_gpu);
+    /* Update the number of GPU for the upper layer */
+    *puse_gpu = ndevices;
+    if( 0 == ndevices ) {
+        return -1;
+    }	
 #if DPLASMA_SMART_SCHEDULING
 	CUresult status;
 	CUdevice hcuDevice_; /* use to compare */
 	/* Choose GPU by requirement [Capability - sometimes > 1.3 because of needs of double precision ]*/
-        int pi,pi_,tmp,major,minor;
-	int rmajor=1, rminor=1;
+    int pi, pi_, tmp ,major, minor;
+	int rmajor = 1, rminor = 1;
 	/* gpu_array - list of GPU which we're gonna use ! */
 	gpu_array = (gpu_item_t*)calloc(ndevices, sizeof(gpu_item_t));
-	j = 0;
-	for(i = 0; i < ndevices; i++){
+	for(i = j = 0; i < ndevices; i++){
 		status = cuDeviceGet( &hcuDevice, i );
 		/* PASS requirement ?*/
 		cuDeviceComputeCapability(&major, &minor, hcuDevice);
@@ -98,10 +101,10 @@ int spotrf_cuda_init( int* puse_gpu )
 	/* Sort GPU by Multiprocessor count */
 	/* gpu_array[ best -> worst ] */
 	/* We will be able to choose best available , near 0 */
-	if(ndevices > 1){
-		for(i = 0; i < ndevices - 1 ; i++){
-			for(j = 0; j < ndevices - 1; j++){
-				status = cuDeviceGet( &hcuDevice, gpu_array[j].gpu_id );
+	if( ndevices > 1 ) {
+		for( i = 0; i < (ndevices - 1); i++ ) {
+            for( j = 0; j < (ndevices - 1); j++ ) {
+                status = cuDeviceGet( &hcuDevice, gpu_array[j].gpu_id );
 				DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {*puse_gpu = 0; return -1;} );
 				cuDeviceGetAttribute(&pi, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, hcuDevice);
 				
@@ -126,22 +129,19 @@ int spotrf_cuda_init( int* puse_gpu )
 	}
 	/* Setup default vaule */
 	for( i = 0; i < ndevices ; i++){
-		/* every GPU has their own queue fix at 10 */
+		/* every GPU has their own queue fix at 10, initially set to zero */
 		gpu_array[i].waiting = (int*)calloc(10, sizeof(int));
-		for( j = 0; j < 10 - 1; j++){
-			gpu_array[i].waiting[j] = 0;
-		}
 	}
 #endif
 
 	for( i = 0; i < ndevices; i++ ) {
-            unsigned int total_mem, tile_size, memory_left_for_context, chunk_size;
-            dplasma_atomic_lifo_t* gpu_mem_lifo;
-            gpu_device_t* gpu_device;
-            CUdevprop devProps;
-            char szName[256];
-            CUresult status;
-            int major, minor;
+        unsigned int total_mem, tile_size, thread_gpu_mem, free_mem, nb_allocations;
+        dplasma_atomic_lifo_t* gpu_mem_lifo;
+        gpu_device_t* gpu_device;
+        CUdevprop devProps;
+        char szName[256];
+        CUresult status;
+        int major, minor;
 
 #if DPLASMA_SMART_SCHEDULING
 	    /* instead of go from ID 0 -> n - 1 
@@ -153,151 +153,153 @@ int spotrf_cuda_init( int* puse_gpu )
 	    status = cuDeviceGet( &hcuDevice, i );
 	    DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {*puse_gpu = 0; return -1;} );
 #endif
-            status = cuDeviceGetName( szName, 256, hcuDevice );
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {*puse_gpu = 0; return -1;} );
+        status = cuDeviceGetName( szName, 256, hcuDevice );
+        DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {*puse_gpu = 0; return -1;} );
 
-            status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {*puse_gpu = 0; return -1;} );
+        status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
+        DPLASMA_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {*puse_gpu = 0; return -1;} );
 
-            status = cuDeviceGetProperties( &devProps, hcuDevice );
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {*puse_gpu = 0; return -1;} );
+        status = cuDeviceGetProperties( &devProps, hcuDevice );
+        DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {*puse_gpu = 0; return -1;} );
 
 #if DPLASMA_SMART_SCHEDULING
 	    printf("Device %d (capability %d.%d): %s\n", gpu_array[i].gpu_id, major, minor, szName );
 #else
-            printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
+        printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
 #endif
-            if( dplasma_show_detailed_capabilities ) {
-                printf("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock );
-                printf("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
-                       devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] );
-                printf("\tmaxGridSize        : [%d %d %d]\n", devProps.maxGridSize[0],
-                       devProps.maxGridSize[1], devProps.maxGridSize[2] );
-                printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
-                printf("\tconstantMemory     : %d\n", devProps.totalConstantMemory );
-                printf("\tSIMDWidth          : %d\n", devProps.SIMDWidth );
-                printf("\tmemPitch           : %d\n", devProps.memPitch );
-                printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
-                printf("\tclockRate          : %d\n", devProps.clockRate );
+        if( dplasma_show_detailed_capabilities ) {
+            printf("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock );
+            printf("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
+                   devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] );
+            printf("\tmaxGridSize        : [%d %d %d]\n", devProps.maxGridSize[0],
+                   devProps.maxGridSize[1], devProps.maxGridSize[2] );
+            printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
+            printf("\tconstantMemory     : %d\n", devProps.totalConstantMemory );
+            printf("\tSIMDWidth          : %d\n", devProps.SIMDWidth );
+            printf("\tmemPitch           : %d\n", devProps.memPitch );
+            printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
+            printf("\tclockRate          : %d\n", devProps.clockRate );
 #if 0
-                > 1.2 printf("\tdeviceOverlap    : %ssupported\n", (devProps.deviceOverlap ? "" : "not ") );
-                > 2.0 printf("\tconcurrentKernels: %ssupported\n", (devProps.concurrentKernels ? "" : "not ") );
+            > 1.2 printf("\tdeviceOverlap    : %ssupported\n", (devProps.deviceOverlap ? "" : "not ") );
+            > 2.0 printf("\tconcurrentKernels: %ssupported\n", (devProps.concurrentKernels ? "" : "not ") );
 #endif
-            }
-            status = cuDeviceTotalMem( &total_mem, hcuDevice );
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceTotalMem ", status, {*puse_gpu = 0; return -1;} );
-
-            for( j = 0; j < DPLASMA_CONTEXT_PER_GPU; j++ ) {
-                cudaError_t cuda_status;
-
-                gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
-                DPLASMA_LIST_ITEM_SINGLETON( &(gpu_device->item) );
-
-    	        /* cuCtxCreate: Function works on floating contexts and current context */
-                status = cuCtxCreate( &(gpu_device->ctx), 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
-                DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
-                                          {free(gpu_device); return -1;} );
-
-                {
-                    char module_path[20];
-                    assert(major < 10 && minor < 10);
-                    snprintf(module_path, 20, "mysgemm-sm_%1d%1d.cubin", major, minor);
-                    status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
-                    DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
-                                              {
-                                                  cuCtxDestroy( gpu_device->ctx );
-                                                  free(gpu_device);
-                                                  break;
-                                              } );
-                    
-                    status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, "sgemmNT" );
-                    DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
-                                              {
-                                                  cuCtxDestroy( gpu_device->ctx );
-                                                  free(gpu_device);
-                                                  break;
-                                              } );
-                    cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
-                }
-
-                /**
-                 * Prepare the reusable memory on the GPU.
-                 */
-                dplasma_data_map_init( gpu_device, &ddescA );
-                /**
-                 * It appears that CUDA allocate the memory in chunks of 1MB,
-                 * so we need to adapt to this.
-                 */
-                tile_size = ddescA.mb*ddescA.nb*sizeof(float);
-                chunk_size = (tile_size + 1024*1024-1) & ~(1024*1024);
-                memory_left_for_context = (total_mem - total_mem / 100) / DPLASMA_CONTEXT_PER_GPU;
-                for( k = 0; tile_size < memory_left_for_context; k++ ) {
-                    gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
-                    dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
-
-                    cuda_status = cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
-                    DPLASMA_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
-                                              ({
-                                                  unsigned int free_mem, total_mem;
-                                                  cuMemGetInfo( &free_mem, &total_mem );
-                                                  printf("Per context: free mem %u total mem %u\n", free_mem, total_mem);
-                                                  break;
-                                              }) );
-                    gpu_elem->memory_elem = NULL;
-                    dplasma_linked_list_add_tail( gpu_device->gpu_mem_lru, (dplasma_list_item_t*)gpu_elem );
-                    memory_left_for_context -= chunk_size;
-                }
-                printf( "Allocate %d tiles on the GPU memory\n", k );
-#if DPLASMA_SMART_SCHEDULING
-                /* because GPU might not be in sequence
-		 * but we can get the GPU ID from gpu_array[i].gpu_id
-		 * Don't forget - we're running around gpu_array[i] -> n-1
-		 *  */
-                gpu_device->id = gpu_array[i].gpu_id;
-#else
-                gpu_device->id  = i;
-#endif
-                gpu_device->executed_tasks = 0;
-                gpu_device->transferred_data_in = 0;
-                gpu_device->transferred_data_out = 0;
-
-                status = cuCtxPopCurrent(NULL);
-                DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
-                                          {free(gpu_device); return -1;} );
-
-#if defined(DPLASMA_PROFILING)
-	#if DPLASMA_SMART_SCHEDULING
-		gpu_device->profiling = dplasma_profiling_thread_init( 6*4096, "GPU %d.%d", gpu_array[i].gpu_id, j);
-	#else
-                gpu_device->profiling = dplasma_profiling_thread_init( 6*4096, "GPU %d.%d", i, j );
-	#endif
-#endif  /* defined(PROFILING) */
-
-#if DPLASMA_SMART_SCHEDULING
-		/* After use context, GPUs will not know which gpu_array id they are up to */
-		/* I will put lifoid for them !! */
-                gpu_device->lifoid = i;
-		dplasma_atomic_lifo_push( &(gpu_array[i].gpu_devices), (dplasma_list_item_t*)gpu_device);
-		printf("\t\tPush context into list[%d] for GPU[%d]\n",i,gpu_array[i].gpu_id);
-#else
-		dplasma_atomic_lifo_push( &(gpu_devices), (dplasma_list_item_t*)gpu_device );
-#endif
-
-            }
         }
+        status = cuDeviceTotalMem( &total_mem, hcuDevice );
+        DPLASMA_CUDA_CHECK_ERROR( "cuDeviceTotalMem ", status, {*puse_gpu = 0; return -1;} );
 
+        for( j = 0; j < DPLASMA_CONTEXT_PER_GPU; j++ ) {
+            cudaError_t cuda_status;
+
+            gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
+            DPLASMA_LIST_ITEM_SINGLETON( &(gpu_device->item) );
+
+            /* cuCtxCreate: Function works on floating contexts and current context */
+            status = cuCtxCreate( &(gpu_device->ctx), 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
+            DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
+                                      {free(gpu_device); return -1;} );
+
+            {
+                char module_path[20];
+                assert(major < 10 && minor < 10);
+                snprintf(module_path, 20, "mysgemm-sm_%1d%1d.cubin", major, minor);
+                status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
+                DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
+                                          {
+                                              cuCtxDestroy( gpu_device->ctx );
+                                              free(gpu_device);
+                                              break;
+                                          } );
+                    
+                status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, "sgemmNT" );
+                DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
+                                          {
+                                              cuCtxDestroy( gpu_device->ctx );
+                                              free(gpu_device);
+                                              break;
+                                          } );
+                cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
+            }
+
+            /**
+             * Prepare the reusable memory on the GPU.
+             */
+            dplasma_data_map_init( gpu_device, &ddescA );
+            /**
+             * It appears that CUDA allocate the memory in chunks of 1MB,
+             * so we need to adapt to this.
+             */
+            tile_size = ddescA.mb * ddescA.nb * sizeof(float);
+            cuMemGetInfo( &free_mem, &total_mem );
+            /* We allocate 9/10 of the total memory */
+            thread_gpu_mem = (total_mem - total_mem / 10) / DPLASMA_CONTEXT_PER_GPU;
+
+            while( free_mem > (total_mem - thread_gpu_mem) ) {
+                gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
+                dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
+                
+                cuda_status = cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
+                DPLASMA_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
+                                          ({
+                                              unsigned int free_mem, total_mem;
+                                              cuMemGetInfo( &free_mem, &total_mem );
+                                              printf("Per context: free mem %u total mem %u\n", free_mem, total_mem);
+                                              free( gpu_elem );
+                                              break;
+                                          }) );
+                nb_allocations++;
+                gpu_elem->memory_elem = NULL;
+                dplasma_linked_list_add_tail( gpu_device->gpu_mem_lru, (dplasma_list_item_t*)gpu_elem );
+                cuMemGetInfo( &free_mem, &total_mem );
+            }
+            printf( "Allocate %d tiles on the GPU memory\n", nb_allocations );
+#if DPLASMA_SMART_SCHEDULING
+            /* because GPU might not be in sequence
+             * but we can get the GPU ID from gpu_array[i].gpu_id
+             * Don't forget - we're running around gpu_array[i] -> n-1
+             *  */
+            gpu_device->id = gpu_array[i].gpu_id;
+#else
+            gpu_device->id  = i;
+#endif
+            gpu_device->executed_tasks = 0;
+            gpu_device->transferred_data_in = 0;
+            gpu_device->transferred_data_out = 0;
+
+            status = cuCtxPopCurrent(NULL);
+            DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
+                                      {free(gpu_device); return -1;} );
+            
 #if defined(DPLASMA_PROFILING)
-        dplasma_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                                  &movein_key_start, &movein_key_end);
-        dplasma_profiling_add_dictionary_keyword( "compute", "fill:#ff33cc",
-                                                  &compute_key_start, &compute_key_end);
-        dplasma_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                                  &moveout_key_start, &moveout_key_end);
+#if DPLASMA_SMART_SCHEDULING
+            gpu_device->profiling = dplasma_profiling_thread_init( 6*4096, "GPU %d.%d", gpu_array[i].gpu_id, j);
+#else
+            gpu_device->profiling = dplasma_profiling_thread_init( 6*4096, "GPU %d.%d", i, j );
+#endif
 #endif  /* defined(PROFILING) */
 
-        return 0;
+#if DPLASMA_SMART_SCHEDULING
+            /* After use context, GPUs will not know which gpu_array id they are up to */
+            /* I will put lifoid for them !! */
+            gpu_device->lifoid = i;
+            dplasma_atomic_lifo_push( &(gpu_array[i].gpu_devices), (dplasma_list_item_t*)gpu_device);
+            printf("\t\tPush context into list[%d] for GPU[%d]\n",i,gpu_array[i].gpu_id);
+#else
+            dplasma_atomic_lifo_push( &(gpu_devices), (dplasma_list_item_t*)gpu_device );
+#endif
+
+        }
     }
-    return -1;
+
+#if defined(DPLASMA_PROFILING)
+    dplasma_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
+                                              &movein_key_start, &movein_key_end);
+    dplasma_profiling_add_dictionary_keyword( "compute", "fill:#ff33cc",
+                                              &compute_key_start, &compute_key_end);
+    dplasma_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
+                                              &moveout_key_start, &moveout_key_end);
+#endif  /* defined(PROFILING) */
+
+    return 0;
 }
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit )
@@ -526,28 +528,16 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
         CU_PUSH_FLOAT(   gpu_device->hcuFunction, offset, alpha );
         CU_PUSH_FLOAT(   gpu_device->hcuFunction, offset, beta );
         cuParamSetSize( gpu_device->hcuFunction, offset );
-CUevent start, stop;
-cuEventCreate(&start, 0);
-cuEventCreate(&stop, 0);
-cuEventRecord(start, 0);
+
         // cuLaunch: we kick off the CUDA
         status = cuLaunchGrid( gpu_device->hcuFunction,
                                ddescA.nb / 64,
                                ddescA.nb / 16 );
-        if ( CUDA_SUCCESS != status ) {
-            printf( "cuLaunch failed %d\n", status );
-            return -1;
-        }
+        DPLASMA_CUDA_CHECK_ERROR( "cuLaunchGrid ", status,
+                                  {return -1;} );
         status = cuCtxSynchronize();
         DPLASMA_CUDA_CHECK_ERROR( "cuCtxSynchronize", status,
                                   {goto release_and_return_error;} );
-
-cuEventRecord(stop, 0);
-cuEventSynchronize(stop);
-float elapsedTime;
-cuEventElapsedTime(&elapsedTime, start, stop);
-/*printf("%d: Compute: %.6f ms\n",gpu_device->id,elapsedTime);*/
-
 
 #if defined(DPLASMA_PROFILING)
         dplasma_profiling_trace( gpu_device->profiling, compute_key_end, 1 );
@@ -585,9 +575,9 @@ cuEventElapsedTime(&elapsedTime, start, stop);
                                   {goto return_error;} );
     return_error:
 #if DPLASMA_SMART_SCHEDULING
-	/* push it back in right place */
-	dplasma_atomic_lifo_push(&(gpu_array[gpu_device->lifoid].gpu_devices), (dplasma_list_item_t*)gpu_device);
-	gpu_array[gpu_device->lifoid].working = 0;
+        /* push it back in right place */
+        dplasma_atomic_lifo_push(&(gpu_array[gpu_device->lifoid].gpu_devices), (dplasma_list_item_t*)gpu_device);
+        gpu_array[gpu_device->lifoid].working = 0;
 #else
         dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
 #endif
@@ -598,7 +588,8 @@ cuEventElapsedTime(&elapsedTime, start, stop);
     return -1;  /* fails to atomically get the ownership of the device */
 }
 #if DPLASMA_SMART_SCHEDULING
-gpu_device_t* get_best_gpu(int priority){
+gpu_device_t* get_best_gpu(int priority)
+{
 	/* priority made for supporting 2 many functions , default is 0 */
 	int i,j,diff,still = 0;
 	gpu_device_t* gpu_device;
