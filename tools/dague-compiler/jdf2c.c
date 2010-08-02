@@ -2289,10 +2289,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
 
     sa_close = string_arena_new(64);
 
+    nbopen = 0;
+
     string_arena_add_string(sa_open, "%s%*s%s.function = (const dague_t*)&%s_%s;\n",
                             prefix, nbopen, "  ", var, jdf_basename, t->fname);
-
-    nbopen = 0;
     for(el = call->parameters, nl = t->parameters, i = 0; 
         el != NULL && nl != NULL; 
         el = el->next, nl = nl->next, i++) {
@@ -2336,14 +2336,14 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
             string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                     t->fname, nl->name, 
                                     dump_expr((void**)&def->expr->jdf_ba2, &linfo));
-            string_arena_add_string(sa_close, "%s%*s}\n", prefix,nbopen, "  ");
+            string_arena_add_string(sa_close, "%s%*s}\n", prefix, nbopen, "  ");
             nbopen++;
         } else {
             string_arena_add_string(sa_open, 
                                     "%s%*s  if( (%s_%s == (%s))", 
                                     prefix, nbopen, "  ", t->fname, nl->name, 
                                     dump_expr((void**)&def->expr, &linfo));
-            string_arena_add_string(sa_close, "%s%*s}\n", prefix,nbopen, "  ");
+            string_arena_add_string(sa_close, "%s%*s}\n", prefix, nbopen, "  ");
             nbopen++;
         }
         
@@ -2395,7 +2395,6 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
-    string_arena_t *sa_src = string_arena_new(64);
     int flownb, depnb;
     assignment_info_t ai;
     expr_info_t info;
@@ -2435,9 +2434,6 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
         depnb = 0;
         for(dl = fl->flow->deps; dl != NULL; dl = dl->next) {
             if( dl->dep->type & JDF_DEP_TYPE_OUT )  {
-
-                string_arena_init(sa_src);
-
                 string_arena_init(sa);
                 string_arena_add_string(sa, "ontask(eu, &nc, exec_context, %d, %d, rank_src, rank_dst, ontask_arg)",
                                         flownb, depnb);
@@ -2447,9 +2443,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     if( NULL != dl->dep->guard->calltrue->var) {
                         flowempty = 0;
                         
-                        coutput("%s\n"
-                                "%s\n",
-                                string_arena_get_string(sa_src),
+                        coutput("%s\n",
                                 jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
                                                             "  ", "nc") );
                     } else {
@@ -2460,11 +2454,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     if( NULL != dl->dep->guard->calltrue->var ) {
                         flowempty = 0;
                         coutput("  if( %s ) {\n"
-                                "  %s\n"
                                 "%s\n"
                                 "  }\n",
                                 dump_expr((void**)&dl->dep->guard->guard, &info),
-                                string_arena_get_string(sa_src),
                                 jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
                                                             "    ", "nc") );
                     } else {
@@ -2475,11 +2467,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     if( NULL != dl->dep->guard->calltrue->var ) {
                         flowempty = 0;
                         coutput("  if( %s ) {\n"
-                                "  %s\n"
                                 "%s\n"
                                 "  }",
                                 dump_expr((void**)&dl->dep->guard->guard, &info),
-                                string_arena_get_string(sa_src),
                                 jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
                                                             "    ", "nc"));
 
@@ -2490,10 +2480,8 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
                         if( NULL != dl->dep->guard->callfalse->var ) {
                             coutput(" else {\n"
-                                    "  %s\n"
                                     "%s\n"
                                     "  }\n",
-                                    string_arena_get_string(sa_src),
                                     jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->callfalse, dl->dep->lineno, 
                                                                 "    ", "nc") );
                         } else {
@@ -2508,11 +2496,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                         if( NULL != dl->dep->guard->callfalse->var ) {
                             flowempty = 0;
                             coutput("  if( !(%s) ) {\n"
-                                    "  %s\n"
                                     "%s\n"
                                     "  }\n",
                                     dump_expr((void**)&dl->dep->guard->guard, &info),
-                                    string_arena_get_string(sa_src),
                                     jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->callfalse, dl->dep->lineno, 
                                                                 "    ", "nc") );
                         } else {
@@ -2542,7 +2528,6 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     string_arena_free(sa);
     string_arena_free(sa1);
     string_arena_free(sa2);
-    string_arena_free(sa_src);
 }
 
 
