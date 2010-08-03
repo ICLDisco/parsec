@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <string.h>
 #include "data_distribution.h"
 #include "matrix.h"
 #include "bindthread.h"
@@ -48,6 +49,12 @@ Rnd64_jump(unsigned long long int n) {
   return ran;
 }
 
+void create_tile_zero_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+{
+    (void)row;
+    (void)col;
+    memset( position, 0, Ddesc->bsiz * sizeof(float) );
+}
 
 void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
 {
@@ -96,6 +103,12 @@ void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row
     }
 }
 
+void create_tile_zero_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+{
+    (void)row;
+    (void)col;
+    memset( position, 0, Ddesc->bsiz * sizeof(double) );
+}
 
 void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
 {
@@ -196,7 +209,8 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
     int tiles_coord_size;      /* size of the above table */
-    int i, j, pos = 0;
+    unsigned int i;
+    int j, pos = 0;
     pthread_t *threads;
     pthread_attr_t thread_attr;
     info_tiles_t * info_gen;
@@ -206,7 +220,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 
     /* check which tiles to generate */
     for ( j = 0 ; j < Mdesc->lnt ; j++)
-        for ( i = 0 ; i < Mdesc->lmt ; i++)
+        for ( i = 0 ; i < (unsigned int)Mdesc->lmt ; i++)
             {
                 if(Mdesc->super.myrank ==
                    Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j ))
@@ -239,7 +253,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
             info_gen[i].nb_elements = pos / Mdesc->super.cores;
             info_gen[i].starting_position = j;
             j += info_gen[i].nb_elements;
-            if (mtype) /* cholesky like generation (symetric, diagonal dominant) */
+            if (mtype == 1) /* cholesky like generation (symetric, diagonal dominant) */
                 {
                     if(Mdesc->mtype == matrix_RealFloat) 
                         {
@@ -258,7 +272,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
                         }
 
                 }
-            else /* LU like generation */
+            else if (mtype == 0)/* LU like generation */
                 {
                     if(Mdesc->mtype == matrix_RealFloat) 
                         {
@@ -267,6 +281,24 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
                     else if (Mdesc->mtype == matrix_RealDouble)
                         {
                             info_gen[i].gen_fct = create_tile_lu_double;
+                        }
+                    else /* unknown type */
+                        {
+                            printf("unknown generation type: aborting generation\n");
+                            free (info_gen);
+                            free(tiles);
+                            return;
+                        }
+                }
+            else if(mtype == 2)
+                {
+                    if(Mdesc->mtype == matrix_RealFloat) 
+                        {
+                            info_gen[i].gen_fct = create_tile_zero_float;
+                        }
+                    else if (Mdesc->mtype == matrix_RealDouble)
+                        {
+                            info_gen[i].gen_fct = create_tile_zero_double;
                         }
                     else /* unknown type */
                         {
@@ -313,6 +345,11 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
     free(info_gen);
     free(tiles);
     return;
+}
+
+void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc)
+{
+    rand_dist_matrix(Mdesc, 2);
 }
 
 void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc)
