@@ -195,6 +195,8 @@ int spotrf_cuda_init( int* puse_gpu )
 
             gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
             DPLASMA_LIST_ITEM_SINGLETON( &(gpu_device->item) );
+            gpu_device->major = major;
+            gpu_device->minor = minor;
 
             /* cuCtxCreate: Function works on floating contexts and current context */
             status = cuCtxCreate( &(gpu_device->ctx), 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
@@ -220,8 +222,11 @@ int spotrf_cuda_init( int* puse_gpu )
                                               free(gpu_device);
                                               break;
                                           } );
-                cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
-                /*cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 4, 1 );*/
+                if( 1 == major ) {
+                    cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
+                } else {
+                    cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 4, 1 );
+                }
             }
 
             /**
@@ -453,7 +458,8 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     CUdeviceptr d_A, d_B, d_C;
     gpu_device_t* gpu_device;
-    int offset, on_gpu, return_code = -1, tile_size;  /* by default suppose an error */
+    int offset, on_gpu, return_code = 1, tile_size;  /* by default suppose an error */
+    int grid_width, grid_height;
     void* ptr;
 
 #if DPLASMA_SMART_SCHEDULING
@@ -534,9 +540,16 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
         cuParamSetSize( gpu_device->hcuFunction, offset );
 
         // cuLaunch: we kick off the CUDA
+        if( 1 == gpu_device->major ) {
+            grid_width  = ddescA.nb / 64 + (ddescA.nb % 64 != 0);
+            grid_height = ddescA.nb / 16 + (ddescA.nb % 16 != 0);
+        } else {
+            grid_width  = ddescA.nb / 64 + (ddescA.nb % 64 != 0);
+            grid_height = ddescA.nb / 64 + (ddescA.nb % 64 != 0);
+        }
         status = cuLaunchGrid( gpu_device->hcuFunction,
-                               ddescA.nb / 64,
-                               ddescA.nb / 16 );
+                               grid_width, grid_height);
+
         DPLASMA_CUDA_CHECK_ERROR( "cuLaunchGrid ", status,
                                   {return -1;} );
         status = cuCtxSynchronize();
@@ -589,7 +602,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m )
         return return_code;
     }
     dplasma_atomic_inc_32b(&cpu_counter);
-    return -1;  /* fails to atomically get the ownership of the device */
+    return 1;  /* fails to atomically get the ownership of the device */
 }
 #if DPLASMA_SMART_SCHEDULING
 gpu_device_t* get_best_gpu(int priority)

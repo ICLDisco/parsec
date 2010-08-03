@@ -24,6 +24,8 @@ typedef struct _gpu_device {
     CUfunction hcuFunction;
     int id;
     int executed_tasks;
+    int major;
+    int minor;
 #if DPLASMA_SMART_SCHEDULING
     int lifoid;
 #endif
