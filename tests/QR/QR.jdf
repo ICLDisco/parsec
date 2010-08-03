@@ -16,6 +16,8 @@ extern "C" %{
 extern MPI_Datatype LITTLE_T, UPPER_TILE, LOWER_TILE;
 #endif
 
+#undef DAGUE_DRY_RUN
+
 int PLASMA_INFO;
 
 #define OUTPUT(ARGS) printf ARGS
@@ -126,7 +128,17 @@ BODY
     dague_private_memory_push(tau_pool, tau);
     dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dgeqrt"));
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool); 
+    OUTPUT(( "CORE_dgeqrt(%d, %d, %d, %p, %d, %p, %d, %p, %p)\n",
+              (k == (MT-1)) ? (M-(k*NB)) : NB,
+              (k == (NT-1)) ? (N-(k*NB)) : NB,
+              MB,
+              RV1 /*A(k, k)*/, NB,
+              T /*T(k, k)*/, MB,
+              tau, work));
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
 #endif  /* DAGUE_DRY_RUN */
 END
 
@@ -168,7 +180,7 @@ BODY
     CORE_dtsqrt(
         (m == (MT-1)) ? (M-(m*NB)) : NB,
         (k == (NT-1)) ? (N-(k*NB)) : NB,
-        M,
+        MB,
         R  /*A(k, k)*/, NB,
         V2 /*A(m, k)*/, NB,
         T  /*T(m, k)*/, MB,
@@ -176,7 +188,18 @@ BODY
     dague_private_memory_push(tau_pool, tau);
     dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dtsqrt"));
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool);
+    OUTPUT(( "CORE_dtsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
+             (m == (MT-1)) ? (M-(m*NB)) : NB,
+             (k == (NT-1)) ? (N-(k*NB)) : NB,
+             MB,
+             R  /*A(k, k)*/, NB,
+             V2 /*A(m, k)*/, NB,
+             T  /*T(m, k)*/, MB,
+             tau, work));
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
 #endif  /* DAGUE_DRY_RUN */
 END
 
@@ -209,7 +232,18 @@ BODY
         work, NB);
     dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dormqr"));
+    void* work = dague_private_memory_pop(work_pool);
+    OUTPUT(( "CORE_dormqr(%s, %s, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+             "PlasmaLeft", "PlasmaTrans",
+             (k == (MT-1)) ? (M-(k*NB)) : NB,
+             (n == (NT-1)) ? (N-(n*NB)) : NB,
+             MB,
+             (k == (MT-1)) ? (M-(k*NB)) : NB,
+             V1 /*A(k, k)*/, NB,
+             T  /*T(k, k)*/, MB,
+             C1 /*A(k, n)*/, NB,
+             work, NB ));
+    dague_private_memory_push(work_pool, work);
 #endif  /* DAGUE_DRY_RUN */ 
 END
 
@@ -264,7 +298,20 @@ BODY
         work, MB);
     dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dssmqr"));
+    void* work = dague_private_memory_pop(work_pool);
+    OUTPUT(( "CORE_dssmqr(%s, %s, %d, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+             "PlasmaLeft", "PlasmaTrans",
+             NB,
+             (m == (MT-1)) ? (M-(m*NB)) : NB,
+             (n == (NT-1)) ? (N-(n*NB)) : NB,
+             MB,
+             NB,
+             C1 /*A(k, n)*/, NB,
+             C2 /*A(m, n)*/, NB,
+             V2 /*A(m, k)*/, NB,
+             T  /*T(m, k)*/, MB,
+             work, MB));
+    dague_private_memory_push(work_pool, work);
 #endif  /* DAGUE_DRY_RUN */ 
 END
 
