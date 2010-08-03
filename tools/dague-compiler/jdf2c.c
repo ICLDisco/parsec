@@ -1149,11 +1149,11 @@ static void jdf_generate_enumerate_locals(const jdf_t *jdf, const jdf_function_e
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(const __dague_cholesky_internal_object_t *__dague_object)\n"
+    coutput("static int %s(const __dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
             "%s"
             "  int nb = 0;\n",
-            fname,
+            fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
                                  "", "  int ", ";\n", ";\n"));
 
@@ -1208,12 +1208,12 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static void %s(const __dague_cholesky_internal_object_t *__dague_object)\n"
+    coutput("static void %s(const __dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
             "  dague_dependencies_t *dep;\n"
             "  int __foundone;\n"
             "%s",
-            fname,
+            fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
                                  "", "  int ", ";\n", ";\n"));
     coutput("%s"
@@ -1450,9 +1450,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_generate_predicate_expr(jdf, f->definitions, f->fname, prefix);
     string_arena_add_string(sa, "  .pred = &%s,\n", prefix);
 
-    sprintf(prefix, "priority_of_%s_%s_as_expr", jdf_basename, f->fname);
-    jdf_generate_expression(jdf, f->definitions, f->priority, prefix);
-    string_arena_add_string(sa, "  .priority = &%s,\n", prefix);
+    if( NULL != f->priority ) {
+        sprintf(prefix, "priority_of_%s_%s_as_expr", jdf_basename, f->fname);
+        jdf_generate_expression(jdf, f->definitions, f->priority, prefix);
+        string_arena_add_string(sa, "  .priority = &%s,\n", prefix);
+    } else {
+        string_arena_add_string(sa, "  .priority = NULL,\n");
+    }
 
     sprintf(prefix, "param_of_%s_%s_for_", jdf_basename, f->fname);
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
@@ -1556,8 +1560,10 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     coutput("/** Predeclarations of the dague_t objects */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         coutput("static const dague_t %s_%s;\n", jdf_basename, f->fname);
-        coutput("static inline int priority_of_%s_%s_as_expr_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments);\n", 
-                jdf_basename, f->fname);
+        if( NULL != f->priority ) {
+            coutput("static inline int priority_of_%s_%s_as_expr_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments);\n", 
+                    jdf_basename, f->fname);
+        }
     }
     coutput("/** Declarations of the pseudo-dague_t objects for data */\n"
             "%s\n",
@@ -2376,8 +2382,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     free(p);
     linfo.prefix = NULL;
 
-    string_arena_add_string(sa_open, "%s%*s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
-                            prefix, nbopen, "  ", var, jdf_basename, t->fname);
+    if( NULL != t->priority ) {
+        string_arena_add_string(sa_open, "%s%*s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
+                                prefix, nbopen, "  ", var, jdf_basename, t->fname);
+    }
     
     string_arena_add_string(sa_open, 
                             "%s%*s  if( %s == DAGUE_ITERATE_STOP )\n"
