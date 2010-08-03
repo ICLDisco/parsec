@@ -13,6 +13,8 @@
 #include "dague_hwloc.h"
 #endif
 
+typedef uint32_t dague_dependency_t;
+
 typedef struct dague_t dague_t;
 typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
@@ -41,13 +43,15 @@ typedef struct dague_dependencies_t dague_dependencies_t;
 /* This loops array is allocated */
 #define DAGUE_DEPENDENCIES_FLAG_ALLOCATED  0x04
 
-/* TODO: Another ugly hack. The first time the IN dependencies are
+/* The first time the IN dependencies are
  *       checked leave a trace in order to avoid doing it again.
  */
-#define DAGUE_DEPENDENCIES_HACK_IN         0x80
+#define DAGUE_DEPENDENCIES_TASK_DONE      ((dague_dependency_t)(1<<31))
+#define DAGUE_DEPENDENCIES_IN_DONE        ((dague_dependency_t)(1<<30))
+#define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE))
 
 typedef union {
-    unsigned int            dependencies[1];
+    dague_dependency_t    dependencies[1];
     dague_dependencies_t* next[1];
 } dague_dependencies_union_t;
 

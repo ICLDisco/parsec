@@ -27,7 +27,7 @@ struct param {
     char*               name;
     unsigned char       sym_type;
     unsigned char       access_type;
-    unsigned char       param_mask;
+    dague_dependency_t  param_mask;
     const dep_t*        dep_in[MAX_DEP_IN_COUNT];
     const dep_t*        dep_out[MAX_DEP_OUT_COUNT];
 };

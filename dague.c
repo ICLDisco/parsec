@@ -808,7 +808,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 {
     const dague_t* function = exec_context->function;
     dague_dependencies_t *deps;
-    int i, updated_deps, mask;
+    int i;
+    dague_dependency_t updated_deps, mask;
 #ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
@@ -823,20 +824,20 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG)
     if( deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask ) {
         char tmp[128], tmp1[128];
-        DEBUG(("Output dependencies %2x from %s (param %s) activate an already existing dependency %2x on %s (param %s)\n",
+        DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
                dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
                deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
                dague_service_to_string(exec_context, tmp1, 128),  dest_param->name ));
     }
     assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
 #endif  
-    mask = DAGUE_DEPENDENCIES_HACK_IN | dest_param->param_mask;
+    mask = DAGUE_DEPENDENCIES_IN_DONE | dest_param->param_mask;
     /* Mark the dependencies and check if this particular instance can be executed */
-    if( !(DAGUE_DEPENDENCIES_HACK_IN & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
+    if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
         mask |= dague_check_IN_dependencies( dague_object, exec_context );
 #ifdef DAGUE_DEBUG
-        if( mask > 0 ) {
-            DEBUG(("Activate IN dependencies with mask 0x%02x\n", mask));
+        if( mask != 0 ) {
+            DEBUG(("Activate IN dependencies with mask 0x%x\n", mask));
         }
 #endif /* DAGUE_DEBUG */
     }
@@ -862,8 +863,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             do {
                 tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(i)];
                 success = dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
-                                              tmp_mask, (tmp_mask | (1<<30)) );
-                if( !success || (tmp_mask & (1<<30)) ) {
+                                              tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
+                if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
                     char tmp[128];
                     char tmp2[128];
                     fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
@@ -920,7 +921,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     } else {
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
-               (int)(updated_deps & (~DAGUE_DEPENDENCIES_HACK_IN)),
+               (int)(updated_deps & (~DAGUE_DEPENDENCIES_IN_DONE)),
                (int)(updated_deps)));
     }
 
