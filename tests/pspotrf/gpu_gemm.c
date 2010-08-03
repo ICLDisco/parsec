@@ -21,9 +21,10 @@ float	cpu_usage = 4.0;                 /* CPU core is slower than the fastest GP
 static gpu_device_t* get_best_gpu(int);  /* Function to get best choice of avaiblable Contexts !! */
 int *waiting;
 int max_wait = 1;
-#else						/* We don't use gpu_devices, instead we use a subset of gpu-array
-                             * gpu_array - list of GPU by order of their performance
-                             */
+#else
+/* We don't use gpu_devices, instead we use a subset of gpu-array
+ * gpu_array - list of GPU by order of their performance
+ */
 dplasma_atomic_lifo_t gpu_devices;	
 #endif
 
@@ -203,7 +204,7 @@ int spotrf_cuda_init( int* puse_gpu )
             {
                 char module_path[20];
                 assert(major < 10 && minor < 10);
-                snprintf(module_path, 20, "mysgemm-sm_%1d%1d.cubin", major, minor);
+                snprintf(module_path, 20, "sgemm-sm_%1d%1d.cubin", major, minor);
                 status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
                 DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
                                           {
@@ -220,6 +221,7 @@ int spotrf_cuda_init( int* puse_gpu )
                                               break;
                                           } );
                 cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
+                /*cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 4, 1 );*/
             }
 
             /**

@@ -1,18 +1,22 @@
 if( PLASMA_FOUND )
 
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
-#  set(CUDA_HOST_COMPILATION_CPP OFF)
-  set(CUDA_BUILD_CUBIN ON)
-  set(CUDA_BUILD_EMULATION OFF)
-  set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_13)
-#  set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_20)
   set(SPOTRF_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
   set(GPU_SUPPORT "")
 
   if( CUDA_FOUND)
-    cuda_add_library( mysgemm sgemm.cu)
+#  set(CUDA_HOST_COMPILATION_CPP OFF)
+    set(CUDA_BUILD_CUBIN ON)
+    set(CUDA_BUILD_EMULATION OFF)
     set(SPOTRF_REQUIRED_LIBRARIES ${SPOTRF_REQUIRED_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
     set(GPU_SUPPORT gpu_gemm.c)
+    
+    set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_11)
+    cuda_add_library( sgemm-sm_11 sgemm.cu)
+    set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_13)
+    cuda_add_library( sgemm-sm_13 sgemm.cu)
+    set(CUDA_NVCC_FLAGS -arch sm_20)
+    cuda_add_library( sgemm-sm_20 sgemm_fermi.cu)
   endif (CUDA_FOUND)
 
   if( DPLASMA_MPI AND MPI_FOUND )
