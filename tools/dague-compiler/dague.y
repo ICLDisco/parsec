@@ -41,6 +41,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
         if( !strcmp(data->dname, dname) ) {
             return data;
         }
+        data = data->next;
     }
     /* not found, create */
     data = new(jdf_data_entry_t);
