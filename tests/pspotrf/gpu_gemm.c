@@ -28,7 +28,7 @@ int max_wait = 1;
 dplasma_atomic_lifo_t gpu_devices;	
 #endif
 
-int dplasma_show_detailed_capabilities = 1;
+int dplasma_show_detailed_capabilities = 0;
 volatile int32_t cpu_counter = 0;
 int ndevices = 0;
 #if defined(DPLASMA_PROFILING)
