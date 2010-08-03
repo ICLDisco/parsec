@@ -183,6 +183,8 @@ int main(int argc, char ** argv)
    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
                     gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(sync_time_elapsed)));
    
+   //data_dump( (tiled_matrix_desc_t *) &ddescA );
+
    cleanup_dague(dague);
    /*** END OF DAGUE COMPUTATION ***/
    
@@ -410,6 +412,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
                                              MB, NB, M, N, 
                                              MT, NT, MINMTNT);
     dague->taskstodo += dague_QR->nb_local_tasks;
+    nbtasks = dague_QR->nb_local_tasks;
     printf("QR %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
            ddescA.super.nb, ddescA.super.nt, dague_QR->nb_local_tasks, dague->taskstodo);
     printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", 
