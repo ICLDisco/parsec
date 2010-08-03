@@ -13,7 +13,11 @@
 #include "dague_hwloc.h"
 #endif
 
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
 typedef uint32_t dague_dependency_t;
+#else
+typedef uint32_t dague_dependency_t;
+#endif
 
 typedef struct dague_t dague_t;
 typedef struct dague_remote_deps_t dague_remote_deps_t;
@@ -93,7 +97,7 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 struct dague_t {
     const char*             name;
     uint16_t                flags;
-    uint16_t                dependencies_mask;
+    dague_dependency_t      dependencies_goal;
     uint16_t                nb_locals;
     uint16_t                nb_params;
     const symbol_t*         params[MAX_LOCAL_COUNT];

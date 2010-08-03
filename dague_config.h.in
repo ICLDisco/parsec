@@ -13,6 +13,7 @@
 #cmakedefine HAVE_HWLOC_CACHE_ATTR
 #cmakedefine HAVE_HWLOC_OBJ_PU
 #cmakedefine DAGUE_CACHE_AWARE
+#cmakedefine DAGUE_USE_COUNTER_FOR_DEPENDENCIES
 /* debug */
 #cmakedefine DAGUE_DEBUG
 #cmakedefine DAGUE_DEBUG_HISTORY

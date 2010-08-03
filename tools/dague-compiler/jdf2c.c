@@ -9,6 +9,8 @@
 #include "string_arena.h"
 #include "jdf2c_utils.h"
 
+#include "dague_config.h"
+
 extern const char *yyfilename;
 
 static FILE *cfile;
@@ -1115,7 +1117,9 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
                             "  .name = \"%s\",\n"
                             "  .sym_type = %s,\n"
                             "  .access_type = %s,\n"
+#if !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
                             "  .param_mask = 0x%x,\n"
+#endif
                             "  .dep_in  = { %s },\n"
                             "  .dep_out = { %s }\n"
                             "};\n\n", 
@@ -1123,7 +1127,9 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
                             flow->varname, 
                             sym_type, 
                             access_type,
+#if !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
                             mask,
+#endif
                             string_arena_get_string(sa_dep_in),
                             string_arena_get_string(sa_dep_out));
     string_arena_free(sa_dep_in);
@@ -1408,7 +1414,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
                             "  .flags = %s%s,\n"
-                            "  .dependencies_mask = 0x%x,\n"
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+                            "  .dependencies_goal = %d,\n"
+#else
+                            "  .dependencies_goal = 0x%x,\n"
+#endif
                             "  .nb_locals = %d,\n"
                             "  .nb_params = %d,\n",
                             jdf_basename, f->fname,
@@ -1416,7 +1426,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             dep_index,
                             (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                             has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+                            nbinput,
+#else
                             inputmask,
+#endif
                             nbparameters,
                             nbdataflow);
 
@@ -1509,7 +1523,7 @@ static char *dump_pseudodague(void **elem, void *arg)
                             "static const dague_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .flags = 0x0,\n"
-                            "  .dependencies_mask = 0x0,\n"
+                            "  .dependencies_goal = 0x0,\n"
                             "  .nb_locals = 0,\n"
                             "  .nb_params = 0,\n"
                             "  .params = { NULL, },\n"

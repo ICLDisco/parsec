@@ -14,6 +14,9 @@ option(DAGUE_MPI
   "Build DAGuE for distributed memory with MPI backend" ON)
 option(DAGUE_CACHE_AWARE "Activate the cache awareness support (only if hardware
   locality is enabled and discovered" OFF)
+option(DAGUE_USE_COUNTER_FOR_DEPENDENCIES "Use counters to track the
+  dependencies, instead of bitmasks -- reduces the debugging features,
+  but might be necessary if using more than 30 input dependencies" OFF)
 option(DAGUE_PROFILING
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_PAPI

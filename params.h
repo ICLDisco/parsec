@@ -27,7 +27,9 @@ struct param {
     char*               name;
     unsigned char       sym_type;
     unsigned char       access_type;
+#if !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
     dague_dependency_t  param_mask;
+#endif
     const dep_t*        dep_in[MAX_DEP_IN_COUNT];
     const dep_t*        dep_out[MAX_DEP_OUT_COUNT];
 };

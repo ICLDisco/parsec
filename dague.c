@@ -682,12 +682,13 @@ char* dague_dependency_to_string( const dague_execution_context_t* from,
 /**
  * Resolve all IN() dependencies for this particular instance of execution.
  */
-static int dague_check_IN_dependencies( const dague_object_t *dague_object, const dague_execution_context_t* exec_context )
+static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dague_object, const dague_execution_context_t* exec_context )
 {
     const dague_t* function = exec_context->function;
-    int i, j, value, mask = 0;
+    int i, j, value;
     const param_t* param;
     const dep_t* dep;
+    dague_dependency_t ret = 0;
 
     if( !(function->flags & DAGUE_HAS_IN_IN_DEPENDENCIES) ) {
         return 0;
@@ -706,11 +707,15 @@ static int dague_check_IN_dependencies( const dague_object_t *dague_object, cons
                 }
             }
             if( dep->dague->nb_locals == 0 ) {
-                mask |= param->param_mask;
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+                ret += 1;
+#else
+                ret |= param->param_mask;
+#endif
             }
         }
     }
-    return mask;
+    return ret;
 }
 
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
@@ -809,7 +814,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     const dague_t* function = exec_context->function;
     dague_dependencies_t *deps;
     int i;
-    dague_dependency_t updated_deps, mask;
+    dague_dependency_t dep_new_value, dep_cur_value;
 #ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
@@ -821,7 +826,32 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     
     i = function->nb_locals - 1;
 
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+
+    if( 0 == deps->u.dependencies[CURRENT_DEPS_INDEX(i)] ) {
+        dep_new_value = 1 + dague_check_IN_dependencies( dague_object, exec_context );
+        if( dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], 0, dep_new_value ) == 1 )
+            dep_cur_value = dep_new_value;
+        else
+            dep_cur_value = dague_atomic_inc_32b( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)] );
+    } else {
+        dep_cur_value = dague_atomic_inc_32b( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)] );
+    }
+
 #if defined(DAGUE_DEBUG)
+    if( dep_cur_value > function->dependencies_goal ) {
+        char tmp[128];
+        DEBUG(("function %s as reached a dependency count of %d, higher than the goal dependencies count of %d\n",
+               dague_service_to_string(exec_context, tmp, 128), dep_cur_value, function->dependencies_goal));
+        assert(dep_cur_value <= function->dependencies_goal);
+    }
+#endif /* DAGUE_DEBUG */
+
+    if( dep_cur_value == function->dependencies_goal ) {
+
+#else  /* !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
+
+#   if defined(DAGUE_DEBUG)
     if( deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask ) {
         char tmp[128], tmp1[128];
         DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
@@ -830,51 +860,55 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                dague_service_to_string(exec_context, tmp1, 128),  dest_param->name ));
     }
     assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
-#endif  
-    mask = DAGUE_DEPENDENCIES_IN_DONE | dest_param->param_mask;
+#   endif 
+
+    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | dest_param->param_mask;
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
-        mask |= dague_check_IN_dependencies( dague_object, exec_context );
-#ifdef DAGUE_DEBUG
-        if( mask != 0 ) {
-            DEBUG(("Activate IN dependencies with mask 0x%x\n", mask));
+        dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
+#   ifdef DAGUE_DEBUG
+        if( dep_new_value != 0 ) {
+            DEBUG(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
-#endif /* DAGUE_DEBUG */
+#   endif /* DAGUE_DEBUG */
     }
 
-    updated_deps = dague_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], mask);
+    dep_cur_value = dague_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], dep_new_value );
+
+    if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
+
+#endif /* defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
+
 
 #if defined(DAGUE_GRAPHER) || 1
-    if( NULL != __dague_graph_file ) {
-        char tmp[128];
-        fprintf(__dague_graph_file, 
-                "%s [label=\"%s=>%s\" color=\"%s\" style=\"%s\"]\n", dague_dependency_to_string(origin, exec_context, tmp, 128),
-                origin_param->name, dest_param->name, (updated_deps == mask ? "#00FF00" : "#FF0000"),
-                ((updated_deps & function->dependencies_mask) == function->dependencies_mask) ? "solid" : "dashed");
-        fflush(__dague_graph_file);
-    }
+        if( NULL != __dague_graph_file ) {
+            char tmp[128];
+            fprintf(__dague_graph_file, 
+                    "%s [label=\"%s=>%s\" color=\"#00FF00\" style=\"solid\"]\n", 
+                    dague_dependency_to_string(origin, exec_context, tmp, 128),
+                    origin_param->name, dest_param->name);
+            fflush(__dague_graph_file);
+        }
 #endif  /* defined(DAGUE_GRAPHER) */
 
-    if( (updated_deps & function->dependencies_mask) == function->dependencies_mask ) {
-
-#if !defined(NDEBUG)
+#if defined(DAGUE_DEBUG) && !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
         {
-            int success, tmp_mask;
-            do {
-                tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(i)];
-                success = dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
-                                              tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
-                if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
-                    char tmp[128];
-                    char tmp2[128];
-                    fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
-                            success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
-                            dague_service_to_string(origin, tmp2, 128));
-                    assert(0);
-                }
-            } while (0);
+            int success;
+            dague_dependency_t tmp_mask;
+            tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(i)];
+            success = dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+                                        tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
+            if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
+                char tmp[128];
+                char tmp2[128];
+                fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
+                        success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
+                        dague_service_to_string(origin, tmp2, 128));
+                assert(0);
+            }
         }
-#endif  /* !defined(NDEBUG) */
+#endif  /* defined(DAGUE_DEBUG) && !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
+
         /* This service is ready to be executed as all dependencies
          * are solved.  Queue it into the ready_list passed as an
          * argument.
@@ -918,11 +952,29 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
-    } else {
+    } else { /* Service not ready */
+
+#if defined(DAGUE_GRAPHER) || 1
+        if( NULL != __dague_graph_file ) {
+            char tmp[128];
+            fprintf(__dague_graph_file, 
+                    "%s [label=\"%s=>%s\" color=\"#FF0000\" style=\"dashed\"]\n", 
+                    dague_dependency_to_string(origin, exec_context, tmp, 128),
+                    origin_param->name, dest_param->name);
+            fflush(__dague_graph_file);
+        }
+#endif  /* defined(DAGUE_GRAPHER) */
+
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+        DEBUG(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
+               dague_service_to_string( exec_context, tmp, 128 ), 
+               (int)function->dependencies_goal, dep_cur_value));
+#else
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
-               dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_mask,
-               (int)(updated_deps & (~DAGUE_DEPENDENCIES_IN_DONE)),
-               (int)(updated_deps)));
+               dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_goal,
+               (int)(dep_cur_value & DAGUE_DEPENDENCIES_BITMASK),
+               (int)(dep_cur_value)));
+#endif
     }
 
     return 0;
