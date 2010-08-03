@@ -107,7 +107,7 @@ int N = 0;
 int M = 0;
 int NB = 144;
 int IB = 48;
-int MB = 144;
+int MB = 48;
 int rank;
 int LDA = 0;
 int NRHS = 1;
@@ -302,7 +302,6 @@ static void runtime_init(int argc, char **argv)
                 if(optarg)
                 {
                     NB = atoi(optarg);
-                    MB = NB;
                 }
                 else
                 {
@@ -315,6 +314,7 @@ static void runtime_init(int argc, char **argv)
                 if(optarg)
                 {
                     IB = atoi(optarg);
+                    MB = IB;
                 }
                 else
                 {
