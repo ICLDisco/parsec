@@ -1887,8 +1887,8 @@ static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const char *fn
                 if( dl->dep->guard->callfalse->var == NULL ) {
                     coutput("  } else {\n");
                     jdf_generate_code_call_final_write( jdf, dl->dep->guard->callfalse, dl->dep->datatype, f->lineno, fname, f, "  " );
-                    coutput("  }\n");
                 }
+                coutput("  }\n");
             } else if ( dl->dep->guard->callfalse->var == NULL ) {
                 coutput("  if( !(%s) ) {\n",
                         dump_expr((void**)&dl->dep->guard->guard, &info));
