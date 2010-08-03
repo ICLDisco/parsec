@@ -5,10 +5,10 @@
  */
 
 #include "dague.h"
-#ifdef USE_MPI
+#if defined(DISTRIBUTED)
 #include "remote_dep.h"
 #include <mpi.h>
-#endif  /* defined(USE_MPI) */
+#endif 
 
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
@@ -67,8 +67,7 @@ static inline double get_cur_time(){
         printf print;                                           \
     } while(0)
 
-
-#ifdef USE_MPI
+#if defined(DISTRIBUTED)
 # define SYNC_TIME_START() do {                 \
         MPI_Barrier(MPI_COMM_WORLD);            \
         sync_time_elapsed = get_cur_time();     \
@@ -120,7 +119,7 @@ int GRIDrows = 1;
 
 two_dim_block_cyclic_t ddescA;
 two_dim_block_cyclic_t ddescT;
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
 MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 #endif
 
@@ -132,7 +131,7 @@ int main(int argc, char ** argv)
     double gflops;
     dague_context_t* dague;
         
-#ifdef USE_MPI
+#if defined(DISTRIBUTED)
     /* mpi init */
     MPI_Init(&argc, &argv);
     
@@ -387,7 +386,7 @@ static void runtime_init(int argc, char **argv)
 static void runtime_fini(void)
 {
     PLASMA_Finalize();
-#ifdef USE_MPI
+#if defined(DISTRIBUTED)
     MPI_Finalize();
 #endif    
 }
@@ -441,7 +440,7 @@ static void cleanup_dague(dague_context_t* dague)
  */
 static void create_datatypes(void)
 {
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
     plasma_context_t* plasma = plasma_context_self();
     int *blocklens, *indices, count, i;
     MPI_Datatype tmp;
@@ -491,7 +490,7 @@ static void create_datatypes(void)
 
 
 #if defined(DEBUG_MATRICES)
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
 #define A(m,n) dague_get_local_tile_s(&ddescA, m, n)
 #define L(m,n) dague_get_local_tile_s(&ddescL, m, n)
 #define descA ddescA
@@ -508,7 +507,7 @@ static void debug_matrices(void)
     int m, n, len, pos;
     double *a;
     char *line;
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -520,7 +519,7 @@ static void debug_matrices(void)
 
     for(tilem = 0; tilem < descA.mt; tilem++) {
         for(tilen = 0; tilen < descA.nt; tilen++) {
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
             if( dague_get_rank_for_tile(&ddescA, tilem, tilen) == rank ) {
 #endif
                 a = A(tilem, tilen);
@@ -533,7 +532,7 @@ static void debug_matrices(void)
                     fprintf(stderr, "[%d]   %s\n", rank, line);
                     pos = 0;
                 }
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
             }
             MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -542,7 +541,7 @@ static void debug_matrices(void)
 
     for(tilem = 0; tilem < descL.mt; tilem++) {
         for(tilen = 0; tilen < descL.nt; tilen++) {
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
             if( dague_get_rank_for_tile(&ddescL, tilem, tilen) == rank ) {
 #endif
                 a = L(tilem, tilen);
@@ -555,8 +554,7 @@ static void debug_matrices(void)
                     fprintf(stderr, "[%d]   %s\n", rank, line);
                     pos = 0;
                 }
-#if defined(USE_MPI)
-            }
+#if defined(DISTRIBUTED)            }
             MPI_Barrier(MPI_COMM_WORLD);
 #endif
         }

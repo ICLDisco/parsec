@@ -12,6 +12,10 @@ extern "C" %{
 
 #include "data_distribution.h"
 
+#if defined(DISTRIBUTED)
+extern MPI_Datatype LITTLE_T, UPPER_TILE, LOWER_TILE;
+#endif
+
 int PLASMA_INFO;
 
 #define OUTPUT(ARGS) printf ARGS
