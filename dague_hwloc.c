@@ -65,7 +65,8 @@ int dague_hwloc_distance( int id1, int id2 )
 int dague_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
-    int count = 0, i, div = 0, real_cores, cores, test = 0;
+    int count = 0, div = 0, real_cores, cores;
+    unsigned int i;
 	        
     real_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
     cores = real_cores;
@@ -98,7 +99,7 @@ int dague_hwloc_master_id( int level, int processor_id )
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
-    int i;
+    unsigned int i;
 	     
     for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++){	 
 		
@@ -122,7 +123,7 @@ int dague_hwloc_nb_levels(void)
 }
  
     
-size_t dague_hwloc_cache_size( int level, int master_id )
+size_t dague_hwloc_cache_size( unsigned int level, int master_id )
 {	    
 #if defined(HAVE_HWLOC)
 #if defined(HAVE_HWLOC_OBJ_PU)

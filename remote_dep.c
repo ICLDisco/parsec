@@ -21,7 +21,7 @@ static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_contex
 /* Mark a rank as already forwarded the termination of the current task */
 static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps, int rank )
 {
-    int boffset;
+    unsigned int boffset;
     uint32_t mask;
     
     /*DEBUG(("fw mark\tREMOTE rank %d\n", rank));*/
@@ -34,7 +34,7 @@ static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context
 /* Check if rank has already been forwarded the termination of the current task */
 static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps, int rank )
 {
-    int boffset;
+    unsigned int boffset;
     uint32_t mask;
     
     boffset = rank / (8 * sizeof(uint32_t));

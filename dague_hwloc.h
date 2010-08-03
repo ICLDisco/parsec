@@ -41,7 +41,7 @@ extern int dague_hwloc_nb_levels( void );
  * Find the cache size for master at n level
  *
  */
-extern size_t dague_hwloc_cache_size( int level, int master_id );
+extern size_t dague_hwloc_cache_size( unsigned int level, int master_id );
 
 /**
  * Find the distance between id1 and id2

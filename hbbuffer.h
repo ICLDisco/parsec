@@ -65,7 +65,7 @@ static inline void dague_hbbuffer_destroy(dague_hbbuffer_t *b)
 static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_t *elt)
 {
     dague_list_item_t *next;
-    int i, nbelt;
+    unsigned int i, nbelt;
 
 
     nbelt = 0;
@@ -123,7 +123,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
  */
 static inline int dague_hbbuffer_is_empty(dague_hbbuffer_t *b)
 {
-    int i;
+    unsigned int i;
     for(i = 0; i < b->size; i++)
         if( NULL != b->items[i] )
             return 0;
@@ -134,7 +134,7 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
                                                          dague_hbbuffer_ranking_fct_t rank_function, 
                                                          void *rank_function_param)
 {
-    int idx;
+    unsigned int idx;
     dague_list_item_t *best_elt = NULL;
     int best_idx = -1;
     unsigned int best_rank = 0, rank;

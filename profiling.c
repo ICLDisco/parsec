@@ -21,7 +21,7 @@
 #include "dequeue.h"
 
 typedef struct dague_profiling_output_t {
-    int key;
+    unsigned int key;
     unsigned long id;
     dague_time_t timestamp;
 #if defined(HAVE_PAPI)
@@ -53,7 +53,7 @@ typedef struct dague_profiling_key_t {
 #define END_KEY(key)    ( (key) * 2 + 1 )
 
 /* Process-global dictionnary */
-static int dague_prof_keys_count, dague_prof_keys_number;
+static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
 /* Process-global profiling list */
@@ -195,7 +195,8 @@ int dague_profiling_reset( void )
 int dague_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
                                               int* key_start, int* key_end )
 {
-    int i, pos = -1;
+    unsigned int i;
+    int pos = -1;
 
     for( i = 0; i < dague_prof_keys_count; i++ ) {
         if( NULL == dague_prof_keys[i].name ) {
@@ -229,7 +230,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
 
 int dague_profiling_dictionary_flush( void )
 {
-    int i;
+    unsigned int i;
 
     for( i = 0; i < dague_prof_keys_count; i++ ) {
         if( NULL != dague_prof_keys[i].name ) {
@@ -244,7 +245,7 @@ int dague_profiling_dictionary_flush( void )
 
 int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id )
 {
-    int my_event = context->events_count++;
+    unsigned int my_event = context->events_count++;
 
     if( my_event >= context->events_limit ) {
         return -1;
@@ -260,7 +261,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                                            FILE *out,
                                            dague_time_t relative )
 {
-    int key, start_idx, end_idx, displayed_key;
+    unsigned int key, start_idx, end_idx, displayed_key;
     uint64_t start, end;
     static int displayed_error_message = 0;
 
@@ -317,7 +318,8 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
 
 int dague_profiling_dump_xml( const char* filename )
 {
-    int i, last_timestamp, foundone;
+    unsigned int i;
+    int last_timestamp, foundone;
     dague_time_t relative = ZERO_TIME, latest = ZERO_TIME;
     dague_list_item_t *it;
     dague_thread_profiling_t* profile;

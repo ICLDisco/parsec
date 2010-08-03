@@ -86,11 +86,13 @@ typedef struct __dague_temporary_thread_initialization_t {
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
+#if defined(USE_HIERARCHICAL_QUEUES)
 static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 { 
     /* Store is a hbbbuffer */
     dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );
 }
+#endif
 
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
@@ -152,7 +154,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
 #if defined(HAVE_HWLOC)
     {
-        int level, master, idx;
+        int level;
         if( eu->eu_id == 0 ) {
             eu->eu_system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
             dague_dequeue_construct( eu->eu_system_queue );
@@ -169,8 +171,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
 
         for(level = 0; level < eu->eu_nb_hierarch_queues; level++) {
-            idx = eu->eu_nb_hierarch_queues - 1 - level;
-            master = dague_hwloc_master_id(startup->master_context, level, eu->eu_id);
+            int idx = eu->eu_nb_hierarch_queues - 1 - level;
+            int master = dague_hwloc_master_id(startup->master_context, level, eu->eu_id);
             if( eu->eu_id == master ) {
                 int nbcores = dague_hwloc_nb_cores(startup->master_context, level, master);
                 int queue_size = 96 * (level+1) / nbcores;
@@ -276,15 +278,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 extern int num_events;
 extern char* event_names[];
 #endif
-
-static void dague_print_usage(void)
-{
-    fprintf(stderr,
-            "Optional arguments:\n"
-            "   -d --dot <file>        : dump the dot formated trace of the execution in the <file>\n"
-            "   -p --papi              : use PLASMA backend\n"
-            "   -b --bind <start:skip> : define a binding pattern\n");
-}
 
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_size )
 {
@@ -649,7 +642,7 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                  size_t length )
 {
     const dague_t* function = exec_context->function;
-    int i, index = 0;
+    unsigned int i, index = 0;
 
     index += snprintf( tmp + index, length - index, "%s", function->name );
     if( index >= length ) return tmp;
@@ -720,66 +713,6 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
 
 #define CURRENT_DEPS_INDEX(K)  (exec_context->locals[(K)].value - deps->min)
 
-static void malloc_deps(dague_object_t *dague_object,
-                        dague_execution_unit_t* eu_context, 
-                        dague_execution_context_t* exec_context, 
-                        dague_dependencies_t** deps_location)
-{
-    const dague_t* function = exec_context->function;
-    deps_location = &(dague_object->dependencies_array[function->deps]);
-    dague_dependencies_t* deps = *deps_location;
-    dague_dependencies_t* last_deps = NULL;
-    int i;
-   
-#ifdef DAGUE_PROFILING
-    dague_profiling_trace(eu_context->eu_profile, MEMALLOC_start_key, 0);
-#endif
-    
-    for( i = 0; i < function->nb_locals; i++ ) {
-        if( NULL == (*deps_location) ) {
-            int min, max, number;
-            /* TODO: optimize this section (and the similar one few tens of lines down
-             * the code) to work on local ranges instead of absolute ones.
-             */
-            dague_symbol_get_absolute_minimum_value( dague_object, function->locals[i], &min );
-            dague_symbol_get_absolute_maximum_value( dague_object, function->locals[i], &max );
-            number = max - min;
-            DEBUG(("Allocate %d spaces for loop %s (min %d max %d)\n",
-                   number, function->locals[i]->name, min, max));
-            deps = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +
-                                                   number * sizeof(dague_dependencies_union_t));
-            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_dependencies_t) +
-                  number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD); 
-            deps->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | DAGUE_DEPENDENCIES_FLAG_FINAL;
-            deps->symbol = function->locals[i];
-            deps->min = min;
-            deps->max = max;
-            deps->prev = last_deps; /* chain them backward */
-            if( 0 == dague_atomic_cas(deps_location, (uintptr_t) NULL, (uintptr_t) deps) ) {
-                /* Some other thread manage to set it before us. Not a big deal. */
-                free(deps);
-                DAGUE_STAT_DECREASE(mem_contexts,  sizeof(dague_dependencies_t) +
-                                      number * sizeof(dague_dependencies_union_t) + STAT_MALLOC_OVERHEAD);
-                goto deps_created_by_another_thread;
-            }
-            if( NULL != last_deps ) {
-                last_deps->flags = DAGUE_DEPENDENCIES_FLAG_NEXT | DAGUE_DEPENDENCIES_FLAG_ALLOCATED;
-            }
-        } else {
-        deps_created_by_another_thread:
-            deps = *deps_location;
-        }
-        
-        DEBUG(("Prepare storage for next loop variable (value=%d) at %d\n",
-               exec_context->locals[i].value, CURRENT_DEPS_INDEX(i)));
-        deps_location = &(deps->u.next[CURRENT_DEPS_INDEX(i)]);
-        last_deps = deps;
-    }
-#ifdef DAGUE_PROFILING
-    dague_profiling_trace(eu_context->eu_profile, MEMALLOC_end_key, 0);
-#endif    
-}
-
 static dague_dependencies_t *find_deps(dague_object_t *dague_object,
                                        dague_execution_context_t* restrict exec_context)
 {
@@ -790,7 +723,7 @@ static dague_dependencies_t *find_deps(dague_object_t *dague_object,
     assert( NULL != deps );
 
     for(p = 0; p < exec_context->function->nb_locals - 1; p++) {
-        assert( deps->flags & DAGUE_DEPENDENCIES_FLAG_NEXT != 0 );
+        assert( (deps->flags & DAGUE_DEPENDENCIES_FLAG_NEXT) != 0 );
         deps = deps->u.next[exec_context->locals[p].value - deps->min];
         assert( NULL != deps );
     }
@@ -980,39 +913,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     return 0;
 }
 
-/**
- * Check if a particular instance of the service can be executed based on the
- * values of the arguments and the ranges specified.
- */
-static int dague_is_valid( const dague_object_t *dague_object, dague_execution_context_t* exec_context )
-{
-    const dague_t* function = exec_context->function;
-    int i, rc, min, max;
-    
-    for( i = 0; i < function->nb_locals; i++ ) {
-        const symbol_t* symbol = function->locals[i];
-        
-        rc = expr_eval( dague_object, symbol->min, exec_context->locals, MAX_LOCAL_COUNT, &min );
-        if( EXPR_SUCCESS != rc ) {
-            fprintf(stderr, " Cannot evaluate the min expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-        rc = expr_eval( dague_object, symbol->max, exec_context->locals, MAX_LOCAL_COUNT, &max );
-        if( EXPR_SUCCESS != rc ) {
-            fprintf(stderr, " Cannot evaluate the max expression for symbol %s\n", symbol->name);
-            return rc;
-        }
-        if( (exec_context->locals[i].value < min) ||
-           (exec_context->locals[i].value > max) ) {
-            char tmp[128];
-            fprintf( stderr, "Function %s is not a valid instance.\n",
-                    dague_service_to_string(exec_context, tmp, 128) );
-            return -1;
-        }
-    }
-    return 0;
-}
-
 dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
@@ -1032,6 +932,9 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
         if(arg->action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_INIT_REMOTE_DEPS)) {
 #if defined(DISTRIBUTED)
             if( src_rank == dst_rank ) {
+#else
+                (void)src_rank;
+                (void)dst_rank;
 #endif
                 if(arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
                     arg->output_entry->data[param_index] = arg->data[param_index];

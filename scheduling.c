@@ -86,8 +86,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 # endif
 
 #  if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
+    (void)use_placeholder;
     dague_atomic_lifo_push( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
+    (void)use_placeholder;
     dague_hbbuffer_push_all( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
 #  else
 #    if PLACEHOLDER_SIZE
@@ -115,7 +117,9 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         dague_dequeue_push_back( eu_context->eu_task_queue, (dague_list_item_t*)new_context);
     }
 #  endif  /* DAGUE_USE_LIFO */
+#if PLACEHOLDER_SIZE && !defined(HAVE_HWLOC) && !defined(DAGUE_USE_LIFO) && !defined(DAGUE_USE_GLOBAL_LIFO)
  done_pushing_tasks:
+#endif
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
     return 0;
@@ -175,6 +179,8 @@ static  unsigned int ranking_function_bycache(dague_list_item_t *elt, void *para
 #  else
 static  unsigned int ranking_function_firstfound(dague_list_item_t *elt, void *_)
 {
+    (void)elt;
+    (void)_;
     return DAGUE_RANKING_FUNCTION_BEST;
 }
 #  endif
@@ -304,14 +310,14 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 #if !defined(DAGUE_USE_GLOBAL_LIFO)
             /* Work stealing from the other workers */
             {
-                int i;
+                unsigned int i;
 #  if defined(HAVE_HWLOC) 
 
-                int max = eu_context->eu_nb_hierarch_queues;
+                unsigned int max = eu_context->eu_nb_hierarch_queues;
 
 #if !defined(USE_HIERARCHICAL_QUEUES)
-                if( master_context->taskstodo < 2 * master_context->nb_cores ) {
-                    int nbc = dague_hwloc_nb_cores( 1, eu_context->eu_id );
+                if( (unsigned int)master_context->taskstodo < 2 * (unsigned int)master_context->nb_cores ) {
+                    unsigned int nbc = dague_hwloc_nb_cores( 1, eu_context->eu_id );
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
                 }
 #endif
@@ -386,12 +392,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 int dague_progress(dague_context_t* context)
 {
     int ret;
-    dague_remote_dep_on(context);
+    (void)dague_remote_dep_on(context);
     
     ret = (int)(long)__dague_progress( context->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
-    dague_remote_dep_off(context);
+    (void)dague_remote_dep_off(context);
     return ret;
 }
 

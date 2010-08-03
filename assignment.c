@@ -15,7 +15,7 @@ int dague_find_assignment( const char* name,
                              assignment_t** where)
 {
     const assignment_t* assignment;
-    int i;
+    unsigned int i;
 
     for( i = 0; (i < context_size) && (NULL != context[i].sym); i++ ) {
         assignment = &context[i];
@@ -32,7 +32,7 @@ int dague_add_assignment( const symbol_t* symbol,
                             unsigned int context_size,
                             assignment_t** where )
 {
-    int i;
+    unsigned int i;
 
     for( i = 0; (i < context_size) && (NULL != context[i].sym); i++ ) {
         if( 0 == strcmp(context[i].sym->name, symbol->name) ) {
