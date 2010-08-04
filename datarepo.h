@@ -351,7 +351,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
 static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 {
     data_repo_entry_t *e, *n;
-    int i;
+    unsigned int i;
     for(i = 0; i < repo->nbentries; i++) {
         for(e = repo->heads[i].first_entry;
             e != NULL;
