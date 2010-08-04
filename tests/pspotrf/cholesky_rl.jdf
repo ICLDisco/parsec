@@ -42,7 +42,7 @@ extern DPLASMA_desc ddescA;
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
 
-extern int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m );
+extern int gpu_sgemm( dplasma_execution_unit_t*, dplasma_execution_context_t*, int uplo, void* A, void* B, void* C, int k, int n, int m );
 %}
 
 /* Globals
@@ -262,11 +262,19 @@ INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, n, k );
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, m, k );
-    if( use_gpu > 0 ) {
-        if( 0 == gpu_sgemm( uplo, A, B, C, k, n, m ) )
-	    goto FIN;
-    }
+    /* Should we do this later ? */
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, m, n );
+    if( use_gpu > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m )) )
+	    goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        /* The GPU failed to execute this task, switch over to the CPU */
+    }
 
     if( uplo == PlasmaLower ) {
         CORE(

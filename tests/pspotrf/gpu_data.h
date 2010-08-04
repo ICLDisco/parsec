@@ -26,9 +26,11 @@ typedef struct _gpu_device {
     int executed_tasks;
     int major;
     int minor;
+    int mutex;
 #if DPLASMA_SMART_SCHEDULING
     int lifoid;
 #endif
+    dplasma_atomic_lifo_t pending;
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
     uint64_t required_data_in;
@@ -59,6 +61,7 @@ typedef struct _gpu_elem gpu_elem_t;
 struct _gpu_elem {
     dplasma_list_item_t item;
     int lock;
+    int type;
     CUdeviceptr gpu_mem;
     memory_elem_t* memory_elem;
     int gpu_version;
@@ -86,6 +89,11 @@ extern int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
                                    gpu_elem_t **gpu_elem);
 extern int dplasma_data_map_init( gpu_device_t* gpu_device,
                                   DPLASMA_desc* data );
+int dplasma_data_get_tile( DPLASMA_desc* data,
+                           int col, int row,
+                           memory_elem_t **pmem_elem );
+int dplasma_data_tile_write_owner( DPLASMA_desc* data,
+                                   int col, int row );
 
 #define DPLASMA_CUDA_CHECK_ERROR( STR, ERROR, CODE )                    \
     {                                                                   \
