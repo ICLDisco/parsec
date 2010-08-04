@@ -19,7 +19,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS
 };
-jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, };
+jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, NULL, NULL, NULL, 0x0 };
 
 static void usage(void)
 {

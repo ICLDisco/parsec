@@ -70,7 +70,6 @@ static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
 #ifdef DISTRIBUTED
 int dague_remote_dep_init(dague_context_t* context)
 {
-    int i;
     int np;
     
     np = (int32_t) remote_dep_init(context);
@@ -92,8 +91,6 @@ int dague_remote_dep_init(dague_context_t* context)
 
 int dague_remote_dep_fini(dague_context_t* context)
 {
-    int i;        
-    
 /*    if(context->nb_nodes > 1)
     {
         for(i = 0; i < context->nb_cores; i++)
@@ -160,6 +157,7 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
 #else
 static inline int remote_dep_bcast_star_child(int me, int him)
 {
+    (void)him;
     if(me == 0) return 1;
     else return 0;
 }
@@ -172,7 +170,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 uint32_t remote_deps_count )
 {
     const dague_t* function = exec_context->function;
-    int i, me, him, count, array_index, bit_index, current_mask;
+    int i, me, him, current_mask;
+    unsigned int array_index, count, bit_index;
     
 #if defined(DAGUE_DEBUG)
     char tmp[128];

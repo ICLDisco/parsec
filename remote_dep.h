@@ -103,7 +103,7 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* 
         }
         /* fw_mask immediatly follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
-        assert( (ptr - (char*)remote_deps) <= elem_size - sizeof(uint32_t) * (max_nodes_number+31)/32);
+        assert( (int)(ptr - (char*)remote_deps) <= (int)(elem_size - sizeof(uint32_t) * (max_nodes_number+31)/32) );
     }
     return remote_deps;
 }

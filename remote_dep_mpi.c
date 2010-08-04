@@ -36,7 +36,6 @@ static int remote_dep_dequeue_on(dague_context_t* context);
 static int remote_dep_dequeue_off(dague_context_t* context);
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
 static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);
-static int remote_dep_dequeue_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
@@ -106,7 +105,7 @@ typedef struct dep_cmd_item_t
 
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
-    int i, index = 0;
+    unsigned int i, index = 0;
     dague_t* function = (dague_t*) (uintptr_t) origin->function;
     
     index += snprintf( str + index, len - index, "%s", function->name );
@@ -171,7 +170,6 @@ static int remote_dep_dequeue_off(dague_context_t* context)
     if(1 < context->nb_nodes)
     {        
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-        dague_context_t *ret;
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 0;
         DAGUE_LIST_ITEM_SINGLETON(item);
@@ -212,19 +210,6 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     return 1;
 }
-
-
-static int remote_dep_dequeue_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin)
-{
-    dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-    item->action = DEP_RELEASE;
-    item->cmd.release.deps = origin;
-    DAGUE_LIST_ITEM_SINGLETON(item);
-    /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
-    dague_dequeue_push_back(&dep_activate_queue, (dague_list_item_t*) item);
-    return 1;
-}
-
 
 static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context)
 {
@@ -526,6 +511,8 @@ static int remote_dep_mpi_on(dague_context_t* context)
 {
     int i;
 
+    (void)context;
+
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
         dep_activate_buff[i] = remote_deps_allocation(&remote_deps_freelist);
@@ -564,6 +551,8 @@ static int remote_dep_mpi_off(dague_context_t* context)
     MPI_Status status;
     int i, flag;
 
+    (void)context;
+
     assert(dep_enabled == 1);
 
     for(i = 0; i < DEP_NB_CONCURENT; i++)
@@ -596,9 +585,6 @@ static int remote_dep_mpi_fini(dague_context_t* context)
     }
     return 0;
 }
-
-
-static int act = 1;
 
 /* Send the activate tag */
 static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
@@ -687,12 +673,12 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                     deps->output_sent_count++;
                     if(deps->output_count == deps->output_sent_count)
                     {
-                        int count;
+                        unsigned int count;
 
                         k = 0;
                         count = 0;
                         while( count < deps->output_count ) {
-                            for(int a = 0; a < (max_nodes_number + 31)/32; a++)
+                            for(unsigned int a = 0; a < (max_nodes_number + 31)/32; a++)
                                 deps->output[k].rank_bits[a] = 0;
                             count += deps->output[k].count;
                             deps->output[k].count = 0;
@@ -742,7 +728,6 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
-    dague_t* function = (dague_t*) (uintptr_t) deps->msg.function;
     int tag = task->tag;
     void* data;
     MPI_Datatype dtt;
@@ -782,7 +767,6 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     }
 }
 
-static int get = 1;
 #define FLOW_CONTROL_MEM_CONSTRAINT 200
 #define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
 static int stalls = 0;
@@ -790,10 +774,10 @@ static int old_context = -1;
 
 static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, int i)
 {
-        if(old_context != context->taskstodo)
+    if(old_context != (int)context->taskstodo)
         {
-           old_context = context->taskstodo;
-           stalls = ATTEMPTS_STALLS_BEFORE_RESUME;
+            old_context = context->taskstodo;
+            stalls = ATTEMPTS_STALLS_BEFORE_RESUME;
         } 
     if((internal_alloc_lifo_num_used > FLOW_CONTROL_MEM_CONSTRAINT) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME))
     {
@@ -877,6 +861,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
                         return;
                     }
+#else
+                    (void)function;
 #endif
                 }
             }

@@ -369,7 +369,6 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
     int rc = 0;
     jdf_function_entry_t *f1, *f2;
     jdf_dataflow_list_t *d;
-    jdf_expr_list_t *e;
     jdf_dep_list_t *dep;
 
     for(f1 = current_jdf.functions; f1 != NULL; f1 = f1->next) {

@@ -84,7 +84,6 @@ static char *util_dump_list_fct( string_arena_t *sa,
 {
     char *eltstr;
     void *elt;
-    int pos = 0;
     
     string_arena_init(sa);
 
