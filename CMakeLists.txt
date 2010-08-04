@@ -36,6 +36,8 @@ option(BUILD_64bits
   "Build 64 bits mode" ON)
 option(DPLASMA_CUDA
   "Enable dupport for CUDA" ON)
+option(DPLASMA_DEBUG
+  "Enable the internal debugging of the DPLASMA library" OFF)
 # The current version number
 set (DPLASMA_VERSION_MAJOR 0)
 set (DPLASMA_VERSION_MINOR 1)
@@ -111,8 +113,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-  set(DPLASMA_DEBUG 1)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
 
 # Check for available functions
