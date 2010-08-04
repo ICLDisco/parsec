@@ -17,12 +17,15 @@
 #include <cuda_runtime_api.h>
 
 #define DPLASMA_SMART_SCHEDULING 0
+#define DPLASMA_MAX_STREAMS 2
 
 typedef struct _gpu_device {
     dplasma_list_item_t item;
     CUcontext ctx;
     CUmodule hcuModule;
     CUfunction hcuFunction;
+    CUstream streams[DPLASMA_MAX_STREAMS];
+    int max_streams;
     int id;
     int executed_tasks;
     int major;

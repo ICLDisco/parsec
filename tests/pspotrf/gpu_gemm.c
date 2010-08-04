@@ -82,7 +82,7 @@ int spotrf_cuda_init( int* puse_gpu )
 			/* Assign usage 
 			 * the FASTEST will be 1.0 
 			 * then the next would be 5.0 due to slower than the FASTEST 5.0 times */
-			if(major == 1 & minor == 3){
+			if( major == 1 & minor == 3 ) {
 				gpu_array[j].func1_usage = 1.0;
 			}else{
 				gpu_array[j].func1_usage = 2.0;
@@ -193,7 +193,7 @@ int spotrf_cuda_init( int* puse_gpu )
         for( j = 0; j < DPLASMA_CONTEXT_PER_GPU; j++ ) {
             cudaError_t cuda_status;
 
-            gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
+            gpu_device = (gpu_device_t*)calloc(1, sizeof(gpu_device_t));
             gpu_devices[i] = gpu_device;
             dplasma_dequeue_construct(&gpu_device->pending);
             gpu_device->major = major;
@@ -262,6 +262,22 @@ int spotrf_cuda_init( int* puse_gpu )
                 cuMemGetInfo( &free_mem, &total_mem );
             }
             printf( "Allocate %d tiles on the GPU memory\n", nb_allocations );
+
+            /**
+             * Allocate the streams
+             */
+            {
+                int stream_id;
+                gpu_device->max_streams = DPLASMA_MAX_STREAMS;
+                for( stream_id = 0; stream_id < DPLASMA_MAX_STREAMS; stream_id++ ) {
+                    cuda_status = cuStreamCreate( &(gpu_device->streams[stream_id]), 0 );
+                    DPLASMA_CUDA_CHECK_ERROR( "cuStreamCreate ", cuda_status,
+                                          ({
+                                              gpu_device->max_streams = stream_id - 1;
+                                              break;
+                                          }) );
+                }
+            }
 #if DPLASMA_SMART_SCHEDULING
             /* because GPU might not be in sequence
              * but we can get the GPU ID from gpu_array[i].gpu_id
@@ -336,7 +352,7 @@ int spotrf_cuda_fini( int use_gpu )
     cudaError_t status;
     gpu_elem_t* gpu_elem;
     gpu_device_t* gpu_device;
-    int total = 0, *gpu_counter, i, overlap_counter, active_devices = 0;
+    int total = 0, *gpu_counter, i, j, overlap_counter, active_devices = 0;
     uint64_t *transferred_in, *transferred_out, total_data_in = 0, total_data_out = 0;
     uint64_t *required_in, *required_out;
     float gtotal = 0.0, best_data_in, best_data_out;
@@ -381,6 +397,13 @@ int spotrf_cuda_fini( int use_gpu )
                     cuMemFree( gpu_elem->gpu_mem );
                     free( gpu_elem );
                 }
+                /**
+                 * Release all streams
+                 */
+                for( j = 0; j < gpu_device->max_streams; j++ ) {
+                    cuStreamDestroy( gpu_device->streams[j] );
+                }
+
                 status = cuCtxDestroy( gpu_device->ctx );
                 DPLASMA_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
                                           {continue;} );
@@ -463,14 +486,14 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
                     int uplo, void* A, void* B, void* C, int k, int n, int m )
  {
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
-    dplasma_execution_context_t* new_context;
-    CUdeviceptr d_A, d_B, d_C;
     int offset, on_gpu, return_code = 0, tile_size;  /* by default suppose an error */
-    int grid_width, grid_height;
-    void* ptr;
-    CUstream stream;
-    cudaError_t status;
+    CUstream stream = gpu_device->streams[0];
+    dplasma_execution_context_t* new_context;
     float alpha = -1.0, beta = 1.0;
+    int grid_width, grid_height;
+    CUdeviceptr d_A, d_B, d_C;
+    cudaError_t status;
+    void* ptr;
 
     tile_size = ddescA.mb*ddescA.nb*sizeof(float);
 
@@ -485,8 +508,8 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
         /* Push A into the GPU */
-        status = cuMemcpyHtoD( d_A, A, tile_size );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
+        status = cuMemcpyHtoDAsync( d_A, A, tile_size, stream );
+        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status, 
                                   {printf("<<%p>> -> <<%p>>\n", (void*)A, (void*)(long)d_A); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
@@ -497,8 +520,8 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
         /* Push B into the GPU */
-        status = cuMemcpyHtoD( d_B, B, tile_size );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
+        status = cuMemcpyHtoDAsync( d_B, B, tile_size, stream );
+        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_B) ", status,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)B, (void*)(long)d_B); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
@@ -509,24 +532,14 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
         /* Push C into the GPU */
-        status = cuMemcpyHtoD( d_C, C, tile_size );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
+        status = cuMemcpyHtoDAsync( d_C, C, tile_size, stream );
+        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_C) ", status,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)C, (void*)(long)d_C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
 #if defined(DPLASMA_PROFILING)
     dplasma_profiling_trace( gpu_device->profiling, movein_key_end, 0 );
 #endif  /* defined(PROFILING) */
-
-    status = cuCtxSynchronize();
-    DPLASMA_CUDA_CHECK_ERROR( "cuCtxSynchronize ", status,
-                              {return_code = -2; goto release_and_return_error;} );
-#if 0
-    /* Wait until all data are on the GPU */
-    status = cuStreamSynchronize(stream);
-    DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize ", status,
-                              {return_code = -2; goto release_and_return_error;} );
-#endif
 
 #if defined(DPLASMA_PROFILING)
     dplasma_profiling_trace( gpu_device->profiling, compute_key_start, 1 );
@@ -551,14 +564,11 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
         grid_width  = ddescA.nb / 64 + (ddescA.nb % 64 != 0);
         grid_height = ddescA.nb / 64 + (ddescA.nb % 64 != 0);
     }
-    status = cuLaunchGrid( gpu_device->hcuFunction,
-                           grid_width, grid_height);
+    status = cuLaunchGridAsync( gpu_device->hcuFunction,
+                                grid_width, grid_height, stream);
 
-    DPLASMA_CUDA_CHECK_ERROR( "cuLaunchGrid ", status,
+    DPLASMA_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
                               {return -1;} );
-    status = cuCtxSynchronize();
-    DPLASMA_CUDA_CHECK_ERROR( "cuCtxSynchronize ", status,
-                              {return_code = -2; goto release_and_return_error;} );
 
 #if defined(DPLASMA_PROFILING)
     dplasma_profiling_trace( gpu_device->profiling, compute_key_end, 1 );
@@ -571,8 +581,8 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
         dplasma_profiling_trace( gpu_device->profiling, moveout_key_start, 2 );
 #endif  /* defined(PROFILING) */
         /* Pop C from the GPU */
-        status = cuMemcpyDtoH( C, d_C, tile_size );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
+        status = cuMemcpyDtoHAsync( C, d_C, tile_size, stream );
+        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device (d_C) ", status,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)(long)d_C, (void*)C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_out += tile_size;
 #if defined(DPLASMA_PROFILING)
@@ -581,16 +591,10 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
     }
 
     /* Wait until the data is back on the memory */
-#if 0
     status = cuStreamSynchronize(stream);
     DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
                               {return_code = -2; goto release_and_return_error;} );
-    cuStreamDestroy(stream);
-#else
-    status = cuCtxSynchronize();
-    DPLASMA_CUDA_CHECK_ERROR( "cuCtxSynchronize ", status,
-                              {return_code = -2; goto release_and_return_error;} );
-#endif
+
     /* Everything went fine so far, the result is correct and back in the main memory */
     gpu_device->executed_tasks++;
 
@@ -648,7 +652,9 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
         return -1;
     }
 
-    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
+    do {
+        exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
+    } while ( NULL == exec_context );
     assert( NULL != exec_context );
 
     k = exec_context->locals[0].value;
