@@ -71,6 +71,20 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
 {
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
 
+#if defined(DPLASMA_DEBUG)
+    {
+        char tmp[128];
+        dplasma_list_item_t* item = (dplasma_list_item_t*)new_context, *next;
+
+        do {
+            next = (dplasma_list_item_t*)item->list_next;
+            DEBUG(( "thread %d Schedule %s\n", eu_context->eu_id, dplasma_service_to_string((dplasma_execution_context_t*)item, tmp, 128)));
+            printf( "thread %d Schedule %s\n", eu_context->eu_id, dplasma_service_to_string((dplasma_execution_context_t*)item, tmp, 128));
+            item = next;
+        } while ( item != (dplasma_list_item_t*)new_context );
+    }
+# endif
+
 #  if defined(DPLASMA_USE_LIFO) || defined(DPLASMA_USE_GLOBAL_LIFO)
     dplasma_atomic_lifo_push( eu_context->eu_task_queue, (dplasma_list_item_t*)new_context );
 #  elif defined(HAVE_HWLOC)
@@ -121,12 +135,6 @@ int __dplasma_schedule( dplasma_execution_unit_t* eu_context,
  done_pushing_tasks:
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
-# ifdef DPLASMA_DEBUG
-    {
-        char tmp[128];
-        DEBUG(( "Schedule %s\n", dplasma_service_to_string(new_context, tmp, 128)));
-    }
-# endif
     return 0;
 }
 
@@ -184,7 +192,7 @@ static  unsigned int ranking_function_bycache(dplasma_list_item_t *elt, void *pa
 #  else
 static  unsigned int ranking_function_firstfound(dplasma_list_item_t *elt, void *_)
 {
-    return 1;
+    return DPLASMA_RANKING_FUNCTION_BEST;
 }
 #  endif
 #endif
@@ -262,9 +270,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
         goto finalize_progress;
     }
 
-    found_local = miss_local = found_victim = miss_victim = found_remote = 0;
-    misses_in_a_row = 1;
-        
     while( !all_tasks_done(master_context) ) {
 
         if( misses_in_a_row > 1 ) {
@@ -327,7 +332,6 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
                 }
 #endif
-
                 for(i = 0; i < max; i++ ) {
                     exec_context = DPLASMA_POP( eu_context, eu_hierarch_queues[i] );
                     if( NULL != exec_context ) {
