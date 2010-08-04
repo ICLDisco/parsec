@@ -2357,6 +2357,9 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     if( NULL != t->priority ) {
         string_arena_add_string(sa_open, "%s%*s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
                                 prefix, nbopen, "  ", var, jdf_basename, t->fname);
+    } else {
+        string_arena_add_string(sa_open, "%s%*s  %s.priority = 0;\n",
+                                prefix, nbopen, "  ", var);
     }
     
     string_arena_add_string(sa_open, 
