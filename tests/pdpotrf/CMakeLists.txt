@@ -24,7 +24,7 @@ endif( PLASMA_FOUND )
 
 add_custom_command (
   OUTPUT cholesky.c
-  COMMAND ../../tools/dague-compiler/dc -i chol.jdf -o cholesky
-  MAIN_DEPENDENCY chol.jdf
+  COMMAND ../../tools/dague-compiler/dc -i cholesky.jdf -o cholesky
+  MAIN_DEPENDENCY cholesky.jdf
   DEPENDS dc
   )

@@ -33,13 +33,10 @@ tests/gemm/dgemm
 tests/gemm/mpi_dgemm
 tests/pdgemm/gemm.c
 tests/psgemm/gemm.c
-tests/pdpotrf/mpi_dposv_ll
-tests/pdpotrf/mpi_dposv_rl
-tests/pdpotrf/dposv_ll
-tests/pdpotrf/dposv_rl
-tests/pdpotrf/cholesky_rl\.c
-tests/pdpotrf/cholesky_ll\.c
 tests/pdpotrf/cholesky\.h
+tests/pdpotrf/cholesky\.c
+tests/pdpotrf/mpi_llt
+tests/pdpotrf/llt
 tests/LU/LU-auto.c
 tests/cholesky/cholesky_mpi.c
 tests/gemm/gemm.c
