@@ -195,7 +195,7 @@ int spotrf_cuda_init( int* puse_gpu )
 
             gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
             gpu_devices[i] = gpu_device;
-            dplasma_atomic_lifo_construct(&gpu_device->pending);
+            dplasma_dequeue_construct(&gpu_device->pending);
             gpu_device->major = major;
             gpu_device->minor = minor;
 
@@ -627,7 +627,7 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
     rc = dplasma_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
         DPLASMA_LIST_ITEM_SINGLETON( (dplasma_list_item_t*)exec_context );
-        dplasma_atomic_lifo_push( &(gpu_device->pending), (dplasma_list_item_t*)exec_context );
+        dplasma_dequeue_push_back( &(gpu_device->pending), (dplasma_list_item_t*)exec_context );
         return -1;
     }
 
@@ -648,7 +648,7 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
         return -1;
     }
 
-    exec_context = (dplasma_execution_context_t*)dplasma_atomic_lifo_pop( &(gpu_device->pending) );
+    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
     assert( NULL != exec_context );
 
     k = exec_context->locals[0].value;

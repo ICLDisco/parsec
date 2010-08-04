@@ -10,6 +10,7 @@
 #include "dplasma_config.h"
 #include "data_management.h"
 #include "linked_list.h"
+#include "dequeue.h"
 #include "profiling.h"
 
 #include <cuda.h>
@@ -30,7 +31,7 @@ typedef struct _gpu_device {
 #if DPLASMA_SMART_SCHEDULING
     int lifoid;
 #endif
-    dplasma_atomic_lifo_t pending;
+    dplasma_dequeue_t pending;
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
     uint64_t required_data_in;
