@@ -12,7 +12,7 @@
 #ifdef HAVE_HWLOC
 #include "dague_hwloc.h"
 #endif
-
+#include <stdint.h>
 #if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
 typedef uint32_t dague_dependency_t;
 #else
