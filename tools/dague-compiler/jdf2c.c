@@ -37,6 +37,23 @@ static int nblines(const char *p)
     return r;
 }
 
+static char *indent(int n)
+{
+    static char *istr    = NULL;
+    static int   istrlen = 0;
+    int i;
+
+    if( n * 2 + 1 > istrlen ) {
+        istrlen = n * 2 + 1;
+        istr = (char*)realloc(istr, istrlen);
+    }
+
+    for(i = 0; i < n * 2; i++)
+        istr[i] = ' ';
+    istr[i] = '\0';
+    return istr;
+}
+
 #if defined(__GNUC__)
 static void coutput(const char *format, ...) __attribute__((format(printf,1,2)));
 #endif
@@ -695,7 +712,7 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
     for(i = 0; i < 80; i++)
         coutput("%c", marker);
     coutput("*\n");
-    coutput(" *%*s%s%*s*\n", 40-ls, " ", v, 40-rs, " ");
+    coutput(" *%s%s%s*\n", indent(40-ls), v, indent(40-rs));
     coutput(" *");
     for(i = 0; i < 80; i++)
         coutput("%c", marker);
@@ -1181,28 +1198,28 @@ static void jdf_generate_enumerate_locals(const jdf_t *jdf, const jdf_function_e
     nesting = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
-            coutput("%*s  for(%s = %s; %s <= %s; %s++) {\n",
-                    nesting, "  ", 
+            coutput("%s  for(%s = %s; %s <= %s; %s++) {\n",
+                    indent(nesting),
                     dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
                     dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
                     dl->name);
             nesting++;
         } else {
-            coutput("%*s  %s = %s;\n", nesting, "  ", dl->name, dump_expr((void**)&dl->expr, &info1));
+            coutput("%s  %s = %s;\n", indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
         }
     }
 
     string_arena_init(sa1);
-    coutput("%*s    if( %s_pred(%s) ) nb++;\n",
-            nesting, "  ", f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
-                                                          dump_string, NULL, 
-                                                          "", "", ", ", ""));
+    coutput("%s    if( %s_pred(%s) ) nb++;\n",
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
+                                                            dump_string, NULL, 
+                                                            "", "", ", ", ""));
 
     string_arena_free(sa1);    
     string_arena_free(sa2);
 
     for(; nesting > 0; nesting--) {
-        coutput("%*s  }\n", nesting, "  ");
+        coutput("%s  }\n", indent(nesting));
     }
 
     coutput("  return nb;\n"
@@ -1258,34 +1275,34 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
     nesting = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
-            coutput("%*s  %s_start = %s;\n", 
-                    nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
-            coutput("%*s  %s_end = %s;\n", 
-                    nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
-            coutput("%*s  for(%s = %s_start; %s <= %s_end; %s++) {\n",
-                    nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name);
+            coutput("%s  %s_start = %s;\n", 
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
+            coutput("%s  %s_end = %s;\n", 
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
+            coutput("%s  for(%s = %s_start; %s <= %s_end; %s++) {\n",
+                    indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name);
             nesting++;
         } else {
-            coutput("%*s  %s = %s_start = %s_end = %s;\n", 
-                    nesting, "  ", dl->name, dl->name, dl->name,
+            coutput("%s  %s = %s_start = %s_end = %s;\n", 
+                    indent(nesting), dl->name, dl->name, dl->name,
                     dump_expr((void**)&dl->expr, &info1));
         }
     }
 
     string_arena_init(sa1);
-    coutput("%*s    if( !%s_pred(%s) ) continue;\n",
-            nesting, "  ", f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
-                                                          dump_string, NULL, 
-                                                          "", "", ", ", ""));
+    coutput("%s    if( !%s_pred(%s) ) continue;\n",
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
+                                                            dump_string, NULL, 
+                                                            "", "", ", ", ""));
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        coutput("%*s    %s_max = MAX(%s_max, %s);\n"
-                "%*s    %s_min = MIN(%s_min, %s);\n",
-                nesting, "  ", dl->name, dl->name, dl->name,
-                nesting, "  ", dl->name, dl->name, dl->name);
+        coutput("%s    %s_max = MAX(%s_max, %s);\n"
+                "%s    %s_min = MIN(%s_min, %s);\n",
+                indent(nesting), dl->name, dl->name, dl->name,
+                indent(nesting), dl->name, dl->name, dl->name);
     }
 
     for(; nesting > 0; nesting--) {
-        coutput("%*s  }\n", nesting, "  ");
+        coutput("%s  }\n", indent(nesting));
     }
 
     coutput("\n"
@@ -1305,60 +1322,60 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
         nesting = 0;
         for(dl = f->definitions; dl != NULL; dl = dl->next ) {
             if( dl->next == NULL ) {
-                coutput("%*s  __foundone = 0;\n", nesting, "  ");
+                coutput("%s  __foundone = 0;\n", indent(nesting));
             }
             if(dl->expr->op == JDF_RANGE) {
-                coutput("%*s  %s_start = %s;\n", 
-                        nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
-                coutput("%*s  %s_end = %s;\n", 
-                        nesting, "  ", dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
-                coutput("%*s  for(%s = MAX(%s_start, %s_min); %s <= MIN(%s_end, %s_max); %s++) {\n",
-                        nesting, "  ", dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
+                coutput("%s  %s_start = %s;\n", 
+                        indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
+                coutput("%s  %s_end = %s;\n", 
+                        indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
+                coutput("%s  for(%s = MAX(%s_start, %s_min); %s <= MIN(%s_end, %s_max); %s++) {\n",
+                        indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
-                coutput("%*s  %s = %s_start = %s_end = %s;\n", 
-                        nesting, "  ", dl->name, dl->name, 
+                coutput("%s  %s = %s_start = %s_end = %s;\n", 
+                        indent(nesting), dl->name, dl->name, 
                         dl->name, dump_expr((void**)&dl->expr, &info1));
             }
         }
 
-        coutput("%*s  if( %s_pred(%s) ) {\n"
-                "%*s    __foundone = 1;\n"
-                "%*s    break;\n"
-                "%*s  }\n",
-                nesting, "  ", f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name,
+        coutput("%s  if( %s_pred(%s) ) {\n"
+                "%s    __foundone = 1;\n"
+                "%s    break;\n"
+                "%s  }\n",
+                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name,
                                                               dump_string, NULL, 
                                                               "", "", ", ", ""),
-                nesting, "  ",
-                nesting, "  ",
-                nesting, "  ");
+                indent(nesting),
+                indent(nesting),
+                indent(nesting));
         nesting--;
-        coutput("%*s  }\n"
-                "%*s  /* Did we find one? If not, skip this allocation, otherwise allocate */\n"
-                "%*s  if( 0 == __foundone ) continue;\n",
-                nesting, "  ",
-                nesting, "  ",
-                nesting, "  ");
+        coutput("%s  }\n"
+                "%s  /* Did we find one? If not, skip this allocation, otherwise allocate */\n"
+                "%s  if( 0 == __foundone ) continue;\n",
+                indent(nesting),
+                indent(nesting),
+                indent(nesting));
 
         string_arena_init(sa1);
         string_arena_add_string(sa1, "dep");
         for(dl = f->definitions; dl != NULL; dl = dl->next ) {
-            coutput("%*s    if( %s == NULL ) {\n"
-                    "%*s      ALLOCATE_DEP_TRACKING(%s, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
-                    "%*s    }\n",
-                    nesting, "  ", string_arena_get_string(sa1),
-                    nesting, "  ", string_arena_get_string(sa1), dl->name, dl->name, dl->name, 
+            coutput("%s    if( %s == NULL ) {\n"
+                    "%s      ALLOCATE_DEP_TRACKING(%s, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
+                    "%s    }\n",
+                    indent(nesting), string_arena_get_string(sa1),
+                    indent(nesting), string_arena_get_string(sa1), dl->name, dl->name, dl->name, 
                                    jdf_basename, f->fname, dl->name,
                                    dl == f->definitions ? "NULL" : string_arena_get_string(sa2),
                                    dl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
-                    nesting, "  ");
+                    indent(nesting));
             string_arena_init(sa2);
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
         }
         
         for(; nesting > 0; nesting--) {
-            coutput("%*s  }\n", nesting, "  ");
+            coutput("%s  }\n", indent(nesting));
         }
     }
 
@@ -2283,30 +2300,30 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
 
     nbopen = 0;
 
-    string_arena_add_string(sa_open, "%s%*s%s.function = (const dague_t*)&%s_%s;\n",
-                            prefix, nbopen, "  ", var, jdf_basename, t->fname);
+    string_arena_add_string(sa_open, "%s%s%s.function = (const dague_t*)&%s_%s;\n",
+                            prefix, indent(nbopen), var, jdf_basename, t->fname);
     for(el = call->parameters, nl = t->parameters, i = 0; 
         el != NULL && nl != NULL; 
         el = el->next, nl = nl->next, i++) {
         
         string_arena_add_string(sa_open, 
-                                "%s%*s{\n"
-                                "%s%*s  int %s_%s;\n",
-                                prefix, nbopen, "  ",
-                                prefix, nbopen, "  ", t->fname, nl->name);
+                                "%s%s{\n"
+                                "%s%s  int %s_%s;\n",
+                                prefix, indent(nbopen),
+                                prefix, indent(nbopen), t->fname, nl->name);
         string_arena_add_string(sa_close,
-                                "%s%*s}\n", prefix, nbopen, "  ");
+                                "%s%s}\n", prefix, indent(nbopen));
 
         if( el->expr->op == JDF_RANGE ) {
-            string_arena_add_string(sa_open, "%s%*s  for( %s_%s = %s;",
-                                    prefix, nbopen, "  ", t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info));
+            string_arena_add_string(sa_open, "%s%s  for( %s_%s = %s;",
+                                    prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info));
             string_arena_add_string(sa_open, " %s_%s <= %s; %s_%s++ ) {\n",
                                     t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba2, &info), t->fname, nl->name);
             string_arena_add_string(sa_close,
-                                    "%s%*s}\n", prefix, nbopen, "  ");
+                                    "%s%s}\n", prefix, indent(nbopen));
             nbopen++;
         } else {
-            string_arena_add_string(sa_open, "%s%*s  %s_%s = %s;\n", prefix, nbopen, "  ", t->fname, nl->name, dump_expr((void**)&el->expr, &info));
+            string_arena_add_string(sa_open, "%s%s  %s_%s = %s;\n", prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr, &info));
         }
         jdf_def_list_t *def;
         
@@ -2322,32 +2339,32 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
         
         if( def->expr->op == JDF_RANGE ) {
             string_arena_add_string(sa_open, 
-                                    "%s%*s  if( (%s_%s >= (%s))", 
-                                    prefix, nbopen, "  ", t->fname, nl->name, 
+                                    "%s%s  if( (%s_%s >= (%s))", 
+                                    prefix, indent(nbopen), t->fname, nl->name, 
                                     dump_expr((void**)&def->expr->jdf_ba1, &linfo));
             string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                     t->fname, nl->name, 
                                     dump_expr((void**)&def->expr->jdf_ba2, &linfo));
-            string_arena_add_string(sa_close, "%s%*s}\n", prefix, nbopen, "  ");
+            string_arena_add_string(sa_close, "%s%s}\n", prefix, indent(nbopen));
             nbopen++;
         } else {
             string_arena_add_string(sa_open, 
-                                    "%s%*s  if( (%s_%s == (%s))", 
-                                    prefix, nbopen, "  ", t->fname, nl->name, 
+                                    "%s%s  if( (%s_%s == (%s))", 
+                                    prefix, indent(nbopen), t->fname, nl->name, 
                                     dump_expr((void**)&def->expr, &linfo));
-            string_arena_add_string(sa_close, "%s%*s}\n", prefix, nbopen, "  ");
+            string_arena_add_string(sa_close, "%s%s}\n", prefix, indent(nbopen));
             nbopen++;
         }
         
-        string_arena_add_string(sa_open, "%s%*s  %s.locals[%d].value = %s_%s;\n", 
-                                prefix, nbopen, "  ", var, i, 
+        string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n", 
+                                prefix, indent(nbopen), var, i, 
                                 t->fname, nl->name);
         
         nbopen++;
     }
     
-    string_arena_add_string(sa_open, "%s%*s  rank_dst =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n",
-                            prefix, nbopen, "  ", t->predicate->func_or_mem, t->predicate->func_or_mem,
+    string_arena_add_string(sa_open, "%s%s  rank_dst =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n",
+                            prefix, indent(nbopen), t->predicate->func_or_mem, t->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, t->predicate->parameters, next, expr,
                                                  dump_expr, &linfo,
                                                  "", "", ", ", ""));
@@ -2355,19 +2372,19 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     linfo.prefix = NULL;
 
     if( NULL != t->priority ) {
-        string_arena_add_string(sa_open, "%s%*s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
-                                prefix, nbopen, "  ", var, jdf_basename, t->fname);
+        string_arena_add_string(sa_open, "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
+                                prefix, indent(nbopen), var, jdf_basename, t->fname);
     } else {
-        string_arena_add_string(sa_open, "%s%*s  %s.priority = 0;\n",
-                                prefix, nbopen, "  ", var);
+        string_arena_add_string(sa_open, "%s%s  %s.priority = 0;\n",
+                                prefix, indent(nbopen), var);
     }
     
     string_arena_add_string(sa_open, 
-                            "%s%*s  if( %s == DAGUE_ITERATE_STOP )\n"
-                            "%s%*s    return;\n"
+                            "%s%s  if( %s == DAGUE_ITERATE_STOP )\n"
+                            "%s%s    return;\n"
                             "\n",
-                            prefix, nbopen, "  ", calltext,
-                            prefix, nbopen, "  ");
+                            prefix, indent(nbopen), calltext,
+                            prefix, indent(nbopen));
 
     string_arena_add_string(sa_open, "%s\n", string_arena_get_string(sa_close));
 

@@ -752,6 +752,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     char tmp[128];
 #endif
 
+    (void)eu_context;
+
     DEBUG(("Activate dependencies for %s priority %d\n",
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
 
@@ -847,7 +849,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          * argument.
          */
         {
+#if defined(DAGUE_DEBUG)
             char tmp[128], tmp2[128];
+#endif
             dague_execution_context_t* new_context;
             new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
