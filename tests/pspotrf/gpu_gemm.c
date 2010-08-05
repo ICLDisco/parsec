@@ -483,11 +483,11 @@ static int
 gpu_sgemm_internal( gpu_device_t* gpu_device,
                     dplasma_execution_unit_t* eu_context,
                     dplasma_execution_context_t* exec_context,
+                    CUstream stream,
                     int uplo, void* A, void* B, void* C, int k, int n, int m )
  {
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     int offset, on_gpu, return_code = 0, tile_size;  /* by default suppose an error */
-    CUstream stream = gpu_device->streams[0];
     dplasma_execution_context_t* new_context;
     float alpha = -1.0, beta = 1.0;
     int grid_width, grid_height;
@@ -590,16 +590,7 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
 #endif  /* defined(PROFILING) */
     }
 
-    /* Wait until the data is back on the memory */
-    status = cuStreamSynchronize(stream);
-    DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
-                              {return_code = -2; goto release_and_return_error;} );
-
-    /* Everything went fine so far, the result is correct and back in the main memory */
-    gpu_device->executed_tasks++;
-
  release_and_return_error:
-    /*free(tempArray);*/
     return return_code;
 }
 
@@ -614,11 +605,12 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
                dplasma_execution_context_t* exec_context,
                int uplo, void* A, void* B, void* C, int k, int n, int m )
 {
+    int which_gpu, rc, stream_rc, waiting = 0, submit = 0;
     gpu_device_t* gpu_device;
     gc_data_t *gA, *gB, *gC;
     gpu_elem_t *gpu_elem_C;
-    int which_gpu, rc;
     cudaError_t status;
+    dplasma_execution_context_t* progress_array[DPLASMA_MAX_STREAMS] = {NULL,};
 
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = dplasma_data_tile_write_owner( &ddescA, m, n );
@@ -640,10 +632,41 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
                               {return -2;} );
 
  more_work_to_do:
-    /* Push this task into the GPU */
-    rc = gpu_sgemm_internal( gpu_device, eu_context, exec_context, uplo, A, B, C, k, n, m );
-    dplasma_complete_execution( eu_context, exec_context );
+    if( (NULL != exec_context) && (NULL == progress_array[submit]) ) {
+        progress_array[submit] = exec_context;
 
+        /* Push this task into the GPU */
+        rc = gpu_sgemm_internal( gpu_device, eu_context, exec_context, gpu_device->streams[submit],
+                                 uplo, A, B, C, k, n, m );
+        if( 0 != rc ) {  /* something fishy happened. Reschedule the pending tasks on the cores */
+            return -2;
+        }
+        submit = (submit + 1) % gpu_device->max_streams;
+        exec_context = NULL;
+    }
+
+    if( NULL != progress_array[waiting] ) {
+        stream_rc = cuStreamQuery(gpu_device->streams[waiting]);
+        if( CUDA_ERROR_NOT_READY == stream_rc ) {
+            goto fetch_more_work;
+            /* Task not yet completed */
+        } else if( CUDA_SUCCESS == stream_rc ) {  /* Done with this task */
+            goto complete_previous_work;
+        } else {
+            DPLASMA_CUDA_CHECK_ERROR( "cuStreamQuery ", status,
+                                      {return -2;} );
+        }
+    }
+
+    goto more_work_to_do;
+
+ complete_previous_work:
+    /* Everything went fine so far, the result is correct and back in the main memory */
+    dplasma_complete_execution( eu_context, progress_array[waiting] );
+    progress_array[waiting] = NULL;
+    waiting = (waiting + 1) % gpu_device->max_streams;
+
+    gpu_device->executed_tasks++;
     rc = dplasma_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
         status = cuCtxPopCurrent(NULL);
@@ -652,10 +675,15 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
         return -1;
     }
 
-    do {
-        exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
-    } while ( NULL == exec_context );
-    assert( NULL != exec_context );
+ fetch_more_work:
+    /* Do we still have room in the progress_array? */
+    if( waiting == submit )
+        goto more_work_to_do;
+
+    exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
+    if( NULL == exec_context ) {  /* Collisions, save time and come back here later */
+        goto more_work_to_do;
+    }
 
     k = exec_context->locals[0].value;
     m = exec_context->locals[1].value;

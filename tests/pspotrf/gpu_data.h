@@ -17,7 +17,7 @@
 #include <cuda_runtime_api.h>
 
 #define DPLASMA_SMART_SCHEDULING 0
-#define DPLASMA_MAX_STREAMS 2
+#define DPLASMA_MAX_STREAMS 8
 
 typedef struct _gpu_device {
     dplasma_list_item_t item;
