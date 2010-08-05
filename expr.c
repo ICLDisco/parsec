@@ -134,29 +134,6 @@ static int expr_eval_binary(const struct dague_object *parent,
     return EXPR_SUCCESS;
 }
 
-static int expr_eval_symbol(const struct dague_object *parent, const symbol_t *sym, const assignment_t *assignments, unsigned int nbassignments, int *res)
-{
-    assignment_t* assignment;
-
-    /* look at the global symbols first */
-    const symbol_t *gsym = dague_search_global_symbol( sym->name );
-    if( gsym != NULL ){
-        int int_res;
-        if( EXPR_SUCCESS == expr_eval(parent, (expr_t *)gsym->min, NULL, 0, &int_res) ){
-            *res = int_res;
-            return EXPR_SUCCESS;
-        }
-    }
-
-    if( EXPR_SUCCESS == dague_find_assignment(sym->name, assignments, nbassignments, &assignment) ) {
-        *res = assignment->value;
-        return EXPR_SUCCESS;
-    }
-
-    snprintf(expr_eval_error, EXPR_EVAL_ERROR_SIZE, "Symbol not found in assignment: %s", sym->name);
-    return EXPR_FAILURE_SYMBOL_NOT_FOUND;
-}
-
 int expr_eval(const struct dague_object *parent,
               const expr_t *expr,
               const assignment_t *assignments, unsigned int nbassignments,
@@ -177,8 +154,8 @@ int expr_eval(const struct dague_object *parent,
     }
 
     if( EXPR_OP_SYMB == expr->op ) {
-        int ret_val = expr_eval_symbol(parent, expr->variable, assignments, nbassignments, res);
-        return ret_val;
+        fprintf(stderr, "EVAL Symbol should not be used anymore\n");
+        return EXPR_FAILURE_SYMBOL_NOT_FOUND;
     }
     if ( EXPR_IS_UNARY(expr->op) ) {
         return expr_eval_unary(parent, expr->op, expr->uop1, assignments, nbassignments, res);
@@ -737,12 +714,7 @@ void expr_dump(FILE *out, const struct dague_object *dague_object, const expr_t 
         if( dague_symbol_is_global(e->variable) ) {
             fprintf(out, "%s", e->variable->name);
         } else {
-            int res;
-            if( EXPR_SUCCESS == expr_eval_symbol(dague_object, e->variable, NULL, 0, &res)){
-                fprintf(out, "%d", res);
-            }else{
-                fprintf(out, "%s", e->variable->name);
-            }
+            fprintf(out, "%s", e->variable->name);
         }
     } else if( EXPR_OP_CONST_INT == e->op ) {
         fprintf(out, "%d", e->value);
