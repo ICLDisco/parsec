@@ -70,4 +70,5 @@ void* dague_allocate_matrix( int matrix_size);
 
 int data_dump(tiled_matrix_desc_t * Ddesc);
 
-#endif /* _MATRIX_H_ */
+
+#endif /* _MATRIX_H_  */

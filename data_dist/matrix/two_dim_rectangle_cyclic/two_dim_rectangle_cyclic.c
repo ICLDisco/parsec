@@ -13,6 +13,11 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#ifdef USE_MPI
+#include <mpi.h>
+#endif /* USE_MPI */
+
+
 #include "two_dim_rectangle_cyclic.h"
 #include "data_distribution.h"
 #include "matrix.h"
@@ -53,37 +58,6 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 }
 
 
-/* #if 0 /\*def USE_MPI*\/ */
-/* /\* empty stub for now, should allow for async data transfer from recv side *\/ */
-/* void * dague_get_tile_async(DAGUE_desc *Ddesc, int m, int n, MPI_Request *req) */
-/* { */
-    
-/*     return NULL; */
-/* } */
-
-/* void * dague_get_tile(DAGUE_desc *Ddesc, int m, int n) */
-/* { */
-/*     int tile_rank; */
-    
-/*     tile_rank = dague_get_rank_for_tile(Ddesc, m, n); */
-/*     if(Ddesc->mpi_rank == tile_rank) */
-/*     { */
-/*         //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n); */
-/*         return dague_get_local_tileDdesc, m, n); */
-/*     } */
-/* #ifdef USE_MPI */
-/*     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank); */
-/*     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_DOUBLE, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE); */
-/*     return plasma_A((PLASMA_desc *)Ddesc, m, n); */
-/* #else */
-/*     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__); */
-/*     return NULL; */
-/* #endif */
-/* } */
-
-/* #else  */
-/* /\*#define dague_get_local_tile_s dague_get_local_tile*\/ */
-/* #endif */
 
 static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
@@ -96,12 +70,13 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
+#ifdef DISTRIBUTED
     if ( desc->myrank != twoDBC_get_rank_for_tile(desc, m, n) )
         {
             printf("Tile (%d, %d) is looked for on process %d but is not local\n", m, n, desc->myrank);
             assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
         }
-    
+#endif /* DISTRIBUTED */
 
     /**********************************/
 
@@ -240,3 +215,14 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 }
 
 
+#ifdef USE_MPI
+
+int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
+    return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
+}
+
+int close_matrix_file(MPI_File * handle){
+    return MPI_File_close(handle);
+}
+
+#endif /* USE_MPI */
