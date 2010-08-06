@@ -1,1 +1,5 @@
 add_executable(lifo lifo.c)
+set_target_properties(lifo PROPERTIES LINKER_LANGUAGE C)
+set_target_properties(lifo PROPERTIES COMPILE_FLAGS "-DADD_")
+set_target_properties(lifo PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
+target_link_libraries(lifo -lpthread ${EXTRA_LIBS} -lm)
