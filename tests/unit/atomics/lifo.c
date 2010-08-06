@@ -3,10 +3,13 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "lifo.h"
 
-#define NBELT 8192
+#define NBELT      8192
+#define NBTIMES 1000000
 
 static void fatal(const char *format, ...)
 {
@@ -30,14 +33,14 @@ typedef struct {
 static elt_t *create_elem(int base)
 {
     elt_t *elt;
-    size_t s;
+    size_t r;
     unsigned int j;
 
-    s = sizeof(int) * (rand() % (1024 - sizeof(elt_t))) + sizeof(elt_t);
-    elt = (elt_t*)malloc( s );
+    r = rand() % 1024;
+    elt = (elt_t*)malloc( r * sizeof(unsigned int) + sizeof(elt_t) );
     elt->base = base;
-    elt->nbelt = s;
-    for(j = 0; j < s; j++)
+    elt->nbelt = r;
+    for(j = 0; j < r; j++)
         elt->elts[j] = elt->base + j;
     DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t *)elt );
     
@@ -52,10 +55,45 @@ static void check_elt(elt_t *elt)
             fatal(" ! Error: element number %u of elt with base %u is corrupt\n", j, elt->base);
 }
 
-static void check_translate(dague_atomic_lifo_t *l1,
-                            dague_atomic_lifo_t *l2,
-                            const char *lifo1name,
-                            const char *lifo2name)
+static void check_translate_outoforder(dague_atomic_lifo_t *l1,
+                                    dague_atomic_lifo_t *l2,
+                                    const char *lifo1name,
+                                    const char *lifo2name)
+{
+    static unsigned char *seen = NULL;
+    unsigned int e;
+    elt_t *elt;
+
+    printf(" - pop them from %s, check they are ok, push them back in %s, and check they are all there\n",
+           lifo1name, lifo2name);
+
+    if( NULL == seen ) 
+        seen = (unsigned char *)calloc(1, NBELT);
+    else
+        memset(seen, 0, NBELT);
+
+    for(e = 0; e < NBELT; e++) {
+        elt = (elt_t *)dague_atomic_lifo_pop( l1 );
+        if( NULL == elt ) 
+            fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, lifo1name, NBELT);
+        check_elt( elt );
+        dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
+        if( elt->base >= NBELT )
+            fatal(" ! Error: base of the element %u of %s is outside boundaries\n", e, lifo1name);
+        if( seen[elt->base] == 1 ) 
+            fatal(" ! Error: the element %u appears at least twice in %s\n", elt->base, lifo1name);
+        seen[elt->base] = 1;
+    }
+    /* No need to check that seen[e] == 1 for all e: this is captured by if (NULL == elt) */
+    if( (elt = (elt_t*)dague_atomic_lifo_pop( l1 )) != NULL ) 
+        fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n", 
+              elt->base, lifo1name);
+}
+
+static void check_translate_inorder(dague_atomic_lifo_t *l1,
+                                    dague_atomic_lifo_t *l2,
+                                    const char *lifo1name,
+                                    const char *lifo2name)
 {
     unsigned int e;
     elt_t *elt;
@@ -100,14 +138,10 @@ static pthread_mutex_t heavy_synchro_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  heavy_synchro_cond = PTHREAD_COND_INITIALIZER;
 static unsigned int    heavy_synchro = 0;
 
-typedef struct {
-    int base;
-    int max;
-} translating_params_t;
-
-static void *translate_elements(void *params)
+static void *translate_elements_random(void *params)
 {
-    translating_params_t *p = (translating_params_t*)params;
+    unsigned int i;
+    dague_list_item_t *e;
 
     pthread_mutex_lock(&heavy_synchro_lock);
     while( heavy_synchro == 0 ) {
@@ -115,19 +149,66 @@ static void *translate_elements(void *params)
     }
     pthread_mutex_unlock(&heavy_synchro_lock);
 
-    (void)p;
+    i = 0;
+    while( i < heavy_synchro ) {
+        if( rand() % 2 == 0 ) {
+            e = dague_atomic_lifo_pop( &lifo1 );
+            if(NULL != e) {
+                dague_atomic_lifo_push(&lifo2, e);
+                i++;
+            }
+        } else {
+            e = dague_atomic_lifo_pop( &lifo2 );
+            if(NULL != e) {
+                dague_atomic_lifo_push(&lifo1, e);
+                i++;
+            }
+        }
+    }
 
     return NULL;
 }
 
+static void usage(const char *name, const char *msg)
+{
+    if( NULL != msg ) {
+        fprintf(stderr, "%s\n", msg);
+    }
+    fprintf(stderr, 
+            "Usage: \n"
+            "   %s [-c cores]|[-h|-?]\n"
+            " where\n"
+            "   -c cores:   cores (integer >0) defines the number of cores to test\n",
+            name);
+    exit(1);
+}
 
 int main(int argc, char *argv[])
 {
     unsigned int e;
-    elt_t *elt;
+    elt_t *elt, *p;
+    pthread_t *threads;
+    long int nbthreads = 1;
+    int ch;
+    char *m;
+    
+    while( (ch = getopt(argc, argv, "c:h?")) != -1 ) {
+        switch(ch) {
+        case 'c':
+            nbthreads = strtol(optarg, &m, 0);
+            if( (nbthreads <= 0) || (m[0] != '\0') ) {
+                usage(argv[0], "invalid -c value");
+            }
+            break;
+        case 'h':
+        case '?':
+        default:
+            usage(argv[0], NULL);
+            break;
+        } 
+    }
 
-    (void)argc;
-    (void)argv;
+    threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
 
     dague_atomic_lifo_construct( &lifo1 );
     dague_atomic_lifo_construct( &lifo2 );
@@ -140,8 +221,51 @@ int main(int argc, char *argv[])
         dague_atomic_lifo_push( &lifo1, (dague_list_item_t *)elt );
     }
 
-    check_translate(&lifo1, &lifo2, "lifo1", "lifo2");
-    check_translate(&lifo2, &lifo1, "lifo2", "lifo1");
+    check_translate_inorder(&lifo1, &lifo2, "lifo1", "lifo2");
+    check_translate_inorder(&lifo2, &lifo1, "lifo2", "lifo1");
+
+    printf("Parallel test.\n");
+
+    printf(" - translate elements from lifo1 to lifo2 or from lifo2 to lifo1 (random), %d times on %d threads\n",
+           NBTIMES, nbthreads);
+    for(e = 0; e < nbthreads; e++)
+        pthread_create(&threads[e], NULL, translate_elements_random, NULL);
+
+    pthread_mutex_lock(&heavy_synchro_lock);
+    heavy_synchro = NBTIMES;
+    pthread_cond_broadcast(&heavy_synchro_cond);
+    pthread_mutex_unlock(&heavy_synchro_lock);
+
+    for(e = 0; e < nbthreads; e++)
+        pthread_join(threads[e], NULL);
+    
+    printf(" - move all elements to lifo1\n");
+    p = NULL;
+    while( !dague_atomic_lifo_is_empty( &lifo2 ) ) {
+        elt = (elt_t*)dague_atomic_lifo_pop( &lifo2 );
+        if( elt == p ) {
+            fatal(" ! I keep poping the same element in the list... It is now officially a frying pan\n");
+        }
+        p = elt;
+        dague_atomic_lifo_push( &lifo1, (dague_list_item_t*)elt );
+    }
+    
+    check_translate_outoforder(&lifo1, &lifo2, "lifo1", "lifo2");
+    
+    printf(" - pop all elements from lifo1, and free them\n");
+    while( !dague_atomic_lifo_is_empty( &lifo1 ) ) {
+        elt = (elt_t*)dague_atomic_lifo_pop( &lifo1 );
+        free(elt);
+    }
+    printf(" - pop all elements from lifo2, and free them\n");
+    while( !dague_atomic_lifo_is_empty( &lifo2 ) ) {
+        elt = (elt_t*)dague_atomic_lifo_pop( &lifo2 );
+        free(elt);
+    }
+
+    free(threads);
+
+    printf(" - all tests passed\n");
 
     return 0;
 }
