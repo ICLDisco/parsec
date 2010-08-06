@@ -76,6 +76,7 @@ static void check_translate_outoforder(dague_atomic_lifo_t *l1,
         elt = (elt_t *)dague_atomic_lifo_pop( l1 );
         if( NULL == elt ) 
             fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, lifo1name, NBELT);
+        DAGUE_LIST_ITEM_SINGLETON( elt );
         check_elt( elt );
         dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
         if( elt->base >= NBELT )
@@ -101,6 +102,9 @@ static void check_translate_inorder(dague_atomic_lifo_t *l1,
            lifo1name, lifo2name);
 
     elt = (elt_t *)dague_atomic_lifo_pop( l1 );
+    if( NULL == elt ) 
+        fatal(" ! Error: expecting a full list in %s, got an empty one...\n", lifo1name);
+    DAGUE_LIST_ITEM_SINGLETON( elt );
     if( elt->base == 0 ) {
         check_elt( elt );
         dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
@@ -108,6 +112,7 @@ static void check_translate_inorder(dague_atomic_lifo_t *l1,
             elt = (elt_t *)dague_atomic_lifo_pop( l1 );
             if( NULL == elt ) 
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, lifo1name);
+            DAGUE_LIST_ITEM_SINGLETON( elt );
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
@@ -120,6 +125,7 @@ static void check_translate_inorder(dague_atomic_lifo_t *l1,
             elt = (elt_t *)dague_atomic_lifo_pop( l1 );
             if( NULL == elt ) 
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, lifo1name);
+            DAGUE_LIST_ITEM_SINGLETON( elt );
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
@@ -154,12 +160,14 @@ static void *translate_elements_random(void *params)
         if( rand() % 2 == 0 ) {
             e = dague_atomic_lifo_pop( &lifo1 );
             if(NULL != e) {
+                DAGUE_LIST_ITEM_SINGLETON( e );
                 dague_atomic_lifo_push(&lifo2, e);
                 i++;
             }
         } else {
             e = dague_atomic_lifo_pop( &lifo2 );
             if(NULL != e) {
+                DAGUE_LIST_ITEM_SINGLETON( e );
                 dague_atomic_lifo_push(&lifo1, e);
                 i++;
             }
@@ -241,11 +249,16 @@ int main(int argc, char *argv[])
     
     printf(" - move all elements to lifo1\n");
     p = NULL;
+    ch = 0;
     while( !dague_atomic_lifo_is_empty( &lifo2 ) ) {
         elt = (elt_t*)dague_atomic_lifo_pop( &lifo2 );
-        if( elt == p ) {
-            fatal(" ! I keep poping the same element in the list... It is now officially a frying pan\n");
-        }
+        if( elt == NULL ) 
+            fatal(" ! Error: list lifo2 is supposed to be non empty, but it is!\n");
+        DAGUE_LIST_ITEM_SINGLETON( elt );
+        if( elt == p ) 
+            fatal(" ! I keep poping the same element in the list at element %u... It is now officially a frying pan\n",
+                  ch);
+        ch++;
         p = elt;
         dague_atomic_lifo_push( &lifo1, (dague_list_item_t*)elt );
     }

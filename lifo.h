@@ -25,11 +25,14 @@ typedef struct dague_list_item_t {
 #define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
 static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
 {
-    return (dague_list_item_t*) (item->list_next = item->list_prev = item);
+    dague_atomic_cas( &(item->list_next), item->list_next, item );
+    dague_atomic_cas( &(item->list_prev), item->list_prev, item );
+    dague_mfence();
+    return item;
 }
 
 typedef struct dague_atomic_lifo_t {
-    dague_list_item_t* lifo_head;
+    volatile dague_list_item_t* lifo_head;
     dague_list_item_t  lifo_ghost;
 } dague_atomic_lifo_t;
 
@@ -62,10 +65,18 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
     }
 #endif  /* DAGUE_DEBUG */
     do {
-        tail->list_next = lifo->lifo_head;
+        /* This cas should never fail.
+         * It is however necessary to flush the line containing tail->list_next
+         *  so that its new value is visible by all other threads
+         *  when the cas of the head succeed
+         */
+        if( !dague_atomic_cas( &(tail->list_next), (uintptr_t)tail->list_next, (uintptr_t)lifo->lifo_head ) ) {
+            assert(0);
+        }
+        dague_mfence();
         if( dague_atomic_cas( &(lifo->lifo_head),
                                 (uintptr_t) tail->list_next,
-                                (uintptr_t) items ) ) {
+                                (uintptr_t) items ) ) {            
             return (dague_list_item_t*)tail->list_next;
         }
         /* DO some kind of pause to release the bus */
@@ -79,7 +90,7 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
 {
     dague_list_item_t* item;
 
-    while((item = lifo->lifo_head) != &(lifo->lifo_ghost))
+    while((item = (dague_list_item_t*)lifo->lifo_head) != &(lifo->lifo_ghost))
     {
         if( dague_atomic_cas( &(lifo->lifo_head),
                                 (uintptr_t) item,
@@ -101,6 +112,7 @@ static inline void dague_atomic_lifo_construct( dague_atomic_lifo_t* lifo )
 {
     lifo->lifo_ghost.list_next = &(lifo->lifo_ghost);
     lifo->lifo_head = &(lifo->lifo_ghost);
+    dague_mfence();
 }
 
 #endif  /* LIFO_H_HAS_BEEN_INCLUDED */
