@@ -6,6 +6,10 @@
 #ifndef __TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __TWO_DIM_RECTANGLE_CYCLIC_H__
 
+#ifdef USE_MPI
+#include <mpi.h>
+#endif /* USE_MPI */
+
 #include "data_distribution.h"
 #include "matrix.h"
 
@@ -64,6 +68,15 @@ typedef struct two_dim_block_cyclic {
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows );
+
+
+#ifdef USE_MPI
+
+int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm);
+
+int close_matrix_file(MPI_File * handle);
+
+#endif /* USE_MPI */
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

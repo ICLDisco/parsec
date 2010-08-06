@@ -2363,11 +2363,17 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
         nbopen++;
     }
     
-    string_arena_add_string(sa_open, "%s%s  rank_dst =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n",
+    string_arena_add_string(sa_open, 
+                            "#if defined(DISTRIBUTED)\n"
+                            "%s%s  rank_dst =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
+                            "#else\n"
+                            "%s%s  rank_dst = 0;\n"
+                            "#endif\n",
                             prefix, indent(nbopen), t->predicate->func_or_mem, t->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, t->predicate->parameters, next, expr,
                                                  dump_expr, &linfo,
-                                                 "", "", ", ", ""));
+                                                 "", "", ", ", ""),
+                            prefix, indent(nbopen));
     free(p);
     linfo.prefix = NULL;
 
@@ -2437,7 +2443,11 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
     coutput("  nc.dague_object = exec_context->dague_object;\n");
-    coutput("  rank_src =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n",
+    coutput("#if defined(DISTRIBUTED)\n"
+            "  rank_src =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
+            "#else\n"
+            "  rank_src = 0;\n"
+            "#endif\n",
             f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST_FIELD(sa, f->predicate->parameters, next, expr,
                                  dump_expr, &info,
