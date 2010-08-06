@@ -41,6 +41,8 @@ option(DAGUE_CUDA
   "Enable dupport for CUDA" ON)
 option(DAGUE_DEBUG
   "Enable the internal debugging of the DAGUE library" OFF)
+option(DAGUE_DO_UNIT_TESTS
+  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 # The current version number
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)

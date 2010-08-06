@@ -67,3 +67,4 @@ tools/dague-compiler/dc
 tools/dague-compiler/lhr
 tools/dague-compiler/cholesky.c
 tools/dague-compiler/cholesky.h
+tests/unit/atomics/lifo
