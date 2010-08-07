@@ -2444,7 +2444,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
     coutput("  nc.dague_object = exec_context->dague_object;\n");
     coutput("#if defined(DISTRIBUTED)\n"
-            "  rank_src =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
+            "  rank_src = __dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
             "#else\n"
             "  rank_src = 0;\n"
             "#endif\n",
