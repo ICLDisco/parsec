@@ -17,7 +17,7 @@ CHECK_C_SOURCE_RUNS("
          
          return 0;
       }
-      " DPLASMA_ATOMIC_USE_GCC_32_BUILTINS)
+      " DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
 
 CHECK_C_SOURCE_RUNS("
       #include <stdint.h>
@@ -31,7 +31,7 @@ CHECK_C_SOURCE_RUNS("
 
          return 0;
       }
-      " DPLASMA_ATOMIC_USE_GCC_64_BUILTINS)
+      " DAGUE_ATOMIC_USE_GCC_64_BUILTINS)
 
 CHECK_C_SOURCE_RUNS("
       #include <stdint.h>
@@ -39,12 +39,12 @@ CHECK_C_SOURCE_RUNS("
       int main(int, const char**)
       {
          uint32_t where  = 0;
-         if (!__sync_compare_and_swap(&value, 0, 1))
+         if (!__sync_compare_and_swap(&where, 0, 1))
             return -1;
 
          return 0;
       }
-      " DPLASMA_ATOMIC_USE_MIPOSPRO_32_BUILTINS)
+      " DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS)
 
 CHECK_C_SOURCE_RUNS("
       #include <stdint.h>
@@ -52,12 +52,12 @@ CHECK_C_SOURCE_RUNS("
       int main(int, const char**)
       {
          uint64_t where  = 0;
-         if (!__sync_compare_and_swap(&value, 0, 1))
+         if (!__sync_compare_and_swap(&where, 0, 1))
             return -1;
 
          return 0;
       }
-      " DPLASMA_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
+      " DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
 
 CHECK_C_SOURCE_RUNS("
       #include <atomic.h>
@@ -71,7 +71,7 @@ CHECK_C_SOURCE_RUNS("
 
          return 0;
       }
-      " DPLASMA_ATOMIC_USE_SUN_32)
+      " DAGUE_ATOMIC_USE_SUN_32)
 
 CHECK_C_SOURCE_RUNS("
       #include <atomic.h>
@@ -85,20 +85,20 @@ CHECK_C_SOURCE_RUNS("
 
          return 0;
       }
-      " DPLASMA_ATOMIC_USE_SUN_64)
+      " DAGUE_ATOMIC_USE_SUN_64)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap64 HAVE_COMPARE_AND_SWAP_64)
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
-if( DPLASMA_ATOMIC_USE_SUN_32 OR DPLASMA_ATOMIC_USE_MIPOSPRO_32_BUILTINS OR DPLASMA_ATOMIC_USE_GCC_32_BUILTINS )
+if( DAGUE_ATOMIC_USE_SUN_32 OR DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS OR DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
   set( HAVE_COMPARE_AND_SWAP_32 1 CACHE INTERNAL "Atomic operation on 32 bits are supported")
-endif( DPLASMA_ATOMIC_USE_SUN_32 OR DPLASMA_ATOMIC_USE_MIPOSPRO_32_BUILTINS OR DPLASMA_ATOMIC_USE_GCC_32_BUILTINS )
+endif( DAGUE_ATOMIC_USE_SUN_32 OR DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS OR DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
 
-if( DPLASMA_ATOMIC_USE_SUN_64 OR DPLASMA_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR DPLASMA_ATOMIC_USE_GCC_64_BUILTINS )
+if( DAGUE_ATOMIC_USE_SUN_64 OR DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR DAGUE_ATOMIC_USE_GCC_64_BUILTINS )
   set( HAVE_COMPARE_AND_SWAP_64 1 CACHE INTERNAL "Atomic operation on 64 bits are supported")
-endif( DPLASMA_ATOMIC_USE_SUN_64 OR DPLASMA_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR DPLASMA_ATOMIC_USE_GCC_64_BUILTINS )
+endif( DAGUE_ATOMIC_USE_SUN_64 OR DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR DAGUE_ATOMIC_USE_GCC_64_BUILTINS )
 
 if( HAVE_COMPARE_AND_SWAP_32 )
   message( STATUS "\t support for 32 bits atomics - found")
