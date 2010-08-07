@@ -1,1 +1,1 @@
-au BufNewFile,BufRead *.jdf set filetype=plasma
+au BufNewFile,BufRead *.jdf set filetype=dague

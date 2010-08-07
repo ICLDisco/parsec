@@ -9,7 +9,7 @@
 #define _MATRIX_H_ 
 
 #include <stdarg.h>
-#include "data_distribution.h"
+#include "../data_distribution.h"
 
 enum matrix_type {
     matrix_Byte           = sizeof(char),
