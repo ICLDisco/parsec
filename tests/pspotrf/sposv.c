@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+
 #include "dplasma.h"
 #ifdef USE_MPI
 #include "remote_dep.h"
@@ -365,10 +366,10 @@ static void runtime_init(int argc, char **argv)
             int c;
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
-            c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h",
+            c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:P:h",
                              long_options, &option_index);
 #else
-            c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:h");
+            c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:P:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -684,8 +685,8 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
         data_dump(dist);
 #endif /* PRINT_ALL_BLOCKS */
     }
-#endif /* DATA_VERIFICATIONS */    
-#endif /* NO MPI */
+#endif /* DATA_VERIFICATIONS */
+#endif /* USE_MPI */
 }
 
 static void gather_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
