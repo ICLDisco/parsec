@@ -555,7 +555,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          int LDA, int NRHS, int LDB, PLASMA_desc* local, 
                          double gflops)
 {
-    double eps = dlamch("Epsilon");
+    double eps = lapack_dlamch(lapack_eps);
 
     printf("\n");
     printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
