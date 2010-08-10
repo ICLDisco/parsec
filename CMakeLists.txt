@@ -113,7 +113,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
 
 # Check for available functions

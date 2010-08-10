@@ -88,6 +88,7 @@ struct dplasma_t {
     dplasma_cache_rank_function_t *cache_rank_function;
 #endif
     dplasma_hook_t*         hook;
+    dplasma_hook_t*         complete_execution;
     dplasma_release_deps_t* release_deps;
     char*                   body;
 };

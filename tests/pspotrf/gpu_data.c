@@ -40,6 +40,52 @@ int dplasma_data_map_init( gpu_device_t* gpu_device,
     return 0;
 }
 
+int dplasma_data_tile_write_owner( DPLASMA_desc* data,
+                                   int col, int row )
+{
+    memory_elem_t* memory_elem;
+    gpu_elem_t* gpu_elem;
+    int i;
+
+    if( NULL == (memory_elem = data_map[col * data->lnt + row]) ) {
+        return -1;
+    }
+    for( i = 0; i < ndevices; i++ ) {
+        gpu_elem = memory_elem->gpu_elems[i];
+        if( NULL == gpu_elem )
+            continue;
+        if( gpu_elem->type & DPLASMA_WRITE )
+            return i;
+    }
+    return -2;
+}
+
+int dplasma_data_get_tile( DPLASMA_desc* data,
+                           int col, int row,
+                           memory_elem_t **pmem_elem )
+{
+    memory_elem_t* memory_elem;
+    int rc = 0;  /* the tile already existed */
+
+    if( NULL == (memory_elem = data_map[col * data->lnt + row]) ) {
+        memory_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (ndevices-1) * sizeof(gpu_elem_t*));
+        memory_elem->col = col;
+        memory_elem->row = row;
+        memory_elem->memory_version = 0;
+        memory_elem->readers = 0;
+        memory_elem->writer = 0;
+        memory_elem->memory = NULL;
+        rc = 1;  /* the tile has just been created */
+        if( 0 == dplasma_atomic_cas( &(data_map[col * data->lnt + row]), NULL, memory_elem ) ) {
+            free(memory_elem);
+            rc = 0;  /* the tile already existed */
+            memory_elem = data_map[col * data->lnt + row];
+        }
+    }
+    *pmem_elem = memory_elem;
+    return rc;
+}
+
 /**
  * This function check if the target tile is already on the GPU memory. If it is the case,
  * it check if the version on the GPU match with the one in memory. In all cases, it
@@ -56,19 +102,8 @@ int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
     memory_elem_t* memory_elem;
     gpu_elem_t* gpu_elem;
 
-    if( NULL == (memory_elem = data_map[col * data->lnt + row]) ) {
-        memory_elem = (memory_elem_t*)calloc(1, sizeof(memory_elem_t) + (ndevices-1) * sizeof(gpu_elem_t*));
-        memory_elem->col = col;
-        memory_elem->row = row;
-        memory_elem->memory_version = 0;
-        memory_elem->readers = 0;
-        memory_elem->writer = 0;
-        memory_elem->memory = dplasma_get_local_tile_s(data, col, row);
-        if( 0 == dplasma_atomic_cas( &(data_map[col * data->lnt + row]), NULL, memory_elem ) ) {
-            free(memory_elem);
-            memory_elem = data_map[col * data->lnt + row];
-        }
-    }
+    dplasma_data_get_tile( data, col, row, &memory_elem );
+
     if( NULL == (gpu_elem = memory_elem->gpu_elems[gpu_device->id]) ) {
         /* Get the LRU element on the GPU and transfer it to this new data */
         gpu_elem = (gpu_elem_t*)dplasma_linked_list_remove_head(gpu_device->gpu_mem_lru);
@@ -77,7 +112,9 @@ int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
                 memory_elem_t* old_mem = gpu_elem->memory_elem;
                 old_mem->gpu_elems[gpu_device->id] = NULL;
             }
+            gpu_elem->type = 0;
         }
+        gpu_elem->type |= type;
         gpu_elem->memory_elem = memory_elem;
         memory_elem->gpu_elems[gpu_device->id] = gpu_elem;
         *pgpu_elem = gpu_elem;
@@ -85,6 +122,7 @@ int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
     } else {
         dplasma_linked_list_remove_item(gpu_device->gpu_mem_lru, (dplasma_list_item_t*)gpu_elem);
         dplasma_linked_list_add_tail(gpu_device->gpu_mem_lru, (dplasma_list_item_t*)gpu_elem);
+        gpu_elem->type |= type;
         *pgpu_elem = gpu_elem;
         if( memory_elem->memory_version == gpu_elem->gpu_version ) {
             /* The GPU version of the data matches the one in memory. We're done */

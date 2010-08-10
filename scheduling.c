@@ -233,6 +233,23 @@ static inline dplasma_execution_context_t *choose_local_job( dplasma_execution_u
     return exec_context;
 }
 
+inline int dplasma_complete_execution( dplasma_execution_unit_t *eu_context,
+                                       dplasma_execution_context_t *exec_context )
+{
+    int rc = exec_context->function->complete_execution( eu_context, exec_context );
+    /* Update the number of remaining tasks */
+    done_task(eu_context->master_context);
+
+    /* Succesfull execution. The context is ready to be released, all
+     * dependencies have been marked as completed.
+     */
+    DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
+    /* Release the execution context */
+    DPLASMA_STAT_DECREASE(mem_contexts, sizeof(dplasma_execution_context_t) + STAT_MALLOC_OVERHEAD);
+    free( exec_context );
+    return rc;
+}
+
 void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
 {
     uint64_t found_local, miss_local, found_victim, miss_victim, found_remote;
@@ -288,18 +305,11 @@ void* __dplasma_progress( dplasma_execution_unit_t* eu_context )
             found_local++;
         do_some_work:
             TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
-            /* Update the number of remaining tasks before the execution */
-            done_task(master_context);
             /* We're good to go ... */
-            dplasma_execute( eu_context, exec_context );
-            DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
+            if( 0 == dplasma_execute( eu_context, exec_context ) ) {
+                dplasma_complete_execution( eu_context, exec_context );
+            }
             nbiterations++;
-            /* Release the execution context */
-#if defined(DPLASMA_CACHE_AWARE)
-            exec_context->pointers[1] = NULL;
-#endif
-            DPLASMA_STAT_DECREASE(mem_contexts, sizeof(*exec_context) + STAT_MALLOC_OVERHEAD);
-            free( exec_context );
         } else {
 #if !defined(DPLASMA_USE_GLOBAL_LIFO)
             miss_local++;
@@ -416,6 +426,7 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
                             dplasma_execution_context_t* exec_context )
 {
     dplasma_t* function = exec_context->function;
+    int rc = 0;
 #ifdef DPLASMA_DEBUG
     char tmp[128];
 #endif
@@ -424,13 +435,14 @@ static int dplasma_execute( dplasma_execution_unit_t* eu_context,
     DPLASMA_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
-        function->hook( eu_context, exec_context );
+        rc = function->hook( eu_context, exec_context );
     }
 #ifdef DEPRECATED
-    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
-#else
-    return 0; 
+    if( 0 == rc ) {
+        return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    }
 #endif
+    return rc;
 }
 
 
