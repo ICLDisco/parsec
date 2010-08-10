@@ -75,8 +75,6 @@ INOUT T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
         -> T TRSM(k, k+1..SIZE-1)
         -> A(k, k)
 
-//; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k)
-//; (SIZE - k) * (SIZE - k) * (SIZE - k)
 //; (k >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
@@ -119,10 +117,8 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> B GEMM(k, n, k+1..n-1)
         -> A(n, k)
 
-//; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 1
-//; (SIZE - k) * (SIZE - k) * (SIZE - k) + 3 * (2 * SIZE - k - n - 1) * (n - k)
 //; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2 : 1000000000
-; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, k );
@@ -184,8 +180,6 @@ IN    A <- C TRSM(k, n)
 INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
         -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
 
-//; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 2
-//; (SIZE - k) * (SIZE - k) * (SIZE - k) + 3 * (n - k)
 //; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1 : 1000000000
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
@@ -250,8 +244,6 @@ IN    B <- C TRSM(k, m)
 INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
-//; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
-//; (SIZE - k) * (SIZE - k) * (SIZE - k) + 3 + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k)
 //; (m >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 1 : 1000000000
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
