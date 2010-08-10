@@ -23,6 +23,7 @@ static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
 
 static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
 {
+    dplasma_mfence();
     *atomic_lock = 0;
 }
 

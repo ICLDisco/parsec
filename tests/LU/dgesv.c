@@ -22,10 +22,10 @@
 #include <cblas.h>
 #include <math.h>
 #include <plasma.h>
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
+#include <lapack.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 
 #include "scheduling.h"
 #include "profiling.h"
@@ -236,19 +236,13 @@ int main(int argc, char ** argv)
 
             if(do_warmup)
             {
-                TIME_START();                
-                plasma_parallel_call_3(plasma_pdgetrf,
-                                       PLASMA_desc, descA,
-                                       PLASMA_desc, descL,
-                                       int*, _IPIV);
+                TIME_START();
+                PLASMA_dgetrf_Tile( &descA, &descL, _IPIV);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (2*N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             }
             TIME_START();
-            plasma_parallel_call_3(plasma_pdgetrf,
-                                   PLASMA_desc, descA,
-                                   PLASMA_desc, descL,
-                                   int*, _IPIV);
+            PLASMA_dgetrf_Tile( &descA, &descL, _IPIV);
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
                         gflops = (2*N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
@@ -824,10 +818,7 @@ static void create_matrix(int N, PLASMA_enum* uplo,
     *dL = plasma_desc_init(Lbdl, PlasmaRealDouble,
                            PLASMA_IB, PLASMA_NB, PLASMA_IBNBSIZE,
                            N, N, 0, 0, N, N);    
-    plasma_parallel_call_3(plasma_lapack_to_tile,
-                           double*, A2,
-                           int, LDA,
-                           PLASMA_desc, *dA);
+    PLASMA_Lapack_to_Tile( A2, LDA, dA );
     
     plasma_memzero(IPIV, dA->mt*dA->nt*PLASMA_NB, PlasmaInteger);
     plasma_memzero(dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
@@ -976,7 +967,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution;
-    double eps = dlamch("Epsilon");
+    double eps = lapack_dlamch(lapack_eps);
     
     printf("\n");
     printf("------ TESTS FOR PLASMA DGETRF + DTRSMPL + DTRSM  ROUTINE -------  \n");
@@ -989,10 +980,8 @@ static void check_matrix(int N, PLASMA_enum* uplo,
     if(do_nasty_validations)
     {
         plasma_context_t* plasma = plasma_context_self();
-        plasma_parallel_call_3(plasma_tile_to_lapack,
-                               PLASMA_desc, *dA,
-                               double*, A2,
-                               int, LDA);
+        PLASMA_Tile_to_Lapack( dA, A2, LDA );
+        assert( L != dL->mat );
         plasma_memcpy(L, dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
         
 #if defined(USE_MPI)
@@ -1002,7 +991,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
 #endif
 
         PLASMA_dtrsmpl(N, NRHS, A2, LDA, L, IPIV, B2, LDB);
-        PLASMA_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, N, NRHS, A2,
+        PLASMA_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, N, NRHS, 1.0, A2,
                      LDA, B2, LDB);
         
         info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);
@@ -1044,19 +1033,18 @@ int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, double *B2,
 {
     int info_solution;
     double Rnorm, Anorm, Xnorm, Bnorm;
-    char norm='I';
     double alpha, beta;
     double *work = (double *)malloc(N*sizeof(double));
 
     alpha = 1.0;
     beta  = -1.0;
 
-    Xnorm = dlange(&norm, &N, &NRHS, B2, &LDB, work);
-    Anorm = dlange(&norm, &N, &N, A1, &LDA, work);
-    Bnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
+    Xnorm = lapack_dlange(lapack_inf_norm, N, NRHS, B2, LDB, work);
+    Anorm = lapack_dlange(lapack_inf_norm, N, N,    A1, LDA, work);
+    Bnorm = lapack_dlange(lapack_inf_norm, N, NRHS, B1, LDB, work);
 
     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
-    Rnorm=dlange(&norm, &N, &NRHS, B1, &LDB, work);
+    Rnorm = lapack_dlange(lapack_inf_norm, N, NRHS, B1, LDB, work);
 
     printf("============\n");
     printf("Checking the Residual of the solution \n");

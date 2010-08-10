@@ -181,7 +181,24 @@ IF (_match_ftn)
 ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
-
+if( !PLASMA_SRC )
+  message(ERROR "PLASMA sources cannot be found")
+endif( !PLASMA_SRC )
+list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_SRC})
+message(STATUS "Looking for src/common.h in ${PLASMA_SRC}")
+check_include_file(control/common.h   FOUND_PLASMA_COMMON)
+if( !FOUND_PLASMA_COMMON )
+  message(FATAL_ERROR "Cannot find src/common.h in the PLASMA source directory")
+endif( !FOUND_PLASMA_COMMON )
+check_include_file(control/context.h  FOUND_PLASMA_CONTEXT)
+if( !FOUND_PLASMA_CONTEXT )
+  message(FATAL_ERROR "Cannot find src/context.h in the PLASMA source directory")
+endif( !FOUND_PLASMA_CONTEXT )
+check_include_file(control/allocate.h FOUND_PLASMA_ALLOCATE)
+if( !FOUND_PLASMA_ALLOCATE )
+  message(FATAL_ERROR "Cannot find src/allocate.h in the PLASMA source directory")
+endif( !FOUND_PLASMA_ALLOCATE )
+set( PLASMA_SRC_DIR "${PLASMA_SRC}" )
 #
 # Find optional packages
 #
@@ -244,8 +261,9 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 
 
-include_directories(data_dist data_dist/matrix data_dist/matrix/two_dim_rectangle_cyclic data_dist/matrix/sym_two_dim_rectangle_cyclic)
-
+include_directories(data_dist data_dist/matrix
+  data_dist/matrix/two_dim_rectangle_cyclic
+  data_dist/matrix/sym_two_dim_rectangle_cyclic)
 
 #
 # Setup targets

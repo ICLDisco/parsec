@@ -20,11 +20,11 @@
 
 #include <cblas.h>
 #include <math.h>
-#include "plasma.h"
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
+#include <plasma.h>
+#include <lapack.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 
 #include "scheduling.h"
 #include "profiling.h"
@@ -61,6 +61,7 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int dposv_force_nb = 0;
+int pri_change = 0;
 
 static inline double get_cur_time(){
     double t;
@@ -162,16 +163,12 @@ int main(int argc, char ** argv)
             if(do_warmup)
             {
                 TIME_START();
-                plasma_parallel_call_2(plasma_pspotrf, 
-                                       PLASMA_enum, uplo, 
-                                       PLASMA_desc, descA);
+                PLASMA_spotrf_Tile(uplo, &descA);
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0+N/1e3*N/1e3/2.0)/(time_elapsed)));
             }
             TIME_START();
-            plasma_parallel_call_2(plasma_pspotrf,
-                                   PLASMA_enum, uplo,
-                                   PLASMA_desc, descA);
+            PLASMA_spotrf_Tile(uplo, &descA);
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
                         gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
@@ -207,7 +204,7 @@ int main(int argc, char ** argv)
             TIME_PRINT(("Dplasma proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
             SYNC_TIME_PRINT(("Dplasma computation:\t%d %d %f gflops\n", N, NB,
                              gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
-
+            printf("[%d] Dplasma priority change at position \t%d\n", rank, ddescA.nt - pri_change);
             cleanup_dplasma(dplasma);
             /*** END OF DPLASMA COMPUTATION ***/
 
@@ -240,6 +237,7 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -x --xcheck      : do extra nasty result validations\n"
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
+            "   -P --pri_change  : the position on the diagonal from the end where we switch the priority (default: 0)\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
 }
 
@@ -261,6 +259,7 @@ static void runtime_init(int argc, char **argv)
         {"dplasma",     no_argument,        0, 'd'},
         {"plasma",      no_argument,        0, 'p'},
         {"block-size",  required_argument,  0, 'B'},
+        {"pri_change",  required_argument,  0, 'P'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
@@ -386,11 +385,14 @@ static void runtime_init(int argc, char **argv)
                 }
                 break;
 
-            case 'h':
+        case 'P':
+                pri_change = atoi(optarg);
+                break;
+        case 'h':
                 print_usage();
                 exit(0);
-            case '?': /* getopt_long already printed an error message. */
-            default:
+        case '?': /* getopt_long already printed an error message. */
+        default:
                 break; /* Assume anything else is dplasma/mpi stuff */
         }
     } while(1);
@@ -491,6 +493,8 @@ static dplasma_context_t *setup_dplasma(int* pargc, char** pargv[])
         dplasma_assign_global_symbol( "rtileSIZE", constant );
         constant = expr_new_int( ddescA.ncst );
         dplasma_assign_global_symbol( "ctileSIZE", constant );
+        constant = expr_new_int( pri_change );
+        dplasma_assign_global_symbol( "PRI_CHANGE", constant );
     }
     load_dplasma_hooks(dplasma);
     nbtasks = enumerate_dplasma_tasks(dplasma);
@@ -679,7 +683,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution, info_factorization;
-    float eps = slamch("Epsilon");
+    float eps = lapack_slamch(lapack_eps);
 
     printf("\n");
     printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
@@ -735,7 +739,6 @@ static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, f
 {
     float Anorm, Rnorm;
     float alpha;
-    char norm='I';
     int info_factorization;
     int i,j;
     
@@ -744,22 +747,22 @@ static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, f
     float *L2       = (float *)malloc(N*N*sizeof(float));
     float *work     = (float *)malloc(N*sizeof(float));
     
-    memset((void*)L1, 0, N*N*sizeof(float));
-    memset((void*)L2, 0, N*N*sizeof(float));
+    /*memset((void*)L1, 0, N*N*sizeof(float));*/
+    /*memset((void*)L2, 0, N*N*sizeof(float));*/
     
-    alpha= 1.0;
+    alpha = 1.0;
     
-    slacpy("ALL", &N, &N, A1, &LDA, Residual, &N);
-    
+    lapack_slacpy(lapack_upper_lower, N, N, A1, LDA, Residual, N);
+
     /* Dealing with L'L or U'U  */
     if (uplo == PlasmaUpper){
-        slacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L1, &N);
-        slacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L2, &N);
+        lapack_slacpy(lapack_upper, N, N, A2, LDA, L1, N);
+        lapack_slacpy(lapack_upper, N, N, A2, LDA, L2, N);
         cblas_strmm(CblasColMajor, CblasLeft, CblasUpper, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
     }
     else{
-        slacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L1, &N);
-        slacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L2, &N);
+        lapack_slacpy(lapack_lower, N, N, A2, LDA, L1, N);
+        lapack_slacpy(lapack_lower, N, N, A2, LDA, L2, N);
         cblas_strmm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
     }
     
@@ -768,9 +771,9 @@ static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, f
         for (j = 0; j < N; j++)
             Residual[j*N+i] = L2[j*N+i] - Residual[j*N+i];
     
-    Rnorm = slange(&norm, &N, &N, Residual, &N, work);
-    Anorm = slange(&norm, &N, &N, A1, &LDA, work);
-    
+    Rnorm = lapack_slange(lapack_inf_norm, N, N, Residual,   N, work);
+    Anorm = lapack_slange(lapack_inf_norm, N, N,       A1, LDA, work);
+
     printf("============\n");
     printf("Checking the Cholesky Factorization \n");
     printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n",Rnorm/(Anorm*N*eps));
@@ -797,19 +800,18 @@ static int check_solution(int N, int NRHS, float *A1, int LDA, float *B1, float 
 {
     int info_solution;
     float Rnorm, Anorm, Xnorm, Bnorm;
-    char norm='I';
     float alpha, beta;
     float *work = (float *)malloc(N*sizeof(float));
     alpha = 1.0;
     beta  = -1.0;
     
-    Xnorm = slange(&norm, &N, &NRHS, B2, &LDB, work);
-    Anorm = slange(&norm, &N, &N, A1, &LDA, work);
-    Bnorm = slange(&norm, &N, &NRHS, B1, &LDB, work);
+    Xnorm = lapack_slange(lapack_inf_norm, N, NRHS, B2, LDB, work);
+    Anorm = lapack_slange(lapack_inf_norm, N, N,    A1, LDA, work);
+    Bnorm = lapack_slange(lapack_inf_norm, N, NRHS, B1, LDB, work);
     
     cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
-    Rnorm = slange(&norm, &N, &NRHS, B1, &LDB, work);
-    
+    Rnorm = lapack_slange(lapack_inf_norm, N, NRHS, B1, LDB, work);
+
     printf("============\n");
     printf("Checking the Residual of the solution \n");
     printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));
