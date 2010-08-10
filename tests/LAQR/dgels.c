@@ -155,25 +155,235 @@ MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 int IONE=1;
 int ISEED[4] = {0,0,0,1};   /* initial seed for dlarnv() */
 
-void print_x_doubles( char* str, double* array, int lda, int nb )
-{
-    int i, j;
-
-    printf( "-------------------------------------------\n");
-    printf( "-- %s\n", str );
-    printf( "-------------------------------------------\n");
-    for( i = 0; i < nb; i++ ) {
-        for( j = 0; j < nb; j++ ) {
-            printf( "%12.6e  ", array[j*lda+i] );
-        }
-        printf( "\n");
-    }
-    printf( "-------------------------------------------\n");
-}
-
 /* TODO Remove this ugly stuff */
 extern int dgels_private_memory_initialization(plasma_context_t*);
 struct dplasma_memory_pool_t *work_pool = NULL, *tau_pool = NULL;
+
+
+/**
+ *  CODE FROM MATHIEU !!! CRADE apparament!
+ *
+ */
+#if !defined(BLKLAPADDR)
+#define BLKLAPADDR(A, type, m, n)  &(((type*)A.mat)[(int64_t)(m)*(int64_t)A.mb+(int64_t)A.lm*(int64_t)A.nb*(int64_t)(n)])
+#endif
+#if !defined(BLKADDR)
+#define BLKADDR(A, type, m, n)  &(((type*)(A).mat)[(int64_t)(A).bsiz*(int64_t)((m)+(int64_t)(A).lmt*(int64_t)(n))])
+#endif
+#define A(m,n) BLKLAPADDR(A, double, m, n)
+#define T(m,n) BLKADDR(T, double, m, n)
+/***************************************************************************//**
+ *  Parallel tile QR factorization - static scheduling
+ **/
+void plasma_pdgeqrf_lapack(plasma_context_t *plasma)
+{
+    PLASMA_desc A;
+    PLASMA_desc T;
+
+    int k, m, n;
+    int next_k;
+    int next_m;
+    int next_n;
+    double *work, *tau;
+
+    plasma_unpack_args_2(A, T);
+    work = (double*)plasma_private_alloc(plasma, T.mb*T.nb, T.dtyp);
+    tau  = (double*)plasma_private_alloc(plasma, A.nb,      A.dtyp);
+    ss_init(A.mt, A.nt, -1);
+
+    k = 0;
+    n = PLASMA_RANK;
+    while (n >= A.nt) {
+        k++;
+        n = n-A.nt+k;
+    }
+    m = k;
+
+    while (k < min(A.mt, A.nt) && n < A.nt) {
+        next_n = n;
+        next_m = m;
+        next_k = k;
+
+        next_m++;
+        if (next_m == A.mt) {
+            next_n += PLASMA_SIZE;
+            while (next_n >= A.nt && next_k < min(A.mt, A.nt)) {
+                next_k++;
+                next_n = next_n-A.nt+next_k;
+            }
+            next_m = next_k;
+        }
+
+        if (n == k) {
+            if (m == k) {
+                ss_cond_wait(k, k, k-1);
+                CORE_dgeqrt(
+                    k == A.mt-1 ? A.m-k*A.nb : A.nb,
+                    k == A.nt-1 ? A.n-k*A.nb : A.nb,
+                    T.mb,
+                    A(k, k), A.lm,
+                    T(k, k), T.mb,
+                    tau, work);
+                ss_cond_set(k, k, k);
+            }
+            else {
+                ss_cond_wait(m, k, k-1);
+                CORE_dtsqrt(
+                    m == A.mt-1 ? A.m-m*A.nb : A.nb,
+                    k == A.nt-1 ? A.n-k*A.nb : A.nb,
+                    T.mb,
+                    A(k, k), A.lm,
+                    A(m, k), A.lm,
+                    T(m, k), T.mb,
+                    tau, work);
+                ss_cond_set(m, k, k);
+            }
+        }
+        else {
+            if (m == k) {
+                ss_cond_wait(k, k, k);
+                ss_cond_wait(k, n, k-1);
+                CORE_dormqr(
+                    PlasmaLeft, PlasmaTrans,
+                    k == A.mt-1 ? A.m-k*A.nb : A.nb,
+                    n == A.nt-1 ? A.n-n*A.nb : A.nb,
+                    T.mb,
+                    k == A.mt-1 ? A.m-k*A.nb : A.nb,
+                    A(k, k), A.lm,
+                    T(k, k), T.mb,
+                    A(k, n), A.lm,
+                    work, T.nb);
+            }
+            else {
+                ss_cond_wait(m, k, k);
+                ss_cond_wait(m, n, k-1);
+                CORE_dssmqr(
+                    PlasmaLeft, PlasmaTrans,
+                    A.nb,
+                    m == A.mt-1 ? A.m-m*A.nb : A.nb,
+                    n == A.nt-1 ? A.n-n*A.nb : A.nb,
+                    T.mb,
+                    A.nb,
+                    A(k, n), A.lm,
+                    A(m, n), A.lm,
+                    A(m, k), A.lm,
+                    T(m, k), T.mb,
+                    work, T.mb);
+                ss_cond_set(m, n, k);
+            }
+        }
+        n = next_n;
+        m = next_m;
+        k = next_k;
+    }
+    ss_finalize();
+    plasma_private_free(plasma, work);
+    plasma_private_free(plasma, tau);
+}
+
+/***************************************************************************//**
+ *  Parallel tile QR factorization - dynamic scheduling
+ **/
+void plasma_pdgeqrf_lapack_quark(PLASMA_desc A, PLASMA_desc T)
+{
+    int k, m, n;
+    plasma_context_t *plasma;
+    PLASMA_enum plasma_left = PlasmaLeft;
+    PLASMA_enum plasma__trans = PlasmaTrans;
+    int temp1, temp2, temp3;
+    Quark_Task_Flags task_flags = Quark_Task_Flags_Initializer;
+
+    plasma = plasma_context_self();
+
+    for (k = 0; k < min(A.mt, A.nt); k++)
+    {
+        temp1 = A.m-k*A.nb;
+        temp2 = A.n-k*A.nb;
+        QUARK_Insert_Task(plasma->quark, CORE_dgeqrt_quark, &task_flags,
+            sizeof(int),                          k == A.mt-1 ? &temp1 : &A.nb, VALUE,
+            sizeof(int),                          k == A.nt-1 ? &temp2 : &A.nb, VALUE,
+            sizeof(int),                          &T.mb,                        VALUE,
+            sizeof(double)*A.mb*A.nb, A(k, k),                          INOUT | LOCALITY,
+            sizeof(int),                          &A.lm,                        VALUE,
+            sizeof(double)*T.mb*T.nb, T(k, k),                          OUTPUT,
+            sizeof(int),                          &T.lm,                        VALUE,
+            sizeof(double)*A.nb,      NULL,                             SCRATCH,
+            sizeof(double)*T.mb*T.nb, NULL,                             SCRATCH,
+            0);
+
+        for (n = k+1; n < A.nt; n++)
+        {
+            temp1 = A.m-k*A.nb;
+            temp2 = A.n-n*A.nb;
+            temp3 = A.m-k*A.nb;
+            QUARK_Insert_Task(plasma->quark, CORE_dormqr_quark, &task_flags,
+                sizeof(PLASMA_enum),                  &plasma_left,                 VALUE,
+                sizeof(PLASMA_enum),                  &plasma__trans,           VALUE,
+                sizeof(int),                          k == A.mt-1 ? &temp1 : &A.nb, VALUE,
+                sizeof(int),                          n == A.nt-1 ? &temp2 : &A.nb, VALUE,
+                sizeof(int),                          &T.mb,                        VALUE,
+                sizeof(int),                          k == A.mt-1 ? &temp3 : &A.nb, VALUE,
+                sizeof(double)*A.mb*A.nb, A(k, k),                          INPUT,
+                sizeof(int),                          &A.lm,                        VALUE,
+                sizeof(double)*T.mb*T.nb, T(k, k),                          INPUT,
+                sizeof(int),                          &T.lm,                        VALUE,
+                sizeof(double)*A.mb*A.nb, A(k, n),                          INOUT | LOCALITY,
+                sizeof(int),                          &A.lm,                        VALUE,
+                sizeof(double)*T.mb*T.nb, NULL,                             SCRATCH,
+                sizeof(int),                          &T.nb,                        VALUE,
+                0);
+        }
+
+        for (m = k+1; m < A.mt; m++)
+        {
+            temp1 = A.m-m*A.nb;
+            temp2 = A.n-k*A.nb;
+            QUARK_Insert_Task(plasma->quark, CORE_dtsqrt_quark, &task_flags,
+                sizeof(int),                          m == A.mt-1 ? &temp1 : &A.nb, VALUE,
+                sizeof(int),                          k == A.nt-1 ? &temp2 : &A.nb, VALUE,
+                sizeof(int),                          &T.mb,                        VALUE,
+                sizeof(double)*A.mb*A.nb, A(k, k),                          INOUT | LOCALITY,
+                sizeof(int),                          &A.lm,                        VALUE,
+                sizeof(double)*A.mb*A.nb, A(m, k),                          INOUT,
+                sizeof(int),                          &A.lm,                        VALUE,
+                sizeof(double)*T.mb*T.nb, T(m, k),                          OUTPUT,
+                sizeof(int),                          &T.lm,                        VALUE,
+                sizeof(double)*A.nb,      NULL,                             SCRATCH,
+                sizeof(double)*T.mb*T.nb, NULL,                             SCRATCH,
+                0);
+
+            for (n = k+1; n < A.nt; n++)
+            {
+                temp1 = A.m-m*A.nb;
+                temp2 = A.n-n*A.nb;
+                QUARK_Insert_Task(plasma->quark, CORE_dssmqr_quark, &task_flags,
+                    sizeof(PLASMA_enum),                  &plasma_left,                 VALUE,
+                    sizeof(PLASMA_enum),                  &plasma__trans,           VALUE,
+                    sizeof(int),                          &A.nb,                        VALUE,
+                    sizeof(int),                          m == A.mt-1 ? &temp1 : &A.nb, VALUE,
+                    sizeof(int),                          n == A.nt-1 ? &temp2 : &A.nb, VALUE,
+                    sizeof(int),                          &T.mb,                        VALUE,
+                    sizeof(int),                          &A.nb,                        VALUE,
+                    sizeof(double)*A.mb*A.nb, A(k, n),                          INOUT | LOCALITY,
+                    sizeof(int),                          &A.lm,                        VALUE,
+                    sizeof(double)*A.mb*A.nb, A(m, n),                          INOUT,
+                    sizeof(int),                          &A.lm,                        VALUE,
+                    sizeof(double)*A.mb*A.nb, A(m, k),                          INPUT,
+                    sizeof(int),                          &A.lm,                        VALUE,
+                    sizeof(double)*T.mb*T.nb, T(m, k),                          INPUT,
+                    sizeof(int),                          &T.lm,                        VALUE,
+                    sizeof(double)*T.mb*T.nb, NULL,                             SCRATCH,
+                    sizeof(int),                          &T.mb,                        VALUE,
+                    0);
+            }
+        }
+    }
+}
+
+#undef BLKLAPADDR
+#undef BLKADDR
+#undef A
+#undef T
 
 int main(int argc, char ** argv)
 {
@@ -199,13 +409,17 @@ int main(int argc, char ** argv)
 
             if(do_warmup)
             {
-                TIME_START();
-                PLASMA_dgeqrf_Tile(&descA, &descT);
+                TIME_START();                
+                plasma_parallel_call_2(plasma_pdgeqrf_lapack,
+                                       PLASMA_desc, descA,
+                                       PLASMA_desc, descT);
                 TIME_PRINT(("_plasma warmup:\t\t%dx%d %d %f Gflops\n", M, N, PLASMA_NB,
                             gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
             }
             TIME_START();
-            PLASMA_dgeqrf_Tile(&descA, &descT);
+            plasma_parallel_call_2(plasma_pdgeqrf_lapack,
+                                   PLASMA_desc, descA,
+                                   PLASMA_desc, descT);
             TIME_PRINT(("_plasma computation:\t%dx%d %d %f Gflops\n", M, N, PLASMA_NB, 
                         gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(time_elapsed)));
             break;
@@ -231,7 +445,7 @@ int main(int argc, char ** argv)
             
             if(do_warmup)
                 warmup_dplasma(dplasma);
-            
+
             /* lets rock! */
             SYNC_TIME_START();
             TIME_START();
@@ -697,6 +911,8 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
 #define B2      (*pB2)
     int i, j;
     
+    A1 = A2 = B1 = B2 = NULL;
+
     if(do_nasty_validations)
     {
         A1   = (double *)malloc(LDA*N*sizeof(double));
@@ -710,7 +926,6 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
             exit(1);
         }
         
-        /* generating a random matrix */
         lapack_dlarnv(IONE, ISEED, LDA*N, A1);
         for (i = 0; i < M; i++)
             for (j = 0; j < N; j++)
@@ -722,7 +937,6 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
                 B2[LDB*j+i] = B1[LDB*j+i];
     } else {
         /* Only need A2 */
-        A1 = B1 = B2 = NULL;
         A2 = (double *)malloc(LDA*N*sizeof(double));
         /* Check if unable to allocate memory */
         if (!A2){
@@ -730,13 +944,11 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
             exit(1);
         }
         
-        /* generating a random matrix */
         lapack_dlarnv(IONE, ISEED, LDA*N, A2);
     }
     
     
     plasma_context_t* plasma = plasma_context_self();
-    double* Abdl;
     double* Tbdl;
     int NB, NT, MT;
     
@@ -744,13 +956,14 @@ static void create_matrix(int M, int N, PLASMA_enum* uplo,
     MT = (M%NB==0) ? (M/NB) : (M/NB+1);
     NT = (N%NB==0) ? (N/NB) : (N/NB+1);
 
-    Abdl = (double*) plasma_shared_alloc(plasma, MT*NT*PLASMA_NBNBSIZE, PlasmaRealDouble);
-    Tbdl = (double*) plasma_shared_alloc(plasma, MT*NT*PLASMA_IBNBSIZE, PlasmaRealDouble);
-    *dA = plasma_desc_init(Abdl, PlasmaRealDouble,
+    PLASMA_Alloc_Workspace_dgels(M, N, &Tbdl);
+    /* I want my A to be in LAPACK format */
+    *dA = plasma_desc_init(A2, PlasmaRealDouble,
                            PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
                            M, N, 0, 0, M, N);
+#if 0
     PLASMA_Lapack_to_Tile( A2, LDA, dA );
-
+#endif    
     *dT = plasma_desc_init(Tbdl, PlasmaRealDouble,
                            PLASMA_IB, PLASMA_NB, PLASMA_IBNBSIZE,
                            M, N, 0, 0, M, N);    
@@ -865,12 +1078,12 @@ static void check_matrix(int M, int N, PLASMA_enum* uplo,
         memset((void*)Q, 0, LDA*K*sizeof(double));
         for (i = 0; i < K; i++)
             Q[LDA*i+i] = 1.0;
-
+#if 0
         PLASMA_Tile_to_Lapack( dA, A2, LDA );
-
         /*plasma_memcpy(T, dT->mat, dT->mt*dT->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);*/
-        PLASMA_dorgqr(M, N, K, A2, LDA, T, Q, LDA);
-        PLASMA_dgeqrs(M, N, NRHS, A2, LDA, T, B2, LDB);        
+#endif
+        PLASMA_dorgqr(M, N,    K, A2, LDA, T,  Q, LDA);
+        PLASMA_dgeqrs(M, N, NRHS, A2, LDA, T, B2, LDB);
 
         /* Check the orthogonality, factorization and the solution */
         info_ortho = check_orthogonality(M, N, LDA, Q, eps);
@@ -937,7 +1150,7 @@ int check_orthogonality(int M, int N, int LDQ, double *Q, double eps)
     printf("Checking the orthogonality of Q \n");
     printf("||Id-Q'*Q||_oo / (N*eps) = %e \n",normQ/(minMN*eps));
 
-    if ( isnan(normQ / (minMN * eps)) || isinf(normQ / (minMN * eps)) || (normQ / (minMN * eps) > 60.0) ) {
+    if (isnan(normQ / (minMN * eps)) || isinf(normQ / (minMN * eps)) || (normQ / (minMN * eps) > 60.0) ) {
         printf("-- Orthogonality is suspicious ! \n");
         info_ortho=1;
     }
@@ -1068,7 +1281,7 @@ int check_solution(int M, int N, int NRHS, double *A1, int LDA, double *B1, doub
     printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||)_oo.N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));
     /*printf( "||A||_oo=%f\n||X||_oo=%f\n||B||_oo=%f\n||A X - B||_oo=%e\n", Anorm, Xnorm, Bnorm, Rnorm );*/
 
-    if (isnan(Rnorm / ((Anorm * Xnorm + Bnorm) * N * eps)) ||
+    if( isnan(Rnorm / ((Anorm * Xnorm + Bnorm) * N * eps)) ||
         isinf(Rnorm / ((Anorm * Xnorm + Bnorm) * N * eps)) ||
         (Rnorm / ((Anorm * Xnorm + Bnorm) * N * eps) > 60.0) ) {
          printf("-- The solution is suspicious ! \n");

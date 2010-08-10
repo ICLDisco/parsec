@@ -17,11 +17,11 @@
 
 #include <errno.h>
 
-#include "plasma.h"
-#include "../src/common.h"
-#include "../src/lapack.h"
-#include "../src/context.h"
-#include "../src/allocate.h"
+#include <plasma.h>
+#include <lapack.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 #include "data_management.h"
 #include "dplasma.h"
 #include "bindthread.h"

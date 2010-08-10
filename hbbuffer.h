@@ -34,8 +34,8 @@ typedef unsigned int (*dplasma_hbbuffer_ranking_fct_t)(dplasma_list_item_t *elt,
 typedef void (*dplasma_hbbuffer_parent_push_fct_t)(void *store, dplasma_list_item_t *elt);
 
 typedef struct dplasma_hbbuffer_t {
-    size_t size;       /**< the size of the buffer, in number of void* */
-    size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
+    int size;       /**< the size of the buffer, in number of void* */
+    int ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dplasma_hbbuffer_parent_push_fct_t parent_push_fct;
@@ -65,7 +65,7 @@ static inline void dplasma_hbbuffer_destroy(dplasma_hbbuffer_t *b)
 static inline void dplasma_hbbuffer_push_all(dplasma_hbbuffer_t *b, dplasma_list_item_t *elt)
 {
     dplasma_list_item_t *next;
-    int i, nbelt;
+    int i = 0, nbelt;
 
 
     nbelt = 0;
@@ -77,18 +77,19 @@ static inline void dplasma_hbbuffer_push_all(dplasma_hbbuffer_t *b, dplasma_list
         next = (dplasma_list_item_t *)elt->list_next;
         if(next == elt) {
             next = NULL;
+        } else {
+            elt->list_next->list_prev = elt->list_prev;
+            elt->list_prev->list_next = elt->list_next;
+
+            elt->list_prev = elt;
+            elt->list_next = elt;
         }
-        elt->list_next->list_prev = elt->list_prev;
-        elt->list_prev->list_next = elt->list_next;
-
-        elt->list_prev = elt;
-        elt->list_next = elt;
-
         /* Try to find a room for elt */
-        for(i = 0; i < b->size; i++) {
+        for(; i < b->size; i++) {
             if( dplasma_atomic_cas(&b->items[i], NULL, elt) == 0 )
                 continue;
 
+            /*printf( "Push elem %p in local queue %p at position %d\n", elt, b, i );*/
             /* Found an empty space to push the first element. */
             nbelt++;
             break;
@@ -98,7 +99,7 @@ static inline void dplasma_hbbuffer_push_all(dplasma_hbbuffer_t *b, dplasma_list
             /* It was impossible to push elt */
             break;
         }
-
+        i++;  /* this position is already filled */
         elt = next;
     }
 
@@ -166,9 +167,10 @@ static inline dplasma_list_item_t *dplasma_hbbuffer_pop_best(dplasma_hbbuffer_t 
     } while( dplasma_atomic_cas( &b->items[best_idx], best_elt, NULL ) == 0 );
 
     /** Removes the element from the buffer. */
-	if( best_elt != NULL ) {
+    if( best_elt != NULL ) {
+        /*printf("Found best element %p in local queue %p at position %d\n", best_elt, b, best_idx);*/
         DEBUG(("Found best element at position %d\n", best_idx));
-	}
+    }
 
     return best_elt;
 }
