@@ -17,18 +17,18 @@
 
 #include <errno.h>
 
-#include "plasma.h"
-#include "../src/common.h"
-#include "../src/lapack.h"
-#include "../src/context.h"
-#include "../src/allocate.h"
+#include <plasma.h>
+#include <lapack.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 #include "data_management.h"
 #include "dplasma.h"
 #include "bindthread.h"
 
 extern int dposv_force_nb;
 
-//#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
+/*#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]*/
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 {
     return &((double*)Pdesc->mat)[Pdesc->bsiz*(m)+Pdesc->bsiz*Pdesc->lmt*(n)];
@@ -259,12 +259,8 @@ int tiling(PLASMA_enum * uplo, int N, double *A, int LDA, int NRHS, PLASMA_desc 
                                              PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
                                              N, N, 0, 0, N, N);
 
-    plasma_parallel_call_3(plasma_lapack_to_tile,
-                           double*, A,
-                           int, LDA,
-                           PLASMA_desc, *descA);
+    PLASMA_Lapack_to_Tile( A, LDA, descA );
 
-    //printf("matrix tiled in %dx%d\n", descA->lmt, descA->lnt);
     return 0;
     
 }
@@ -295,12 +291,8 @@ int untiling(PLASMA_enum * uplo, int N, double *A, int LDA, PLASMA_desc * descA)
     if (max(N, 0) == 0)
         return PLASMA_SUCCESS;
  
-    plasma_parallel_call_3(plasma_tile_to_lapack,
-                           PLASMA_desc, *descA,
-                           double*, A,
-                           int, LDA);
-    
-    //printf("matrix untiled from %dx%d\n", descA->lmt, descA->lnt);
+    PLASMA_Tile_to_Lapack( descA, A, LDA );
+
     return PLASMA_SUCCESS;
     
 }
@@ -325,39 +317,6 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 /*            m, n, res, rr, cr, Ddesc->GRIDrows, Ddesc->GRIDcols); */
     return res;
 }
-
-
-/* #if 0 /\*def USE_MPI*\/ */
-/* /\* empty stub for now, should allow for async data transfer from recv side *\/ */
-/* void * dplasma_get_tile_async(DPLASMA_desc *Ddesc, int m, int n, MPI_Request *req) */
-/* { */
-    
-/*     return NULL; */
-/* } */
-
-/* void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n) */
-/* { */
-/*     int tile_rank; */
-    
-/*     tile_rank = dplasma_get_rank_for_tile(Ddesc, m, n); */
-/*     if(Ddesc->mpi_rank == tile_rank) */
-/*     { */
-/*         //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n); */
-/*         return dplasma_get_local_tileDdesc, m, n); */
-/*     } */
-/* #ifdef USE_MPI */
-/*     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank); */
-/*     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_DOUBLE, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE); */
-/*     return plasma_A((PLASMA_desc *)Ddesc, m, n); */
-/* #else */
-/*     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__); */
-/*     return NULL; */
-/* #endif */
-/* } */
-
-/* #else  */
-/* /\*#define dplasma_get_local_tile_s dplasma_get_local_tile*\/ */
-/* #endif */
 
 void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
 {

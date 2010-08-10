@@ -77,8 +77,8 @@ BODY
             &PLASMA_INFO )
         );
     OUTPUT((
-        "CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
-            (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
+        "thread %d CORE_dpotrf( %s, %d, A(%d,%d), %d)\n",
+            context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
             k, k, NB /*A.nb,*/ )
         );
@@ -111,6 +111,7 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 
 BODY
     if( uplo == PlasmaLower ) {
+#if 1
         CORE(
             dtrsm, (
                 PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
@@ -119,15 +120,15 @@ BODY
                 1.0, T /*A(k, k)*/, NB, /*A.nb,*/
                      C /*A(n, k)*/, NB /*A.nb*/ )
             );
+#endif
         OUTPUT(( 
-            "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+            "thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, k, k, NB, /*A.nb,*/
                      n, k, NB /*A.nb*/ )
             );
-
     } else {
         CORE(
             dtrsm, (
@@ -138,8 +139,8 @@ BODY
                      C /*A(k, n)*/, NB /*A.nb*/ )
             );
        OUTPUT((
-            "CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
+            "thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, k, k, NB, /*A.nb,*/
@@ -172,6 +173,7 @@ INOUT T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
 
 BODY
     if( uplo == PlasmaLower ) {
+#if 1
         CORE(
             dsyrk, (
                 PlasmaLower, PlasmaNoTrans,
@@ -180,9 +182,10 @@ BODY
                 -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
+#endif
         OUTPUT((
-            "CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                "PlasmaLower", "PlasmaNoTrans",
+            "thread %d CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, n, k, NB, /*A.nb,*/
@@ -198,8 +201,8 @@ BODY
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                "PlasmaLower", "PlasmaNoTrans",
+            "thread %d CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, k, n, NB, /*A.nb,*/
@@ -215,7 +218,7 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..SIZE-3
+k = 0..SIZE-1
 m = k+2..SIZE-1
 n = k+1..m-1
 
@@ -234,6 +237,7 @@ INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 
 BODY
     if( uplo == PlasmaLower ) {
+#if 1
         CORE(
             dgemm, ( 
                 PlasmaNoTrans, PlasmaTrans,
@@ -244,9 +248,10 @@ BODY
                       A /*A(n, k)*/, NB, /*A.nb,*/
                  1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
+#endif
         OUTPUT((
-            "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                "PlasmaNoTrans", "PlasmaTrans",
+            "thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
@@ -266,8 +271,8 @@ BODY
                  1.0, C /*A(n, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                "PlasmaNoTrans", "PlasmaTrans",
+            "thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/

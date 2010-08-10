@@ -82,9 +82,20 @@ if(BLAS_FOUND)
     find_library(PLASMA_plasma_LIB plasma
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA plasma libraries are")
+    find_library(PLASMA_quark_LIB quark
+      PATHS ${PLASMA_LIBRARIES}
+      DOC "Where the PLASMA quark libraries are")
+    find_library(PLASMA_lapack_cwrapper_LIB lapack_cwrapper
+      PATHS ${PLASMA_LIBRARIES}
+      DOC "Where the PLASMA corelapack libraries are")
     if( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
       set( PLASMA_LIBRARIES "${PLASMA_plasma_LIB};${PLASMA_coreblas_LIB};${PLASMA_corelapack_LIB};${PLASMA_cblas_LIB}")
       set( FOUND_PLASMA_LIB 1)
+    else ( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
+      if( PLASMA_quark_LIB AND PLASMA_coreblas_LIB AND PLASMA_plasma_LIB )
+        set( PLASMA_LIBRARIES "${PLASMA_coreblas_LIB};${PLASMA_lapack_cwrapper_LIB};${PLASMA_plasma_LIB};${PLASMA_quark_LIB};${PLASMA_coreblas_LIB}")
+        set( FOUND_PLASMA_LIB 1)
+      endif( PLASMA_quark_LIB AND PLASMA_coreblas_LIB AND PLASMA_plasma_LIB )
     endif( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
   endif(FOUND_PLASMA_INCLUDE)
   
