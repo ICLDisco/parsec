@@ -529,7 +529,7 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
         gpu_device->transferred_data_in += tile_size;
     }
 
-    on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ, m, n, &gpu_elem_C);
+    on_gpu = dplasma_data_is_on_gpu(gpu_device, &ddescA, DPLASMA_READ | DPLASMA_WRITE, m, n, &gpu_elem_C);
     d_C = gpu_elem_C->gpu_mem;
     gpu_elem_C->memory_elem->memory = C;
     gpu_device->required_data_in += tile_size;
