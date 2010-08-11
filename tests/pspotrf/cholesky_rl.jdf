@@ -261,7 +261,12 @@ BODY
             /* We're done, but the task has been already destroyed */
             return -1;
         }
-        /* The GPU failed to execute this task, switch over to the CPU */
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+            use_gpu = 0;
+            return -2;
+        }
+        /* Continue with the task on the cores */
     }
 
     if( uplo == PlasmaLower ) {

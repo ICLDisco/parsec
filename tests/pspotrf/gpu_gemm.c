@@ -238,13 +238,16 @@ int spotrf_cuda_init( int* puse_gpu )
              * It appears that CUDA allocate the memory in chunks of 1MB,
              * so we need to adapt to this.
              */
-            tile_size = ddescA.mb * ddescA.nb * sizeof(float);
+            tile_size = ddescA.bsiz * sizeof(float);
             cuMemGetInfo( &free_mem, &total_mem );
             /* We allocate 9/10 of the total memory */
             thread_gpu_mem = (total_mem - total_mem / 10) / DPLASMA_CONTEXT_PER_GPU;
 
             while( free_mem > (total_mem - thread_gpu_mem) ) {
-                gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
+                gpu_elem_t* gpu_elem;
+                if( nb_allocations > ((ddescA.mt * ddescA.nt) >> 1) )
+                    break;
+                gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
                 dplamsa_linked_list_item_construct( (dplasma_list_item_t*)gpu_elem );
                 
                 cuda_status = cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
@@ -510,7 +513,7 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
         /* Push A into the GPU */
         status = cuMemcpyHtoDAsync( d_A, A, tile_size, stream );
         DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status, 
-                                  {printf("<<%p>> -> <<%p>>\n", (void*)A, (void*)(long)d_A); return_code = -2; goto release_and_return_error;} );
+                                  {printf("<<%p>> -> <<%p>> [%d]\n", (void*)A, (void*)(long)d_A, tile_size); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
     }
 
@@ -610,7 +613,7 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
     gc_data_t *gA, *gB, *gC;
     gpu_elem_t *gpu_elem_C;
     cudaError_t status;
-    dplasma_execution_context_t* progress_array[DPLASMA_MAX_STREAMS] = {NULL,};
+    dplasma_execution_context_t* progress_array[DPLASMA_MAX_STREAMS];
 
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = dplasma_data_tile_write_owner( &ddescA, m, n );
@@ -630,6 +633,8 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
     status = cuCtxPushCurrent(gpu_device->ctx);
     DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                               {return -2;} );
+    for( rc = 0; rc < DPLASMA_MAX_STREAMS; rc++ )
+        progress_array[rc] = NULL;
 
  more_work_to_do:
     if( (NULL != exec_context) && (NULL == progress_array[submit]) ) {
@@ -639,13 +644,15 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
         rc = gpu_sgemm_internal( gpu_device, eu_context, exec_context, gpu_device->streams[submit],
                                  uplo, A, B, C, k, n, m );
         if( 0 != rc ) {  /* something fishy happened. Reschedule the pending tasks on the cores */
-            return -2;
+            goto disable_gpu;
         }
+        /*printf( "GPU submit %p (k = %d, m = %d, n = %d) [%d]\n", (void*)progress_array[submit], k, m, n, submit );*/
         submit = (submit + 1) % gpu_device->max_streams;
         exec_context = NULL;
     }
 
     if( NULL != progress_array[waiting] ) {
+    wait_for_completion:
         stream_rc = cuStreamQuery(gpu_device->streams[waiting]);
         if( CUDA_ERROR_NOT_READY == stream_rc ) {
             goto fetch_more_work;
@@ -662,6 +669,7 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
 
  complete_previous_work:
     /* Everything went fine so far, the result is correct and back in the main memory */
+    /*printf( "GPU complete %p (k = %d, m = %d, n = %d) [%d]\n", (void*)progress_array[waiting], k, m, n, waiting );*/
     dplasma_complete_execution( eu_context, progress_array[waiting] );
     progress_array[waiting] = NULL;
     waiting = (waiting + 1) % gpu_device->max_streams;
@@ -677,8 +685,8 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
 
  fetch_more_work:
     /* Do we still have room in the progress_array? */
-    if( waiting == submit )
-        goto more_work_to_do;
+    if( NULL != progress_array[submit] )
+        goto wait_for_completion;
 
     exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
     if( NULL == exec_context ) {  /* Collisions, save time and come back here later */
@@ -696,6 +704,20 @@ int gpu_sgemm( dplasma_execution_unit_t* eu_context,
     B = GC_DATA(gB);
     C = GC_DATA(gC);
     goto more_work_to_do;
+
+    /* a device ... */
+    do {
+        exec_context = (dplasma_execution_context_t*)dplasma_dequeue_pop_front( &(gpu_device->pending) );
+        if( NULL != exec_context ) {
+ disable_gpu:
+            __dplasma_schedule( eu_context, exec_context, 0 );
+            rc = dplasma_atomic_dec_32b( &(gpu_device->mutex) );
+        }
+    } while( rc != 0 );
+    status = cuCtxPopCurrent(NULL);
+    DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                              {} );
+    return -2;
 }
 
 #if DPLASMA_SMART_SCHEDULING
