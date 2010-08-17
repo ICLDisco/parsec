@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "assignment.h"
-#include "dplasma.h"
+#include "dague.h"
 #include "expr.h"
 #include "symbol.h"
 

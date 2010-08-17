@@ -953,12 +953,50 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
                 }
 #if defined(DISTRIBUTED)                
             } else {
+                int _array_pos, _array_mask;
 
+                _array_pos = dst_rank / (8 * sizeof(uint32_t));
+                _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
+                DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, exec_context, 1);
+                arg->remote_deps->root = src_rank;
+                if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
+                    arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;  /* TODO: THOMAS IS DOUBTFULLLLLLL */
+                    arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
+                    arg->remote_deps->output[param_index].count++;
+                    arg->remote_deps_count++;
+                }
             }
 #endif /* defined(DISTRIBUTED) */
         }
-
     }
 
     return DAGUE_ITERATE_CONTINUE;
 }
+
+/* TODO: Change this code to something better */
+static dague_object_t** object_array = NULL;
+static uint32_t object_array_size = 1, object_array_pos = 0;
+
+/**< Retrieve the local object attached to a unique object id */
+dague_object_t* dague_object_lookup( uint32_t object_id )
+{
+    if( object_id > object_array_pos ) {
+        return NULL;
+    }
+    return object_array[object_id];
+}
+
+/**< Register the object with the engine. Create the unique identifier for the object */
+int dague_object_register( dague_object_t* object )
+{
+    uint32_t index = ++object_array_pos;
+
+    if( index >= object_array_size ) {
+        object_array_size *= 2;
+        object_array = (dague_object_t**)realloc(object_array, object_array_size * sizeof(dague_object_t*) );
+    }
+    object_array[index] = object;
+    object->object_id = index;
+    return (int)index;
+}
+

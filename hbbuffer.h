@@ -64,12 +64,9 @@ static inline void dague_hbbuffer_destroy(dague_hbbuffer_t *b)
 
 static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_t *elt)
 {
-    dague_list_item_t *next;
-    unsigned int i, nbelt;
+    dague_list_item_t *next = elt;
+    unsigned int i = 0, nbelt = 0;
 
-
-    nbelt = 0;
-    next = elt;
     while( NULL != elt ) {
         /* Assume that we're going to push elt.
          * Remove the first element from the list, keeping the rest of the list in next

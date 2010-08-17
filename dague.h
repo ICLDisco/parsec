@@ -97,6 +97,7 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 struct dague_t {
     const char*             name;
     uint16_t                flags;
+    uint16_t                function_id;
     dague_dependency_t      dependencies_goal;
     uint16_t                nb_locals;
     uint16_t                nb_params;
@@ -141,11 +142,12 @@ extern int schedule_sleep_begin, schedule_sleep_end;
 #endif
 
 typedef struct dague_object {
-  /** All dague_object_t structures hold these two arrays **/
-  int                    nb_functions;
-  int                    nb_local_tasks;
-  const dague_t        **functions_array;
-  dague_dependencies_t **dependencies_array;
+    /** All dague_object_t structures hold these two arrays **/
+    uint32_t              object_id;
+    uint16_t              nb_functions;
+    uint16_t              nb_local_tasks;
+    const dague_t        **functions_array;
+    dague_dependencies_t **dependencies_array;
 } dague_object_t;
 
 struct dague_ddesc;
@@ -197,5 +199,10 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
                                              int param_index, int outdep_index, 
                                              int rank_src, int rank_dst,
                                              void *param);
+
+/**< Retrieve the local object attached to a unique object id */
+dague_object_t* dague_object_lookup( uint32_t object_id );
+/**< Register the object with the engine. Create the unique identifier for the object */
+int dague_object_register( dague_object_t* object );
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

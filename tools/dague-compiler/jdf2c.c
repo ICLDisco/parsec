@@ -1446,6 +1446,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
                             "  .flags = %s%s,\n"
+                            "  .function_id = %d,\n"
 #if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
                             "  .dependencies_goal = %d,\n"
 #else
@@ -1458,6 +1459,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             dep_index,
                             (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                             has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
+                            dep_index,
 #if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
                             nbinput,
 #else
@@ -1693,7 +1695,11 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     string_arena_init(sa1);
 
-    coutput("  return (dague_%s_object_t*)res;\n"
+    coutput("#if defined(DISTRIBUTED)\n"
+            "  remote_deps_allocation_init(2, 1);  /* TODO: a more generic solution */\n"
+            "#endif  /* defined(DISTRIBUTED) */\n"
+            "  (void)dague_object_register((dague_object_t*)res);\n"
+            "  return (dague_%s_object_t*)res;\n"
             "}\n\n", jdf_basename);
 
     string_arena_free(sa1);

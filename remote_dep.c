@@ -165,9 +165,9 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #endif
 
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
-                                const dague_execution_context_t* exec_context,
-                                dague_remote_deps_t* remote_deps,
-                                uint32_t remote_deps_count )
+                              const dague_execution_context_t* exec_context,
+                              dague_remote_deps_t* remote_deps,
+                              uint32_t remote_deps_count )
 {
     const dague_t* function = exec_context->function;
     int i, me, him, current_mask;
@@ -184,7 +184,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     
     remote_deps->output_count = remote_deps_count;
     remote_deps->msg.deps = (uintptr_t) remote_deps;
-    remote_deps->msg.function = (uintptr_t) function;
+    remote_deps->msg.object_id   = exec_context->dague_object->object_id;
+    remote_deps->msg.function_id = function->function_id;
     for(i = 0; i < function->nb_locals; i++)
     {
         remote_deps->msg.locals[i] = exec_context->locals[i];

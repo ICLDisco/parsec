@@ -149,6 +149,8 @@ static void *translate_elements_random(void *params)
     unsigned int i;
     dague_list_item_t *e;
 
+    (void)params;  /* Keep it quiet */
+
     pthread_mutex_lock(&heavy_synchro_lock);
     while( heavy_synchro == 0 ) {
         pthread_cond_wait(&heavy_synchro_cond, &heavy_synchro_lock);
@@ -234,7 +236,7 @@ int main(int argc, char *argv[])
 
     printf("Parallel test.\n");
 
-    printf(" - translate elements from lifo1 to lifo2 or from lifo2 to lifo1 (random), %d times on %d threads\n",
+    printf(" - translate elements from lifo1 to lifo2 or from lifo2 to lifo1 (random), %d times on %ld threads\n",
            NBTIMES, nbthreads);
     for(e = 0; e < nbthreads; e++)
         pthread_create(&threads[e], NULL, translate_elements_random, NULL);

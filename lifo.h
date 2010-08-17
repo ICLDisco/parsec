@@ -65,14 +65,7 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
     }
 #endif  /* DAGUE_DEBUG */
     do {
-        /* This cas should never fail.
-         * It is however necessary to flush the line containing tail->list_next
-         *  so that its new value is visible by all other threads
-         *  when the cas of the head succeed
-         */
-        if( !dague_atomic_cas( &(tail->list_next), (uintptr_t)tail->list_next, (uintptr_t)lifo->lifo_head ) ) {
-            assert(0);
-        }
+        tail->list_next = lifo->lifo_head;
         dague_mfence();
         if( dague_atomic_cas( &(lifo->lifo_head),
                                 (uintptr_t) tail->list_next,

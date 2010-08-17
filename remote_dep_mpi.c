@@ -106,8 +106,12 @@ typedef struct dep_cmd_item_t
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
     unsigned int i, index = 0;
-    dague_t* function = (dague_t*) (uintptr_t) origin->function;
+    dague_object_t* object;
+    const dague_t* function;
     
+    object = dague_object_lookup( origin->object_id );
+    function = object->functions_array[origin->function_id];
+
     index += snprintf( str + index, len - index, "%s", function->name );
     if( index >= len ) return str;
     for( i = 0; i < function->nb_locals; i++ ) {
@@ -131,8 +135,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     pthread_attr_t thread_attr;
     pthread_attr_init(&thread_attr);
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
-    
-    
+
     dague_dequeue_construct(&dep_cmd_queue);
     dague_dequeue_construct(&dep_activate_queue);
     
@@ -328,8 +331,10 @@ static int remote_dep_nothread_send(int rank, dague_remote_deps_t* deps)
 static int remote_dep_nothread_get_datatypes(dague_remote_deps_t* origin)
 {
     dague_execution_context_t exec_context;
-    
-    exec_context.function = (dague_t*) (uintptr_t) origin->msg.function;
+
+    exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
+    exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
+
     for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
@@ -340,32 +345,26 @@ static int remote_dep_nothread_get_datatypes(dague_remote_deps_t* origin)
 
 static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin)
 {
-    dague_t* function = (dague_t*) (uintptr_t) origin->msg.function;
     int actions = DAGUE_ACTION_NO_PLACEHOLDER | DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
     dague_execution_context_t exec_context;
-    int ret, i, cnt, mask;
+    gc_data_t* data[MAX_PARAM_COUNT];
+    int ret, i;
     
-    exec_context.function = function;
+    exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
+    exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
     for(int i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
-    for( i = cnt = mask = 0; (i < MAX_PARAM_COUNT) && (NULL != function->out[i]); i++) {
-#if defined(DAGUE_DEBUG)
-        exec_context.data[i].data_repo = NULL;
-        exec_context.data[i].gc_data   = NULL;
-#endif  /* defined(DAGUE_DEBUG) */
-        if(origin->msg.deps & (1 << cnt)) {
-            assert(origin->msg.which & (1 << cnt));
-            exec_context.data[i].data_repo = NULL;
-            exec_context.data[i].gc_data   = origin->output[cnt].data;
-            mask |= (1<< i);
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
+        if(origin->msg.deps & (1 << i)) {
+            assert(origin->msg.which & (1 << i));
+            data[i] = origin->output[i].data;
         }
-        cnt++;
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               actions | 
-                                              mask, 
-                                              origin, NULL);
+                                              origin->msg.deps, 
+                                              origin, data);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
     return ret;
@@ -809,7 +808,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     MPI_Aint lb, size;
     MPI_Datatype dtt;
     remote_dep_wire_get_t msg;
-    dague_t* function = (dague_t*) (uintptr_t) task->function;
+    dague_object_t* object = dague_object_lookup( task->object_id );
+    const dague_t* function = object->functions_array[task->function_id];
     dague_remote_deps_t* deps = dep_activate_buff[i];
     int doall;
     void* data;

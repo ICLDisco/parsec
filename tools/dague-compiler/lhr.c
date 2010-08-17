@@ -43,7 +43,7 @@ static dague_ontask_iterate_t printit(struct dague_execution_unit_t *eu,
 
 int main(int argc, char *argv[])
 {
-    dague_object_t *o = dague_cholesky_new(NULL, 4, 10);
+    dague_object_t *o = (dague_object_t*)dague_cholesky_new(NULL, 4, 10);
     dague_execution_context_t init;
 
     (void)argc;

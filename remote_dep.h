@@ -41,7 +41,8 @@ typedef struct remote_dep_wire_activate_t
 {
     remote_dep_datakey_t deps;
     remote_dep_datakey_t which;
-    remote_dep_datakey_t function;
+    uint32_t             object_id;
+    uint32_t             function_id;
     assignment_t locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
@@ -54,19 +55,20 @@ typedef struct remote_dep_wire_get_t
 
 struct dague_remote_deps_t {
     dague_list_item_t                       item;
-    struct dague_atomic_lifo_t*             origin;
-    remote_dep_wire_activate_t                msg;
-    int                                       root;
-    uint32_t                                  output_count;
-    uint32_t                                  output_sent_count;
-    uint32_t*                                 remote_dep_fw_mask;
+    struct dague_atomic_lifo_t*             origin;  /**< The memory arena where the data pointer is comming from */
+    remote_dep_wire_activate_t              msg;     /**< A copy of the message control */
+    int                                     root;
+    uint32_t                                output_count;
+    uint32_t                                output_sent_count;
+    uint32_t*                               remote_dep_fw_mask;  /**< list of peers already notified abput
+                                                                  * the control sequence (only used for control messages) */
     struct { /** Never change this structure without understanding the 
               *   "subtle" relation with  remote_deps_allocation_init in remote_dep.c
               */
-        gc_data_t*                            data;
+        gc_data_t*                          data;
         dague_remote_dep_datatype_t*        type;
-        uint32_t*                             rank_bits;
-        uint32_t                              count;
+        uint32_t*                           rank_bits;
+        uint32_t                            count;
     } output[1];
 };
 
