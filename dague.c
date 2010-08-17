@@ -929,30 +929,9 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
     if( arg->action_mask & (1 << param_index) ) {
 #if defined(DISTRIBUTED)
         if( arg->action_mask & DAGUE_ACTION_GETTYPE_REMOTE_DEPS ) {
-            /* TODO: find a test to check the indices on this line */
             arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
         }
-#endif
-        if(arg->action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_INIT_REMOTE_DEPS)) {
-#if defined(DISTRIBUTED)
-            if( src_rank == dst_rank ) {
-#else
-                (void)src_rank;
-                (void)dst_rank;
-#endif
-                if(arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
-                    arg->output_entry->data[param_index] = arg->data[param_index];
-                    arg->output_usage++;
-                    gc_data_ref( arg->output_entry->data[param_index] );
-                    arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
-                                                                             eu, oldcontext,
-                                                                             oldcontext->function->out[param_index],
-                                                                             newcontext,
-                                                                             oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
-                                                                             &arg->ready_list);
-                }
-#if defined(DISTRIBUTED)                
-            } else {
+        if( arg->action_mask & DAGUE_ACTION_INIT_REMOTE_DEPS ) {
                 int _array_pos, _array_mask;
 
                 _array_pos = dst_rank / (8 * sizeof(uint32_t));
@@ -960,13 +939,27 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
                 DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, exec_context, 1);
                 arg->remote_deps->root = src_rank;
                 if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                    arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;  /* TODO: THOMAS IS DOUBTFULLLLLLL */
+                    arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;
                     arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
                     arg->remote_deps->output[param_index].count++;
                     arg->remote_deps_count++;
                 }
-            }
-#endif /* defined(DISTRIBUTED) */
+        }
+#else
+        (void)src_rank;
+#endif
+
+        if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
+            (eu->master_context->my_rank == dst_rank) ) {
+            arg->output_entry->data[param_index] = arg->data[param_index];
+            arg->output_usage++;
+            gc_data_ref( arg->output_entry->data[param_index] );
+            arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
+                                                                     eu, oldcontext,
+                                                                     oldcontext->function->out[param_index],
+                                                                     newcontext,
+                                                                     oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
+                                                                     &arg->ready_list);
         }
     }
 
