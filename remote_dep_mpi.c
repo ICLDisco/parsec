@@ -357,7 +357,6 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
         if(origin->msg.deps & (1 << i)) {
-            assert(origin->msg.which & (1 << i));
             data[i] = origin->output[i].data;
         }
     }
