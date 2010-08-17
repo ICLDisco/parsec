@@ -929,6 +929,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
     if( arg->action_mask & (1 << param_index) ) {
 #if defined(DISTRIBUTED)
         if( arg->action_mask & DAGUE_ACTION_GETTYPE_REMOTE_DEPS ) {
+            /* TODO: find a test to check the indices on this line */
             arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
         }
         if( arg->action_mask & DAGUE_ACTION_INIT_REMOTE_DEPS ) {
@@ -939,7 +940,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
                 DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, exec_context, 1);
                 arg->remote_deps->root = src_rank;
                 if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                    arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;
+                    arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;  /* TODO: THOMAS IS DOUBTFULLLLLLL */
                     arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
                     arg->remote_deps->output[param_index].count++;
                     arg->remote_deps_count++;
@@ -964,6 +965,17 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
     }
 
     return DAGUE_ITERATE_CONTINUE;
+}
+
+void dague_dump_object( dague_object_t* object )
+{
+}
+
+void dague_dump_execution_context( dague_execution_context_t* exec_context )
+{
+    char tmp[128];
+
+    printf( "Task %s\n", dague_service_to_string( exec_context, tmp, 128 ) );
 }
 
 /* TODO: Change this code to something better */
