@@ -1696,11 +1696,11 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_init(sa1);
 
     coutput("#if defined(DISTRIBUTED)\n"
-            "  remote_deps_allocation_init(2, 1);  /* TODO: a more generic solution */\n"
+            "  remote_deps_allocation_init(%s->nodes, 1);  /* TODO: a more generic solution */\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
             "  (void)dague_object_register((dague_object_t*)res);\n"
             "  return (dague_%s_object_t*)res;\n"
-            "}\n\n", jdf_basename);
+            "}\n\n", jdf->data[0].dname,jdf_basename);
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -2228,13 +2228,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     coutput("#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"
             "  arg.remote_deps = NULL;\n"
-            "  if(action_mask & DAGUE_ACTION_INIT_REMOTE_DEPS) {\n"
-            "    arg.root = __dague_object->super.%s->myrank;\n"
-            "  }\n"
-            "#endif\n",
-            f->predicate->func_or_mem);
-
-    coutput("  iterate_successors_of_%s_%s(eu, context, dague_release_dep_fct, &arg);\n"
+            "#endif\n"
+            "  iterate_successors_of_%s_%s(eu, context, dague_release_dep_fct, &arg);\n"
             "\n",
             jdf_basename, f->fname);
 
