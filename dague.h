@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -145,7 +145,7 @@ typedef struct dague_object {
     /** All dague_object_t structures hold these two arrays **/
     uint32_t              object_id;
     uint16_t              nb_functions;
-    uint16_t              nb_local_tasks;
+    uint32_t              nb_local_tasks;
     const dague_t        **functions_array;
     dague_dependencies_t **dependencies_array;
 } dague_object_t;
@@ -187,7 +187,6 @@ typedef struct {
     gc_data_t **data;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
-    int root;
     int remote_deps_count;
     dague_remote_deps_t *remote_deps;
 #endif
