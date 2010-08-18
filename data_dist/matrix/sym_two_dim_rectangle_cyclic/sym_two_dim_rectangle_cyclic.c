@@ -19,13 +19,13 @@
 #include "matrix.h"
 
 
-static uint32_t sym_twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
+static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
     int rr, cr, m, n;
     int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
+    Ddesc = (sym_two_dim_block_cyclic_t *) desc;
     va_start(ap, desc);
     m = va_arg(ap, int);
     n = va_arg(ap, int);
@@ -47,7 +47,7 @@ static uint32_t sym_twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
     return res;
 }
 
-static void * sym_twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
+static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
     int pos, m, n;
     int nb_elem, nb_elem_col, column;
@@ -156,7 +156,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
-    Ddesc->mat = dplasma_allocate_matrix(total * Ddesc->super.bsiz * Ddesc->super.mtype);
+    Ddesc->mat = dague_allocate_matrix(total * Ddesc->super.bsiz * Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");

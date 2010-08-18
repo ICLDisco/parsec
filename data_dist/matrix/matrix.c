@@ -409,37 +409,36 @@ void* dague_allocate_matrix(int matrix_size)
     }
 
     if( NULL == mat ) {
-        plasma_error("dague_description_init", "plasma_shared_alloc() failed");
+        perror("matrix allcation failed");
         return NULL;
     }
     return mat;
 }
 
-int data_dump(tiled_matrix_desc_t * Ddesc){
-  FILE * tmpf;
-  int i, j, k;
-  double * buf;
-  tmpf = fopen("tmp_dague_local_data_dump.txt", "w");
-  if(NULL == tmpf)
-    {
-      perror("opening file: tmp_local_data_dump.txt" );
-      return -1;
-    }
-  for (i = 0 ; i < Ddesc->lmt ; i++)
-    for ( j = 0 ; j< Ddesc->lnt ; j++)
-      {
-	if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
-	  {
-	    buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-	    for (k = 0 ; k < Ddesc->bsiz ; k++)
-	      {
-		fprintf(tmpf, "%e ", buf[k]);
-	      }
-	    fprintf(tmpf, "\n");
-	  }
-      }
-  fclose(tmpf);
-  return 0;
+int data_dump(tiled_matrix_desc_t * Ddesc, char * filename){
+    FILE * tmpf;
+    int i, j, k;
+    double * buf;
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf)
+        {
+            printf("opening file: %s", filename);
+            return -1;
+        }
+    for (i = 0 ; i < Ddesc->lmt ; i++)
+        for ( j = 0 ; j< Ddesc->lnt ; j++)
+            {
+                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
+                    {
+                        buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                        for (k = 0 ; k < Ddesc->bsiz ; k++)
+                            {
+                                fprintf(tmpf, "%e ", buf[k]);
+                            }
+                        fprintf(tmpf, "\n");
+                    }
+            }
+    fclose(tmpf);
+    return 0;
 }
-
 
