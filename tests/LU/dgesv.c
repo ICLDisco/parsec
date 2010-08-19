@@ -405,7 +405,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     create_datatypes();
 
     dague_LU = (dague_object_t*)dague_LU_new( (dague_ddesc_t*)&ddescL,(dague_ddesc_t*)&ddescIPIV,
-                                              (dague_ddesc_t*)&ddescA, ddescA.super.n, ddescA.super.nb, ddescA.super.lnt );
+                                              (dague_ddesc_t*)&ddescA, ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, ddescA.super.mb );
     dague->taskstodo += dague_LU->nb_local_tasks;
     printf("LU %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
            ddescA.super.nb, ddescA.super.nt, dague_LU->nb_local_tasks, dague->taskstodo);
