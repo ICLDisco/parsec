@@ -65,6 +65,6 @@ typedef struct tabular_distribution {
  * @param table mpi rank for each tile, column major ordering
  */
 
-void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, uint32_t * table );
+void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, uint32_t nodes, uint32_t cores, uint32_t myrank, uint32_t mb, uint32_t nb, uint32_t ib, uint32_t lm, uint32_t ln, uint32_t i, uint32_t j, uint32_t m, uint32_t n, uint32_t * table );
 
 #endif /* __TABULAR_DISTRIBUTION_H__ */
