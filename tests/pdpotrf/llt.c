@@ -331,7 +331,6 @@ int main(int argc, char ** argv)
 #endif
     /* parsing arguments */
     runtime_init(argc, argv);
-/*sleep(20);*/
     /* initializing matrix structure */
     two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N, 0, 0, LDA, LDA, nrst, ncst, GRIDrows);
     /* matrix generation */

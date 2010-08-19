@@ -26,14 +26,14 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT LU_kmn.c
-  COMMAND ../../tools/dpc LU_kmn.jdf LU_kmn.c
+  COMMAND ../../tools/dague-compiler/dc -i LU_kmn.jdf -o LU_kmn
   MAIN_DEPENDENCY LU_kmn.jdf
-  DEPENDS dpc
+  DEPENDS dc
   )
 
 add_custom_command (
   OUTPUT LU.c
-  COMMAND ../../tools/dpc LU.jdf LU.c
+  COMMAND ../../tools/dague-compiler/dc -i LU.jdf -o LU
   MAIN_DEPENDENCY LU.jdf
-  DEPENDS dpc
+  DEPENDS dc
   )
