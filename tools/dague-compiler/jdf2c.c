@@ -558,15 +558,16 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_list_t, next, nbdata);
 
     string_arena_add_string(sa, 
-                            "  %s_nblocal_tasks = %s_%s_enumerate_local_tasks(res);\n"
-                            "  %s_%s_allocate_dependencies(res);\n"
+                            "  %s_nblocal_tasks = %s_%s_internal_init(res);\n"
+                            "  if( 0 == %s_nblocal_tasks ) %s_nblocal_tasks = 10;\n"
                             "  res->%s_repository = data_repo_create_nothreadsafe(\n"
                             "         ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
                             "         MAX_DATAREPO_HASH :\n"
-                            "         ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);",
+                            "         ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);\n",
                             f->fname, jdf_basename, f->fname,
-                            jdf_basename, f->fname,
-                            f->fname, f->fname, f->fname, nbdata);
+                            f->fname, f->fname,
+                            f->fname,
+                            f->fname, f->fname, nbdata);
 
     return string_arena_get_string(sa);
 }
@@ -1166,68 +1167,7 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     string_arena_free(sa);
 }
 
-static void jdf_generate_enumerate_locals(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
-{
-    string_arena_t *sa1, *sa2;
-    jdf_def_list_t *dl;
-    int nesting;
-    expr_info_t info1, info2;
-
-    (void)jdf;
-
-    sa1 = string_arena_new(64);
-    sa2 = string_arena_new(64);
-
-    coutput("static int %s(const __dague_%s_internal_object_t *__dague_object)\n"
-            "{\n"
-            "  (void)__dague_object;\n"
-            "%s"
-            "  int nb = 0;\n",
-            fname, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int ", ";\n", ";\n"));
-
-    string_arena_init(sa1);
-
-    info1.sa = sa1;
-    info1.prefix = "";
-
-    info2.sa = sa2;
-    info2.prefix = "";
-
-    nesting = 0;
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        if(dl->expr->op == JDF_RANGE) {
-            coutput("%s  for(%s = %s; %s <= %s; %s++) {\n",
-                    indent(nesting),
-                    dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
-                    dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
-                    dl->name);
-            nesting++;
-        } else {
-            coutput("%s  %s = %s;\n", indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
-        }
-    }
-
-    string_arena_init(sa1);
-    coutput("%s    if( %s_pred(%s) ) nb++;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
-                                                            dump_string, NULL, 
-                                                            "", "", ", ", ""));
-
-    string_arena_free(sa1);    
-    string_arena_free(sa2);
-
-    for(; nesting > 0; nesting--) {
-        coutput("%s  }\n", indent(nesting));
-    }
-
-    coutput("  return nb;\n"
-            "}\n"
-            "\n");
-}
-
-static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
+static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2;
     jdf_def_list_t *dl;
@@ -1238,28 +1178,28 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static void %s(const __dague_%s_internal_object_t *__dague_object)\n"
+    coutput("static int %s(__dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
             "  dague_dependencies_t *dep;\n"
-            "  int __foundone;\n"
-            "  (void)__foundone;\n"
+            "  int nb_tasks = 0, __foundone;\n"
             "%s",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int ", ";\n", ";\n"));
-    coutput("  (void)__dague_object;\n"
-            "%s"
-            "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int32_t ", "_min = 0x7fffffff;\n", "_min = 0x7fffffff;\n"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int32_t ", "_max = 0;\n", "_max = 0;\n"));
+                                 "  int32_t ", " ", ",", ";\n"));
     coutput("%s"
             "%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int ", "_start;\n", "_start;\n"),
+                                 "  int32_t ", " ", "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
             UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
-                                 "", "  int ", "_end;\n", "_end;\n"));
+                                 "  int32_t ", " ", "_max = 0,", "_max = 0;\n"));
+    coutput("%s"
+            "%s"
+            "  (void)__dague_object;\n"
+            "  (void)__foundone;\n",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+                                 "  int32_t ", " ", "_start,", "_start;\n"),
+            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+                                 "  int32_t ", " ", "_end,", "_end;\n"));
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -1290,19 +1230,21 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
     }
 
     string_arena_init(sa1);
-    coutput("%s    if( !%s_pred(%s) ) continue;\n",
+    coutput("%s  if( !%s_pred(%s) ) continue;\n"
+            "%s  nb_tasks++;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
                                                             dump_string, NULL, 
-                                                            "", "", ", ", ""));
+                                                            "", "", ", ", ""),
+            indent(nesting));
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        coutput("%s    %s_max = MAX(%s_max, %s);\n"
-                "%s    %s_min = MIN(%s_min, %s);\n",
+        coutput("%s  %s_max = MAX(%s_max, %s);\n"
+                "%s  %s_min = MIN(%s_min, %s);\n",
                 indent(nesting), dl->name, dl->name, dl->name,
                 indent(nesting), dl->name, dl->name, dl->name);
     }
 
     for(; nesting > 0; nesting--) {
-        coutput("%s  }\n", indent(nesting));
+        coutput("%s}\n", indent(nesting));
     }
 
     coutput("\n"
@@ -1313,7 +1255,9 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
             "   **/\n");
 
     if( f->definitions->next == NULL ) {
-        coutput("  ALLOCATE_DEP_TRACKING(dep, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n",
+        coutput("  if( 0 != nb_tasks ) {\n"
+                "    ALLOCATE_DEP_TRACKING(dep, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n"
+                "  }\n",
                 f->definitions->name, f->definitions->name, f->definitions->name,
                 jdf_basename, f->fname, f->definitions->name);
     } else {
@@ -1340,29 +1284,18 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
         }
 
         coutput("%s  if( %s_pred(%s) ) {\n"
-                "%s    __foundone = 1;\n"
-                "%s    break;\n"
-                "%s  }\n",
+                "%s    /* We did find one! Allocate the dependencies array. */\n",
                 indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name,
-                                                              dump_string, NULL, 
-                                                              "", "", ", ", ""),
-                indent(nesting),
-                indent(nesting),
-                indent(nesting));
-        nesting--;
-        coutput("%s  }\n"
-                "%s  /* Did we find one? If not, skip this allocation, otherwise allocate */\n"
-                "%s  if( 0 == __foundone ) continue;\n",
-                indent(nesting),
-                indent(nesting),
+                                                                dump_string, NULL, 
+                                                                "", "", ", ", ""),
                 indent(nesting));
 
         string_arena_init(sa1);
         string_arena_add_string(sa1, "dep");
         for(dl = f->definitions; dl != NULL; dl = dl->next ) {
-            coutput("%s    if( %s == NULL ) {\n"
-                    "%s      ALLOCATE_DEP_TRACKING(%s, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
-                    "%s    }\n",
+            coutput("%s  if( %s == NULL ) {\n"
+                    "%s    ALLOCATE_DEP_TRACKING(%s, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
+                    "%s  }\n",
                     indent(nesting), string_arena_get_string(sa1),
                     indent(nesting), string_arena_get_string(sa1), dl->name, dl->name, dl->name, 
                                    jdf_basename, f->fname, dl->name,
@@ -1373,9 +1306,12 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
         }
+        coutput("%s    break;\n"
+                "%s  }\n",
+                indent(nesting), indent(nesting));
         
         for(; nesting > 0; nesting--) {
-            coutput("%s  }\n", indent(nesting));
+            coutput("%s}\n", indent(nesting));
         }
     }
 
@@ -1387,6 +1323,8 @@ static void jdf_generate_allocate_dependencies(const jdf_t *jdf, const jdf_funct
         nesting++, pf = pf->next) /* nothing */;
 
     coutput("  __dague_object->super.super.dependencies_array[%d] = dep;\n"
+            "  __dague_object->super.super.nb_local_tasks += nb_tasks;\n"
+            "  return nb_tasks;\n"
             "}\n"
             "\n",
             nesting);
@@ -1516,11 +1454,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_generate_code_hook(jdf, f, prefix);
     string_arena_add_string(sa, "  .hook = %s,\n", prefix);
 
-    sprintf(prefix, "%s_%s_enumerate_local_tasks", jdf_basename, f->fname);
-    jdf_generate_enumerate_locals(jdf, f, prefix);
-
-    sprintf(prefix, "%s_%s_allocate_dependencies", jdf_basename, f->fname);
-    jdf_generate_allocate_dependencies(jdf, f, prefix);
+    sprintf(prefix, "%s_%s_internal_init", jdf_basename, f->fname);
+    jdf_generate_internal_init(jdf, f, prefix);
 
     free(prefix);
 
@@ -1688,15 +1623,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
                             "", "", "\n", "\n"));
 
-    string_arena_init(sa1);
-    coutput("  res->super.super.nb_local_tasks = %s;\n",
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "", "_nblocal_tasks + ", "_nblocal_tasks") );
-
-    string_arena_init(sa1);
-
     coutput("#if defined(DISTRIBUTED)\n"
-            "  remote_deps_allocation_init(%s->nodes, 1);  /* TODO: a more generic solution */\n"
+            "  remote_deps_allocation_init(%s->nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
             "  (void)dague_object_register((dague_object_t*)res);\n"
             "  return (dague_%s_object_t*)res;\n"
@@ -2367,14 +2295,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     string_arena_add_string(sa_open, 
                             "#if defined(DISTRIBUTED)\n"
                             "%s%s  rank_dst =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
-                            "#else\n"
-                            "%s%s  rank_dst = 0;\n"
                             "#endif\n",
                             prefix, indent(nbopen), t->predicate->func_or_mem, t->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, t->predicate->parameters, next, expr,
                                                  dump_expr, &linfo,
-                                                 "", "", ", ", ""),
-                            prefix, indent(nbopen));
+                                                 "", "", ", ", ""));
     free(p);
     linfo.prefix = NULL;
 
@@ -2430,13 +2355,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     coutput("static void %s(dague_execution_unit_t *eu, dague_execution_context_t *exec_context,\n"
             "               dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
-            "  dague_execution_context_t nc;\n"
-            "  int rank_src, rank_dst;\n"
-            "  (void)rank_dst;\n"
-            "  (void)eu;\n"
-            "  (void)ontask;\n"
-            "  (void)ontask_arg;\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)exec_context->dague_object;\n"
+            "  dague_execution_context_t nc;\n"
+            "  int rank_src = 0, rank_dst = 0;\n"
             "%s\n",
             name,
             jdf_basename, jdf_basename,
@@ -2446,8 +2367,6 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     coutput("  nc.dague_object = exec_context->dague_object;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = __dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
-            "#else\n"
-            "  rank_src = 0;\n"
             "#endif\n",
             f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST_FIELD(sa, f->predicate->parameters, next, expr,
