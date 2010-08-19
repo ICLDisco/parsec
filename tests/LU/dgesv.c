@@ -110,8 +110,8 @@ int cores = 1;
 int nodes = 1;
 int nbtasks = -1;
 int N = 0;
-int NB = 144;
-int IB = 48;
+int NB = 120;
+int IB = 40;
 int rank;
 int LDA = 0;
 int NRHS = 1;
@@ -144,7 +144,7 @@ int main(int argc, char ** argv)
 #if defined(DISTRIBUTED)
     /* mpi init */
     MPI_Init(&argc, &argv);
-    sleep(20);
+    /*sleep(20);*/
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 #else
@@ -244,10 +244,10 @@ static void runtime_init(int argc, char **argv)
             int c;
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
-            c = getopt_long (argc, argv, "c:n:a:r:b:g:e:s::B:t:I:h",
+            c = getopt_long (argc, argv, "c:n:a:r:b:g:e:s:B:t:I:h",
                              long_options, &option_index);
 #else
-            c = getopt (argc, argv, "c:n:a:r:b:g:e:s::B:t:I:h");
+            c = getopt (argc, argv, "c:n:a:r:b:g:e:s:B:t:I:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -405,8 +405,10 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     create_datatypes();
 
     dague_LU = (dague_object_t*)dague_LU_new( (dague_ddesc_t*)&ddescL,(dague_ddesc_t*)&ddescIPIV,
-                                              (dague_ddesc_t*)&ddescA, ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, ddescA.super.mb );
+                                              (dague_ddesc_t*)&ddescA,
+                                              ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, ddescA.super.ib );
     dague->taskstodo += dague_LU->nb_local_tasks;
+    nbtasks = dague_LU->nb_local_tasks;
     printf("LU %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
            ddescA.super.nb, ddescA.super.nt, dague_LU->nb_local_tasks, dague->taskstodo);
     printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", 
