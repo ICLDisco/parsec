@@ -933,18 +933,18 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
             arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
         }
         if( arg->action_mask & DAGUE_ACTION_INIT_REMOTE_DEPS ) {
-                int _array_pos, _array_mask;
+            int _array_pos, _array_mask;
 
-                _array_pos = dst_rank / (8 * sizeof(uint32_t));
-                _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
-                DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, exec_context, 1);
-                arg->remote_deps->root = src_rank;
-                if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                    arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;  /* TODO: THOMAS IS DOUBTFULLLLLLL */
-                    arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
-                    arg->remote_deps->output[param_index].count++;
-                    arg->remote_deps_count++;
-                }
+            _array_pos = dst_rank / (8 * sizeof(uint32_t));
+            _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
+            DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
+            arg->remote_deps->root = src_rank;
+            if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;  /* TODO: THOMAS IS DOUBTFULLLLLLL */
+                arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
+                arg->remote_deps->output[param_index].count++;
+                arg->remote_deps_count++;
+            }
         }
 #else
         (void)src_rank;
