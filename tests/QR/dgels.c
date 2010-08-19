@@ -134,7 +134,7 @@ int main(int argc, char ** argv)
 #if defined(DISTRIBUTED)
     /* mpi init */
     MPI_Init(&argc, &argv);
-    
+    /*sleep(20);*/
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 #else
@@ -155,8 +155,6 @@ int main(int argc, char ** argv)
                              IB, NB, IB, IB*ddescA.super.mt, N, 0, 0,
                              IB*ddescA.super.mt, N, nrst, ncst, GRIDrows);
    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
-
-   create_datatypes();
 
    /*** THIS IS THE DAGUE COMPUTATION ***/
    TIME_START();
@@ -214,154 +212,154 @@ static void runtime_init(int argc, char **argv)
 {
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
-    {
-        {"nb-cores",    required_argument,  0, 'c'},
-        {"cols",        required_argument,  0, 'N'},
-        {"rows",        required_argument,  0, 'M'},
-        {"lda",         required_argument,  0, 'a'},
-        {"nrhs",        required_argument,  0, 'r'},
-        {"ldb",         required_argument,  0, 'b'},
-        {"grid-rows",   required_argument,  0, 'g'},
-        {"stile-col",   required_argument,  0, 'e'},
-        {"stile-row",   required_argument,  0, 's'},
-        {"block-size",  required_argument,  0, 'B'},
-        {"internal-block-size", required_argument, 0, 'I'},
-        {"help",        no_argument,        0, 'h'},
-        {0, 0, 0, 0}
-    };
+        {
+            {"nb-cores",    required_argument,  0, 'c'},
+            {"cols",        required_argument,  0, 'N'},
+            {"rows",        required_argument,  0, 'M'},
+            {"lda",         required_argument,  0, 'a'},
+            {"nrhs",        required_argument,  0, 'r'},
+            {"ldb",         required_argument,  0, 'b'},
+            {"grid-rows",   required_argument,  0, 'g'},
+            {"stile-col",   required_argument,  0, 'e'},
+            {"stile-row",   required_argument,  0, 's'},
+            {"block-size",  required_argument,  0, 'B'},
+            {"internal-block-size", required_argument, 0, 'I'},
+            {"help",        no_argument,        0, 'h'},
+            {0, 0, 0, 0}
+        };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
     do
-    {
-        int c;
+        {
+            int c;
 #if defined(HAVE_GETOPT_LONG)
-        int option_index = 0;
-        c = getopt_long (argc, argv, "c:N:M:a:r:b:g:e:s:B:I:h",
-                         long_options, &option_index);
+            int option_index = 0;
+            c = getopt_long (argc, argv, "c:N:M:a:r:b:g:e:s:B:I:h",
+                             long_options, &option_index);
 #else
-        c = getopt (argc, argv, "c:N:M:a:r:b:g:e:s:B:I:h");
+            c = getopt (argc, argv, "c:N:M:a:r:b:g:e:s:B:I:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
-        if (c == -1)
-            break;
+            if (c == -1)
+                break;
         
-        switch (c)
-        {
-            case 'c':
-                cores = atoi(optarg);
-                if(cores<= 0)
-                    cores=1;
-                break;
-
-            case 'N':
-                N = atoi(optarg);
-                break;
-
-            case 'M':
-                M = atoi(optarg);
-                //printf("matrix size set to %d\n", M);
-                break;
-
-            case 'g':
-                GRIDrows = atoi(optarg);
-                break;
-
-            case 's':
-                nrst = atoi(optarg);
-                if(nrst <= 0)
+            switch (c)
                 {
-                    fprintf(stderr, "select a positive value for the row super tile size\n");
-                    exit(2);
-                }                
-                /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
-                break;
+                case 'c':
+                    cores = atoi(optarg);
+                    if(cores<= 0)
+                        cores=1;
+                    break;
 
-            case 'e':
-                ncst = atoi(optarg);
-                if(ncst <= 0)
-                {
-                    fprintf(stderr, "select a positive value for the col super tile size\n");
-                    exit(2);
-                }                
-                /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
-                break;
+                case 'N':
+                    N = atoi(optarg);
+                    break;
+
+                case 'M':
+                    M = atoi(optarg);
+                    //printf("matrix size set to %d\n", M);
+                    break;
+
+                case 'g':
+                    GRIDrows = atoi(optarg);
+                    break;
+
+                case 's':
+                    nrst = atoi(optarg);
+                    if(nrst <= 0)
+                        {
+                            fprintf(stderr, "select a positive value for the row super tile size\n");
+                            exit(2);
+                        }                
+                    /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
+                    break;
+
+                case 'e':
+                    ncst = atoi(optarg);
+                    if(ncst <= 0)
+                        {
+                            fprintf(stderr, "select a positive value for the col super tile size\n");
+                            exit(2);
+                        }                
+                    /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
+                    break;
                 
-            case 'r':
-                NRHS  = atoi(optarg);
-                printf("number of RHS set to %d\n", NRHS);
-                break;
-            case 'a':
-                LDA = atoi(optarg);
-                printf("LDA set to %d\n", LDA);
-                break;                
-            case 'b':
-                LDB  = atoi(optarg);
-                printf("LDB set to %d\n", LDB);
-                break;
+                case 'r':
+                    NRHS  = atoi(optarg);
+                    printf("number of RHS set to %d\n", NRHS);
+                    break;
+                case 'a':
+                    LDA = atoi(optarg);
+                    printf("LDA set to %d\n", LDA);
+                    break;                
+                case 'b':
+                    LDB  = atoi(optarg);
+                    printf("LDB set to %d\n", LDB);
+                    break;
                 
-            case 'B':
-                if(optarg)
-                {
-                    NB = atoi(optarg);
-                }
-                else
-                {
-                    fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
-                    exit(2);
-                }
-                break;
+                case 'B':
+                    if(optarg)
+                        {
+                            NB = atoi(optarg);
+                        }
+                    else
+                        {
+                            fprintf(stderr, "Argument is mandatory for -B (--block-size) flag.\n");
+                            exit(2);
+                        }
+                    break;
 
-            case 'I':
-                if(optarg)
-                {
-                    IB = atoi(optarg);
-                    MB = IB;
-                }
-                else
-                {
-                    fprintf(stderr, "Argument is mandatory for -I (--internal-block-size) flag.\n");
-                    exit(2);
-                }
-                break;
+                case 'I':
+                    if(optarg)
+                        {
+                            IB = atoi(optarg);
+                            MB = IB;
+                        }
+                    else
+                        {
+                            fprintf(stderr, "Argument is mandatory for -I (--internal-block-size) flag.\n");
+                            exit(2);
+                        }
+                    break;
 
-            case 'h':
-                print_usage();
-                exit(0);
-            case '?': /* getopt_long already printed an error message. */
-            default:
-                break; /* Assume anything else is dague/mpi stuff */
-        }
-    } while(1);
+                case 'h':
+                    print_usage();
+                    exit(0);
+                case '?': /* getopt_long already printed an error message. */
+                default:
+                    break; /* Assume anything else is dague/mpi stuff */
+                }
+        } while(1);
     
     while(N == 0)
-    {
-        if(optind < argc)
         {
-            N = atoi(argv[optind++]);
-            continue;
-        }
-        print_usage(); 
-        exit(2);
-    } 
+            if(optind < argc)
+                {
+                    N = atoi(argv[optind++]);
+                    continue;
+                }
+            print_usage(); 
+            exit(2);
+        } 
     if( M == 0 ) {
         M = N;
     }
-     if((nodes % GRIDrows) != 0)
+    if((nodes % GRIDrows) != 0)
         {
-            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
+            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", GRIDrows, nodes);
             exit(2);
         }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
 
     if(LDA <= 0) 
-    {
-        LDA = M;
-    }
+        {
+            LDA = M;
+        }
     if(LDB <= 0) 
-    {
-        LDB = M;        
-    }
+        {
+            LDB = M;        
+        }
 
     PLASMA_Init(1);
 
@@ -487,86 +485,3 @@ static void create_datatypes(void)
     free(indices);
 #endif
 }
-
-#undef N
-#undef NB
-
-
-#if defined(DEBUG_MATRICES)
-#if defined(DISTRIBUTED)
-#define A(m,n) dague_get_local_tile_s(&ddescA, m, n)
-#define L(m,n) dague_get_local_tile_s(&ddescL, m, n)
-#define descA ddescA
-#define descL ddescL
-#else
-#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
-#define L(m,n) &(((double*)descL.mat)[descL.bsiz*(m)+descL.bsiz*descL.lmt*(n)])
-#endif
-#define MAXDBLSTRLEN 16
-
-static void debug_matrices(void)
-{
-    int tilem, tilen;
-    int m, n, len, pos;
-    double *a;
-    char *line;
-#if defined(DISTRIBUTED)
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    int rank = 0;
-#endif
-
-    len = 32 + (MAXDBLSTRLEN + 1) * descA.nb;
-    line = (char *)malloc( len );
-
-    for(tilem = 0; tilem < descA.mt; tilem++) {
-        for(tilen = 0; tilen < descA.nt; tilen++) {
-#if defined(DISTRIBUTED)
-            if( dague_get_rank_for_tile(&ddescA, tilem, tilen) == rank ) {
-#endif
-                a = A(tilem, tilen);
-                fprintf(stderr, "[%d] A(%d, %d) = \n", rank, tilem, tilen);
-                pos = 0;
-                for(m = 0; m < descA.mb; m++) {
-                    for(n = 0; n < descA.nb; n++) {
-                        pos += snprintf(line + pos, len-pos, "%9.5f ", a[m + descA.mb * n]);
-                    }
-                    fprintf(stderr, "[%d]   %s\n", rank, line);
-                    pos = 0;
-                }
-#if defined(DISTRIBUTED)
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        }
-    }
-
-    for(tilem = 0; tilem < descL.mt; tilem++) {
-        for(tilen = 0; tilen < descL.nt; tilen++) {
-#if defined(DISTRIBUTED)
-            if( dague_get_rank_for_tile(&ddescL, tilem, tilen) == rank ) {
-#endif
-                a = L(tilem, tilen);
-                fprintf(stderr, "[%d] dL(%d, %d) = \n", rank, tilem, tilen);
-                pos = 0;
-                for(m = 0; m < descL.mb; m++) {
-                    for(n = 0; n < descL.nb; n++) {
-                        pos += snprintf(line + pos, len-pos, "%9.5f ", a[m + descL.mb * n]);
-                    }
-                    fprintf(stderr, "[%d]   %s\n", rank, line);
-                    pos = 0;
-                }
-#if defined(DISTRIBUTED)            }
-            MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        }
-    }
-
-    free(line);
-}
-#undef descA
-#undef descL
-#undef A
-#undef L
-#endif /* defined(DEBUG_MATRICES) */
