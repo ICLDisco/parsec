@@ -352,12 +352,13 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
     
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
-    for(int i = 0; i < exec_context.function->nb_locals; i++)
+    for( i = 0; i < exec_context.function->nb_locals; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
         if(origin->msg.deps & (1 << i)) {
-            data[i] = origin->output[i].data;
+        printf("DATA %p released\n", GC_DATA(origin->output[i].data));
+	    	data[i] = origin->output[i].data;
         }
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
@@ -807,8 +808,10 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     MPI_Aint lb, size;
     MPI_Datatype dtt;
     remote_dep_wire_get_t msg;
+#ifdef FLOW_CONTROL
     dague_object_t* object = dague_object_lookup( task->object_id );
     const dague_t* function = object->functions_array[task->function_id];
+#endif
     dague_remote_deps_t* deps = dep_activate_buff[i];
     int doall;
     void* data;
@@ -828,46 +831,36 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
         if((1<<k) & msg.which)
         {
             dtt = *deps->output[k].type;
-            MPI_Type_get_extent(dtt, &lb, &size);
-#ifdef DAGUE_DEBUG
-            MPI_Type_get_name(dtt, type_name, &len);
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, type_name, size, NEXT_TAG+k));
-#endif
-            {
-                data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
-                if( NULL == data ) {
+            data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
+            if( NULL == data ) {
 #ifdef FLOW_CONTROL
-            /* basic attempt at flow control */
-                    if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
-                    {
+                /* basic attempt at flow control */
+                if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
+                {
 #endif
-                        data = malloc(size);
+                   MPI_Type_get_extent(dtt, &lb, &size);
+                   data = malloc(size);
+                   assert(data != NULL);
 #ifdef FLOW_CONTROL
-            printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-#endif
-                        assert(data != NULL);
-#ifdef FLOW_CONTROL
-                    }
-                    else
-                    {
-                        /* do it later */
-                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-                        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-                        item->action = DEP_GET_DATA;
-                        item->cmd.get.rank = from;
-                        item->cmd.get.i = i;
-                        DAGUE_LIST_ITEM_SINGLETON(item);
-                        dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-                        return;
-                    }
-#else
-                    (void)function;
-#endif
+                   printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                }
+                else
+                {
+                   /* do it later */
+                   printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                   dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+                   item->action = DEP_GET_DATA;
+                   item->cmd.get.rank = from;
+                   item->cmd.get.i = i;
+                   DAGUE_LIST_ITEM_SINGLETON(item);
+                   dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+                   return;
                 }
             }
-#ifdef FLOW_CONTROL
             doall = 1; /* if we do one, do all */
             dague_atomic_inc_32b(&internal_alloc_lifo_num_used);
+#else
+            }
 #endif    
 
 #if defined(DAGUE_STATS)
@@ -880,6 +873,10 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
             deps->output[k].data = gc_data_new(data, size > 0 ? (uint32_t)size : 1); 
 #else
             deps->output[k].data = gc_data_new(data, 1); 
+#endif
+#ifdef DAGUE_DEBUG
+            MPI_Type_get_name(dtt, type_name, &len);
+            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, type_name, size, NEXT_TAG+k));
 #endif
             /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
