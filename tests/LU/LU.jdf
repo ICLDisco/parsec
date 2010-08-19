@@ -185,7 +185,7 @@ static void debug_ipiv(int core, int *a, char *name, int tilen, int tilem)
 N       /* Matrix Size (columns = rows) */
 NB      /* Tile Size */
 NT      /* Number of tiled columns */
-
+IB
 /************************************************************************************
  *                                   DGETRF                                         *
  ************************************************************************************/
@@ -224,14 +224,14 @@ BODY
                 CORE_dgetrf(
                     k == NT-1 ? N-k*NB : NB, /*k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb*/
                     k == NT-1 ? N-k*NB : NB, /*k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb*/
-                    descL.mb,
-                    LU /*A(k, k)*/, descA.nb,
+                    IB /*descL.mb*/,
+                    LU /*A(k, k)*/, NB /*descA.nb*/,
                     IPIV /*IPIV(k, k)*/, &iinfo);
                 debug_warning(context->eu_id, "after", "DGETRF", k, -1, -1);
                 debug_matrix(context->eu_id, LU, "LU=A", k, k);
                 debug_ipiv(context->eu_id, IPIV, "IPIV", k, k);
-                if (_PLASMA_INFO == 0 && iinfo > 0 && k == descA.mt-1)
-                    _PLASMA_INFO = iinfo + descA.nb*k;
+                if (PLASMA_INFO == 0 && iinfo > 0 && k == NT /*descA.mt*/-1)
+                    PLASMA_INFO = iinfo + NB /*descA.nb*/*k;
 #else
         OUTPUT(( "void task_DGETRF(double *A, int *IPIV)" ));
 #endif  /* !defined(DAGUE_DRY_RUN) */
@@ -282,15 +282,15 @@ BODY
                 debug_matrix(context->eu_id, C3, "C3=A", m, k);
                 debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
                 CORE_dssssm(
-                    descA.nb,
-                    m == NT-1 ? descA.m-m*descA.nb : descA.nb,
-                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-                    descL.mb,
-                    descA.nb,
-                    C1 /*A(k, n)*/, descA.nb,
-                    C2 /*A(m, n)*/, descA.nb,
-                    dL /*L(m, k)*/, descL.mb,
-                    C3 /*A(m, k)*/, descA.nb,
+                    NB /*descA.nb*/,
+                    m == NT-1 ? N-m*NB : NB /* m == descA.nt-1 ? descA.m-m*descA.nb : descA.nb */,
+                    n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
+                    IB /*descL.mb*/,
+                    NB /*descA.nb*/,
+                    C1 /*A(k, n)*/, NB /* descA.nb */,
+                    C2 /*A(m, n)*/, NB /* descA.nb */,
+                    dL /*L(m, k)*/, IB /* descL.mb */,
+                    C3 /*A(m, k)*/, NB /* descA.nb */,
                     IPIV /*IPIV(m, k)*/);
                 debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);
                 debug_matrix(context->eu_id, C1, "C1=A", k, n);
@@ -327,13 +327,13 @@ BODY
                 debug_matrix(context->eu_id, C1, "C1=A", k, n);
                 debug_ipiv(context->eu_id, IPIV, "IPIV", k, k);
                 CORE_dgessm(
-                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-                    descA.nb,
-                    descL.mb,
+                    k == NT-1 ? N-k*NB : NB /* k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb */,
+                    n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
+                    NB /* descA.nb */,
+                    IB /* descL.mb */,
                     IPIV /*IPIV(k, k)*/,
-                    L /*A(k, k)*/, descA.nb,
-                    C1 /*A(k, n)*/, descA.nb);
+                    L /*A(k, k)*/, NB /* descA.nb */,
+                    C1 /*A(k, n)*/, NB /* descA.nb */);
                 debug_warning(context->eu_id, "after", "DGESSM", k, n, -1);
                 debug_matrix(context->eu_id, L, "L=A", k, k);
                 debug_matrix(context->eu_id, C1, "C1=A", k, n);
@@ -390,22 +390,22 @@ BODY
      debug_l(context->eu_id, dL, "dL=L", m, k);
      debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
      CORE_dtstrf(
-                 m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
-                 k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-                 descL.mb,
-                 descA.nb,
-                 U /*A(k, k)*/, descA.nb,
-                 C1 /*A(m, k)*/, descA.nb,
-                 dL /*L(m, k)*/, descL.mb,
+                 m == NT-1 ? N-m*NB : NB /* m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb */,
+                 k == NT-1 ? N-k*NB : NB /* k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb */,
+                 IB /* descL.mb */,
+                 NB /* descA.nb */,
+                 U /*A(k, k)*/, NB /* descA.nb */,
+                 C1 /*A(m, k)*/, NB /* descA.nb */,
+                 dL /*L(m, k)*/, IB /* descL.mb */,
                  IPIV /*IPIV(m, k)*/, 
-                 work, descL.nb, &iinfo);
+                 work, NB /* descL.nb */, &iinfo);
      debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);
      debug_matrix(context->eu_id, U, "U=A", k, k);
      debug_matrix(context->eu_id, C1, "C1=A", m, k);
      debug_l(context->eu_id, dL, "dL=L", m, k);
      debug_ipiv(context->eu_id, IPIV, "IPIV", m, k);
-     if (PLASMA_INFO == 0 && iinfo > 0 && m == descA.mt-1)
-         PLASMA_INFO = iinfo + descA.nb*k;
+     if (PLASMA_INFO == 0 && iinfo > 0 && m == NT /*descA.mt*/-1)
+         PLASMA_INFO = iinfo + NB /*descA.nb*/*k;
      dague_private_memory_push(work_pool, work);
 #else
      OUTPUT(("void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)"));
