@@ -217,10 +217,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
 
-                    if((me == -1) && (rank > eu_context->master_context->my_rank))
+                    if((me == -1) && (rank >= eu_context->master_context->my_rank))
                     {
                         /* the next bit points after me, so I know my dense rank now */
                         me = ++him;
+			if(rank == eu_context->master_context->my_rank) continue;
                     }
                     him++;
                     
