@@ -6,9 +6,9 @@ if( PLASMA_FOUND )
     trsm.c 
     dtrsm.c 
     trsm_LLN.c
-    # trsm_LLT.c
-    # trsm_LUN.c
-    # trsm_LUT.c
+    trsm_LLT.c
+    trsm_LUN.c
+    trsm_LUT.c
     # trsm_RLN.c
     # trsm_RLT.c
     # trsm_RUN.c

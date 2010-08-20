@@ -31,31 +31,31 @@ DAGUE_dtrsm_getObject(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLA
 								  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n,
 								  trans, diag, alpha);
 	    }
-	    /* else /\* trans =! PlasmaNoTrans *\/ */
-	    /* { */
-	    /* 	dague_trsm = (dague_object_t*)dague_trsm_LLT_new( (dague_ddesc_t*)A, (dague_ddesc_t*)B,  */
-	    /* 							  B->super.mb, B->super.nb, B->super.mt, B->super.nt, B->super.m, B->super.n,  */
-	    /* 							  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n, */
-	    /* 							  trans, diag, alpha); */
-	    /* } */
+	    else /* trans =! PlasmaNoTrans */
+	    {
+	    	dague_trsm = (dague_object_t*)dague_trsm_LLT_new( (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+	    							  B->super.mb, B->super.nb, B->super.mt, B->super.nt, B->super.m, B->super.n,
+	    							  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n,
+	    							  trans, diag, alpha);
+	    }
 	}
-	/* else /\* uplo = PlasmaUpper *\/ */
-	/* { */
-	/*     if ( trans == PlasmaNoTrans ) */
-	/*     { */
-	/* 	dague_trsm = (dague_object_t*)dague_trsm_LUN_new( (dague_ddesc_t*)A, (dague_ddesc_t*)B,  */
-	/* 							  B->super.mb, B->super.nb, B->super.mt, B->super.nt, B->super.m, B->super.n,  */
-	/* 							  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n, */
-	/* 							  trans, diag, alpha); */
-	/*     } */
-	/*     else /\* trans =! PlasmaNoTrans *\/ */
-	/*     { */
-	/* 	dague_trsm = (dague_object_t*)dague_trsm_LUT_new( (dague_ddesc_t*)A, (dague_ddesc_t*)B,  */
-	/* 							  B->super.mb, B->super.nb, B->super.mt, B->super.nt, B->super.m, B->super.n,  */
-	/* 							  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n, */
-	/* 							  trans, diag, alpha); */
-	/*     } */
-	/* } */
+	else /* uplo = PlasmaUpper */
+	{
+	    if ( trans == PlasmaNoTrans )
+	    {
+		dague_trsm = (dague_object_t*)dague_trsm_LUN_new( (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+								  B->super.mb, B->super.nb, B->super.mt, B->super.nt, B->super.m, B->super.n,
+								  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n,
+								  trans, diag, alpha);
+	    }
+	    else /* trans =! PlasmaNoTrans */
+	    {
+		dague_trsm = (dague_object_t*)dague_trsm_LUT_new( (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+								  B->super.mb, B->super.nb, B->super.mt, B->super.nt, B->super.m, B->super.n,
+								  A->super.mb, A->super.nb, A->super.mt, A->super.nt, A->super.m, A->super.n,
+								  trans, diag, alpha);
+	    }
+	}
     }
     /* else /\* side == PlasmaRight *\/ */
     /* { */
