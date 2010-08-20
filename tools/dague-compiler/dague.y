@@ -124,12 +124,13 @@ jdf:            jdf function
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
                 }
-        |       jdf VAR ASSIGNMENT expr 
+        |       jdf VAR optional_type ASSIGNMENT expr 
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     e->next = NULL;
                     e->name = $2;
-                    e->expression = $4;
+                    e->type = $3;
+                    e->expression = $5;
                     e->lineno = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
@@ -139,11 +140,12 @@ jdf:            jdf function
                         g->next = e;
                     }
                 } 
-        |       jdf VAR
+        |       jdf VAR optional_type
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    e->name = $2;
                     e->next = NULL;
+                    e->name = $2;
+                    e->type = $3;
                     e->expression = NULL;
                     e->lineno = current_lineno;
                     if( current_jdf.globals == NULL ) {
@@ -170,6 +172,17 @@ jdf:            jdf function
                 }
         |
         ;
+
+optional_type: 
+              OPTIONAL_INFO 
+              {
+                  $$ = $1;
+              }
+       |
+              {
+                  $$ = NULL;
+              }
+       ;
 
 flags_list:     VAR COMMA flags_list
                 {
@@ -372,17 +385,6 @@ guarded_call: call
                   g->calltrue = $3;
                   g->callfalse = $5;
                   $$ = g;
-              }
-       ;
-
-optional_type: 
-              OPTIONAL_INFO 
-              {
-                  $$ = $1;
-              }
-       |
-              {
-                  $$ = NULL;
               }
        ;
 

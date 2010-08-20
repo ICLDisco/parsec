@@ -547,6 +547,17 @@ static char *dump_profiling_init(void **elem, void *arg)
     return string_arena_get_string(info->sa);
 }
 
+static char* dump_typed_globals(void **elem, void *arg)
+{
+    string_arena_t *sa = (string_arena_t*)arg;
+    jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+
+    string_arena_init(sa);
+    string_arena_add_string(sa, "%s %s",
+                            (NULL == global->type ? "int" : global->type), global->name);
+    return string_arena_get_string(sa);
+}
+
 static char *dump_data_repository_constructor(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
@@ -724,10 +735,11 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 
 static void jdf_generate_header_file(const jdf_t* jdf)
 {
-    string_arena_t *sa1, *sa2;
+    string_arena_t *sa1, *sa2, *sa3;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
 
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
@@ -738,21 +750,22 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("  dague_object_t super;\n");
     houtput("  /* The list of globals */\n"
             "%s",
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
-                                  dump_string, NULL, "", "  int ", ";\n", ";\n"));
+            UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, sa2,
+                            "", "  ", ";\n", ";\n"));
     houtput("  /* The list of data */\n"
             "%s", 
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
                                   dump_string, NULL, "", "  dague_ddesc_t *", ";\n", ";\n"));
-    houtput("} dague_%s_object_t;\n", jdf_basename);
+    houtput("} dague_%s_object_t;\n\n", jdf_basename);
     
-    houtput("dague_%s_object_t *dague_%s_new(%s, %s);\n", jdf_basename, jdf_basename,
+    houtput("extern dague_%s_object_t *dague_%s_new(%s, %s);\n", jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "dague_ddesc_t *", ", ", ""),
-            UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
-                                  dump_string, NULL, "",  "int ", ", ", ""));
+                                  dump_string, NULL, "", " dague_ddesc_t *", ", ", ""),
+            UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, sa3,
+                            "", "", ", ", ""));
     string_arena_free(sa1);
     string_arena_free(sa2);
+    string_arena_free(sa3);
     houtput("#endif /* _%s_h_ */ \n",
             jdf_basename);
 }
@@ -1568,10 +1581,11 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
 
 static void jdf_generate_constructor( const jdf_t* jdf )
 {
-    string_arena_t *sa1,*sa2;
+    string_arena_t *sa1,*sa2,*sa3;
     profiling_init_info_t pi;
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
 
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
@@ -1579,13 +1593,12 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("dague_%s_object_t *dague_%s_new(%s, %s)\n{\n", jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "dague_ddesc_t *", ", ", ""),
-            UTIL_DUMP_LIST_FIELD( sa2, jdf->globals, next, name,
-                                  dump_string, NULL, "",  "int ", ", ", ""));
+                                  dump_string, NULL, "", " dague_ddesc_t *", ", ", ""),
+            UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, sa3,
+                            "", "", ", ", ""));
 
     coutput("  __dague_%s_internal_object_t *res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
-
 
     string_arena_init(sa1);
     coutput("%s\n",
@@ -1632,6 +1645,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     string_arena_free(sa1);
     string_arena_free(sa2);
+    string_arena_free(sa3);
 }
 
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)

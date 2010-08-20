@@ -68,6 +68,7 @@ typedef struct jdf_preamble_entry {
 typedef struct jdf_global_entry {
     struct jdf_global_entry *next;
     char                    *name;
+    char                    *type;
     struct jdf_expr         *expression;
     int                      lineno;
 } jdf_global_entry_t;

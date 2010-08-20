@@ -30,8 +30,9 @@ int PLASMA_INFO = 0;
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-NB
-SIZE
+NB    [int]
+SIZE  [int]
+alpha [float]
 
 /**************************************************
  *                      POTRF                     *
