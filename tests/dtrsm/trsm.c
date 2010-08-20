@@ -22,8 +22,8 @@
 
 /* Plasma and math libs */
 #include <cblas.h>
-#include <lapack.h>
 #include <plasma.h>
+#include <lapack.h>
 #include <core_blas.h>
 
 #include "timing.h"

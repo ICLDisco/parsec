@@ -21,8 +21,8 @@
 
 #include <cblas.h>
 #include <math.h>
-#include <lapack.h>
 #include <plasma.h>
+#include <lapack.h>
 
 #include "scheduling.h"
 #include "profiling.h"
