@@ -25,28 +25,29 @@ extern "C" %{
 #   define CORE(FN, ARGS) FN ARGS
 #endif
 
-double alpha = (double)1.0;
-
 %}
 
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-Bmb
-Bnb
-Bmt
-Bnt
-Bm
-Bn
+Bmb  [int]
+Bnb  [int]
+Bmt  [int]
+Bnt  [int]
+Bm   [int]
+Bn   [int]
+     
+Amb  [int]
+Anb  [int]
+Amt  [int]
+Ant  [int]
+Am   [int]
+An   [int]
 
-Amb
-Anb
-Amt
-Ant
-Am
-An
+trans[int]
+diag [int]
 
-diag
+alpha[double]
 
 /**************************************************
  *                     STARTUP                    *
