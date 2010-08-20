@@ -75,11 +75,11 @@ READVALS(i)
 i = 0 .. Bmt-1
 
 // Parallel partitioning
-: B(0,i)
+     : B(i,0)
 
 READ USELESS <- USELESS STARTUP(0)
-RW   B <- B(0,i)
-       -> B TRSM(0, i)
+  RW   B <- B(i,0)
+  -> B TRSM(i,0)
 BODY
       OUTPUT( ("thread %d READVALS ( %d )\n",
 	       context->eu_id, i)
