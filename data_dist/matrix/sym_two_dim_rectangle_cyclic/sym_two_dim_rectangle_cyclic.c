@@ -94,9 +94,6 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int process_GridRows )
 {
-    int temp;
-    int nbstile_r;
-    int nbstile_c;
     int nb_elem, nb_elem_col, column, total;
 
     // Filling matrix description woth user parameter
