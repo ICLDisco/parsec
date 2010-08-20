@@ -21,11 +21,8 @@
 
 #include <cblas.h>
 #include <math.h>
+#include <lapack.h>
 #include <plasma.h>
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
 
 #include "scheduling.h"
 #include "profiling.h"
@@ -129,7 +126,7 @@ MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
 #endif
 
 /* TODO Remove this ugly stuff */
-extern int dgesv_private_memory_initialization(plasma_context_t *plasma, int mb, int nb, int type);
+extern int dgesv_private_memory_initialization(int mb, int nb);
 struct dague_memory_pool_t *work_pool = NULL;
 
 int main(int argc, char ** argv)
@@ -368,22 +365,9 @@ static void runtime_init(int argc, char **argv)
     PLASMA_Init(1);
 
     {
-        plasma_context_t* plasma = plasma_context_self();
-        plasma_tune(PLASMA_FUNC_DGESV, N, N, NRHS);
-
-        PLASMA_NB = NB;
-        PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
-
-        if( (PLASMA_NB % PLASMA_IB) != 0 ) {
-            fprintf(stderr, "Invalid -B flag: heuristic is to take Inner block of %d, which is not a divisor of the Block size %d\n",
-                    PLASMA_IB, PLASMA_NB);
-            exit(1);
-        }
-        PLASMA_IB = IB;
-
-        PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
-
-        plasma->autotuning_enabled = 0;
+	PLASMA_Disable(PLASMA_AUTOTUNING);
+	PLASMA_Set(PLASMA_TILE_SIZE, NB);
+	PLASMA_Set(PLASMA_INNER_BLOCK_SIZE, IB);
     }    
 }
 
@@ -414,7 +398,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", 
            ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
 
-    dgesv_private_memory_initialization(plasma_context_self(), IB, NB, PlasmaRealDouble);
+    dgesv_private_memory_initialization(IB, NB);
     
     return dague;
 }
@@ -440,11 +424,9 @@ static void cleanup_dague(dague_context_t* dague)
 static void create_datatypes(void)
 {
 #if defined(USE_MPI)
-    plasma_context_t* plasma = plasma_context_self();
     int *blocklens, *indices, count, i;
     MPI_Datatype tmp;
     MPI_Aint lb, ub;
-    int IB = PLASMA_IB;
 
     count = NB; 
     blocklens = (int*)malloc( count * sizeof(int) );
@@ -512,12 +494,9 @@ static void check_matrix(int N, PLASMA_enum* uplo,
     printf(" Computational tests pass if scaled residuals are less than 60.\n");        
     if(do_nasty_validations)
     {
-        plasma_context_t* plasma = plasma_context_self();
-        plasma_parallel_call_3(plasma_tile_to_lapack,
-                               PLASMA_desc, *dA,
-                               double*, A2,
-                               int, LDA);
-        plasma_memcpy(L, dL->mat, dL->mt*dL->nt*PLASMA_IBNBSIZE, PlasmaRealDouble);
+	PLASMA_Tile_to_Lapack(&dA, A2, LDA);
+
+        plasma_memcpy(L, dL->mat, dL->mt*dL->nt*IB*NB, PlasmaRealDouble);
         
 #if defined(USE_MPI)
         // We should have done something in the like of 

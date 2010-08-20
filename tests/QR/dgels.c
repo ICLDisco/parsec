@@ -20,11 +20,8 @@
 
 #include <cblas.h>
 #include <math.h>
+#include <lapack.h>
 #include <plasma.h>
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
 
 #include "scheduling.h"
 #include "profiling.h"
@@ -124,7 +121,7 @@ MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 #endif
 
 /* TODO Remove this ugly stuff */
-extern int dgels_private_memory_initialization(plasma_context_t *plasma, int MB, int NB, int type);
+extern int dgels_private_memory_initialization(int MB, int NB );
 
 int main(int argc, char ** argv)
 {
@@ -362,24 +359,10 @@ static void runtime_init(int argc, char **argv)
         }
 
     PLASMA_Init(1);
-
     {
-        plasma_context_t* plasma = plasma_context_self();
-        plasma_tune(PLASMA_FUNC_DGELS, M, N, NRHS);
-        
-        PLASMA_NB = NB;
-        PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
-
-        if( PLASMA_NB % IB != 0 ) {
-            fprintf(stderr, "Invalid IB flag: %d (internal block size) does not divide %d (block size)\n",
-                    IB, NB);
-            exit(1);
-        }
-        PLASMA_IB = IB;
-
-        PLASMA_IBNBSIZE = PLASMA_IB * PLASMA_NB;
-
-        plasma->autotuning_enabled = 0;
+	PLASMA_Disable(PLASMA_AUTOTUNING);
+	PLASMA_Set(PLASMA_TILE_SIZE, NB);
+	PLASMA_Set(PLASMA_INNER_BLOCK_SIZE, IB);
     } 
 }
 
@@ -416,7 +399,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", 
            ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     
-    dgels_private_memory_initialization(plasma_context_self(), MB, NB, PlasmaRealDouble);
+    dgels_private_memory_initialization(MB, NB);
     
     return dague;
 }
@@ -442,11 +425,9 @@ static void cleanup_dague(dague_context_t* dague)
 static void create_datatypes(void)
 {
 #if defined(DISTRIBUTED)
-    plasma_context_t* plasma = plasma_context_self();
     int *blocklens, *indices, count, i;
     MPI_Datatype tmp;
     MPI_Aint lb, ub;
-    int IB = PLASMA_IB;
 
     count = NB; 
     blocklens = (int*)malloc( count * sizeof(int) );

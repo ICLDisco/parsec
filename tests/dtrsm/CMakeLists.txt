@@ -18,7 +18,7 @@ if( PLASMA_FOUND )
   if( DAGUE_MPI AND MPI_FOUND )
 
     add_executable(mpi_trsm 
-      DTRSM_SRC)
+      ${DTRSM_SRC} )
     set_target_properties(mpi_trsm PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(mpi_trsm PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(mpi_trsm PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
@@ -27,7 +27,7 @@ if( PLASMA_FOUND )
   endif( DAGUE_MPI AND MPI_FOUND )
 
     add_executable(trsm 
-      DTRSM_SRC)
+      ${DTRSM_SRC} )
     set_target_properties(trsm PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(trsm PROPERTIES COMPILE_FLAGS "-DADD_")
     set_target_properties(trsm PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")

@@ -21,11 +21,8 @@
 
 #include <cblas.h>
 #include <math.h>
-#include "plasma.h"
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
+#include <lapack.h>
+#include <plasma.h>
 
 #include "scheduling.h"
 #include "profiling.h"
@@ -340,14 +337,14 @@ int main(int argc, char ** argv)
     switch(backend)
     {
         case DO_PLASMA: {
-            plasma_context_t* plasma = plasma_context_self();
-
+	  int nb;
             TIME_START();
-            plasma_parallel_call_2(plasma_pdpotrf,
-                                   PLASMA_enum, uplo,
-                                   PLASMA_desc, descA);
-            TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
+	    PLASMA_dpotrf_Tile(uplo, &descA);
+            TIME_PRINT(("_plasma computation: %f Gflops", 
                         gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+
+	    PLASMA_Get(PLASMA_TILE_SIZE, &nb);
+	    printf(" with N = %d and NB = %d\n", N, nb);
             break;
         }
         case DO_DAGUE: {

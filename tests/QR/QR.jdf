@@ -21,23 +21,17 @@ int PLASMA_INFO;
 
 typedef struct dague_memory_pool_t {
     dague_atomic_lifo_t lifo;
-    struct plasma_context_t *plasma;
     size_t elem_size;
-    int elem_type;
 } dague_memory_pool_t;
 
 #warning "TODO: this doesn't work with multiple objects"
 static dague_memory_pool_t *work_pool, *tau_pool;
-extern void* plasma_private_alloc(void*, size_t, int);
 
 int dague_private_memory_init( dague_memory_pool_t* pool,
-                               size_t size,
-                               int type )
+                               size_t size )
 {
     dague_atomic_lifo_construct( &(pool->lifo) );
     pool->elem_size = size;
-    pool->elem_type = type;
-    pool->plasma = NULL;
     return 0;
 }
 
@@ -45,7 +39,7 @@ void* dague_private_memory_pop(dague_memory_pool_t* pool)
 {
     dague_list_item_t* elem = dague_atomic_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        elem = (dague_list_item_t*)plasma_private_alloc(pool->plasma, pool->elem_size, pool->elem_type);
+      elem = (dague_list_item_t*)malloc( pool->elem_size*sizeof(double) );
     }
     return elem;
 }
@@ -56,15 +50,13 @@ void dague_private_memory_push(dague_memory_pool_t* pool, void* memory)
     dague_atomic_lifo_push( &(pool->lifo), item );
 }
 
-int dgels_private_memory_initialization(struct plasma_context_t *plasma, int MB, int NB, int type)
+int dgels_private_memory_initialization(int MB, int NB )
 {
     work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( work_pool, MB*NB, type );
-    work_pool->plasma = plasma;
+    dague_private_memory_init( work_pool, MB*NB );
 
     tau_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( tau_pool, NB, type );
-    tau_pool->plasma = plasma;
+    dague_private_memory_init( tau_pool, NB );
 
     return 0;
 }
