@@ -9,10 +9,10 @@ if( PLASMA_FOUND )
     trsm_LLT.c
     trsm_LUN.c
     trsm_LUT.c
-    # trsm_RLN.c
-    # trsm_RLT.c
-    # trsm_RUN.c
-    # trsm_RUT.c
+    trsm_RLN.c
+    trsm_RLT.c
+    trsm_RUN.c
+    trsm_RUT.c
     )
       
   if( DAGUE_MPI AND MPI_FOUND )
@@ -43,3 +43,56 @@ add_custom_command (
   MAIN_DEPENDENCY trsm_LLN.jdf
   DEPENDS dc
   )
+
+add_custom_command (
+  OUTPUT trsm_LLT.c trsm_LLT.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_LLT.jdf -o trsm_LLT
+  MAIN_DEPENDENCY trsm_LLT.jdf
+  DEPENDS dc
+  )
+
+add_custom_command (
+  OUTPUT trsm_LUN.c trsm_LUN.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_LUN.jdf -o trsm_LUN
+  MAIN_DEPENDENCY trsm_LUN.jdf
+  DEPENDS dc
+  )
+
+add_custom_command (
+  OUTPUT trsm_LUT.c trsm_LUT.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_LUT.jdf -o trsm_LUT
+  MAIN_DEPENDENCY trsm_LUT.jdf
+  DEPENDS dc
+  )
+
+
+add_custom_command (
+  OUTPUT trsm_RLN.c trsm_RLN.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_RLN.jdf -o trsm_RLN
+  MAIN_DEPENDENCY trsm_RLN.jdf
+  DEPENDS dc
+  )
+
+
+add_custom_command (
+  OUTPUT trsm_RLT.c trsm_RLT.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_RLT.jdf -o trsm_RLT
+  MAIN_DEPENDENCY trsm_RLT.jdf
+  DEPENDS dc
+  )
+
+add_custom_command (
+  OUTPUT trsm_RUN.c trsm_RUN.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_RUN.jdf -o trsm_RUN
+  MAIN_DEPENDENCY trsm_RUN.jdf
+  DEPENDS dc
+  )
+
+add_custom_command (
+  OUTPUT trsm_RUT.c trsm_RUT.h
+  COMMAND ../../tools/dague-compiler/dc -i trsm_RUT.jdf -o trsm_RUT
+  MAIN_DEPENDENCY trsm_RUT.jdf
+  DEPENDS dc
+  )
+
+

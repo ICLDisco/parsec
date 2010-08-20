@@ -90,7 +90,7 @@ END
 /**************************************************
  *                      TRSM                      *
  **************************************************/
-TRSM(k, n)
+TRSM(m, k)
 
 // Execution space
 k = 0..Bnt-1
@@ -146,6 +146,7 @@ RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
 
 BODY
 
+      double minvalpha  = (double)-1.0 / alpha;
       CORE(
 	   CORE_dgemm, (
 			trans, PlasmaNoTrans,

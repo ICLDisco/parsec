@@ -119,8 +119,8 @@ BODY
 	       context->eu_id, "PlasmaRight", "PlasmaUpper", "Trans/ConjTrans", "PlasmaNonUnit",
 	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
 	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
-	       lalpha, k, k, A /*A(k, k)*/, Amb,
-                       m, k, B /*B(m, k)*/, Bmb)
+	       alpha, k, k, A /*A(k, k)*/, Amb,
+	              m, k, B /*B(m, k)*/, Bmb)
 	      );
 END
 
