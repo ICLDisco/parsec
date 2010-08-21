@@ -58,9 +58,10 @@ int dague_schedule( dague_context_t* context, const dague_execution_context_t* e
     eu_context = context->execution_units[0];
 
     new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
+    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
 #if defined(DAGUE_CACHE_AWARE)
-    new_context->pointers[1] = NULL;
+    new_context->data[1] = NULL;
 #endif
     DAGUE_LIST_ITEM_SINGLETON( new_context );
     return __dague_schedule( eu_context, new_context, 1);
