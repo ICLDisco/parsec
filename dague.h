@@ -143,11 +143,12 @@ extern int schedule_sleep_begin, schedule_sleep_end;
 
 typedef struct dague_object {
     /** All dague_object_t structures hold these two arrays **/
-    uint32_t              object_id;
-    uint16_t              nb_functions;
-    uint32_t              nb_local_tasks;
-    const dague_t        **functions_array;
-    dague_dependencies_t **dependencies_array;
+    uint32_t                   object_id;
+    uint32_t                   nb_local_tasks;
+    uint32_t                   nb_functions;
+    dague_execution_context_t* startup_list;
+    const dague_t**            functions_array;
+    dague_dependencies_t**     dependencies_array;
 } dague_object_t;
 
 struct dague_ddesc;
@@ -203,5 +204,31 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
 dague_object_t* dague_object_lookup( uint32_t object_id );
 /**< Register the object with the engine. Create the unique identifier for the object */
 int dague_object_register( dague_object_t* object );
+/**< Start the dague execution and launch the ready tasks */
+int dague_object_start( dague_object_t* object);
+
+static inline dague_execution_context_t*
+dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_execution_context_t* elem )
+{
+    if( NULL == *list ) {
+        DAGUE_LIST_ITEM_SINGLETON(elem);
+        *list = elem;
+    } else {
+        dague_execution_context_t* position = *list;
+        
+        while( position->priority > elem->priority ) {
+            position = (dague_execution_context_t*)position->list_item.list_next;
+            if( position == (*list) ) break;
+        }
+        elem->list_item.list_next = (dague_list_item_t*)position;
+        elem->list_item.list_prev = position->list_item.list_prev;
+        elem->list_item.list_next->list_prev = (dague_list_item_t*)elem;
+        elem->list_item.list_prev->list_next = (dague_list_item_t*)elem;
+        if( (position == *list) && (position->priority < elem->priority) ) {
+            *list = elem;
+        }
+    }
+    return *list;
+}
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */
