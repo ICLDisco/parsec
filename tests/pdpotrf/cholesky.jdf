@@ -31,9 +31,9 @@ int PLASMA_INFO = 0;
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-NB
-SIZE
-PRI_CHANGE
+NB           [int]
+SIZE         [int]
+PRI_CHANGE   [int]
 
 /**************************************************
  *                      POTRF                     *
@@ -94,7 +94,6 @@ RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 
 BODY
     if( uplo == PlasmaLower ) {
-#if 1
         CORE(
             dtrsm, (
                 PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
@@ -103,7 +102,6 @@ BODY
                 1.0, T /*A(k, k)*/, NB, /*A.nb,*/
                      C /*A(n, k)*/, NB /*A.nb*/ )
             );
-#endif
         OUTPUT(( 
             "thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d)\n",
                 context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
@@ -154,7 +152,6 @@ RW    T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
 
 BODY
     if( uplo == PlasmaLower ) {
-#if 1
         CORE(
             dsyrk, (
                 PlasmaLower, PlasmaNoTrans,
@@ -163,7 +160,6 @@ BODY
                 -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
-#endif
         OUTPUT((
             "thread %d CORE_dsyrk( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
                 context->eu_id, "PlasmaLower", "PlasmaNoTrans",
@@ -216,7 +212,6 @@ RW    C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 
 BODY
     if( uplo == PlasmaLower ) {
-#if 1
         CORE(
             dgemm, ( 
                 PlasmaNoTrans, PlasmaTrans,
@@ -227,7 +222,6 @@ BODY
                       A /*A(n, k)*/, NB, /*A.nb,*/
                  1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
-#endif
         OUTPUT((
             "thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
                 context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
