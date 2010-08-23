@@ -47,10 +47,10 @@ int pri_change = 0;
 backend_argv_t backend = DO_DAGUE;
 int cores = 1;
 int nodes = 1;
-int N = 0;
+uint32_t N = 0;
 
 int rank = 0;
-int LDA = 0;
+uint32_t LDA = 0;
 int NRHS = 1;
 int LDB = 0;
 int GRIDrows = 1;
@@ -321,7 +321,8 @@ int main(int argc, char ** argv)
     MPI_Init(&argc, &argv);
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
 #else
     nodes = 1;
     rank = 0;
@@ -329,6 +330,8 @@ int main(int argc, char ** argv)
     /* parsing arguments */
     runtime_init(argc, argv);
     /* initializing matrix structure */
+    
+    
     two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N, 0, 0, LDA, LDA, nrst, ncst, GRIDrows);
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);

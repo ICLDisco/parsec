@@ -375,7 +375,7 @@ extern dague_atomic_lifo_t gpu_devices;
 extern int use_gpu;
 #endif  /* defined(DAGUE_CUDA_SUPPORT) */
 
-void* dague_allocate_matrix(int matrix_size)
+void* dague_allocate_matrix(uint64_t matrix_size)
 {
     void* mat = NULL;
 #if defined(DAGUE_CUDA_SUPPORT)
@@ -409,7 +409,8 @@ void* dague_allocate_matrix(int matrix_size)
     }
 
     if( NULL == mat ) {
-        perror("matrix allcation failed");
+        printf("memory allocation of %lu\n", matrix_size);
+        perror("matrix allocation failed");
         return NULL;
     }
     return mat;
