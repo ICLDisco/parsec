@@ -991,7 +991,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
 #endif
 
         PLASMA_dtrsmpl(N, NRHS, A2, LDA, L, IPIV, B2, LDB);
-        PLASMA_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, N, NRHS, 1.0, A2,
+        PLASMA_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, N, NRHS, A2,
                      LDA, B2, LDB);
         
         info_solution = check_solution(N, NRHS, A1, LDA, B1, B2, LDB, eps);

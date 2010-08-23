@@ -1,5 +1,9 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
+/opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
+/opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
+export CC=icc
+export FC=ifort
 
 #PLASMA_DIR=/home/bosilca/unstable/dplasma/plasma-svn/
 #PLASMA_DIR=/opt/plasma
