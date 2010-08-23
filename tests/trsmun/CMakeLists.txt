@@ -26,10 +26,3 @@ add_custom_command (
   DEPENDS dpc
   )
  
-add_custom_command (
-  OUTPUT trsmun_jdf.c
-  COMMAND ../../tools/dpc trsmun.jdf trsmun_jdf.c
-  MAIN_DEPENDENCY trsmun.jdf
-  DEPENDS dpc
-  )
- 
