@@ -1378,9 +1378,7 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
             "%s  new_context->dague_object = (dague_object_t*)__dague_object;\n"
             "%s  new_context->function = (const dague_t*)&%s_%s;\n"
             "%s  new_context->data[0].gc_data = NULL;\n"
-            "%s  %s"
-            "%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n"
-            "%s  dague_list_add_single_elem_by_priority( pready_list, new_context );\n",
+            "%s  %s",
             indent(nesting),
             indent(nesting),
             indent(nesting),
@@ -1388,8 +1386,14 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
             indent(nesting), jdf_basename, f->fname,
             indent(nesting),
             indent(nesting), UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
-                                                  dump_reserve_assignments, &ai, "", "", "", ""),
+                                                  dump_reserve_assignments, &ai, "", "", "", ""));
+    if( NULL != f->priority ) {
+        coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
             indent(nesting), jdf_basename, f->fname);
+    } else {
+        coutput("%s  new_context->priority = 0;\n", indent(nesting));
+    }
+    coutput("%s  dague_list_add_single_elem_by_priority( pready_list, new_context );\n", indent(nesting));
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
