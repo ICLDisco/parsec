@@ -256,7 +256,7 @@ check_include_files(errno.h HAVE_ERRNO_H)
 
 
 include_directories(data_dist data_dist/matrix data_dist/matrix/two_dim_rectangle_cyclic data_dist/matrix/sym_two_dim_rectangle_cyclic data_dist/matrix/tabular_distribution)
-
+include_directories(${PLASMA_INCLUDE_DIR})
 
 #
 # Setup targets

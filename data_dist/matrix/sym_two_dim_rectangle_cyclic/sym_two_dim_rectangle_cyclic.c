@@ -58,11 +58,11 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
-    if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
+    /*if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
         {
-            printf("Tile (%d, %d) is looked for on process %d but is not local\n", m, n, desc->myrank);
+            printf("Tile (%d, %d) is looked for on process %u but is not local\n", m, n, desc->myrank);*/
             assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
-        }
+       /* }*/
     
 
     /**********************************/
