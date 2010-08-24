@@ -502,7 +502,7 @@ static void init_unique_rgb_color(void)
 
 static void get_unique_rgb_color(float ratio, unsigned char *r, unsigned char *g, unsigned char *b)
 {
-    double h, s, v, r1, g1, b1;
+    float h, s, v, r1, g1, b1;
 
     h = ratio;
     s = 0.8;
@@ -513,11 +513,11 @@ static void get_unique_rgb_color(float ratio, unsigned char *r, unsigned char *g
         *g = (unsigned char)(v * 255);
         *b = (unsigned char)(v * 255);
     } else {
-        double var_h = (h == 1.0) ? 0.0 : h * 6.0;
+        float var_h = (h == 1.0f) ? 0.0f : h * 6.0f;
         int var_i = (int)floor(var_h);
-        float var_1 = (v * ( 1.0 - s ));
-        float var_2 = (v * ( 1.0 - s * ( var_h - var_i )));
-        float var_3 = (v * ( 1.0 - s * ( 1.0 - ( var_h - var_i ) ) ));
+        float var_1 = (v * ( 1.0f - s ));
+        float var_2 = (v * ( 1.0f - s * ( var_h - var_i )));
+        float var_3 = (v * ( 1.0f - s * ( 1.0f - ( var_h - var_i ) ) ));
        
         if      ( var_i == 0 ) { r1 = v     ; g1 = var_3 ; b1 = var_1; }
         else if ( var_i == 1 ) { r1 = var_2 ; g1 = v     ; b1 = var_1; }
@@ -958,13 +958,10 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     string_arena_t *sa3 = string_arena_new(64);
     string_arena_t *sa4 = string_arena_new(64);
     string_arena_t *sa5 = string_arena_new(64);
-    expr_info_t info;
     assignment_info_t ai;
 
     (void)jdf;
 
-    info.sa = sa;
-    info.prefix = "";
     ai.sa = sa3;
     ai.idx = 0;
     ai.holder = "assignments";
