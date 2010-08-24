@@ -280,7 +280,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             }
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
                 if( !displayed_error_message ) {
-                    fprintf(stderr, "Profiling error: end event of key %d id %lu was not found -- some histories are truncated\n", key, profile->events[start_idx].id);
+                    fprintf(stderr, "Profiling error: end event of key %u id %lu was not found -- some histories are truncated\n", key, profile->events[start_idx].id);
                     displayed_error_message = 1;
                 }
                 continue;
@@ -290,7 +290,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             end = diff_time( relative, profile->events[end_idx].timestamp );
 
             if( displayed_key == 0 ) {
-                fprintf(out, "    <KEY ID=\"%d\">\n", key);
+                fprintf(out, "    <KEY ID=\"%u\">\n", key);
                 displayed_key = 1;
             }
             
@@ -345,7 +345,7 @@ int dague_profiling_dump_xml( const char* filename )
 
     for(i = 0; i < dague_prof_keys_count; i++) {
         fprintf(tracefile,
-                "   <KEY ID=\"%d\">\n"
+                "   <KEY ID=\"%u\">\n"
                 "    <NAME>%s</NAME>\n"
                 "    <ATTRIBUTES><![CDATA[%s]]></ATTRIBUTES>\n"
                 "   </KEY>\n",

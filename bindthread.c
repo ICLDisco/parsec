@@ -1,4 +1,5 @@
 #include "dague_config.h"
+#include "bindthread.h"
 #if defined(HAVE_HWLOC)
 #  include <hwloc.h>
 #elif defined(ARCH_COMPAQ)
@@ -107,11 +108,11 @@ int dague_bindthread(int cpu)
 
    ap.affinity_tag = 1; /* non-null affinity tag */
    ret = thread_policy_set(
-			   mach_thread_self(),
-			   THREAD_AFFINITY_POLICY,
-			   (integer_t*) &ap,
-			   THREAD_AFFINITY_POLICY_COUNT
-			   );
+                    mach_thread_self(),
+                    THREAD_AFFINITY_POLICY,
+                    (integer_t*) &ap,
+                    THREAD_AFFINITY_POLICY_COUNT
+                    );
    if(ret != 0) {
        return -1;
    }

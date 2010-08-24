@@ -306,6 +306,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                     goto do_some_work;
                 }
             }
+#else
+            (void) found_remote;
 #endif /* DISTRIBUTED */
 
 #if !defined(DAGUE_USE_GLOBAL_LIFO)

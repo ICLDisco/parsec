@@ -52,8 +52,9 @@ static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);
 
 static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i);
-
+#ifdef FLOW_CONTROL
 static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, int i);
+#endif
 
 /* Shared LIFO for the TILES */
 dague_atomic_lifo_t* internal_alloc_lifo;
@@ -832,15 +833,15 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
-    MPI_Aint lb, size;
-    MPI_Datatype dtt;
-    remote_dep_wire_get_t msg;
 #ifdef FLOW_CONTROL
     dague_object_t* object = dague_object_lookup( task->object_id );
     const dague_t* function = object->functions_array[task->function_id];
+    int doall = 0;
 #endif
+    MPI_Aint lb, size;
+    MPI_Datatype dtt;
+    remote_dep_wire_get_t msg;
     dague_remote_deps_t* deps = dep_activate_buff[i];
-    int doall;
     void* data;
 
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
@@ -852,7 +853,6 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
     remote_dep_get_datatypes(deps);
     
     assert(dep_enabled);
-    doall = 0;
     for(int k = 0; task->which>>k; k++)
     {        
         if((1<<k) & msg.which)

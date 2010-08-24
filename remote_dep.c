@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef DISTRIBUTED
 /* Clear the already forwarded remote dependency matrix */
 static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps )
 {
@@ -57,8 +58,8 @@ static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
     dague_atomic_dec_32b( &ctx->taskstodo );
 }
 
-#define DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
-#undef  DAGUE_COLLECTIVE_TYPE_BINOMIAL
+#endif
+
 
 #ifdef USE_MPI
 #include "remote_dep_mpi.c" 
@@ -117,6 +118,10 @@ int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 }
 
 #ifdef DAGUE_COLLECTIVE
+
+#define DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
+#undef  DAGUE_COLLECTIVE_TYPE_BINOMIAL
+
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
