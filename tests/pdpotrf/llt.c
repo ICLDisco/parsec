@@ -335,7 +335,6 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N, 0, 0, LDA, LDA, nrst, ncst, GRIDrows);
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
-    printf("matrix generated\n");
 
     switch(backend)
     {
@@ -352,7 +351,7 @@ int main(int argc, char ** argv)
         }
         case DO_DAGUE: {
             /*** THIS IS THE DAGUE COMPUTATION ***/
-            TIME_START();
+            SYNC_TIME_START();
             dague = setup_dague(&argc, &argv);
             if(0 == rank)
             {
@@ -366,18 +365,16 @@ int main(int argc, char ** argv)
 
                 dague_schedule(dague, &exec_context);
             }
-            TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
+            SYNC_TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
 
             /* lets rock! */
             SYNC_TIME_START();
             TIME_START();
             dague_progress(dague);
-            TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, dague_cholesky->nb_local_tasks, 
+            TIME_PRINT(("priority for %d/%d:\ttasks: %d\t%f task/s\n", pri_change, ddescA.super.nt, dague_cholesky->nb_local_tasks, 
                         dague_cholesky->nb_local_tasks/time_elapsed));
             SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
                              gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
-
-            TIME_PRINT(("Dague priority change at position \t%d\n", ddescA.super.nt - pri_change));
 	    /*data_dump((tiled_matrix_desc_t *) &ddescA);*/
             cleanup_dague(dague);
             /*** END OF DAGUE COMPUTATION ***/
