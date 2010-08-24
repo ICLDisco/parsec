@@ -121,10 +121,10 @@ static void runtime_init(int argc, char **argv)
 #if defined(HAVE_GETOPT_LONG)
         int option_index = 0;
         
-        c = getopt_long (argc, argv, "dpc:n:a:r:b:g:e:s::B:P:h",
+        c = getopt_long (argc, argv, "dpc:n:a:r:b:g:e:s:B:P:h",
                          long_options, &option_index);
 #else
-        c = getopt (argc, argv, "dpc:n:a:r:b:g:e:s::B:P:h");
+        c = getopt (argc, argv, "dpc:n:a:r:b:g:e:s:B:P:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
