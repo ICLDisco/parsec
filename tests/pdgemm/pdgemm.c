@@ -20,10 +20,9 @@
 #include <cblas.h>
 #include <math.h>
 #include <plasma.h>
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 #include <sys/time.h>
 
 #include "scheduling.h"
