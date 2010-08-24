@@ -1196,6 +1196,10 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
 
     access_type = ( (flow->access_type == JDF_VAR_TYPE_READ) ? "ACCESS_READ" :
                     ((flow->access_type == JDF_VAR_TYPE_WRITE) ? "ACCESS_WRITE" : "ACCESS_RW") ); 
+    
+    if(strlen(string_arena_get_string(sa_dep_out)) == 0) {
+        string_arena_add_string(sa_dep_out, "NULL");
+    }
 
     string_arena_add_string(sa, 
                             "static const param_t %s%s = {\n"
@@ -2084,7 +2088,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 "%s  }\n",                
                 spaces, f->varname, call->func_or_mem, string_arena_get_string(sa),
                 spaces, call->func_or_mem, string_arena_get_string(sa), f->varname, 
-                datatype == NULL ? "DAGUE_DEFAULT_DATA_TYPE" : datatype,
+                NULL != datatype ? datatype : "DAGUE_DEFAULT_DATA_TYPE",
                 spaces);
     }
 
