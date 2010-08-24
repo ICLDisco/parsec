@@ -185,7 +185,6 @@ static int remote_dep_dequeue_on(dague_context_t* context)
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 1;
         DAGUE_LIST_ITEM_SINGLETON(item);
-        /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
         return 1;
     }
@@ -200,7 +199,6 @@ static int remote_dep_dequeue_off(dague_context_t* context)
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 0;
         DAGUE_LIST_ITEM_SINGLETON(item);
-        /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     }
     return 0;
@@ -215,7 +213,6 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         item->action = DEP_CTL;
         item->cmd.ctl.enable = -1;
         DAGUE_LIST_ITEM_SINGLETON(item);
-        /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
         
         pthread_join(dep_thread_id, (void**) &ret);
@@ -233,7 +230,6 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     item->cmd.activate.rank = rank;
     item->cmd.activate.deps = deps;
     DAGUE_LIST_ITEM_SINGLETON(item);
-    /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     //signal_condition();
     return 1;
@@ -248,7 +244,6 @@ static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context)
     {
         assert(DEP_RELEASE == item->action);
         remote_dep_nothread_release(eu_context, item->cmd.release.deps);
-        /*printf("%s:%d Release dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item );*/
         free(item);
         return 1;
     }
@@ -264,7 +259,6 @@ void dague_remote_dep_memcpy(void *dst, gc_data_t *src, dague_remote_dep_datatyp
     item->cmd.memcpy.datatype = datatype;
     gc_data_ref(src);
     DAGUE_LIST_ITEM_SINGLETON(item);
-    /*printf( "%s:%d Allocate dep_cmd_item_t at %p (for memcpy)\n", __FILE__, __LINE__, (void*)item);*/
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     //signal_condition();
 }
@@ -327,7 +321,6 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
             default:
                 break;
         }
-        /*printf("%s:%d Release dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item );*/
         free(item);
     } while(keep_probing);
     
