@@ -106,6 +106,7 @@ int N;
 int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
+int rank = 0;
 
 int main(int argc, char ** argv)
 {
@@ -129,8 +130,11 @@ int main(int argc, char ** argv)
         dague_execution_context_t exec_context;
 
         /* I know what I'm doing ;) */
-        exec_context.function = (dague_t*)dague_find("STARTUP");
-        dague_set_initial_execution_context(&exec_context);
+        exec_context.function = (dague_t*)dague_find(dague_gemm, "STARTUP");
+        exec_context.dague_object = dague_gemm;
+        exec_context.priority = 0;
+        exec_context.locals[0].value = 0;
+
         dague_schedule(dague, &exec_context);
     }
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, ddescA.super.nb));
