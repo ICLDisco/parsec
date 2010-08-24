@@ -43,8 +43,7 @@ j = 0..SIZE-1
 : A(i, j)
 
 // Parameters
-RW    T <- A(i, j)
-        -> A(i, j)
+WRITE    T -> A(i, j)
 
 ; 1
 
