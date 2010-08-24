@@ -864,27 +864,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    eu_context->eu_id));
 
 #if defined(DAGUE_CACHE_AWARE)
-            new_context->pointers[1] = NULL;
+            new_context->data[0].gc_data = NULL;
 #endif
 
-            if( NULL == *pready_list ) {
-                DAGUE_LIST_ITEM_SINGLETON(new_context);
-                *pready_list = new_context;
-            } else {
-                dague_execution_context_t* position = *pready_list;
-
-                while( position->priority > new_context->priority ) {
-                    position = (dague_execution_context_t*)position->list_item.list_next;
-                    if( position == (*pready_list) ) break;
-                }
-                new_context->list_item.list_next = (dague_list_item_t*)position;
-                new_context->list_item.list_prev = position->list_item.list_prev;
-                new_context->list_item.list_next->list_prev = (dague_list_item_t*)new_context;
-                new_context->list_item.list_prev->list_next = (dague_list_item_t*)new_context;
-                if( (position == *pready_list) && (position->priority < new_context->priority) ) {
-                    *pready_list = new_context;
-                }
-            }
+            dague_list_add_single_elem_by_priority( pready_list, new_context );
         }
 
         DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);

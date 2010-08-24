@@ -64,7 +64,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     int res;
     
 
-    // Filling matrix description woth user parameter
+    // Filling matrix description with user parameter
     Ddesc->super.super.nodes = nodes ;
     Ddesc->super.super.cores = cores ;
     Ddesc->super.super.myrank = myrank ;

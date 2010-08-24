@@ -1,3 +1,6 @@
+#set(CMAKE_C_COMPILER "vtcc")
+#set(CMAKE_Fortran_COMPILER "vtf77")
+Add_Subdirectory(dtrsm)
 #Add_Subdirectory(trsmun)
 Add_Subdirectory(pdpotrf)
 #Add_Subdirectory(pspotrf)

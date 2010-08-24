@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 
     jdf_prepare_parsing();
 
-	if( yyparse() > 0 ) {
+    if( yyparse() > 0 ) {
         exit(1);
     }
 
@@ -187,6 +187,9 @@ int main(int argc, char *argv[])
     if(rc < 0)
         return -1;
     
+    /* Lets try to optimize the jdf */
+    jdf_optimize( &current_jdf );
+
     if( jdf2c(JDF_COMPILER_GLOBAL_ARGS.output_c, 
               JDF_COMPILER_GLOBAL_ARGS.output_h, 
               JDF_COMPILER_GLOBAL_ARGS.funcid, 

@@ -38,9 +38,12 @@ tests/pdpotrf/cholesky\.h
 tests/pdpotrf/cholesky\.c
 tests/pdpotrf/mpi_llt
 tests/pdpotrf/llt
+tests/LU/LU_kmn.[ch]
 tests/LU/LU-auto.c
+tests/LU/LU.[ch]
 tests/cholesky/cholesky_mpi.c
 tests/gemm/gemm.c
+tests/pdgemm/gemm.h
 tests/syn/syn
 tests/syn/syn.c
 tests/syn/mpi_syn
@@ -50,7 +53,6 @@ tests/debug/mpi_types
 tests/debug/types.c
 tests/debug/mpi_pingpong
 tests/debug/pingpong.c
-tests/LU/LU_kmn.c
 hostfile
 tests/pspotrf/cholesky_ll.c
 tests/pspotrf/cholesky_rl.c
@@ -58,6 +60,16 @@ tests/pspotrf/mpi_sposv_ll
 tests/pspotrf/mpi_sposv_rl
 tests/pspotrf/sposv_ll
 tests/pspotrf/sposv_rl
+tests/dtrsm/trsm_LLN.[ch]
+tests/dtrsm/trsm_LLT.[ch]
+tests/dtrsm/trsm_LUN.[ch]
+tests/dtrsm/trsm_LUT.[ch]
+tests/dtrsm/trsm_RLN.[ch]
+tests/dtrsm/trsm_RLT.[ch]
+tests/dtrsm/trsm_RUN.[ch]
+tests/dtrsm/trsm_RUT.[ch]
+tests/dtrsm/mpi_trsm
+tests/dtrsm/trsm
 \.\#.*
 tests/pdgemm/dgemm
 tests/pdgemm/pdgemm

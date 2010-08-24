@@ -10,6 +10,12 @@ if( PLASMA_FOUND )
     set_target_properties(mpi_llt PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
     target_link_libraries(mpi_llt dague-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
 
+    # add_executable(mpi_testio testio.c)
+    # set_target_properties(mpi_testio PROPERTIES LINKER_LANGUAGE Fortran)
+    # set_target_properties(mpi_testio PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+    # set_target_properties(mpi_testio PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
+    # target_link_libraries(mpi_testio dague-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+
   endif( DAGUE_MPI AND MPI_FOUND )
 
     add_executable(llt llt.c  cholesky.c)
@@ -23,7 +29,7 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 
 add_custom_command (
-  OUTPUT cholesky.c
+  OUTPUT cholesky.c cholesky.h
   COMMAND ../../tools/dague-compiler/dc -i cholesky.jdf -o cholesky
   MAIN_DEPENDENCY cholesky.jdf
   DEPENDS dc

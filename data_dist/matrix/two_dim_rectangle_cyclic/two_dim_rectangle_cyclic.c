@@ -17,19 +17,11 @@
 #include <mpi.h>
 #endif /* USE_MPI */
 
-
+#include "dague_config.h"
 #include "two_dim_rectangle_cyclic.h"
 #include "data_distribution.h"
 #include "matrix.h"
 
-
-//#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
-/*static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
-{
-    return &((double*)Pdesc->mat)[Pdesc->bsiz*(m)+Pdesc->bsiz*Pdesc->lmt*(n)];
-
-}
-*/
 
 static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
@@ -118,6 +110,11 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     int nbstile_r;
     int nbstile_c;
 
+#ifdef DAGUE_DEBUG
+    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %d, nodes = %d, cores = %d, myrank = %d, mb = %d, nb = %d, ib = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, nrst = %d, ncst = %d, process_GridRows = %d\n", Ddesc, mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
+#endif
+
+
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
     Ddesc->super.super.cores = cores ;
@@ -204,6 +201,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
+    // printf("Ddesc->nb_elem_r = %d, Ddesc->nb_elem_c = %d, Ddesc->super.bsiz = %d, Ddesc->super.mtype = %d\n", Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, Ddesc->super.mtype);
     Ddesc->mat = dague_allocate_matrix(Ddesc->nb_elem_r * Ddesc->nb_elem_c * Ddesc->super.bsiz * Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
@@ -224,5 +222,8 @@ int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
 int close_matrix_file(MPI_File * handle){
     return MPI_File_close(handle);
 }
+
+
+
 
 #endif /* USE_MPI */

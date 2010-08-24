@@ -3,7 +3,7 @@ extern "C" %{
     * PLASMA include for defined and constants.
     */
 #include <plasma.h>
-#include <core_dblas.h>
+#include <core_blas.h>
 
 #include "dague.h"
 #include <stdlib.h>
@@ -22,22 +22,16 @@ int PLASMA_INFO;
 
 typedef struct dague_memory_pool_t {
     dague_atomic_lifo_t lifo;
-    struct plasma_context_t *plasma;
     size_t elem_size;
-    int elem_type;
 } dague_memory_pool_t;
 
 extern dague_memory_pool_t *work_pool;
-extern void* plasma_private_alloc(void*, size_t, int);
 
 int dague_private_memory_init( dague_memory_pool_t* pool,
-                                 size_t size,
-                                 int type )
+                               size_t size )
 {
     dague_atomic_lifo_construct( &(pool->lifo) );
     pool->elem_size = size;
-    pool->elem_type = type;
-    pool->plasma = NULL;
     return 0;
 }
 
@@ -45,7 +39,7 @@ void* dague_private_memory_pop(dague_memory_pool_t* pool)
 {
     dague_list_item_t* elem = dague_atomic_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        elem = (dague_list_item_t*)plasma_private_alloc(pool->plasma, pool->elem_size, pool->elem_type);
+            elem = (dague_list_item_t*)malloc( pool->elem_size * sizeof(double) );
     }
     return elem;
 }
@@ -56,11 +50,10 @@ void dague_private_memory_push(dague_memory_pool_t* pool, void* memory)
     dague_atomic_lifo_push( &(pool->lifo), item );
 }
 
-int dgesv_private_memory_initialization(struct plasma_context_t *plasma, int mb, int nb, int type)
+int dgesv_private_memory_initialization(int mb, int nb)
 {
     work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( work_pool, mb * nb, type );
-    work_pool->plasma = plasma;
+    dague_private_memory_init( work_pool, mb * nb );
 
     return 0;
 }
