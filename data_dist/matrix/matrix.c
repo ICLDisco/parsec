@@ -14,15 +14,9 @@
 #include <pthread.h>
 #include <string.h>
 
-
 #include "data_distribution.h"
 #include "matrix.h"
 #include "bindthread.h"
-
-#include "plasma.h"
-#include "control/global.h"
-#include "control/context.h"
-#include "control/auxiliary.h"
 
 /*
  Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
