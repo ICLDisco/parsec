@@ -65,7 +65,7 @@ static inline void dague_hbbuffer_destroy(dague_hbbuffer_t *b)
 static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_t *elt)
 {
     dague_list_item_t *next = elt;
-    unsigned int i = 0, nbelt = 0;
+    int i = 0, nbelt = 0;
 
     while( NULL != elt ) {
         /* Assume that we're going to push elt.

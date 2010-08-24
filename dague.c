@@ -602,7 +602,7 @@ int dague_fini( dague_context_t** pcontext )
  * Check is there is any of the input parameters that do depend on some
  * other service. 
  */
-int dague_service_can_be_startup( const dague_object_t *dague_object, dague_execution_context_t* exec_context )
+static int dague_service_can_be_startup( const dague_object_t *dague_object, dague_execution_context_t* exec_context )
 {
     const dague_t* function = exec_context->function;
     const param_t* param;
@@ -658,10 +658,10 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
 /**
  * Convert a dependency to a string under the format X(...) -> Y(...).
  */
-char* dague_dependency_to_string( const dague_execution_context_t* from,
-                                    const dague_execution_context_t* to,
-                                    char* tmp,
-                                    size_t length )
+static char* dague_dependency_to_string( const dague_execution_context_t* from,
+                                         const dague_execution_context_t* to,
+                                         char* tmp,
+                                         size_t length )
 {
     int index = 0;
 
@@ -748,7 +748,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     dague_dependencies_t *deps;
     int i;
     dague_dependency_t dep_new_value, dep_cur_value;
-#ifdef DAGUE_DEBUG
+#if defined(DAGUE_DEBUG)
     char tmp[128];
 #endif
 
@@ -756,7 +756,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     DEBUG(("Activate dependencies for %s priority %d\n",
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
-
     deps = find_deps(dague_object, exec_context);
     
     i = function->nb_locals - 1;
@@ -775,7 +774,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #if defined(DAGUE_DEBUG)
     if( dep_cur_value > function->dependencies_goal ) {
-        char tmp[128];
         DEBUG(("function %s as reached a dependency count of %d, higher than the goal dependencies count of %d\n",
                dague_service_to_string(exec_context, tmp, 128), dep_cur_value, function->dependencies_goal));
         assert(dep_cur_value <= function->dependencies_goal);
@@ -788,11 +786,11 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #   if defined(DAGUE_DEBUG)
     if( deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask ) {
-        char tmp[128], tmp1[128];
+        char tmp2[128];
         DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
                dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
                deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
-               dague_service_to_string(exec_context, tmp1, 128),  dest_param->name ));
+               dague_service_to_string(exec_context, tmp2, 128),  dest_param->name ));
     }
     assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
 #   endif 
@@ -817,10 +815,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #if defined(DAGUE_GRAPHER) || 1
         if( NULL != __dague_graph_file ) {
-            char tmp[128];
+            char tmp1[128];
             fprintf(__dague_graph_file, 
                     "%s [label=\"%s=>%s\" color=\"#00FF00\" style=\"solid\"]\n", 
-                    dague_dependency_to_string(origin, exec_context, tmp, 128),
+                    dague_dependency_to_string(origin, exec_context, tmp1, 128),
                     origin_param->name, dest_param->name);
             fflush(__dague_graph_file);
         }
@@ -834,7 +832,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             success = dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
                                         tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
             if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
-                char tmp[128];
                 char tmp2[128];
                 fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
                         success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
@@ -850,7 +847,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          */
         {
 #if defined(DAGUE_DEBUG)
-            char tmp[128], tmp2[128];
+            char tmp2[128];
 #endif
             dague_execution_context_t* new_context;
             new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
@@ -876,10 +873,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #if defined(DAGUE_GRAPHER) || 1
         if( NULL != __dague_graph_file ) {
-            char tmp[128];
+            char tmp1[128];
             fprintf(__dague_graph_file, 
                     "%s [label=\"%s=>%s\" color=\"#FF0000\" style=\"dashed\"]\n", 
-                    dague_dependency_to_string(origin, exec_context, tmp, 128),
+                    dague_dependency_to_string(origin, exec_context, tmp1, 128),
                     origin_param->name, dest_param->name);
             fflush(__dague_graph_file);
         }
@@ -950,11 +947,12 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
     return DAGUE_ITERATE_CONTINUE;
 }
 
-void dague_dump_object( dague_object_t* object )
+static void dague_dump_object( dague_object_t* object )
 {
+    (void) object;
 }
 
-void dague_dump_execution_context( dague_execution_context_t* exec_context )
+static void dague_dump_execution_context( dague_execution_context_t* exec_context )
 {
     char tmp[128];
 
