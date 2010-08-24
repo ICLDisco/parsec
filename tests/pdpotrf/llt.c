@@ -342,11 +342,10 @@ int main(int argc, char ** argv)
 	  int nb;
             TIME_START();
 	    PLASMA_dpotrf_Tile(uplo, &descA);
-            TIME_PRINT(("_plasma computation: %f Gflops", 
-                        gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
+            TIME_PRINT(("_plasma computation: %f Gflops N=%d NB=%d", 
+                        gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed), N, nb));
 
 	    PLASMA_Get(PLASMA_TILE_SIZE, &nb);
-	    printf(" with N = %d and NB = %d\n", N, nb);
             break;
         }
         case DO_DAGUE: {
