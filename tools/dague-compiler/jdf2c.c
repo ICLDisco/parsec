@@ -568,6 +568,28 @@ static char *dump_profiling_init(void **elem, void *arg)
     return string_arena_get_string(info->sa);
 }
 
+/**
+ * dump_startup_call:
+ *  Takes a pointer to a function and print the call to add the startup tasks
+ *  if the function can be a startup one (i.e. there is a set of values in the
+ *  execution space that make all input come directly from the data instead of
+ *  other tasks).
+ */
+static char *dump_startup_call(void **elem, void *arg)
+{
+    const jdf_function_entry_t *f = (const jdf_function_entry_t *)elem;
+    string_arena_t* sa = (string_arena_t*)arg;
+    
+    if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
+        string_arena_init(sa);
+        string_arena_add_string(sa,
+                                "_%s_startup_tasks(res, &(((dague_object_t*)res)->startup_list));",
+                                f->fname);
+        return string_arena_get_string(sa);
+    }
+    return NULL;
+}
+
 static char* dump_typed_globals(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
@@ -1367,7 +1389,7 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
                                             "", "", " && ", ""));
     ai.sa = sa2;
     ai.idx = 0;
-    ai.holder = "new_context->locals";
+    ai.holder = "  new_context->locals";
     ai.expr = NULL;
     coutput("%s  new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));\n"
             "%s  DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
@@ -1375,7 +1397,7 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
             "%s  new_context->dague_object = (dague_object_t*)__dague_object;\n"
             "%s  new_context->function = (const dague_t*)&%s_%s;\n"
             "%s  new_context->data[0].gc_data = NULL;\n"
-            "%s  %s",
+            "%s%s",
             indent(nesting),
             indent(nesting),
             indent(nesting),
@@ -1383,7 +1405,7 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
             indent(nesting), jdf_basename, f->fname,
             indent(nesting),
             indent(nesting), UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
-                                                  dump_reserve_assignments, &ai, "", "", "", ""));
+                                                  dump_reserve_assignments, &ai, "", "", indent(nesting), ""));
     if( NULL != f->priority ) {
         coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
             indent(nesting), jdf_basename, f->fname);
@@ -1863,6 +1885,9 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "%s",
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
                             "", "", "\n", "\n"));
+    coutput("%s\n",
+            UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_startup_call, sa2,
+                            "  ", jdf_basename, "\n  ", "") );
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  remote_deps_allocation_init(%s->nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
