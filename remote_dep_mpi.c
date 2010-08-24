@@ -294,9 +294,11 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
             case DEP_ACTIVATE:
                 remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
                 break;
+#ifdef FLOW_CONTROL
             case DEP_GET_DATA:
                 remote_dep_mpi_short_get_data(context, item->cmd.get.rank, item->cmd.get.i);
                 break;
+#endif
             case DEP_CTL:
                 ctl = item->cmd.ctl.enable;
                 assert((ctl * ctl) <= 1);
@@ -767,7 +769,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->which)) continue;
         DEBUG(("%p[%d] %p, %p\n", deps, k, deps->output[k].data, GC_DATA(deps->output[k].data)));
-	data = GC_DATA(deps->output[k].data);
+        data = GC_DATA(deps->output[k].data);
         dtt = *deps->output[k].type;
 #ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
@@ -789,6 +791,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     }
 }
 
+#ifdef FLOW_CONTROL
 #define FLOW_CONTROL_MEM_CONSTRAINT 200
 #define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
 static int stalls = 0;
@@ -820,6 +823,7 @@ static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, in
         stalls = 0;
     }
 }
+#endif
 
 static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, int i)
 {
@@ -861,11 +865,12 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                 if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                 {
 #endif
-                   MPI_Type_get_extent(dtt, &lb, &size);
-                   data = malloc(size);
-                   assert(data != NULL);
+                    MPI_Type_get_extent(dtt, &lb, &size);
+                    data = malloc(size);
+                    DEBUG(("Malloc new remote tile %p", data));
+                    assert(data != NULL);
 #ifdef FLOW_CONTROL
-                   printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                    printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
                 }
                 else
                 {

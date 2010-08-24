@@ -192,11 +192,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     }
     remote_dep_get_datatypes(remote_deps);
     
+    if(remote_deps->root == eu_context->master_context->my_rank) me = 0;
+    else me = -1; 
+    
     for( i = 0; remote_deps_count; i++) {
         if( 0 == remote_deps->output[i].count ) continue;
-        
-        if(remote_deps->root == eu_context->master_context->my_rank) me = 0;
-        else me = -1; 
         him = 0;
 
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
@@ -221,7 +221,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     {
                         /* the next bit points after me, so I know my dense rank now */
                         me = ++him;
-			if(rank == eu_context->master_context->my_rank) continue;
+                        if(rank == eu_context->master_context->my_rank) continue;
                     }
                     him++;
                     
