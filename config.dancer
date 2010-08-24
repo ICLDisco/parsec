@@ -1,3 +1,12 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
-cmake .  -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=/opt/plasma -DDPLASMA_MPI=ON -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=/opt/hwloc 
+
+/opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
+/opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
+export CC=icc
+export FC=ifort
+
+cmake .  -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_intel_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=/opt/plasma-2.2.0-mkl_seq_lp64-intel-11.1.072 -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=/opt/hwloc 
+
+# to compile with gcc and plasma-2.1
+#cmake .  -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=/opt/plasma -DDPLASMA_MPI=ON -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=/opt/hwloc 
