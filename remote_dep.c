@@ -284,6 +284,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 #endif 
 
 
+#if 0
 /* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
  * requires it to genrerate correct precompiled code */
 int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
@@ -350,4 +351,5 @@ int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
     
     return 0;
 }
+#endif
 

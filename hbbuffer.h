@@ -82,7 +82,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
             elt->list_next = elt;
         }
         /* Try to find a room for elt */
-        for(; i < b->size; i++) {
+        for(; (size_t)i < b->size; i++) {
             if( dague_atomic_cas(&b->items[i], NULL, elt) == 0 )
                 continue;
             /*printf( "Push elem %p in local queue %p at position %d\n", elt, b, i );*/
@@ -91,7 +91,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
             break;
         }
 
-        if( i == b->size ) {
+        if( (size_t)i == b->size ) {
             /* It was impossible to push elt */
             break;
         }

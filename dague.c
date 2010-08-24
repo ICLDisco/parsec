@@ -55,7 +55,7 @@ int DAGUE_TILE_SIZE = 0;
 
 const dague_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
-    int i;
+    unsigned int i;
     const dague_t* object;
 
     for( i = 0; i < dague_object->nb_functions; i++ ) {

@@ -109,23 +109,24 @@ pthread_cond_t mpi_progress_condition_variable;
 pthread_mutex_t mpi_progress_mutex;
 
 static inline void init_condition_var(){
-	pthread_mutex_init(&mpi_progress_mutex, NULL);
-	pthread_cond_init(&mpi_progress_condition_variable, NULL);
+    pthread_mutex_init(&mpi_progress_mutex, NULL);
+    pthread_cond_init(&mpi_progress_condition_variable, NULL);
 }
 
 static inline void sleep_on_condition(const struct timespec *ts){
-	pthread_mutex_lock(&mpi_progress_mutex);
-	pthread_cond_timedwait(&mpi_progress_condition_variable, &mpi_progress_mutex, ts);
-	pthread_mutex_unlock(&mpi_progress_mutex);
+    pthread_mutex_lock(&mpi_progress_mutex);
+    pthread_cond_timedwait(&mpi_progress_condition_variable, &mpi_progress_mutex, ts);
+    pthread_mutex_unlock(&mpi_progress_mutex);
 }
 
 static inline void signal_condition(void){
-	pthread_mutex_lock(&mpi_progress_mutex);
-	pthread_cond_signal(&mpi_progress_condition_variable);
-	pthread_mutex_unlock(&mpi_progress_mutex);
+    pthread_mutex_lock(&mpi_progress_mutex);
+    pthread_cond_signal(&mpi_progress_condition_variable);
+    pthread_mutex_unlock(&mpi_progress_mutex);
 }
 /* condition variable code ends */
 
+#ifdef DAGUE_DEBUG
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
     unsigned int i, index = 0;
@@ -144,6 +145,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
     }
     return str;
 }
+#endif
 
 pthread_t dep_thread_id;
 dague_dequeue_t dep_cmd_queue;
