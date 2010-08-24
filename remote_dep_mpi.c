@@ -103,6 +103,28 @@ typedef struct dep_cmd_item_t
     dep_cmd_t cmd;
 } dep_cmd_item_t;
 
+/* condition variable code starts */
+pthread_cond_t mpi_progress_condition_variable;
+pthread_mutex_t mpi_progress_mutex;
+
+static inline void init_condition_var(){
+	pthread_mutex_init(&mpi_progress_mutex, NULL);
+	pthread_cond_init(&mpi_progress_condition_variable, NULL);
+}
+
+static inline void sleep_on_condition(const struct timespec *ts){
+	pthread_mutex_lock(&mpi_progress_mutex);
+	pthread_cond_timedwait(&mpi_progress_condition_variable, &mpi_progress_mutex, ts);
+	pthread_mutex_unlock(&mpi_progress_mutex);
+}
+
+static inline void signal_condition(void){
+	pthread_mutex_lock(&mpi_progress_mutex);
+	pthread_cond_signal(&mpi_progress_condition_variable);
+	pthread_mutex_unlock(&mpi_progress_mutex);
+}
+/* condition variable code ends */
+
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
     unsigned int i, index = 0;
@@ -138,7 +160,9 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 
     dague_dequeue_construct(&dep_cmd_queue);
     dague_dequeue_construct(&dep_activate_queue);
-    
+
+    init_condition_var();
+
     MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
     if(1 < np)
     {
@@ -211,6 +235,7 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     DAGUE_LIST_ITEM_SINGLETON(item);
     /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+    signal_condition();
     return 1;
 }
 
@@ -241,6 +266,7 @@ void dague_remote_dep_memcpy(void *dst, gc_data_t *src, dague_remote_dep_datatyp
     DAGUE_LIST_ITEM_SINGLETON(item);
     /*printf( "%s:%d Allocate dep_cmd_item_t at %p (for memcpy)\n", __FILE__, __LINE__, (void*)item);*/
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+    signal_condition();
 }
 
 #define YIELD_TIME 5000
@@ -263,7 +289,10 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
             {
                 remote_dep_mpi_progress(context->execution_units[0]);
             }
-            nanosleep(&ts, NULL);
+/* condition variable code starts */
+	    sleep_on_condition(&ts);
+/* condition variable code ends */
+            //nanosleep(&ts, NULL);
         }
 
         switch(item->action)
@@ -357,7 +386,7 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
         if(origin->msg.deps & (1 << i)) {
-        printf("DATA %p released\n", GC_DATA(origin->output[i].data));
+        DEBUG(("DATA %p released from %p[%d]\n", GC_DATA(origin->output[i].data), origin, i));
 	    	data[i] = origin->output[i].data;
         }
     }
@@ -744,7 +773,8 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     {
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->which)) continue;
-        data = GC_DATA(deps->output[k].data);
+        DEBUG(("%p[%d] %p, %p\n", deps, k, deps->output[k].data, GC_DATA(deps->output[k].data)));
+	data = GC_DATA(deps->output[k].data);
         dtt = *deps->output[k].type;
 #ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
