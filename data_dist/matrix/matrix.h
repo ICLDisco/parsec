@@ -68,10 +68,13 @@ void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc);
 /**
  * allocate a buffer to hold the matrix
  */
-void* dague_allocate_matrix(uint64_t matrix_size );
+void* dague_allocate_matrix(unsigned long matrix_size );
 
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
 
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
 
+#ifdef USE_MPI
+void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+#endif
 #endif /* _MATRIX_H_  */
