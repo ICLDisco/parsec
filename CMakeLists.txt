@@ -47,7 +47,7 @@ option(DAGUE_DO_UNIT_TESTS
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
 
-set( PROJECT_INCLUDE_DIR ./)
+set( PROJECT_INCLUDE_DIR include)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
@@ -147,6 +147,7 @@ IF( HAVE_STD_C99 )
 ENDIF( HAVE_STD_C99 )
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+include_directories("${PROJECT_INCLUDE_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
 include(cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -198,7 +199,7 @@ find_package(PLASMA REQUIRED)
 
 find_package(HWLOC)
 if( HAVE_HWLOC )
-  list(APPEND EXTRA_SOURCES dague_hwloc.c)
+  list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
   check_struct_has_member( "struct hwloc_obj" parent hwloc.h HAVE_HWLOC_PARENT_MEMBER )
   check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR )
@@ -225,7 +226,7 @@ endif (DAGUE_MPI)
 if (DAGUE_PAPI)
   find_package(PAPI REQUIRED)
   if (PAPI_FOUND)
-    list(APPEND EXTRA_SOURCES papime.c)
+    list(APPEND EXTRA_SOURCES src/papime.c)
     list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
     include_directories( ${PAPI_INCLUDE_DIR} )
   endif (PAPI_FOUND)
@@ -261,18 +262,22 @@ include_directories(${PLASMA_INCLUDE_DIR})
 #
 # Setup targets
 #
-add_library(dague STATIC dague.c symbol.c expr.c params.c dep.c
-  scheduling.c profiling.c stats.c remote_dep.c barrier.c Buf2Cache/buf2cache.c
-  freelist.c debug.c bindthread.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c data_dist/matrix/tabular_distribution/tabular_distribution.c data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
+add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c
+  src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
+  src/freelist.c src/debug.c src/bindthread.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
+  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
+  data_dist/matrix/tabular_distribution/tabular_distribution.c 
+  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
 set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
 if (DAGUE_MPI AND MPI_FOUND)
-  add_library(dague-mpi STATIC dague.c symbol.c expr.c params.c dep.c
-    scheduling.c profiling.c stats.c remote_dep.c barrier.c Buf2Cache/buf2cache.c
-    freelist.c debug.c bindthread.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c data_dist/matrix/tabular_distribution/tabular_distribution.c data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
+  add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c
+    src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
+    src/freelist.c src/debug.c src/bindthread.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
+  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
+  data_dist/matrix/tabular_distribution/tabular_distribution.c
+  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
 #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 endif (DAGUE_MPI AND MPI_FOUND)
