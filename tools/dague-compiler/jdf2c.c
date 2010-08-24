@@ -9,6 +9,7 @@
 #include "jdf.h"
 #include "string_arena.h"
 #include "jdf2c_utils.h"
+#include "jdf2c.h"
 
 #include "dague_config.h"
 
@@ -491,6 +492,8 @@ static char *dump_dataflow_varname(void **elem, void *_)
     return f->varname;
 }
 
+#if 0
+ /* TODO: Thomas needs to check if this is old junk or WIP */
 static double unique_rgb_color_saturation;
 static double unique_rgb_color_value;
 
@@ -499,6 +502,7 @@ static void init_unique_rgb_color(void)
     unique_rgb_color_value = 0.5 + (0.5 * (double)rand() / (double)RAND_MAX);
     unique_rgb_color_saturation = 0.5 + (0.5 * (double)rand() / (double)RAND_MAX);
 }
+#endif
 
 static void get_unique_rgb_color(float ratio, unsigned char *r, unsigned char *g, unsigned char *b)
 {
@@ -838,9 +842,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include <scheduling.h>\n"
             "#include <assignment.h>\n"
             "#include <remote_dep.h>\n"
-	    "#if defined(HAVE_PAPI)\n"
-	    "#include <papime.h>\n"
-	    "#endif\n"
+            "#if defined(HAVE_PAPI)\n"
+            "#include <papime.h>\n"
+            "#endif\n"
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
@@ -1105,7 +1109,7 @@ static void jdf_generate_dependency( const jdf_t *jdf, const char *datatype,
 }
 
 static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *context,
-                                   jdf_dataflow_t *flow, const char *prefix, unsigned char mask )
+                                   jdf_dataflow_t *flow, const char *prefix, uint32_t  mask )
 {
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa_dep_in = string_arena_new(64);
@@ -1122,6 +1126,10 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     char *sep;
 
     (void)jdf;
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+    assert(mask && ((mask & ~DAGUE_DEPENDENCIES_BITMASK) == 0)); 
+    (void)mask;
+#endif
 
     string_arena_init(sa_dep_in);
     string_arena_init(sa_dep_out);
@@ -1212,15 +1220,12 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     string_arena_free(sa_dep_in);
     string_arena_free(sa_dep_out);
 
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
-    (void)mask;
-#endif
 
     coutput("%s", string_arena_get_string(sa));
     string_arena_free(sa);
 }
 
-char* has_ready_input_dependency(void **elt, void *pint)
+static char* has_ready_input_dependency(void **elt, void *pint)
 {
     jdf_dataflow_list_t* list = (jdf_dataflow_list_t*)elt;
     jdf_dataflow_t* flow = list->flow;
@@ -1248,7 +1253,7 @@ char* has_ready_input_dependency(void **elt, void *pint)
     return NULL;
 }
 
-char* dump_direct_input_conditions(void **elt, void *arg)
+static char* dump_direct_input_conditions(void **elt, void *arg)
 {
     jdf_dataflow_list_t* list = (jdf_dataflow_list_t*)elt;
     string_arena_t *sa = (string_arena_t*)arg, *sa1;
@@ -1690,7 +1695,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
 
     sprintf(prefix, "param_of_%s_%s_for_", jdf_basename, f->fname);
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
-        jdf_generate_dataflow(jdf, f->definitions, fl->flow, prefix, 1<<i);
+        jdf_generate_dataflow(jdf, f->definitions, fl->flow, prefix, (uint32_t)(1<<i));
     }
     sprintf(prefix, "&param_of_%s_%s_for_", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .in = { %s },\n",
@@ -2771,7 +2776,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
 {
     int ret = 0;
 
+#if 0
+    /* TODO: Thomas needs to see if this is old junk or WIP */
     init_unique_rgb_color();
+#endif
 
     jdf_cfilename = output_c;
     jdf_basename = _jdf_basename;
