@@ -11,7 +11,7 @@ extern "C" %{
 
 #if defined(USE_MPI)
 #include <mpi.h>
-#include "data_management.h"
+#include "data_dist/data_management.h"
 extern MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
 extern DPLASMA_desc ddescA;
 extern DPLASMA_desc ddescT;

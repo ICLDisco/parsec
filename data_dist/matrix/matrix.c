@@ -14,7 +14,7 @@
 #include <pthread.h>
 #include <string.h>
 
-#include "data_distribution.h"
+#include "data_dist/data_distribution.h"
 #include "matrix.h"
 #include "bindthread.h"
 

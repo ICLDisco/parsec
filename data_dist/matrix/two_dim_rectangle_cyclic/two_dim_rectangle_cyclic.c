@@ -18,10 +18,7 @@
 #endif /* USE_MPI */
 
 #include "dague_config.h"
-#include "two_dim_rectangle_cyclic.h"
-#include "data_distribution.h"
-#include "matrix.h"
-
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {

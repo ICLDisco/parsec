@@ -1,7 +1,7 @@
 #include <plasma.h>
 
 #include "dague.h"
-#include "two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "dtrsm.h"
 
 #include "trsm_LLN.h"

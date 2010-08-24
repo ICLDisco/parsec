@@ -25,7 +25,7 @@
 
 #include "scheduling.h"
 #include "profiling.h"
-#include "two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "QR.h"
 
 static void runtime_init(int argc, char **argv);

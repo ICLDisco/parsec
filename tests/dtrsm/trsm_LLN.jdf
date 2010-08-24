@@ -8,7 +8,7 @@ extern "C" %{
 #include "dague.h"
 #include "remote_dep.h"
 
-#include "data_distribution.h"
+#include "data_dist/data_distribution.h"
 
 #define DAGUE_CALL_TRACE
 #ifdef DAGUE_CALL_TRACE
