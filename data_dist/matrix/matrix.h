@@ -42,6 +42,8 @@ typedef struct tiled_matrix_desc_t {
 /**
  * Generate the tile (row, col) int the buffer position.
  */
+void create_tile_zero_float(tiled_matrix_desc_t * Ddesc, void * position, int row, int col);
+void create_tile_zero_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col);
 void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col);
 void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col);
 void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col);

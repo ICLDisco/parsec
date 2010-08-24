@@ -19,7 +19,10 @@
 #include "matrix.h"
 #include "bindthread.h"
 
-void plasma_error(const char*, const char *);
+#include "plasma.h"
+#include "control/global.h"
+#include "control/context.h"
+#include "control/auxiliary.h"
 
 /*
  Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
@@ -28,11 +31,13 @@ void plasma_error(const char*, const char *);
  Rnd64seed is changed during the matrix generation time.
  */
 
-unsigned long long int Rnd64seed = 100;
+static unsigned long long int Rnd64seed = 100;
 #define Rnd64_A 6364136223846793005ULL
 #define Rnd64_C 1ULL
+#define RndF_Mul 5.4210108624275222e-20f
+#define RndD_Mul 5.4210108624275222e-20
 
-unsigned long long int
+static unsigned long long int
 Rnd64_jump(unsigned long long int n) {
   unsigned long long int a_k, c_k, ran;
   int i;
@@ -72,7 +77,7 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  i
       ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
 
       for (i = 0; i < nb; ++i) {
-        x[0] = 0.5 - ran * 5.4210108624275222e-20;
+        x[0] = 0.5f - ran * RndF_Mul;
         ran = Rnd64_A * ran + Rnd64_C;
         x += 1;
       }
@@ -98,7 +103,7 @@ void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
         
         for (i = 0; i < nb; ++i) {
-            x[0] = 0.5 - ran * 5.4210108624275222e-20;
+            x[0] = 0.5f - ran * RndF_Mul;
             ran = Rnd64_A * ran + Rnd64_C;
             x += 1;
         }
@@ -126,7 +131,7 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  
       ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
 
       for (i = 0; i < nb; ++i) {
-        x[0] = 0.5 - ran * 5.4210108624275222e-20;
+        x[0] = 0.5 - ran * RndD_Mul;
         ran = Rnd64_A * ran + Rnd64_C;
         x += 1;
       }
@@ -152,7 +157,7 @@ void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int ro
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
         
         for (i = 0; i < nb; ++i) {
-            x[0] = 0.5 - ran * 5.4210108624275222e-20;
+            x[0] = 0.5 - ran * RndD_Mul;
             ran = Rnd64_A * ran + Rnd64_C;
             x += 1;
         }
