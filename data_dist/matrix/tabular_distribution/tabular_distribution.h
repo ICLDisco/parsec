@@ -10,8 +10,7 @@
 #include <mpi.h>
 #endif /* USE_MPI */
 
-#include "../../data_distribution.h"
-#include "../matrix.h"
+#include "data_dist/matrix/matrix.h"
 
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0

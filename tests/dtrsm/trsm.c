@@ -29,7 +29,7 @@
 #include "timing.h"
 #include "scheduling.h"
 #include "profiling.h"
-#include "two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "dtrsm.h"
 
 #define _FMULS (NRHS/1e3 * N/1e3 * ( N + 1 )/1e3 / 2.0)

@@ -2,13 +2,13 @@ if( PLASMA_FOUND )
 
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
   
-  if( DPLASMA_MPI AND MPI_FOUND )
+  if( DAGUE_MPI AND MPI_FOUND )
     add_executable(pdgemm pdgemm.c gemm.c)
     set_target_properties(pdgemm PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(pdgemm PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(pdgemm PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
     target_link_libraries(pdgemm dague-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
-  endif( DPLASMA_MPI AND MPI_FOUND )
+  endif( DAGUE_MPI AND MPI_FOUND )
 
   add_executable(dgemm pdgemm.c gemm.c)
   set_target_properties(dgemm PROPERTIES LINKER_LANGUAGE Fortran)

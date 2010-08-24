@@ -11,7 +11,7 @@ extern "C" %{
 
 int PLASMA_INFO = 0;
 
-#include "data_management.h"
+#include "data_dist/data_management.h"
 extern DPLASMA_desc ddescA;
 extern DPLASMA_desc ddescB;
 #define descA ddescA

@@ -9,7 +9,7 @@ int PLASMA_INFO;
 
 #include "dague.h"
 #include "remote_dep.h"
-#include "data_distribution.h"
+#include "data_dist/data_distribution.h"
 
 #ifdef DPLASMA_CALL_TRACE
 #   include <stdlib.h>

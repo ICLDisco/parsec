@@ -14,7 +14,13 @@
 #include <pthread.h>
 #include <string.h>
 
-#include "data_distribution.h"
+
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
+
+#include "data_dist/data_distribution.h"
+
 #include "matrix.h"
 #include "bindthread.h"
 
@@ -374,7 +380,7 @@ extern dague_atomic_lifo_t gpu_devices;
 extern int use_gpu;
 #endif  /* defined(DAGUE_CUDA_SUPPORT) */
 
-void* dague_allocate_matrix(uint64_t matrix_size)
+void* dague_allocate_matrix(unsigned long matrix_size)
 {
     void* mat = NULL;
 #if defined(DAGUE_CUDA_SUPPORT)
@@ -460,3 +466,75 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
     fclose(tmpf);
     return 0;
 }
+
+
+#ifdef USE_MPI
+void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+{
+    MPI_Status status;
+    void * bufferA;
+    void * bufferB;
+    void * tmpA = malloc(a->bsiz * a->mtype);
+    void * tmpB = malloc(a->bsiz * a->mtype);
+    
+    int i,j;
+    uint32_t rankA, rankB;
+    unsigned int count = 0;
+
+    if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
+        {
+            if(a->super.myrank == 0)
+                printf("Cannot compare matrices\n");
+            return;
+        }
+    for(i = 0 ; i < a->lmt ; i++)
+        for(j = 0 ; j < a->lnt ; j++)
+            {
+                rankA = a->super.rank_of((dague_ddesc_t *) a, i, j );
+                rankB = b->super.rank_of((dague_ddesc_t *) b, i, j );
+                if (a->super.myrank == 0)
+                    {
+                        if ( rankA == 0)
+                            {
+                                bufferA = a->super.data_of((dague_ddesc_t *) a, i, j );
+                            }
+                        else
+                            {
+                                MPI_Recv(tmpA, a->bsiz, MPI_DOUBLE, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                bufferA = tmpA;
+                            }
+                        if ( rankB == 0)
+                            {
+                                bufferB = b->super.data_of((dague_ddesc_t *) b, i, j );
+                            }
+                        else
+                            {
+                                MPI_Recv(tmpB, b->bsiz, MPI_DOUBLE, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                bufferB = tmpB;
+                            }
+
+                        if (memcmp(bufferA, bufferB, a->bsiz * a->mtype))
+                            {
+                                count++;
+                                printf("tile (%d, %d) differs\n", i, j);
+                            }
+                        
+                    }
+                else /* a->super.myrank != 0 */
+                    {
+                        
+                        if ( rankA == a->super.myrank)
+                            {
+                                MPI_Send(a->super.data_of((dague_ddesc_t *) a, i, j ), a->bsiz, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                            }
+                        if ( rankB == b->super.myrank)
+                            {
+                                MPI_Send(b->super.data_of((dague_ddesc_t *) b, i, j ), b->bsiz, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);                                                    
+                            }
+                    }
+            }
+    if(a->super.myrank == 0)
+        printf("compared the matrices: %u difference(s)\n", count);
+}
+
+#endif

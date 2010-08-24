@@ -9,7 +9,7 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "data_distribution.h"
+#include "data_dist/data_distribution.h"
 
 #if defined(DISTRIBUTED)
 extern MPI_Datatype LITTLE_T, UPPER_TILE, LOWER_TILE;

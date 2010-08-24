@@ -28,7 +28,7 @@
 
 #include "scheduling.h"
 #include "profiling.h"
-#include "data_management.h"
+#include "data_dist/data_management.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"

@@ -14,10 +14,7 @@
 #include <stdint.h>
 #include <limits.h>
 
-#include "sym_two_dim_rectangle_cyclic.h"
-#include "data_distribution.h"
-#include "matrix.h"
-
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 
 static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {

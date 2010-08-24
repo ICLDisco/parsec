@@ -17,11 +17,7 @@
 #include <mpi.h>
 #endif /* USE_MPI */
 
-
-#include "tabular_distribution.h"
-#include "data_distribution.h"
-#include "matrix.h"
-
+#include "data_dist/matrix/tabular_distribution/tabular_distribution.h"
 
 static uint32_t td_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {

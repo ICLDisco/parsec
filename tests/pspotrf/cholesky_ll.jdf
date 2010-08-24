@@ -12,7 +12,7 @@ int PLASMA_INFO;
 #include "dplasma.h"
 #include "remote_dep.h"
 
-#include "data_management.h"
+#include "data_dist/data_management.h"
 extern DPLASMA_desc ddescA;
 #define descA ddescA
 
