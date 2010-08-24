@@ -330,9 +330,17 @@ int main(int argc, char ** argv)
     /* parsing arguments */
     runtime_init(argc, argv);
     /* initializing matrix structure */
-    
-    
-    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N, 0, 0, LDA, LDA, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble,
+                              nodes,
+                              cores,
+                              rank,
+                              dposv_force_nb, dposv_force_nb,
+                              0,
+                              N, N,
+                              0, 0,
+                              LDA, LDA,
+                              nrst, ncst,
+                              GRIDrows);
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
 
