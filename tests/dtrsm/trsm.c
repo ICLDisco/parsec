@@ -312,15 +312,15 @@ int main(int argc, char ** argv)
     dague_trsm = DAGUE_dtrsm_getObject(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, &ddescA, &ddescB);
 
     dague->taskstodo += dague_trsm->nb_local_tasks;
-    printf("Total nb tasks to run: %d\n", dague->taskstodo);
+    printf("Total nb tasks to run: %u\n", dague->taskstodo);
 
     /* Get Execution context */
     if(0 == rank)
       {
-	dague_execution_context_t exec_context;
-	
-	DAGUE_dtrsm_setExecContext(dague_trsm, &exec_context);
-	dague_schedule(dague, &exec_context);
+        dague_execution_context_t exec_context;
+
+        DAGUE_dtrsm_setExecContext(dague_trsm, &exec_context);
+        dague_schedule(dague, &exec_context);
       }
 
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
@@ -329,11 +329,12 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     TIME_START();
     dague_progress(dague);
-    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, dague_trsm->nb_local_tasks, 
-		dague_trsm->nb_local_tasks/time_elapsed));
+    TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n", rank, dague_trsm->nb_local_tasks, 
+                dague_trsm->nb_local_tasks/time_elapsed));
     SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
-		     gflops = (_FADDS+_FMULS)/(sync_time_elapsed)));
-    
+    gflops = (_FADDS+_FMULS)/(sync_time_elapsed)));
+   
+    (void) gflops;
     TIME_PRINT(("Dague priority change at position \t%d\n", ddescA.super.nt - pri_change));
 
     /*data_dump((tiled_matrix_desc_t *) &ddescA);*/
