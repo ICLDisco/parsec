@@ -1420,7 +1420,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("static int %s(__dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
             "  dague_dependencies_t *dep;\n"
-            "  int nb_tasks = 0, __foundone;\n"
+            "  int nb_tasks = 0, __foundone = 0;\n"
             "%s",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
