@@ -161,7 +161,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     dague_dequeue_construct(&dep_cmd_queue);
     dague_dequeue_construct(&dep_activate_queue);
 
-    init_condition_var();
+    //init_condition_var();
 
     MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
     if(1 < np)
@@ -235,7 +235,7 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     DAGUE_LIST_ITEM_SINGLETON(item);
     /*printf( "%s:%d Allocate dep_cmd_item_t at %p\n", __FILE__, __LINE__, (void*)item);*/
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-    signal_condition();
+    //signal_condition();
     return 1;
 }
 
@@ -266,7 +266,7 @@ void dague_remote_dep_memcpy(void *dst, gc_data_t *src, dague_remote_dep_datatyp
     DAGUE_LIST_ITEM_SINGLETON(item);
     /*printf( "%s:%d Allocate dep_cmd_item_t at %p (for memcpy)\n", __FILE__, __LINE__, (void*)item);*/
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-    signal_condition();
+    //signal_condition();
 }
 
 #define YIELD_TIME 5000
@@ -290,9 +290,9 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
                 remote_dep_mpi_progress(context->execution_units[0]);
             }
 /* condition variable code starts */
-	    sleep_on_condition(&ts);
+	    //sleep_on_condition(&ts);
 /* condition variable code ends */
-            //nanosleep(&ts, NULL);
+            nanosleep(&ts, NULL);
         }
 
         switch(item->action)
@@ -609,7 +609,7 @@ static int remote_dep_mpi_fini(dague_context_t* context)
         free(internal_alloc_lifo);
         internal_alloc_lifo = NULL;
         internal_alloc_lifo_init = 0;
-        fprintf( stderr, "Total number of released TILES = %d\n", nb_allocated_items );
+        DEBUG(( "Total number of released TILES = %d\n", nb_allocated_items ));
     }
     return 0;
 }
