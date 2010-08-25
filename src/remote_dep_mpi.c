@@ -659,17 +659,18 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
         if(flag)
         {
             assert( -1 != status.MPI_TAG );
-            if(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG)
+            if(i < DEP_NB_CONCURENT)
             {
+                assert(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG);
                 DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith datakey %lx\n",
                        status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128),
                        i, dep_activate_buff[i]->msg.deps));
                 remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, status.MPI_SOURCE, i);
             } 
-            else if(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG)
+            else if(i < (2*DEP_NB_CONCURENT))
             {
                 i -= DEP_NB_CONCURENT; /* shift i */
-                assert(i >= 0);
+                assert(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG);
                 remote_dep_mpi_put_data(&dep_get_buff[i], status.MPI_SOURCE, i);
             }
             else 
