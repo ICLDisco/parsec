@@ -286,15 +286,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
 
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
-    {
-        {"dot",         required_argument,  NULL, 'd'},
-        {"papi",        required_argument,  NULL, 'p'},
-        {"bind",        required_argument,  NULL, 'b'},
-        {0, 0, 0, 0}
-    };
+        {
+            {"dot",         required_argument,  NULL, 'd'},
+            {"papi",        required_argument,  NULL, 'p'},
+            {"bind",        required_argument,  NULL, 'b'},
+            {0, 0, 0, 0}
+        };
 #endif  /* defined(HAVE_GETOPT_LONG) */
     dague_context_t* context = (dague_context_t*)malloc(sizeof(dague_context_t) +
-                                                            nb_cores * sizeof(dague_execution_unit_t*));
+                                                        nb_cores * sizeof(dague_execution_unit_t*));
     __dague_temporary_thread_initialization_t* startup = 
         (__dague_temporary_thread_initialization_t*)malloc(nb_cores * sizeof(__dague_temporary_thread_initialization_t));
     /* Prepare the temporary storage for each thread startup */
@@ -306,10 +306,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     }
 
 #if defined(HAVE_PAPI)
-   papime_start();
+    papime_start();
 #endif
 
-    DAGUE_TILE_SIZE = tile_size;
+    DAGUE_TILE_SIZE = tile_size;  /* TODO: REMOVE ME */
 
 #if defined(USE_MPI)
     /* Change this to pass the MPI Datatype as parameter to dague_init, or 
@@ -322,10 +322,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
-    context->nb_cores = (int32_t) nb_cores;
     context->__dague_internal_finalization_in_progress = 0;
+    context->nb_cores  = (int32_t) nb_cores;
     context->__dague_internal_finalization_counter = 0;
+    context->nb_nodes  = 1;
     context->taskstodo = 0;
+    context->my_rank   = 0;
 
 #ifdef USE_PAPI
     num_events = 0;
@@ -374,65 +376,65 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
                 __dague_graph_file = fopen( filename, "w");
             }
             break;
-         case 'b':
-             {
-                 char* option = strdup(optarg);
-                 char* position;
-                 if( NULL != (position = strchr(option, ':')) ) {
-                     /* range expression such as [start]:[end]:[step] */
-                     int start = 0, end, step = 1;
-                     if( position != option ) {  /* we have a starting position */
-                         start = strtol(option, NULL, 10);
-                     }
-                     end = start + nb_cores;  /* automatically compute the end */
-                     position++;  /* skip the : */
-                     if( '\0' != position[0] ) {
-                         if( ':' != position[0] ) {
-                             end = strtol(position, &position, 10);
-                             position = strchr(position, ':');  /* find the step */
-                         }
-                         if( NULL != position ) position++;  /* skip the : directly into the step */
-                         if( (NULL != position) && ('\0' != position[0]) ) {
-                             step = strtol(position, NULL, 10);
-                         }
-                     }
-                     DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
-                     {
-                         int where = start, skip = 1;
-                         for( i = 0; i < nb_cores; i++ ) {
-                             startup[i].bindto = where;
-                             where += step;
-                             if( where >= end ) {
-                                 where = start + skip;
-                                 skip++;
-                                 if( (skip > step) && (i < (nb_cores - 1))) {
-                                     printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
-                                     break;
-                                 }
-                             }
-                         }
-                     }
-                 } else {
-                     i = 0;
-                     /* array of cores c1,c2,... */
-                     position = option;
-                     while( NULL != position ) {
-                         /* We have more information than the number of cores. Ignore it! */
-                         if( i == nb_cores ) break;
-                         startup[i].bindto = strtol(position, &position, 10);
-                         i++;
-                         if( (',' != position[0]) || ('\0' == position[0]) ) {
-                             break;
-                         }
-                         position++;
-                     }
-                     if( i < nb_cores ) {
-                         printf( "Based on the information provided to --bind some threads are not binded\n" );
-                     }
-                 }
-                 free(option);
-             }
-             break;
+        case 'b':
+            {
+                char* option = strdup(optarg);
+                char* position;
+                if( NULL != (position = strchr(option, ':')) ) {
+                    /* range expression such as [start]:[end]:[step] */
+                    int start = 0, end, step = 1;
+                    if( position != option ) {  /* we have a starting position */
+                        start = strtol(option, NULL, 10);
+                    }
+                    end = start + nb_cores;  /* automatically compute the end */
+                    position++;  /* skip the : */
+                    if( '\0' != position[0] ) {
+                        if( ':' != position[0] ) {
+                            end = strtol(position, &position, 10);
+                            position = strchr(position, ':');  /* find the step */
+                        }
+                        if( NULL != position ) position++;  /* skip the : directly into the step */
+                        if( (NULL != position) && ('\0' != position[0]) ) {
+                            step = strtol(position, NULL, 10);
+                        }
+                    }
+                    DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
+                    {
+                        int where = start, skip = 1;
+                        for( i = 0; i < nb_cores; i++ ) {
+                            startup[i].bindto = where;
+                            where += step;
+                            if( where >= end ) {
+                                where = start + skip;
+                                skip++;
+                                if( (skip > step) && (i < (nb_cores - 1))) {
+                                    printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    i = 0;
+                    /* array of cores c1,c2,... */
+                    position = option;
+                    while( NULL != position ) {
+                        /* We have more information than the number of cores. Ignore it! */
+                        if( i == nb_cores ) break;
+                        startup[i].bindto = strtol(position, &position, 10);
+                        i++;
+                        if( (',' != position[0]) || ('\0' == position[0]) ) {
+                            break;
+                        }
+                        position++;
+                    }
+                    if( i < nb_cores ) {
+                        printf( "Based on the information provided to --bind some threads are not binded\n" );
+                    }
+                }
+                free(option);
+            }
+            break;
         }
     } while(1);
 
@@ -447,13 +449,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     dague_profiling_init( "%s", (*pargv)[0] );
 
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
-                                              &MEMALLOC_start_key, &MEMALLOC_end_key);
+                                            &MEMALLOC_start_key, &MEMALLOC_end_key);
     dague_profiling_add_dictionary_keyword( "Sched POLL", "fill:#8A0886",
-                                              &schedule_poll_begin, &schedule_poll_end);
+                                            &schedule_poll_begin, &schedule_poll_end);
     dague_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#F781F3",
-                                              &schedule_push_begin, &schedule_push_end);
+                                            &schedule_push_begin, &schedule_push_end);
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
-                                              &schedule_sleep_begin, &schedule_sleep_end);
+                                            &schedule_sleep_begin, &schedule_sleep_end);
 #endif  /* DAGUE_PROFILING */
 
 #if defined(DAGUE_USE_GLOBAL_LIFO)
@@ -942,6 +944,8 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
                                                                      oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
                                                                      &arg->ready_list);
         }
+    } else {
+        DEBUG(("On task %s param_index %d not on the action_mask %x\n", param_index, arg->action_mask));
     }
 
     return DAGUE_ITERATE_CONTINUE;
