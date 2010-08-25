@@ -153,7 +153,7 @@ typedef struct dague_object {
 
 struct dague_ddesc;
 
-#include "data_dist/data_distribution.h"
+#include "../data_dist/data_distribution.h"
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
