@@ -82,7 +82,8 @@ static char *util_dump_list_fct( string_arena_t *sa,
                                  dumper_function_t fct, void *fctarg,
                                  const char *before, const char *prefix, const char *separator, const char *after)
 {
-    char *eltstr, *prevstr = "";
+    char *eltstr;
+    const char *prevstr = "";
     void *elt;
     
     string_arena_init(sa);
