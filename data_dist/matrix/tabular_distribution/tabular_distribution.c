@@ -95,7 +95,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
             Ddesc->tiles_table[res].rank = table[res];
             if(table[res] == myrank) /* this tile belongs to me, allocating memory*/
                 {
-                    Ddesc->tiles_table[res].tile = dague_allocate_matrix( Ddesc->super.bsiz * Ddesc->super.mtype);
+                    Ddesc->tiles_table[res].tile = dague_allocate_matrix( Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
                     if (Ddesc->tiles_table[res].tile == NULL)
                         {
                             perror("matrix memory allocation failed\n");
@@ -110,7 +110,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     /*
 
     Ddesc->mat = dague_allocate_matrix(Ddesc->nb_elem_r * Ddesc->nb_elem_c * Ddesc->super.bsiz * Ddesc->super.mtype);
-    if (Ddesc->mat == NULL)
+    if (Ddesc->mat == NULL)/
         {
             perror("matrix memory allocation failed\n");
             exit(-1);

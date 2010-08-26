@@ -380,7 +380,7 @@ extern dague_atomic_lifo_t gpu_devices;
 extern int use_gpu;
 #endif  /* defined(DAGUE_CUDA_SUPPORT) */
 
-void* dague_allocate_matrix(unsigned long matrix_size)
+void* dague_allocate_matrix(size_t matrix_size)
 {
     void* mat = NULL;
 #if defined(DAGUE_CUDA_SUPPORT)

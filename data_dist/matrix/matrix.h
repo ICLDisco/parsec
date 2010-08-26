@@ -68,7 +68,7 @@ void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc);
 /**
  * allocate a buffer to hold the matrix
  */
-void* dague_allocate_matrix(unsigned long matrix_size );
+void* dague_allocate_matrix(size_t matrix_size );
 
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
 
