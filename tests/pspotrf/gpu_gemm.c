@@ -79,7 +79,8 @@ int spotrf_cuda_init( int use_gpu, int NB )
             printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
             printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
             printf("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock );
-            printf("\tmaxThreadsDim      : %d\n", devProps.maxThreadsDim );
+            printf("\tmaxThreadsDim      : [%d,%d,%d]\n", devProps.maxThreadsDim[0],
+                   devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] );
             printf("\tconstantMemory     : %d\n", devProps.totalConstantMemory );
             printf("\tmemPitch           : %d\n", devProps.memPitch );
             printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
@@ -282,7 +283,7 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
         /* Pop C from the GPU */
         status = cuMemcpyDtoH( C , d_C, sizeof(float)*NB*NB );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
-                                  {printf("<<%p>>\n", d_C); goto release_and_return_error;} );
+                                  {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
         /* Wait until the data is back on the memory */
         status = cuStreamSynchronize(stream);
         DAGUE_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
