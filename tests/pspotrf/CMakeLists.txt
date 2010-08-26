@@ -12,51 +12,51 @@ if( PLASMA_FOUND )
     set(GPU_SUPPORT gpu_gemm.c)
   endif (CUDA_FOUND)
 
-  if( DPLASMA_MPI AND MPI_FOUND )
-    add_library(mpi_sposv STATIC data_management.c ${GPU_SUPPORT} sposv.c)
+  if( DAGUE_MPI AND MPI_FOUND )
+    add_library(mpi_sposv STATIC ${GPU_SUPPORT})
     set_target_properties(mpi_sposv PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
 
-    add_executable(mpi_sposv_ll cholesky_ll.c)
+    add_executable(mpi_sposv_ll cholesky_ll.c sposv.c)
     set_target_properties(mpi_sposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
-    set_target_properties(mpi_sposv_ll PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+    set_target_properties(mpi_sposv_ll PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI -DLLT_LL")
     set_target_properties(mpi_sposv_ll PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(mpi_sposv_ll dplasma-mpi mpi_sposv ${MPI_LIBRARIES} ${SPOTRF_REQUIRED_LIBRARIES})
+    target_link_libraries(mpi_sposv_ll dague-mpi mpi_sposv ${MPI_LIBRARIES} ${SPOTRF_REQUIRED_LIBRARIES})
 
-    add_executable(mpi_sposv_rl cholesky_rl.c)
+    add_executable(mpi_sposv_rl cholesky_rl.c sposv.c)
     set_target_properties(mpi_sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(mpi_sposv_rl PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(mpi_sposv_rl PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(mpi_sposv_rl dplasma-mpi mpi_sposv ${MPI_LIBRARIES} ${SPOTRF_REQUIRED_LIBRARIES})
-  endif( DPLASMA_MPI AND MPI_FOUND )
+    target_link_libraries(mpi_sposv_rl dague-mpi mpi_sposv ${MPI_LIBRARIES} ${SPOTRF_REQUIRED_LIBRARIES})
+  endif( DAGUE_MPI AND MPI_FOUND )
 
-  add_library(sposv STATIC data_management.c ${GPU_SUPPORT} sposv.c)
+  add_library(sposv STATIC ${GPU_SUPPORT})
   set_target_properties(sposv PROPERTIES COMPILE_FLAGS "-DADD_")
 
-  add_executable(sposv_ll cholesky_ll.c)
+  add_executable(sposv_ll cholesky_ll.c sposv.c)
   set_target_properties(sposv_ll PROPERTIES LINKER_LANGUAGE Fortran)
-  set_target_properties(sposv_ll PROPERTIES COMPILE_FLAGS "-DADD_")
+  set_target_properties(sposv_ll PROPERTIES COMPILE_FLAGS "-DADD_ -DLLT_LL")
   set_target_properties(sposv_ll PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(sposv_ll dplasma sposv ${SPOTRF_REQUIRED_LIBRARIES})
+  target_link_libraries(sposv_ll dague sposv ${SPOTRF_REQUIRED_LIBRARIES})
 
-  add_executable(sposv_rl cholesky_rl.c)
+  add_executable(sposv_rl cholesky_rl.c sposv.c)
   set_target_properties(sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(sposv_rl PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(sposv_rl PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(sposv_rl dplasma sposv ${SPOTRF_REQUIRED_LIBRARIES})
+  target_link_libraries(sposv_rl dague sposv ${SPOTRF_REQUIRED_LIBRARIES})
 
 endif( PLASMA_FOUND )
 
 # add the command to generate the source code
 add_custom_command (
-  OUTPUT cholesky_rl.c
-  COMMAND ../../tools/dpc cholesky_rl.jdf cholesky_rl.c
+  OUTPUT cholesky_rl.c cholesky_rl.h
+  COMMAND ../../tools/dague-compiler/dc -i cholesky_rl.jdf -o cholesky_rl
   MAIN_DEPENDENCY cholesky_rl.jdf
-  DEPENDS dpc
+  DEPENDS dc
   )
- 
+
 add_custom_command (
-  OUTPUT cholesky_ll.c
-  COMMAND ../../tools/dpc cholesky_ll.jdf cholesky_ll.c
+  OUTPUT cholesky_ll.c cholesky_ll.h
+  COMMAND ../../tools/dague-compiler/dc -i cholesky_ll.jdf -o cholesky_ll
   MAIN_DEPENDENCY cholesky_ll.jdf
-  DEPENDS dpc
+  DEPENDS dc
   )

@@ -310,18 +310,9 @@ int main(int argc, char ** argv)
 
     /* Create TRSM DAGuE */
     dague_trsm = DAGUE_dtrsm_getObject(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, &ddescA, &ddescB);
+    dague_enqueue( dague, (dague_object_t*)dague_trsm);
 
-    dague->taskstodo += dague_trsm->nb_local_tasks;
     printf("Total nb tasks to run: %u\n", dague->taskstodo);
-
-    /* Get Execution context */
-    if(0 == rank)
-      {
-        dague_execution_context_t exec_context;
-
-        DAGUE_dtrsm_setExecContext(dague_trsm, &exec_context);
-        dague_schedule(dague, &exec_context);
-      }
 
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
     

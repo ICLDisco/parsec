@@ -10,7 +10,6 @@ int PLASMA_INFO = 0;
 
 #include "dague.h"
 #include "remote_dep.h"
-
 #include "data_dist/data_distribution.h"
 
 #ifdef DAGUE_CALL_TRACE
@@ -29,7 +28,6 @@ int PLASMA_INFO = 0;
 %}
 
 /* Globals
- * GRIDrows, GRIDcols, NB, SIZE
  */
 NB           [int]
 SIZE         [int]

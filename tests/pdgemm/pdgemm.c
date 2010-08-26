@@ -125,17 +125,6 @@ int main(int argc, char ** argv)
     /*** THIS IS THE DAGUE COMPUTATION ***/
     TIME_START();
     dague = setup_dague(&argc, &argv);
-    if(0 == rank) {
-        dague_execution_context_t exec_context;
-
-        /* I know what I'm doing ;) */
-        exec_context.function = (dague_t*)dague_find(dague_gemm, "STARTUP");
-        exec_context.dague_object = dague_gemm;
-        exec_context.priority = 0;
-        exec_context.locals[0].value = 0;
-
-        dague_schedule(dague, &exec_context);
-    }
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, ddescA.super.nb));
 
     /* lets rock! */
@@ -365,7 +354,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 
     dague_gemm = (dague_object_t*)dague_gemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
                                                   ddescA.super.nb, ddescA.super.nt );
-    dague->taskstodo += dague_gemm->nb_local_tasks;
+    dague_enqueue( dague, (dague_object_t*)dague_gemm);
 
     return dague;
 }

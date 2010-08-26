@@ -50,44 +50,6 @@ diag [int]
 alpha[double]
 
 /**************************************************
- *                     STARTUP                    *
- **************************************************/
-
-STARTUP(useless)
-useless = 0 .. 0
-
-// Parallel partitioning
-: B(0,0)
-
-RW USELESS <- B(0,0)
-           -> USELESS READVALS(0 .. Bmt-1)
-BODY
-  OUTPUT( ("thread %d STARTUP\n",
-	   context->eu_id)
-	  );
-  /* Nothing relevant */
-END
-
-/**************************************************
- *                     READVALS                   *
- **************************************************/
-READVALS(i)
-i = 0 .. Bmt-1
-
-// Parallel partitioning
-: B(i,0)
-
-READ USELESS <- USELESS STARTUP(0)
-RW   B <- B(i,0)
-       -> B TRSM(i, 0)
-BODY
-      OUTPUT( ("thread %d READVALS ( %d )\n",
-	       context->eu_id, i)
-	      );
-  /* Emptiness */
-END
-
-/**************************************************
  *                      TRSM                      *
  **************************************************/
 TRSM(m, k)
@@ -101,7 +63,7 @@ m = 0..Bmt-1
 
 // Parameters
 READ  A <- A(k,k)
-RW    B <- (k == 0 ) ? B READVALS(m) : C GEMM(k-1, m, k)
+RW    B <- (k == 0) ? B(m, 0) : C GEMM(k-1, m, k)
         -> B GEMM(k, m, k+1..Bnt-1)
         -> B(m, k)
 
@@ -112,7 +74,7 @@ BODY
 			PlasmaRight, PlasmaUpper, trans, diag,
 			m == Bmt-1 ? Bm - m * Bmb : Bmb,
 			k == Bnt-1 ? Bn - k * Bnb : Bnb,
-			alpha, A /*A(k, k)*/, Amb,
+			lalpha, A /*A(k, k)*/, Amb,
                                B /*B(m, k)*/, Bmb)
 	   );
 
@@ -120,7 +82,7 @@ BODY
 	       context->eu_id, "PlasmaRight", "PlasmaUpper", "PlasmaNoTrans", "PlasmaNonUnit",
 	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
 	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
-	       alpha, k, k, A /*A(k, k)*/, Amb,
+	       lalpha, k, k, A /*A(k, k)*/, Amb,
                       m, k, B /*B(m. k)*/, Bmb)
 	      );
 END

@@ -1,4 +1,4 @@
-#include "dplasma_config.h"
+#include "dague_config.h"
 #include "lifo.h"
 
 #include "cuda.h"
@@ -10,20 +10,20 @@
 #include <stdio.h>
 
 typedef struct _gpu_device {
-    dplasma_list_item_t item;
+    dague_list_item_t item;
     CUcontext ctx;
     int id;
     CUmodule hcuModule;
     CUfunction hcuFunction;
-    dplasma_atomic_lifo_t* gpu_mem_lifo;
+    dague_atomic_lifo_t* gpu_mem_lifo;
 } gpu_device_t;
 
 typedef struct _gpu_elem {
-  dplasma_list_item_t item;
+  dague_list_item_t item;
   CUdeviceptr gpu_mem;
 } gpu_elem_t;
 
-#define DPLASMA_CUDA_CHECK_ERROR( STR, ERROR, CODE )                    \
+#define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                    \
     do {                                                                \
         cudaError_t cuda_error = (ERROR);                               \
         if( cudaSuccess != cuda_error ) {                               \
@@ -33,10 +33,10 @@ typedef struct _gpu_elem {
         }                                                               \
     } while(0)
 
-#define DPLASMA_USE_GPUS        1
-#define DPLASMA_CONTEXT_PER_GPU 1
+#define DAGUE_USE_GPUS        1
+#define DAGUE_CONTEXT_PER_GPU 1
 
-static dplasma_atomic_lifo_t gpu_devices;
+static dague_atomic_lifo_t gpu_devices;
 int* gpu_counter;
 
 int spotrf_cuda_init( int use_gpu, int NB )
@@ -47,17 +47,17 @@ int spotrf_cuda_init( int use_gpu, int NB )
     if(use_gpu != -1){
         cuInit(0);
 
-        dplasma_atomic_lifo_construct(&gpu_devices);
+        dague_atomic_lifo_construct(&gpu_devices);
         cuDeviceGetCount( &ndevices );
 
-        if( (-1 != DPLASMA_USE_GPUS) && (ndevices > DPLASMA_USE_GPUS) )
-            ndevices = DPLASMA_USE_GPUS;
+        if( (-1 != DAGUE_USE_GPUS) && (ndevices > DAGUE_USE_GPUS) )
+            ndevices = DAGUE_USE_GPUS;
 
         if( 0 == ndevices ) {
             return -1;
         }
         for( i = 0; i < ndevices; i++ ) {
-            dplasma_atomic_lifo_t* gpu_mem_lifo;
+            dague_atomic_lifo_t* gpu_mem_lifo;
             gpu_device_t* gpu_device;
             CUdevprop devProps;
             char szName[256];
@@ -65,16 +65,16 @@ int spotrf_cuda_init( int use_gpu, int NB )
             int major, minor;
 
             status = cuDeviceGet( &hcuDevice, i );
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {use_gpu = 0; return -1;} );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {use_gpu = 0; return -1;} );
 
             status = cuDeviceGetName( szName, 256, hcuDevice );
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {use_gpu = 0; return -1;} );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {use_gpu = 0; return -1;} );
 
             status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {use_gpu = 0; return -1;} );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {use_gpu = 0; return -1;} );
 
             status = cuDeviceGetProperties( &devProps, hcuDevice );
-            DPLASMA_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {use_gpu = 0; return -1;} );
+            DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {use_gpu = 0; return -1;} );
 
             printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
             printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
@@ -88,15 +88,15 @@ int spotrf_cuda_init( int use_gpu, int NB )
             > 1.2 printf("\tdeviceOverlap    : %ssupported\n", (devProps.deviceOverlap ? "" : "not ") );
             > 2.0 printf("\tconcurrentKernels: %ssupported\n", (devProps.concurrentKernels ? "" : "not ") );
 #endif
-            for( j = 0; j < DPLASMA_CONTEXT_PER_GPU; j++ ) {
+            for( j = 0; j < DAGUE_CONTEXT_PER_GPU; j++ ) {
                 cudaError_t cuda_status;
 
                 gpu_device = (gpu_device_t*)malloc(sizeof(gpu_device_t));
-                DPLASMA_LIST_ITEM_SINGLETON( &(gpu_device->item) );
+                DAGUE_LIST_ITEM_SINGLETON( &(gpu_device->item) );
 
     	        /* cuCtxCreate: Function works on floating contexts and current context */
                 status = cuCtxCreate( &(gpu_device->ctx), 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
-                DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
+                DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
                                           {free(gpu_device); return -1;} );
 
                 {
@@ -116,26 +116,26 @@ int spotrf_cuda_init( int use_gpu, int NB )
                 /**
                  * Prepare the reusable memory on the GPU.
                  */
-                gpu_mem_lifo = (dplasma_atomic_lifo_t*)malloc(sizeof(dplasma_atomic_lifo_t));
-                dplasma_atomic_lifo_construct(gpu_mem_lifo);
+                gpu_mem_lifo = (dague_atomic_lifo_t*)malloc(sizeof(dague_atomic_lifo_t));
+                dague_atomic_lifo_construct(gpu_mem_lifo);
 
                 for( k = 0; k < 10; k++ ) {
                     gpu_elem_t* gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
-                    DPLASMA_LIST_ITEM_SINGLETON( &(gpu_elem->item) );
+                    DAGUE_LIST_ITEM_SINGLETON( &(gpu_elem->item) );
 
                     cuda_status = cuMemAlloc( &(gpu_elem->gpu_mem), NB*NB*sizeof(float));
-                    DPLASMA_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
+                    DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
                                               {use_gpu = 0; return -1;} );
-                    dplasma_atomic_lifo_push( gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem );
+                    dague_atomic_lifo_push( gpu_mem_lifo, (dague_list_item_t*)gpu_elem );
                 }
                 gpu_device->id  = i;
                 gpu_device->gpu_mem_lifo = gpu_mem_lifo;
 
                 status = cuCtxPopCurrent(NULL);
-                DPLASMA_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
+                DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                           {free(gpu_device); return -1;} );
 
-                dplasma_atomic_lifo_push( &(gpu_devices), (dplasma_list_item_t*)gpu_device );
+                dague_atomic_lifo_push( &(gpu_devices), (dague_list_item_t*)gpu_device );
             }
         }
 
@@ -154,19 +154,19 @@ int spotrf_cuda_fini( int use_gpu )
         gpu_elem_t* gpu_elem;
         gpu_device_t* gpu_device;
 
-        while( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
+        while( NULL != (gpu_device = (gpu_device_t*)dague_atomic_lifo_pop(&gpu_devices)) ) {
             status = cuCtxPushCurrent( gpu_device->ctx );
-            DPLASMA_CUDA_CHECK_ERROR( "(FINI) cuCtxPushCurrent ", status,
+            DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxPushCurrent ", status,
                                       {continue;} );
             /**
              * Release the GPU memory.
              */
-            while( NULL != (gpu_elem = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo )) ) {
+            while( NULL != (gpu_elem = (gpu_elem_t*)dague_atomic_lifo_pop( gpu_device->gpu_mem_lifo )) ) {
                 cuMemFree( gpu_elem->gpu_mem );
                 free( gpu_elem );
             }
             status = cuCtxDestroy( gpu_device->ctx );
-            DPLASMA_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
+            DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
                                       {continue;} );
             free(gpu_device);
         }
@@ -203,39 +203,39 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
     int offset, return_code = -1;  /* by default suppose an error */
     void* ptr;
 
-    if( NULL != (gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices)) ) {
+    if( NULL != (gpu_device = (gpu_device_t*)dague_atomic_lifo_pop(&gpu_devices)) ) {
         CUstream stream;
         cudaError_t status;
         float alpha = -1.0, beta = 1.0;
 
         status = cuCtxPushCurrent(gpu_device->ctx);
-        DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                   {goto return_error;} );
 
-        gpu_elem_A = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
+        gpu_elem_A = (gpu_elem_t*)dague_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
         d_A = gpu_elem_A->gpu_mem;
-        gpu_elem_B = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
+        gpu_elem_B = (gpu_elem_t*)dague_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
         d_B = gpu_elem_B->gpu_mem;
-        gpu_elem_C = (gpu_elem_t*)dplasma_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
+        gpu_elem_C = (gpu_elem_t*)dague_atomic_lifo_pop( gpu_device->gpu_mem_lifo );
         d_C = gpu_elem_C->gpu_mem;
         
 
         cuStreamCreate(&stream, 0);
         /* Push A into the GPU */
         status = cuMemcpyHtoD( d_A, A, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
+        DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_A) ", status, 
                                   {printf("<<%p>>\n", (void*)(long)d_A); goto release_and_return_error;} );
         /* Push B into the GPU */
         status = cuMemcpyHtoD( d_B, B, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_B) ", status,
                                   {printf("<<%p>>\n", (void*)(long)d_B); goto release_and_return_error;} );
         /* Push C into the GPU */
         status = cuMemcpyHtoD( d_C, C, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoD to device (d_C) ", status,
                                   {printf("<<%p>>\n", (void*)(long)d_C); goto release_and_return_error;} );
         /* Wait until all data are on the GPU */
         status = cuStreamSynchronize(stream);
-        DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
                                   {goto release_and_return_error;} );
 
 #if 0
@@ -281,11 +281,11 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
 
         /* Pop C from the GPU */
         status = cuMemcpyDtoH( C , d_C, sizeof(float)*NB*NB );
-        DPLASMA_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoH from device (d_C) ", status,
                                   {printf("<<%p>>\n", d_C); goto release_and_return_error;} );
         /* Wait until the data is back on the memory */
         status = cuStreamSynchronize(stream);
-        DPLASMA_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuStreamSynchronize", status,
                                   {goto release_and_return_error;} );
         cuStreamDestroy(stream);
 
@@ -295,17 +295,17 @@ int gpu_sgemm( int uplo, void* A, void* B, void* C, int NB )
 
     release_and_return_error:
         if( NULL != gpu_elem_C )
-            dplasma_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem_C );
+            dague_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dague_list_item_t*)gpu_elem_C );
         if( NULL != gpu_elem_B )
-            dplasma_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem_B );
+            dague_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dague_list_item_t*)gpu_elem_B );
         if( NULL != gpu_elem_A )
-            dplasma_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dplasma_list_item_t*)gpu_elem_A );
+            dague_atomic_lifo_push( gpu_device->gpu_mem_lifo, (dague_list_item_t*)gpu_elem_A );
 
         status = cuCtxPopCurrent(NULL);
-        DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                   {goto return_error;} );
     return_error:
-        dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
+        dague_atomic_lifo_push(&gpu_devices, (dague_list_item_t*)gpu_device);
 
         return return_code;
     }
