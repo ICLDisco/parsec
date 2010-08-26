@@ -506,34 +506,23 @@ static void init_unique_rgb_color(void)
 
 static void get_unique_rgb_color(float ratio, unsigned char *r, unsigned char *g, unsigned char *b)
 {
-    float h, s, v, r1, g1, b1;
+    float h = ratio, s = 0.8, v = 0.8, r1, g1, b1;
+    float var_h = (h == 1.0f) ? 0.0f : h * 6.0f;
+    int var_i = (int)floor(var_h);
+    float var_1 = (v * ( 1.0f - s ));
+    float var_2 = (v * ( 1.0f - s * ( var_h - var_i )));
+    float var_3 = (v * ( 1.0f - s * ( 1.0f - ( var_h - var_i ) ) ));
+    
+    if      ( var_i == 0 ) { r1 = v     ; g1 = var_3 ; b1 = var_1; }
+    else if ( var_i == 1 ) { r1 = var_2 ; g1 = v     ; b1 = var_1; }
+    else if ( var_i == 2 ) { r1 = var_1 ; g1 = v     ; b1 = var_3; }
+    else if ( var_i == 3 ) { r1 = var_1 ; g1 = var_2 ; b1 = v;     }
+    else if ( var_i == 4 ) { r1 = var_3 ; g1 = var_1 ; b1 = v;     }
+    else                   { r1 = v     ; g1 = var_1 ; b1 = var_2; }
 
-    h = ratio;
-    s = 0.8;
-    v = 0.8;
-
-    if ( s == 0.0 ) {
-        *r = (unsigned char)(v * 255);
-        *g = (unsigned char)(v * 255);
-        *b = (unsigned char)(v * 255);
-    } else {
-        float var_h = (h == 1.0f) ? 0.0f : h * 6.0f;
-        int var_i = (int)floor(var_h);
-        float var_1 = (v * ( 1.0f - s ));
-        float var_2 = (v * ( 1.0f - s * ( var_h - var_i )));
-        float var_3 = (v * ( 1.0f - s * ( 1.0f - ( var_h - var_i ) ) ));
-       
-        if      ( var_i == 0 ) { r1 = v     ; g1 = var_3 ; b1 = var_1; }
-        else if ( var_i == 1 ) { r1 = var_2 ; g1 = v     ; b1 = var_1; }
-        else if ( var_i == 2 ) { r1 = var_1 ; g1 = v     ; b1 = var_3; }
-        else if ( var_i == 3 ) { r1 = var_1 ; g1 = var_2 ; b1 = v;     }
-        else if ( var_i == 4 ) { r1 = var_3 ; g1 = var_1 ; b1 = v;     }
-        else                   { r1 = v     ; g1 = var_1 ; b1 = var_2; }
-
-        *r = (unsigned char)(r1 * 255);
-        *g = (unsigned char)(g1 * 255);
-        *b = (unsigned char)(b1 * 255);
-    }
+    *r = (unsigned char)(r1 * 255);
+    *g = (unsigned char)(g1 * 255);
+    *b = (unsigned char)(b1 * 255);
 }
 
 /**
@@ -1235,11 +1224,12 @@ static char* has_ready_input_dependency(void **elt, void *pint)
     jdf_dataflow_t* flow = list->flow;
     jdf_dep_list_t* deps = flow->deps;
     jdf_dep_t* dep;
-    int can_be_startup = 0;
+    int can_be_startup = 0, has_input = 0;
 
     while( NULL != deps ) {
         dep = deps->dep;
         if( dep->type == JDF_DEP_TYPE_IN ) {
+            has_input = 1;
             if( NULL == dep->guard->calltrue->var ) {
                 can_be_startup = 1;
             }
@@ -1251,7 +1241,7 @@ static char* has_ready_input_dependency(void **elt, void *pint)
         }
         deps = deps->next;
     }
-    if( 0 == can_be_startup ) {
+    if( (0 == can_be_startup) || (0 == has_input) ) {
         *((int*)pint) = 0;
     }
     return NULL;
@@ -1327,7 +1317,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
     }
     string_arena_free(sa1);
 
-    return string_arena_get_string(sa);
+    return (0 == already_added) ? NULL : string_arena_get_string(sa);
 }
 
 static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
@@ -1393,9 +1383,14 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
                                                             dump_string, NULL, 
                                                             "", "", ", ", ""));
-    coutput("%s  if( !(%s) ) continue;\n",
-            indent(nesting), UTIL_DUMP_LIST(sa1, f->dataflow, next, dump_direct_input_conditions, sa2,
-                                            "", "", " && ", ""));
+    {
+        char* condition;
+
+        condition = UTIL_DUMP_LIST(sa1, f->dataflow, next, dump_direct_input_conditions, sa2,
+                                   "", "", " && ", "");
+        if( strlen(condition) > 1 )
+            coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
+    }
     ai.sa = sa2;
     ai.idx = 0;
     ai.holder = "  new_context->locals";
@@ -1421,6 +1416,13 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
     } else {
         coutput("%s  new_context->priority = 0;\n", indent(nesting));
     }
+    coutput("#if defined(DAGUE_DEBUG)\n"
+            "%s  {\n"
+            "%s    char tmp[128];\n"
+            "%s    printf(\"Add startup task %%s\\n\",\n"
+            "%s           dague_service_to_string(new_context, tmp, 128));\n"
+            "%s  }\n"
+            "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
     coutput("%s  dague_list_add_single_elem_by_priority( pready_list, new_context );\n", indent(nesting));
 
     for(; nesting > 0; nesting--) {
@@ -2576,6 +2578,15 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
                             UTIL_DUMP_LIST_FIELD(sa2, t->predicate->parameters, next, expr,
                                                  dump_expr, &linfo,
                                                  "", "", ", ", ""));
+    string_arena_add_string(sa_open,
+                            "#if defined(DAGUE_DEBUG)\n"
+                            "{\n"
+                            "  char tmp[128], tmp1[128];\n"
+                            "  printf(\"thread %%d release deps of %%s to %%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
+                            "         dague_service_to_string(exec_context, tmp, 128),\n"
+                            "         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst);\n"
+                            "}\n"
+                            "#endif\n", var);
     free(p);
     linfo.prefix = NULL;
 
