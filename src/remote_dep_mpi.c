@@ -656,11 +656,9 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     
     assert(dep_enabled);
     do {
-        status.MPI_TAG = -1;
         MPI_Testany(DEP_NB_REQ, dep_req, &i, &flag, &status);
         if(flag)
         {
-            assert( -1 != status.MPI_TAG );
             if(i < DEP_NB_CONCURENT)
             {
                 assert(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG);
