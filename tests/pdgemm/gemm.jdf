@@ -5,8 +5,6 @@ extern "C" %{
 #include <plasma.h>
 #include <core_dblas.h>
 
-int PLASMA_INFO;
-
 #include "dague.h"
 #include "remote_dep.h"
 #include "data_dist/data_distribution.h"

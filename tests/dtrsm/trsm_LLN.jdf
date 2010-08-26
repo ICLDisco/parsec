@@ -50,44 +50,6 @@ diag [int]
 alpha[double]
 
 /**************************************************
- *                     STARTUP                    *
- **************************************************/
-
-STARTUP(useless)
-useless = 0 .. 0
-
-// Parallel partitioning
-: B(0,0)
-
-RW USELESS <- B(0,0)
-           -> USELESS READVALS(0 .. Bnt-1)
-BODY
-  OUTPUT( ("thread %d STARTUP\n",
-	   context->eu_id)
-	  );
-  /* Nothing relevant */
-END
-
-/**************************************************
- *                     READVALS                   *
- **************************************************/
-READVALS(i)
-i = 0 .. Bnt-1
-
-// Parallel partitioning
-: B(0,i)
-
-READ USELESS <- USELESS STARTUP(0)
-RW   B <- B(0,i)
-       -> B TRSM(0, i)
-BODY
-      OUTPUT( ("thread %d READVALS ( %d )\n",
-	       context->eu_id, i)
-	      );
-  /* Emptiness */
-END
-
-/**************************************************
  *                      TRSM                      *
  **************************************************/
 TRSM(k, n)
@@ -101,7 +63,7 @@ n = 0..Bnt-1
 
 // Parameters
 READ  A <- A(k,k)
-RW    B <- (k == 0 ) ? B READVALS(n) : C GEMM(k-1, k, n)
+RW    B <- (k == 0) ? B(0,n) : C GEMM(k-1, k, n)
         -> B GEMM(k, k+1..Bmt-1, n)
         -> B(k, n)
 

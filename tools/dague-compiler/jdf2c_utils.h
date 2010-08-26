@@ -83,6 +83,7 @@ static char *util_dump_list_fct( string_arena_t *sa,
                                  const char *before, const char *prefix, const char *separator, const char *after)
 {
     char *eltstr;
+    const char *prevstr = "";
     void *elt;
     
     string_arena_init(sa);
@@ -95,11 +96,8 @@ static char *util_dump_list_fct( string_arena_t *sa,
 
         firstelt = *((void **)((char *)(firstelt) + next_offset));
         if( eltstr != NULL ) {
-            if( firstelt != NULL ) {
-                string_arena_add_string(sa, "%s%s%s", prefix, eltstr, separator);
-            } else {
-                string_arena_add_string(sa, "%s%s", prefix, eltstr);
-            }
+            string_arena_add_string(sa, "%s%s%s", prevstr, prefix, eltstr);
+            prevstr = separator;
         }
     }
     

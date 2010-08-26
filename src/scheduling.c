@@ -27,7 +27,21 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-static int dague_execute( dague_execution_unit_t*, dague_execution_context_t* );
+static inline int __dague_execute( dague_execution_unit_t* eu_context,
+                                   dague_execution_context_t* exec_context )
+{
+    const dague_t* function = exec_context->function;
+#if defined(DAGUE_DEBUG)
+    char tmp[128]; 
+    DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
+#endif
+    DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
+
+    if( NULL != function->hook ) {
+        function->hook( eu_context, exec_context );
+    }
+    return 0; 
+}
 
 static inline void set_tasks_todo(dague_context_t* context, uint32_t n)
 {
@@ -68,7 +82,7 @@ int dague_schedule( dague_context_t* context, const dague_execution_context_t* e
 }
 
 int __dague_schedule( dague_execution_unit_t* eu_context,
-                        dague_execution_context_t* new_context, int use_placeholder )
+                      dague_execution_context_t* new_context, int use_placeholder )
 {
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
 
@@ -80,7 +94,6 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
         do {
             next = (dague_list_item_t*)item->list_next;
             DEBUG(( "thread %d Schedule %s\n", eu_context->eu_id, dague_service_to_string((dague_execution_context_t*)item, tmp, 128)));
-            printf( "thread %d Schedule %s\n", eu_context->eu_id, dague_service_to_string((dague_execution_context_t*)item, tmp, 128));
             item = next;
         } while ( item != (dague_list_item_t*)new_context );
     }
@@ -281,7 +294,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             /* Update the number of remaining tasks before the execution */
             done_task(master_context);
             /* We're good to go ... */
-            dague_execute( eu_context, exec_context );
+            __dague_execute( eu_context, exec_context );
             DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
             nbiterations++;
             /* Release the execution context */
@@ -392,7 +405,33 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     return (void*)(long)nbiterations;
 }
 
-int dague_progress(dague_context_t* context)
+int dague_enqueue( dague_context_t* context, dague_object_t* object)
+{
+#if 0
+    if( NULL != object->context ) {
+        return -1;  /* Already enqueued in another context */
+    }
+#endif
+    context->taskstodo += object->nb_local_tasks;
+    if( NULL != object->startup_list ) {
+        /* We should add these tasks on the sstem queue */
+        __dague_schedule( context->execution_units[0], object->startup_list, 0 );
+        object->startup_list = NULL;  /* no more tasks */
+    }
+    return 0;
+}
+
+int dague_start( dague_context_t* context )
+{
+    return 0;
+}
+
+int dague_test( dague_context_t* context )
+{
+    return -1;  /* Not yet implemented */
+}
+
+int dague_wait( dague_context_t* context )
 {
     int ret;
     (void)dague_remote_dep_on(context);
@@ -404,23 +443,14 @@ int dague_progress(dague_context_t* context)
     return ret;
 }
 
-static int dague_execute( dague_execution_unit_t* eu_context,
-                            dague_execution_context_t* exec_context )
+int dague_progress(dague_context_t* context)
 {
-    const dague_t* function = exec_context->function;
-#if defined(DAGUE_DEBUG)
-    char tmp[128];
-#endif
- 
-    DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
-    DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
+    int ret;
+    (void)dague_remote_dep_on(context);
+    
+    ret = (int)(long)__dague_progress( context->execution_units[0] );
 
-    if( NULL != function->hook ) {
-        function->hook( eu_context, exec_context );
-    }
-#ifdef DEPRECATED
-    return dague_trigger_dependencies( eu_context, exec_context, 1 );
-#else
-    return 0; 
-#endif
+    context->__dague_internal_finalization_counter++;
+    (void)dague_remote_dep_off(context);
+    return ret;
 }

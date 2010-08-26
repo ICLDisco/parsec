@@ -156,18 +156,6 @@ int main(int argc, char ** argv)
    /*** THIS IS THE DAGUE COMPUTATION ***/
    TIME_START();
    dague = setup_dague(&argc, &argv);
-   if(0 == rank)
-       {
-           dague_execution_context_t exec_context;
-           
-           /* I know what I'm doing ;) */
-           exec_context.function = (dague_t*)dague_find(dague_QR, "DGEQRT");
-           exec_context.dague_object = dague_QR;
-           exec_context.priority = 0;
-           exec_context.locals[0].value = 0;
-           
-           dague_schedule(dague, &exec_context);
-       }
    TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
    
    /* lets rock! */
@@ -392,7 +380,8 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     dague_QR = (dague_object_t*)dague_QR_new((dague_ddesc_t*)&ddescT, (dague_ddesc_t*)&ddescA, 
                                              MB, NB, M, N, 
                                              MT, NT, MINMTNT);
-    dague->taskstodo += dague_QR->nb_local_tasks;
+    dague_enqueue( dague, (dague_object_t*)dague_QR);
+
     nbtasks = dague_QR->nb_local_tasks;
     printf("QR %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
            ddescA.super.nb, ddescA.super.nt, dague_QR->nb_local_tasks, dague->taskstodo);
