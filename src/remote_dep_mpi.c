@@ -267,6 +267,7 @@ void dague_remote_dep_memcpy(void *dst, gc_data_t *src, dague_remote_dep_datatyp
 }
 
 #define YIELD_TIME 5000
+#include "bindthread.h"
 
 static void* remote_dep_dequeue_main(dague_context_t* context)
 {
@@ -274,11 +275,15 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     struct timespec ts;
     dep_cmd_item_t* item;
     int ctl;
+    int do_nano = 0;
     
+    ctl = dague_bindthread(context->nb_cores);
+    printf("MPI bound to core %d\n", ctl);
+    if(ctl != context->nb_cores) do_nano = 1; 
     np = remote_dep_mpi_init(context);
     
     ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
-    
+
     do {
         while(NULL == (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)))
         {
@@ -287,9 +292,9 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
                 remote_dep_mpi_progress(context->execution_units[0]);
             }
 /* condition variable code starts */
-	    //sleep_on_condition(&ts);
+            //sleep_on_condition(&ts);
 /* condition variable code ends */
-            nanosleep(&ts, NULL);
+            if(do_nano) nanosleep(&ts, NULL);
         }
 
         switch(item->action)
