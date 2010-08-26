@@ -29,7 +29,7 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     va_end(ap);
     if ( m < n )
         {
-            printf("Tried to get rank for tile (%d,%d)\n", m,n);
+    //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
             return UINT_MAX;
         }
     /* for tile (m,n), first find coordinate of process in
