@@ -810,22 +810,12 @@ static void jdf_generate_structure(const jdf_t *jdf)
 {
     int nbfunctions, nbdata;
     string_arena_t *sa1, *sa2;
-    jdf_preamble_entry_t *p;
 
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
-
-    for(p = jdf->preambles; p != NULL; p = p->next) {
-        coutput("#line %d \"%s.jdf\"\n"
-                "%s\n"
-                "#line %d \"%s\"\n",
-                p->lineno, jdf_basename,
-                p->preamble,
-                3 + nblines(p->preamble), jdf_cfilename);
-    }
 
     coutput("#include <dague.h>\n"
             "#include <scheduling.h>\n"
@@ -2822,6 +2812,19 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Now generate the code.
      */
     jdf_generate_header_file(jdf);
+
+    /**
+     * Dump all the prologue sections
+     */
+    if( NULL != jdf->prologue ) {
+        coutput("#line %d \"%s.jdf\"\n"
+                "%s\n"
+                "#line %d \"%s\"\n",
+                jdf->prologue->lineno, jdf_basename,
+                jdf->prologue->external_code,
+                3 + nblines(jdf->prologue->external_code), jdf_cfilename);
+    }
+
     jdf_generate_structure(jdf);
     jdf_generate_hashfunctions(jdf);
     jdf_generate_predeclarations( jdf );
@@ -2831,6 +2834,17 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Generate the externally visible function.
      */
     jdf_generate_constructor(jdf);
+
+    /**
+     * Dump all the epilogue sections
+     */
+    if( NULL != jdf->epilogue ) {
+        coutput("%s\n"
+                "#line %d \"%s.jdf\"\n",
+                jdf->epilogue->external_code,
+                jdf->epilogue->lineno, jdf_basename);
+    }
+
  err:
     if( NULL != cfile ) 
         fclose(cfile);

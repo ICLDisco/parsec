@@ -4,10 +4,8 @@ extern "C" %{
     */
 #include "dague.h"
 
-#if 0
 #include <plasma.h>
 #include <core_dblas.h>
-#endif
 
 extern int uplo;
 int PLASMA_INFO = 0;
@@ -158,3 +156,12 @@ BODY
              1.0, C /*A(m, n)*/, NB /*A.nb*/ )
         );
 END
+
+extern "C" %{
+#include "data_dist/matrix/matrix.h"
+
+dague_object_t* dague_llt_new( tiled_matrix_desc_t* ddescA )
+{
+    return (dague_object_t*)dague_cholesky_new( &(ddescA->super), ddescA->nb, ddescA->nt, -1.0);
+}
+%}

@@ -35,7 +35,8 @@ void jdf_fatal(int lineno, const char *format, ...)
 
 void jdf_prepare_parsing(void)
 {
-    current_jdf.preambles = NULL;
+    current_jdf.prologue  = NULL;
+    current_jdf.epilogue  = NULL;
     current_jdf.globals   = NULL;
     current_jdf.functions = NULL;
     current_lineno = 1;

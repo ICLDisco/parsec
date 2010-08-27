@@ -59,7 +59,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
   int                   number;
   char*                 string;
   jdf_expr_operand_t    expr_op;
-  jdf_preamble_entry_t *preamble;
+  jdf_external_entry_t *external_code;
   jdf_global_entry_t   *global;
   jdf_function_entry_t *function;
   jdf_name_list_t      *name_list;
@@ -93,6 +93,8 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <expr>expr
 %type <expr>priority
 %type <number>optional_access_type
+%type <external_code>prologue
+%type <external_code>epilogue
 
 %type <string>VAR
 %type <string>EXTERN_DECL
@@ -118,7 +120,32 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %%
-
+jdf_file:       prologue jdf epilogue
+                {
+                    assert( NULL == current_jdf.prologue );
+                    assert( NULL == current_jdf.epilogue );
+                    current_jdf.prologue = $1;
+                    current_jdf.epilogue = $3;
+                }
+        ;
+prologue:       EXTERN_DECL
+                {
+                    $$ = new(jdf_external_entry_t);
+                    $$->external_code = $1;
+                    $$->lineno = current_lineno;
+                }
+        ;
+epilogue:       EXTERN_DECL
+                {
+                    $$ = new(jdf_external_entry_t);
+                    $$->external_code = $1;
+                    $$->lineno = current_lineno;
+                }
+        |
+                {
+                    $$ = NULL;
+                }
+        ;
 jdf:            jdf function
                 {
                     $2->next = current_jdf.functions;
@@ -155,20 +182,6 @@ jdf:            jdf function
                             /* nothing */ ;
                         g->next = e;
                     }                
-                }
-        |       jdf EXTERN_DECL 
-                {
-                    jdf_preamble_entry_t *p, *e = new(jdf_preamble_entry_t);
-                    e->next = NULL;
-                    e->preamble = $2;
-                    e->lineno = current_lineno;
-                    if( NULL == current_jdf.preambles ) {
-                        current_jdf.preambles = e;
-                    } else {
-                        for(p = current_jdf.preambles; NULL != p->next; p = p->next)
-                            /* nothing */ ;
-                        p->next = e;
-                    }
                 }
         |
         ;
