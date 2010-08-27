@@ -18,14 +18,14 @@
 
 static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
-    int rr, cr, m, n;
-    int res;
+    unsigned int rr, cr, m, n;
+    unsigned int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
     Ddesc = (sym_two_dim_block_cyclic_t *) desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
     if ( m < n )
         {
@@ -46,14 +46,14 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 
 static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    int pos, m, n;
-    int nb_elem, nb_elem_col, column;
+    unsigned int pos, m, n;
+    unsigned int nb_elem, nb_elem_col, column;
     sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
     /*if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
         {
@@ -89,9 +89,9 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int process_GridRows )
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows )
 {
-    int nb_elem, nb_elem_col, column, total;
+    unsigned int nb_elem, nb_elem_col, column, total;
 
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
@@ -118,7 +118,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     Ddesc->super.bsiz =  Ddesc->super.mb * Ddesc->super.nb;
 
     // Submatrix parameters    
-    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.nb)) : ((Ddesc->super.m)/(Ddesc->super.nb) + 1);
+    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
     Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
     
 
@@ -150,7 +150,8 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
-    Ddesc->mat = dague_allocate_matrix(total * Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
+    printf("Process %u allocates %u tiles\n", myrank, total);
+    Ddesc->mat = dague_allocate_matrix((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");

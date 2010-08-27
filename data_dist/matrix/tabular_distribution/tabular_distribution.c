@@ -81,7 +81,7 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.bsiz =  Ddesc->super.mb * Ddesc->super.nb;
 
     // Submatrix parameters    
-    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.nb)) : ((Ddesc->super.m)/(Ddesc->super.nb) + 1);
+    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
     Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
     
 
@@ -123,3 +123,39 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
 }
 
 
+uint32_t * create_2dbc(uint32_t size, uint32_t block, uint32_t nbproc, uint32_t Grow)
+{
+    uint32_t nbtiles;
+    uint32_t * res;
+    uint32_t Gcol;
+    uint32_t i, j, k, cr, rr, rank;
+    if (nbproc % Grow != 0)
+        {
+            printf("bad process grid\n");
+            return NULL;
+        }
+
+    nbtiles = (size + block - 1) / block;
+    res = malloc(nbtiles * nbtiles * sizeof(uint32_t));
+    
+    if (res == NULL)
+        {
+            printf("malloc failed for table creation\n");
+            return NULL;
+        }
+    
+    Gcol = nbproc / Grow;
+
+    k = 0;
+    for ( j = 0 ; j < nbtiles ; j++)
+        for ( i = 0 ; i < nbtiles ; i++)
+            {
+                rr = i % Grow;
+                cr = j % Gcol;
+                rank = (rr * Gcol) + cr;
+                res[k]= rank;
+                k++;
+            }
+    return res;
+    
+}

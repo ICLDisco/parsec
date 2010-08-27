@@ -26,14 +26,14 @@
 typedef struct two_dim_block_cyclic {
     tiled_matrix_desc_t super;
     void *mat;          // pointer to the beginning of the matrix
-    int nrst;           // max number of tile rows in a super-tile
-    int ncst;           // max number of tile columns in a super tiles
-    int GRIDrows;       // number of processes rows in the process grid
-    int GRIDcols;       // number of processes cols in the process grid - derived parameter
-    int colRANK;        // process column rank in the process grid - derived parameter
-    int rowRANK;        // process row rank in the process grid - derived parameter
-    int nb_elem_r;      // number of row of tiles  handled by this process - derived parameter
-    int nb_elem_c;      // number of column of tiles handled by this process - derived parameter
+    unsigned int nrst;           // max number of tile rows in a super-tile
+    unsigned int ncst;           // max number of tile columns in a super tiles
+    unsigned int GRIDrows;       // number of processes rows in the process grid
+    unsigned int GRIDcols;       // number of processes cols in the process grid - derived parameter
+    unsigned int colRANK;        // process column rank in the process grid - derived parameter
+    unsigned int rowRANK;        // process row rank in the process grid - derived parameter
+    unsigned int nb_elem_r;      // number of row of tiles  handled by this process - derived parameter
+    unsigned int nb_elem_c;      // number of column of tiles handled by this process - derived parameter
 } two_dim_block_cyclic_t;
 
 /************************************************
@@ -66,8 +66,7 @@ typedef struct two_dim_block_cyclic {
  * @param ncst number of column of tiles for block distribution
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows );
-
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
 
 #ifdef USE_MPI
 

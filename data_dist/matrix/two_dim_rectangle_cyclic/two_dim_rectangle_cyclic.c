@@ -22,15 +22,15 @@
 
 static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
-    int stc, cr, m, n;
-    int str, rr;
-    int res;
+    unsigned int stc, cr, m, n;
+    unsigned int str, rr;
+    unsigned int res;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
     /* for tile (m,n), first find coordinate of process in
        process grid which possess the tile in block cyclic dist */
@@ -50,14 +50,14 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 
 static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    int pos, m, n;
-    int nb_elem_r, last_c_size;
+    unsigned int pos, m, n;
+    unsigned int nb_elem_r, last_c_size;
     two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
 #ifdef DISTRIBUTED
     //   if ( desc->myrank != twoDBC_get_rank_for_tile(desc, m, n) )
@@ -73,7 +73,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 
     pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
 
-    if (n >= ((Ddesc->super.lnt/Ddesc->ncst)*Ddesc->ncst )) /* tile is in the last column of super-tile */
+    if (n >= ((Ddesc->super.lnt/Ddesc->ncst) * Ddesc->ncst )) /* tile is in the last column of super-tile */
         {
             last_c_size = (Ddesc->super.lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
         }
@@ -101,14 +101,14 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows )
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
 {
-    int temp;
-    int nbstile_r;
-    int nbstile_c;
+    unsigned int temp;
+    unsigned int nbstile_r;
+    unsigned int nbstile_c;
 
 #ifdef DAGUE_DEBUG
-    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %d, nodes = %d, cores = %d, myrank = %d, mb = %d, nb = %d, ib = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, nrst = %d, ncst = %d, process_GridRows = %d\n", Ddesc, mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
+    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, ib = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
 #endif
 
 
@@ -198,8 +198,8 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
-    // printf("Ddesc->nb_elem_r = %d, Ddesc->nb_elem_c = %d, Ddesc->super.bsiz = %d, Ddesc->super.mtype = %d\n", Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, Ddesc->super.mtype);
-    Ddesc->mat = dague_allocate_matrix(Ddesc->nb_elem_r * Ddesc->nb_elem_c * Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
+    printf("Process %u: Ddesc->nb_elem_r = %u, Ddesc->nb_elem_c = %u, Ddesc->super.bsiz = %u, Ddesc->super.mtype = %d\n", myrank, Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, Ddesc->super.mtype);
+    Ddesc->mat = dague_allocate_matrix((size_t)Ddesc->nb_elem_r * (size_t)Ddesc->nb_elem_c * (size_t)Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");

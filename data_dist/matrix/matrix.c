@@ -56,16 +56,12 @@ Rnd64_jump(unsigned long long int n) {
   return ran;
 }
 
-void create_tile_zero_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
-{
-    (void)row;
-    (void)col;
-    memset( position, 0, Ddesc->bsiz * sizeof(float) );
-}
 
-void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
+    unsigned int mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     float *x = position;
     unsigned long long int ran;
 
@@ -89,9 +85,10 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  i
     }
 }
 
-void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
     float *x = position;
     unsigned long long int ran;
 
@@ -110,16 +107,18 @@ void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row
     }
 }
 
-void create_tile_zero_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col)
 {
     (void)row;
     (void)col;
-    memset( position, 0, Ddesc->bsiz * sizeof(double) );
+    memset( position, 0, Ddesc->bsiz * Ddesc->mtype );
 }
 
-void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
+    unsigned int mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     double *x = position;
     unsigned long long int ran;
 
@@ -143,9 +142,10 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  
     }
 }
 
-void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
     double *x = position;
     unsigned long long int ran;
 
@@ -166,17 +166,17 @@ void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int ro
 
 
 typedef struct tile_coordinate{
-    int row;
-    int col;
+    unsigned int row;
+    unsigned int col;
 } tile_coordinate_t;
 
 typedef struct info_tiles{
     int th_id;    
     tiled_matrix_desc_t * Ddesc;
     tile_coordinate_t * tiles;    
-    int nb_elements;
-    int starting_position;
-    void (*gen_fct)( tiled_matrix_desc_t *, void *, int, int);
+    unsigned int nb_elements;
+    unsigned int starting_position;
+    void (*gen_fct)( tiled_matrix_desc_t *, void *, unsigned int, unsigned int);
 } info_tiles_t;
 
 
@@ -188,7 +188,7 @@ typedef struct info_tiles{
  */
 static void * rand_dist_tiles(void * info)
 {
-    int i;
+    unsigned int i;
     /* bind thread to cpu */
     int bind_to_proc = ((info_tiles_t *)info)->th_id;
 
@@ -215,9 +215,10 @@ static void * rand_dist_tiles(void * info)
 static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
-    int tiles_coord_size;      /* size of the above table */
+    unsigned int tiles_coord_size;      /* size of the above table */
     unsigned int i;
-    int j, pos = 0;
+    unsigned int j;
+    unsigned int pos = 0;
     pthread_t *threads;
     pthread_attr_t thread_attr;
     info_tiles_t * info_gen;
@@ -227,7 +228,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 
     /* check which tiles to generate */
     for ( j = 0 ; j < Mdesc->lnt ; j++)
-        for ( i = 0 ; i < (unsigned int)Mdesc->lmt ; i++)
+        for ( i = 0 ; i < Mdesc->lmt ; i++)
             {
                 if(Mdesc->super.myrank ==
                    Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j ))
@@ -299,22 +300,9 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
                 }
             else if(mtype == 2)
                 {
-                    if(Mdesc->mtype == matrix_RealFloat) 
-                        {
-                            info_gen[i].gen_fct = create_tile_zero_float;
-                        }
-                    else if (Mdesc->mtype == matrix_RealDouble)
-                        {
-                            info_gen[i].gen_fct = create_tile_zero_double;
-                        }
-                    else /* unknown type */
-                        {
-                            printf("unknown generation type: aborting generation\n");
-                            free (info_gen);
-                            free(tiles);
-                            return;
-                        }
+                    info_gen[i].gen_fct = create_tile_zero;
                 }
+            
         }
     info_gen[i - 1].nb_elements += pos % Mdesc->super.cores;
 
@@ -408,13 +396,13 @@ void* dague_allocate_matrix(size_t matrix_size)
     }
  normal_alloc:
 #endif  /* defined(DAGUE_CUDA_SUPPORT) */
-    /* If nothing else worked so far, allocate the memory using PLASMA */
+    /* If nothing else worked so far, allocate the memory using malloc */
     if( NULL == mat ) {
         mat = malloc( matrix_size );
     }
 
     if( NULL == mat ) {
-        printf("memory allocation of %lu\n", matrix_size);
+        printf("memory allocation of %lu\n", (unsigned long) matrix_size);
         perror("matrix allocation failed");
         return NULL;
     }
