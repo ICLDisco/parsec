@@ -26,7 +26,7 @@
 
 #include "scheduling.h"
 #include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #include "cholesky.h"
 
 //#ifdef VTRACE
@@ -57,7 +57,7 @@ int ncst = 1;
 PLASMA_enum uplo = PlasmaLower;
 
 PLASMA_desc descA;
-two_dim_block_cyclic_t ddescA;
+sym_two_dim_block_cyclic_t ddescA;
 
 static dague_object_t *dague_cholesky = NULL;
 
@@ -298,7 +298,7 @@ int main(int argc, char ** argv)
     /* parsing arguments */
     runtime_init(argc, argv);
     /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble,
+    sym_two_dim_block_cyclic_init(&ddescA, matrix_RealDouble,
                               nodes,
                               cores,
                               rank,
@@ -307,7 +307,6 @@ int main(int argc, char ** argv)
                               N, N,
                               0, 0,
                               LDA, LDA,
-                              nrst, ncst,
                               GRIDrows);
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);

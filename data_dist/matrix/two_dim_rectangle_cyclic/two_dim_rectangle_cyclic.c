@@ -199,7 +199,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 
     /* Allocate memory for matrices in block layout */
     // printf("Ddesc->nb_elem_r = %d, Ddesc->nb_elem_c = %d, Ddesc->super.bsiz = %d, Ddesc->super.mtype = %d\n", Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, Ddesc->super.mtype);
-    Ddesc->mat = dague_allocate_matrix(Ddesc->nb_elem_r * Ddesc->nb_elem_c * Ddesc->super.bsiz * Ddesc->super.mtype);
+    Ddesc->mat = dague_allocate_matrix(Ddesc->nb_elem_r * Ddesc->nb_elem_c * Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");
