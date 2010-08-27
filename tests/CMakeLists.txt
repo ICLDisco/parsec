@@ -3,7 +3,7 @@
 Add_Subdirectory(dtrsm)
 #Add_Subdirectory(trsmun)
 Add_Subdirectory(pdpotrf)
-#Add_Subdirectory(pspotrf)
+Add_Subdirectory(pspotrf)
 Add_Subdirectory(pdgemm)
 Add_Subdirectory(psgemm)
 Add_Subdirectory(QR)
