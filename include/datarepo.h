@@ -204,7 +204,7 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, 
     return res;
 }
 
-static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
+static data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
@@ -213,13 +213,10 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
     for(e = repo->heads[h].first_entry;
         e != NULL;
         e = e->next_entry)
-        if( e->key == key ) {
-            data_repo_atomic_unlock(&repo->heads[h].lock);
-            return e;
-        }
+        if( e->key == key ) break;
     data_repo_atomic_unlock(&repo->heads[h].lock);
 
-    return NULL;
+    return e;
 }
 
 /* If using lookup_and_create, don't forget to call add_to_usage_limit on the same entry when
