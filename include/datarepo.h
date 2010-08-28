@@ -204,7 +204,7 @@ static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, 
     return res;
 }
 
-static data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
+static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long int key)
 {
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
