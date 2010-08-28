@@ -2282,7 +2282,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("%s\n"
             "#line %d \"%s\"\n",
             f->body,
-            cfile_lineno + 2 + nblines(f->body), jdf_cfilename);
+            cfile_lineno + 1 + nblines(f->body), jdf_cfilename);
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
     coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ));\n",
             f->fname, f->fname,
@@ -2570,7 +2570,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
                                                  "", "", ", ", ""));
     string_arena_add_string(sa_open,
                             "#if defined(DAGUE_DEBUG)\n"
-                            "{\n"
+                            "if( NULL != eu ) {\n"
                             "  char tmp[128], tmp1[128];\n"
                             "  printf(\"thread %%d release deps of %%s to %%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
                             "         dague_service_to_string(exec_context, tmp, 128),\n"
@@ -2817,12 +2817,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Dump all the prologue sections
      */
     if( NULL != jdf->prologue ) {
-        coutput("#line %d \"%s.jdf\"\n"
-                "%s\n"
+        coutput("%s\n"
                 "#line %d \"%s\"\n",
-                jdf->prologue->lineno, jdf_basename,
                 jdf->prologue->external_code,
-                3 + nblines(jdf->prologue->external_code), jdf_cfilename);
+                2 + nblines(jdf->prologue->external_code), jdf_cfilename);
     }
 
     jdf_generate_structure(jdf);
@@ -2840,9 +2838,9 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      */
     if( NULL != jdf->epilogue ) {
         coutput("%s\n"
-                "#line %d \"%s.jdf\"\n",
+                "#line %d \"%sf\"\n",
                 jdf->epilogue->external_code,
-                jdf->epilogue->lineno, jdf_basename);
+                cfile_lineno + 1 + nblines(jdf->epilogue->external_code), jdf_cfilename);
     }
 
  err:
