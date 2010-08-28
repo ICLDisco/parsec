@@ -102,8 +102,8 @@ int cores = 1;
 int nodes = 1;
 int nbtasks = 0;
 int N;
-int NB = 120;
-int IB = 40;
+int NB = 200;
+int IB = 120;
 int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
@@ -202,7 +202,8 @@ static void runtime_init(int argc, char **argv)
     MPI_Init(&argc, &argv);
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    /*sleep(20);*/
 #else
     nodes = 1;
 #endif
@@ -348,7 +349,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 #endif  /* USE_MPI */
 
     dague_gemm = (dague_object_t*)dague_gemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
-                                                  ddescA.super.nb, ddescA.super.nt, -1.0, 1.0 );
+                                                  ddescA.super.nb, ddescA.super.mt, ddescB.super.nt, ddescA.super.nt, -1.0, 1.0 );
     dague_enqueue( dague, (dague_object_t*)dague_gemm);
 
     nbtasks = dague_gemm->nb_local_tasks;
