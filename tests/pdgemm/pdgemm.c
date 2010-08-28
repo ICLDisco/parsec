@@ -28,7 +28,7 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "gemm.h"
+#include "dgemm.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"
@@ -348,8 +348,11 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     }
 #endif  /* USE_MPI */
 
-    dague_gemm = (dague_object_t*)dague_gemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
-                                                  ddescA.super.nb, ddescA.super.mt, ddescB.super.nt, ddescA.super.nt, -1.0, 1.0 );
+    dague_gemm = (dague_object_t*)dague_dgemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
+                                                   ddescA.super.nb,
+                                                   ddescA.super.mt, ddescB.super.nt, ddescA.super.nt,
+                                                   -1.0,  /* alpha */
+                                                   1.0 ); /* beta */
     dague_enqueue( dague, (dague_object_t*)dague_gemm);
 
     nbtasks = dague_gemm->nb_local_tasks;

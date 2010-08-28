@@ -19,7 +19,7 @@
 
 #include <cblas.h>
 #include <math.h>
-#include "plasma.h"
+#include <plasma.h>
 #include <control/common.h>
 #include <control/context.h>
 #include <control/allocate.h>
@@ -28,7 +28,7 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "gemm.h"
+#include "sgemm.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"
@@ -99,40 +99,55 @@ two_dim_block_cyclic_t ddescA, ddescB, ddescC;
 static dague_object_t* dague_gemm = NULL;
 int do_nasty_validations = 0;
 int cores = 1;
-int rank = 0;
 int nodes = 1;
-int nbtasks = -1;
+int nbtasks = 0;
 int N;
+int NB = 200;
+int IB = 120;
 int LDA = 0;
 int NRHS = 1;
 int LDB = 0;
+int rank = 0;
+int nrst = 1;
+int ncst = 1;
+int GRIDrows = 1;
 
 int main(int argc, char ** argv)
 {
-    double gflops;
     dague_context_t* dague;
-
+    double gflops;
     //#ifdef VTRACE
     // VT_OFF();
     //#endif
 
     runtime_init(argc, argv);
 
-    //#ifdef VTRACE 
+    two_dim_block_cyclic_init(&ddescA, matrix_RealFloat, nodes, cores, rank,
+                              NB, NB, IB, N, N, 0, 0,
+                              N, N, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescB, matrix_RealFloat, nodes, cores, rank,
+                              NB, NB, IB, N, N, 0, 0,
+                              N, N, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescC, matrix_RealFloat, nodes, cores, rank,
+                              NB, NB, IB, N, N, 0, 0,
+                              N, N, nrst, ncst, GRIDrows);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB);
+    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescC);    //#ifdef VTRACE 
     //    VT_ON();
     //#endif
     
     /*** THIS IS THE DAGUE COMPUTATION ***/
     TIME_START();
     dague = setup_dague(&argc, &argv);
-    TIME_PRINT(("Dague initialization:\t%d %d\n", N, ddescA.super.nb));
+    TIME_PRINT(("Dague initialization:\t%d %u\n", N, ddescA.super.nb));
 
     /* lets rock! */
     SYNC_TIME_START();
     TIME_START();
     dague_progress(dague);
-    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, ddescA.super.nb,
+    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, ((double)nbtasks)/time_elapsed));
+    SYNC_TIME_PRINT(("Dague computation:\t%d %u %f gflops\n", N, ddescA.super.nb,
                      gflops = 2*(N/1e3*N/1e3*N/1e3)/(sync_time_elapsed)));
 
     cleanup_dague(dague);
@@ -179,22 +194,19 @@ static void runtime_init(int argc, char **argv)
     };
 #endif  /* defined(HAVE_GETOPT_LONG) */
     int block_forced = 0;
-    int internal_block_forced = 0;
- 
+
 #ifdef USE_MPI
     /* mpi init */
     MPI_Init(&argc, &argv);
     
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    /*sleep(20);*/
 #else
     nodes = 1;
-    rank = 0;
 #endif
     
     /* parse arguments */
-    ddescA.GRIDrows = 1;
-    ddescA.nrst = ddescA.ncst = 1;
     do
     {
         int c;
@@ -205,7 +217,7 @@ static void runtime_init(int argc, char **argv)
 #else
         c = getopt (argc, argv, "xmc:N:a:r:b:g:s:B:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
-        
+      
         /* Detect the end of the options. */
         if (c == -1)
             break;
@@ -225,16 +237,16 @@ static void runtime_init(int argc, char **argv)
                 break;
 
             case 'g':
-                ddescA.GRIDrows = atoi(optarg);
+                GRIDrows = atoi(optarg);
                 break;
             case 's':
-                ddescA.ncst = ddescA.nrst = atoi(optarg);
-                if(ddescA.ncst <= 0)
+                ncst = nrst = atoi(optarg);
+                if(ncst <= 0)
                 {
                     fprintf(stderr, "select a positive value for super tile size\n");
                     exit(2);
                 }                
-                //printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);
+                //printf("processes receives tiles by blocks of %dx%d\n", nrst, ncst);
                 break;
                 
             case 'r':
@@ -250,17 +262,11 @@ static void runtime_init(int argc, char **argv)
                 printf("LDB set to %d\n", LDB);
                 break;
                 
-            case 'x':
-                do_nasty_validations = 1;
-                break; 
-            case 'm':
-                fprintf(stderr, "This argument is not useful for GEMM\n");
-                break;
             case 'B':
                 if(optarg)
                 {
                     block_forced = atoi(optarg);
-                    ddescA.super.nb = block_forced;
+                    NB = block_forced;
                 }
                 else
                 {
@@ -288,21 +294,12 @@ static void runtime_init(int argc, char **argv)
         print_usage(); 
         exit(2);
     } 
-    ddescA.super.n = ddescA.super.m = N;
 
-    ddescA.GRIDcols = nodes / ddescA.GRIDrows ;
-    if((nodes % ddescA.GRIDrows) != 0)
-    {
-        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
-        exit(2);
-    }
-    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
-
-    if(LDA <= 0) 
+    if(LDA < 0) 
     {
         LDA = N;
     }
-    if(LDB <= 0) 
+    if(LDB < 0) 
     {
         LDB = N;        
     }
@@ -318,8 +315,6 @@ static void runtime_init(int argc, char **argv)
 
         plasma->autotuning_enabled = 0;
     }
-
-    ddescB = ddescC = ddescA;
 }
 
 static void runtime_fini(void)
@@ -343,18 +338,24 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     {
         char type_name[MPI_MAX_OBJECT_NAME];
     
-        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", NB, NB);
+        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%u*%u", ddescA.super.nb, ddescA.super.nb);
     
-        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DAGUE_DEFAULT_DATA_TYPE);
+        MPI_Type_contiguous(ddescA.super.nb * ddescA.super.nb, MPI_FLOAT, &DAGUE_DEFAULT_DATA_TYPE);
         MPI_Type_set_name(DAGUE_DEFAULT_DATA_TYPE, type_name);
         MPI_Type_commit(&DAGUE_DEFAULT_DATA_TYPE);
     }
 #endif  /* USE_MPI */
 
-    dague_gemm = (dague_object_t*)dague_gemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
-                                                  ddescA.super.nb, ddescA.super.nt );
+    dague_gemm = (dague_object_t*)dague_sgemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
+                                                   ddescA.super.nb,
+                                                   ddescA.super.mt, ddescB.super.nt, ddescA.super.nt,
+                                                   -1.0,  /* alpha */
+                                                   1.0 ); /* beta */
     dague_enqueue( dague, (dague_object_t*)dague_gemm);
 
+    nbtasks = dague_gemm->nb_local_tasks;
+    printf("SGEMM %ux%ux%u has %d tasks to run.\n",
+           ddescA.super.nb, ddescA.super.nt, ddescA.super.nt, nbtasks);
     return dague;
 }
 
