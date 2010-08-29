@@ -32,11 +32,11 @@
  */
 typedef struct sym_two_dim_block_cyclic {
     tiled_matrix_desc_t super;
-    void *mat;          // pointer to the beginning of the matrix
-    unsigned int GRIDrows;       // number of processes rows in the process grid
-    unsigned int GRIDcols;       // number of processes cols in the process grid - derived parameter
-    unsigned int colRANK;        // process column rank in the process grid - derived parameter
-    unsigned int rowRANK;        // process row rank in the process grid - derived parameter
+    void *mat;              /**< pointer to the beginning of the matrix */
+    unsigned int GRIDrows;  /**< number of processes rows in the process grid */
+    unsigned int GRIDcols;  /**< number of processes cols in the process grid - derived parameter */
+    unsigned int colRANK;   /**< process column rank in the process grid - derived parameter */
+    unsigned int rowRANK;   /**< process row rank in the process grid - derived parameter */
 } sym_two_dim_block_cyclic_t;
 
 /************************************************

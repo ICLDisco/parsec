@@ -25,15 +25,15 @@
  */
 typedef struct two_dim_block_cyclic {
     tiled_matrix_desc_t super;
-    void *mat;          // pointer to the beginning of the matrix
-    unsigned int nrst;           // max number of tile rows in a super-tile
-    unsigned int ncst;           // max number of tile columns in a super tiles
-    unsigned int GRIDrows;       // number of processes rows in the process grid
-    unsigned int GRIDcols;       // number of processes cols in the process grid - derived parameter
-    unsigned int colRANK;        // process column rank in the process grid - derived parameter
-    unsigned int rowRANK;        // process row rank in the process grid - derived parameter
-    unsigned int nb_elem_r;      // number of row of tiles  handled by this process - derived parameter
-    unsigned int nb_elem_c;      // number of column of tiles handled by this process - derived parameter
+    void *mat;               /**< pointer to the beginning of the matrix */
+    unsigned int nrst;       /**< max number of tile rows in a super-tile */
+    unsigned int ncst;       /**< max number of tile columns in a super tiles */
+    unsigned int GRIDrows;   /**< number of processes rows in the process grid */
+    unsigned int GRIDcols;   /**< number of processes cols in the process grid - derived parameter */
+    unsigned int colRANK;    /**< process column rank in the process grid - derived parameter */
+    unsigned int rowRANK;    /**< process row rank in the process grid - derived parameter */
+    unsigned int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
+    unsigned int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
 } two_dim_block_cyclic_t;
 
 /************************************************

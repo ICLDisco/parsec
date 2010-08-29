@@ -12,31 +12,31 @@
 #include "../data_distribution.h"
 
 enum matrix_type {
-    matrix_Byte           = sizeof(char),
-    matrix_Integer        = sizeof(int),
-    matrix_RealFloat      = sizeof(float),
-    matrix_RealDouble     = sizeof(double),
-    matrix_ComplexFloat   = sizeof(float),
-    matrix_ComplexDouble  = sizeof(double)
+    matrix_Byte           = sizeof(char),   /**< unsigned char */
+    matrix_Integer        = sizeof(int),    /**< signed int */
+    matrix_RealFloat      = sizeof(float),  /**< float */
+    matrix_RealDouble     = sizeof(double), /**< double */
+    matrix_ComplexFloat   = sizeof(float),  /**< complex float */
+    matrix_ComplexDouble  = sizeof(double)  /**< complex double */
 };
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
-    enum matrix_type mtype;   // precision of the matrix
-    unsigned int mb;             // number of rows in a tile
-    unsigned int nb;             // number of columns in a tile
-    unsigned int ib;             // number of columns in an inner block
-    unsigned int bsiz;           // size in elements including padding of a tile - derived parameter
-    unsigned int lm;             // number of rows of the entire matrix
-    unsigned int ln;             // number of columns of the entire matrix
-    unsigned int lmt;            // number of tile rows of the entire matrix - derived parameter
-    unsigned int lnt;            // number of tile columns of the entire matrix - derived parameter
-    unsigned int i;              // row index to the beginning of the submatrix
-    unsigned int j;              // column indes to the beginning of the submatrix
-    unsigned int m;              // number of rows of the submatrix
-    unsigned int n;              // number of columns of the submatrix
-    unsigned int mt;             // number of tile rows of the submatrix - derived parameter
-    unsigned int nt;             // number of tile columns of the submatrix - derived parameter
+    enum matrix_type mtype;  /**< precision of the matrix */
+    unsigned int mb;         /**< number of rows in a tile */
+    unsigned int nb;         /**< number of columns in a tile */
+    unsigned int ib;         /**< number of columns in an inner block */
+    unsigned int bsiz;       /**< size in elements including padding of a tile - derived parameter */
+    unsigned int lm;         /**< number of rows of the entire matrix */
+    unsigned int ln;         /**< number of columns of the entire matrix */
+    unsigned int lmt;        /**< number of tile rows of the entire matrix - derived parameter */
+    unsigned int lnt;        /**< number of tile columns of the entire matrix - derived parameter */
+    unsigned int i;          /**< row index to the beginning of the submatrix */
+    unsigned int j;          /**< column indes to the beginning of the submatrix */
+    unsigned int m;          /**< number of rows of the submatrix */
+    unsigned int n;          /**< number of columns of the submatrix */
+    unsigned int mt;         /**< number of tile rows of the submatrix - derived parameter */
+    unsigned int nt;         /**< number of tile columns of the submatrix - derived parameter */
 } tiled_matrix_desc_t;
 
 /**
