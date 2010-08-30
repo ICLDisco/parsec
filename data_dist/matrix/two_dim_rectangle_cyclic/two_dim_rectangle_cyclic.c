@@ -108,7 +108,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     unsigned int nbstile_c;
 
 #ifdef DAGUE_DEBUG
-    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, ib = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
+    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, ib = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
 #endif
 
 
@@ -160,7 +160,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 
     if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
         {
-            printf("The process grid chosen is %dx%d, block distribution choosen is %d, %d : cannot generate matrix \n",
+            printf("The process grid chosen is %ux%u, block distribution choosen is %u, %u : cannot generate matrix \n",
                    Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
             exit(-1);
         }
@@ -198,7 +198,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
-    printf("Process %u: Ddesc->nb_elem_r = %u, Ddesc->nb_elem_c = %u, Ddesc->super.bsiz = %u, Ddesc->super.mtype = %d\n", myrank, Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, Ddesc->super.mtype);
+    printf("Process %u: Ddesc->nb_elem_r = %u, Ddesc->nb_elem_c = %u, Ddesc->super.bsiz = %u, Ddesc->super.mtype = %zu\n", myrank, Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, (size_t) Ddesc->super.mtype);
     Ddesc->mat = dague_allocate_matrix((size_t)Ddesc->nb_elem_r * (size_t)Ddesc->nb_elem_c * (size_t)Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
