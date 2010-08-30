@@ -945,7 +945,10 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
                                                                      &arg->ready_list);
         }
     } else {
-        DEBUG(("On task %s param_index %d not on the action_mask %x\n", param_index, arg->action_mask));
+#if defined(DAGUE_DEBUG)
+        char tmp[128];
+        DEBUG(("On task %s param_index %d not on the action_mask %x\n", dague_service_to_string(oldcontext, tmp, 128), param_index, arg->action_mask));
+#endif
     }
 
     return DAGUE_ITERATE_CONTINUE;

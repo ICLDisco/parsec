@@ -18,15 +18,15 @@ option(DAGUE_USE_COUNTER_FOR_DEPENDENCIES "Use counters to track the
   dependencies, instead of bitmasks -- reduces the debugging features,
   but might be necessary if using more than 30 input dependencies" OFF)
 option(DAGUE_PROFILING
-  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
+  "Enable the generation of the profiling information during
+  execution" OFF)
 option(DAGUE_PAPI
   "Enable PAPI performance hardware counters" OFF)
 option(DAGUE_STATS
   "Enable the generation of statistics informations during execution
   (microbenchmarking)" OFF)
 option(DAGUE_DEBUG_HISTORY
-  "Enable the generation of the profiling information during
-  execution" OFF)
+  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_GRAPHER
   "Enable the generation of the dot output during execution" OFF)
 option(DAGUE_CALL_TRACE
@@ -116,18 +116,35 @@ unset( SAVE_CMAKE_REQUIRED_FLAGS )
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
-string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
-if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-  CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA)
-  IF( HAVE_WEXTRA) 
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wextra")
-  ENDIF( HAVE_WEXTRA)
-  CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD)
-  if( HAVE_WD)
-    set(CMAKE_C_FLAGS "${CMAGE_C_FLAGS} -wd424 -wd981")
-  endif( HAVE_WD)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
+
+SET( C_WFLAGS "-Wall -Wabi" )
+CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
+IF( HAVE_WEXTRA )
+    SET( C_WFLAGS "${C_WFLAGS} -Wextra" )
+ENDIF( HAVE_WEXTRA )
+# flags for the overly verbose icc
+CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
+IF( HAVE_WD )
+    # 424: checks for duplicate ";"
+    # 981: every volatile triggers a "unspecified evaluation order", obnoxious
+    #      but might be useful for some debugging sessions. 
+    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981" )
+ENDIF( HAVE_WD )
+
+
+SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
+SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
+
+#string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
+#if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
+#  IF( HAVE_WEXTRA) 
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wextra")
+#  ENDIF( HAVE_WEXTRA)
+#  if( HAVE_WD)
+#    set(CMAKE_C_FLAGS "${CMAGE_C_FLAGS} -wd424 -wd981")
+#  endif( HAVE_WD)
+#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+#endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
 
 # Check for available functions
 include (${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
