@@ -423,11 +423,13 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
 
 int dague_start( dague_context_t* context )
 {
+    (void) context; // silence the compiler
     return 0;
 }
 
 int dague_test( dague_context_t* context )
 {
+    (void) context; // silence the compiler
     return -1;  /* Not yet implemented */
 }
 
