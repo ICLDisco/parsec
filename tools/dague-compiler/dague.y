@@ -26,9 +26,11 @@ static void yyerror(const char *str)
     fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
 }
 
-int yywrap()
+int yywrap(void); 
+
+int yywrap(void)
 {
-	return 1;
+    return 1;
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))

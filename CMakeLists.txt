@@ -128,7 +128,9 @@ IF( HAVE_WD )
     # 424: checks for duplicate ";"
     # 981: every volatile triggers a "unspecified evaluation order", obnoxious
     #      but might be useful for some debugging sessions. 
-    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981" )
+    # 1419: warning about extern functions being declared in .c
+    #       files
+    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419" )
 ENDIF( HAVE_WD )
 
 

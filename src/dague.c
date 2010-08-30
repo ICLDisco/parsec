@@ -954,12 +954,12 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
     return DAGUE_ITERATE_CONTINUE;
 }
 
-static void dague_dump_object( dague_object_t* object )
+void dague_dump_object( dague_object_t* object )
 {
     (void) object;
 }
 
-static void dague_dump_execution_context( dague_execution_context_t* exec_context )
+void dague_dump_execution_context( dague_execution_context_t* exec_context )
 {
     char tmp[128];
 

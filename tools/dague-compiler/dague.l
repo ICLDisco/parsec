@@ -18,6 +18,7 @@
 extern char *yyfilename;
 extern int current_lineno;
 
+char *extern_code(char *base, int len);
 char *extern_code(char *base, int len)
 {
    char *res;
