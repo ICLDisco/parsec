@@ -117,7 +117,11 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-SET( C_WFLAGS "-Wall -Wabi" )
+
+CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
+IF( HAVE_WALL )
+    SET( C_WFLAGS "${C_WFLAGS} -Wall" )
+ENDIF( HAVE_WALL )
 CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
 IF( HAVE_WEXTRA )
     SET( C_WFLAGS "${C_WFLAGS} -Wextra" )
