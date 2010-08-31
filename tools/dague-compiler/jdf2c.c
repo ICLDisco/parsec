@@ -1176,6 +1176,9 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     access_type = ( (flow->access_type == JDF_VAR_TYPE_READ) ? "ACCESS_READ" :
                     ((flow->access_type == JDF_VAR_TYPE_WRITE) ? "ACCESS_WRITE" : "ACCESS_RW") ); 
     
+    if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
+        string_arena_add_string(sa_dep_in, "NULL");
+    }
     if(strlen(string_arena_get_string(sa_dep_out)) == 0) {
         string_arena_add_string(sa_dep_out, "NULL");
     }
