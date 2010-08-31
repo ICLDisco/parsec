@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include "../data_distribution.h"
 
+// TODO: This type is weird/broken, it needs to be fixed at some point
 enum matrix_type {
     matrix_Byte           = sizeof(char),   /**< unsigned char */
     matrix_Integer        = sizeof(int),    /**< signed int */
