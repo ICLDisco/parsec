@@ -3,24 +3,24 @@ if( PLASMA_FOUND )
   include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
   
   if( DAGUE_MPI AND MPI_FOUND )
-    add_library(DGEMM-MPI dgemm_NN.c dgemm_NT.c dgemm_TN.c dgemm_TT.c pdgemm.c )
-    set_target_properties(DGEMM-MPI PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+    add_library(dgemmbox-mpi dgemm_NN.c dgemm_NT.c dgemm_TN.c dgemm_TT.c pdgemm.c )
+    set_target_properties(dgemmbox-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
 
     add_executable(pdgemm testing_pdgemm.c)
     set_target_properties(pdgemm PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(pdgemm PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(pdgemm PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(pdgemm dague-mpi DGEMM-MPI ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+    target_link_libraries(pdgemm dague-mpi dgemmbox-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
   endif( DAGUE_MPI AND MPI_FOUND )
 
-  add_library(DGEMM dgemm_NN.c dgemm_NT.c dgemm_TN.c dgemm_TT.c pdgemm.c)
-  set_target_properties(DGEMM PROPERTIES COMPILE_FLAGS "-DADD_")
+  add_library(dgemmbox dgemm_NN.c dgemm_NT.c dgemm_TN.c dgemm_TT.c pdgemm.c)
+  set_target_properties(dgemmbox PROPERTIES COMPILE_FLAGS "-DADD_")
 
   add_executable(dgemm pdgemm.c testing_pdgemm.c)
   set_target_properties(dgemm PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dgemm PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(dgemm PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(dgemm dague DGEMM ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+  target_link_libraries(dgemm dague dgemmbox ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
 
 endif( PLASMA_FOUND )
 
