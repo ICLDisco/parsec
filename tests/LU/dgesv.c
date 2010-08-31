@@ -65,7 +65,7 @@ static inline double get_cur_time(){
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(print) do { \
 TIME_STOP(); \
-/*printf("[%d] TIMED %f s :\t", rank, time_elapsed);*/ \
+printf("[%d] TIMED %f s :\t", rank, time_elapsed); \
 printf print; \
 } while(0)
 
@@ -82,7 +82,7 @@ sync_time_elapsed = get_cur_time() - sync_time_elapsed; \
 # define SYNC_TIME_PRINT(print) do { \
 SYNC_TIME_STOP(); \
 if(0 == rank) { \
-/*printf("### TIMED %f s :\t", sync_time_elapsed);*/ \
+printf("### TIMED %f s :\t", sync_time_elapsed); \
 printf print; \
 } \
 } while(0)
@@ -96,7 +96,7 @@ printf print; \
 # define SYNC_TIME_PRINT(print) do { \
 SYNC_TIME_STOP(); \
 if(0 == rank) { \
-/*printf("### TIMED %f doing\t", sync_time_elapsed);*/ \
+printf("### TIMED %f doing\t", sync_time_elapsed); \
 printf print; \
 } \
 } while(0)
