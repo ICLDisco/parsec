@@ -7,6 +7,7 @@ if [ "x$USER" == "xbouteill" ]; then
 # it is not necessary. 
 export CC=gcc-4
 PLASMA_DIR=$HOME/dague/plasma-2.2.0
+MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_CUDA=OFF"
 
 elif [ "x$USER" == "xherault" ]; then
 PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
@@ -14,7 +15,7 @@ PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
 elif [ "x$USER" == "xbosilca" ]; then 
 #HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
 PLASMA_DIR=NOTSET
-
+MY_OPTS=$HWLOC_OPTS
 fi
 
-cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_CUDA=OFF -DDAGUE_MPI=ON ${HWLOC_OPTS}
+cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${MY_OPTS}
