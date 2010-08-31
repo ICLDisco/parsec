@@ -155,8 +155,8 @@ int main(int argc, char ** argv)
                               NB, NB, IB, N, N, 0, 0, 
                               N, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescL, matrix_RealDouble, nodes, cores, rank, 
-                              IB, NB, IB, N, N, 0, 0, 
-                              N, N, nrst, ncst, GRIDrows);
+                              IB, NB, IB, IB*ddescA.super.mt, N, 0, 0, 
+                              IB*ddescA.super.mt, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescIPIV, matrix_Integer, nodes, cores, rank, 
                               1, NB, IB, ddescA.super.lnt, N, 0, 0, 
                               ddescA.super.lnt, N, nrst, ncst, GRIDrows);
