@@ -1,12 +1,20 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
-HWLOC_OPTS="-DHWLOC_DIR=/opt/local"
 
+if [ "x$USER" == "xbouteill" ]; then 
 # the above line is necessary only when using gcc and gfortran 4.4
 # from fink. If using stock gcc and hpc gfortran, or port,
 # it is not necessary. 
-#export CC=gcc-4
-PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
-#HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
+export CC=gcc-4
+PLASMA_DIR=$HOME/dague/plasma-2.2.0
 
-cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${HWLOC_OPTS}
+elif [ "x$USER" == "xherault" ]; then
+PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
+
+elif [ "x$USER" == "xbosilca" ]; then 
+#HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
+PLASMA_DIR=NOTSET
+
+fi
+
+cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_CUDA=OFF -DDAGUE_MPI=ON ${HWLOC_OPTS}
