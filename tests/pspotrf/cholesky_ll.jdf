@@ -53,6 +53,7 @@ WRITE   F -> F GEMM(k, k+1..SIZE-1, 0)
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
+    (void) F;
     CORE(
         spotrf, (
             uplo,
@@ -152,6 +153,7 @@ RW    T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
 BODY
+    (void) F;
     if( uplo == PlasmaLower ) {
         CORE(
             ssyrk, (
@@ -214,6 +216,7 @@ RW    C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
 BODY
+    (void) F;
     if( uplo == PlasmaLower ) {
         CORE( 
             sgemm, (
