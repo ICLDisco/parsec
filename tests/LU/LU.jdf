@@ -191,6 +191,9 @@ k = 0..NT-1
 RW LU <- LU DGETRF(k)
       -> (k != NT-1) ?                 L DGESSM(k, k+1..NT-1)  [LOWER_TILE]
       -> A(k,k)                                                [LOWER_TILE]
+
+; (NT-k)*(NT-k)*(NT-k)
+
 BODY
  /* nothing */
 END
@@ -207,6 +210,8 @@ RW LU <- (k == 0)    ? A(0, 0)       : C2 DSSSSM(k-1, k, k)
 RW IPIV <- IPIV(k, k)                                          [PIVOT_VECT]
         -> IPIV DGESSM(k, k+1..NT-1)                           [PIVOT_VECT]
         -> IPIV(k, k)                                          [PIVOT_VECT]
+
+; (NT-k)*(NT-k)*(NT-k)
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
@@ -243,6 +248,8 @@ n = k+1 .. NT - 1
 RW A <- C1 DSSSSM(k, n, NT-1)
      -> A(k, n)
           
+; (NT-k)*(NT-n)*(NT-n)
+
 BODY
 /* nothing */
 END
@@ -265,6 +272,8 @@ RW   C2 <- (k == 0)   ? A(m, n)      : C2 DSSSSM(k-1, n, m)
         -> ((k  < n-1) & (k  < m-1)) ? C2 DSSSSM(k+1, n, m)
 RW   C1 <- (m == k+1)  ? C1 DGESSM(k, n) : C1 DSSSSM(k, n, m-1)
         -> (m == NT-1) ? A DSSSSM_OUT(k, n)  : C1 DSSSSM(k, n, m+1)
+
+; (NT-k)*(NT-n)*(NT-n)
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
@@ -313,6 +322,8 @@ READ IPIV <- IPIV DGETRF(k)                                     [PIVOT_VECT]
 RW   C1   <- (k == 0) ? A(k, n) : C2 DSSSSM(k-1, n, k)
           -> C1 DSSSSM(k, n, k+1)
 
+; (NT-k)*(NT-n)*(NT-n)
+
 BODY
 #if !defined(DAGUE_DRY_RUN)
                 debug_warning(context->eu_id, "before", "DGESSM", k, n, -1);
@@ -350,6 +361,8 @@ k = 0 .. NT-2
 RW A <- U DTSTRF(k, NT-1) [UPPER_TILE]
      -> A(k, k)           [UPPER_TILE]
 
+; (NT-k)*(NT-k)*(NT-k)
+
 BODY
 /* nothing */
 END
@@ -372,6 +385,8 @@ RW dL <- L(m, k)                                              [LITTLE_L]
 RW IPIV <- IPIV(m, k)                                         [PIVOT_VECT]
         -> IPIV DSSSSM(k, k+1..NT-1, m)                       [PIVOT_VECT]
         -> IPIV(m, k)                                         [PIVOT_VECT]
+
+; (NT-k)*(NT-k)*(NT-k)
 
 BODY
 #if !defined(DAGUE_DRY_RUN)

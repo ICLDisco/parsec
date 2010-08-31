@@ -163,8 +163,10 @@ int main(int argc, char ** argv)
    TIME_START();
    dague_progress(dague);
    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-   SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
-                    gflops = (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)/(sync_time_elapsed)));
+   gflops = (M >= N) ? (2*N/1e3*N/1e3*((double)M - N/3.0)/1e3)
+       : (2*M/1e3*M/1e3*((double)N - M/3.0)/1e3);
+   SYNC_TIME_PRINT(("Dague computation:\t%dx%d %d %f gflops\n", N, M, NB,
+                    gflops/(sync_time_elapsed)));
    
    //data_dump( (tiled_matrix_desc_t *) &ddescA );
 
@@ -383,9 +385,9 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     dague_enqueue( dague, (dague_object_t*)dague_QR);
 
     nbtasks = dague_QR->nb_local_tasks;
-    printf("QR %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
+    printf("QR %ux%u has %u tasks to run. Total nb tasks to run: %u\n", 
            ddescA.super.nb, ddescA.super.nt, dague_QR->nb_local_tasks, dague->taskstodo);
-    printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", 
+    printf("GRIDrows = %u, GRIDcols = %u, rrank = %u, crank = %u\n", 
            ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     
     dgels_private_memory_initialization(MB, NB);
