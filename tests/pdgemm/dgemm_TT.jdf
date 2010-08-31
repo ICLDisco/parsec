@@ -23,8 +23,8 @@ extern "C" %{
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
     
-    extern int rank;
-    %}
+extern int rank;
+%}
 
 /*
  * Globals
@@ -33,6 +33,8 @@ NB
 M
 N
 K
+TRANSA   [int]
+TRANSB   [int]
 alpha    [float]
 beta     [float]
 
@@ -45,12 +47,12 @@ READ_A(n, m)
 n = 0 .. M-1
 m = 0 .. K-1
 
-: A(n, m)
+: A(m, n)
 
-A <- A(n, m)
+A <- A(m, n)
   -> A GEMM(n, 0, m)
 BODY
-    OUTPUT(("rank %d <- A(%d,%d)\n", rank, n, m));
+    OUTPUT(("rank %d <- A(%d,%d)\n", rank, m, n));
 END
 
 /**************************************************
@@ -61,12 +63,12 @@ READ_B(n, m)
 n = 0 .. K-1
 m = 0 .. N-1
 
-: B(n, m)
+: B(m, n)
 
-B <- B(n, m)
+B <- B(m, n)
   -> B GEMM(0, m, n)
 BODY
-    OUTPUT(("rank %d <- B(%d,%d)\n", rank, n, m));
+    OUTPUT(("rank %d <- B(%d,%d)\n", rank, m, n));
 END
 
 /**************************************************
@@ -92,7 +94,7 @@ RW   C <- (k == 0)     ? C(n,m) : C GEMM( n, m, k-1 )
 BODY
         CORE(
             dgemm, (
-                PlasmaNoTrans, PlasmaTrans,
+                TRANSA, TRANSB,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
