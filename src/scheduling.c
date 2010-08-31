@@ -354,7 +354,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 }
                 miss_victim++;
 #  else 
-                for(i = 0; i < master_context->nb_cores; i++ ) {
+                for(i = 0; i < (unsigned) master_context->nb_cores; i++ ) {
                     exec_context = DAGUE_POP( master_context->execution_units[i], eu_task_queue );
                     if( NULL != exec_context ) {
                         misses_in_a_row = 0;

@@ -219,7 +219,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
     unsigned int i;
     unsigned int j;
     unsigned int pos = 0;
-    pthread_t *threads;
+    pthread_t *threads = NULL;
     pthread_attr_t thread_attr;
     info_tiles_t * info_gen;
     tiles_coord_size = (Mdesc->lmt * Mdesc->lnt) / Mdesc->super.nodes; /* average number of tiles per nodes */
@@ -411,7 +411,7 @@ void* dague_allocate_matrix(size_t matrix_size)
 
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
-    int i, j;
+    size_t i, j;
     double * buf;
     tmpf = fopen(filename, "w");
     if(NULL == tmpf)
@@ -434,7 +434,7 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
 
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
-    int i, j;
+    size_t i, j;
     double * buf;
     tmpf = fopen(filename, "r");
     if(NULL == tmpf)
@@ -465,7 +465,7 @@ void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
     void * tmpA = malloc(a->bsiz * a->mtype);
     void * tmpB = malloc(a->bsiz * a->mtype);
     
-    int i,j;
+    size_t i,j;
     uint32_t rankA, rankB;
     unsigned int count = 0;
 
@@ -504,7 +504,7 @@ void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                         if (memcmp(bufferA, bufferB, a->bsiz * a->mtype))
                             {
                                 count++;
-                                printf("tile (%d, %d) differs\n", i, j);
+                                printf("tile (%zu, %zu) differs\n", i, j);
                             }
                         
                     }
