@@ -60,7 +60,7 @@ static inline uint64_t dague_atomic_bor_xxb( volatile void* location,
     (__typeof__(*(LOCATION)))dague_atomic_bor_xxb(LOCATION, OR_VALUE, sizeof(*(LOCATION)) )
 
 #define dague_atomic_cas(LOCATION, OLD_VALUE, NEW_VALUE)              \
-    dague_atomic_cas_xxb((volatile uint32_t*)(LOCATION),              \
+    dague_atomic_cas_xxb((volatile void*)(LOCATION),              \
                            (uint64_t)(OLD_VALUE), (uint64_t)(NEW_VALUE), \
                            sizeof(*(LOCATION)))                         \
     

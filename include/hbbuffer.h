@@ -83,7 +83,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         }
         /* Try to find a room for elt */
         for(; (size_t)i < b->size; i++) {
-            if( dague_atomic_cas(&b->items[i], NULL, elt) == 0 )
+            if( dague_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) == 0 )
                 continue;
             /*printf( "Push elem %p in local queue %p at position %d\n", elt, b, i );*/
             /* Found an empty space to push the first element. */
@@ -160,7 +160,7 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
         if( NULL == best_elt)
             break;
 
-    } while( dague_atomic_cas( &b->items[best_idx], best_elt, NULL ) == 0 );
+    } while( dague_atomic_cas( &b->items[best_idx], (uintptr_t) best_elt, (uintptr_t) NULL ) == 0 );
 
     /** Removes the element from the buffer. */
 	if( best_elt != NULL ) {

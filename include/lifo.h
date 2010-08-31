@@ -25,8 +25,8 @@ typedef struct dague_list_item_t {
 #define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
 static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
 {
-    dague_atomic_cas( &(item->list_next), item->list_next, item );
-    dague_atomic_cas( &(item->list_prev), item->list_prev, item );
+    dague_atomic_cas( &(item->list_next), (uintptr_t) item->list_next, (uintptr_t) item );
+    dague_atomic_cas( &(item->list_prev), (uintptr_t) item->list_prev, (uintptr_t) item );
     dague_mfence();
     return item;
 }
