@@ -81,7 +81,8 @@ if(BLAS_FOUND)
       DOC "Where the PLASMA corelapack libraries are")
     if( NOT PLASMA_corelapack_LIB )
       find_library(PLASMA_corelapack_LIB lapack
-        DOC "Where the PLASMA LAPACK libraries are")
+        PATHS ${PLASMA_LIBRARIES}
+		DOC "Where the PLASMA LAPACK libraries are")
 	endif( NOT PLASMA_corelapack_LIB )
     find_library(PLASMA_plasma_LIB plasma
       PATHS ${PLASMA_LIBRARIES}
