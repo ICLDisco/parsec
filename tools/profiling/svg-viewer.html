@@ -28,68 +28,68 @@
     <script id="svgshow_script">
 var graphwindow = null;
 function opened() {
-        opera.postError(" child window opened ");
+    opera.postError(" child window opened ");
 }
 var Opened = this.opened;
 function prepare(){
-        if( opener != undefined ) {
-          graphwindow = opener;
-          graphwindow.Opened();
-        }
-
-       if (document.all){
-		rightedge=document.body.clientWidth-040
-		bottomedge=1400
-	}else{
-		rightedge=window.innerWidth-040
-		bottomedge=1400
-	}
-	T1H=000
-	svgright=rightedge;
-	midx=Math.ceil(svgright/2);
-	high=bottomedge-T1H;
-    svgsrc=document.f.svgsrc.value;
-    E="<EMBED name='sv' src='"+svgsrc+".svg' width='"+svgright+"' height='"+high+"'></EMBED>"
-        document.getElementById("gee").innerHTML=E
-	document.getElementById("gee").style.top=T1H
+    if( opener != undefined ) {
+        graphwindow = opener;
+        graphwindow.Opened();
+    }
+    adjustWidth = 40
+    adjustHeight = 100
+    if(document.all) {
+        rightedge  = document.body.clientWidth;
+        bottomedge = document.body.clientHeight;
+    } else {
+        rightedge  = window.innerWidth;
+        bottomedge = window.innerHeight;
+    }
+    svgright = rightedge - adjustWidth;
+    midx = Math.ceil(svgright/2);
+    high = bottomedge - adjustHeight;
+    svgsrc = document.f.svgsrc.value;
+    E="<iframe name='sv' src='"+svgsrc+".svg' width='" + svgright+"'height='"+high+" scroll='auto'></iframe>"
+    document.getElementById("gee").innerHTML=E
+    document.getElementById("gee").style.top=0
 }
-function ready(){
-	svgdoc = document.sv.getSVGDocument();
-	svgRoot = svgdoc.documentElement;
+function ready() {
+    svgdoc = document.sv.getSVGDocument();
+    svgRoot = svgdoc.documentElement;
 }
 function mouseMove(t, d) {
-        document.f.title.value = t;
-        document.f.desc.value = d;
+    document.f.title.value = t;
+    document.f.desc.value = d;
 }
 function nosubmit() 
 {   
-		zoom();
-		translate();
-		source();
-		return false;
+    load_svg();
+    zoom();
+    translate();
+    return false;
 } 
 function zoom() {
-        v = document.f.zoom.value;
-        svgzoom( v/10 );
+    v = document.f.zoom.value;
+    svgzoom( v/10 );
 }
 function translate() {
-        v = document.f.translate.value;
-        svgtranslate( v );
+    v = document.f.translate.value;
+    svgtranslate( v );
 }
-function source() {
-		svgsrc = document.f.svgsrc.value;
-		prepare();
+function load_svg() {
+    svgsrc = document.f.svgsrc.value;
+    prepare();
 }
 function error( x ) {
         opera.postError( x );
 }
 function select_function( x ) {
-         error(x);
-         if( graphwindow == null && x != undefined ) {
-           graphwindow = window.open("graph.html", "dgels");
-         } else {
-           graphwindow.SF( x );
-         }
+    error(x);
+    if( graphwindow == null && x != undefined ) {
+        graphwindow = window.open("graph.html", document.f.svgsrc.value);
+    } else {
+        graphwindow.SF( x );
+    }
 }
 function sf(x) {
   opera.postError(" outside asks me to select " + x);
@@ -100,22 +100,57 @@ var SF=this.sf;
     <script src="html/dhtmlgoodies_slider.js"></script>
   </head>
 
-  <body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="00">
-    <div align=center style="position:relative;top:10;">
-      <b>Dplasma Profiling Gantt-Like Observer</b>
-      <form name="f" onsubmit="nosubmit();return false;">
+<body bgcolor="#eeddbb" onload="prepare()" leftmargin="0" topmargin="0" bottommargin="0" rightmargin="00">
+  <div align=center style="position:relative;top:10;">
+    <form name="f" onsubmit="nosubmit();return false;">
       <table>
-	    <tr><td/><td/><td>Source SVG</td><td><input name=svgsrc size=48 value="dgels" /></td>
-	    <tr><td>Function</td><td><input name=title size=24 DISABLED /></td><td>Stats</td><td><input name=desc size=48 DISABLED /></td></tr>
-	    <tr><td>Zoom</td><td id='slider_zoom'></td><td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td><td>&nbsp;</td></tr>
-	    <tr><td>Translate</td><td id='slider_translate'></td><td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td><td>&nbsp;</td></tr>
-	  </table>
-      </form>
-<script type="text/javascript">
-form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 1000, "zoom()");
-form_widget_amount_slider('slider_translate',document.f.translate, 200, 0, 1600, "translate()");
-</script>
-    </div>
-    <DIV id="gee" style="margin:10px;position:relative;top:0;left:00"></DIV>
-  </body>
+       <tr>
+          <td colspan="3">
+            <table align="center">
+              <tr>
+                <td>Function</td>
+                <td><input name=title size=24 DISABLED /></td>
+                <td>Stats</td>
+                <td><input name=desc size=48 DISABLED /></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <table>
+              <tr>
+                <td>Zoom</td><td id='slider_zoom'></td>
+                <td><input type="text" name="zoom" size="3" value="10" onchange="zoom()"></td>
+                <td>&nbsp;</td>
+              </tr>
+            </table>
+          </td>
+          <td>
+            <table>
+              <tr>
+                <td>Translate</td><td id='slider_translate'></td>
+                <td><input type="text" name="translate" size="3" value="0" onchange="translate()"></td>
+                <td>&nbsp;</td>
+              </tr>
+            </table>
+          </td>
+          <td align="right">
+            <table>
+              <tr>
+                <td>Source SVG</td>
+                <td><input name=svgsrc size=48 value="dgels" onchange="load_svg()"></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </form>
+      <script type="text/javascript">
+      form_widget_amount_slider('slider_zoom',document.f.zoom, 200, 1, 1000, "zoom()");
+      form_widget_amount_slider('slider_translate',document.f.translate, 200, 0, 1600, "translate()");
+      </script>
+  </div>
+  <DIV id="gee" style="margin:10px;position:relative;top:0;left:00;overflow:auto;"></DIV>
+</body>
 </html>
