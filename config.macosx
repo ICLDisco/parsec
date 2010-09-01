@@ -6,8 +6,13 @@ if [ "x$USER" == "xbouteill" ]; then
 # from fink. If using stock gcc and hpc gfortran, or port,
 # it is not necessary. 
 export CC=gcc-4
-PLASMA_DIR=$HOME/dague/plasma-2.2.0
-MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_CUDA=OFF"
+if [ "x$1" == "x64" ]; then
+	PLASMA_DIR=$HOME/dague/plasma-2.2.0-x86_64
+	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_CUDA=OFF"
+else
+	PLASMA_DIR=$HOME/dague/plasma-2.2.0
+	MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_CUDA=OFF"
+fi
 
 elif [ "x$USER" == "xherault" ]; then
 PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
