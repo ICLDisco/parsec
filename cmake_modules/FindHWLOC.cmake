@@ -41,10 +41,8 @@ endif( NOT HWLOC_LINKER_FLAGS )
 include(CheckIncludeFile)
 
 list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
-message(STATUS "Looking for hwloc.h in ${HWLOC_INCLUDE_DIR}")
 check_include_file(hwloc.h FOUND_HWLOC_INCLUDE)
 if(FOUND_HWLOC_INCLUDE)
-  message(STATUS "Found hwloc.h at ${HWLOC_INCLUDE_DIR}")
   find_library(HWLOC_LIB hwloc
     PATHS ${HWLOC_LIBRARIES}
     DOC "Where the HWLOC libraries are"

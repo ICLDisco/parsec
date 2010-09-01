@@ -199,7 +199,7 @@ ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
 if( PLASMA_SRC )
-	list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
+    list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
 endif( PLASMA_SRC )
 list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_DIR})
 message(STATUS "Looking for control/common.h;context.h;allocate.h in ${PLASMA_INCLUDE_DIR}")
@@ -207,13 +207,6 @@ check_include_files("control/common.h;control/context.h;control/allocate.h"   FO
 if( !FOUND_PLASMA_CONTROL )
   message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
 endif( !FOUND_PLASMA_CONTROL )
-if( !PLASMA_corelapack_LIB )
-	message("Plasma does not provide lapack, find it ourselves")
-	find_package(LAPACK REQUIRED)
-	list(APPEND PLASMA_INCLUDE_DIR ${LAPACK_INCLUDE_DIR})
-	list(APPEND PLASMA_LIBRARIES ${LAPACK_LIBRARIES})
-endif( !PLASMA_corelapack_LIB )
-
 
 #
 # Find optional packages
@@ -223,23 +216,19 @@ find_package(HWLOC)
 if( HAVE_HWLOC )
   list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-  check_struct_has_member( "struct hwloc_obj" parent hwloc.h HAVE_HWLOC_PARENT_MEMBER )
-  check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR )
-  check_c_source_compiles( "#include <hwloc.h>
- int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" HAVE_HWLOC_OBJ_PU)
-endif( HAVE_HWLOC )
-if(DAGUE_CACHE_AWARE)
+  include_directories( ${HWLOC_INCLUDE_DIR} )
+else( HAVE_HWLOC )
   if( !HAVE_HWLOC )
     message( error "Cache awarness requires hwloc" )
   endif( !HAVE_HWLOC )
-endif(DAGUE_CACHE_AWARE)
+endif( HAVE_HWLOC )
 
 if (DAGUE_MPI)
   find_package(MPI)
   if (MPI_FOUND)
     include_directories( ${MPI_INCLUDE_PATH} ) 
   else (MPI_FOUND)
-    message("MPI support is required in order to build the distributed version of DAGuE."
+    message(error "MPI support is required in order to build the distributed version of DAGuE."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
