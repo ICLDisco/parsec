@@ -258,8 +258,8 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
 }
 
 static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile, 
-                                           FILE *out,
-                                           dague_time_t relative )
+                                         FILE *out,
+                                         dague_time_t relative )
 {
     unsigned int key, start_idx, end_idx, displayed_key;
     uint64_t start, end;
@@ -280,7 +280,11 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             }
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
                 if( !displayed_error_message ) {
-                    fprintf(stderr, "Profiling error: end event of key %u id %lu was not found -- some histories are truncated\n", key, profile->events[start_idx].id);
+                    fprintf(stderr, "Profiling error: end event of key %u id %lu was not found for ID %s\n"
+                            "\t-- start %u events_count %u events_limit %u\n"
+                            "\t-- some histories are truncated\n",
+                            key, profile->events[start_idx].id, profile->hr_id,
+                            start_idx, profile->events_count, profile->events_limit);
                     displayed_error_message = 1;
                 }
                 continue;
