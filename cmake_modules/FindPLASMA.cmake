@@ -79,12 +79,6 @@ if(BLAS_FOUND)
     find_library(PLASMA_corelapack_LIB corelapack
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA corelapack libraries are")
-    if( NOT PLASMA_corelapack_LIB )
-      find_library(PLASMA_corelapack_LIB lapack
-        PATHS ${PLASMA_LIBRARIES}
-        DOC "Where the PLASMA LAPACK libraries are"
-        NO_DEFAULT_PATH)
-    endif( NOT PLASMA_corelapack_LIB )
     find_library(PLASMA_plasma_LIB plasma
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA plasma libraries are")
@@ -116,13 +110,13 @@ if(BLAS_FOUND)
   endif(FOUND_PLASMA_INCLUDE AND FOUND_PLASMA_LIB)
 endif(BLAS_FOUND)
 
-#include(FindPackageMessage)
-#find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
-#  "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
 
+include(FindPackageMessage)
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_FOUND)
-    message(STATUS "A library with PLASMA API found.")
+	message(STATUS "A Library with PLASMA API found.")
+	find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
+	  "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
   else(PLASMA_FOUND)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR

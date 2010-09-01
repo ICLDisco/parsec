@@ -207,6 +207,13 @@ check_include_files("control/common.h;control/context.h;control/allocate.h"   FO
 if( !FOUND_PLASMA_CONTROL )
   message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
 endif( !FOUND_PLASMA_CONTROL )
+if( !PLASMA_corelapack_LIB )
+	message("Plasma does not provide lapack, find it ourselves")
+	find_package(LAPACK REQUIRED)
+	list(APPEND PLASMA_INCLUDE_DIR ${LAPACK_INCLUDE_DIR})
+	list(APPEND PLASMA_LIBRARIES ${LAPACK_LIBRARIES})
+endif( !PLASMA_corelapack_LIB )
+
 
 #
 # Find optional packages
