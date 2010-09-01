@@ -25,11 +25,11 @@
 #elif defined(DAGUE_STATS_C_DUMP)
 
 #define DECLARE_STAT(name) \
-    fprintf(statfile, "%s%s%-40s\t(MAX)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, dague_stats_##name##_max)
+    fprintf(statfile, "%s%s%-40s\t(MAX)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, (unsigned long long)dague_stats_##name##_max)
 #define DECLARE_STATMAX(name) \
-    fprintf(statfile, "%s%s%-40s\t(MAX)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, dague_stats_##name##_max)
+    fprintf(statfile, "%s%s%-40s\t(MAX)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, (unsigned long long)dague_stats_##name##_max)
 #define DECLARE_STATACC(name) \
-    fprintf(statfile, "%s%s%-40s\t(ACC)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, dague_stats_##name##_acc)
+    fprintf(statfile, "%s%s%-40s\t(ACC)\t%13llu\n", prefix != NULL ? prefix : "", prefix != NULL ? " " : "", #name, (unsigned long long)dague_stats_##name##_acc)
 
 #else /* no C-magic */
 
@@ -67,10 +67,9 @@ static inline void __dague_stat_increase(volatile uint64_t *current, volatile ui
 
 #define DAGUE_STAT_DECREASE(name, value)                      \
     __dague_stat_decrease(&dague_stats_##name##_current,    \
-                            &dague_stats_##name##_max,        \
                             value)
 
-static inline void __dague_stat_decrease(volatile uint64_t *current, volatile uint64_t *max, uint64_t value)
+static inline void __dague_stat_decrease(volatile uint64_t *current, uint64_t value)
 {
     uint64_t ov, nv;
     do {
