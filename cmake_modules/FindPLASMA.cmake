@@ -79,6 +79,10 @@ if(BLAS_FOUND)
     find_library(PLASMA_corelapack_LIB corelapack
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA corelapack libraries are")
+    if( NOT PLASMA_corelapack_LIB )
+      find_library(PLASMA_corelapack_LIB lapack
+        DOC "Where the PLASMA LAPACK libraries are")
+	endif( NOT PLASMA_corelapack_LIB )
     find_library(PLASMA_plasma_LIB plasma
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA plasma libraries are")
@@ -89,7 +93,7 @@ if(BLAS_FOUND)
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA corelapack libraries are")
     if( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
-      set( PLASMA_LIBRARIES "${PLASMA_plasma_LIB};${PLASMA_coreblas_LIB};${PLASMA_corelapack_LIB};${PLASMA_cblas_LIB}")
+      set( PLASMA_LIBRARIES "${PLASMA_coreblas_LIB};${PLASMA_plasma_LIB};${PLASMA_quark_LIB};${PLASMA_lapack_cwrapper_LIB};${PLASMA_corelapack_LIB};${PLASMA_cblas_LIB}")
       set( FOUND_PLASMA_LIB 1)
     else ( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
         if( PLASMA_quark_LIB AND PLASMA_coreblas_LIB AND PLASMA_plasma_LIB )
