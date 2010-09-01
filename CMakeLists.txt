@@ -1,12 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C Fortran)
 
-#
-# Do NOT remove this. Make sure it is set to OFF to
-# avoid the spurious output from make, but please don't
-# remove it.
-#
-
 # should we use our own math functions
 option(DAGUE_COLLECTIVE
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
@@ -117,7 +111,9 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-
+#
+# Set warnings for debug builds 
+#
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
 IF( HAVE_WALL )
     SET( C_WFLAGS "${C_WFLAGS} -Wall" )
@@ -136,21 +132,8 @@ IF( HAVE_WD )
     #       files
     SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419" )
 ENDIF( HAVE_WD )
-
-
 SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
-
-#string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
-#if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-#  IF( HAVE_WEXTRA) 
-#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wextra")
-#  ENDIF( HAVE_WEXTRA)
-#  if( HAVE_WD)
-#    set(CMAKE_C_FLAGS "${CMAGE_C_FLAGS} -wd424 -wd981")
-#  endif( HAVE_WD)
-#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-#endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
 
 # Check for available functions
 include (${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
@@ -215,24 +198,15 @@ IF (_match_ftn)
 ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
-if( !PLASMA_SRC )
-  message(ERROR "PLASMA sources cannot be found")
-endif( !PLASMA_SRC )
-list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_SRC})
-message(STATUS "Looking for src/common.h in ${PLASMA_SRC}")
-check_include_file(control/common.h   FOUND_PLASMA_COMMON)
-if( !FOUND_PLASMA_COMMON )
-  message(FATAL_ERROR "Cannot find src/common.h in the PLASMA source directory")
-endif( !FOUND_PLASMA_COMMON )
-check_include_file(control/context.h  FOUND_PLASMA_CONTEXT)
-if( !FOUND_PLASMA_CONTEXT )
-  message(FATAL_ERROR "Cannot find src/context.h in the PLASMA source directory")
-endif( !FOUND_PLASMA_CONTEXT )
-check_include_file(control/allocate.h FOUND_PLASMA_ALLOCATE)
-if( !FOUND_PLASMA_ALLOCATE )
-  message(FATAL_ERROR "Cannot find src/allocate.h in the PLASMA source directory")
-endif( !FOUND_PLASMA_ALLOCATE )
-set( PLASMA_SRC_DIR "${PLASMA_SRC}" )
+if( PLASMA_SRC )
+	list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
+endif( PLASMA_SRC )
+list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_DIR})
+message(STATUS "Looking for control/common.h;context.h;allocate.h in ${PLASMA_INCLUDE_DIR}")
+check_include_files("control/common.h;control/context.h;control/allocate.h"   FOUND_PLASMA_CONTROL)
+if( !FOUND_PLASMA_CONTROL )
+  message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
+endif( !FOUND_PLASMA_CONTROL )
 
 #
 # Find optional packages
@@ -296,6 +270,7 @@ check_include_files(getopt.h HAVE_GETOPT_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 
+# This should be killed when matrix is a separate lib
 include_directories(${PLASMA_INCLUDE_DIR})
 
 #
