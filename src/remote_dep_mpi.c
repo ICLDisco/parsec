@@ -441,6 +441,8 @@ static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 
+#define MPI_PROFILING_SIZE (64*1024)
+
 static void remote_dep_mpi_profiling_init(void)
 {
     int i;
@@ -454,11 +456,11 @@ static void remote_dep_mpi_profiling_init(void)
     dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
                                              &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
-    MPIctl_prof = dague_profiling_thread_init( 4096, "MPI ctl");
+    MPIctl_prof = dague_profiling_thread_init( MPI_PROFILING_SIZE, "MPI ctl");
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
-        MPIsnd_prof[i] = dague_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI isend(req=%d)", i);
-        MPIrcv_prof[i] = dague_profiling_thread_init( 4096 / DEP_NB_CONCURENT, "MPI irecv(req=%d)", i);
+        MPIsnd_prof[i] = dague_profiling_thread_init( MPI_PROFILING_SIZE / DEP_NB_CONCURENT, "MPI isend(req=%d)", i);
+        MPIrcv_prof[i] = dague_profiling_thread_init( MPI_PROFILING_SIZE / DEP_NB_CONCURENT, "MPI irecv(req=%d)", i);
     }    
 }
 
@@ -615,6 +617,7 @@ static int remote_dep_mpi_fini(dague_context_t* context)
         internal_alloc_lifo = NULL;
         internal_alloc_lifo_init = 0;
         DEBUG(( "Total number of released TILES = %d\n", nb_allocated_items ));
+        printf( "Total number of released TILES = %d\n", nb_allocated_items );
     }
     return 0;
 }
@@ -695,7 +698,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                            i, k, dep_get_buff[i].deps, status.MPI_TAG));
                     DEBUG_MARK_DTA_MSG_END_SEND(status.MPI_TAG);
                     gc_data_unref(deps->output[k].data);
-                    //TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
+                    TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
                     dep_get_buff[i].which ^= (1<<k);
                     if(0 == dep_get_buff[i].which)
                     {
@@ -744,7 +747,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                     deps = (dague_remote_deps_t*) (uintptr_t) dep_activate_buff[i];
                     DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith datakey na\t(tag=%d)\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, status.MPI_TAG));
                     DEBUG_MARK_DTA_MSG_END_RECV(status.MPI_TAG);
-                    TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i);
+                    TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i+k);
                     deps->msg.deps |= 1<<k;
                     remote_dep_release(eu_context, deps);
                     if(deps->msg.which == deps->msg.deps)
@@ -934,10 +937,10 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
 
 #if defined(DAGUE_STATS)
     {
-        MPI_Aint lb, size;
-        MPI_Type_get_extent(datakey_dtt, &lb, &size);
+        MPI_Aint _lb, _size;
+        MPI_Type_get_extent(datakey_dtt, &_lb, &_size);
         DAGUE_STATACC_ACCUMULATE(counter_control_messages_sent, 1);
-        DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, size * datakey_count);
+        DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _size * datakey_count);
     }
 #endif
 }

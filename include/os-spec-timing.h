@@ -23,7 +23,7 @@ static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
     return diff;
 }
 
-static int time_less( dague_time_t start, dague_time_t end )
+static inline int time_less( dague_time_t start, dague_time_t end )
 {
     return start.tv_sec < end.tv_sec ||
         (start.tv_sec == end.tv_sec &&
@@ -43,7 +43,7 @@ static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 {
     return (end - start);
 }
-static int time_less( dague_time_t start, dague_time_t end )
+static inline int time_less( dague_time_t start, dague_time_t end )
 {
     return start < end;
 }
@@ -61,7 +61,7 @@ static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 {
     return (end - start);
 }
-static int time_less( dague_time_t start, dague_time_t end )
+static inline int time_less( dague_time_t start, dague_time_t end )
 {
     return start < end;
 }
@@ -84,7 +84,7 @@ static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
            (end.tv_usec - start.tv_usec);
     return diff;
 }
-static int time_less( dague_time_t start, dague_time_t end )
+static inline int time_less( dague_time_t start, dague_time_t end )
 {
     return start.tv_sec < end.tv_sec ||
         (start.tv_sec == end.tv_sec &&
