@@ -589,7 +589,7 @@ int dague_fini( dague_context_t** pcontext )
         snprintf(prefix, 32, "%d/%d", rank, size);
 # else
         snprintf(filename, 64, "dague.stats");
-        snprintf(prefix, 32, "");
+        prefix[0] = '\0';
 # endif
         dague_stats_dump(filename, prefix);
     }
