@@ -1807,7 +1807,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
                                  dump_pseudodague, sa, "", "", "", ""));
     string_arena_free(sa);
     string_arena_free(sa2);
-    coutput("/** ¨Predeclarations of the parameters */\n");
+    coutput("/** Predeclarations of the parameters */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         for(fl = f->dataflow; fl != NULL; fl = fl->next) {
             for(depid = 1, dl = fl->flow->deps; dl != NULL; depid++, dl = dl->next) {
@@ -2282,10 +2282,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             f->fname, f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""));
-    coutput("%s\n"
-            "#line %d \"%s\"\n",
-            f->body,
-            cfile_lineno + 1 + nblines(f->body), jdf_cfilename);
+    coutput("%s\n", f->body);
+    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+        coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
+    }
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
     coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ));\n",
             f->fname, f->fname,
@@ -2520,7 +2520,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
             string_arena_add_string(sa_open, " %s_%s <= %s; %s_%s++ ) {\n",
                                     t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba2, &info), t->fname, nl->name);
             string_arena_add_string(sa_close,
-                                    "%s%s}\n", prefix, indent(nbopen));
+                                    "%s%s  }\n", prefix, indent(nbopen));
             nbopen++;
         } else {
             string_arena_add_string(sa_open, "%s%s  %s_%s = %s;\n", prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr, &info));
@@ -2545,14 +2545,15 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
             string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                     t->fname, nl->name, 
                                     dump_expr((void**)&def->expr->jdf_ba2, &linfo));
-            string_arena_add_string(sa_close, "%s%s}\n", prefix, indent(nbopen));
+            string_arena_add_string(sa_close, "%s%s  }\n",
+                                    prefix, indent(nbopen));
             nbopen++;
         } else {
             string_arena_add_string(sa_open, 
                                     "%s%s  if( (%s_%s == (%s))", 
                                     prefix, indent(nbopen), t->fname, nl->name, 
                                     dump_expr((void**)&def->expr, &linfo));
-            string_arena_add_string(sa_close, "%s%s}\n", prefix, indent(nbopen));
+            string_arena_add_string(sa_close, "%s%s  }\n", prefix, indent(nbopen));
             nbopen++;
         }
         
@@ -2575,9 +2576,9 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
                             "#if defined(DAGUE_DEBUG)\n"
                             "if( NULL != eu ) {\n"
                             "  char tmp[128], tmp1[128];\n"
-                            "  printf(\"thread %%d release deps of %%s to %%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
+                            "  DEBUG((\"thread %%d release deps of %%s to %%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
                             "         dague_service_to_string(exec_context, tmp, 128),\n"
-                            "         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst);\n"
+                            "         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst));\n"
                             "}\n"
                             "#endif\n", var);
     free(p);
@@ -2820,10 +2821,9 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Dump all the prologue sections
      */
     if( NULL != jdf->prologue ) {
-        coutput("%s\n"
-                "#line %d \"%s\"\n",
-                jdf->prologue->external_code,
-                2 + nblines(jdf->prologue->external_code), jdf_cfilename);
+        coutput("%s\n", jdf->prologue->external_code);
+        if( !JDF_COMPILER_GLOBAL_ARGS.noline )
+            coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
     }
 
     jdf_generate_structure(jdf);
@@ -2840,10 +2840,9 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Dump all the epilogue sections
      */
     if( NULL != jdf->epilogue ) {
-        coutput("%s\n"
-                "#line %d \"%sf\"\n",
-                jdf->epilogue->external_code,
-                cfile_lineno + 1 + nblines(jdf->epilogue->external_code), jdf_cfilename);
+        coutput("%s\n", jdf->epilogue->external_code);
+        if( !JDF_COMPILER_GLOBAL_ARGS.noline )
+            coutput("#line %d \"%s\"\n",cfile_lineno, jdf_cfilename);
     }
 
  err:

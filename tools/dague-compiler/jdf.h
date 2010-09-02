@@ -38,6 +38,7 @@ typedef struct jdf_compiler_global_args {
     char *output_h;
     char *funcid;
     jdf_warning_mask_t wmask;   
+    int  noline;  /**< Don't dump the jdf line number in the generate .c file */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 

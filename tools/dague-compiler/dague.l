@@ -28,10 +28,12 @@ char *extern_code(char *base, int len)
    res = (char*)calloc(1, rlen);
 
    rp = 0;
-   /**
-    * As each BODY in contiguous we only have to set the #line once.
-    */
-   rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", current_lineno, yyfilename);
+   if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+     /**
+      * As each BODY in contiguous we only have to set the #line once.
+      */
+     rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", current_lineno, yyfilename);
+  }
    memcpy(res + rp, base, len);
    rp += len;
    res[rp] = '\0';
@@ -60,7 +62,7 @@ WHITE         [\f\t\v ]
                           return BODY; 
                       }
 extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}                          {
-                          int lstart, lend, bstart;
+                          int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a " 
                            * in its name, which is also an assumption of the lexer anyway */
                           
@@ -77,6 +79,9 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}          
                           bstart++;
                           while( yytext[bstart] != '\n' ) bstart++;
                           bstart++;
+                          for( lend = 0; lend <= bstart; lend++ )
+                              if( yytext[lend] == '\n' ) skip_line++;
+                          current_lineno += skip_line;
                           yylval.string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
                           current_lineno++;
                           return EXTERN_DECL;

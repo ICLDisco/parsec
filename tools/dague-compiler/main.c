@@ -35,6 +35,7 @@ static void usage(void)
             "  --function-name|-f Set the unique identifier of the generated function\n"
             "                     The generated function will be called DAGuE_<ID>_new\n"
             "                     (default %s)\n"
+            "  --noline           Do not dump the JDF line number in the .c output file\n"
             "\n"
             " Warning Options: Default is to print ALL warnings. You can disable the following:\n"
             "  --Wmasked          Do NOT print warnings for masked variables\n"
@@ -52,6 +53,7 @@ static void parse_args(int argc, char *argv[])
     int ch;
     int wmasked = 0;
     int wmutexinput = 0;
+    int print_jdf_line = 0;
     char *c = NULL;
     char *h = NULL;
     char *o = NULL;
@@ -65,6 +67,7 @@ static void parse_args(int argc, char *argv[])
         { "function-name", required_argument,       NULL,  'f' },
         { "Wmasked",       no_argument,         &wmasked,   1  },
         { "Wmutexin",      no_argument,     &wmutexinput,   1  },
+        { "noline",        no_argument,  &print_jdf_line,   1  },
         { "help",          no_argument,             NULL,  'h' },
         { NULL,            0,                       NULL,   0  }
     };
@@ -104,6 +107,9 @@ static void parse_args(int argc, char *argv[])
             }
             if( wmutexinput ) {
                 JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
+            }
+            if( print_jdf_line ) {
+                JDF_COMPILER_GLOBAL_ARGS.noline = 1;
             }
             break;
         case 'h':
