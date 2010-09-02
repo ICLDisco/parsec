@@ -389,8 +389,15 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
         if(origin->msg.deps & (1 << i)) {
-        DEBUG(("DATA %p released from %p[%d]\n", GC_DATA(origin->output[i].data), origin, i));
+            DEBUG(("DATA %p released from %p[%d]\n", GC_DATA(origin->output[i].data), origin, i));
 	    	data[i] = origin->output[i].data;
+            {
+                char tmp[128];
+                void* _data = GC_DATA(data[i]);
+                DEBUG(("%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
+                       dague_service_to_string(&exec_context, tmp, 128),
+                       _data, ((double*)_data)[0], ((double*)_data)[1], ((double*)_data)[2]));
+            }
         }
     }
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
@@ -801,6 +808,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 
         TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
         MPI_Isend(data, 1, dtt, to, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
+        DEBUG(("send %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n", data, ((double*)data)[0], ((double*)data)[1], ((double*)data)[2]));
         DEBUG_MARK_DTA_MSG_START_SEND(to, data, tag+k);
     }
 }
