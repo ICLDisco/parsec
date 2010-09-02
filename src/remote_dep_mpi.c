@@ -964,6 +964,10 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
         remote_dep_release(eu_context, deps);
         assert(0 == deps->msg.which);
         deps->msg.which = msg.which; /* restore context for real recv deps */
+        if(0 == msg.which)
+        {
+            MPI_Start(&dep_activate_req[i]);
+        }
     }
     deps->msg.deps = 0; /* now this is the mask of finished deps */
     INC_NEXT_TAG(MAX_PARAM_COUNT);
