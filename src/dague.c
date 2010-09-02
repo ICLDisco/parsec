@@ -922,7 +922,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[param_index].data = oldcontext->data[param_index].gc_data;  /* TODO: THOMAS IS DOUBTFULLLLLLL */
+                arg->remote_deps->output[param_index].data = arg->data[param_index];
                 arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[param_index].count++;
                 arg->remote_deps_count++;
