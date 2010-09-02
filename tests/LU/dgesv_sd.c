@@ -27,7 +27,7 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "LU.h"
+#include "LU_sd.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"
@@ -119,10 +119,9 @@ PLASMA_enum uplo = PlasmaLower;
 int GRIDrows = 1;
 
 two_dim_block_cyclic_t ddescA;
-two_dim_block_cyclic_t ddescL;
-two_dim_block_cyclic_t ddescIPIV;
+two_dim_block_cyclic_t ddescdLIPIV;
 #if defined(DISTRIBUTED)
-MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
+MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L_PIVOT_VECT;
 #endif
 
 FILE* matout = NULL;
@@ -139,13 +138,14 @@ int main(int argc, char ** argv)
     //#ifdef VTRACE
     // VT_OFF();
     //#endif
-    
+    matout = stderr;
+
 #if defined(DISTRIBUTED)
     /* mpi init */
     MPI_Init(&argc, &argv);
     /*sleep(20);*/
     MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
     nodes = 1;
     rank = 0;
@@ -155,23 +155,30 @@ int main(int argc, char ** argv)
         snprintf(matout_file, 128, "%s-%d.matout", argv[0], rank);
         matout = fopen(matout_file, "w");
     }
-
     runtime_init(argc, argv);
 
     two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, 
                               NB, NB, IB, N, N, 0, 0, 
                               N, N, nrst, ncst, GRIDrows);
-    two_dim_block_cyclic_init(&ddescL, matrix_RealDouble, nodes, cores, rank, 
-                              IB, NB, IB, IB*ddescA.super.mt, N, 0, 0, 
-                              IB*ddescA.super.mt, N, nrst, ncst, GRIDrows);
-    two_dim_block_cyclic_init(&ddescIPIV, matrix_Integer, nodes, cores, rank, 
-                              1, NB, IB, ddescA.super.lmt, N, 0, 0, 
-                              ddescA.super.lnt, N, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescdLIPIV,
+                              matrix_RealDouble,
+                              nodes,
+                              cores,
+                              rank,
+                              (IB+1),
+                              NB,
+                              IB,
+                              (IB+1)*ddescA.super.mt, N,
+                              0, 0,
+                              (IB+1)*ddescA.super.mt, N,
+                              nrst, ncst,
+                              GRIDrows);
+
 
     /* matrix generation */
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA);
-    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescL);
-    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
+    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescdLIPIV);
+    memset(ddescdLIPIV.mat, NB * sizeof(int), 0);
 
     /*** THIS IS THE DAGUE COMPUTATION ***/
     TIME_START();
@@ -186,10 +193,10 @@ int main(int argc, char ** argv)
     gflops = (2*N/1e3*N/1e3*N/1e3/3.0);
     SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
                      gflops/(sync_time_elapsed)));
-#if 0         
+#if 0
     {
         char ddescA_rank_name[128];
-        snprintf( ddescA_rank_name, 128, "A-%d.dat", rank );
+        snprintf( ddescA_rank_name, 128, "A-sd-%d.dat", rank );
         data_write( (tiled_matrix_desc_t*)&ddescA, ddescA_rank_name);
     }
 #endif
@@ -393,7 +400,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     
     create_datatypes();
 
-    dague_LU = (dague_object_t*)dague_LU_new( (dague_ddesc_t*)&ddescL,(dague_ddesc_t*)&ddescIPIV,
+    dague_LU = (dague_object_t*)dague_LU_sd_new( (dague_ddesc_t*)&ddescdLIPIV,
                                               (dague_ddesc_t*)&ddescA,
                                               ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, ddescA.super.ib );
     dague_enqueue( dague, (dague_object_t*)dague_LU);
@@ -461,11 +468,12 @@ static void create_datatypes(void)
     MPI_Type_set_name(LOWER_TILE, "Lower");
     MPI_Type_commit(&LOWER_TILE);
     
-    /* LITTLE_L is a NB*IB rectangle (containing IB*IB Lower tiles) */
-    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
-    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LITTLE_L);
-    MPI_Type_set_name(LITTLE_L, "L");
-    MPI_Type_commit(&LITTLE_L);
+    /* LITTLE_L_PIVOT_VECT is a NB*(IB+1) rectangle contianing an NB*1 integers for the IPIV and
+       containing IB*IB Lower tiles */
+    MPI_Type_contiguous(NB*(IB+1), MPI_DOUBLE, &tmp);
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LITTLE_L_PIVOT_VECT);
+    MPI_Type_set_name(LITTLE_L_PIVOT_VECT, "IPIV + l");
+    MPI_Type_commit(&LITTLE_L_PIVOT_VECT);
     
     /* IPIV is a contiguous of size 1*NB */
     MPI_Type_contiguous(NB, MPI_INT, &tmp);
