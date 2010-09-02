@@ -912,6 +912,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
         if( arg->action_mask & DAGUE_ACTION_GETTYPE_REMOTE_DEPS ) {
             /* TODO: find a test to check the indices on this line */
+            arg->deps->output[param_index].type = NULL; /* To be used by in-place ops later, needs to be NULL now */
             arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
         }
         if( arg->action_mask & DAGUE_ACTION_INIT_REMOTE_DEPS ) {

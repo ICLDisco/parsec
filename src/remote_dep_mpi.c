@@ -882,55 +882,59 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
         if((1<<k) & msg.which)
         {
             dtt = *deps->output[k].type;
-            data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
-            if( NULL == data ) {
+            data = GC_DATA(deps->output[k].data);
+            if(NULL == data)
+            { 
+                data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
+                if( NULL == data ) {
 #ifdef FLOW_CONTROL
-                /* basic attempt at flow control */
-                if(! (doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME)) )
-                {
-                   /* do it later */
-                   printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-                   dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-                   item->action = DEP_GET_DATA;
-                   item->cmd.get.rank = from;
-                   item->cmd.get.i = i;
-                   DAGUE_LIST_ITEM_SINGLETON(item);
-                   dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-                   return;
-                }
-                printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                    /* basic attempt at flow control */
+                    if(! (doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME)) )
+                    {
+                        /* do it later */
+                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
+                        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+                        item->action = DEP_GET_DATA;
+                        item->cmd.get.rank = from;
+                        item->cmd.get.i = i;
+                        DAGUE_LIST_ITEM_SINGLETON(item);
+                        dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+                        return;
+                    }
+                    printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
 #endif
-                MPI_Type_get_extent(dtt, &lb, &size);
-                data = malloc(size);
-                DEBUG(("Malloc new remote tile %p size %zu", data, size));
-                assert(data != NULL);
-            }
+                    MPI_Type_get_extent(dtt, &lb, &size);
+                    data = malloc(size);
+                    DEBUG(("Malloc new remote tile %p size %zu\n", data, size));
+                    assert(data != NULL);
+                }
 #ifdef FLOW_CONTROL
-            doall = 1; /* if we do one, do all */
-            dague_atomic_inc_32b(&internal_alloc_lifo_num_used);
+                doall = 1; /* if we do one, do all */
+                dague_atomic_inc_32b(&internal_alloc_lifo_num_used);
 #endif    
 
 #if defined(DAGUE_STATS)
-            /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
-             * the size of the pointed data into the cache_friendliness pointer.
-             * In case of a 0-sized object, we pass 1 to force the creation of a
-             * garbage collectable pointer
-             */            
-            assert( size < 0xffffffff );
-            deps->output[k].data = gc_data_new(data, size > 0 ? (uint32_t)size : 1); 
+                /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
+                 * the size of the pointed data into the cache_friendliness pointer.
+                 * In case of a 0-sized object, we pass 1 to force the creation of a
+                 * garbage collectable pointer
+                 */            
+                assert( size < 0xffffffff );
+                deps->output[k].data = gc_data_new(data, size > 0 ? (uint32_t)size : 1); 
 #else
-            deps->output[k].data = gc_data_new(data, 1); 
+                deps->output[k].data = gc_data_new(data, 1);
 #endif
+            }
 #ifdef DAGUE_DEBUG
             MPI_Type_get_name(dtt, type_name, &len);
             DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, type_name, size, NEXT_TAG+k));
 #endif
             /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
-            MPI_Irecv(GC_DATA(deps->output[k].data), 1, 
+            MPI_Irecv(data, 1, 
                       dtt, from, NEXT_TAG + k, dep_comm, 
                       &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
-            DEBUG_MARK_DTA_MSG_START_RECV(from, GC_DATA(deps->output[k].data), NEXT_TAG + k);
+            DEBUG_MARK_DTA_MSG_START_RECV(from, data, NEXT_TAG + k);
         }
     }
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
