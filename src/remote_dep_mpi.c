@@ -371,7 +371,7 @@ static int remote_dep_nothread_get_datatypes(dague_remote_deps_t* origin)
         exec_context.locals[i] = origin->msg.locals[i];
 
     return exec_context.function->release_deps(NULL, &exec_context,
-                                               DAGUE_ACTION_GETTYPE_REMOTE_DEPS | DAGUE_ACTION_DEPS_MASK,
+                                               DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | origin->msg.which,
                                                origin, NULL);
 }
 
@@ -866,12 +866,13 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
     remote_dep_wire_get_t msg;
     dague_remote_deps_t* deps = dep_activate_buff[i];
     void* data;
-
+    remote_dep_datakey_t locals;
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
 
+    locals = deps->msg.which;
     remote_dep_get_datatypes(deps);
-   
-    remote_dep_datakey_t locals = deps->msg.which ^ task->which;
+    locals ^= deps->msg.which;
+    assert(0 == locals); /* we do not support RO dep backtracking, make sure it doesn't happen yet */
     msg.which = deps->msg.which;
     msg.deps = task->deps;
     msg.tag = NEXT_TAG;
@@ -883,6 +884,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
         {
             dtt = *deps->output[k].type;
             data = GC_DATA(deps->output[k].data);
+            assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == data)
             { 
                 data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );

@@ -195,7 +195,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
-    remote_dep_get_datatypes(remote_deps);
     
     if(remote_deps->root == eu_context->master_context->my_rank) me = 0;
     else me = -1; 

@@ -899,6 +899,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     return 0;
 }
 
+#define is_inplace(ctx,param,dep) NULL
+#define is_read_only(ctx,param,dep) NULL
+
 dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
@@ -910,12 +913,25 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
 
     if( arg->action_mask & (1 << param_index) ) {
 #if defined(DISTRIBUTED)
-        if( arg->action_mask & DAGUE_ACTION_GETTYPE_REMOTE_DEPS ) {
-            /* TODO: find a test to check the indices on this line */
-            arg->deps->output[param_index].type = NULL; /* To be used by in-place ops later, needs to be NULL now */
-            arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
+        if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
+            void* data;
+            if(NULL != (data = is_read_only(oldcontext, param_index, outdep_index)))
+            {
+                arg->deps->msg.which &= ~(1 << param_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->output[param_index].data = data;
+            }
+            else if(NULL != (data = is_inplace(oldcontext, param_index, outdep_index)))
+            {
+                arg->deps->output[param_index].data = data; /* inplace there, don't allocate but still receive */
+                arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
+            }
+            else
+            {
+                arg->deps->output[param_index].data = NULL; /* not local or inplace, lets allocate it */ 
+                arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
+            }
         }
-        if( arg->action_mask & DAGUE_ACTION_INIT_REMOTE_DEPS ) {
+        if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
             int _array_pos, _array_mask;
 
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
@@ -923,6 +939,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
                 arg->remote_deps->output[param_index].data = arg->data[param_index];
                 arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[param_index].count++;
