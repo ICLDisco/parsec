@@ -272,7 +272,7 @@ include_directories(${PLASMA_INCLUDE_DIR})
 #
 # Setup targets
 #
-add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c
+add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
   src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
   src/freelist.c src/debug.c src/bindthread.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
@@ -282,7 +282,7 @@ set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
 if (DAGUE_MPI AND MPI_FOUND)
-  add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c
+  add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
     src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
     src/freelist.c src/debug.c src/bindthread.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
