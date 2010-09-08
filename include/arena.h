@@ -46,7 +46,7 @@ union _internal_dague_arena_elem_prefix_list_item_t {
 #define DAGUE_ARENA_ALIGNMENT_64b 8
 #define DAGUE_ARENA_ALIGNMENT_SSE 16
 #define DAGUE_ARENA_ALIGNMENT_CL1 64
-#define DAGUE_ARENA_MIN_ALIGNMENT(align) (align*((sizeof(union _internal_dague_arena_elem_prefix_list_item_t)-align+1)/align+1))
+#define DAGUE_ARENA_MIN_ALIGNMENT(align) ((ptrdiff_t)(align*((sizeof(union _internal_dague_arena_elem_prefix_list_item_t)-align+1)/align+1)))
 
 #define DAGUE_ARENA_IS_PTR(ptr) (((ptrdiff_t) ptr) & (ptrdiff_t) 1)
 #define DAGUE_ARENA_PREFIX(ptr) ((dague_arena_elem_prefix_t*)(((ptrdiff_t) ptr) & ~(ptrdiff_t) 1))
