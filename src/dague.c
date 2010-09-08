@@ -601,42 +601,6 @@ int dague_fini( dague_context_t** pcontext )
 }
 
 /**
- * Check is there is any of the input parameters that do depend on some
- * other service. 
- */
-static int dague_service_can_be_startup( const dague_object_t *dague_object, dague_execution_context_t* exec_context )
-{
-    const dague_t* function = exec_context->function;
-    const param_t* param;
-    const dep_t* dep;
-    int i, j, value;
-
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
-        param = function->in[i];
-
-        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
-            dep = param->dep_in[j];
-
-            if( NULL == dep->cond ) {
-                if( dep->dague->nb_locals != 0 ) {
-                    /* Strict dependency on another service. No chance to be a starter */
-                    return -1;
-                }
-                continue;
-            }
-            /* TODO: Check to see if the condition can be applied in the current context */
-            (void)expr_eval( dague_object, dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
-            if( value == 1 ) {
-                if( dep->dague->nb_locals != 0 ) {
-                    return -1;
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-/**
  * Convert the execution context to a string.
  */
 char* dague_service_to_string( const dague_execution_context_t* exec_context,
