@@ -23,6 +23,7 @@ typedef void dague_remote_dep_datatype_t;
 #include "execution_unit.h"
 #include "datarepo.h"
 #include "dague.h"
+#include "arena.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
@@ -63,8 +64,8 @@ struct dague_remote_deps_t {
     struct { /** Never change this structure without understanding the 
               *   "subtle" relation with  remote_deps_allocation_init in remote_dep.c
               */
-        gc_data_t*                          data;
-        dague_remote_dep_datatype_t*        type;
+        void*    	                        data;
+        struct dague_arena_t* 	            type;
         uint32_t*                           rank_bits;
         uint32_t                            count;
     } output[1];
