@@ -9,6 +9,9 @@
 #include <stdlib.h>
 
 #include "dague_config.h"
+#if defined(HAVE_STDDEF_H)
+#include <stddef.h>
+#endif  /* HAVE_STDDEF_H */
 #include "debug.h"
 #include "stats.h"
 
