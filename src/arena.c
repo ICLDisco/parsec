@@ -102,7 +102,7 @@ redo:
         chunk->data = (void*) aptr;
         chunk->refcount = 1;
     }
-    return (void*) (((ptrdiff_t) item) & 1);
+    return (void*) (((ptrdiff_t) item) | 1);
 }
 
 void  dague_arena_release(void* ptr)

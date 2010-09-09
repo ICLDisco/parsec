@@ -793,9 +793,8 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & task->which)) continue;
         //DEBUG(("%p[%d] %p, %p\n", deps, k, deps->output[k].data, GC_DATA(deps->output[k].data)));
-        data = deps->output[k].data;
-        dtt = *DAGUE_ARENA_DATA_TYPE(data);
-		data = ADATA(data);
+        data = ADATA(deps->output[k].data);
+        dtt = *deps->output[k].type->opaque_dtt;
 #ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith data %lx at %p type %s\t(tag=%d)\n", to, i, k, task->deps, data, type_name, tag+k));
@@ -907,7 +906,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
                     printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
 #endif
                     data = dague_arena_get(deps->output[k].type);
-                    DEBUG(("Malloc new remote tile %p size %zu\n", data, size));
+                    DEBUG(("Malloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
                     assert(data != NULL);
                 }
 #ifdef FLOW_CONTROL
@@ -930,7 +929,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
             }
 #ifdef DAGUE_DEBUG
             MPI_Type_get_name(dtt, type_name, &len);
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, type_name, size, NEXT_TAG+k));
+            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
 #endif
             /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
