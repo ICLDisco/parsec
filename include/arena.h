@@ -61,8 +61,8 @@ union _internal_dague_arena_elem_prefix_list_item_t {
 #define DAGUE_ARENA_DATA_SIZE(ptr) (DAGUE_ARENA_PREFIX(ptr)->elem_size)
 #define DAGUE_ARENA_DATA_TYPE(ptr) (DAGUE_ARENA_PREFIX(ptr)->origin->opaque_dtt)
 
-void dague_arena_construct(dague_arena_t* arena, size_t elem_size, size_t alignment);
-void dague_arena_construct_full(dague_arena_t* arena, size_t elem_size, size_t alignment, int32_t max_used, int32_t max_released); 
+void dague_arena_construct(dague_arena_t* arena, size_t elem_size, size_t alignment, dague_remote_dep_datatype_t* opaque_dtt);
+void dague_arena_construct_full(dague_arena_t* arena, size_t elem_size, size_t alignment, dague_remote_dep_datatype_t* opaque_dtt, int32_t max_used, int32_t max_released); 
 void dague_arena_destruct(dague_arena_t* arena);
 
 void* dague_arena_get(dague_arena_t* arena);

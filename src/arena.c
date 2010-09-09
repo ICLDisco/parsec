@@ -17,11 +17,12 @@ union _internal_dague_arena_elem_prefix_list_item_t {
 #define DAGUE_ARENA_MIN_ALIGNMENT(align) (align*((sizeof(union _internal_dague_arena_elem_prefix_list_item_t)-align+1)/align+1))
 #endif 
 
-void dague_arena_construct(dague_arena_t* arena, size_t elem_size, size_t alignment)
+void dague_arena_construct(dague_arena_t* arena, size_t elem_size, size_t alignment, dague_remote_dep_datatype_t* opaque_dtt)
 {
    dague_atomic_lifo_construct(&arena->lifo);
    arena->alignment = alignment;
    arena->elem_size = elem_size;
+   arena->opaque_dtt = opaque_dtt;
    arena->used = 0;     
    arena->released = 0;
    arena->max_used = INT32_MAX;
@@ -30,9 +31,9 @@ void dague_arena_construct(dague_arena_t* arena, size_t elem_size, size_t alignm
    arena->free = NULL;
 }
 
-void dague_arena_construct_full(dague_arena_t* arena, size_t elem_size, size_t alignment, int32_t max_used, int32_t max_released)
+void dague_arena_construct_full(dague_arena_t* arena, size_t elem_size, size_t alignment, dague_remote_dep_datatype_t* opaque_dtt, int32_t max_used, int32_t max_released)
 {
-    dague_arena_construct(arena, elem_size, alignment);
+    dague_arena_construct(arena, elem_size, alignment, opaque_dtt);
     arena->max_used = max_used;
     arena->max_released = max_released;
 }

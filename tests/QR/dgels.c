@@ -117,7 +117,10 @@ int GRIDrows = 1;
 two_dim_block_cyclic_t ddescA;
 two_dim_block_cyclic_t ddescT;
 #if defined(DISTRIBUTED)
-MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
+#include "arena.h"
+
+dague_arena_t LOWER_TILE, UPPER_TILE, LITTLE_T;
+MPI_Datatype MPI_LOWER_TILE, MPI_UPPER_TILE, MPI_LITTLE_T;
 #endif
 
 /* TODO Remove this ugly stuff */
@@ -429,29 +432,31 @@ static void create_datatypes(void)
         blocklens[i] = i + 1;
         indices[i] = i * NB;
     }
-
-    MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &UPPER_TILE);
-    MPI_Type_set_name(UPPER_TILE, "Upper");
-    MPI_Type_commit(&UPPER_TILE);
-    
-    MPI_Type_get_extent(UPPER_TILE, &lb, &ub);
+    MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &MPI_UPPER_TILE);
+    MPI_Type_set_name(MPI_UPPER_TILE, "Upper");
+    MPI_Type_commit(&MPI_UPPER_TILE);
+    MPI_Type_get_extent(MPI_UPPER_TILE, &lb, &ub);
+    dague_arena_construct(&UPPER_TILE, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_UPPER_TILE); 
     
     /* LOWER_TILE without the diagonal */
     for( i = 0; i < count-1; i++ ) {
         blocklens[i] = NB - i - 1;
         indices[i] = i * NB + i + 1;
     }
-
     MPI_Type_indexed(count-1, blocklens, indices, MPI_DOUBLE, &tmp);
-    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LOWER_TILE);
-    MPI_Type_set_name(LOWER_TILE, "Lower");
-    MPI_Type_commit(&LOWER_TILE);
-    
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &MPI_LOWER_TILE);
+    MPI_Type_set_name(MPI_LOWER_TILE, "Lower");
+    MPI_Type_commit(&MPI_LOWER_TILE);
+	MPI_Type_get_extent(MPI_LOWER_TILE, &lb, &ub);
+    dague_arena_construct(&LOWER_TILE, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_LOWER_TILE);
+
     /* LITTLE_T is a NB*IB rectangle (containing IB*IB Lower tiles) */
     MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
-    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &LITTLE_T);
-    MPI_Type_set_name(LITTLE_T, "T");
-    MPI_Type_commit(&LITTLE_T);
+    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &MPI_LITTLE_T);
+    MPI_Type_set_name(MPI_LITTLE_T, "T");
+    MPI_Type_commit(&MPI_LITTLE_T);
+	MPI_Type_get_extent(MPI_LITTLE_T, &lb, &ub);
+	dague_arena_construct(&LITTLE_T, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_LITTLE_T);
     
     free(blocklens);
     free(indices);
