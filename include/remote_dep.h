@@ -12,7 +12,6 @@
 # define DISTRIBUTED
 #include <mpi.h>
 typedef MPI_Datatype dague_remote_dep_datatype_t;
-extern dague_remote_dep_datatype_t DAGUE_DEFAULT_DATA_TYPE;
 #else
 # undef DISTRIBUTED
 typedef void dague_remote_dep_datatype_t;
@@ -132,6 +131,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 void dague_remote_dep_memcpy(void *dst, gc_data_t *src, const dague_remote_dep_datatype_t datatype);
 
 /* Create a default datatype */
+extern struct dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
+//extern dague_remote_dep_datatype_t DAGUE_DEFAULT_DATA_TYPE;
 void remote_dep_mpi_create_default_datatype(int tile_size, dague_remote_dep_datatype_t base);
 
 #else 

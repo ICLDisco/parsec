@@ -85,18 +85,18 @@ redo:
         assert(!(iptr & (ptrdiff_t)1)); /* all pointers are even */
         ptrdiff_t ialign = arena->alignment - 1;
         ptrdiff_t aptr = ((iptr+DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)) & ~ialign);
-            if(DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment) > (aptr - iptr))
+        if(DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment) > (aptr - iptr))
+        {
+            aptr += DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment);
+            if(aptr + arena->elem_size > iptr + size)
             {
-                aptr += DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment);
-                if(aptr + arena->elem_size > iptr + size)
-                {
-                    /*spilling, redo it with a bigger malloc*/
-                    if(arena->free) arena->free(item);
-                    else free(item);
-                    size += ialign;
-                    goto redo;
-                }
+                /*spilling, redo it with a bigger malloc*/
+                if(arena->free) arena->free(item);
+                else free(item);
+                size += ialign;
+                goto redo;
             }
+        }
         dague_arena_elem_prefix_t* chunk = (void*) item;
         chunk->origin = arena;
         chunk->data = (void*) aptr;
@@ -105,13 +105,13 @@ redo:
     return (void*) (((ptrdiff_t) item) | 1);
 }
 
-void  dague_arena_release(void* ptr)
+void dague_arena_release(void* ptr)
 {
     dague_arena_elem_prefix_t* chunk = DAGUE_ARENA_PREFIX(ptr);
     assert(DAGUE_ARENA_IS_PTR(ptr));
     dague_arena_t* arena = chunk->origin;
     assert(NULL != chunk->origin);
-    assert(1 == chunk->refcount);
+    assert(1 >= chunk->refcount);
 
     if(arena->released >= arena->max_released)
     {

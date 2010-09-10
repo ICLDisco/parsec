@@ -2079,7 +2079,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
         UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                              dump_expr, &info, "", "", ", ", "");
         coutput("%s  if( %s != %s(%s) ) {\n"
-                "%s    dague_remote_dep_memcpy( %s(%s), g%s, %s );\n"
+                "%s    dague_remote_dep_memcpy( %s(%s), g%s, *%s.opaque_dtt );\n"
                 "%s  }\n",                
                 spaces, f->varname, call->func_or_mem, string_arena_get_string(sa),
                 spaces, call->func_or_mem, string_arena_get_string(sa), f->varname, 
