@@ -92,7 +92,7 @@ typedef union dep_cmd_t
         int enable;        
     } ctl;
     struct {
-        gc_data_t *source;
+        dague_arena_chunk_t* source;
         void *destination;
         dague_remote_dep_datatype_t datatype;
     } memcpy;
@@ -254,7 +254,7 @@ static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context)
     return 0;
 }
 
-void dague_remote_dep_memcpy(void *dst, gc_data_t *src, dague_remote_dep_datatype_t datatype)
+void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_dep_datatype_t datatype)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     item->action = DEP_MEMCPY;
@@ -380,7 +380,7 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
 {
     int actions = DAGUE_ACTION_NO_PLACEHOLDER | DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
     dague_execution_context_t exec_context;
-    gc_data_t* data[MAX_PARAM_COUNT];
+    dague_arena_chunk_t* data[MAX_PARAM_COUNT];
     int ret, i;
     
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
@@ -395,7 +395,7 @@ static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague
 #ifdef DAGUE_DEBUG
 /*            {
                 char tmp[128];
-                void* _data = GC_DATA(data[i]);
+                void* _data = ADATA(data[i]);
                 DEBUG(("%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
                        dague_service_to_string(&exec_context, tmp, 128),
                        _data, ((double*)_data)[0], ((double*)_data)[1], ((double*)_data)[2]));

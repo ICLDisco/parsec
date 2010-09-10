@@ -128,7 +128,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 uint32_t remote_deps_count );
 
 /* Memcopy a particular data using datatype specification */
-void dague_remote_dep_memcpy(void *dst, gc_data_t *src, const dague_remote_dep_datatype_t datatype);
+void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, const dague_remote_dep_datatype_t datatype);
 
 /* Create a default datatype */
 extern struct dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
