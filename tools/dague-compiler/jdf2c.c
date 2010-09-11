@@ -2750,7 +2750,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
         }
         coutput("\n");
     }
-
+    coutput("  (void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;\n");
     coutput("}\n"
             "\n");
 
