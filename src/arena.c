@@ -86,7 +86,8 @@ redo:
 		ptrdiff_t aptr = ((optr+
 							sizeof(union _internal_chunk_prefix_t)+
 							arena->alignment-1)/arena->alignment)*arena->alignment;
-        if(aptr + arena->elem_size > optr + size)
+        DEBUG(("aptr %zx, optr %zx, elem %zu, malloc %zu\n", aptr, optr, arena->elem_size, size));
+		if(aptr + arena->elem_size > optr + size)
         {
         	/*spilling, redo it with a bigger malloc*/
             if(arena->free) arena->free(item);
@@ -101,7 +102,7 @@ redo:
     chunk->data = (void*) (((((ptrdiff_t)item)+
 							sizeof(union _internal_chunk_prefix_t)+
 							arena->alignment-1)/arena->alignment)*arena->alignment);
-    DEBUG(("Arena get a new tile of size %zu from arena %p, aligned onby %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n", arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+    DEBUG(("Arena get a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n", arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
     return (dague_arena_chunk_t*) (((ptrdiff_t) chunk) | 1);
 }
 

@@ -928,7 +928,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
             }
 #ifdef DAGUE_DEBUG
             MPI_Type_get_name(dtt, type_name, &len);
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
+            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith data %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
 #endif
             /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
             TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
