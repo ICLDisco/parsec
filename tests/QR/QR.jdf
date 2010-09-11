@@ -84,6 +84,8 @@ k = 0..MINMTNT-1
 RW RV1 <- RV1 DGEQRT(k)
        -> (k != NT-1) ? V1 DORMQR(k, k+1..NT-1) [LOWER_TILE]
        -> A(k,k)                                [LOWER_TILE]
+;	(NT-k)*(NT-k)*(NT-k)
+
 BODY
  /* nothing */
 END
@@ -97,8 +99,8 @@ DGEQRT(k)  (high_priority)
  : A(k, k)
 
   RW RV1 <- (k == 0)    ? A(0,0) : C2 DSSMQR(k-1,k,k)
-         -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)          [UPPER_TILE]
          -> RV1 DGEQRT_HACK(k)
+         -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)          [UPPER_TILE]
   RW T   <- T(k,k)                                          [LITTLE_T]
          -> T DORMQR(k, k+1..NT-1)                          [LITTLE_T]
          -> T(k,k)                                          [LITTLE_T]
