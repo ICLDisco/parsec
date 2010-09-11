@@ -108,8 +108,8 @@ DGEQRT_HACK(k)  (high_priority)
  : (k / ctileSIZE) % GRIDcols == colRANK
 
 INOUT RV1 <- RV1 DGEQRT(k)
-          -> (k != MINMTNT-1) ? V1 DORMQR(k, k+1..MINMTNT-1) [LOWER_TILE]
-          -> A(k,k)                                          [LOWER_TILE]
+          -> (k != NT-1) ? V1 DORMQR(k, k+1..NT-1) [LOWER_TILE]
+          -> A(k,k)                                [LOWER_TILE]
 BODY
  /* nothing */
 END
@@ -124,10 +124,10 @@ DGEQRT(k)  (high_priority)
  : (k / ctileSIZE) % GRIDcols == colRANK
 
   INOUT RV1 <- (k == 0)         ? A(0,0) : C2 DSSMQR(k-1,k,k)
-            -> (k == MINMTNT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]     
+            -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)          [UPPER_TILE]     
             -> RV1 DGEQRT_HACK(k)
   INOUT T   <- T(k,k)                                          [LITTLE_T]
-            -> T DORMQR(k, k+1..MINMTNT-1)                     [LITTLE_T]
+            -> T DORMQR(k, k+1..NT-1)                          [LITTLE_T]
             -> T(k,k)                                          [LITTLE_T]
 
 BODY
@@ -153,12 +153,12 @@ END
 */
 
 DTSQRT_OUT(k)  (high_priority)
-  k = 0 .. MINMTNT-2
+  k = 0 .. ((MT > NT) ? (MINMTNT-1) : (MINMTNT-2))
   
  : (k / rtileSIZE) % GRIDrows == rowRANK
  : (k / ctileSIZE) % GRIDcols == colRANK
   
-  INOUT R <- R DTSQRT(k, MINMTNT-1) [UPPER_TILE]
+  INOUT R <- R DTSQRT(k, MT-1)      [UPPER_TILE]
           -> A(k, k)                [UPPER_TILE]
           
 BODY
@@ -169,21 +169,21 @@ END
 DTSQRT(k,m)  (high_priority)
 
   // Execution space
-  k = 0..MINMTNT-2
-  m = k+1..MINMTNT-1
+  k = 0..MINMTNT-1
+  m = k+1..MT-1
 
   // Parallel partitioning
   : (m / rtileSIZE) % GRIDrows == rowRANK
   : (k / ctileSIZE) % GRIDcols == colRANK
 
   INOUT V2 <- (k == 0) ? A(m,0) : C2 DSSMQR(k-1,k,m)
-           -> V2 DSSMQR(k,k+1..MINMTNT-1,m)
+           -> V2 DSSMQR(k,k+1..NT-1,m)
            -> A(m,k)
-  INOUT R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)             [UPPER_TILE]           
-           -> (m == MINMTNT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
-  INOUT T  <- T(m,k)                                                   [LITTLE_T]
-           -> T DSSMQR(k,k+1..MINMTNT-1,m)                             [LITTLE_T]
-           -> T(m,k)                                                   [LITTLE_T]
+  INOUT R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)        [UPPER_TILE]           
+           -> (m == MT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
+  INOUT T  <- T(m,k)                                              [LITTLE_T]
+           -> T DSSMQR(k,k+1..NT-1,m)                             [LITTLE_T]
+           -> T(m,k)                                              [LITTLE_T]
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -210,8 +210,8 @@ END
 DORMQR(k,n)  (high_priority)
 
   // Execution space
-  k = 0..MINMTNT-2
-  n = k+1..MINMTNT-1
+  k = 0..MINMTNT-1
+  n = k+1..NT-1
 
   // Parallel partitioning
   : (k / rtileSIZE) % GRIDrows == rowRANK
@@ -219,8 +219,8 @@ DORMQR(k,n)  (high_priority)
 
   IN T     <- T DGEQRT(k)                               [LITTLE_T]
   IN V1    <- RV1 DGEQRT_HACK(k)                        [LOWER_TILE] 
-  INOUT C1 <- (k == 0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
-           -> C1 DSSMQR(k,n,k+1)
+  INOUT C1 <- (k == 0) ? A(k,n) : C2 DSSMQR(k-1, n, k)
+           -> C1 DSSMQR(k,n, k+1)
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
@@ -244,26 +244,12 @@ END
 /*****************************************
  37:41
 */
-DSSMQR_OUT(k, n)
-  k = 0 .. MINMTNT-2
-  n = k+1 .. MINMTNT - 1
-  
-  : (k / rtileSIZE) % GRIDrows == rowRANK
-  : (n / ctileSIZE) % GRIDcols == colRANK
-  
-  INOUT A <- C1 DSSMQR(k, n, MINMTNT-1)
-          -> A(k, n)
-          
-BODY
-/* nothing */
-END
-
 DSSMQR(k,n,m)
 
   // Execution space
-  k = 0   .. MINMTNT-2
-  n = k+1 .. MINMTNT-1
-  m = k+1 .. MINMTNT-1
+  k = 0   .. MINMTNT-1
+  n = k+1 .. NT-1
+  m = k+1 .. MT-1
 
   // Parallel partitioning
   : (m / rtileSIZE) % GRIDrows == rowRANK
@@ -278,7 +264,7 @@ DSSMQR(k,n,m)
            -> ((k  < n-1) & (m == k+1)) ? C1 DORMQR(k+1,n)
            -> ((k  < n-1) & (k  < m-1)) ? C2 DSSMQR(k+1,n,m)
   INOUT C1 <- (m == k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
-           -> (m == MINMTNT-1) ? A DSSMQR_OUT(k,n) : C1 DSSMQR(k,n,m+1)
+           -> (m == MT-1) ? A(k,n) : C1 DSSMQR(k,n,m+1)
 
 BODY
 #if !defined(DPLASMA_DRY_RUN)
