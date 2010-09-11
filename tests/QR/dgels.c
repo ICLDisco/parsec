@@ -451,8 +451,9 @@ static void create_datatypes(void)
     dague_arena_construct(&LOWER_TILE, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_LOWER_TILE);
 
     /* LITTLE_T is a NB*IB rectangle (containing IB*IB Lower tiles) */
-    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
-    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &MPI_LITTLE_T);
+    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &MPI_LITTLE_T);
+	//MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
+    //MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &MPI_LITTLE_T);
     MPI_Type_set_name(MPI_LITTLE_T, "T");
     MPI_Type_commit(&MPI_LITTLE_T);
 	MPI_Type_get_extent(MPI_LITTLE_T, &lb, &ub);
