@@ -118,7 +118,7 @@ INOUT C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
         -> (m == k+1) ? F SYRK(m, 0) : A(m,k)
         -> A(m, k)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 1
+; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 2
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, k );
@@ -180,7 +180,7 @@ IN    F <- (n == 0) ? C TRSM(k-1, k) : A(k,k)
 INOUT T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T SYRK(k, n+1)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 2
+; 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, n );
@@ -245,7 +245,7 @@ IN    F <- (n == 0) ? F POTRF(k) : A(m, k)
 INOUT C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
-; 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) + 3
+; 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 3
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, n );

@@ -1000,7 +1000,7 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
 #if DPLASMA_SMART_SCHEDULING
         gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[0].gpu_devices));
 #else
-     	gpu_device =gpu_devices[0];
+     	gpu_device = gpu_devices[0];
 #endif
         if( NULL != gpu_device ) {
             status = cuCtxPushCurrent( gpu_device->ctx );

@@ -276,7 +276,7 @@ add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
 set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-#target_link_libraries(dplasma ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+#target_link_libraries(dplasma ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY})
 
 if (DPLASMA_MPI AND MPI_FOUND)
   add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
@@ -286,7 +286,7 @@ if (DPLASMA_MPI AND MPI_FOUND)
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
-#  target_link_libraries(dplasma-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+#  target_link_libraries(dplasma-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY})
 endif (DPLASMA_MPI AND MPI_FOUND)
 
 #

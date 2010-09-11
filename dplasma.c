@@ -268,13 +268,13 @@ static void dplasma_statistics(char* str)
         printf("User Time   (secs)          : %10.3f\n", usr);
         printf("System Time (secs)          : %10.3f\n", sys);
         printf("Total Time  (secs)          : %10.3f\n", usr + sys);
-        printf("Minor Page Faults           : %10d\n", (current.ru_minflt  - _dplasma_rusage.ru_minflt));
-        printf("Major Page Faults           : %10d\n", (current.ru_majflt  - _dplasma_rusage.ru_majflt));
-        printf("Swap Count                  : %10d\n", (current.ru_nswap   - _dplasma_rusage.ru_nswap));
-        printf("Voluntary Context Switches  : %10d\n", (current.ru_nvcsw   - _dplasma_rusage.ru_nvcsw));
-        printf("Involuntary Context Switches: %10d\n", (current.ru_nivcsw  - _dplasma_rusage.ru_nivcsw));
-        printf("Block Input Operations      : %10d\n", (current.ru_inblock - _dplasma_rusage.ru_inblock));
-        printf("Block Output Operations     : %10d\n", (current.ru_oublock - _dplasma_rusage.ru_oublock));
+        printf("Minor Page Faults           : %10ld\n", (current.ru_minflt  - _dplasma_rusage.ru_minflt));
+        printf("Major Page Faults           : %10ld\n", (current.ru_majflt  - _dplasma_rusage.ru_majflt));
+        printf("Swap Count                  : %10ld\n", (current.ru_nswap   - _dplasma_rusage.ru_nswap));
+        printf("Voluntary Context Switches  : %10ld\n", (current.ru_nvcsw   - _dplasma_rusage.ru_nvcsw));
+        printf("Involuntary Context Switches: %10ld\n", (current.ru_nivcsw  - _dplasma_rusage.ru_nivcsw));
+        printf("Block Input Operations      : %10ld\n", (current.ru_inblock - _dplasma_rusage.ru_inblock));
+        printf("Block Output Operations     : %10ld\n", (current.ru_oublock - _dplasma_rusage.ru_oublock));
         printf("=============================================================\n");
     }
 
