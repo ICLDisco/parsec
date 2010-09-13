@@ -156,6 +156,11 @@ int plasma_dump(PLASMA_desc * Pdesc);
 int compare_matrices(DPLASMA_desc * A, DPLASMA_desc * B, float precision);
 int compare_distributed_tiles(DPLASMA_desc * A, DPLASMA_desc * B, int row, int col, float precision);
 int compare_plasma_matrices(PLASMA_desc * A, PLASMA_desc * B, float precision);
+int data_read(DPLASMA_desc * Ddesc, char * filename);
+int data_write(DPLASMA_desc * Ddesc, char * filename);
 
+#ifdef USE_MPI
+void compare_dist_data(DPLASMA_desc * a, DPLASMA_desc * b);
+#endif
 
 #endif
