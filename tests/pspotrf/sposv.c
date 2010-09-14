@@ -35,6 +35,7 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_management.h"
+#include "remote_dep.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"
@@ -212,6 +213,8 @@ int main(int argc, char ** argv)
                 cpu_counter = 0;
             }
         }
+
+        dplasma_remote_dep_preallocate_buffers( 1024, NB*NB*sizeof(float), use_gpu );
 
         scatter_matrix(&descA, &ddescA);
         TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));

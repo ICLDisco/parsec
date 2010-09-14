@@ -132,6 +132,7 @@ void dplasma_remote_dep_memcpy(void *dst, gc_data_t *src, const dplasma_remote_d
 /* Create a default datatype */
 void remote_dep_mpi_create_default_datatype(int tile_size, dplasma_remote_dep_datatype_t base);
 
+void dplasma_remote_dep_preallocate_buffers( int nb, size_t size, int use_gpu );
 #else 
 # define dplasma_remote_dep_init(ctx) (1)
 # define dplasma_remote_dep_fini(ctx) (0)
@@ -140,6 +141,7 @@ void remote_dep_mpi_create_default_datatype(int tile_size, dplasma_remote_dep_da
 # define dplasma_remote_dep_progress(ctx) (0)
 # define dplasma_remote_dep_activate(ctx, o, r, c) (-1)
 # define DPLASMA_DEFAULT_DATA_TYPE    (NULL)
+# define dplasma_remote_dep_preallocate_buffers(a, b, c) (0)
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */

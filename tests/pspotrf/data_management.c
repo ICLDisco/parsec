@@ -238,7 +238,7 @@ int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc *
     /* Allocate memory for matrices in block layout */
     Abdl = dplasma_allocate_matrix(NT*NT*PLASMA_NBNBSIZE*sizeof(float), 0);
     if (Abdl == NULL) {
-        printf("PLASMA_dpotrf", "Allocating %d bytes of memory failed", NT*NT*PLASMA_NBNBSIZE*sizeof(float));
+        printf("PLASMA_dpotrf: Allocating %ld bytes of memory failed", NT*NT*PLASMA_NBNBSIZE*sizeof(float));
         return PLASMA_ERR_OUT_OF_RESOURCES;
     }
 
@@ -990,6 +990,18 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
 extern gpu_device_t** gpu_devices;
 #endif  /* defined(DPLASMA_CUDA_SUPPORT) */
 
+static int using_gpu = 0;
+
+void dplasma_free_matrix( void *dta )
+{
+#if defined(DPLASMA_CUDA_SUPPORT)
+    if( using_gpu )
+        cuMemFreeHost( dta );
+    else
+#endif
+        free( dta );
+}
+
 void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
 {
     void* mat = NULL;
@@ -997,6 +1009,9 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
     if( use_gpu ) {
         CUresult status;
         gpu_device_t* gpu_device;
+
+        using_gpu = 1;
+
 #if DPLASMA_SMART_SCHEDULING
         gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[0].gpu_devices));
 #else

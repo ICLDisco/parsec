@@ -119,6 +119,21 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
     return str;
 }
 
+void* dplasma_allocate_matrix( int matrix_size, int use_gpu);
+
+void dplasma_remote_dep_preallocate_buffers( int nb, size_t size, int use_gpu )
+{
+    int i;
+
+    for(i = 0; i < nb; i++)
+        {
+            dplasma_list_item_t *item = (dplasma_list_item_t *)dplasma_allocate_matrix(size, use_gpu );
+            DPLASMA_LIST_ITEM_SINGLETON( item );
+            dplasma_atomic_lifo_push( internal_alloc_lifo, item );
+        }
+
+}
+
 pthread_t dep_thread_id;
 dplasma_dequeue_t dep_cmd_queue;
 dplasma_dequeue_t dep_activate_queue;
@@ -517,6 +532,7 @@ static int remote_dep_mpi_init(dplasma_context_t* context)
     assert( 0 == internal_alloc_lifo_init );
     internal_alloc_lifo = (dplasma_atomic_lifo_t*)malloc(sizeof(dplasma_atomic_lifo_t));
     dplasma_atomic_lifo_construct( internal_alloc_lifo );
+
     internal_alloc_lifo_init = 1;
     internal_alloc_lifo_num_used = 0;
 
@@ -579,6 +595,8 @@ static int remote_dep_mpi_off(dplasma_context_t* context)
     return dep_enabled = 0;
 }
 
+void dplasma_free_matrix(void *dta);
+
 static int remote_dep_mpi_fini(dplasma_context_t* context)
 {
     if(dep_enabled) remote_dep_mpi_off(context);
@@ -587,7 +605,7 @@ static int remote_dep_mpi_fini(dplasma_context_t* context)
         dplasma_list_item_t* item;
         int nb_allocated_items = 0;
         while( NULL != (item = dplasma_atomic_lifo_pop(internal_alloc_lifo)) ) {
-            free(item);
+            dplasma_free_matrix(item);
             nb_allocated_items++;
         }
         free(internal_alloc_lifo);
@@ -859,7 +877,8 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                     if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                     {
 #endif
-                        data = malloc(size);
+                        printf("Je veux que ça n'arrive JAMAIS!\n");
+                        data = malloc( size );
 #ifdef FLOW_CONTROL
 			printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
 #endif
