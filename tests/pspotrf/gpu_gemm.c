@@ -138,7 +138,8 @@ int spotrf_cuda_init( int* puse_gpu )
 #endif
 
 	for( i = 0; i < ndevices; i++ ) {
-        unsigned int total_mem, tile_size, thread_gpu_mem, free_mem, nb_allocations;
+        unsigned int total_mem, tile_size, thread_gpu_mem, free_mem;
+        unsigned int nb_allocations = 0;
         dplasma_atomic_lifo_t* gpu_mem_lifo;
         gpu_device_t* gpu_device;
         CUdevprop devProps;
