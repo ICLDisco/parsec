@@ -94,9 +94,9 @@ static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
     return 0;
 }
 
-int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc ) 
+int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc, int use_gpu ) 
 {
-    Ddesc->mat = malloc(sizeof(float) * Ddesc->nb_elem_c * Ddesc->nb_elem_r * Ddesc->bsiz);
+    Ddesc->mat = dplasma_allocate_matrix(sizeof(float) * Ddesc->nb_elem_c * Ddesc->nb_elem_r * Ddesc->bsiz, use_gpu);
     return 0;
 }
 
@@ -120,7 +120,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     return ddesc_compute_vals( Ddesc );
 }
 
-int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
+int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc, int use_gpu)
 {
 #ifdef USE_MPI
     int tmp_ints[20];
@@ -181,7 +181,7 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
         }
     }
     
-    return dplasma_desc_workspace_allocate(Ddesc);
+    return dplasma_desc_workspace_allocate(Ddesc, use_gpu);
 #else /* USE_MPI */
     
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);

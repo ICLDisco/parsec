@@ -125,12 +125,14 @@ void dplasma_remote_dep_preallocate_buffers( int nb, size_t size, int use_gpu )
 {
     int i;
 
-    for(i = 0; i < nb; i++)
-        {
-            dplasma_list_item_t *item = (dplasma_list_item_t *)dplasma_allocate_matrix(size, use_gpu );
-            DPLASMA_LIST_ITEM_SINGLETON( item );
-            dplasma_atomic_lifo_push( internal_alloc_lifo, item );
-        }
+    if( NULL != internal_alloc_lifo ) {
+        for(i = 0; i < nb; i++)
+            {
+                dplasma_list_item_t *item = (dplasma_list_item_t *)dplasma_allocate_matrix(size, use_gpu );
+                DPLASMA_LIST_ITEM_SINGLETON( item );
+                dplasma_atomic_lifo_push( internal_alloc_lifo, item );
+            }
+    }
 
 }
 

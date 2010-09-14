@@ -71,11 +71,11 @@ typedef struct tile_coordinate{
 int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc);
 
 /* allocate the inner storage */
-int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc );
+int dplasma_desc_workspace_allocate( DPLASMA_desc * Ddesc, int use_gpu );
 
 
 /* initialize and bcast Ddesc from Pdesc */
-int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc);
+int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc *Ddesc, int use_gpu);
 
 /* computing the mpi process rank that should handle tile A(m,n) */
 

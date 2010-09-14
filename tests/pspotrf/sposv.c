@@ -284,13 +284,13 @@ int main(int argc, char ** argv)
         cleanup_dplasma(dplasma);
         /*** END OF DPLASMA COMPUTATION ***/
 		
+        gather_matrix(&descA, &ddescA);
         /* Cleanup CUDA */
         {
             if (use_gpu > 0) {
                 spotrf_cuda_fini( use_gpu );
             }
         }
-        gather_matrix(&descA, &ddescA);
         break;
     }
     }
@@ -674,7 +674,7 @@ static void scatter_matrix(PLASMA_desc* local, DPLASMA_desc* dist)
         dplasma_desc_init(local, dist);
     }
 #ifdef USE_MPI
-    dplasma_desc_bcast(local, dist);
+    dplasma_desc_bcast(local, dist, use_gpu);
     distribute_data(local, dist);
     /*TIME_PRINT(("data distribution on rank %d\n", dist->mpi_rank));*/
     
@@ -769,7 +769,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
  * */
 static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, float eps)
 {
-    float Anorm, Rnorm;
+    float Anorm;
     float alpha;
     int info_factorization;
     int i,j;
@@ -778,7 +778,8 @@ static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, f
     float *L1       = (float *)malloc(N*N*sizeof(float));
     float *L2       = (float *)malloc(N*N*sizeof(float));
     float *work     = (float *)malloc(N*sizeof(float));
-    
+    float Rnorm;
+
     /*memset((void*)L1, 0, N*N*sizeof(float));*/
     /*memset((void*)L2, 0, N*N*sizeof(float));*/
     
@@ -803,12 +804,14 @@ static int check_factorization(int N, float *A1, float *A2, int LDA, int uplo, f
         for (j = 0; j < N; j++)
             Residual[j*N+i] = L2[j*N+i] - Residual[j*N+i];
     
-    Rnorm = lapack_slange(lapack_inf_norm, N, N, Residual,   N, work);
     Anorm = lapack_slange(lapack_inf_norm, N, N,       A1, LDA, work);
+    Rnorm = lapack_slange(lapack_inf_norm, N, N, Residual,   N, work);
 
     printf("============\n");
     printf("Checking the Cholesky Factorization \n");
-    printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n",Rnorm/(Anorm*N*eps));
+    printf("-- eps = %e\n", eps);
+    printf("-- Rnorm = %e\n", Rnorm);
+    printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n", Rnorm/(Anorm*N*eps));
     
     if ( isnan(Rnorm/(Anorm*N*eps)) || (Rnorm/(Anorm*N*eps) > 10.0) ){
         printf("-- Factorization is suspicious ! \n");
