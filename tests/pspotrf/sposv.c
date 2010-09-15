@@ -80,6 +80,7 @@ double sync_time_elapsed;
 
 int dposv_force_nb = 0;
 int pri_change = 0;
+static int preallocated_tiles = 1024;
 
 static inline double get_cur_time(){
     double t;
@@ -214,7 +215,7 @@ int main(int argc, char ** argv)
             }
         }
 
-        dplasma_remote_dep_preallocate_buffers( 1024, NB*NB*sizeof(float), use_gpu );
+        dplasma_remote_dep_preallocate_buffers( preallocated_tiles, NB*NB*sizeof(float), use_gpu );
 
         scatter_matrix(&descA, &ddescA);
         TIME_PRINT(("Dplasma initialization:\t%d %d\n", N, NB));
@@ -321,7 +322,8 @@ static void print_usage(void)
             "   -w --warmup      : do some warmup, if > 1 also preload cache\n"
             "      --gpu         : number of activable GPUs\n"
             "   -P --pri_change  : the position on the diagonal from the end where we switch the priority (default: 0)\n"
-            "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
+            "   -B --block-size  : change the block size from the size tuned by PLASMA\n"
+	    "   -A --allocation  : change the number of preallocated reception tiles. Default 1024. For GPU run, all reception tiles *must* be preallocated\n");
 }
 
 static void runtime_init(int argc, char **argv)
@@ -343,6 +345,7 @@ static void runtime_init(int argc, char **argv)
         {"plasma",      no_argument,        0, 'p'},
         {"gpu",         required_argument,  0, 'u'},
         {"block-size",  required_argument,  0, 'B'},
+        {"allocation",  required_argument,  0, 'A'},
         {"pri_change",  required_argument,  0, 'P'},
         {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
@@ -369,10 +372,10 @@ static void runtime_init(int argc, char **argv)
             int c;
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
-            c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:P:h",
+            c = getopt_long (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:A:P:h",
                              long_options, &option_index);
 #else
-            c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:P:h");
+            c = getopt (argc, argv, "dpxc:n:a:r:b:g:e:s:w::B:A:P:h");
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -461,8 +464,17 @@ static void runtime_init(int argc, char **argv)
                     exit(2);
                 }
                 break;
+        case 'A':
+            if(optarg) {
+                preallocated_tiles = atoi(optarg);
+            } else {
+                fprintf(stderr, "Argument is mandatory for -A (--allocation) flag.\n");
+                exit(2);
+            }
+            break;            
         case 'u':
             use_gpu = atoi(optarg);
+            break;
 
         case 'P':
                 pri_change = atoi(optarg);

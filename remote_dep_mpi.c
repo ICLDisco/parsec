@@ -16,6 +16,8 @@
 #define DEP_NB_CONCURENT 3
 #undef FLOW_CONTROL
 
+static int using_gpu = 0;
+
 static int remote_dep_mpi_init(dplasma_context_t* context);
 static int remote_dep_mpi_fini(dplasma_context_t* context);
 static int remote_dep_mpi_on(dplasma_context_t* context);
@@ -124,6 +126,8 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu);
 void dplasma_remote_dep_preallocate_buffers( int nb, size_t size, int use_gpu )
 {
     int i;
+
+    using_gpu = use_gpu;
 
     if( NULL != internal_alloc_lifo ) {
         for(i = 0; i < nb; i++)
@@ -879,7 +883,11 @@ static void remote_dep_mpi_get_data(remote_dep_wire_activate_t* task, int from, 
                     if( doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME) )
                     {
 #endif
-                        printf("Je veux que ça n'arrive JAMAIS!\n");
+                        if( using_gpu ) {
+                            fprintf(stderr, "Fatal Error: all GPU-pinned memory in use. Increase preallocation size.\n");
+                            assert(0);
+                            exit(2);
+                        }
                         data = malloc( size );
 #ifdef FLOW_CONTROL
 			printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
