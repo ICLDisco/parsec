@@ -7,9 +7,11 @@
 #include <unistd.h>
 
 #include "lifo.h"
+#include "os-spec-timing.h"
+#include "bindthread.h"
 
-#define NBELT      8192
-#define NBTIMES 1000000
+static unsigned int NBELT = 8192;
+static unsigned int NBTIMES = 1000000;
 
 static void fatal(const char *format, ...)
 {
@@ -148,8 +150,10 @@ static void *translate_elements_random(void *params)
 {
     unsigned int i;
     dague_list_item_t *e;
+    uint64_t *p = (uint64_t*)params;
+    dague_time_t start, end;
 
-    (void)params;  /* Keep it quiet */
+    dague_bindthread( (int)*p );
 
     pthread_mutex_lock(&heavy_synchro_lock);
     while( heavy_synchro == 0 ) {
@@ -158,6 +162,7 @@ static void *translate_elements_random(void *params)
     pthread_mutex_unlock(&heavy_synchro_lock);
 
     i = 0;
+    start = take_time();
     while( i < heavy_synchro ) {
         if( rand() % 2 == 0 ) {
             e = dague_atomic_lifo_pop( &lifo1 );
@@ -175,6 +180,8 @@ static void *translate_elements_random(void *params)
             }
         }
     }
+    end = take_time();
+    *p = diff_time(start, end);
 
     return NULL;
 }
@@ -186,10 +193,14 @@ static void usage(const char *name, const char *msg)
     }
     fprintf(stderr, 
             "Usage: \n"
-            "   %s [-c cores]|[-h|-?]\n"
+            "   %s [-c cores|-n nbelt|-h|-?]\n"
             " where\n"
-            "   -c cores:   cores (integer >0) defines the number of cores to test\n",
-            name);
+            "   -c cores:   cores (integer >0) defines the number of cores to test\n"
+            "   -n nbelt:   nbelt (integer >0) defines the number of elements to use (default %u)\n"
+            "   -N nbtimes: nbtimes (integer >0) defines the number of times elements must be moved from one list to another (default %u)\n",
+            name,
+            NBELT,
+            NBTIMES);
     exit(1);
 }
 
@@ -198,16 +209,30 @@ int main(int argc, char *argv[])
     unsigned int e;
     elt_t *elt, *p;
     pthread_t *threads;
+    uint64_t *times;
+    uint64_t min_time, max_time, sum_time;
     long int nbthreads = 1;
     int ch;
     char *m;
     
-    while( (ch = getopt(argc, argv, "c:h?")) != -1 ) {
+    while( (ch = getopt(argc, argv, "c:n:N:h?")) != -1 ) {
         switch(ch) {
         case 'c':
             nbthreads = strtol(optarg, &m, 0);
             if( (nbthreads <= 0) || (m[0] != '\0') ) {
                 usage(argv[0], "invalid -c value");
+            }
+            break;
+        case 'n':
+            NBELT = strtol(optarg, &m, 0);
+            if( (NBELT <= 0) || (m[0] != '\0') ) {
+                usage(argv[0], "invalid -n value");
+            }
+            break;
+        case 'N':
+            NBTIMES = strtol(optarg, &m, 0);
+            if( (NBTIMES <= 0) || (m[0] != '\0') ) {
+                usage(argv[0], "invalid -N value");
             }
             break;
         case 'h':
@@ -219,6 +244,7 @@ int main(int argc, char *argv[])
     }
 
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
+    times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
     dague_atomic_lifo_construct( &lifo1 );
     dague_atomic_lifo_construct( &lifo2 );
@@ -226,7 +252,7 @@ int main(int argc, char *argv[])
     printf("Sequential test.\n");
 
     printf(" - create %u random elements and push them in lifo1\n", NBELT);
-    for(e = 0; e < 8192; e++) {
+    for(e = 0; e < NBELT; e++) {
         elt = create_elem(e);
         dague_atomic_lifo_push( &lifo1, (dague_list_item_t *)elt );
     }
@@ -236,18 +262,38 @@ int main(int argc, char *argv[])
 
     printf("Parallel test.\n");
 
-    printf(" - translate elements from lifo1 to lifo2 or from lifo2 to lifo1 (random), %d times on %ld threads\n",
+    printf(" - translate elements from lifo1 to lifo2 or from lifo2 to lifo1 (random), %u times on %ld threads\n",
            NBTIMES, nbthreads);
-    for(e = 0; e < nbthreads; e++)
-        pthread_create(&threads[e], NULL, translate_elements_random, NULL);
+    for(e = 0; e < nbthreads; e++) {
+        times[e] = e;
+        pthread_create(&threads[e], NULL, translate_elements_random, &times[e]);
+    }
 
     pthread_mutex_lock(&heavy_synchro_lock);
     heavy_synchro = NBTIMES;
     pthread_cond_broadcast(&heavy_synchro_cond);
     pthread_mutex_unlock(&heavy_synchro_lock);
 
-    for(e = 0; e < nbthreads; e++)
+    sum_time = 0;
+    for(e = 0; e < nbthreads; e++) {
         pthread_join(threads[e], NULL);
+        if( sum_time == 0 ) {
+            min_time = times[e];
+            max_time = times[e];
+        } else {
+            if( min_time > times[e] ) min_time = times[e];
+            if( max_time < times[e] ) max_time = times[e];
+        }
+        sum_time += times[e];
+    }
+    printf("== Time to move %u times per thread for %ld threads from l1 to l2 or l2 to l1 randomly:\n"
+           "== MIN %lu %s\n"
+           "== MAX %lu %s\n"
+           "== AVG %g %s\n",
+           NBTIMES, nbthreads,
+           min_time, TIMER_UNIT,
+           max_time, TIMER_UNIT,
+           (double)sum_time / (double)nbthreads, TIMER_UNIT);
     
     printf(" - move all elements to lifo1\n");
     p = NULL;
