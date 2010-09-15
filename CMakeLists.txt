@@ -265,7 +265,7 @@ check_function_exists(vasprintf HAVE_VASPRINTF)
 check_include_files(getopt.h HAVE_GETOPT_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
-
+check_include_files(stddef.h HAVE_STDDEF_H)
 # This should be killed when matrix is a separate lib
 include_directories(${PLASMA_INCLUDE_DIR})
 
