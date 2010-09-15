@@ -17,20 +17,19 @@
 #include "data_management.h"
 #include "bindthread.h"
 
-#include "plasma.h"
-#include "cblas.h"
-#include "../src/common.h"
-#include "../src/lapack.h"
-#include "../src/context.h"
-#include "../src/allocate.h"
+#include <cblas.h>
+#include <plasma.h>
+#include <lapack.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 
 extern int dposv_force_nb;
 
-//#define A(m,n) &((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
+/*#define A(m,n) &((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]*/
 static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
 {
     return &((float*)Pdesc->mat)[Pdesc->bsiz*(m)+Pdesc->bsiz*Pdesc->lmt*(n)];
-
 }
 
 static int ddesc_compute_vals( DPLASMA_desc * Ddesc )
@@ -256,13 +255,8 @@ int tiling(PLASMA_enum * uplo, int N, float *A, int LDA, int NRHS, PLASMA_desc *
                                              Abdl, PlasmaRealFloat,
                                              PLASMA_NB, PLASMA_NB, PLASMA_NBNBSIZE,
                                              N, N, 0, 0, N, N);
+    PLASMA_Lapack_to_Tile( A, LDA, descA );
 
-    plasma_parallel_call_3(plasma_lapack_to_tile,
-                           float*, A,
-                           int, LDA,
-                           PLASMA_desc, *descA);
-
-    //printf("matrix tiled in %dx%d\n", descA->lmt, descA->lnt);
     return 0;
     
 }
@@ -293,12 +287,8 @@ int untiling(PLASMA_enum * uplo, int N, float *A, int LDA, PLASMA_desc * descA)
     if (max(N, 0) == 0)
         return PLASMA_SUCCESS;
  
-    plasma_parallel_call_3(plasma_tile_to_lapack,
-                           PLASMA_desc, *descA,
-                           float*, A,
-                           int, LDA);
-    
-    //printf("matrix untiled from %dx%d\n", descA->lmt, descA->lnt);
+    PLASMA_Tile_to_Lapack( descA, A, LDA );
+
     return PLASMA_SUCCESS;
     
 }
@@ -323,39 +313,6 @@ int dplasma_get_rank_for_tile(DPLASMA_desc * Ddesc, int m, int n)
 /*            m, n, res, rr, cr, Ddesc->GRIDrows, Ddesc->GRIDcols); */
     return res;
 }
-
-
-/* #if 0 /\*def USE_MPI*\/ */
-/* /\* empty stub for now, should allow for async data transfer from recv side *\/ */
-/* void * dplasma_get_tile_async(DPLASMA_desc *Ddesc, int m, int n, MPI_Request *req) */
-/* { */
-    
-/*     return NULL; */
-/* } */
-
-/* void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n) */
-/* { */
-/*     int tile_rank; */
-    
-/*     tile_rank = dplasma_get_rank_for_tile(Ddesc, m, n); */
-/*     if(Ddesc->mpi_rank == tile_rank) */
-/*     { */
-/*         //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n); */
-/*         return dplasma_get_local_tileDdesc, m, n); */
-/*     } */
-/* #ifdef USE_MPI */
-/*     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank); */
-/*     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_FLOAT, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE); */
-/*     return plasma_A((PLASMA_desc *)Ddesc, m, n); */
-/* #else */
-/*     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__); */
-/*     return NULL; */
-/* #endif */
-/* } */
-
-/* #else  */
-/* /\*#define dplasma_get_local_tile_s dplasma_get_local_tile*\/ */
-/* #endif */
 
 void * dplasma_get_local_tile_s(DPLASMA_desc * Ddesc, int m, int n)
 {
@@ -638,6 +595,153 @@ void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
 #endif    
 }
+
+
+
+
+#ifdef USE_MPI
+void compare_dist_data(DPLASMA_desc * a, DPLASMA_desc * b)
+{
+    MPI_Status status;
+    float * bufferA;
+    float * bufferB;
+    float * tmpA = malloc(a->bsiz * sizeof(float));
+    float * tmpB = malloc(a->bsiz * sizeof(float));
+    
+    size_t i,j;
+    unsigned int k;
+    uint32_t rankA, rankB;
+    unsigned int count = 0;
+    int diff, dc;
+    float eps = lapack_slamch(lapack_eps);
+    //float eps = 1e-8;
+    printf("epsilon is %e\n", eps);
+    if( a->bsiz != b->bsiz )
+        {
+            if(a->mpi_rank == 0)
+                printf("Cannot compare matrices\n");
+            return;
+        }
+    for(i = 0 ; i < a->lmt ; i++)
+        for(j = 0 ; j < a->lnt ; j++)
+            {
+                rankA = dplasma_get_rank_for_tile(a, i, j) ;
+                rankB = dplasma_get_rank_for_tile(b, i, j) ;
+                if (a->mpi_rank == 0)
+                    {
+                        if ( rankA == 0)
+                            {
+                                bufferA = (float*)dplasma_get_local_tile(a, i, j);
+                            }
+                        else
+                            {
+                                MPI_Recv(tmpA, a->bsiz, MPI_FLOAT, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                bufferA = tmpA;
+                            }
+                        if ( rankB == 0)
+                            {
+                                bufferB = (float*)dplasma_get_local_tile(b, i, j);
+                            }
+                        else
+                            {
+                                MPI_Recv(tmpB, b->bsiz, MPI_FLOAT, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                bufferB = tmpB;
+                            }
+
+                        diff = 0;
+                        dc = 0;
+                        for(k = 0 ; k < a->bsiz ; k++)
+                            if (((bufferA[k]-bufferB[k]) > eps) || ((bufferA[k]-bufferB[k]) < -eps)  )
+                                {
+                                    diff = 1;
+                                    dc++;
+                                }
+                        
+                        if (diff)
+                            {
+                                count++;
+                                printf("tile (%zu, %zu) differs in %d numbers\n", i, j, dc);
+                            }
+                        /*if (memcmp(bufferA, bufferB, a->bsiz * a->mtype))
+                            {
+                                count++;
+                                printf("tile (%zu, %zu) differs\n", i, j);
+                                }*/
+                        
+                    }
+                else /* a->super.myrank != 0 */
+                    {
+                        
+                        if ( rankA == a->mpi_rank)
+                            {
+                                MPI_Send(dplasma_get_local_tile(a, i, j), a->bsiz, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+                            }
+                        if ( rankB == b->mpi_rank)
+                            {
+                                MPI_Send(dplasma_get_local_tile(b, i, j), b->bsiz, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);                                                    
+                            }
+                    }
+            }
+    if(a->mpi_rank == 0)
+        printf("compared the matrices: %u difference(s)\n", count);
+}
+
+#endif
+
+
+int data_write(DPLASMA_desc * Ddesc, char * filename){
+    FILE * tmpf;
+    size_t i, j;
+    float * buf;
+    unsigned int co = 0;
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf)
+        {
+            printf("opening file: %s", filename);
+            return -1;
+        }
+    for (i = 0 ; i < Ddesc->lmt ; i++)
+        for ( j = 0 ; j< Ddesc->lnt ; j++)
+            {
+                if (dplasma_get_rank_for_tile(Ddesc, i, j) == Ddesc->mpi_rank)
+                    {
+                        co++;
+                        buf = (float*)dplasma_get_local_tile(Ddesc, i, j);
+                        fwrite(buf, sizeof(float), Ddesc->bsiz, tmpf );
+                    }
+            }
+    fclose(tmpf);
+    printf("process %u has written %u tiles\n", Ddesc->mpi_rank, co);
+    return 0;
+}
+
+int data_read(DPLASMA_desc * Ddesc, char * filename){
+    FILE * tmpf;
+    size_t i, j;
+    float * buf;
+    unsigned int co = 0;
+    tmpf = fopen(filename, "r");
+    if(NULL == tmpf)
+        {
+            printf("opening file: %s", filename);
+            return -1;
+        }
+    for (i = 0 ; i < Ddesc->lmt ; i++)
+        for ( j = 0 ; j< Ddesc->lnt ; j++)
+            {
+                if (dplasma_get_rank_for_tile(Ddesc, i, j) == Ddesc->mpi_rank)
+                    {
+                        co++;
+                        buf = (float*)dplasma_get_local_tile(Ddesc, i, j);
+                        fread(buf, sizeof(float), Ddesc->bsiz, tmpf);
+                    }
+            }
+    
+    fclose(tmpf);
+    printf("process %u has read %u tiles\n", Ddesc->mpi_rank, co);
+    return 0;
+}
+
 
 int data_dump(DPLASMA_desc * Ddesc){
     FILE * tmpf;

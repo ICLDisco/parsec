@@ -207,6 +207,7 @@ check_include_files("control/common.h;control/context.h;control/allocate.h"   FO
 if( !FOUND_PLASMA_CONTROL )
   message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
 endif( !FOUND_PLASMA_CONTROL )
+set( PLASMA_SRC_DIR "${PLASMA_SRC}" )
 
 #
 # Find optional packages
@@ -266,8 +267,12 @@ check_include_files(getopt.h HAVE_GETOPT_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
+
 # This should be killed when matrix is a separate lib
 include_directories(${PLASMA_INCLUDE_DIR})
+include_directories(data_dist data_dist/matrix
+  data_dist/matrix/two_dim_rectangle_cyclic
+  data_dist/matrix/sym_two_dim_rectangle_cyclic)
 
 #
 # Setup targets

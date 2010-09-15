@@ -61,8 +61,8 @@ BODY
             &PLASMA_INFO )
         );
     OUTPUT((
-        "CORE_spotrf( %s, %d, A(%d,%d), %d)\n",
-            (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
+        "thread %d CORE_spotrf( %s, %d, A(%d,%d), %d)\n",
+            context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
             k, k, NB /*A.nb,*/ )
         );
@@ -103,9 +103,8 @@ BODY
                      C /*A(n, k)*/, NB /*A.nb*/ )
             );
         OUTPUT(( 
-            "[%14p:%14p] CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                (void*)context, (void*)exec_context,
-                "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+            "thread %d CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, k, k, NB, /*A.nb,*/
@@ -122,9 +121,8 @@ BODY
                      C /*A(k, n)*/, NB /*A.nb*/ )
             );
        OUTPUT((
-            "[%14p:%14p] CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                (void*)context, (void*)exec_context,
-                "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
+            "thread %d CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, k, k, NB, /*A.nb,*/
@@ -165,9 +163,8 @@ BODY
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "[%14p:%14p] CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                (void*)context, (void*)exec_context,
-                "PlasmaLower", "PlasmaNoTrans",
+            "thread %d CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, n, k, NB, /*A.nb,*/
@@ -183,9 +180,8 @@ BODY
                  1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "[%14p:%14p] CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                (void*)context, (void*)exec_context,
-                "PlasmaLower", "PlasmaNoTrans",
+            "thread %d CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 -1.0, k, n, NB, /*A.nb,*/
@@ -230,9 +226,8 @@ BODY
                  1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "[%14p:%14p] CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                (void*)context, (void*)exec_context,
-                "PlasmaNoTrans", "PlasmaTrans",
+            "thread %d CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
@@ -252,9 +247,8 @@ BODY
                  1.0, C /*A(n, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "[%14p:%14p] CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                (void*)context, (void*)exec_context,
-                "PlasmaNoTrans", "PlasmaTrans",
+            "%d CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/

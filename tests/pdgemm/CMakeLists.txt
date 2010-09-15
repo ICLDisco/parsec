@@ -8,7 +8,7 @@ if( PLASMA_FOUND )
 
     add_executable(pdgemm testing_pdgemm.c)
     set_target_properties(pdgemm PROPERTIES LINKER_LANGUAGE Fortran)
-    set_target_properties(pdgemm PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+    set_target_properties(pdgemm PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -I${PLASMA_SRC_DIR} -DADD_ -DUSE_MPI")
     set_target_properties(pdgemm PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
     target_link_libraries(pdgemm dague-mpi dgemmbox-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
   endif( DAGUE_MPI AND MPI_FOUND )
@@ -18,7 +18,7 @@ if( PLASMA_FOUND )
 
   add_executable(dgemm pdgemm.c testing_pdgemm.c)
   set_target_properties(dgemm PROPERTIES LINKER_LANGUAGE Fortran)
-  set_target_properties(dgemm PROPERTIES COMPILE_FLAGS "-DADD_")
+  set_target_properties(dgemm PROPERTIES COMPILE_FLAGS "-I${PLASMA_SRC_DIR} -DADD_")
   set_target_properties(dgemm PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
   target_link_libraries(dgemm dague dgemmbox ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
 

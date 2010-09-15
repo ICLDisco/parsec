@@ -1,6 +1,6 @@
 if( PLASMA_FOUND )
 
-  include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
+  include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_SRC_DIR} )
   
   if( DAGUE_MPI AND MPI_FOUND )
 

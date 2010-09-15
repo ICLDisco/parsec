@@ -126,7 +126,7 @@ int dague_hwloc_nb_levels(void)
 size_t dague_hwloc_cache_size( unsigned int level, int master_id )
 {	    
 #if defined(HAVE_HWLOC)
-#if defined(HAVE_HWLOC_OBJ_PU)
+#if defined(HAVE_HWLOC_OBJ_PU) || 1
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);
 #else
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PROC, master_id);

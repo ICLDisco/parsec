@@ -21,11 +21,11 @@
 
 #include <cblas.h>
 #include <math.h>
-#include "plasma.h"
-#include <../src/common.h>
-#include <../src/lapack.h>
-#include <../src/context.h>
-#include <../src/allocate.h>
+#include <plasma.h>
+#include <lapack.h>
+#include <control/common.h>
+#include <control/context.h>
+#include <control/allocate.h>
 
 #include "scheduling.h"
 #include "profiling.h"
@@ -170,16 +170,14 @@ int main(int argc, char ** argv)
             if(do_warmup)
             {
                 TIME_START();
-                plasma_parallel_call_2(plasma_pdpotrf, 
-                                       PLASMA_enum, uplo, 
-                                       PLASMA_desc, descA);
+                PLASMA_dpotrf_Tile(uplo, &descA);
+
                 TIME_PRINT(("_plasma warmup:\t\t%d %d %f Gflops\n", N, PLASMA_NB,
                             (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             }
             TIME_START();
-            plasma_parallel_call_2(plasma_pdpotrf,
-                                   PLASMA_enum, uplo,
-                                   PLASMA_desc, descA);
+            PLASMA_dpotrf_Tile(uplo, &descA);
+
             TIME_PRINT(("_plasma computation:\t%d %d %f Gflops\n", N, PLASMA_NB, 
                         gflops = (N/1e3*N/1e3*N/1e3/3.0)/(time_elapsed)));
             break;
@@ -697,7 +695,7 @@ static void check_matrix(int N, PLASMA_enum* uplo,
                          double gflops)
 {    
     int info_solution, info_factorization;
-    double eps = dlamch("Epsilon");
+    double eps = lapack_dlamch(lapack_eps);
 
     printf("\n");
     printf("------ TESTS FOR PLASMA DPOTRF + DPOTRS ROUTINE -------  \n");
@@ -753,7 +751,6 @@ static int check_factorization(int N, double *A1, double *A2, int LDA, int uplo,
 {
     double Anorm, Rnorm;
     double alpha;
-    char norm='I';
     int info_factorization;
     int i,j;
     
@@ -762,22 +759,22 @@ static int check_factorization(int N, double *A1, double *A2, int LDA, int uplo,
     double *L2       = (double *)malloc(N*N*sizeof(double));
     double *work     = (double *)malloc(N*sizeof(double));
     
-    memset((void*)L1, 0, N*N*sizeof(double));
-    memset((void*)L2, 0, N*N*sizeof(double));
+    /*memset((void*)L1, 0, N*N*sizeof(double));*/
+    /*memset((void*)L2, 0, N*N*sizeof(double));*/
     
-    alpha= 1.0;
+    alpha = 1.0;
     
-    dlacpy("ALL", &N, &N, A1, &LDA, Residual, &N);
+    lapack_dlacpy(lapack_upper_lower, N, N, A1, LDA, Residual, N);
     
     /* Dealing with L'L or U'U  */
     if (uplo == PlasmaUpper){
-        dlacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L1, &N);
-        dlacpy(lapack_const(PlasmaUpper), &N, &N, A2, &LDA, L2, &N);
+        lapack_dlacpy(lapack_upper, N, N, A2, LDA, L1, N);
+        lapack_dlacpy(lapack_upper, N, N, A2, LDA, L2, N);
         cblas_dtrmm(CblasColMajor, CblasLeft, CblasUpper, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
     }
     else{
-        dlacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L1, &N);
-        dlacpy(lapack_const(PlasmaLower), &N, &N, A2, &LDA, L2, &N);
+        lapack_dlacpy(lapack_lower, N, N, A2, LDA, L1, N);
+        lapack_dlacpy(lapack_lower, N, N, A2, LDA, L2, N);
         cblas_dtrmm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit, N, N, (alpha), L1, N, L2, N);
     }
     
@@ -786,9 +783,9 @@ static int check_factorization(int N, double *A1, double *A2, int LDA, int uplo,
         for (j = 0; j < N; j++)
             Residual[j*N+i] = L2[j*N+i] - Residual[j*N+i];
     
-    Rnorm = dlange(&norm, &N, &N, Residual, &N, work);
-    Anorm = dlange(&norm, &N, &N, A1, &LDA, work);
-    
+    Rnorm = lapack_dlange(lapack_inf_norm, N, N, Residual,   N, work);
+    Anorm = lapack_dlange(lapack_inf_norm, N, N,       A1, LDA, work);
+
     printf("============\n");
     printf("Checking the Cholesky Factorization \n");
     printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n",Rnorm/(Anorm*N*eps));
@@ -815,18 +812,17 @@ static int check_solution(int N, int NRHS, double *A1, int LDA, double *B1, doub
 {
     int info_solution;
     double Rnorm, Anorm, Xnorm, Bnorm;
-    char norm='I';
     double alpha, beta;
     double *work = (double *)malloc(N*sizeof(double));
     alpha = 1.0;
     beta  = -1.0;
     
-    Xnorm = dlange(&norm, &N, &NRHS, B2, &LDB, work);
-    Anorm = dlange(&norm, &N, &N, A1, &LDA, work);
-    Bnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
+    Xnorm = lapack_dlange(lapack_inf_norm, N, NRHS, B2, LDB, work);
+    Anorm = lapack_dlange(lapack_inf_norm, N, N,    A1, LDA, work);
+    Bnorm = lapack_dlange(lapack_inf_norm, N, NRHS, B1, LDB, work);
     
     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, N, NRHS, N, (alpha), A1, LDA, B2, LDB, (beta), B1, LDB);
-    Rnorm = dlange(&norm, &N, &NRHS, B1, &LDB, work);
+    Rnorm = lapack_dlange(lapack_inf_norm, N, NRHS, B1, LDB, work);
 
     printf("============\n");
     printf("Checking the Residual of the solution \n");
