@@ -333,7 +333,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
 #if !defined(USE_HIERARCHICAL_QUEUES)
                 if( (unsigned int)master_context->taskstodo < 2 * (unsigned int)master_context->nb_cores ) {
-                    unsigned int nbc = dague_hwloc_nb_cores( 1, eu_context->eu_id );
+                    unsigned int nbc = master_context->nb_cores /*dague_hwloc_nb_cores( 1, eu_context->eu_id )*/;
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;
                 }
 #endif
