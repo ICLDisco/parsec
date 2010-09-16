@@ -8,7 +8,7 @@
 #include "dague.h"
 #ifdef USE_MPI
 #include "remote_dep.h"
-#include <mpi.h>
+extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #endif  /* defined(USE_MPI) */
 
 #if defined(HAVE_GETOPT_H)
@@ -249,7 +249,7 @@ static void runtime_fini(void)
 static dague_context_t *setup_dague(int* pargc, char** pargv[])
 {
     dague_context_t *dague;
-   
+
     dague = dague_init(cores, pargc, pargv, dposv_force_nb);
 
 #ifdef USE_MPI
@@ -257,13 +257,16 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
      * Redefine the default type after dague_init.
      */
     {
+        MPI_Datatype default_ddt;
         char type_name[MPI_MAX_OBJECT_NAME];
     
         snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", dposv_force_nb, dposv_force_nb);
     
-        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &DAGUE_DEFAULT_DATA_TYPE);
-        MPI_Type_set_name(DAGUE_DEFAULT_DATA_TYPE, type_name);
-        MPI_Type_commit(&DAGUE_DEFAULT_DATA_TYPE);
+        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &default_ddt);
+        MPI_Type_set_name(default_ddt, type_name);
+        MPI_Type_commit(&default_ddt);
+        dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, NB*NB*sizeof(double), 
+                              DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     }
 #endif  /* USE_MPI */
 
