@@ -133,6 +133,7 @@ void dague_remote_dep_memcpy(void *dst, gc_data_t *src, const dague_remote_dep_d
 /* Create a default datatype */
 void remote_dep_mpi_create_default_datatype(int tile_size, dague_remote_dep_datatype_t base);
 
+void dague_remote_dep_preallocate_buffers( int nb, size_t size );
 #else 
 # define dague_remote_dep_init(ctx) (1)
 # define dague_remote_dep_fini(ctx) (0)
@@ -141,6 +142,7 @@ void remote_dep_mpi_create_default_datatype(int tile_size, dague_remote_dep_data
 # define dague_remote_dep_progress(ctx) (0)
 # define dague_remote_dep_activate(ctx, o, r, c) (-1)
 # define DAGUE_DEFAULT_DATA_TYPE    (NULL)
+# define dague_remote_dep_preallocate_buffers( nb, size ) (0)
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */

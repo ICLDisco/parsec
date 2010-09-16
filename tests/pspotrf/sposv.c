@@ -42,21 +42,21 @@
 /* timing profiling etc */
 double time_elapsed;
 double sync_time_elapsed;
-int dposv_force_nb = 120;
+unsigned int dposv_force_nb = 120;
 #define NB dposv_force_nb
-int pri_change = 0;
-int cores = 1;
-int nodes = 1;
+unsigned int pri_change = 0;
+unsigned int cores = 1;
+unsigned int nodes = 1;
 uint32_t N = 0;
 int nbtasks = -1;
 
-int rank = 0;
-int LDA = 0;
-int NRHS = 1;
-int LDB = 0;
-int GRIDrows = 1;
-int nrst = 1;
-int ncst = 1;
+unsigned int rank = 0;
+unsigned int LDA = 0;
+unsigned int NRHS = 1;
+unsigned int LDB = 0;
+unsigned int GRIDrows = 1;
+unsigned int nrst = 1;
+unsigned int ncst = 1;
 PLASMA_enum uplo = PlasmaLower;
 
 PLASMA_desc descA;
@@ -164,15 +164,15 @@ static void runtime_init(int argc, char **argv)
                 
                 case 'r':
                     NRHS  = atoi(optarg);
-                    printf("number of RHS set to %d\n", NRHS);
+                    printf("number of RHS set to %u\n", NRHS);
                     break;
                 case 'a':
                     LDA = atoi(optarg);
-                    printf("LDA set to %d\n", LDA);
+                    printf("LDA set to %u\n", LDA);
                     break;                
                 case 'b':
                     LDB  = atoi(optarg);
-                    printf("LDB set to %d\n", LDB);
+                    printf("LDB set to %u\n", LDB);
                     break;
                 
                 case 'B':
@@ -208,10 +208,10 @@ static void runtime_init(int argc, char **argv)
         exit(2);
     } 
     if((nodes % GRIDrows) != 0) {
-        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", GRIDrows, nodes);
+        fprintf(stderr, "GRIDrows %u does not divide the total number of nodes %u\n", GRIDrows, nodes);
         exit(2);
     }
-    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
+    //printf("Grid is %ux%u\n", ddescA.GRIDrows, ddescA.GRIDcols);
 
     if(LDA <= 0) {
         LDA = N;
@@ -240,7 +240,7 @@ static inline double get_cur_time(){
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(print) do {                                  \
         TIME_STOP();                                            \
-        /*printf("[%d] TIMED %f s :\t", rank, time_elapsed);*/  \
+        /*printf("[%u] TIMED %f s :\t", rank, time_elapsed);*/  \
         printf print;                                           \
     } while(0)
 
@@ -279,15 +279,18 @@ static inline double get_cur_time(){
 
 int main(int argc, char ** argv)
 {
-    double gflops;
     dague_context_t* dague;
 
 #ifdef USE_MPI
+    int _rank, _nodes;
+
     /* mpi init */
     MPI_Init(&argc, &argv);
     
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes); 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &_nodes);
+    nodes = (unsigned int)_nodes;
+    MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
+    rank = (unsigned int)_rank;
 
 #else
     nodes = 1;
@@ -318,15 +321,15 @@ int main(int argc, char ** argv)
     /*** THIS IS THE DAGUE COMPUTATION ***/
     TIME_START();
     dague = setup_dague(&argc, &argv);
-    TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
+    TIME_PRINT(("Dague initialization:\t%u %u\n", N, dposv_force_nb));
 
     /* lets rock! */
     SYNC_TIME_START();
     TIME_START();
     dague_progress(dague);
-    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
-                     gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
+    TIME_PRINT(("Dague proc %u:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
+    SYNC_TIME_PRINT(("Dague computation:\t%u %u %f gflops\n", N, NB,
+                     (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
 
     cleanup_dague(dague);
     /*** END OF DAGUE COMPUTATION ***/
@@ -357,7 +360,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     {
         char type_name[MPI_MAX_OBJECT_NAME];
     
-        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", NB, NB);
+        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%u*%u", NB, NB);
     
         MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DAGUE_DEFAULT_DATA_TYPE);
         MPI_Type_set_name(DAGUE_DEFAULT_DATA_TYPE, type_name);
@@ -374,10 +377,10 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 #endif
     dague_enqueue( dague, (dague_object_t*)dague_cholesky);
 
-    printf("Cholesky %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
+    printf("Cholesky %ux%u has %u tasks to run. Total nb tasks to run: %u\n", 
            ddescA.super.nb, ddescA.super.nt, dague_cholesky->nb_local_tasks, dague->taskstodo);
 
-    printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
+    printf("GRIDrows = %u, GRIDcols = %u, rrank = %u, crank = %u\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     return dague;
 }
 
@@ -386,7 +389,7 @@ static void cleanup_dague(dague_context_t* dague)
 #ifdef DAGUE_PROFILING
     char* filename = NULL;
     
-    asprintf( &filename, "%s.%d.profile", "dposv", rank );
+    asprintf( &filename, "%s.%u.profile", "dposv", rank );
     dague_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DAGUE_PROFILING */

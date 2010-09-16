@@ -9,6 +9,7 @@
 #define _DATA_DISTRIBUTION_H_ 
 
 #include <stdarg.h>
+#include <unistd.h>
 #include <stdint.h>
 #ifdef USE_MPI
 #include "mpi.h"
@@ -24,6 +25,21 @@ typedef struct dague_ddesc {
     MPI_Comm comm;
 #endif /* USE_MPI */
 } dague_ddesc_t;
+
+/**
+ * Enable GPU-compatible memory if possible
+ */
+void dague_data_enable_gpu( void );
+
+/**
+ * allocate a buffer to hold the data using GPU-compatible memory if needed
+ */
+void* dague_allocate_data( size_t matrix_size );
+
+/**
+ * free a buffer allocated by dague_allocate_data
+ */
+void dague_free_data(void *address);
 
 #endif /* _DATA_DISTRIBUTION_H_ */
 

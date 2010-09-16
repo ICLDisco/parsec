@@ -15,23 +15,6 @@ typedef struct dague_dequeue_t {
     uint32_t atomic_lock;
 } dague_dequeue_t;
 
-static inline void dague_atomic_lock( volatile uint32_t* atomic_lock )
-{
-    while( !dague_atomic_cas( atomic_lock, 0, 1) )
-        /* nothing */;
-}
-
-static inline void dague_atomic_unlock( volatile uint32_t* atomic_lock )
-{
-    dague_mfence();
-    *atomic_lock = 0;
-}
-
-static inline int dague_atomic_trylock( volatile uint32_t* atomic_lock )
-{
-    return dague_atomic_cas( atomic_lock, 0, 1);
-}
-
 static inline void dague_dequeue_construct( dague_dequeue_t* dequeue )
 {
     dequeue->ghost_element.list_next = &(dequeue->ghost_element);

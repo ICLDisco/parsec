@@ -43,6 +43,7 @@
 #cmakedefine HAVE_VA_COPY
 #cmakedefine HAVE_UNDERSCORE_VA_COPY
 #cmakedefine HAVE_GETOPT_LONG
+#cmakedefine HAVE_GETRUSAGE
 #cmakedefine HAVE_GETOPT_H
 #cmakedefine HAVE_ERRNO_H
 #cmakedefine HAVE_STDDEF_H

@@ -507,7 +507,7 @@ static void init_unique_rgb_color(void)
 static void get_unique_rgb_color(float ratio, unsigned char *r, unsigned char *g, unsigned char *b)
 {
     float h = ratio, s = 0.8, v = 0.8, r1, g1, b1;
-    float var_h = (h == 1.0f) ? 0.0f : h * 6.0f;
+    float var_h = ( fabs(h - 1.0f) < 1e-6 ) ? 0.0f : h * 6.0f;
     int var_i = (int)floor(var_h);
     float var_1 = (v * ( 1.0f - s ));
     float var_2 = (v * ( 1.0f - s * ( var_h - var_i )));
@@ -1715,6 +1715,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     sprintf(prefix, "hook_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_hook(jdf, f, prefix);
     string_arena_add_string(sa, "  .hook = %s,\n", prefix);
+    string_arena_add_string(sa, "  .complete_execution = complete_%s,\n", prefix);
 
     sprintf(prefix, "%s_%s_internal_init", jdf_basename, f->fname);
     jdf_generate_internal_init(jdf, f, prefix);
@@ -2061,8 +2062,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
 }
 
 static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_t *call, const char *datatype,
-                                               const jdf_dataflow_t *f,
-                                               const char *spaces)
+                                               const char *spaces,
+                                               int dataflow_index)
 {
     string_arena_t *sa, *sa2;
     expr_info_t info;
@@ -2078,11 +2079,11 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
     if( call->var == NULL ) {
         UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                              dump_expr, &info, "", "", ", ", "");
-        coutput("%s  if( %s != %s(%s) ) {\n"
-                "%s    dague_remote_dep_memcpy( %s(%s), g%s, %s );\n"
+        coutput("%s  if( GC_DATA(exec_context->data[%d].gc_data) != %s(%s) ) {\n"
+                "%s    dague_remote_dep_memcpy( %s(%s), exec_context->data[%d].gc_data, %s );\n"
                 "%s  }\n",                
-                spaces, f->varname, call->func_or_mem, string_arena_get_string(sa),
-                spaces, call->func_or_mem, string_arena_get_string(sa), f->varname, 
+                spaces, dataflow_index, call->func_or_mem, string_arena_get_string(sa),
+                spaces, call->func_or_mem, string_arena_get_string(sa), dataflow_index, 
                 NULL != datatype ? datatype : "DAGUE_DEFAULT_DATA_TYPE",
                 spaces);
     }
@@ -2091,7 +2092,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
     string_arena_free(sa2);
 }
 
-static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const jdf_dataflow_t *f)
+static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const jdf_dataflow_t *f, int dataflow_index)
 {
     jdf_dep_list_t *dl;
     expr_info_t info;
@@ -2111,14 +2112,14 @@ static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const jdf_data
         switch( dl->dep->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
             if( dl->dep->guard->calltrue->var == NULL ) {
-                jdf_generate_code_call_final_write( jdf, dl->dep->guard->calltrue, dl->dep->datatype, f, "" );
+                jdf_generate_code_call_final_write( jdf, dl->dep->guard->calltrue, dl->dep->datatype, "", dataflow_index );
             }
             break;
         case JDF_GUARD_BINARY:
             if( dl->dep->guard->calltrue->var == NULL ) {
                 coutput("  if( %s ) {\n",
                         dump_expr((void**)&dl->dep->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->dep->guard->calltrue, dl->dep->datatype, f, "  " );
+                jdf_generate_code_call_final_write( jdf, dl->dep->guard->calltrue, dl->dep->datatype, "  ", dataflow_index );
                 coutput("  }\n");
             }
             break;
@@ -2126,16 +2127,16 @@ static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const jdf_data
             if( dl->dep->guard->calltrue->var == NULL ) {
                 coutput("  if( %s ) {\n",
                         dump_expr((void**)&dl->dep->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->dep->guard->calltrue, dl->dep->datatype, f, "  " );
+                jdf_generate_code_call_final_write( jdf, dl->dep->guard->calltrue, dl->dep->datatype, "  ", dataflow_index );
                 if( dl->dep->guard->callfalse->var == NULL ) {
                     coutput("  } else {\n");
-                    jdf_generate_code_call_final_write( jdf, dl->dep->guard->callfalse, dl->dep->datatype, f, "  " );
+                    jdf_generate_code_call_final_write( jdf, dl->dep->guard->callfalse, dl->dep->datatype, "  ", dataflow_index );
                 }
                 coutput("  }\n");
             } else if ( dl->dep->guard->callfalse->var == NULL ) {
                 coutput("  if( !(%s) ) {\n",
                         dump_expr((void**)&dl->dep->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->dep->guard->callfalse, dl->dep->datatype, f, "  " );
+                jdf_generate_code_call_final_write( jdf, dl->dep->guard->callfalse, dl->dep->datatype, "  ", dataflow_index );
                 coutput("  }\n");
             }
             break;
@@ -2212,14 +2213,15 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
     string_arena_t *sa;
     int nboutput = 0;
     jdf_dataflow_list_t *dl;
+    int di;
 
     (void)jdf;
 
     sa = string_arena_new(64);
 
-    for(dl = f->dataflow; dl != NULL; dl = dl->next) {
+    for(di = 0, dl = f->dataflow; dl != NULL; dl = dl->next, di++) {
         if( jdf_dataflow_type(dl->flow) & JDF_DEP_TYPE_OUT ) {
-            string_arena_add_string(sa, "    data[%d] = g%s;\n", nboutput, dl->flow->varname);
+            string_arena_add_string(sa, "    data[%d] = exec_context->data[%d].gc_data;\n", nboutput, di);
             nboutput++;
         }
     }
@@ -2255,6 +2257,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("static int %s(dague_execution_unit_t *context, dague_execution_context_t *exec_context)\n"
             "{\n"
             "  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)exec_context->dague_object;\n"
+            "  (void)context;\n"
+            "  (void)__dague_object;\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -2264,6 +2268,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
                                  dump_data_declaration, sa2, "", "", "", ""));
     
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+
     coutput("  /** Lookup the input data, and store them in the context */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl->flow);
@@ -2287,6 +2295,24 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
     }
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
+
+    ai.idx = 0;
+    coutput("  return 0;\n"
+            "}\n"
+            "static int complete_%s(dague_execution_unit_t *context, dague_execution_context_t *exec_context)\n"
+            "{\n"
+            "  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)exec_context->dague_object;\n"
+            "  (void)context;\n"
+            "  (void)__dague_object;\n"
+            "%s\n",
+            name, jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
+                                 dump_assignments, &ai, "", "  int ", "", ""));
+
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+
     coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ));\n",
             f->fname, f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
@@ -2296,8 +2322,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");
-    for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
-        jdf_generate_code_flow_final_writes(jdf, fl->flow);
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+        jdf_generate_code_flow_final_writes(jdf, fl->flow, di);
     }
     coutput("#endif /* DISTRIBUTED */\n");
 

@@ -97,6 +97,10 @@ int dague_trigger_dependencies( const struct dague_object *dague_object,
                                 dague_execution_unit_t*,
                                 const dague_execution_context_t*,
                                 int forward_remote );
+
+int dague_complete_execution( dague_execution_unit_t *eu_context,
+                              dague_execution_context_t *exec_context );
+
 //#endif /* DEPRECATED */
 
 #endif  /* _DAGUE_scheduling_h */

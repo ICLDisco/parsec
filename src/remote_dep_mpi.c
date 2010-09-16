@@ -11,6 +11,7 @@
 #include <mpi.h>
 #include "profiling.h"
 #include "freelist.h"
+#include "data_dist/data_distribution.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
@@ -146,6 +147,20 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
     return str;
 }
 #endif
+
+void dague_remote_dep_preallocate_buffers( int nb, size_t size )
+{
+    int i;
+
+    if( NULL != internal_alloc_lifo ) {
+        for(i = 0; i < nb; i++)
+            {
+                dague_list_item_t *item = (dague_list_item_t *)dague_allocate_data( size );
+                DAGUE_LIST_ITEM_SINGLETON( item );
+                dague_atomic_lifo_push( internal_alloc_lifo, item );
+            }
+    }
+}
 
 pthread_t dep_thread_id;
 dague_dequeue_t dep_cmd_queue;
@@ -619,7 +634,7 @@ static int remote_dep_mpi_fini(dague_context_t* context)
         dague_list_item_t* item;
         int nb_allocated_items = 0;
         while( NULL != (item = dague_atomic_lifo_pop(internal_alloc_lifo)) ) {
-            free(item);
+            dague_free_data(item);
             nb_allocated_items++;
         }
         free(internal_alloc_lifo);
@@ -906,7 +921,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
                     printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
 #endif
                     MPI_Type_get_extent(dtt, &lb, &size);
-                    data = malloc(size);
+                    data = dague_allocate_data(size);
                     DEBUG(("Malloc new remote tile %p size %zu\n", data, size));
                     assert(data != NULL);
                 }

@@ -112,6 +112,7 @@ struct dague_t {
     dague_cache_rank_function_t *cache_rank_function;
 #endif
     dague_hook_t*         hook;
+    dague_hook_t*         complete_execution;
     dague_traverse_function_t *iterate_successors;
     dague_release_deps_t* release_deps;
     char*                 body;

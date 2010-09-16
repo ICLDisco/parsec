@@ -151,7 +151,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
 
     /* Allocate memory for matrices in block layout */
     printf("Process %u allocates %u tiles\n", myrank, total);
-    Ddesc->mat = dague_allocate_matrix((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
+    Ddesc->mat = dague_allocate_data((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");

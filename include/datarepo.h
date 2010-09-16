@@ -17,18 +17,6 @@
 
 #define MAX_DATAREPO_HASH 4096
 
-static inline void data_repo_atomic_lock( volatile uint32_t* atomic_lock )
-{
-    while( !dague_atomic_cas( atomic_lock, 0, 1) )
-        /* nothing */;
-}
-
-static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
-{
-    dague_mfence();
-    *atomic_lock = 0;
-}
-
 typedef struct gc_data {
     volatile uint32_t refcount;
     uint32_t cache_friendliness;
@@ -209,12 +197,12 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
     
-    data_repo_atomic_lock(&repo->heads[h].lock);
+    dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;
         e = e->next_entry)
         if( e->key == key ) break;
-    data_repo_atomic_unlock(&repo->heads[h].lock);
+    dague_atomic_unlock(&repo->heads[h].lock);
 
     return e;
 }
@@ -228,13 +216,13 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
     data_repo_entry_t *e;
     int h = key % repo->nbentries;
     
-    data_repo_atomic_lock(&repo->heads[h].lock);
+    dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;
         e = e->next_entry)
         if( e->key == key ) {
             e->retained++; /* Until we update the usage limit */
-            data_repo_atomic_unlock(&repo->heads[h].lock);
+            dague_atomic_unlock(&repo->heads[h].lock);
             return e;
         }
 
@@ -248,7 +236,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
     repo->heads[h].size++;
     DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
-    data_repo_atomic_unlock(&repo->heads[h].lock);
+    dague_atomic_unlock(&repo->heads[h].lock);
     return e;
 }
 
@@ -264,7 +252,7 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
     int h = key % repo->nbentries;
     uint32_t r = 0xffffffff;
 
-    data_repo_atomic_lock(&repo->heads[h].lock);
+    dague_atomic_lock(&repo->heads[h].lock);
     p = NULL;
     for(e = repo->heads[h].first_entry;
         e != NULL;
@@ -290,13 +278,13 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
             repo->heads[h].first_entry = e->next_entry;
         }
         repo->heads[h].size--;
-        data_repo_atomic_unlock(&repo->heads[h].lock);
+        dague_atomic_unlock(&repo->heads[h].lock);
         free(e);
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
-        data_repo_atomic_unlock(&repo->heads[h].lock);
+        dague_atomic_unlock(&repo->heads[h].lock);
     }
 }
 
@@ -312,7 +300,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
     uint32_t ov, nv;
     int h = key % repo->nbentries;
 
-    data_repo_atomic_lock(&repo->heads[h].lock);
+    dague_atomic_lock(&repo->heads[h].lock);
     p = NULL;
     for(e = repo->heads[h].first_entry;
         e != NULL;
@@ -338,13 +326,13 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
             repo->heads[h].first_entry = e->next_entry;
         }
         repo->heads[h].size--;
-        data_repo_atomic_unlock(&repo->heads[h].lock);
+        dague_atomic_unlock(&repo->heads[h].lock);
         free(e);
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
-        data_repo_atomic_unlock(&repo->heads[h].lock);
+        dague_atomic_unlock(&repo->heads[h].lock);
     }
 }
 
