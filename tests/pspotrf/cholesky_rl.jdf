@@ -42,7 +42,7 @@ extern DPLASMA_desc ddescA;
 #   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
 
-extern int gpu_sgemm( int uplo, void* A, void* B, void* C, int k, int n, int m );
+extern int gpu_sgemm( dplasma_execution_unit_t*, dplasma_execution_context_t*, int uplo, void* A, void* B, void* C, int k, int n, int m );
 %}
 
 /* Globals
@@ -118,7 +118,7 @@ INOUT C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> A(n, k)
 
 //; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2 : 1000000000
-; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
 
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, k, k );
@@ -250,11 +250,24 @@ INOUT C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 BODY
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, n, k );
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ, m, k );
-    if( use_gpu > 0 ) {
-        if( 0 == gpu_sgemm( uplo, A, B, C, k, n, m ) )
-	    goto FIN;
-    }
+    /* Should we do this later ? */
     dplasma_mark_data_usage( &ddescA, DPLASMA_READ | DPLASMA_WRITE, m, n );
+    if( use_gpu > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m )) )
+	    goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+            use_gpu = 0;
+            return -2;
+        }
+        /* Continue with the task on the cores */
+    }
 
     if( uplo == PlasmaLower ) {
         CORE(

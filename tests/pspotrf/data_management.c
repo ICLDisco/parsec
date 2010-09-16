@@ -23,7 +23,7 @@
 #include <control/common.h>
 #include <control/context.h>
 #include <control/allocate.h>
-
+#include "gpu_data.h"
 extern int dposv_force_nb;
 
 /*#define A(m,n) &((float*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]*/
@@ -1134,7 +1134,7 @@ int dplasma_description_init( DPLASMA_desc * Ddesc, int LDA, int LDB, int NRHS, 
 #include <cuda_runtime_api.h>
 #include "lifo.h"
 #include "gpu_data.h"
-extern dplasma_atomic_lifo_t gpu_devices;
+extern gpu_device_t** gpu_devices;
 #endif  /* defined(DPLASMA_CUDA_SUPPORT) */
 
 void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
@@ -1144,8 +1144,11 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
     if( use_gpu ) {
         CUresult status;
         gpu_device_t* gpu_device;
-
-        gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
+#if DPLASMA_SMART_SCHEDULING
+        gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&(gpu_array[0].gpu_devices));
+#else
+     	gpu_device = gpu_devices[0];
+#endif
         if( NULL != gpu_device ) {
             status = cuCtxPushCurrent( gpu_device->ctx );
             DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
@@ -1160,7 +1163,9 @@ void* dplasma_allocate_matrix( int matrix_size, int use_gpu)
             status = cuCtxPopCurrent(NULL);
             DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                       {} );
-            dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
+#if DPLASMA_SMART_SCHEDULING	    
+            dplasma_atomic_lifo_push(&(gpu_array[0].gpu_devices), (dplasma_list_item_t*)gpu_device);
+#endif
         }
     }
  normal_alloc:

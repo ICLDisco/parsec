@@ -770,6 +770,103 @@ static void dplasma_dump_locals_from_context(const dplasma_t *d,
     }
 }
 
+static void dplasma_dump_completion_helper(const dplasma_t *d)
+{
+    char strexpr1[MAX_EXPR_LEN];
+    static int next_shape_idx = 0;
+    int i, j, k;
+
+    output("static inline int \n"
+           "%s_complete_hook(dplasma_execution_unit_t *context,\n"
+           "                 dplasma_execution_context_t *exec_context)\n"
+           "{\n",
+           d->name);
+    dplasma_dump_locals_from_context(d, "", DUMP_DECLARATION | DUMP_ASSIGNMENT_LINE, 0);
+
+    output("#if defined(DISTRIBUTED)\n"
+           "  /** If not working on distributed, there is no risk that datas are not in place */ \n");
+    for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
+        param_t* param = d->inout[i];
+        if( !(param->sym_type & SYM_OUT) ) continue;
+        for(k = 0; k < MAX_DEP_OUT_COUNT; k++) {
+            if( (NULL == param->dep_out[k]) || (0 != param->dep_out[k]->dplasma->nb_locals) ) continue;
+            output("  {\n");
+            output("    data_repo_entry_t *e%s = exec_context->pointers[%d];\n", d->inout[i]->name, 2 * i);
+            output("    gc_data_t *g%s = exec_context->pointers[%d];\n", d->inout[i]->name, 2 * i + 1);
+            output("    void *%s = GC_DATA(g%s);\n", d->inout[i]->name,  d->inout[i]->name);
+            if( NULL != param->dep_out[k]->cond ) {
+                output("    if(%s) {\n  ", expression_to_c_inline(param->dep_out[k]->cond, "", strexpr1, MAX_EXPR_LEN));
+            }
+            dplasma_dep_dplasma_call_to_c(param->dep_out[k], strexpr1, MAX_EXPR_LEN);
+            output("%s    if(%s != %s) {\n"
+                   "%s      dplasma_remote_dep_memcpy( %s, g%s, %s );\n"
+                   "%s      DEBUG((\"memcpy(%%p, %%p)\\n\", %s, g%s));\n"
+                   "%s    }\n",
+                   NULL != param->dep_out[k]->cond ? "  " : "", param->name, strexpr1,
+                   NULL != param->dep_out[k]->cond ? "  " : "", strexpr1, param->name,
+                   NULL == param->dep_out[k]->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char *)param->dep_out[k]->type,
+                   NULL != param->dep_out[k]->cond ? "  " : "" , strexpr1, param->name,
+                   NULL != param->dep_out[k]->cond ? "  " : "");
+            if( NULL != param->dep_out[k]->cond ) {
+                output(  "    }\n");
+            }
+            output( "  }\n" );
+        }
+    }
+    output("#endif /* defined(DISTRIBUTED) */\n");
+
+    output( "  TAKE_TIME(context, %s_end_key, %s_hash(",
+            d->name, d->name);
+    for(j = 0; j < d->nb_locals; j++) {
+        output("%s", d->locals[j]->name );
+        if( j == d->nb_locals - 1 ) 
+            output("));\n");
+        else
+            output(", ");
+    }
+
+    output( "\n"
+            "#ifdef HAVE_PAPI\n"
+            "  PAPI_stop(eventSet, &values);\n"
+            "  if(num_events > 0) {\n"
+            "    printf(\"PAPI counter values from %5s (thread=%%ld): \", context->eu_id);\n"  
+            "    for(i=0; i<num_events; ++i) {\n"
+            "      char event_name[PAPI_MAX_STR_LEN];\n"
+            "      PAPI_event_code_to_name(events[i], &event_name);\n"
+            "      printf(\"   %%s  %%lld \", event_name, values[i]);\n"
+            "    }\n"
+            "    printf(\"\\n\");\n"
+            "  }\n"
+            "#endif\n"
+            "\n", d->name);
+        
+    output( "#if defined(DPLASMA_GRAPHER)\n"
+            "if( NULL != __dplasma_graph_file ) {\n"
+            "  char tmp[128];\n"
+            "  dplasma_service_to_string(exec_context, tmp, 128);\n"
+            "  fprintf(__dplasma_graph_file,\n"
+            "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
+            "          tmp, colors[context->eu_id], tmp, %s_hash(",
+            shapes[next_shape_idx++ % SHAPES_SIZE], d->name, d->name);
+    for(j = 0; j < d->nb_locals; j++) {
+        output("%s", d->locals[j]->name );
+        if( j == d->nb_locals - 1 ) 
+            output("));\n");
+        else
+            output(", ");
+    }
+    output("}\n"
+           "#endif /* defined(DPLASMA_GRAPHER) */\n");
+
+    output("  %s_release_dependencies(context, exec_context, \n"
+           "          DPLASMA_ACTION_RELEASE_REMOTE_DEPS | DPLASMA_ACTION_RELEASE_LOCAL_DEPS |\n"
+           "          DPLASMA_ACTION_DEPS_MASK | DPLASMA_ACTION_RELEASE_LOCAL_REFS,\n"
+           "          NULL);\n"
+           "  return 0;\n"
+           "}\n\n",
+           d->name);
+}
+
 static void dplasma_dump_dependency_helper(const dplasma_t *d,
                                            char *init_func_body,
                                            int init_func_body_size)
@@ -1211,7 +1308,6 @@ static char *dplasma_dump_c(const dplasma_t *d,
                             int init_func_body_size)
 {
     static char dp_txt[DPLASMA_SIZE];
-    static int next_shape_idx = 0;
     int i, j, k, cpt, p = 0;
     char strexpr1[MAX_EXPR_LEN];
 
@@ -1274,6 +1370,8 @@ static char *dplasma_dump_c(const dplasma_t *d,
 #if defined(DPLASMA_CACHE_AWARE)
         dplasma_dump_cache_evaluation_function(d, init_func_body, init_func_body_size);
 #endif  /* defined(DPLASMA_CACHE_AWARE */
+
+        dplasma_dump_completion_helper(d);
 
         output( "static int %s_hook(dplasma_execution_unit_t* context,\n"
                 "                   dplasma_execution_context_t *exec_context)\n"
@@ -1360,92 +1458,10 @@ static char *dplasma_dump_c(const dplasma_t *d,
         body_lines = nblines(d->body);
         output( "  %s\n"
                 "#line %d \"%s\"\n"
-                "\n",
+                "\n"
+                "  return 0;\n"
+                "}\n\n",
                 d->body, body_lines+2+current_line, out_name);
-
-        output("#if defined(DISTRIBUTED)\n"
-               "  /** If not working on distributed, there is no risk that datas are not in place */ \n");
-        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-            param_t* param = d->inout[i];
-            if( !(param->sym_type & SYM_OUT) ) continue;
-            for(k = 0; k < MAX_DEP_OUT_COUNT; k++) {
-                if( (NULL == param->dep_out[k]) || (0 != param->dep_out[k]->dplasma->nb_locals) ) continue;
-                if( NULL != param->dep_out[k]->cond ) {
-                    output("  if(%s) {\n  ", expression_to_c_inline(param->dep_out[k]->cond, "", strexpr1, MAX_EXPR_LEN));
-                }
-                dplasma_dep_dplasma_call_to_c(param->dep_out[k], strexpr1, MAX_EXPR_LEN);
-                output("%s  if(%s != %s) {\n"
-                       "%s    dplasma_remote_dep_memcpy( %s, g%s, %s );\n"
-                       "%s    DEBUG((\"memcpy(%%p, %%p)\\n\", %s, g%s));\n"
-                       "%s  }\n",
-                       NULL != param->dep_out[k]->cond ? "  " : "", param->name, strexpr1,
-                       NULL != param->dep_out[k]->cond ? "  " : "", strexpr1, param->name,
-                       NULL == param->dep_out[k]->type ? "DPLASMA_DEFAULT_DATA_TYPE" : (char *)param->dep_out[k]->type,
-                       NULL != param->dep_out[k]->cond ? "  " : "" , strexpr1, param->name,
-                       NULL != param->dep_out[k]->cond ? "  " : "");
-                if( NULL != param->dep_out[k]->cond ) {
-                    output(  "}\n");
-                }
-            }
-        }
-        output("#endif /* defined(DISTRIBUTED) */\n");
-
-        output( "  TAKE_TIME(context, %s_end_key, %s_hash(",
-                d->name, d->name);
-        for(j = 0; j < d->nb_locals; j++) {
-            output("%s", d->locals[j]->name );
-            if( j == d->nb_locals - 1 ) 
-                output("));\n");
-            else
-                output(", ");
-        }
-
-        output( "\n"
-                "#ifdef HAVE_PAPI\n"
-                "  PAPI_stop(eventSet, &values);\n"
-                "  if(num_events > 0) {\n"
-                "    printf(\"PAPI counter values from %5s (thread=%%ld): \", context->eu_id);\n"  
-                "    for(i=0; i<num_events; ++i) {\n"
-                "      char event_name[PAPI_MAX_STR_LEN];\n"
-                "      PAPI_event_code_to_name(events[i], &event_name);\n"
-                "      printf(\"   %%s  %%lld \", event_name, values[i]);\n"
-                "    }\n"
-                "    printf(\"\\n\");\n"
-                "  }\n"
-                "#endif\n"
-                "\n", d->name);
-        
-        output( "#if defined(DPLASMA_GRAPHER)\n"
-                "if( NULL != __dplasma_graph_file ) {\n"
-                "  char tmp[128];\n"
-                "  dplasma_service_to_string(exec_context, tmp, 128);\n"
-                "  fprintf(__dplasma_graph_file,\n"
-                "          \"%%s [shape=\\\"%s\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
-                "          tmp, colors[context->eu_id], tmp, %s_hash(",
-                shapes[next_shape_idx++ % SHAPES_SIZE], d->name, d->name);
-        for(j = 0; j < d->nb_locals; j++) {
-            output("%s", d->locals[j]->name );
-            if( j == d->nb_locals - 1 ) 
-                output("));\n");
-            else
-                output(", ");
-        }
-        output("}\n"
-               "#endif /* defined(DPLASMA_GRAPHER) */\n");
-
-        cpt = 0;
-        for(i = 0; i < MAX_PARAM_COUNT && NULL != d->inout[i]; i++) {
-            if( d->inout[i]->sym_type & SYM_OUT ) {
-                cpt++;
-            }
-        }
-        output("  %s_release_dependencies(context, exec_context, \n"
-               "          DPLASMA_ACTION_RELEASE_REMOTE_DEPS | DPLASMA_ACTION_RELEASE_LOCAL_DEPS |\n"
-               "          DPLASMA_ACTION_DEPS_MASK | DPLASMA_ACTION_RELEASE_LOCAL_REFS,\n"
-               "          NULL);\n"
-               "  return 0;\n"
-               "}\n\n",
-               d->name);
     }
 
     return dp_txt;
@@ -1719,8 +1735,9 @@ int dplasma_dump_all_c(char *filename)
         if( object->body != NULL ) {
             output("  object = (dplasma_t*)dplasma_find(\"%s\");\n"
                    "  object->hook = %s_hook;\n"
-                   "  object->release_deps = %s_release_dependencies;\n\n",
-                   object->name, object->name, object->name);
+                   "  object->release_deps = %s_release_dependencies;\n"
+                   "  object->complete_execution = %s_complete_hook;\n\n", 
+                   object->name, object->name, object->name, object->name);
         }
         /* Compute the maximum number of output dependencies */
         for( j = object_output_deps = 0; j < MAX_PARAM_COUNT; j++ ) {

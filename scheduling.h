@@ -30,7 +30,8 @@ void* __dplasma_progress(dplasma_execution_unit_t* eu_context);
 
 void dplasma_register_nb_tasks(dplasma_context_t* context, int32_t n);
 
-
+int dplasma_complete_execution( dplasma_execution_unit_t *eu_context,
+                                dplasma_execution_context_t *exec_context );
 
 //#ifdef DEPRECATED
 /**

@@ -10,18 +10,31 @@
 #include "dplasma_config.h"
 #include "data_management.h"
 #include "linked_list.h"
+#include "dequeue.h"
 #include "profiling.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+
+#define DPLASMA_SMART_SCHEDULING 0
+#define DPLASMA_MAX_STREAMS 4
 
 typedef struct _gpu_device {
     dplasma_list_item_t item;
     CUcontext ctx;
     CUmodule hcuModule;
     CUfunction hcuFunction;
+    CUstream streams[DPLASMA_MAX_STREAMS];
+    int max_streams;
     int id;
     int executed_tasks;
+    int major;
+    int minor;
+    int mutex;
+#if DPLASMA_SMART_SCHEDULING
+    int lifoid;
+#endif
+    dplasma_dequeue_t pending;
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
     uint64_t required_data_in;
@@ -32,17 +45,32 @@ typedef struct _gpu_device {
 #endif  /* defined(PROFILING) */
 } gpu_device_t;
 
+#if DPLASMA_SMART_SCHEDULING
+typedef struct _gpu_item {
+	int gpu_id;
+	int func1_usage;
+	int func1_current;
+	int func2_usage;
+	int func2_current;
+	int working;
+	volatile int32_t *waiting;
+	dplasma_atomic_lifo_t gpu_devices;
+} gpu_item_t;
+gpu_item_t* gpu_array;
+#endif
+
 typedef struct _memory_elem memory_elem_t;
 typedef struct _gpu_elem gpu_elem_t;
 
 struct _gpu_elem {
     dplasma_list_item_t item;
     int lock;
+    int type;
     CUdeviceptr gpu_mem;
     memory_elem_t* memory_elem;
     int gpu_version;
 };
-
+ 	
 struct _memory_elem {
     int memory_version;
     int readers;
@@ -65,6 +93,11 @@ extern int dplasma_data_is_on_gpu( gpu_device_t* gpu_device,
                                    gpu_elem_t **gpu_elem);
 extern int dplasma_data_map_init( gpu_device_t* gpu_device,
                                   DPLASMA_desc* data );
+int dplasma_data_get_tile( DPLASMA_desc* data,
+                           int col, int row,
+                           memory_elem_t **pmem_elem );
+int dplasma_data_tile_write_owner( DPLASMA_desc* data,
+                                   int col, int row );
 
 #define DPLASMA_CUDA_CHECK_ERROR( STR, ERROR, CODE )                    \
     {                                                                   \

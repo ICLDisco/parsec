@@ -1,7 +1,7 @@
-/*                                                                                                                                                                    
- * Copyright (c) 2009      The University of Tennessee and The University                                                                                             
- *                         of Tennessee Research Foundation.  All rights                                                                                              
- *                         reserved.                                                                                                                                  
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
  */
 
 #ifndef DEQUEUE_H_HAS_BEEN_INCLUDED
