@@ -81,3 +81,16 @@ tools/dague-compiler/lhr
 tools/dague-compiler/cholesky.c
 tools/dague-compiler/cholesky.h
 tests/unit/atomics/lifo
+tests/LAQR/QR\.c
+tests/LAQR/QR\.h
+tests/LAQR/dgels\.c
+tests/LAQR/ladgels
+tests/LAQR/mpi_ladgels
+tests/LU/LU_sd\.c
+tests/LU/LU_sd\.h
+tests/TSQR/TSQR\.c
+tests/TSQR/TSQR\.h
+tests/TSQR/mpi_testing_tsqr
+tests/TSQR/testing_tsqr
+tests/pspotrf/cholesky_ll\.h
+tests/pspotrf/cholesky_rl\.h
