@@ -979,7 +979,7 @@ dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
 {
     char type_name[MPI_MAX_OBJECT_NAME];
-    MPI_Aint lb,ub;
+    MPI_Aint lb, ub;
     
     snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", tile_size, tile_size);
     
@@ -987,5 +987,6 @@ void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
     MPI_Type_set_name(MPI_DAGUE_DEFAULT_DATA_TYPE, type_name);
     MPI_Type_commit(&MPI_DAGUE_DEFAULT_DATA_TYPE);
     MPI_Type_get_extent(MPI_DAGUE_DEFAULT_DATA_TYPE, &lb, &ub);
-    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_DAGUE_DEFAULT_DATA_TYPE);
+    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, ub, 
+                          DAGUE_ARENA_ALIGNMENT_SSE, &MPI_DAGUE_DEFAULT_DATA_TYPE);
 }
