@@ -270,9 +270,7 @@ check_include_files(stddef.h HAVE_STDDEF_H)
 
 # This should be killed when matrix is a separate lib
 include_directories(${PLASMA_INCLUDE_DIR})
-include_directories(data_dist data_dist/matrix
-  data_dist/matrix/two_dim_rectangle_cyclic
-  data_dist/matrix/sym_two_dim_rectangle_cyclic)
+include_directories(data_dist)
 
 #
 # Setup targets
