@@ -233,7 +233,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     {
                         DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                         
-                        gc_data_ref(remote_deps->output[i].data);
+                        AREF(remote_deps->output[i].data);
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {
                             continue;
@@ -263,7 +263,7 @@ int remote_deps_allocation_init(int np, int max_output_deps)
     max_dep_count = max_output_deps;
     max_nodes_number = np;
     elem_size = sizeof(dague_remote_deps_t) +
-                max_dep_count * (sizeof(uint32_t) + sizeof(gc_data_t*) + 
+                max_dep_count * (sizeof(uint32_t) + sizeof(void*) + 
                                  sizeof(uint32_t*) + sizeof(dague_remote_dep_datatype_t*) +
                                  sizeof(uint32_t) * (max_nodes_number + 31)/32) +
                 sizeof(uint32_t) * (max_nodes_number + 31)/32;

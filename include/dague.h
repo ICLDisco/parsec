@@ -20,6 +20,7 @@ typedef uint32_t dague_dependency_t;
 #endif
 
 typedef struct dague_t dague_t;
+typedef struct dague_object dague_object_t;
 typedef struct dague_remote_deps_t dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
 typedef struct dague_dependencies_t dague_dependencies_t;
@@ -39,6 +40,7 @@ typedef struct dague_dependencies_t dague_dependencies_t;
 #include "execution_unit.h"
 #include "lifo.h"
 #include "datarepo.h"
+#include "arena.h"
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -70,7 +72,7 @@ struct dague_dependencies_t {
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit_t*, dague_execution_context_t*);
-typedef int (dague_release_deps_t)(struct dague_execution_unit_t*, dague_execution_context_t*, int, struct dague_remote_deps_t *, gc_data_t **data);
+typedef int (dague_release_deps_t)(struct dague_execution_unit_t*, dague_execution_context_t*, int, struct dague_remote_deps_t *, dague_arena_chunk_t **data);
 
 typedef enum  {
     DAGUE_ITERATE_STOP,
@@ -117,16 +119,15 @@ struct dague_t {
     char*                 body;
 };
 
-struct dague_object;
 
 typedef struct {
     data_repo_entry_t *data_repo;
-    gc_data_t *gc_data;
+    dague_arena_chunk_t *data;
 } dague_data_pair_t;
 
 struct dague_execution_context_t {
     dague_list_item_t list_item;
-    struct dague_object *dague_object;
+    dague_object_t      *dague_object;
     const  dague_t      *function;
     int32_t              priority;
     dague_data_pair_t    data[MAX_PARAM_COUNT];
@@ -141,7 +142,7 @@ extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
 #endif
 
-typedef struct dague_object {
+struct dague_object {
     /** All dague_object_t structures hold these two arrays **/
     uint32_t                   object_id;
     uint32_t                   nb_local_tasks;
@@ -149,7 +150,7 @@ typedef struct dague_object {
     dague_execution_context_t* startup_list;
     const dague_t**            functions_array;
     dague_dependencies_t**     dependencies_array;
-} dague_object_t;
+};
 
 struct dague_ddesc;
 
@@ -185,7 +186,7 @@ typedef struct {
     data_repo_entry_t *output_entry;
     int action_mask;
     dague_remote_deps_t *deps;
-    gc_data_t **data;
+    dague_arena_chunk_t **data;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;

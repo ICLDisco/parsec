@@ -918,7 +918,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu,
             (eu->master_context->my_rank == dst_rank) ) {
             arg->output_entry->data[param_index] = arg->data[param_index];
             arg->output_usage++;
-            gc_data_ref( arg->output_entry->data[param_index] );
+            AREF( arg->output_entry->data[param_index] );
             arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                      eu, oldcontext,
                                                                      oldcontext->function->out[param_index],

@@ -12,6 +12,7 @@
 #include "atomic.h"
 #include "stats.h"
 #include "debug.h"
+#include "arena.h"
 
 #define DEBUG_HEAVY(p)
 
@@ -29,6 +30,7 @@ static inline void data_repo_atomic_unlock( volatile uint32_t* atomic_lock )
     *atomic_lock = 0;
 }
 
+#if 0
 typedef struct gc_data {
     volatile uint32_t refcount;
     uint32_t cache_friendliness;
@@ -135,6 +137,7 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
     }
     return d;
 }
+#endif
 
 /**
  * Hash table:
@@ -180,7 +183,7 @@ typedef struct data_repo_entry {
     volatile uint32_t retained;
     long int key;
     struct data_repo_entry *next_entry;
-    gc_data_t *data[1];
+    dague_arena_chunk_t *data[1];
 } data_repo_entry_t;
 
 typedef struct data_repo_head {
@@ -238,7 +241,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
             return e;
         }
 
-    e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*));
+    e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*));
     e->next_entry = repo->heads[h].first_entry;
     repo->heads[h].first_entry = e;
     e->key = key;
@@ -246,7 +249,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
     e->usagecnt = 0;
     e->retained = 1; /* Until we update the usage limit */
     repo->heads[h].size++;
-    DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+    DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     data_repo_atomic_unlock(&repo->heads[h].lock);
     return e;
@@ -292,7 +295,7 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
         repo->heads[h].size--;
         data_repo_atomic_unlock(&repo->heads[h].lock);
         free(e);
-        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
@@ -340,7 +343,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         repo->heads[h].size--;
         data_repo_atomic_unlock(&repo->heads[h].lock);
         free(e);
-        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
@@ -358,7 +361,7 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
             e = n) {
             n = e->next_entry;
             free(e);
-            DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+            DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
         }
     }
     DAGUE_STAT_DECREASE(mem_hashtable,  sizeof(data_repo_t) + sizeof(data_repo_head_t) * (repo->nbentries-1) + STAT_MALLOC_OVERHEAD);
