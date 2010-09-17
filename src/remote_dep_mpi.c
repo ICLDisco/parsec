@@ -672,101 +672,88 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     assert(dep_enabled);
     do {
         MPI_Testany(DEP_NB_REQ, dep_req, &i, &flag, &status);
-        if(flag)
-        {
-            if(i < DEP_NB_CONCURENT)
-            {
-                assert(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG);
-                DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith datakey %lx\tparams %lx\n",
-                       status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128),
-                       i, dep_activate_buff[i]->msg.deps, dep_activate_buff[i]->msg.which));
-                remote_dep_mpi_get_data(eu_context, &dep_activate_buff[i]->msg, status.MPI_SOURCE, i);
-            } 
-            else if(i < (2*DEP_NB_CONCURENT))
-            {
-                i -= DEP_NB_CONCURENT; /* shift i */
-                assert(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG);
-                remote_dep_mpi_put_data(&dep_get_buff[i], status.MPI_SOURCE, i);
-            }
-            else 
-            {
-                i -= DEP_NB_CONCURENT * 2;
-                assert(i >= 0);
-                if(i < (DEP_NB_CONCURENT * MAX_PARAM_COUNT))
-                {
-                    /* We finished sending the data, allow for more requests 
-                     * to be processed */
-                    dague_remote_deps_t* deps; 
-                    int k;
-                    k = i % MAX_PARAM_COUNT;
-                    i = i / MAX_PARAM_COUNT;
-                    deps = (dague_remote_deps_t*) (uintptr_t) dep_get_buff[i].deps;
-                    DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n",
-                           i, k, dep_get_buff[i].deps, dep_get_buff[i].which, status.MPI_TAG));
-                    DEBUG_MARK_DTA_MSG_END_SEND(status.MPI_TAG);
-                    AUNREF(deps->output[k].data);
-                    TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
-                    dep_get_buff[i].which ^= (1<<k);
-                    if(0 == dep_get_buff[i].which)
-                    {
-                        MPI_Start(&dep_get_req[i]);
-                        remote_dep_dec_flying_messages(eu_context->master_context);
-                    }
-
-                    /* remote_deps cleanup */
-                    deps->output_sent_count++;
-                    if(deps->output_count == deps->output_sent_count)
-                    {
-                        unsigned int count;
-
-                        k = 0;
-                        count = 0;
-                        while( count < deps->output_count ) {
-                            for(unsigned int a = 0; a < (max_nodes_number + 31)/32; a++)
-                                deps->output[k].rank_bits[a] = 0;
-                            count += deps->output[k].count;
-                            deps->output[k].count = 0;
-#if defined(DAGUE_DEBUG)
-                            deps->output[k].data = NULL;
-                            deps->output[k].type = NULL;
-#endif
-                            k++;
-                            assert(k < MAX_PARAM_COUNT);
-                        }
-                        deps->output_count = 0;
-                        deps->output_sent_count = 0;
-#if defined(DAGUE_DEBUG)
-                        memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
-#endif
-                        dague_atomic_lifo_push(deps->origin, 
-                                                 dague_list_item_singleton((dague_list_item_t*) deps));
-                    }
+        if(!flag) continue;
+        if(i < DEP_NB_CONCURENT) {
+            assert(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG);
+            DEBUG(("FROM\t%d\tActivate\t%s\ti=%d\twith datakey %lx\tparams %lx\n",
+                   status.MPI_SOURCE, remote_dep_cmd_to_string(&dep_activate_buff[i]->msg, tmp, 128),
+                   i, dep_activate_buff[i]->msg.deps, dep_activate_buff[i]->msg.which));
+            remote_dep_mpi_get_data(eu_context, &dep_activate_buff[i]->msg, status.MPI_SOURCE, i);
+        } else if(i < (2*DEP_NB_CONCURENT)) {
+            i -= DEP_NB_CONCURENT; /* shift i */
+            assert(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG);
+            remote_dep_mpi_put_data(&dep_get_buff[i], status.MPI_SOURCE, i);
+        } else {
+            i -= DEP_NB_CONCURENT * 2;
+            assert(i >= 0);
+            if(i < (DEP_NB_CONCURENT * MAX_PARAM_COUNT)) {
+                /* We finished sending the data, allow for more requests 
+                 * to be processed */
+                dague_remote_deps_t* deps; 
+                int k;
+                k = i % MAX_PARAM_COUNT;
+                i = i / MAX_PARAM_COUNT;
+                deps = (dague_remote_deps_t*) (uintptr_t) dep_get_buff[i].deps;
+                DEBUG(("TO\tna\tPut END  \tunknown \tj=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n",
+                       i, k, dep_get_buff[i].deps, dep_get_buff[i].which, status.MPI_TAG));
+                DEBUG_MARK_DTA_MSG_END_SEND(status.MPI_TAG);
+                AUNREF(deps->output[k].data);
+                TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
+                dep_get_buff[i].which ^= (1<<k);
+                if(0 == dep_get_buff[i].which) {
+                    MPI_Start(&dep_get_req[i]);
+                    remote_dep_dec_flying_messages(eu_context->master_context);
                 }
-                else
-                {
-                    /* We received a data, call the matching release_dep */
-                    dague_remote_deps_t* deps;
-                    int k;
-                    i -= (DEP_NB_CONCURENT * MAX_PARAM_COUNT);
-                    assert((i >= 0) && (i < DEP_NB_CONCURENT * MAX_PARAM_COUNT));
-                    k = i%MAX_PARAM_COUNT;
-                    i = i/MAX_PARAM_COUNT;
-                    deps = (dague_remote_deps_t*) (uintptr_t) dep_activate_buff[i];
-                    DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, deps->msg.deps, deps->msg.which, status.MPI_TAG));
-                    DEBUG_MARK_DTA_MSG_END_RECV(status.MPI_TAG);
-                    TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i+k);
-                    deps->msg.deps |= 1<<k;
-                    /* TODO: This function will use the previously defined mask (msg->deps) to
-                     * activate dependencies. As we keep adding bits into this mask, in case where
-                     * we have multiple dependencies some of them will be parsed several times.
-                     */
-                    remote_dep_release(eu_context, deps);
-                    if(deps->msg.which == deps->msg.deps)
-                    {
-                        MPI_Start(&dep_activate_req[i]);
+
+                /* remote_deps cleanup */
+                deps->output_sent_count++;
+                if(deps->output_count == deps->output_sent_count) {
+                    unsigned int count;
+
+                    k = 0;
+                    count = 0;
+                    while( count < deps->output_count ) {
+                        for(unsigned int a = 0; a < (max_nodes_number + 31)/32; a++)
+                            deps->output[k].rank_bits[a] = 0;
+                        count += deps->output[k].count;
+                        deps->output[k].count = 0;
+#if defined(DAGUE_DEBUG)
+                        deps->output[k].data = NULL;
+                        deps->output[k].type = NULL;
+#endif
+                        k++;
+                        assert(k < MAX_PARAM_COUNT);
                     }
-                    ret++;
+                    deps->output_count = 0;
+                    deps->output_sent_count = 0;
+#if defined(DAGUE_DEBUG)
+                    memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
+#endif
+                    dague_atomic_lifo_push(deps->origin, 
+                                           dague_list_item_singleton((dague_list_item_t*) deps));
                 }
+            } else {
+                /* We received a data, call the matching release_dep */
+                dague_remote_deps_t* deps;
+                int k;
+                i -= (DEP_NB_CONCURENT * MAX_PARAM_COUNT);
+                assert((i >= 0) && (i < DEP_NB_CONCURENT * MAX_PARAM_COUNT));
+                k = i%MAX_PARAM_COUNT;
+                i = i/MAX_PARAM_COUNT;
+                deps = (dague_remote_deps_t*) (uintptr_t) dep_activate_buff[i];
+                DEBUG(("FROM\t%d\tGet END  \t%s\ti=%d,k=%d\twith datakey %lx\tparams %lx\t(tag=%d)\n", status.MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, 128), i, k, deps->msg.deps, deps->msg.which, status.MPI_TAG));
+                DEBUG_MARK_DTA_MSG_END_RECV(status.MPI_TAG);
+                TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i+k);
+                deps->msg.deps |= 1<<k;
+                /* TODO: This function will use the previously defined mask (msg->deps) to
+                 * activate dependencies. As we keep adding bits into this mask, in case where
+                 * we have multiple dependencies some of them will be parsed several times.
+                 */
+                remote_dep_release(eu_context, deps);
+                if(deps->msg.which == deps->msg.deps) {
+                    MPI_Start(&dep_activate_req[i]);
+                }
+                ret++;
             }
         }
     } while(0/*flag*/);
