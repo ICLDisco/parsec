@@ -756,6 +756,10 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                     DEBUG_MARK_DTA_MSG_END_RECV(status.MPI_TAG);
                     TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_ek, i+k);
                     deps->msg.deps |= 1<<k;
+                    /* TODO: This function will use the previously defined mask (msg->deps) to
+                     * activate dependencies. As we keep adding bits into this mask, in case where
+                     * we have multiple dependencies some of them will be parsed several times.
+                     */
                     remote_dep_release(eu_context, deps);
                     if(deps->msg.which == deps->msg.deps)
                     {
@@ -884,6 +888,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
             assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == data)
             { 
+                /* Why do we still have the internal_alloc_lifo? */
                 data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
                 if( NULL == data ) {
 #ifdef FLOW_CONTROL
@@ -910,19 +915,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
                 doall = 1; /* if we do one, do all */
                 dague_atomic_inc_32b(&internal_alloc_lifo_num_used);
 #endif    
-#if 0
-#if defined(DAGUE_STATS)
-                /* The hack "size>0 ? size : 1" is for statistics, so that we can store 
-                 * the size of the pointed data into the cache_friendliness pointer.
-                 * In case of a 0-sized object, we pass 1 to force the creation of a
-                 * garbage collectable pointer
-                 */            
-                assert( size < 0xffffffff );
-                deps->output[k].data = gc_data_new(data, size > 0 ? (uint32_t)size : 1); 
-#else
-                deps->output[k].data = gc_data_new(data, 1);
-#endif
-#endif
+                deps->output[k].data = data;
             }
 #ifdef DAGUE_DEBUG
             MPI_Type_get_name(dtt, type_name, &len);
