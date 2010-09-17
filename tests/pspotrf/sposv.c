@@ -48,7 +48,6 @@ int pri_change = 0;
 int cores = 1;
 int nodes = 1;
 uint32_t N = 0;
-int nbtasks = -1;
 
 int rank = 0;
 int LDA = 0;
@@ -324,7 +323,8 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     TIME_START();
     dague_progress(dague);
-    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
+    TIME_PRINT(("Dague proc %d:\ttasks: %d\t%f task/s\n", rank,
+                dague_cholesky->nb_local_tasks, dague_cholesky->nb_local_tasks/time_elapsed));
     SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
                      gflops = (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
 
@@ -377,10 +377,10 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 #endif
     dague_enqueue( dague, (dague_object_t*)dague_cholesky);
 
-    printf("Cholesky %dx%d has %d tasks to run. Total nb tasks to run: %d\n", 
+    printf("Cholesky %ux%u has %u tasks to run. Total nb tasks to run: %u\n", 
            ddescA.super.nb, ddescA.super.nt, dague_cholesky->nb_local_tasks, dague->taskstodo);
 
-    printf("GRIDrows = %d, GRIDcols = %d, rrank = %d, crank = %d\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
+    printf("GRIDrows = %u, GRIDcols = %u, rrank = %u, crank = %u\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     return dague;
 }
 

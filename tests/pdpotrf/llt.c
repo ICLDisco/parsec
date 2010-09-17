@@ -46,7 +46,6 @@ int pri_change = 0;
 int cores = 1;
 int nodes = 1;
 int N = 0;
-int nbtasks = -1;
 
 int rank = 0;
 int LDA = 0;
