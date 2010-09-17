@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2010      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -70,7 +70,7 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
 {
     dague_list_item_t* item;
     dague_arena_chunk_t* chunk;
-    size_t size = DAGUE_ALIGN(arena->elem_size + sizeof(union _internal_chunk_prefix_t),
+    size_t size = DAGUE_ALIGN(arena->elem_size + arena->alignment + sizeof(union _internal_chunk_prefix_t),
                               arena->alignment, size_t);
 
     if(arena->max_used != INT32_MAX) {
@@ -91,12 +91,10 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
         if(arena->malloc) item = arena->malloc(size);
         else item = malloc(size);
         assert(NULL != item);
-        ptrdiff_t optr = (ptrdiff_t) item;
-        assert(!(optr & (ptrdiff_t)1)); /* all pointers are even */
     }
     chunk = (dague_arena_chunk_t*) item;
     chunk->origin = arena;
-	chunk->refcount = 1;
+    chunk->refcount = 1;
     chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
                                    arena->alignment, void* );
     assert(((unsigned char*)chunk->data + arena->elem_size) <= ((unsigned char*)item + size));
@@ -126,3 +124,4 @@ void dague_arena_release(dague_arena_chunk_t* ptr)
         assert(0 <= arena->used);
     }
 }
+
