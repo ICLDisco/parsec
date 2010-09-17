@@ -14,7 +14,7 @@
 typedef MPI_Datatype dague_remote_dep_datatype_t;
 #else
 # undef DISTRIBUTED
-typedef void dague_remote_dep_datatype_t;
+typedef void* dague_remote_dep_datatype_t;
 #endif
 
 #include "assignment.h"

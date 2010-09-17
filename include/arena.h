@@ -22,16 +22,20 @@ typedef struct dague_arena_t dague_arena_t;
 typedef struct dague_arena_chunk_t dague_arena_chunk_t;
 #include "remote_dep.h"
 
+#define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
+#define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
+#define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
+
 struct dague_arena_t
 {
     dague_atomic_lifo_t lifo;
-    size_t alignment; /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
-    size_t elem_size; /* size of one element (unpacked in memory, aka extent) */
-    dague_remote_dep_datatype_t* opaque_dtt; /* the appropriate type for the network engine to send an element */
-    volatile int32_t used; /* elements currently out of the arena */
-    int32_t max_used; /* maximum size of the arena in elements */
-    volatile int32_t released; /* elements currently not used but allocated */
-    int32_t max_released; /* when more that max elements are released, they are really freed instead of joining the lifo */
+    size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
+    size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
+    dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
+    volatile int32_t used;                   /* elements currently out of the arena */
+    int32_t max_used;                        /* maximum size of the arena in elements */
+    volatile int32_t released;               /* elements currently not used but allocated */
+    int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo */
     /* some host hardware requires special allocation functions (Cuda, pinning,
      * Open CL, ...). Defaults are to use C malloc/free */
     void* (*malloc)(size_t size);
@@ -59,13 +63,20 @@ struct dague_arena_chunk_t {
 #define DAGUE_ARENA_DATA_SIZE(ptr) (DAGUE_ARENA_PREFIX(ptr)->elem_size)
 #define DAGUE_ARENA_DATA_TYPE(ptr) (DAGUE_ARENA_PREFIX(ptr)->origin->opaque_dtt)
 
-void dague_arena_construct(dague_arena_t* arena, size_t elem_size, size_t alignment, dague_remote_dep_datatype_t* opaque_dtt);
-void dague_arena_construct_full(dague_arena_t* arena, size_t elem_size, size_t alignment, dague_remote_dep_datatype_t* opaque_dtt, int32_t max_used, int32_t max_released); 
+int dague_arena_construct(dague_arena_t* arena,
+                          size_t elem_size,
+                          size_t alignment,
+                          dague_remote_dep_datatype_t* opaque_dtt);
+int dague_arena_construct_ex(dague_arena_t* arena,
+                             size_t elem_size,
+                             size_t alignment,
+                             dague_remote_dep_datatype_t* opaque_dtt,
+                             int32_t max_used,
+                             int32_t max_released); 
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena);
 void dague_arena_release(dague_arena_chunk_t* ptr);
-
 
 static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr)
 {
@@ -80,8 +91,7 @@ static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr)
     uint32_t ret;
     assert(DAGUE_ARENA_IS_PTR(ptr));
     ret = dague_atomic_dec_32b(&DAGUE_ARENA_PREFIX(ptr)->refcount);
-    if(0 == ret)
-    {
+    if(0 == ret) {
         dague_arena_release(ptr);
     }
     return ret;

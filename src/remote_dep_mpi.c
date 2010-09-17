@@ -791,7 +791,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
         if(!((1<<k) & task->which)) continue;
         //DEBUG(("%p[%d] %p, %p\n", deps, k, deps->output[k].data, GC_DATA(deps->output[k].data)));
         data = ADATA(deps->output[k].data);
-        dtt = *deps->output[k].type->opaque_dtt;
+        dtt = deps->output[k].type->opaque_dtt;
 #ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG(("TO\t%d\tPut START\tunknown \tj=%d,k=%d\twith datakey %lx at %p type %s\t(tag=%d)\n", to, i, k, task->deps, data, type_name, tag+k));
@@ -879,7 +879,7 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
     {        
         if((1<<k) & msg.which)
         {
-            dtt = *deps->output[k].type->opaque_dtt;
+            dtt = deps->output[k].type->opaque_dtt;
             data = deps->output[k].data;
             assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == data)
