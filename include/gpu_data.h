@@ -60,6 +60,26 @@ typedef struct _gpu_device {
 extern gpu_device_t** gpu_devices;
 int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities);
     
+/**
+ * Enable GPU-compatible memory if possible
+ */
+void dague_data_enable_gpu( int nbgpu );
+
+/**
+ * returns not false iff dague_data_enable_gpu succeeded
+ */
+int dague_using_gpu(void);
+
+/**
+ * allocate a buffer to hold the data using GPU-compatible memory if needed
+ */
+void* dague_allocate_data( size_t matrix_size );
+
+/**
+ * free a buffer allocated by dague_allocate_data
+ */
+void dague_free_data(void *address);
+
 #endif /* defined(DAGUE_CUDA_SUPPORT) */
 
 #endif

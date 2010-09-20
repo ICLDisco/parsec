@@ -84,6 +84,7 @@ tests/unit/atomics/lifo
 tests/LAQR/QR\.c
 tests/LAQR/QR\.h
 tests/LAQR/dgels\.c
+tests/LAQR/ladgels
 tests/LAQR/mpi_ladgels
 tests/LU/LU_sd\.c
 tests/LU/LU_sd\.h

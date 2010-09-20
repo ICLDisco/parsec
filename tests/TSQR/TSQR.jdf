@@ -4,7 +4,7 @@ extern "C" %{
 
 #if defined(DISTRIBUTED)
 #include <mpi.h>
-extern MPI_Datatype RTILE_T;
+extern dague_arena_t RTILE_T;
 #endif
 extern int rank;
 

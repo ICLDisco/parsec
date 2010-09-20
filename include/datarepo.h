@@ -13,116 +13,13 @@
 #include "stats.h"
 #include "debug.h"
 
+typedef struct data_repo_entry data_repo_entry_t;
+
+#include "arena.h"
+
 #define DEBUG_HEAVY(p)
 
 #define MAX_DATAREPO_HASH 4096
-
-typedef struct gc_data {
-    volatile uint32_t refcount;
-    uint32_t cache_friendliness;
-    void    *data;
-} gc_data_t;
-
-#define GC_POINTER(d) ((gc_data_t*)( (uintptr_t)(d) & ~( (uintptr_t)1) ))
-#define GC_ENABLED(d) ( ((uintptr_t)(d) & 1) == 1 )
-#define GC_DATA(d) (void*)( GC_ENABLED(d)?(GC_POINTER(d)->data):(d) )
-
-
-#ifdef DAGUE_DEBUG_HEAVY
-#define gc_data_new(d, e) __gc_data_new(d, e, __FILE__, __LINE__)
-static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled, const char *file, int line)
-#else
-#define gc_data_new(d, e) __gc_data_new(d, e)
-static inline gc_data_t *__gc_data_new(void *data, uint32_t gc_enabled)
-#endif
-{
-    gc_data_t *d;
-
-    if( gc_enabled != 0 ) {
-        d = (gc_data_t*)malloc(sizeof(gc_data_t));
-        d->refcount = 0;
-        d->data = data;
-        assert( ((uintptr_t)d & (uintptr_t)1) == 0 /* Pointers cannot be odd */ );
-#if defined(DAGUE_STATS)
-        d->cache_friendliness = gc_enabled;
-        DAGUE_STAT_INCREASE(mem_communications, gc_enabled + sizeof(gc_data_t) + 2 * STAT_MALLOC_OVERHEAD);
-#endif
-        d = (gc_data_t*)( (uintptr_t)d | (uintptr_t)1 );
-
-        DEBUG_HEAVY(("Allocating the garbage collectable data %p pointing on data %p, at %s:%d\n",
-                     d, GC_DATA(d), file, line));
-        return d;
-    } else {
-        return (gc_data_t*)data;
-    }
-}
-
-#ifdef DAGUE_DEBUG_HEAVY
-#define gc_data_ref(d) __gc_data_ref(d, __FILE__, __LINE__)
-#else
-#define gc_data_ref(d) __gc_data_ref(d)
-#endif
-
-#ifdef DAGUE_DEBUG_HEAVY
-static inline void __gc_data_ref(gc_data_t *d, const char *file, int line)
-#else
-static inline void __gc_data_ref(gc_data_t *d)
-#endif
-{
-    if( GC_ENABLED(d) ) {
-        DEBUG_HEAVY(("%p is referenced by %s:%d\n", d, file, line));
-        dague_atomic_inc_32b( &GC_POINTER(d)->refcount);
-    }
-}
-
-#ifdef DAGUE_DEBUG_HEAVY
-#define gc_data_unref(d) __gc_data_unref(d, __FILE__, __LINE__)
-#else
-#define gc_data_unref(d) __gc_data_unref(d)
-#endif
-
-#if defined(USE_MPI)
-extern dague_atomic_lifo_t* internal_alloc_lifo;
-extern volatile int32_t internal_alloc_lifo_num_used;
-#endif  /* defined(USE_MPI) */
-
-#ifdef DAGUE_DEBUG_HEAVY
-static inline gc_data_t* __gc_data_unref(gc_data_t *d, const char *file, int line)
-#else
-static inline gc_data_t* __gc_data_unref(gc_data_t *d)
-#endif
-{
-    int nref;
-    if( GC_ENABLED(d) ) {
-        nref = dague_atomic_dec_32b( &GC_POINTER(d)->refcount );
-        DEBUG_HEAVY(("%p is unreferenced by %s:%d\n", d, file, line));
-        if( 0 == nref ) {
-            DEBUG_HEAVY(("Liberating the garbage collectable data %p pointing on data %p,\n",
-                         d, GC_DATA(d)));
-            /*printf( "%s:%d Releasing TILE at %p\n", __FILE__, __LINE__, GC_DATA(d));*/
-#if defined(USE_MPI)
-            {
-                dague_list_item_t* item = GC_DATA(d);
-                DAGUE_LIST_ITEM_SINGLETON(item);
-                dague_atomic_lifo_push(internal_alloc_lifo, item);
-#if defined(FLOW_CONTROL)
-                dague_atomic_dec_32b(&internal_alloc_lifo_num_used);
-#endif
-            }
-#else
-            free(GC_DATA(d));
-#endif  /* defined(USE_MPI) */
-#if defined(DAGUE_DEBUG_HEAVY)
-            GC_POINTER(d)->data = NULL;
-            GC_POINTER(d)->refcount = 0;
-#endif
-            DAGUE_STAT_DECREASE(mem_communications, sizeof(gc_data_t) + 2*STAT_MALLOC_OVERHEAD + d->cache_friendliness);
-            free(GC_POINTER(d));
-            return NULL;
-        }
-    }
-    return d;
-}
 
 /**
  * Hash table:
@@ -162,14 +59,14 @@ static inline gc_data_t* __gc_data_unref(gc_data_t *d)
  *    are not collected.
  */
 
-typedef struct data_repo_entry {
+struct data_repo_entry {
     volatile uint32_t usagecnt;
     volatile uint32_t usagelmt;
     volatile uint32_t retained;
     long int key;
     struct data_repo_entry *next_entry;
-    gc_data_t *data[1];
-} data_repo_entry_t;
+    dague_arena_chunk_t *data[1];
+};
 
 typedef struct data_repo_head {
     volatile uint32_t  lock;
@@ -226,7 +123,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
             return e;
         }
 
-    e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*));
+    e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*));
     e->next_entry = repo->heads[h].first_entry;
     repo->heads[h].first_entry = e;
     e->key = key;
@@ -234,7 +131,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *
     e->usagecnt = 0;
     e->retained = 1; /* Until we update the usage limit */
     repo->heads[h].size++;
-    DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+    DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     dague_atomic_unlock(&repo->heads[h].lock);
     return e;
@@ -280,7 +177,7 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
         free(e);
-        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
@@ -328,7 +225,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
         free(e);
-        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
@@ -346,7 +243,7 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
             e = n) {
             n = e->next_entry;
             free(e);
-            DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(gc_data_t*) + STAT_MALLOC_OVERHEAD);
+            DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
         }
     }
     DAGUE_STAT_DECREASE(mem_hashtable,  sizeof(data_repo_t) + sizeof(data_repo_head_t) * (repo->nbentries-1) + STAT_MALLOC_OVERHEAD);

@@ -378,7 +378,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 {
     int which_gpu, rc, stream_rc, waiting = 0, submit = 0;
     gpu_device_t* gpu_device;
-    gc_data_t *gA, *gB, *gC;
+    dague_arena_chunk_t *aA, *aB, *aC;
     cudaError_t status;
     dague_execution_context_t* progress_array[DAGUE_MAX_STREAMS];
 
@@ -464,12 +464,12 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     m = exec_context->locals[1].value;
     n = exec_context->locals[2].value;
 
-    gC = exec_context->data[0].gc_data;
-    gA = exec_context->data[1].gc_data;
-    gB = exec_context->data[2].gc_data;
-    A = GC_DATA(gA);
-    B = GC_DATA(gB);
-    C = GC_DATA(gC);
+    aA = exec_context->data[0].data;
+    aB = exec_context->data[1].data;
+    aC = exec_context->data[2].data;
+    A = ADATA(aA);
+    B = ADATA(aB);
+    C = ADATA(aC);
     goto more_work_to_do;
 
     /* a device ... */

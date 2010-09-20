@@ -12,8 +12,7 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(DISTRIBUTED)
-#include <mpi.h>
-extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L_PIVOT_VECT;
+extern dague_arena_t LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L_PIVOT_VECT;
 #endif
 
 int PLASMA_INFO;

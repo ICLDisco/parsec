@@ -7,7 +7,7 @@
 #include "dague.h"
 #ifdef USE_MPI
 #include "remote_dep.h"
-#include <mpi.h>
+extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #endif  /* defined(USE_MPI) */
 
 #if defined(HAVE_GETOPT_H)
@@ -58,16 +58,12 @@ double sync_time_elapsed;
 unsigned int dposv_force_nb = 120;
 #define NB dposv_force_nb
 unsigned int pri_change = 0;
-#if defined(USE_MPI)
-static int preallocated_tiles = 1024;
-#endif
 #if defined(DAGUE_CUDA_SUPPORT)
 static int nbrequested_gpu = 0;
 #endif
 unsigned int cores = 1;
 unsigned int nodes = 1;
-uint32_t N = 0;
-int nbtasks = -1;
+static uint32_t N = 0;
 
 unsigned int rank = 0;
 unsigned int LDA = 0;
@@ -109,9 +105,6 @@ static void print_usage(void)
 #if defined(DAGUE_CUDA_SUPPORT)
             "   -G --gpu         : number of GPU required (default 0)\n"
 #endif
-#if defined(USE_MPI)
-            "   -A --preallocate : number of communication tiles to pre allocated (default 1024)\n"
-#endif
             );
 }
 
@@ -133,7 +126,6 @@ static void runtime_init(int argc, char **argv)
 #if defined(DAGUE_CUDA_SUPPORT)
             {"gpu",         required_argument,  0, 'G'},
 #endif
-            {"preallocate", required_argument,  0, 'A'},
             {"help",        no_argument,        0, 'h'},
             {0, 0, 0, 0}
         };
@@ -229,11 +221,6 @@ static void runtime_init(int argc, char **argv)
                 case 'h':
                     print_usage();
                     exit(0);
-#if defined(USE_MPI)
-                case 'A':
-                    preallocated_tiles = atoi(optarg);
-                    break;
-#endif
 #if defined(DAGUE_CUDA_SUPPORT)
                 case 'G':
                     nbrequested_gpu = atoi(optarg);
@@ -326,6 +313,7 @@ static inline double get_cur_time(){
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
+    double gflops;
 
 #ifdef USE_MPI
     int _rank, _nodes;
@@ -387,17 +375,15 @@ int main(int argc, char ** argv)
     }
 #endif
 
-#if defined(USE_MPI)
-    dague_remote_dep_preallocate_buffers( preallocated_tiles, dposv_force_nb*dposv_force_nb*sizeof(float) );
-#endif
-
     /* lets rock! */
     SYNC_TIME_START();
     TIME_START();
     dague_progress(dague);
-    TIME_PRINT(("Dague proc %u:\ttasks: %d\t%f task/s\n", rank, nbtasks, nbtasks/time_elapsed));
-    SYNC_TIME_PRINT(("Dague computation:\t%u %u %f gflops\n", N, NB,
-                     (N/1e3*N/1e3*N/1e3/3.0)/(sync_time_elapsed)));
+    TIME_PRINT(("Dague proc %u:\ttasks: %u\t%f task/s\n", rank,
+                dague_cholesky->nb_local_tasks, dague_cholesky->nb_local_tasks/time_elapsed));
+    SYNC_TIME_PRINT(("Dague computation:\t%u %u %g gflops\n", N, NB,
+                     gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
+    (void)gflops;
 
     cleanup_dague(dague);
     /*** END OF DAGUE COMPUTATION ***/
@@ -427,12 +413,15 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
      */
     {
         char type_name[MPI_MAX_OBJECT_NAME];
+        MPI_Datatype default_ddt;
     
         snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%u*%u", NB, NB);
     
-        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &DAGUE_DEFAULT_DATA_TYPE);
-        MPI_Type_set_name(DAGUE_DEFAULT_DATA_TYPE, type_name);
-        MPI_Type_commit(&DAGUE_DEFAULT_DATA_TYPE);
+        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &default_ddt);
+        MPI_Type_set_name(default_ddt, type_name);
+        MPI_Type_commit(&default_ddt);
+        dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, NB*NB*sizeof(float), 
+                              DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     }
 #endif  /* USE_MPI */
 
@@ -444,8 +433,6 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
                                                              ddescA.super.nb, ddescA.super.nt, pri_change );
 #endif
     dague_enqueue( dague, (dague_object_t*)dague_cholesky);
-
-    nbtasks = dague_cholesky->nb_local_tasks;
 
     printf("Cholesky %ux%u has %u tasks to run. Total nb tasks to run: %u\n", 
            ddescA.super.nb, ddescA.super.nt, dague_cholesky->nb_local_tasks, dague->taskstodo);

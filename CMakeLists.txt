@@ -272,16 +272,14 @@ check_function_exists(getrusage HAVE_GETRUSAGE)
 
 # This should be killed when matrix is a separate lib
 include_directories(${PLASMA_INCLUDE_DIR})
-include_directories(data_dist data_dist/matrix
-  data_dist/matrix/two_dim_rectangle_cyclic
-  data_dist/matrix/sym_two_dim_rectangle_cyclic)
+include_directories(data_dist)
 
 #
 # Setup targets
 #
 add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
   src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
-  src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/data_distribution.c data_dist/matrix/matrix.c 
+  src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
   data_dist/matrix/tabular_distribution/tabular_distribution.c 
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
@@ -291,7 +289,7 @@ set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
     src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
-    src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/data_distribution.c data_dist/matrix/matrix.c 
+    src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
   data_dist/matrix/tabular_distribution/tabular_distribution.c
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)

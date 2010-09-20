@@ -8,7 +8,7 @@
 #include "dague.h"
 #ifdef USE_MPI
 #include "remote_dep.h"
-#include <mpi.h>
+extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #endif  /* defined(USE_MPI) */
 
 #if defined(HAVE_GETOPT_H)
@@ -46,7 +46,6 @@ int pri_change = 0;
 int cores = 1;
 int nodes = 1;
 int N = 0;
-int nbtasks = -1;
 
 int rank = 0;
 int LDA = 0;
@@ -328,8 +327,8 @@ int main(int argc, char ** argv)
     dague_progress(dague);
     TIME_PRINT(("priority for %d/%u:\ttasks: %u\t%f task/s\n", pri_change, ddescA.super.nt, dague_cholesky->nb_local_tasks, 
                 dague_cholesky->nb_local_tasks/time_elapsed));
-    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
-                     gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
+    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
+    (void)gflops;
 
     cleanup_dague(dague);
     /*** END OF DAGUE COMPUTATION ***/
@@ -361,12 +360,15 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
      */
     {
         char type_name[MPI_MAX_OBJECT_NAME];
-    
+        MPI_Datatype default_ddt;
+
         snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", dposv_force_nb, dposv_force_nb);
     
-        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &DAGUE_DEFAULT_DATA_TYPE);
-        MPI_Type_set_name(DAGUE_DEFAULT_DATA_TYPE, type_name);
-        MPI_Type_commit(&DAGUE_DEFAULT_DATA_TYPE);
+        MPI_Type_contiguous(NB * NB, MPI_DOUBLE, &default_ddt);
+        MPI_Type_set_name(default_ddt, type_name);
+        MPI_Type_commit(&default_ddt);
+        dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, NB*NB*sizeof(double), 
+                              DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     }
 #endif  /* USE_MPI */
 

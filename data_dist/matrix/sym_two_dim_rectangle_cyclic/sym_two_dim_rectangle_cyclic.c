@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <limits.h>
 
+#include "dague.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 
 static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
@@ -151,7 +152,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
 
     /* Allocate memory for matrices in block layout */
     printf("Process %u allocates %u tiles\n", myrank, total);
-    Ddesc->mat = dague_allocate_data((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
+    Ddesc->mat = dague_data_allocate((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");

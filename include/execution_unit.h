@@ -42,7 +42,7 @@ typedef struct dague_execution_unit_t {
 
 #if defined(HAVE_HWLOC)
     dague_hbbuffer_t    **eu_hierarch_queues; 
-    uint32_t                eu_nb_hierarch_queues;
+    uint32_t              eu_nb_hierarch_queues;
     dague_dequeue_t      *eu_system_queue;
 #  if defined(DAGUE_CACHE_AWARE)
     cache_t *closest_cache;
