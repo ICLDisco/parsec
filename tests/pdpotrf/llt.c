@@ -327,8 +327,8 @@ int main(int argc, char ** argv)
     dague_progress(dague);
     TIME_PRINT(("priority for %d/%u:\ttasks: %u\t%f task/s\n", pri_change, ddescA.super.nt, dague_cholesky->nb_local_tasks, 
                 dague_cholesky->nb_local_tasks/time_elapsed));
-    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
-                     gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
+    gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed);
+    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, gflops));
 
     cleanup_dague(dague);
     /*** END OF DAGUE COMPUTATION ***/
