@@ -18,7 +18,7 @@ __device__ void saxpy( float a, float *b, float *c )
 	c[15] += a*b[15];
 }
 
-__global__ void sgemmNT( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
+extern "C" __global__ void sgemmNT( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
 {
 	const int inx = threadIdx.x;
 	const int iny = threadIdx.y;
@@ -77,7 +77,7 @@ __global__ void sgemmNT( const float *A, int lda, const float *B, int ldb, float
 		C[0] = alpha*c[i] + beta*C[0];
 }	
 
-__global__ void sgemmNN( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
+extern "C" __global__ void sgemmNN( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
 {
 	const int inx = threadIdx.x;
 	const int iny = threadIdx.y;
