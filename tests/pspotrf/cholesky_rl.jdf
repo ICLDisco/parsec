@@ -12,10 +12,9 @@ int PLASMA_INFO = 0;
 
 #if defined(DAGUE_CUDA_SUPPORT)
 #include "gpu_data.h"
+#include "gpu_gemm.h"
 extern int *gpu_counter;
 #endif
-
-#include "gpu_gemm.h"
 
 #include "remote_dep.h"
 #include "data_dist/data_distribution.h"
@@ -61,7 +60,9 @@ RW T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
     CORE(
         spotrf, (
             uplo,
@@ -102,8 +103,10 @@ RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
 
     if( uplo == PlasmaLower ) {
         CORE(
@@ -165,8 +168,10 @@ RW    T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, n );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
 
     if( uplo == PlasmaLower ) {
         CORE(
@@ -229,11 +234,11 @@ RW    C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
     /* Should we do this later ? */
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
-#if defined(DAGUE_CUDA_SUPPORT)
     if( dague_using_gpu() > 0 ) {
         int rc;
 
@@ -250,7 +255,7 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-#endif
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
 
     if( uplo == PlasmaLower ) {
         CORE(
