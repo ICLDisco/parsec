@@ -13,12 +13,13 @@ static int using_gpu = 0;
 void* dague_allocate_data(size_t matrix_size)
 {
     void* mat = NULL;
+
 #if defined(DAGUE_CUDA_SUPPORT)
     if( using_gpu ) {
         CUresult status;
         gpu_device_t* gpu_device;
 
-        gpu_device = (gpu_device_t*)dague_atomic_lifo_pop(&gpu_devices);
+        gpu_device = gpu_devices[0];
         if( NULL != gpu_device ) {
             status = cuCtxPushCurrent( gpu_device->ctx );
             DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
@@ -49,7 +50,9 @@ void* dague_allocate_data(size_t matrix_size)
             status = cuCtxPopCurrent(NULL);
             DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                                       {} );
-            dague_atomic_lifo_push(&gpu_devices, (dague_list_item_t*)gpu_device);
+        } else {
+            fprintf(stderr, "No device configured...\n");
+            exit(1);
         }
     }
 #endif  /* defined(DAGUE_CUDA_SUPPORT) */
@@ -69,12 +72,21 @@ void* dague_allocate_data(size_t matrix_size)
 /**
  * Enable GPU-compatible memory if possible
  */
-void dague_data_enable_gpu( void )
+void dague_data_enable_gpu( int nbgpu )
 {
 #if defined(DAGUE_CUDA_SUPPORT)
-    using_gpu = 1;
+    using_gpu = nbgpu;
 #else
     fprintf(stderr, "Requesting GPU-enabled memory, although no CUDA support\n");
+#endif
+}
+
+int dague_using_gpu(void)
+{
+#if defined(DAGUE_CUDA_SUPPORT)
+    return using_gpu;
+#else
+    return 0;
 #endif
 }
 

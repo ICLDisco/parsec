@@ -9,6 +9,14 @@ extern int uplo;
 int PLASMA_INFO = 0;
 
 #include "dague.h"
+
+#if defined(DAGUE_CUDA_SUPPORT)
+#include "gpu_data.h"
+extern int *gpu_counter;
+#endif
+
+#include "gpu_gemm.h"
+
 #include "remote_dep.h"
 #include "data_dist/data_distribution.h"
 
@@ -53,6 +61,7 @@ RW T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
     CORE(
         spotrf, (
             uplo,
@@ -93,6 +102,9 @@ RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
 
 BODY
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, k );
+
     if( uplo == PlasmaLower ) {
         CORE(
             strsm, (
@@ -153,6 +165,9 @@ RW    T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
 BODY
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, n );
+
     if( uplo == PlasmaLower ) {
         CORE(
             ssyrk, (
@@ -214,6 +229,29 @@ RW    C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
 BODY
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
+    /* Should we do this later ? */
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+#if defined(DAGUE_CUDA_SUPPORT)
+    if( dague_using_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m )) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+        /* Continue with the task on the cores */
+    }
+#endif
+
     if( uplo == PlasmaLower ) {
         CORE(
             sgemm, ( 
@@ -257,4 +295,7 @@ BODY
                  1.0, n, m, NB /*A.nb*/ )
             );
     }
+#if defined(DAGUE_CUDA_SUPPORT)
+FIN:
+#endif
 END

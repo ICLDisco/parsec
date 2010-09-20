@@ -18,6 +18,13 @@
 #include <string.h>
 #include <sys/time.h>
 
+#if defined(DAGUE_CUDA_SUPPORT)
+/* CUDA INCLUDE */
+#include <cuda.h>
+#include <cublas.h>
+#include <cuda_runtime_api.h>
+#endif
+
 #include <cblas.h>
 #include <math.h>
 #include <plasma.h>
@@ -30,6 +37,12 @@
 #include "cholesky_ll.h"
 #else
 #include "cholesky_rl.h"
+#endif
+#include "remote_dep.h"
+
+#if defined(DAGUE_CUDA_SUPPORT)
+#include "gpu_data.h"
+#include "gpu_gemm.h"
 #endif
 
 //#ifdef VTRACE
@@ -45,6 +58,12 @@ double sync_time_elapsed;
 unsigned int dposv_force_nb = 120;
 #define NB dposv_force_nb
 unsigned int pri_change = 0;
+#if defined(USE_MPI)
+static int preallocated_tiles = 1024;
+#endif
+#if defined(DAGUE_CUDA_SUPPORT)
+static int nbrequested_gpu = 0;
+#endif
 unsigned int cores = 1;
 unsigned int nodes = 1;
 uint32_t N = 0;
@@ -86,7 +105,14 @@ static void print_usage(void)
             "   -r --nrhs        : Number of Right Hand Side (default: 1)\n"
             "   -s --stile-row   : number of tile per row in a super tile (default: 1)\n"
             "   -P --pri_change  : the position on the diagonal from the end where we switch the priority (default: 0)\n"
-            "   -B --block-size  : change the block size from the size tuned by PLASMA\n");
+            "   -B --block-size  : change the block size from the size tuned by PLASMA\n"
+#if defined(DAGUE_CUDA_SUPPORT)
+            "   -G --gpu         : number of GPU required (default 0)\n"
+#endif
+#if defined(USE_MPI)
+            "   -A --preallocate : number of communication tiles to pre allocated (default 1024)\n"
+#endif
+            );
 }
 
 static void runtime_init(int argc, char **argv)
@@ -104,11 +130,21 @@ static void runtime_init(int argc, char **argv)
             {"stile-col",   required_argument,  0, 'e'},
             {"block-size",  required_argument,  0, 'B'},
             {"pri_change",  required_argument,  0, 'P'},
+#if defined(DAGUE_CUDA_SUPPORT)
+            {"gpu",         required_argument,  0, 'G'},
+#endif
+            {"preallocate", required_argument,  0, 'A'},
             {"help",        no_argument,        0, 'h'},
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
+#if defined(DAGUE_CUDA_SUPPORT)
+    static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:h:A:G:";
+#else
+    static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:h:A:";
+#endif
+   
     /* parse arguments */
 
     do
@@ -116,10 +152,10 @@ static void runtime_init(int argc, char **argv)
             int c;
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
-            c = getopt_long (argc, argv, "c:n:a:r:b:g:e:s:B:P:h",
+            c = getopt_long (argc, argv, shortopts,
                              long_options, &option_index);
 #else
-            c = getopt (argc, argv, "c:n:a:r:b:g:e:s:B:P:h");
+            c = getopt (argc, argv, shortopts);
 #endif  /* defined(HAVE_GETOPT_LONG) */
         
         /* Detect the end of the options. */
@@ -193,6 +229,16 @@ static void runtime_init(int argc, char **argv)
                 case 'h':
                     print_usage();
                     exit(0);
+#if defined(USE_MPI)
+                case 'A':
+                    preallocated_tiles = atoi(optarg);
+                    break;
+#endif
+#if defined(DAGUE_CUDA_SUPPORT)
+                case 'G':
+                    nbrequested_gpu = atoi(optarg);
+                    break;
+#endif
                 case '?': /* getopt_long already printed an error message. */
                 default:
                     break; /* Assume anything else is dague/mpi stuff */
@@ -299,6 +345,19 @@ int main(int argc, char ** argv)
     /* parsing arguments */
     runtime_init(argc, argv);
 
+    //#ifdef VTRACE 
+    //    VT_ON();
+    //#endif
+    
+#if defined(DAGUE_CUDA_SUPPORT)
+    if( nbrequested_gpu != 0 ) {
+        if( 0 != dague_gpu_init( &nbrequested_gpu, 1 ) ) {
+            fprintf(stderr, "Unable to initialize the CUDA environment.\n");
+            exit(1);
+        }
+    }
+#endif
+
     /* initializing matrix structure */
     two_dim_block_cyclic_init(&ddescA, matrix_RealFloat,
                               nodes,
@@ -314,14 +373,23 @@ int main(int argc, char ** argv)
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
 
-    //#ifdef VTRACE 
-    //    VT_ON();
-    //#endif
-    
     /*** THIS IS THE DAGUE COMPUTATION ***/
     TIME_START();
     dague = setup_dague(&argc, &argv);
     TIME_PRINT(("Dague initialization:\t%u %u\n", N, dposv_force_nb));
+
+#if defined(DAGUE_CUDA_SUPPORT)
+    if(nbrequested_gpu != 0) {
+        if( 0 != spotrf_cuda_init( (tiled_matrix_desc_t *) &ddescA ) ) {
+            fprintf(stderr, "Unable to load GEMM operations.\n");
+            exit(1);
+        }
+    }
+#endif
+
+#if defined(USE_MPI)
+    dague_remote_dep_preallocate_buffers( preallocated_tiles, dposv_force_nb*dposv_force_nb*sizeof(float) );
+#endif
 
     /* lets rock! */
     SYNC_TIME_START();
@@ -377,6 +445,8 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 #endif
     dague_enqueue( dague, (dague_object_t*)dague_cholesky);
 
+    nbtasks = dague_cholesky->nb_local_tasks;
+
     printf("Cholesky %ux%u has %u tasks to run. Total nb tasks to run: %u\n", 
            ddescA.super.nb, ddescA.super.nt, dague_cholesky->nb_local_tasks, dague->taskstodo);
 
@@ -394,5 +464,8 @@ static void cleanup_dague(dague_context_t* dague)
     free(filename);
 #endif  /* DAGUE_PROFILING */
     
+#if defined(DAGUE_CUDA_SUPPORT)
+    spotrf_cuda_fini();
+#endif
     dague_fini(&dague);
 }

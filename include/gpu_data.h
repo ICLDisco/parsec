@@ -32,7 +32,7 @@ typedef struct _gpu_device {
     int executed_tasks;
     int major;
     int minor;
-    int mutex;
+    volatile uint32_t mutex;
 #if DAGUE_SMART_SCHEDULING
     int lifoid;
 #endif
@@ -49,16 +49,17 @@ typedef struct _gpu_device {
 
 #define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \
     {                                                                   \
-        cudaError_t cuda_error = (cudaError_t) (ERROR);                 \
-        if( cudaSuccess != cuda_error ) {                               \
+        cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
+        if( cudaSuccess != __cuda_error ) {                             \
             printf( "%s:%d %s%s\n", __FILE__, __LINE__,                 \
-                    (STR), cudaGetErrorString(cuda_error) );            \
+                    (STR), cudaGetErrorString(__cuda_error) );          \
             CODE;                                                       \
         }                                                               \
     }
 
-extern dague_atomic_lifo_t gpu_devices;
-
+extern gpu_device_t** gpu_devices;
+int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities);
+    
 #endif /* defined(DAGUE_CUDA_SUPPORT) */
 
 #endif

@@ -29,7 +29,12 @@ typedef struct dague_ddesc {
 /**
  * Enable GPU-compatible memory if possible
  */
-void dague_data_enable_gpu( void );
+void dague_data_enable_gpu( int nbgpu );
+
+/**
+ * returns not false iff dague_data_enable_gpu succeeded
+ */
+int dague_using_gpu(void);
 
 /**
  * allocate a buffer to hold the data using GPU-compatible memory if needed
