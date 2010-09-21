@@ -221,7 +221,7 @@ static void runtime_init(int argc, char **argv)
         }
     if((nodes % GRIDrows) != 0)
         {
-            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
+            fprintf(stderr, "GRIDrows %u does not divide the total number of nodes %d\n", ddescA.GRIDrows, nodes);
             exit(2);
         }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
@@ -329,7 +329,7 @@ int main(int argc, char ** argv)
     gflops = (_FADDS+_FMULS)/(sync_time_elapsed)));
    
     (void) gflops;
-    TIME_PRINT(("Dague priority change at position \t%d\n", ddescA.super.nt - pri_change));
+    TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - pri_change));
 
     /*data_dump((tiled_matrix_desc_t *) &ddescA);*/
     cleanup_dague(dague);
