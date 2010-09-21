@@ -22,6 +22,7 @@ int PLASMA_INFO;
 
 static dague_memory_pool_t *work_pool;
 
+int dgesv_sd_private_memory_initialization(int mb, int nb);
 int dgesv_sd_private_memory_initialization(int mb, int nb)
 {
     work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
@@ -30,6 +31,7 @@ int dgesv_sd_private_memory_initialization(int mb, int nb)
     return 0;
 }
 
+int dgesv_sd_private_memory_finalization(void);
 int dgesv_sd_private_memory_finalization(void)
 {
     return 0;

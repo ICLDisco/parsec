@@ -473,9 +473,10 @@ static char *dump_data_declaration(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa, 
-                            "  void *%s = NULL;\n"
-                            "  dague_arena_chunk_t *g%s = NULL;\n"
-                            "  data_repo_entry_t *e%s = NULL;\n", 
+                            "  void *%s = NULL; (void)%s;\n"
+                            "  dague_arena_chunk_t *g%s = NULL; (void)g%s;\n"
+                            "  data_repo_entry_t *e%s = NULL; (void)e%s;\n", 
+                            varname, varname, varname,
                             varname, varname, varname);
 
     return string_arena_get_string(sa);
@@ -976,6 +977,7 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)__dague_object_parent;\n"
             "%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
+            "  (void)__dague_object;\n"
             "%s\n"
             "  /* Compute Predicate */\n"
             "  return %s_pred%s;\n"
@@ -2263,11 +2265,15 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
                                  dump_assignments, &ai, "", "  int ", "", ""));
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
     coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
             "%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
                                  dump_data_declaration, sa2, "", "", "", ""));
-    
+
+    coutput("  /** silence unused variable warnings */\n");
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
@@ -2432,6 +2438,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
             "%s"
+            "  (void)__dague_object;\n"
             "  arg.nb_released = 0;\n"
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
@@ -2665,13 +2672,20 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)exec_context->dague_object;\n"
             "  dague_execution_context_t nc;\n"
             "  int rank_src = 0, rank_dst = 0;\n"
+            "  (void)rank_src;\n"
+            "  (void)rank_dst;\n"
+            "  (void)__dague_object;\n"
             "%s\n",
             name,
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
+    coutput("%s",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
-    coutput("  nc.dague_object = exec_context->dague_object;\n");
+    coutput("  nc.dague_object = exec_context->dague_object;\n"
+            "  (void)nc;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = __dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
             "#endif\n",
