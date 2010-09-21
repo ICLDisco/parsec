@@ -114,12 +114,17 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
             dague_linked_list_add_tail( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
+        if( 0 == nb_allocations ) {
+            printf("Cannot allocate memory on GPU %d. Skip it!\n", i);
+            cuCtxDestroy( gpu_device->ctx );
+            free(gpu_device);
+            gpu_devices[i] = NULL;
+            continue;
+        }
         printf( "Allocate %u tiles on the GPU memory\n", nb_allocations );
-
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {free(gpu_device); return -1;} );
-
     }
 
     return 0;
