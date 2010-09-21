@@ -74,7 +74,7 @@ DAGUE_dtrsm_getObject(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLA
         }
     }
 
-    printf("TRSM A:%dx%d (%dx%d) and B:%dx%d (%dx%d) has %u tasks to run.\n", 
+    printf("TRSM A:%ux%u (%ux%u) and B:%ux%u (%ux%u) has %u tasks to run.\n", 
            A->super.m, A->super.n, A->super.mt, A->super.nt, 
            B->super.m, B->super.n, B->super.mt, B->super.nt, 
            dague_trsm->nb_local_tasks);
