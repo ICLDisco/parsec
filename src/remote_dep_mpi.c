@@ -15,7 +15,6 @@
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
-#undef FLOW_CONTROL
 
 static int remote_dep_mpi_init(dague_context_t* context);
 static int remote_dep_mpi_fini(dague_context_t* context);
@@ -53,9 +52,6 @@ static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);
 
 static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i);
 static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* task, int from, int i);
-#ifdef FLOW_CONTROL
-static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, int i);
-#endif
 
 #include "dequeue.h"
 
@@ -64,8 +60,8 @@ typedef enum dep_cmd_action_t
     DEP_ACTIVATE,
     DEP_RELEASE,
 /*    DEP_PROGRESS,
-    DEP_PUT_DATA,*/
-    DEP_GET_DATA,
+    DEP_PUT_DATA,
+    DEP_GET_DATA,*/
     DEP_CTL,
     DEP_MEMCPY,
 } dep_cmd_action_t;
@@ -76,10 +72,6 @@ typedef union dep_cmd_t
         int rank;
         dague_remote_deps_t* deps;
     } activate;
-    struct {
-        int rank;
-        int i;
-    } get;
     struct {
         dague_remote_deps_t* deps;
     } release;
@@ -298,11 +290,6 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
             case DEP_ACTIVATE:
                 remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
                 break;
-#ifdef FLOW_CONTROL
-            case DEP_GET_DATA:
-                remote_dep_mpi_short_get_data(context, item->cmd.get.rank, item->cmd.get.i);
-                break;
-#endif
             case DEP_CTL:
                 ctl = item->cmd.ctl.enable;
                 assert((ctl * ctl) <= 1);
@@ -780,47 +767,12 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
     }
 }
 
-#ifdef FLOW_CONTROL
-#define FLOW_CONTROL_MEM_CONSTRAINT 200
-#define ATTEMPTS_STALLS_BEFORE_RESUME 3000000
-static int stalls = 0;
-static int old_context = -1;
-
-static void remote_dep_mpi_short_get_data(dague_context_t* context, int from, int i)
-{
-    if(old_context != (int)context->taskstodo) {
-        old_context = context->taskstodo;
-        stalls = ATTEMPTS_STALLS_BEFORE_RESUME;
-    } 
-    if((internal_alloc_lifo_num_used > FLOW_CONTROL_MEM_CONSTRAINT) && (stalls < ATTEMPTS_STALLS_BEFORE_RESUME)) {
-        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-        item->action = DEP_GET_DATA;
-        item->cmd.get.rank = from;
-        item->cmd.get.i = i;
-        DAGUE_LIST_ITEM_SINGLETON(item);
-        dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-        stalls++;
-        remote_dep_mpi_progress(context->execution_units[0]);
-    } else {
-        printf("Stall finished after %d tries, %d of %d arena used\n", stalls, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-        remote_dep_mpi_get_data(&dep_activate_buff[i]->msg, from, i);
-        old_context = context->taskstodo;
-        stalls = 0;
-    }
-}
-#endif
-
 static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* task, int from, int i)
 {
 #ifdef DAGUE_DEBUG
     char tmp[128];
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
-#endif
-#ifdef FLOW_CONTROL
-    dague_object_t* object = dague_object_lookup( task->object_id );
-    const dague_t* function = object->functions_array[task->function_id];
-    int doall = 0;
 #endif
     MPI_Datatype dtt;
     remote_dep_wire_get_t msg;
@@ -847,34 +799,9 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
             assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == data)
             { 
-#ifdef FLOW_CONTROL
-                /* Why do we still have the internal_alloc_lifo? */
-                data = (void*)dague_atomic_lifo_pop( internal_alloc_lifo );
-                if( NULL == data ) {
-                    /* basic attempt at flow control */
-                    if(! (doall || (internal_alloc_lifo_num_used <= FLOW_CONTROL_MEM_CONSTRAINT) || (stalls >= ATTEMPTS_STALLS_BEFORE_RESUME)) )
-                    {
-                        /* do it later */
-                        printf("TO\t%d\tGet LATER\t%s\tbecause %d>%d\n", from, function->name, internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-                        dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-                        item->action = DEP_GET_DATA;
-                        item->cmd.get.rank = from;
-                        item->cmd.get.i = i;
-                        DAGUE_LIST_ITEM_SINGLETON(item);
-                        dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-                        return;
-                    }
-                    printf("Malloc a new remote tile (%d used of %d)\n", internal_alloc_lifo_num_used, FLOW_CONTROL_MEM_CONSTRAINT);
-                }
-#else /* FLOW_CONTROL */
                 data = dague_arena_get(deps->output[k].type);
                 DEBUG(("Malloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
                 assert(data != NULL);
-#endif
-#ifdef FLOW_CONTROL
-                doall = 1; /* if we do one, do all */
-                dague_atomic_inc_32b(&internal_alloc_lifo_num_used);
-#endif    
                 deps->output[k].data = data;
             }
 #ifdef DAGUE_DEBUG
