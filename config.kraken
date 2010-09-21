@@ -3,5 +3,5 @@ rm -rf CMakeCache.txt CMakeFiles
 export CC=cc
 export FC=ftn
 
-cmake . -DDPLASMA_CUDA=OFF -DMPI_PREFIX_PATH="/opt/cray/mpt/5.0.0/xt/seastar/mpich2-pgi64" -DBLAS_LIBRARIES="/opt/xt-libsci/10.4.6/pgi/lib/libsci_istanbul.a" -DPLASMA_DIR=$HOME/.local/plasma  
+cmake . -DDAGUE_CUDA=OFF -DMPI_PREFIX_PATH="/opt/cray/mpt/5.0.0/xt/seastar/mpich2-pgi64" -DBLAS_LIBRARIES="/opt/xt-libsci/10.4.6/pgi/lib/libsci_istanbul.a" -DPLASMA_DIR=$HOME/.local/plasma  
 

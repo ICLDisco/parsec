@@ -38,14 +38,16 @@ typedef struct jdf_compiler_global_args {
     char *output_h;
     char *funcid;
     jdf_warning_mask_t wmask;   
+    int  noline;  /**< Don't dump the jdf line number in the generate .c file */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 
 /**
- * Toplevel structure: three linked lists: preambles, globals and functions 
+ * Toplevel structure: four linked lists: prologues, epilogues, globals and functions 
  */
 typedef struct jdf {
-    struct jdf_preamble_entry *preambles;
+    struct jdf_external_entry *prologue;
+    struct jdf_external_entry *epilogue;
     struct jdf_global_entry   *globals;
     struct jdf_function_entry *functions;
     struct jdf_data_entry     *data;
@@ -53,14 +55,13 @@ typedef struct jdf {
 
 extern jdf_t current_jdf;
 
-/** A Preamble is a c-code that is dumped as-is with a #line directive 
- *  We remember the line number in the JDF file where this preamble was found
+/** A prologue/epilogue is a c-code that is dumped as-is with a #line directive 
+ *  We remember the line number in the JDF file where this external code was found
  */
-typedef struct jdf_preamble_entry {
-    struct jdf_preamble_entry *next;
-    char                      *preamble;
+typedef struct jdf_external_entry {
+    char                      *external_code;
     int                        lineno;
-} jdf_preamble_entry_t;
+} jdf_external_entry_t;
 
 /** A global is a variable name, optionally an expression to define it,
  *  and a line number associated with it for error printing purposes
@@ -68,6 +69,7 @@ typedef struct jdf_preamble_entry {
 typedef struct jdf_global_entry {
     struct jdf_global_entry *next;
     char                    *name;
+    char                    *type;
     struct jdf_expr         *expression;
     int                      lineno;
 } jdf_global_entry_t;
@@ -77,7 +79,8 @@ typedef struct jdf_global_entry {
  */
 
 typedef unsigned int jdf_flags_t;
-#define JDF_FUNCTION_FLAG_HIGH_PRIORITY ((jdf_flags_t)(1 << 0))
+#define JDF_FUNCTION_FLAG_HIGH_PRIORITY   ((jdf_flags_t)(1 << 0))
+#define JDF_FUNCTION_FLAG_CAN_BE_STARTUP  ((jdf_flags_t)(1 << 1))
 
 typedef struct jdf_function_entry {
     struct jdf_function_entry *next;

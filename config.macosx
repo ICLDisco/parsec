@@ -1,18 +1,25 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
-HWLOC_OPTS="-DHWLOC_DIR=/opt/local"
 
+if [ "x$USER" == "xbouteill" ]; then 
 # the above line is necessary only when using gcc and gfortran 4.4
 # from fink. If using stock gcc and hpc gfortran, or port,
 # it is not necessary. 
-export CC=gcc-4.2
-export CFLAGS="-m64"
-export FFLAGS="-m64 -framework veclib"
-PLASMA_DIR=/Users/bosilca/opt/plasma-svn
-PLASMA_SRC=/Users/bosilca/unstable/dplasma/PLASMA/plasma-svn
-PLASMA="-DPLASMA_DIR=${PLASMA_DIR} -DPLASMA_SRC=${PLASMA_SRC}"
-BLAS="-framework veclib"
+export CC=gcc-4
+if [ "x$1" == "x64" ]; then
+	PLASMA_DIR=$HOME/dague/plasma-2.2.0-x86_64
+	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_CUDA=OFF"
+else
+	PLASMA_DIR=$HOME/dague/plasma-2.2.0
+	MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_CUDA=OFF"
+fi
+elif [ "x$USER" == "xherault" ]; then
+	PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
+elif [ "x$USER" == "xbosilca" ]; then 
+	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
+	PLASMA_DIR=${HOME}/opt/plasma-svn
+	PLASMA_SRC=${HOME}/unstable/dplasma/PLASMA/plasma-svn/
+	MY_OPTS="$HWLOC_OPTS -DPLASMA_SRC=${PLASMA_SRC}"
+fi
 
-HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=0"
-
-cmake ${PLASMA} -DDPLASMA_MPI=OFF ${HWLOC_OPTS}
+cmake -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${MY_OPTS}

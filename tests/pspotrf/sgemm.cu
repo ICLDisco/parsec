@@ -18,8 +18,7 @@ __device__ void saxpy( float a, float *b, float *c )
 	c[15] += a*b[15];
 }
 
-extern "C" __global__ void sgemmNT( const float *A, int lda, const float *B,
-                                    int ldb, float* C, int ldc, int k, float alpha, float beta )
+extern "C" __global__ void sgemmNT( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
 {
 	const int inx = threadIdx.x;
 	const int iny = threadIdx.y;
@@ -43,28 +42,28 @@ extern "C" __global__ void sgemmNT( const float *A, int lda, const float *B,
 	float c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     
 	do
-	{
-		float as[4] = {a[0], a[1], a[2], a[3]};
+        {
+            float as[4] = {a[0], a[1], a[2], a[3]};
 		
-		bs[iny][inx] = b;
-		__syncthreads();
+            bs[iny][inx] = b;
+            __syncthreads();
 		
-		a[0] = A[0*lda];
-		a[1] = A[1*lda];
-		a[2] = A[2*lda];
-		a[3] = A[3*lda];
-		b    = B[0];
+            a[0] = A[0*lda];
+            a[1] = A[1*lda];
+            a[2] = A[2*lda];
+            a[3] = A[3*lda];
+            b    = B[0];
 		
-		saxpy( as[0], &bs[0][0], c );
-		saxpy( as[1], &bs[1][0], c );
-		saxpy( as[2], &bs[2][0], c );
-		saxpy( as[3], &bs[3][0], c );
+            saxpy( as[0], &bs[0][0], c );
+            saxpy( as[1], &bs[1][0], c );
+            saxpy( as[2], &bs[2][0], c );
+            saxpy( as[3], &bs[3][0], c );
 		
-		A += 4*lda;
-		B += 4*ldb;
-		__syncthreads();
+            A += 4*lda;
+            B += 4*ldb;
+            __syncthreads();
 		
-	} while( B < Blast );
+        } while( B < Blast );
 	
 	bs[iny][inx] = b;
 	__syncthreads();
@@ -95,44 +94,45 @@ extern "C" __global__ void sgemmNN( const float *A, int lda, const float *B, int
 	float c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     
 	do
-	{
-		float a[4] = { A[0*lda], A[1*lda], A[2*lda], A[3*lda] };
+        {
+            float a[4] = { A[0*lda], A[1*lda], A[2*lda], A[3*lda] };
 
-		__shared__ float bs[16][17];
-		bs[inx][iny]    = B[0*ldb];
-		bs[inx][iny+4]  = B[4*ldb];
-		bs[inx][iny+8]  = B[8*ldb];
-		bs[inx][iny+12] = B[12*ldb];
-		__syncthreads();
+            __shared__ float bs[16][17];
+            bs[inx][iny]    = B[0*ldb];
+            bs[inx][iny+4]  = B[4*ldb];
+            bs[inx][iny+8]  = B[8*ldb];
+            bs[inx][iny+12] = B[12*ldb];
+            __syncthreads();
 
-		A += 4*lda;
-		saxpy( a[0], &bs[0][0], c );		a[0] = A[0*lda];
-		saxpy( a[1], &bs[1][0], c );		a[1] = A[1*lda];
-		saxpy( a[2], &bs[2][0], c );		a[2] = A[2*lda];
-		saxpy( a[3], &bs[3][0], c );		a[3] = A[3*lda];
+            A += 4*lda;
+            saxpy( a[0], &bs[0][0], c );		a[0] = A[0*lda];
+            saxpy( a[1], &bs[1][0], c );		a[1] = A[1*lda];
+            saxpy( a[2], &bs[2][0], c );		a[2] = A[2*lda];
+            saxpy( a[3], &bs[3][0], c );		a[3] = A[3*lda];	
 
-		A += 4*lda;
-		saxpy( a[0], &bs[4][0], c );		a[0] = A[0*lda];
-		saxpy( a[1], &bs[5][0], c );		a[1] = A[1*lda];
-		saxpy( a[2], &bs[6][0], c );		a[2] = A[2*lda];
-		saxpy( a[3], &bs[7][0], c );		a[3] = A[3*lda];
-
-		A += 4*lda;
-		saxpy( a[0], &bs[8][0], c );		a[0] = A[0*lda];
-		saxpy( a[1], &bs[9][0], c );		a[1] = A[1*lda];
-		saxpy( a[2], &bs[10][0], c );		a[2] = A[2*lda];
-		saxpy( a[3], &bs[11][0], c );		a[3] = A[3*lda];
-
-		A += 4*lda;
-		saxpy( a[0], &bs[12][0], c );
-		saxpy( a[1], &bs[13][0], c );
-		saxpy( a[2], &bs[14][0], c );
-		saxpy( a[3], &bs[15][0], c );
+            A += 4*lda;
+            saxpy( a[0], &bs[4][0], c );		a[0] = A[0*lda];
+            saxpy( a[1], &bs[5][0], c );		a[1] = A[1*lda];
+            saxpy( a[2], &bs[6][0], c );		a[2] = A[2*lda];
+            saxpy( a[3], &bs[7][0], c );		a[3] = A[3*lda];
 		
-		B += 16;
-		__syncthreads();
-	} while( B < Blast );
+            A += 4*lda;
+            saxpy( a[0], &bs[8][0], c );		a[0] = A[0*lda];
+            saxpy( a[1], &bs[9][0], c );		a[1] = A[1*lda];
+            saxpy( a[2], &bs[10][0], c );		a[2] = A[2*lda];
+            saxpy( a[3], &bs[11][0], c );		a[3] = A[3*lda];
+		
+            A += 4*lda;
+            saxpy( a[0], &bs[12][0], c );
+            saxpy( a[1], &bs[13][0], c );
+            saxpy( a[2], &bs[14][0], c );
+            saxpy( a[3], &bs[15][0], c );
+		
+            B += 16;
+            __syncthreads();
+        } while( B < Blast );
 	
 	for( int i = 0; i < 16; i++, C += ldc )
-                C[0] = alpha*c[i] + beta*C[0];
+		C[0] = alpha*c[i] + beta*C[0]; 
 }	
+

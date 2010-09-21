@@ -26,9 +26,11 @@ static void yyerror(const char *str)
     fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
 }
 
-int yywrap()
+int yywrap(void); 
+
+int yywrap(void)
 {
-	return 1;
+    return 1;
 }
 
 #define new(type)  (type*)calloc(1, sizeof(type))
@@ -41,6 +43,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
         if( !strcmp(data->dname, dname) ) {
             return data;
         }
+        data = data->next;
     }
     /* not found, create */
     data = new(jdf_data_entry_t);
@@ -58,7 +61,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
   int                   number;
   char*                 string;
   jdf_expr_operand_t    expr_op;
-  jdf_preamble_entry_t *preamble;
+  jdf_external_entry_t *external_code;
   jdf_global_entry_t   *global;
   jdf_function_entry_t *function;
   jdf_name_list_t      *name_list;
@@ -92,6 +95,8 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <expr>expr
 %type <expr>priority
 %type <number>optional_access_type
+%type <external_code>prologue
+%type <external_code>epilogue
 
 %type <string>VAR
 %type <string>EXTERN_DECL
@@ -117,18 +122,44 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left COMMA
 
 %%
-
+jdf_file:       prologue jdf epilogue
+                {
+                    assert( NULL == current_jdf.prologue );
+                    assert( NULL == current_jdf.epilogue );
+                    current_jdf.prologue = $1;
+                    current_jdf.epilogue = $3;
+                }
+        ;
+prologue:       EXTERN_DECL
+                {
+                    $$ = new(jdf_external_entry_t);
+                    $$->external_code = $1;
+                    $$->lineno = current_lineno;
+                }
+        ;
+epilogue:       EXTERN_DECL
+                {
+                    $$ = new(jdf_external_entry_t);
+                    $$->external_code = $1;
+                    $$->lineno = current_lineno;
+                }
+        |
+                {
+                    $$ = NULL;
+                }
+        ;
 jdf:            jdf function
                 {
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
                 }
-        |       jdf VAR ASSIGNMENT expr 
+        |       jdf VAR optional_type ASSIGNMENT expr 
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
                     e->next = NULL;
                     e->name = $2;
-                    e->expression = $4;
+                    e->type = $3;
+                    e->expression = $5;
                     e->lineno = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
@@ -138,11 +169,12 @@ jdf:            jdf function
                         g->next = e;
                     }
                 } 
-        |       jdf VAR
+        |       jdf VAR optional_type
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    e->name = $2;
                     e->next = NULL;
+                    e->name = $2;
+                    e->type = $3;
                     e->expression = NULL;
                     e->lineno = current_lineno;
                     if( current_jdf.globals == NULL ) {
@@ -153,22 +185,19 @@ jdf:            jdf function
                         g->next = e;
                     }                
                 }
-        |       jdf EXTERN_DECL 
-                {
-                    jdf_preamble_entry_t *p, *e = new(jdf_preamble_entry_t);
-                    e->next = NULL;
-                    e->preamble = $2;
-                    e->lineno = current_lineno;
-                    if( NULL == current_jdf.preambles ) {
-                        current_jdf.preambles = e;
-                    } else {
-                        for(p = current_jdf.preambles; NULL != p->next; p = p->next)
-                            /* nothing */ ;
-                        p->next = e;
-                    }
-                }
         |
         ;
+
+optional_type: 
+              OPTIONAL_INFO 
+              {
+                  $$ = $1;
+              }
+       |
+              {
+                  $$ = NULL;
+              }
+       ;
 
 flags_list:     VAR COMMA flags_list
                 {
@@ -371,17 +400,6 @@ guarded_call: call
                   g->calltrue = $3;
                   g->callfalse = $5;
                   $$ = g;
-              }
-       ;
-
-optional_type: 
-              OPTIONAL_INFO 
-              {
-                  $$ = $1;
-              }
-       |
-              {
-                  $$ = NULL;
               }
        ;
 

@@ -10,6 +10,11 @@
 #  HWLOC_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use PLASMA
 #  HWLOC_STATIC  if set on this determines what kind of linkage we do (static)
+#
+#  HAVE_HWLOC_PARENT_MEMBER - new API, older versions don't have it
+#  HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
+#  HAVE_HWLOC_OBJ_PU - new API, older versions don't have it
+#
 ##########
 
 # If we only have the main PLASMA directory componse the include and
@@ -36,10 +41,8 @@ endif( NOT HWLOC_LINKER_FLAGS )
 include(CheckIncludeFile)
 
 list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
-message(STATUS "Looking for hwloc.h in ${HWLOC_INCLUDE_DIR}")
 check_include_file(hwloc.h FOUND_HWLOC_INCLUDE)
 if(FOUND_HWLOC_INCLUDE)
-  message(STATUS "Found hwloc.h at ${HWLOC_INCLUDE_DIR}")
   find_library(HWLOC_LIB hwloc
     PATHS ${HWLOC_LIBRARIES}
     DOC "Where the HWLOC libraries are"
@@ -52,20 +55,23 @@ if(FOUND_HWLOC_INCLUDE)
 endif(FOUND_HWLOC_INCLUDE)
   
 if(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
+  check_struct_has_member( "struct hwloc_obj" parent hwloc.h HAVE_HWLOC_PARENT_MEMBER )             
+  check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR )
+  check_c_source_compiles( "#include <hwloc.h>
+    int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" HAVE_HWLOC_OBJ_PU)
   set(HWLOC_FOUND TRUE)
 else(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
   set(HWLOC_FOUND FALSE)
 endif(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
 
-include(FindPackageMessage)
-find_package_message(HWLOC "Found HWLOC: ${HWLOC_LIBRARIES}"
-  "[${HWLOC_INCLUDE_DIR}][${HWLOC_LIBRARIES}]")
-
 if(NOT HWLOC_FIND_QUIETLY)
   if(HWLOC_FOUND)
     message(STATUS "A library with HWLOC API found.")
+    include(FindPackageMessage)
+    find_package_message(HWLOC "Found HWLOC: ${HWLOC_LIBRARIES}"
+      "[${HWLOC_INCLUDE_DIR}][${HWLOC_LIBRARIES}]")
     set(HAVE_HWLOC 1)
-    include_directories( ${HWLOC_INCLUDE_DIR} )
+#    include_directories( ${HWLOC_INCLUDE_DIR} )
   else(HWLOC_FOUND)
     if(HWLOC_FIND_REQUIRED)
       message(FATAL_ERROR

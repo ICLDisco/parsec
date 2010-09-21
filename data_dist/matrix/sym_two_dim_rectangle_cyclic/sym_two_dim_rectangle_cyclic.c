@@ -14,25 +14,23 @@
 #include <stdint.h>
 #include <limits.h>
 
-#include "sym_two_dim_rectangle_cyclic.h"
-#include "data_distribution.h"
-#include "matrix.h"
+#include "dague.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 
-
-static uint32_t sym_twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
+static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
-    int rr, cr, m, n;
-    int res;
+    unsigned int rr, cr, m, n;
+    unsigned int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
+    Ddesc = (sym_two_dim_block_cyclic_t *) desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
     if ( m < n )
         {
-            printf("Tried to get rank for tile (%d,%d)\n", m,n);
+    //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
             return UINT_MAX;
         }
     /* for tile (m,n), first find coordinate of process in
@@ -47,22 +45,22 @@ static uint32_t sym_twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
     return res;
 }
 
-static void * sym_twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
+static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    int pos, m, n;
-    int nb_elem, nb_elem_col, column;
+    unsigned int pos, m, n;
+    unsigned int nb_elem, nb_elem_col, column;
     sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
-    if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
+    /*if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
         {
-            printf("Tile (%d, %d) is looked for on process %d but is not local\n", m, n, desc->myrank);
+            printf("Tile (%d, %d) is looked for on process %u but is not local\n", m, n, desc->myrank);*/
             assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
-        }
+       /* }*/
     
 
     /**********************************/
@@ -92,12 +90,9 @@ static void * sym_twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
 }
 
 
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int process_GridRows )
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows )
 {
-    int temp;
-    int nbstile_r;
-    int nbstile_c;
-    int nb_elem, nb_elem_col, column, total;
+    unsigned int nb_elem, nb_elem_col, column, total;
 
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
@@ -124,7 +119,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     Ddesc->super.bsiz =  Ddesc->super.mb * Ddesc->super.nb;
 
     // Submatrix parameters    
-    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.nb)) : ((Ddesc->super.m)/(Ddesc->super.nb) + 1);
+    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
     Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
     
 
@@ -156,7 +151,8 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
-    Ddesc->mat = dplasma_allocate_matrix(total * Ddesc->super.bsiz * Ddesc->super.mtype);
+    printf("Process %u allocates %u tiles\n", myrank, total);
+    Ddesc->mat = dague_data_allocate((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");

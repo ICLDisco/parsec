@@ -1,0 +1,63 @@
+extern "C" %{
+
+#include "dague.h"
+
+#if defined(DISTRIBUTED)
+#include <mpi.h>
+extern dague_arena_t RTILE_T;
+#endif
+extern int rank;
+
+%}
+
+/***************************************************
+ * DGEQRF documentation :
+ * ======================
+ *   - http://www.netlib.org/lapack/double/dgeqrf.f
+ *
+ **************************************************/
+treeHeight [int] // height of the reduction tree
+
+LOCALQR( index )
+    index = 0 .. (1 << treeHeight) - 1
+
+    : A( index, 0 )
+
+    READ  Rtop <- A(index, 0)                      [RTILE_T]
+               -> ((index % 2) == 0)
+                    ? Rtop    TSQR( 1, index / 2 )
+                    : Rbottom TSQR( 1, index / 2 ) [RTILE_T]
+BODY
+    printf( "LOCALQR index: %i\n", index );
+END
+
+/**************************************************
+ *                                                *
+ **************************************************/
+TSQR( level, index )
+    level = 1 .. treeHeight
+
+    index = 0 .. ((1 << (treeHeight - level)) - 1)
+
+    : A( 2 * index, 0 )
+
+    READ     Rbottom <- (level == 1)
+                        ? Rtop    LOCALQR( (2 * index) + 1 )
+                        : Rtop    TSQR(level - 1, (2 * index) + 1) [RTILE_T]
+
+    RW       Rtop    <- (level == 1)
+                        ? Rtop    LOCALQR( 2 * index )
+                        : Rtop    TSQR( level - 1, 2 * index )   [RTILE_T]
+
+                     -> (((index % 2) == 0) & (level < treeHeight))
+                        ? Rtop    TSQR( level + 1, index / 2 )   [RTILE_T]
+
+                     -> (((index % 2) == 1) & (level < treeHeight))
+                        ? Rbottom TSQR( level + 1, index / 2 )   [RTILE_T]
+
+                     -> (level == treeHeight)
+                        ? A( 0, 0 )                              [RTILE_T]
+BODY
+    printf( "TSQR level: %i index: %i\n", level, index );
+END
+

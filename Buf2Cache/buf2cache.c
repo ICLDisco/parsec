@@ -12,6 +12,8 @@ static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr,
 //--------------------------------------------------------------------------------
 cache_t *cache_create(int core_count, cache_t *parent, int tile_capacity){
 
+    (void)core_count;
+
     if( tile_capacity <= 1 ) {
         /** Ignore this level of cache: it's empty anyway...
          *  Let the system believe that we created a cache for this stupid call,
@@ -99,7 +101,7 @@ static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr,
 
     // if the element already exists and nobody changed it, just make it the youngest.
     if( found_elem && (found_elem->tile_ptr == tile_ptr) ){
-        if( dplasma_atomic_cas_xxb(&(found_elem->lock), 0, 1, sizeof(found_elem->lock)) ){
+        if( dague_atomic_cas_xxb(&(found_elem->lock), 0, 1, sizeof(found_elem->lock)) ){
             // Ok we got the lock, now we have to make sure that no other thread changed
             // the pointer between if(found_elem->tile_ptr == tile_ptr) and the atomic
             if( found_elem->tile_ptr == tile_ptr ){
@@ -132,7 +134,7 @@ static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr,
 
     // If we didn't find it, but there is still room in the queue, append the info at the end
     if( i<N ){
-        if( dplasma_atomic_cas_xxb(&(cur->lock), 0, 1, sizeof(cur->lock)) ){
+        if( dague_atomic_cas_xxb(&(cur->lock), 0, 1, sizeof(cur->lock)) ){
             // If this element is still empty
             if( cur->tile_ptr == NULL ){
                 cur->age = youngest_age-1;
@@ -158,7 +160,7 @@ static const void *do_cache_buf_referenced(cache_t *cache, const void *tile_ptr,
 
     // If the queue is full, replace (evict) the oldest element, unless some other thread
     // has changed it already.
-    if( dplasma_atomic_cas_xxb(&(oldest_elem->lock), 0, 1, sizeof(oldest_elem->lock)) ){
+    if( dague_atomic_cas_xxb(&(oldest_elem->lock), 0, 1, sizeof(oldest_elem->lock)) ){
         // If the element hasn't changed, evict it.
         if( oldest_elem->age == oldest_age ){
             const void *old_ptr = oldest_elem->tile_ptr;

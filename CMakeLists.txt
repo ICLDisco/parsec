@@ -1,48 +1,47 @@
 cmake_minimum_required (VERSION 2.8)
-project (DPLASMA C Fortran)
-
-#
-# Do NOT remove this. Make sure it is set to OFF to
-# avoid the spurious output from make, but please don't
-# remove it.
-#
+project (DAGUE C Fortran)
 
 # should we use our own math functions
-option(DPLASMA_COLLECTIVE
+option(DAGUE_COLLECTIVE
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
-option(DPLASMA_MPI
-  "Build DPLASMA for distributed memory with MPI backend" ON)
-option(DPLASMA_CACHE_AWARE "Activate the cache awareness support (only if hardware
+option(DAGUE_MPI
+  "Build DAGuE for distributed memory with MPI backend" ON)
+option(DAGUE_CACHE_AWARE "Activate the cache awareness support (only if hardware
   locality is enabled and discovered" OFF)
-option(DPLASMA_PROFILING
-  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
-option(DPLASMA_PAPI
-  "Enable PAPI performance hardware counters" OFF)
-option(DPLASMA_STATS
-  "Enable the generation of statistics informations during execution
-  (microbenchmarking)" OFF)
-option(DPLASMA_DEBUG_HISTORY
+option(DAGUE_USE_COUNTER_FOR_DEPENDENCIES "Use counters to track the
+  dependencies, instead of bitmasks -- reduces the debugging features,
+  but might be necessary if using more than 30 input dependencies" OFF)
+option(DAGUE_PROFILING
   "Enable the generation of the profiling information during
   execution" OFF)
-option(DPLASMA_GRAPHER
+option(DAGUE_PAPI
+  "Enable PAPI performance hardware counters" OFF)
+option(DAGUE_STATS
+  "Enable the generation of statistics informations during execution
+  (microbenchmarking)" OFF)
+option(DAGUE_DEBUG_HISTORY
+  "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
+option(DAGUE_GRAPHER
   "Enable the generation of the dot output during execution" OFF)
-option(DPLASMA_CALL_TRACE
+option(DAGUE_CALL_TRACE
   "Enable the output of the BLAS kernels call trace during execution" OFF)
-option(DPLASMA_DRY_RUN
+option(DAGUE_DRY_RUN
   "Disable call to actual BLAS kernels; unfold the dependencies only" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
-option(DPLASMA_CUDA
+option(DAGUE_CUDA
   "Enable dupport for CUDA" ON)
-option(DPLASMA_DEBUG
-  "Enable the internal debugging of the DPLASMA library" OFF)
+option(DAGUE_DEBUG
+  "Enable the internal debugging of the DAGUE library" OFF)
+option(DAGUE_DO_UNIT_TESTS
+  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 # The current version number
-set (DPLASMA_VERSION_MAJOR 0)
-set (DPLASMA_VERSION_MINOR 1)
+set (DAGUE_VERSION_MAJOR 0)
+set (DAGUE_VERSION_MINOR 1)
 
-set( PROJECT_INCLUDE_DIR ./)
+set( PROJECT_INCLUDE_DIR include)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
@@ -111,10 +110,30 @@ unset( SAVE_CMAKE_REQUIRED_FLAGS )
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
-string( TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
-if( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-endif( ${CMAKE_BUILD_TYPE} STREQUAL "debug" )
+
+#
+# Set warnings for debug builds 
+#
+CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
+IF( HAVE_WALL )
+    SET( C_WFLAGS "${C_WFLAGS} -Wall" )
+ENDIF( HAVE_WALL )
+CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
+IF( HAVE_WEXTRA )
+    SET( C_WFLAGS "${C_WFLAGS} -Wextra" )
+ENDIF( HAVE_WEXTRA )
+# flags for the overly verbose icc
+CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
+IF( HAVE_WD )
+    # 424: checks for duplicate ";"
+    # 981: every volatile triggers a "unspecified evaluation order", obnoxious
+    #      but might be useful for some debugging sessions. 
+    # 1419: warning about extern functions being declared in .c
+    #       files
+    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419" )
+ENDIF( HAVE_WD )
+SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
+SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
 
 # Check for available functions
 include (${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
@@ -133,10 +152,8 @@ IF( HAVE_STD_C99 )
   SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
 ENDIF( HAVE_STD_C99 )
 
-BISON_TARGET(dplasma_yacc dplasma.y ${CMAKE_CURRENT_BINARY_DIR}/dplasma.tab.c)
-FLEX_TARGET(dplasma_flex dplasma.l  ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
-ADD_FLEX_BISON_DEPENDENCY(dplasma_flex dplasma_yacc)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+include_directories("${PROJECT_INCLUDE_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 
 include(cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -181,73 +198,63 @@ IF (_match_ftn)
 ENDIF (_match_ftn)
 
 find_package(PLASMA REQUIRED)
-if( !PLASMA_SRC )
-  message(ERROR "PLASMA sources cannot be found")
-endif( !PLASMA_SRC )
-list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_SRC})
-message(STATUS "Looking for src/common.h in ${PLASMA_SRC}")
-check_include_file(control/common.h   FOUND_PLASMA_COMMON)
-if( !FOUND_PLASMA_COMMON )
-  message(FATAL_ERROR "Cannot find src/common.h in the PLASMA source directory")
-endif( !FOUND_PLASMA_COMMON )
-check_include_file(control/context.h  FOUND_PLASMA_CONTEXT)
-if( !FOUND_PLASMA_CONTEXT )
-  message(FATAL_ERROR "Cannot find src/context.h in the PLASMA source directory")
-endif( !FOUND_PLASMA_CONTEXT )
-check_include_file(control/allocate.h FOUND_PLASMA_ALLOCATE)
-if( !FOUND_PLASMA_ALLOCATE )
-  message(FATAL_ERROR "Cannot find src/allocate.h in the PLASMA source directory")
-endif( !FOUND_PLASMA_ALLOCATE )
+if( PLASMA_SRC )
+    list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
+endif( PLASMA_SRC )
+list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_DIR})
+message(STATUS "Looking for control/common.h;context.h;allocate.h in ${PLASMA_INCLUDE_DIR}")
+check_include_files("control/common.h;control/context.h;control/allocate.h"   FOUND_PLASMA_CONTROL)
+if( !FOUND_PLASMA_CONTROL )
+  message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
+endif( !FOUND_PLASMA_CONTROL )
 set( PLASMA_SRC_DIR "${PLASMA_SRC}" )
+
 #
 # Find optional packages
 #
 
 find_package(HWLOC)
 if( HAVE_HWLOC )
-  list(APPEND EXTRA_SOURCES dplasma_hwloc.c)
+  list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-  check_struct_has_member( "struct hwloc_obj" parent hwloc.h HAVE_HWLOC_PARENT_MEMBER )
-  check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR )
-  check_c_source_compiles( "#include <hwloc.h>
- int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" HAVE_HWLOC_OBJ_PU)
-endif( HAVE_HWLOC )
-if(DPLASMA_CACHE_AWARE)
+  include_directories( ${HWLOC_INCLUDE_DIR} )
+else( HAVE_HWLOC )
   if( !HAVE_HWLOC )
     message( error "Cache awarness requires hwloc" )
   endif( !HAVE_HWLOC )
-endif(DPLASMA_CACHE_AWARE)
+endif( HAVE_HWLOC )
 
-if (DPLASMA_MPI)
+if (DAGUE_MPI)
   find_package(MPI)
   if (MPI_FOUND)
     include_directories( ${MPI_INCLUDE_PATH} ) 
   else (MPI_FOUND)
-    message("MPI support is required in order to build the distributed version of DPLASMA."
+    message(error "MPI support is required in order to build the distributed version of DAGuE."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
-endif (DPLASMA_MPI)
+endif (DAGUE_MPI)
 
-if (DPLASMA_PAPI)
+if (DAGUE_PAPI)
   find_package(PAPI REQUIRED)
   if (PAPI_FOUND)
+    list(APPEND EXTRA_SOURCES src/papime.c)
     list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
     include_directories( ${PAPI_INCLUDE_DIR} )
   endif (PAPI_FOUND)
-endif (DPLASMA_PAPI)
+endif (DAGUE_PAPI)
 
-if( DPLASMA_CUDA )
+if( DAGUE_CUDA )
   include (cmake_modules/FindCUDA.cmake)
   set(CUDA_HOST_COMPILATION_CPP OFF)
   find_package(CUDA)
   if (CUDA_FOUND)
     include_directories(${CUDA_INCLUDE_DIRS})
-    set( DPLASMA_CUDA_SUPPORT 1)
+    set( DAGUE_CUDA_SUPPORT 1)
   else (CUDA_FOUND)
-    set( DPLASMA_CUDA_SUPPORT 0)
+    set( DAGUE_CUDA_SUPPORT 0)
   endif (CUDA_FOUND)
-endif( DPLASMA_CUDA )
+endif( DAGUE_CUDA )
 
 check_include_files(stdarg.h HAVE_STDARG_H)
 check_function_exists(va_copy HAVE_VA_COPY)
@@ -258,36 +265,37 @@ check_function_exists(asprintf HAVE_ASPRINTF)
 check_function_exists(vasprintf HAVE_VASPRINTF)
 check_include_files(getopt.h HAVE_GETOPT_H)
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
-check_function_exists(getrusage HAVE_GETRUSAGE)
 check_include_files(errno.h HAVE_ERRNO_H)
+check_include_files(stddef.h HAVE_STDDEF_H)
 
+check_function_exists(getrusage HAVE_GETRUSAGE)
 
-include_directories(data_dist data_dist/matrix
-  data_dist/matrix/two_dim_rectangle_cyclic
-  data_dist/matrix/sym_two_dim_rectangle_cyclic)
+# This should be killed when matrix is a separate lib
+include_directories(${PLASMA_INCLUDE_DIR})
+include_directories(data_dist)
 
 #
 # Setup targets
 #
-add_library(dplasma STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-  scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-  freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
-  ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS} data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
-  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
-set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-#target_link_libraries(dplasma ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY})
+add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
+  src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
+  src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
+  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
+  data_dist/matrix/tabular_distribution/tabular_distribution.c 
+  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
+set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+#target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 
-if (DPLASMA_MPI AND MPI_FOUND)
-  add_library(dplasma-mpi STATIC dplasma.c symbol.c assignment.c expr.c params.c dep.c
-    scheduling.c profiling.c stats.c remote_dep.c barrier.c precompile.c Buf2Cache/buf2cache.c
-    freelist.c debug.c bindthread.c ${EXTRA_SOURCES}
-    ${BISON_dplasma_yacc_OUTPUTS} ${FLEX_dplasma_flex_OUTPUTS} data_dist/matrix/matrix.c 
+if (DAGUE_MPI AND MPI_FOUND)
+  add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
+    src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
+    src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
+  data_dist/matrix/tabular_distribution/tabular_distribution.c
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
-  set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
-#  target_link_libraries(dplasma-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY})
-endif (DPLASMA_MPI AND MPI_FOUND)
+  set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+#  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+endif (DAGUE_MPI AND MPI_FOUND)
 
 #
 # Now continue with compiling the tests.
@@ -298,6 +306,5 @@ add_subdirectory(tools)
 
 # Configuration header
 configure_file (
-  "${PROJECT_INCLUDE_DIR}/dplasma_config.h.in"
-  "${PROJECT_INCLUDE_DIR}/dplasma_config.h")
-
+  "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
+  "${PROJECT_INCLUDE_DIR}/dague_config.h")

@@ -5,85 +5,58 @@ extern "C" %{
 #include <plasma.h>
 #include <core_dblas.h>
 
-#include "dplasma.h"
+#include "dague.h"
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "data_management.h"
-extern DPLASMA_desc ddescA;
-extern DPLASMA_desc ddescT;
-#define descA ddescA
-#define descT ddescT
+#include "data_dist/data_distribution.h"
 
-#if defined(USE_MPI)
-#include <mpi.h>
-extern MPI_Datatype LOWER_TILE, UPPER_TILE, LITTLE_T;
-
-#define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
-#define T(m,n) dplasma_get_local_tile_s(&ddescT, m, n)
-
-#else
-#if 1
-#define BLKLAPADDR(A, type, m, n)  &(((type*)(A).mat)[((int64_t)(m) * (int64_t)(A).mb + \
-                                                       (int64_t)A.lm*(int64_t)(A).nb*(int64_t)(n))])
-#define BLKADDR(A, type, m, n)  &(((type*)(A).mat)[(int64_t)(A).bsiz*(int64_t)((m)+(int64_t)(A).lmt*(int64_t)(n))])
-#define A(m,n) BLKLAPADDR(descA, double, m, n)
-#define T(m,n) BLKADDR(descT, double, m, n)
-#else
-#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
-#define T(m,n) &(((double*)descT.mat)[descT.bsiz*(m)+descT.bsiz*descT.lmt*(n)])
-#endif
+#if defined(DISTRIBUTED)
+extern dague_arena_t LITTLE_T, UPPER_TILE, LOWER_TILE;
 #endif
 
 int PLASMA_INFO;
 
 #define OUTPUT(ARGS) printf ARGS
 
-typedef struct dplasma_memory_pool_t {
-    dplasma_atomic_lifo_t lifo;
-    struct plasma_context_t *plasma;
+typedef struct dague_memory_pool_t {
+    dague_atomic_lifo_t lifo;
     size_t elem_size;
-    int elem_type;
-} dplasma_memory_pool_t;
+} dague_memory_pool_t;
 
-extern dplasma_memory_pool_t *work_pool, *tau_pool;
-extern void* plasma_private_alloc(void*, size_t, int);
+#warning "TODO: this doesn't work with multiple objects"
+static dague_memory_pool_t *work_pool, *tau_pool;
 
-int dplasma_private_memory_init( dplasma_memory_pool_t* pool,
-                                 size_t size,
-                                 int type )
+int dague_private_memory_init( dague_memory_pool_t* pool,
+                               size_t size )
 {
-    dplasma_atomic_lifo_construct( &(pool->lifo) );
+    dague_atomic_lifo_construct( &(pool->lifo) );
     pool->elem_size = size;
-    pool->elem_type = type;
-    pool->plasma = NULL;
     return 0;
 }
 
-void* dplasma_private_memory_pop(dplasma_memory_pool_t* pool)
+void* dague_private_memory_pop(dague_memory_pool_t* pool)
 {
-    dplasma_list_item_t* elem = dplasma_atomic_lifo_pop(&(pool->lifo));
+    dague_list_item_t* elem = dague_atomic_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        elem = (dplasma_list_item_t*)plasma_private_alloc(pool->plasma, pool->elem_size, pool->elem_type);
+      elem = (dague_list_item_t*)malloc( pool->elem_size*sizeof(double) );
     }
     return elem;
 }
 
-void dplasma_private_memory_push(dplasma_memory_pool_t* pool, void* memory)
+void dague_private_memory_push(dague_memory_pool_t* pool, void* memory)
 {
-    dplasma_list_item_t* item = DPLASMA_LIST_ITEM_SINGLETON(memory);
-    dplasma_atomic_lifo_push( &(pool->lifo), item );
+    dague_list_item_t* item = DAGUE_LIST_ITEM_SINGLETON(memory);
+    dague_atomic_lifo_push( &(pool->lifo), item );
 }
 
-int dgels_private_memory_initialization(struct plasma_context_t *plasma)
+int dgels_private_memory_initialization(int MB, int NB )
 {
-    work_pool = (dplasma_memory_pool_t*)malloc(sizeof(dplasma_memory_pool_t));
-    dplasma_private_memory_init( work_pool, descT.mb*descT.nb, descT.dtyp );
-    work_pool->plasma = plasma;
+    work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( work_pool, MB*NB );
 
-    tau_pool = (dplasma_memory_pool_t*)malloc(sizeof(dplasma_memory_pool_t));
-    dplasma_private_memory_init( tau_pool, descA.nb, descA.dtyp );
-    tau_pool->plasma = plasma;
+    tau_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( tau_pool, NB );
 
     return 0;
 }
@@ -94,29 +67,25 @@ int dgels_private_memory_finalization(void)
 }
 %}
 
-GRIDrows
-GRIDcols
-MT
-NT
+MB  /* Number of lines in a block for T and dL should be equal to NB */
+NB  /* Tile Size */
+M   /* Matrix Height (in lines) */
+N   /* Matrix Width (in columns) */
+
+MT = (M + (NB - 1)) / NB        /* Number of tiled lines */
+NT = (N + (NB - 1)) / NB        /* Number of tiled columns */
 MINMTNT = ((MT < NT) ? MT : NT)
-colRANK
-rowRANK
-rtileSIZE
-ctileSIZE
 
-/*****************************************
- 9:11
-*/
 DGEQRT_HACK(k)  (high_priority)
- k = 0..MINMTNT-1
+k = 0..MINMTNT-1
 
- // Parallel partitioning
- : (k / rtileSIZE) % GRIDrows == rowRANK
- : (k / ctileSIZE) % GRIDcols == colRANK
+: A(k, k)
 
-INOUT Akk <- Akk DGEQRT(k)
-          -> (k != MINMTNT-1) ? V1 DORMQR(k, k+1..MINMTNT-1) [LOWER_TILE]
-          -> A(k,k)                                          [LOWER_TILE]
+RW RV1 <- RV1 DGEQRT(k)
+       -> (k != NT-1) ? V1 DORMQR(k, k+1..NT-1) [LOWER_TILE]
+       -> A(k,k)                                [LOWER_TILE]
+;	(NT-k)*(NT-k)*(NT-k)
+
 BODY
  /* nothing */
 END
@@ -127,47 +96,55 @@ DGEQRT(k)  (high_priority)
   k = 0..MINMTNT-1
 
   // Parallel partitioning
- : (k / rtileSIZE) % GRIDrows == rowRANK
- : (k / ctileSIZE) % GRIDcols == colRANK
+ : A(k, k)
 
-  INOUT Akk <- (k == 0)         ? A(0,0) : C2 DSSMQR(k-1,k,k)
-            -> (k == MINMTNT-1) ? A(k,k) : R DTSQRT(k,k+1)     [UPPER_TILE]     
-            -> Akk DGEQRT_HACK(k)
-  INOUT T   <- T(k,k)                                          [LITTLE_T]
-            -> T DORMQR(k, k+1..MINMTNT-1)                     [LITTLE_T]
-            -> T(k,k)                                          [LITTLE_T]
+  RW RV1 <- (k == 0)    ? A(0,0) : C2 DSSMQR(k-1,k,k)
+         -> RV1 DGEQRT_HACK(k)
+         -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)          [UPPER_TILE]
+  RW T   <- T(k,k)                                          [LITTLE_T]
+         -> T DORMQR(k, k+1..NT-1)                          [LITTLE_T]
+         -> T(k,k)                                          [LITTLE_T]
+
+; (NT-k)*(NT-k)*(NT-k)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
-    void* work = dplasma_private_memory_pop(work_pool);
-    void* tau = dplasma_private_memory_pop(tau_pool); 
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool); 
     CORE_dgeqrt(
-        k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb,
-        k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-        descT.mb,
-        Akk /*A(k, k)*/, descA.lm /*descA.nb*/,
-        T /*T(k, k)*/, descT.mb,
+        (k == (MT-1)) ? (M-(k*NB)) : NB,
+        (k == (NT-1)) ? (N-(k*NB)) : NB,
+        MB,
+        RV1 /*A(k, k)*/, NB,
+        T /*T(k, k)*/, MB,
         tau, work);
-    dplasma_private_memory_push(tau_pool, tau);
-    dplasma_private_memory_push(work_pool, work);
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dgeqrt"));
-#endif  /* DPLASMA_DRY_RUN */
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool); 
+    OUTPUT(( "CORE_dgeqrt(%d, %d, %d, %p, %d, %p, %d, %p, %p)\n",
+              (k == (MT-1)) ? (M-(k*NB)) : NB,
+              (k == (NT-1)) ? (N-(k*NB)) : NB,
+              MB,
+              RV1 /*A(k, k)*/, NB,
+              T /*T(k, k)*/, MB,
+              tau, work));
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */
 END
 
-/*****************************************
- 17:21
-*/
-
 DTSQRT_OUT(k)  (high_priority)
-  k = 0 .. MINMTNT-2
-  
- : (k / rtileSIZE) % GRIDrows == rowRANK
- : (k / ctileSIZE) % GRIDcols == colRANK
-  
-  INOUT R <- R DTSQRT(k, MINMTNT-1) [UPPER_TILE]
-          -> A(k, k)                [UPPER_TILE]
+  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
+
+ : A(k, k)
+
+  RW R <- R DTSQRT(k, MT-1)      [UPPER_TILE]
+       -> A(k, k)                [UPPER_TILE]
           
+  ; (NT-k)*(NT-k)*(NT-k)
+
 BODY
 /* nothing */
 END
@@ -176,91 +153,110 @@ END
 DTSQRT(k,m)  (high_priority)
 
   // Execution space
-  k = 0..MINMTNT-2
-  m = k+1..MINMTNT-1
+  k = 0..MINMTNT-1
+  m = k+1..MT-1
 
   // Parallel partitioning
-  : (m / rtileSIZE) % GRIDrows == rowRANK
-  : (k / ctileSIZE) % GRIDcols == colRANK
+  : A(m, k)
 
-  INOUT V2 <- (k == 0) ? A(m,0) : C2 DSSMQR(k-1,k,m)
-           -> V2 DSSMQR(k,k+1..MINMTNT-1,m)
-           -> A(m,k)
-  INOUT R  <- (m == k+1) ? Akk DGEQRT(k) : R DTSQRT(k,m-1)             [UPPER_TILE]           
-           -> (m == MINMTNT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
-  INOUT T  <- T(m,k)                                                   [LITTLE_T]
-           -> T DSSMQR(k,k+1..MINMTNT-1,m)                             [LITTLE_T]
-           -> T(m,k)                                                   [LITTLE_T]
+  RW V2 <- (k == 0) ? A(m,0) : C2 DSSMQR(k-1,k,m)
+        -> V2 DSSMQR(k,k+1..NT-1,m)
+        -> A(m,k)
+  RW R  <- (m == k+1) ? RV1 DGEQRT(k) : R DTSQRT(k,m-1)        [UPPER_TILE]           
+        -> (m == MT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
+  RW T  <- T(m,k)                                              [LITTLE_T]
+        -> T DSSMQR(k,k+1..NT-1,m)                             [LITTLE_T]
+        -> T(m,k)                                              [LITTLE_T]
+
+  ; (NT-k)*(NT-m)*(NT-m)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
-    void* work = dplasma_private_memory_pop(work_pool);
-    void* tau = dplasma_private_memory_pop(tau_pool);
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool);
     CORE_dtsqrt(
-        m == descA.mt-1 ? descA.m-m*descA.mb : descA.mb,
-        k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-        descT.mb,
-        R  /*A(k, k)*/, descA.lm  /*descA.nb*/,
-        V2 /*A(m, k)*/, descA.lm  /*descA.nb*/,
-        T  /*T(m, k)*/, descT.mb,
+        (m == (MT-1)) ? (M-(m*NB)) : NB,
+        (k == (NT-1)) ? (N-(k*NB)) : NB,
+        MB,
+        R  /*A(k, k)*/, NB,
+        V2 /*A(m, k)*/, NB,
+        T  /*T(m, k)*/, MB,
         tau, work);
-    dplasma_private_memory_push(tau_pool, tau);
-    dplasma_private_memory_push(work_pool, work);
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dtsqrt"));
-#endif  /* DPLASMA_DRY_RUN */
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool);
+    OUTPUT(( "CORE_dtsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
+             (m == (MT-1)) ? (M-(m*NB)) : NB,
+             (k == (NT-1)) ? (N-(k*NB)) : NB,
+             MB,
+             R  /*A(k, k)*/, NB,
+             V2 /*A(m, k)*/, NB,
+             T  /*T(m, k)*/, MB,
+             tau, work));
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */
 END
 
-/*****************************************
- 28:31
-*/
 DORMQR(k,n)  (high_priority)
 
   // Execution space
-  k = 0..MINMTNT-2
-  n = k+1..MINMTNT-1
+  k = 0..MINMTNT-1
+  n = k+1..NT-1
 
   // Parallel partitioning
-  : (k / rtileSIZE) % GRIDrows == rowRANK
-  : (n / ctileSIZE) % GRIDcols == colRANK
+  : A(k, n)
 
-  IN T     <- T DGEQRT(k)                               [LITTLE_T]
-  IN V1    <- Akk DGEQRT_HACK(k)                        [LOWER_TILE] 
-  INOUT C1 <- (k == 0) ? A(k,n) : C2 DSSMQR(k-1,n,k)
-           -> C1 DSSMQR(k,n,k+1)
+  READ T  <- T DGEQRT(k)                               [LITTLE_T]
+  READ V1 <- RV1 DGEQRT_HACK(k)                        [LOWER_TILE] 
+  RW   C1 <- (k == 0) ? A(k, n) : C2 DSSMQR(k-1, n, k)
+          -> C1 DSSMQR(k, n, k+1)
+
+  ; (NT-k)*(NT-n)*(NT-n)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
-    void* work = dplasma_private_memory_pop(work_pool);
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
     CORE_dormqr(
         PlasmaLeft, PlasmaTrans,
-        k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb,
-        n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-        descT.mb,
-        k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-        V1 /*A(k, k)*/, descA.lm  /*descA.nb*/,
-        T  /*T(k, k)*/, descT.mb,
-        C1 /*A(k, n)*/, descA.lm  /*descA.nb*/,
-        work, descT.nb);
-    dplasma_private_memory_push(work_pool, work);
+        (k == (MT-1)) ? (M-(k*NB)) : NB,
+        (n == (NT-1)) ? (N-(n*NB)) : NB,
+        MB,
+        (k == (MT-1)) ? (M-(k*NB)) : NB,
+        V1 /*A(k, k)*/, NB,
+        T  /*T(k, k)*/, MB,
+        C1 /*A(k, n)*/, NB,
+        work, NB);
+    dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dormqr"));
-#endif  /* DPLASMA_DRY_RUN */ 
+    void* work = dague_private_memory_pop(work_pool);
+    OUTPUT(( "CORE_dormqr(%s, %s, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+             "PlasmaLeft", "PlasmaTrans",
+             (k == (MT-1)) ? (M-(k*NB)) : NB,
+             (n == (NT-1)) ? (N-(n*NB)) : NB,
+             MB,
+             (k == (MT-1)) ? (M-(k*NB)) : NB,
+             V1 /*A(k, k)*/, NB,
+             T  /*T(k, k)*/, MB,
+             C1 /*A(k, n)*/, NB,
+             work, NB ));
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */ 
 END
 
-/*****************************************
- 37:41
-*/
 DSSMQR_OUT(k, n)
-  k = 0 .. MINMTNT-2
-  n = k+1 .. MINMTNT - 1
+  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
+  n = k+1 .. NT-1
+
+  : A(k, n)
   
-  : (k / rtileSIZE) % GRIDrows == rowRANK
-  : (n / ctileSIZE) % GRIDcols == colRANK
-  
-  INOUT A <- C1 DSSMQR(k, n, MINMTNT-1)
-          -> A(k, n)
+  RW A <- C1 DSSMQR(k, n, MT-1)
+       -> A(k, n)
           
+  ; (NT-k)*(NT-n)*(NT-n)
+
 BODY
 /* nothing */
 END
@@ -268,43 +264,57 @@ END
 DSSMQR(k,n,m)
 
   // Execution space
-  k = 0   .. MINMTNT-2
-  n = k+1 .. MINMTNT-1
-  m = k+1 .. MINMTNT-1
+  k = 0   .. MINMTNT-1
+  n = k+1 .. NT-1
+  m = k+1 .. MT-1
 
   // Parallel partitioning
-  : (m / rtileSIZE) % GRIDrows == rowRANK
-  : (n / ctileSIZE) % GRIDcols == colRANK
+  : A(m, n)
 
-  IN V2 <- V2 DTSQRT(k,m)
-  IN T  <- T DTSQRT(k,m)                                           [LITTLE_T]
+  READ V2 <- V2 DTSQRT(k,m)
+  READ T  <- T DTSQRT(k,m)                                           [LITTLE_T]
 
-  INOUT C2 <- (k == 0) ? A(m,n) : C2 DSSMQR(k-1,n,m)
-           -> ((n == k+1) & (m == k+1)) ? Akk DGEQRT(k+1)
-           -> ((n == k+1) & (k  < m-1)) ? V2 DTSQRT(k+1,m)
-           -> ((k  < n-1) & (m == k+1)) ? C1 DORMQR(k+1,n)
-           -> ((k  < n-1) & (k  < m-1)) ? C2 DSSMQR(k+1,n,m)
-  INOUT C1 <- (m == k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
-           -> (m == MINMTNT-1) ? A DSSMQR_OUT(k,n) : C1 DSSMQR(k,n,m+1)
+  RW C2   <- (k == 0) ? A(m,n) : C2 DSSMQR(k-1,n,m)
+          -> ((n == k+1) & (m == k+1)) ? RV1 DGEQRT(k+1)
+          -> ((n == k+1) & (k  < m-1)) ? V2 DTSQRT(k+1,m)
+          -> ((k  < n-1) & (m == k+1)) ? C1 DORMQR(k+1,n)
+          -> ((k  < n-1) & (k  < m-1)) ? C2 DSSMQR(k+1,n,m)
+  RW C1   <- (m == k+1) ? C1 DORMQR(k,n) : C1 DSSMQR(k,n,m-1)
+          -> (m == MT-1) ? A DSSMQR_OUT(k,n) : C1 DSSMQR(k,n,m+1)
+
+  ; (NT-k)*(NT-n)*(NT-m)
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
-    void* work = dplasma_private_memory_pop(work_pool);
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
     CORE_dssmqr(
         PlasmaLeft, PlasmaTrans,
-        descA.nb,
-        m == descA.mt-1 ? descA.m-m*descA.mb : descA.mb,
-        n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-        descT.mb,
-        descA.nb,
-        C1 /*A(k, n)*/, descA.lm  /*descA.nb*/,
-        C2 /*A(m, n)*/, descA.lm  /*descA.nb*/,
-        V2 /*A(m, k)*/, descA.lm  /*descA.nb*/,
-        T  /*T(m, k)*/, descT.mb,
-        work, descT.mb);
-    dplasma_private_memory_push(work_pool, work);
+        NB,
+        (m == (MT-1)) ? (M-(m*NB)) : NB,
+        (n == (NT-1)) ? (N-(n*NB)) : NB,
+        MB,
+        NB,
+        C1 /*A(k, n)*/, NB,
+        C2 /*A(m, n)*/, NB,
+        V2 /*A(m, k)*/, NB,
+        T  /*T(m, k)*/, MB,
+        work, MB);
+    dague_private_memory_push(work_pool, work);
 #else
-    OUTPUT(( "CORE_dssmqr"));
-#endif  /* DPLASMA_DRY_RUN */ 
+    void* work = dague_private_memory_pop(work_pool);
+    OUTPUT(( "CORE_dssmqr(%s, %s, %d, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+             "PlasmaLeft", "PlasmaTrans",
+             NB,
+             (m == (MT-1)) ? (M-(m*NB)) : NB,
+             (n == (NT-1)) ? (N-(n*NB)) : NB,
+             MB,
+             NB,
+             C1 /*A(k, n)*/, NB,
+             C2 /*A(m, n)*/, NB,
+             V2 /*A(m, k)*/, NB,
+             T  /*T(m, k)*/, MB,
+             work, MB));
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */ 
 END
 

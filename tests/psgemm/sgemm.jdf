@@ -1,0 +1,115 @@
+extern "C" %{
+   /**
+    * PLASMA include for defined and constants.
+    */
+#include <plasma.h>
+#include <core_sblas.h>
+
+#include "dague.h"
+#include "remote_dep.h"
+#include "data_dist/data_distribution.h"
+
+#ifdef DAGUE_CALL_TRACE
+#   include <stdlib.h>
+#   include <stdio.h>
+#   define OUTPUT(ARG)  printf ARG
+#else
+#   define OUTPUT(ARG)
+#endif
+
+#ifdef DAGUE_DRY_RUN
+#   define CORE(FN, ARGS)
+#else
+#   define CORE(FN, ARGS) CORE_##FN ARGS
+#endif
+%}
+
+/*
+ * Globals
+ */
+NB
+M
+N
+K
+alpha    [float]
+beta     [float]
+
+/* A(M, K) * B(K, N) = C(M, N) */
+/**************************************************
+ *                       READ_A                   *
+ **************************************************/
+READ_A(n, m)
+
+n = 0 .. M-1
+m = 0 .. K-1
+
+: A(n, m)
+
+A <- A(n, m)
+  -> A GEMM(n, 0, m)
+BODY
+    OUTPUT(("rank %d <- A(%d,%d)\n", rank, n, m));
+END
+
+/**************************************************
+ *                       READ_B                   *
+ **************************************************/
+READ_B(n, m)
+
+n = 0 .. K-1
+m = 0 .. N-1
+
+: B(n, m)
+
+B <- B(n, m)
+  -> B GEMM(0, m, n)
+BODY
+    OUTPUT(("rank %d <- B(%d,%d)\n", rank, n, m));
+END
+
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+GEMM(n, m, k)
+
+// Execution space
+n = 0 .. M-1
+m = 0 .. N-1
+k = 0 .. K-1
+
+// Parallel partitioning
+: C(n, m)
+
+// Parameters
+READ A <- (m == 0)     ? A READ_A(n,k) : A GEMM( n, (m+N-1) % N, k )
+       -> (m <= (N-2)) ? A GEMM( n, (m+1) % N, k )
+READ B <- (n == 0)     ? B READ_B(k,m) : B GEMM( (n+M-1) % M, m, k )
+       -> (n <= (M-2)) ? B GEMM( (n+1) % M, m, k )
+RW   C <- (k == 0)     ? C(n,m) : C GEMM( n, m, k-1 )
+       -> (k == (K-1)) ? C(n,m) : C GEMM( n, m, k+1 )
+BODY
+        CORE(
+            sgemm, (
+                PlasmaNoTrans, PlasmaTrans,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                alpha, A /*A(n, k)*/, NB, /*A.nb,*/
+                       B /*B(k, m)*/, NB, /*A.nb,*/
+                beta,  C /*C(n, m)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
+                "PlasmaNoTrans", "PlasmaTrans",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                alpha, i, k, NB, /*A.nb,*/
+                      k, m, NB, /*A.nb,*/
+                beta, n, m, NB /*A.nb*/ )
+            );
+END
+
+extern "C" %{
+
+%}

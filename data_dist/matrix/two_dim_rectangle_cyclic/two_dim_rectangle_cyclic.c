@@ -13,30 +13,25 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "two_dim_rectangle_cyclic.h"
-#include "data_distribution.h"
-#include "matrix.h"
+#ifdef USE_MPI
+#include <mpi.h>
+#endif /* USE_MPI */
 
+#include "dague_config.h"
+#include "dague.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
-//#define A(m,n) &((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)]
-/*static inline void * plasma_A(PLASMA_desc * Pdesc, int m, int n)
+static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
-    return &((double*)Pdesc->mat)[Pdesc->bsiz*(m)+Pdesc->bsiz*Pdesc->lmt*(n)];
-
-}
-*/
-
-static uint32_t twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
-{
-    int stc, cr, m, n;
-    int str, rr;
-    int res;
+    unsigned int stc, cr, m, n;
+    unsigned int str, rr;
+    unsigned int res;
     va_list ap;
     two_dim_block_cyclic_t * Ddesc;
     Ddesc = (two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
     /* for tile (m,n), first find coordinate of process in
        process grid which possess the tile in block cyclic dist */
@@ -53,55 +48,25 @@ static uint32_t twoDBC_get_rank_for_tile(DAGuE_ddesc_t * desc, ...)
 }
 
 
-/* #if 0 /\*def USE_MPI*\/ */
-/* /\* empty stub for now, should allow for async data transfer from recv side *\/ */
-/* void * dplasma_get_tile_async(DPLASMA_desc *Ddesc, int m, int n, MPI_Request *req) */
-/* { */
-    
-/*     return NULL; */
-/* } */
 
-/* void * dplasma_get_tile(DPLASMA_desc *Ddesc, int m, int n) */
-/* { */
-/*     int tile_rank; */
-    
-/*     tile_rank = dplasma_get_rank_for_tile(Ddesc, m, n); */
-/*     if(Ddesc->mpi_rank == tile_rank) */
-/*     { */
-/*         //        printf("%d get_local_tile (%d, %d)\n", Ddesc->mpi_rank, m, n); */
-/*         return dplasma_get_local_tileDdesc, m, n); */
-/*     } */
-/* #ifdef USE_MPI */
-/*     printf("%d get_remote_tile (%d, %d) from %d\n", Ddesc->mpi_rank, m, n, tile_rank); */
-/*     MPI_Recv(plasma_A((PLASMA_desc *) Ddesc, m, n), Ddesc->bsiz, MPI_DOUBLE, tile_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE); */
-/*     return plasma_A((PLASMA_desc *)Ddesc, m, n); */
-/* #else */
-/*     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__); */
-/*     return NULL; */
-/* #endif */
-/* } */
-
-/* #else  */
-/* /\*#define dplasma_get_local_tile_s dplasma_get_local_tile*\/ */
-/* #endif */
-
-static void * twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
+static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    int pos, m, n;
-    int nb_elem_r, last_c_size;
+    unsigned int pos, m, n;
+    unsigned int nb_elem_r, last_c_size;
     two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, int);
-    n = va_arg(ap, int);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
     va_end(ap);
-    if ( desc->myrank != twoDBC_get_rank_for_tile(desc, m, n) )
-        {
-            printf("Tile (%d, %d) is looked for on process %d but is not local\n", m, n, desc->myrank);
-            assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
-        }
-    
+#ifdef DISTRIBUTED
+    //   if ( desc->myrank != twoDBC_get_rank_for_tile(desc, m, n) )
+    //  {
+    //      printf("Tile (%d, %d) is looked for on process %d but is not local\n", m, n, desc->myrank);
+    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
+            //  }
+#endif /* DISTRIBUTED */
 
     /**********************************/
 
@@ -109,7 +74,7 @@ static void * twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
 
     pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
 
-    if (n >= ((Ddesc->super.lnt/Ddesc->ncst)*Ddesc->ncst )) /* tile is in the last column of super-tile */
+    if (n >= ((Ddesc->super.lnt/Ddesc->ncst) * Ddesc->ncst )) /* tile is in the last column of super-tile */
         {
             last_c_size = (Ddesc->super.lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
         }
@@ -137,11 +102,16 @@ static void * twoDBC_get_local_tile(DAGuE_ddesc_t * desc, ...)
 }
 
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows )
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
 {
-    int temp;
-    int nbstile_r;
-    int nbstile_c;
+    unsigned int temp;
+    unsigned int nbstile_r;
+    unsigned int nbstile_c;
+
+#ifdef DAGUE_DEBUG
+    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, ib = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
+#endif
+
 
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
@@ -170,7 +140,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.bsiz =  Ddesc->super.mb * Ddesc->super.nb;
 
     // Submatrix parameters    
-    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.nb)) : ((Ddesc->super.m)/(Ddesc->super.nb) + 1);
+    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
     Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
     
 
@@ -191,7 +161,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 
     if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
         {
-            printf("The process grid chosen is %dx%d, block distribution choosen is %d, %d : cannot generate matrix \n",
+            printf("The process grid chosen is %ux%u, block distribution choosen is %u, %u : cannot generate matrix \n",
                    Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
             exit(-1);
         }
@@ -229,7 +199,8 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     /* Allocate memory for matrices in block layout */
-    Ddesc->mat = dplasma_allocate_matrix(Ddesc->nb_elem_r * Ddesc->nb_elem_c * Ddesc->super.bsiz * Ddesc->super.mtype);
+    //   printf("Process %u: Ddesc->nb_elem_r = %u, Ddesc->nb_elem_c = %u, Ddesc->super.bsiz = %u, Ddesc->super.mtype = %zu\n", myrank, Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, (size_t) Ddesc->super.mtype);
+    Ddesc->mat = dague_data_allocate((size_t)Ddesc->nb_elem_r * (size_t)Ddesc->nb_elem_c * (size_t)Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");
@@ -240,3 +211,17 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 }
 
 
+#ifdef USE_MPI
+
+int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
+    return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
+}
+
+int close_matrix_file(MPI_File * handle){
+    return MPI_File_close(handle);
+}
+
+
+
+
+#endif /* USE_MPI */

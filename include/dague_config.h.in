@@ -1,0 +1,64 @@
+#ifndef DAGUE_CONFIG_H_HAS_BEEN_INCLUDED
+#define DAGUE_CONFIG_H_HAS_BEEN_INCLUDED
+
+#define DAGUE_VERSION_MAJOR @DAGUE_VERSION_MAJOR@
+#define DAGUE_VERSION_MINOR @DAGUE_VERSION_MINOR@
+
+/* Communication engine */
+#cmakedefine DAGUE_COLLECTIVE
+#cmakedefine DAGUE_MPI
+/* Scheduling engine */
+#cmakedefine HAVE_HWLOC
+#cmakedefine HAVE_HWLOC_PARENT_MEMBER
+#cmakedefine HAVE_HWLOC_CACHE_ATTR
+#cmakedefine HAVE_HWLOC_OBJ_PU
+#cmakedefine DAGUE_CACHE_AWARE
+#cmakedefine DAGUE_USE_COUNTER_FOR_DEPENDENCIES
+/* debug */
+#cmakedefine DAGUE_DEBUG
+#cmakedefine DAGUE_DEBUG_HISTORY
+#cmakedefine DAGUE_DO_UNIT_TESTS
+/* CUDA Support */
+#cmakedefine DAGUE_CUDA_SUPPORT
+/* profiling */
+#cmakedefine DAGUE_PROFILING
+#cmakedefine DAGUE_STATS
+#cmakedefine DAGUE_GRAPHER
+#cmakedefine DAGUE_CALL_TRACE
+#cmakedefine DAGUE_DRY_RUN
+#cmakedefine HAVE_PAPI
+/* system */
+#cmakedefine HAVE_PTHREAD
+#cmakedefine HAVE_SCHED_SETAFFINITY
+#cmakedefine HAVE_CLOCK_GETTIME
+#cmakedefine DAGUE_ATOMIC_USE_GCC_32_BUILTINS
+#cmakedefine DAGUE_ATOMIC_USE_GCC_64_BUILTINS
+#cmakedefine DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS
+#cmakedefine DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS
+#cmakedefine DAGUE_ATOMIC_USE_SUN_32
+#cmakedefine DAGUE_ATOMIC_USE_SUN_64
+#cmakedefine HAVE_ASPRINTF
+#cmakedefine HAVE_VASPRINTF
+#cmakedefine HAVE_STDARG_H
+#cmakedefine HAVE_VA_COPY
+#cmakedefine HAVE_UNDERSCORE_VA_COPY
+#cmakedefine HAVE_GETOPT_LONG
+#cmakedefine HAVE_GETRUSAGE
+#cmakedefine HAVE_GETOPT_H
+#cmakedefine HAVE_ERRNO_H
+#cmakedefine HAVE_STDDEF_H
+#cmakedefine ARCH_X86
+#cmakedefine ARCH_X86_64
+#cmakedefine ARCH_PPC
+#cmakedefine MAC_OS_X
+
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif  /* !defined(_GNU_SOURCE) */
+
+#ifdef ARCH_PPC
+#define inline __inline__
+#define restrict 
+#endif
+
+#endif  /*DAGUE_CONFIG_H_HAS_BEEN_INCLUDED */

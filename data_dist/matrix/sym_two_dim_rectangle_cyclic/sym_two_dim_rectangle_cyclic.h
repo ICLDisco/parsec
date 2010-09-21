@@ -3,11 +3,10 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#ifndef __TWO_DIM_RECTANGLE_CYCLIC_H__
-#define __TWO_DIM_RECTANGLE_CYCLIC_H__
+#ifndef __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
+#define __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 
-#include "data_distribution.h"
-#include "matrix.h"
+#include "data_dist/matrix/matrix.h"
 
 /*
  * Symmetrical matrix. 2D block cyclic distribution, lower tiles dsitributed only
@@ -33,11 +32,11 @@
  */
 typedef struct sym_two_dim_block_cyclic {
     tiled_matrix_desc_t super;
-    void *mat;          // pointer to the beginning of the matrix
-    int GRIDrows;       // number of processes rows in the process grid
-    int GRIDcols;       // number of processes cols in the process grid - derived parameter
-    int colRANK;        // process column rank in the process grid - derived parameter
-    int rowRANK;        // process row rank in the process grid - derived parameter
+    void *mat;              /**< pointer to the beginning of the matrix */
+    unsigned int GRIDrows;  /**< number of processes rows in the process grid */
+    unsigned int GRIDcols;  /**< number of processes cols in the process grid - derived parameter */
+    unsigned int colRANK;   /**< process column rank in the process grid - derived parameter */
+    unsigned int rowRANK;   /**< process row rank in the process grid - derived parameter */
 } sym_two_dim_block_cyclic_t;
 
 /************************************************
@@ -67,7 +66,7 @@ typedef struct sym_two_dim_block_cyclic {
  * @param n numbr of column of the entire submatrix
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int ib, int lm, int ln, int i, int j, int m, int n, int process_GridRows );
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows );
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

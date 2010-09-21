@@ -12,11 +12,17 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "data_distribution.h"
+#include <string.h>
+
+
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
+
+#include "data_dist/data_distribution.h"
+
 #include "matrix.h"
 #include "bindthread.h"
-
-void plasma_error(const char *, const char *);
 
 /*
  Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
@@ -25,11 +31,13 @@ void plasma_error(const char *, const char *);
  Rnd64seed is changed during the matrix generation time.
  */
 
-unsigned long long int Rnd64seed = 100;
+static unsigned long long int Rnd64seed = 100;
 #define Rnd64_A 6364136223846793005ULL
 #define Rnd64_C 1ULL
+#define RndF_Mul 5.4210108624275222e-20f
+#define RndD_Mul 5.4210108624275222e-20
 
-unsigned long long int
+static unsigned long long int
 Rnd64_jump(unsigned long long int n) {
   unsigned long long int a_k, c_k, ran;
   int i;
@@ -49,9 +57,11 @@ Rnd64_jump(unsigned long long int n) {
 }
 
 
-void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
+    unsigned int mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     float *x = position;
     unsigned long long int ran;
 
@@ -63,7 +73,7 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  i
       ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
 
       for (i = 0; i < nb; ++i) {
-        x[0] = 0.5 - ran * 5.4210108624275222e-20;
+        x[0] = 0.5f - ran * RndF_Mul;
         ran = Rnd64_A * ran + Rnd64_C;
         x += 1;
       }
@@ -75,9 +85,10 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  i
     }
 }
 
-void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
     float *x = position;
     unsigned long long int ran;
 
@@ -89,17 +100,25 @@ void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  int row
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
         
         for (i = 0; i < nb; ++i) {
-            x[0] = 0.5 - ran * 5.4210108624275222e-20;
+            x[0] = 0.5f - ran * RndF_Mul;
             ran = Rnd64_A * ran + Rnd64_C;
             x += 1;
         }
     }
 }
 
-
-void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb, mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
+    (void)row;
+    (void)col;
+    memset( position, 0, Ddesc->bsiz * Ddesc->mtype );
+}
+
+void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
+{
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
+    unsigned int mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
     double *x = position;
     unsigned long long int ran;
 
@@ -111,7 +130,7 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  
       ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
 
       for (i = 0; i < nb; ++i) {
-        x[0] = 0.5 - ran * 5.4210108624275222e-20;
+        x[0] = 0.5 - ran * RndD_Mul;
         ran = Rnd64_A * ran + Rnd64_C;
         x += 1;
       }
@@ -123,9 +142,10 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  
     }
 }
 
-void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col)
+void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col)
 {
-    int i, j, first_row, first_col, nb = Ddesc->nb;
+    unsigned int i, j, first_row, first_col;
+    unsigned int nb = Ddesc->nb;
     double *x = position;
     unsigned long long int ran;
 
@@ -137,7 +157,7 @@ void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int ro
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
         
         for (i = 0; i < nb; ++i) {
-            x[0] = 0.5 - ran * 5.4210108624275222e-20;
+            x[0] = 0.5 - ran * RndD_Mul;
             ran = Rnd64_A * ran + Rnd64_C;
             x += 1;
         }
@@ -146,17 +166,17 @@ void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  int ro
 
 
 typedef struct tile_coordinate{
-    int row;
-    int col;
+    unsigned int row;
+    unsigned int col;
 } tile_coordinate_t;
 
 typedef struct info_tiles{
     int th_id;    
     tiled_matrix_desc_t * Ddesc;
     tile_coordinate_t * tiles;    
-    int nb_elements;
-    int starting_position;
-    void (*gen_fct)( tiled_matrix_desc_t *, void *, int, int);
+    unsigned int nb_elements;
+    unsigned int starting_position;
+    void (*gen_fct)( tiled_matrix_desc_t *, void *, unsigned int, unsigned int);
 } info_tiles_t;
 
 
@@ -168,11 +188,11 @@ typedef struct info_tiles{
  */
 static void * rand_dist_tiles(void * info)
 {
-    int i;
+    unsigned int i;
     /* bind thread to cpu */
     int bind_to_proc = ((info_tiles_t *)info)->th_id;
 
-    dplasma_bindthread(bind_to_proc);
+    dague_bindthread(bind_to_proc);
 
     /*printf("generating matrix on process %d, thread %d: %d tiles\n",
            ((dist_tiles_t*)tiles)->Ddesc->mpi_rank,
@@ -182,7 +202,7 @@ static void * rand_dist_tiles(void * info)
         {
             ((info_tiles_t *)info)->gen_fct(((info_tiles_t *)info)->Ddesc,
                                               ((info_tiles_t *)info)->Ddesc->super.data_of(
-                                                                                           ((struct DAGuE_ddesc *)((info_tiles_t *)info)->Ddesc),
+                                                                                           ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
                                                                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
                                                                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
@@ -195,20 +215,23 @@ static void * rand_dist_tiles(void * info)
 static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
-    int tiles_coord_size;      /* size of the above table */
-    int i, j, pos = 0;
-    pthread_t *threads;
+    unsigned int tiles_coord_size;      /* size of the above table */
+    unsigned int i;
+    unsigned int j;
+    unsigned int pos = 0;
+    pthread_t *threads = NULL;
     pthread_attr_t thread_attr;
     info_tiles_t * info_gen;
     tiles_coord_size = (Mdesc->lmt * Mdesc->lnt) / Mdesc->super.nodes; /* average number of tiles per nodes */
     tiles_coord_size = (3*tiles_coord_size)/2; /* consider imbalance in distribution */
     tiles = malloc(tiles_coord_size * sizeof(tile_coordinate_t));
-    
-    for ( i = 0 ; i < Mdesc->lmt ; i++) /* check which tiles to generate */
-        for ( j = 0 ; j < Mdesc->lnt ; j++)
+
+    /* check which tiles to generate */
+    for ( j = 0 ; j < Mdesc->lnt ; j++)
+        for ( i = 0 ; i < Mdesc->lmt ; i++)
             {
                 if(Mdesc->super.myrank ==
-                   Mdesc->super.rank_of((DAGuE_ddesc_t *)Mdesc, i, j ))
+                   Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j ))
                     {
                         if (pos == tiles_coord_size)
                             {
@@ -238,7 +261,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
             info_gen[i].nb_elements = pos / Mdesc->super.cores;
             info_gen[i].starting_position = j;
             j += info_gen[i].nb_elements;
-            if (mtype) /* cholesky like generation (symetric, diagonal dominant) */
+            if (mtype == 1) /* cholesky like generation (symetric, diagonal dominant) */
                 {
                     if(Mdesc->mtype == matrix_RealFloat) 
                         {
@@ -257,7 +280,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
                         }
 
                 }
-            else /* LU like generation */
+            else if (mtype == 0)/* LU like generation */
                 {
                     if(Mdesc->mtype == matrix_RealFloat) 
                         {
@@ -275,6 +298,11 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
                             return;
                         }
                 }
+            else if(mtype == 2)
+                {
+                    info_gen[i].gen_fct = create_tile_zero;
+                }
+            
         }
     info_gen[i - 1].nb_elements += pos % Mdesc->super.cores;
 
@@ -314,6 +342,11 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
     return;
 }
 
+void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc)
+{
+    rand_dist_matrix(Mdesc, 2);
+}
+
 void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc)
 {
     rand_dist_matrix(Mdesc, 1);
@@ -324,53 +357,120 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc)
     rand_dist_matrix(Mdesc, 0);
 }
 
-
-
-#if defined(DPLASMA_CUDA_SUPPORT)
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include "lifo.h"
-#include "gpu_data.h"
-extern dplasma_atomic_lifo_t gpu_devices;
-extern int use_gpu;
-#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
-
-void* dplasma_allocate_matrix(int matrix_size)
-{
-    void* mat = NULL;
-#if defined(DPLASMA_CUDA_SUPPORT)
-    if( use_gpu ) {
-        CUresult status;
-        gpu_device_t* gpu_device;
-
-        gpu_device = (gpu_device_t*)dplasma_atomic_lifo_pop(&gpu_devices);
-        if( NULL != gpu_device ) {
-            status = cuCtxPushCurrent( gpu_device->ctx );
-            DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuCtxPushCurrent ", status,
-                                      {goto normal_alloc;} );
-
-            status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
-            if( CUDA_SUCCESS != status ) {
-                DPLASMA_CUDA_CHECK_ERROR( "(dplasma_allocate_matrix) cuMemHostAlloc ", status,
-                                          {} );
-                mat = NULL;
-            }
-            status = cuCtxPopCurrent(NULL);
-            DPLASMA_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                      {} );
-            dplasma_atomic_lifo_push(&gpu_devices, (dplasma_list_item_t*)gpu_device);
+int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
+    FILE * tmpf;
+    size_t i, j;
+    double * buf;
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf)
+        {
+            printf("opening file: %s", filename);
+            return -1;
         }
-    }
- normal_alloc:
-#endif  /* defined(DPLASMA_CUDA_SUPPORT) */
-    /* If nothing else worked so far, allocate the memory using PLASMA */
-    if( NULL == mat ) {
-        mat = malloc( matrix_size );
-    }
-
-    if( NULL == mat ) {
-        plasma_error("dplasma_description_init", "plasma_shared_alloc() failed");
-        return NULL;
-    }
-    return mat;
+    for (i = 0 ; i < Ddesc->lmt ; i++)
+        for ( j = 0 ; j< Ddesc->lnt ; j++)
+            {
+                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
+                    {
+                        buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                        fwrite(buf, Ddesc->mtype, Ddesc->bsiz, tmpf );
+                    }
+            }
+    fclose(tmpf);
+    return 0;
 }
+
+int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
+    FILE * tmpf;
+    size_t i, j;
+    double * buf;
+    tmpf = fopen(filename, "r");
+    if(NULL == tmpf)
+        {
+            printf("opening file: %s", filename);
+            return -1;
+        }
+    for (i = 0 ; i < Ddesc->lmt ; i++)
+        for ( j = 0 ; j< Ddesc->lnt ; j++)
+            {
+                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
+                    {
+                        buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                        fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
+                    }
+            }
+    fclose(tmpf);
+    return 0;
+}
+
+
+#ifdef USE_MPI
+void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+{
+    MPI_Status status;
+    void * bufferA;
+    void * bufferB;
+    void * tmpA = malloc(a->bsiz * a->mtype);
+    void * tmpB = malloc(a->bsiz * a->mtype);
+    
+    size_t i,j;
+    uint32_t rankA, rankB;
+    unsigned int count = 0;
+
+    if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
+        {
+            if(a->super.myrank == 0)
+                printf("Cannot compare matrices\n");
+            return;
+        }
+    for(i = 0 ; i < a->lmt ; i++)
+        for(j = 0 ; j < a->lnt ; j++)
+            {
+                rankA = a->super.rank_of((dague_ddesc_t *) a, i, j );
+                rankB = b->super.rank_of((dague_ddesc_t *) b, i, j );
+                if (a->super.myrank == 0)
+                    {
+                        if ( rankA == 0)
+                            {
+                                bufferA = a->super.data_of((dague_ddesc_t *) a, i, j );
+                            }
+                        else
+                            {
+                                MPI_Recv(tmpA, a->bsiz, MPI_DOUBLE, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                bufferA = tmpA;
+                            }
+                        if ( rankB == 0)
+                            {
+                                bufferB = b->super.data_of((dague_ddesc_t *) b, i, j );
+                            }
+                        else
+                            {
+                                MPI_Recv(tmpB, b->bsiz, MPI_DOUBLE, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                bufferB = tmpB;
+                            }
+
+                        if (memcmp(bufferA, bufferB, a->bsiz * a->mtype))
+                            {
+                                count++;
+                                printf("tile (%zu, %zu) differs\n", i, j);
+                            }
+                        
+                    }
+                else /* a->super.myrank != 0 */
+                    {
+                        
+                        if ( rankA == a->super.myrank)
+                            {
+                                MPI_Send(a->super.data_of((dague_ddesc_t *) a, i, j ), a->bsiz, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                            }
+                        if ( rankB == b->super.myrank)
+                            {
+                                MPI_Send(b->super.data_of((dague_ddesc_t *) b, i, j ), b->bsiz, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);                                                    
+                            }
+                    }
+            }
+    if(a->super.myrank == 0)
+        printf("compared the matrices: %u difference(s)\n", count);
+}
+
+#endif

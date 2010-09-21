@@ -5,79 +5,61 @@ extern "C" %{
 #include <plasma.h>
 #include <core_dblas.h>
 
-#include "dplasma.h"
+#include "dague.h"
 #include <stdlib.h>
 #include <stdio.h>
 
-#if defined(USE_MPI)
+#include "data_distribution.h"
+
+#if defined(DISTRIBUTED)
 #include <mpi.h>
-#include "data_management.h"
 extern MPI_Datatype LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L;
-extern DPLASMA_desc ddescA;
-extern DPLASMA_desc ddescL;
-
-#define A(m,n) dplasma_get_local_tile_s(&ddescA, m, n)
-#define L(m,n) dplasma_get_local_tile_s(&ddescL, m, n)
-
-#define descA ddescA
-#define descL ddescL
-
-#else
-extern PLASMA_desc descA;
-extern PLASMA_desc descL;
-
-#define A(m,n) &(((double*)descA.mat)[descA.bsiz*(m)+descA.bsiz*descA.lmt*(n)])
-#define L(m,n) &(((double*)descL.mat)[descL.bsiz*(m)+descL.bsiz*descL.lmt*(n)])
-
 #endif
 
-int _PLASMA_INFO;
-extern int* _IPIV;
-#define IPIV(m,n) &_IPIV[descA.nb*(m)+descA.nb*descA.lmt*(n)]
-
+int PLASMA_INFO;
 
 #define OUTPUT(ARGS) printf ARGS
 
-typedef struct dplasma_memory_pool_t {
-    dplasma_atomic_lifo_t lifo;
+typedef struct dague_memory_pool_t {
+    dague_atomic_lifo_t lifo;
     struct plasma_context_t *plasma;
     size_t elem_size;
     int elem_type;
-} dplasma_memory_pool_t;
+} dague_memory_pool_t;
 
-extern dplasma_memory_pool_t *work_pool;
+extern dague_memory_pool_t *work_pool;
 extern void* plasma_private_alloc(void*, size_t, int);
 
-int dplasma_private_memory_init( dplasma_memory_pool_t* pool,
+int dague_private_memory_init( dague_memory_pool_t* pool,
                                  size_t size,
                                  int type )
 {
-    dplasma_atomic_lifo_construct( &(pool->lifo) );
+    dague_atomic_lifo_construct( &(pool->lifo) );
     pool->elem_size = size;
     pool->elem_type = type;
     pool->plasma = NULL;
     return 0;
 }
 
-void* dplasma_private_memory_pop(dplasma_memory_pool_t* pool)
+void* dague_private_memory_pop(dague_memory_pool_t* pool)
 {
-    dplasma_list_item_t* elem = dplasma_atomic_lifo_pop(&(pool->lifo));
+    dague_list_item_t* elem = dague_atomic_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        elem = (dplasma_list_item_t*)plasma_private_alloc(pool->plasma, pool->elem_size, pool->elem_type);
+        elem = (dague_list_item_t*)plasma_private_alloc(pool->plasma, pool->elem_size, pool->elem_type);
     }
     return elem;
 }
 
-void dplasma_private_memory_push(dplasma_memory_pool_t* pool, void* memory)
+void dague_private_memory_push(dague_memory_pool_t* pool, void* memory)
 {
-    dplasma_list_item_t* item = DPLASMA_LIST_ITEM_SINGLETON(memory);
-    dplasma_atomic_lifo_push( &(pool->lifo), item );
+    dague_list_item_t* item = DAGUE_LIST_ITEM_SINGLETON(memory);
+    dague_atomic_lifo_push( &(pool->lifo), item );
 }
 
-int dgesv_private_memory_initialization(struct plasma_context_t *plasma)
+int dgesv_private_memory_initialization(struct plasma_context_t *plasma, int mb, int nb, int type)
 {
-    work_pool = (dplasma_memory_pool_t*)malloc(sizeof(dplasma_memory_pool_t));
-    dplasma_private_memory_init( work_pool, descL.mb*descL.nb, descL.dtyp );
+    work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( work_pool, mb * nb, type );
     work_pool->plasma = plasma;
 
     return 0;
@@ -90,11 +72,10 @@ int dgesv_private_memory_finalization(void)
 %}
 
 /** Globals */
-NT
-GRIDrows
-GRIDcols
-rowRANK
-colRANK
+N       /* Matrix Size (columns = rows) */
+NB      /* Tile Size */
+NT      /* Number of tiled columns */
+IB
 
 /*************************************************************
  *                          DGESSM                           *
@@ -104,33 +85,32 @@ DGESSM(k,n)
   n=k+1..NT-1
 
   // Parallel partitioning
-  : k % GRIDrows == rowRANK
-  : n % GRIDcols == colRANK
+  : A(k, n)
 
   /*C1 == A(k,n)*/
-  INOUT C1 <- (k==0) ? A(0,n) 
-           <- (1 <= k ) ? C2 DSSSSM(k-1,k,n) 
-           -> C1 DSSSSM(k,k+1,n)  
+  RW C1 <- (k==0) ? A(0,n) 
+        <- (1 <= k ) ? C2 DSSSSM(k-1,k,n) 
+        -> C1 DSSSSM(k,k+1,n)  
 
   /*L == A(k,k)*/
-  IN L <- LU DGETRF(k)                        [LOWER_TILE]
+  READ L <- LU DGETRF(k)                        [LOWER_TILE]
 
   /*IPIV == IPIV(k,k)*/
-  IN IPIV <- IPIV DGETRF(k)                  [PIVOT_VECT]
+  READ IPIV <- IPIV DGETRF(k)                  [PIVOT_VECT]
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
+#if !defined(DAGUE_DRY_RUN)
                 CORE_dgessm(
-                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-                    descA.nb,
-                    descL.mb,
+                    k == NT-1 ? N-k*NB : NB /*k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb*/,
+                    n == NT-1 ? N-n*NB : NB /*n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb*/,
+                    NB /*descA.nb*/,
+                    IB /*descL.mb*/,
                     IPIV /*IPIV(k, k)*/,
-                    L  /*A(k, k)*/, descA.nb,
-                    C1 /*A(k, n)*/, descA.nb);
+                    L  /*A(k, k)*/, NB /*descA.nb*/,
+                    C1 /*A(k, n)*/, NB /*descA.nb*/);
 #else
      OUTPUT(("void task_DGESSM(int *IPIV, double *L, double *C1)"));
-#endif  /* !defined(DPLASMA_DRY_RUN) */
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 /*************************************************************
@@ -140,34 +120,33 @@ DGETRF(k)
   k=0..NT-1
 
  // Parallel partitioning
- : k % GRIDrows == rowRANK
- : k % GRIDcols == colRANK
+ : A(k, k)
 
  /*LU == A(k,k)*/
- INOUT LU <- (k==0)    ? A(0,0)       : C2 DSSSSM(k-1,k,k) 
-          -> (k==NT-1) ? A(NT-1,NT-1) : U DTSTRF(k,k+1)    [UPPER_TILE]
-          -> (k<NT-1)  ? L DGESSM(k,k+1..NT-1)             [LOWER_TILE]
-          -> A(k,k) 
+ RW LU <- (k==0)    ? A(0,0)       : C2 DSSSSM(k-1,k,k) 
+       -> (k==NT-1) ? A(NT-1,NT-1) : U DTSTRF(k,k+1)    [UPPER_TILE]
+       -> (k<NT-1)  ? L DGESSM(k,k+1..NT-1)             [LOWER_TILE]
+       -> A(k,k) 
 
  /*IPIV == IPIV(k,k)*/
- INOUT IPIV <- IPIV(k,k)                                     [PIVOT_VECT]
-            -> (k<NT-1) ? IPIV DGESSM(k,k+1..NT-1)           [PIVOT_VECT]
-            -> IPIV(k,k)                                     [PIVOT_VECT]
+ RW IPIV <- IPIV(k,k)                                     [PIVOT_VECT]
+         -> (k<NT-1) ? IPIV DGESSM(k,k+1..NT-1)           [PIVOT_VECT]
+         -> IPIV(k,k)                                     [PIVOT_VECT]
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
+#if !defined(DAGUE_DRY_RUN)
                 int iinfo = 0;
                 CORE_dgetrf(
-                    k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb,
-                    k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-                    descL.mb,
-                    LU   /*A(k, k)*/, descA.nb,
+                    k == NT-1 ? N-k*NB : NB /*k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb*/,
+                    k == NT-1 ? N-k*NB : NB /*k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb*/,
+                    IB /*descL.mb*/,
+                    LU   /*A(k, k)*/, NB /*descA.nb*/,
                     IPIV /*IPIV(k, k)*/, &iinfo);
-                if (_PLASMA_INFO == 0 && iinfo > 0 && k == descA.mt-1)
-                    _PLASMA_INFO = iinfo + descA.nb*k;
+                if (PLASMA_INFO == 0 && iinfo > 0 && k == NT /*descA.mt*/-1)
+                    PLASMA_INFO = iinfo + NB /*descA.nb*/*k;
 #else
         OUTPUT(( "void task_DGETRF(double *LU, int *IPIV)" ));
-#endif  /* !defined(DPLASMA_DRY_RUN) */
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 /*************************************************************
@@ -177,11 +156,10 @@ DSSSSM_OUT(k, n)
   k = 0 .. NT-2
   n = k+1 .. NT - 1
   
-  :k % GRIDrows == rowRANK
-  :n % GRIDcols == colRANK
+  : A(k, n)
   
-  INOUT A <- C1 DSSSSM(k, NT-1, n)
-          -> A(k, n)
+  RW A <- C1 DSSSSM(k, NT-1, n)
+       -> A(k, n)
           
 BODY
 /* nothing */
@@ -193,45 +171,44 @@ DSSSSM(k,m,n)
   n=k+1..NT-1
 
   // Parallel partitioning
-  : m % GRIDrows == rowRANK
-  : n % GRIDcols == colRANK
+  : A(m, n )
 
   /*C2 == A(m,n)*/
-  INOUT C2 <- ( k==0 ) ? A(m,n) : C2 DSSSSM(k-1,m,n) 
-           -> ( (m==k+1) & (n==k+1) ) ? LU DGETRF(k+1)  
-           -> ( (k<=n-2) & (m==k+1) ) ? C1 DGESSM(k+1,n)  
-           -> ( (k<=m-2) & (n==k+1) ) ? L DTSTRF(k+1,m)  
-           -> ( (k<=m-2) & (k<=n-2) ) ? C2 DSSSSM(k+1,m,n)  
+  RW C2 <- ( k==0 ) ? A(m,n) : C2 DSSSSM(k-1,m,n) 
+        -> ( (m==k+1) & (n==k+1) ) ? LU DGETRF(k+1)  
+        -> ( (k<=n-2) & (m==k+1) ) ? C1 DGESSM(k+1,n)  
+        -> ( (k<=m-2) & (n==k+1) ) ? L DTSTRF(k+1,m)  
+        -> ( (k<=m-2) & (k<=n-2) ) ? C2 DSSSSM(k+1,m,n)  
 
   /*C1 == A(k,n)*/
-  INOUT C1 <- (m==k+1) ? C1 DGESSM(k,n)           : C1 DSSSSM(k,m-1,n) 
-           -> (m==NT-1) ? A DSSSSM_OUT(k, n)      : C1 DSSSSM(k,m+1,n)  
+  RW C1 <- (m==k+1) ? C1 DGESSM(k,n)           : C1 DSSSSM(k,m-1,n) 
+        -> (m==NT-1) ? A DSSSSM_OUT(k, n)      : C1 DSSSSM(k,m+1,n)  
 
   /*L == A(m,k)*/
-  IN L <- L DTSTRF(k,m) 
+  READ L <- L DTSTRF(k,m) 
 
   /*dL == L(m,k)*/
-  IN dL <- dL DTSTRF(k,m)                           [LITTLE_L]
+  READ dL <- dL DTSTRF(k,m)                           [LITTLE_L]
 
   /*IPIV == IPIV(m,k)*/
-  IN IPIV <- IPIV DTSTRF(k,m)                       [PIVOT_VECT]
+  READ IPIV <- IPIV DTSTRF(k,m)                       [PIVOT_VECT]
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
+#if !defined(DAGUE_DRY_RUN)
                 CORE_dssssm(
-                    descA.nb,
-                    m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
-                    n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb,
-                    descL.mb,
-                    descA.nb,
-                    C1 /*A(k, n)*/, descA.nb,
-                    C2 /*A(m, n)*/, descA.nb,
-                    dL /*L(m, k)*/, descL.mb,
-                    L  /*A(m, k)*/, descA.nb,
+                    NB /*descA.nb*/,
+                    m == NT-1 ? N-m*NB : NB /*m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb*/,
+                    n == NT-1 ? N-n*NB : NB /*n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb*/,
+                    IB /*descL.mb*/,
+                    NB /*descA.nb*/,
+                    C1 /*A(k, n)*/, NB /*descA.nb*/,
+                    C2 /*A(m, n)*/, NB /*descA.nb*/,
+                    dL /*L(m, k)*/, IB /*descL.mb*/,
+                    L  /*A(m, k)*/, NB /*descA.nb*/,
                     IPIV /*IPIV(m, k)*/);
  #else
     OUTPUT(("void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"));
-#endif  /*!defined(DPLASMA_DRY_RUN)*/
+#endif  /*!defined(DAGUE_DRY_RUN)*/
 END
 
 /*************************************************************
@@ -240,11 +217,10 @@ END
 DTSTRF_OUT(k)
   k = 0 .. NT-2
   
-  :k % GRIDrows == rowRANK
-  :k % GRIDcols == colRANK
+  :A(k, k)
   
-  INOUT A <- U DTSTRF(k, NT-1) [UPPER_TILE]
-          -> A(k, k)         [UPPER_TILE]
+  RW A <- U DTSTRF(k, NT-1) [UPPER_TILE]
+       -> A(k, k)         [UPPER_TILE]
           
 BODY
 /* nothing */
@@ -255,46 +231,45 @@ DTSTRF(k,m)
   m=k+1..NT-1
 
   // Parallel partitioning
-  : m % GRIDrows == rowRANK
-  : k % GRIDcols == colRANK
+  :A(m, k)
 
   /*L == A(m,k)*/
-  INOUT L <- (k==0) ? A(m,0) : C2 DSSSSM(k-1,m,k) 
-          -> L DSSSSM(k,m,k+1..NT-1)  
-          -> A(m,k) 
+  RW L <- (k==0) ? A(m,0) : C2 DSSSSM(k-1,m,k) 
+       -> L DSSSSM(k,m,k+1..NT-1)  
+       -> A(m,k) 
 
   /*U == A(k,k)*/
-  INOUT U <- (m==k+1) ? LU DGETRF(k)     : U DTSTRF(k,m-1)  [UPPER_TILE]
-          -> (m==NT-1) ? A DTSTRF_OUT(k) : U DTSTRF(k,m+1)  [UPPER_TILE]
+  RW U <- (m==k+1) ? LU DGETRF(k)     : U DTSTRF(k,m-1)  [UPPER_TILE]
+       -> (m==NT-1) ? A DTSTRF_OUT(k) : U DTSTRF(k,m+1)  [UPPER_TILE]
 
   /*dL == L(m,k)*/
-  INOUT dL <- L(m,k)
-           -> dL DSSSSM(k,m,k+1..NT-1)                        [LITTLE_L]
-           -> L(m,k)                                          [LITTLE_L]
+  RW dL <- L(m,k)
+        -> dL DSSSSM(k,m,k+1..NT-1)                        [LITTLE_L]
+        -> L(m,k)                                          [LITTLE_L]
 
   /*IPIV == IPIV(m,k)*/
-  INOUT IPIV <- IPIV(m,k)
-             -> IPIV DSSSSM(k,m,k+1..NT-1)                    [PIVOT_VECT]
-             -> IPIV(m,k)                                     [PIVOT_VECT]
+  RW IPIV <- IPIV(m,k)
+          -> IPIV DSSSSM(k,m,k+1..NT-1)                    [PIVOT_VECT]
+          -> IPIV(m,k)                                     [PIVOT_VECT]
 
 BODY
-#if !defined(DPLASMA_DRY_RUN)
+#if !defined(DAGUE_DRY_RUN)
                 int iinfo = 0;
-                void* work = dplasma_private_memory_pop(work_pool);
+                void* work = dague_private_memory_pop(work_pool);
                 CORE_dtstrf(
-                    m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb,
-                    k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb,
-                    descL.mb,
-                    descA.nb,
-                    U    /*A(k, k)*/, descA.nb,
-                    L    /*A(m, k)*/, descA.nb,
-                    dL   /*L(m, k)*/, descL.mb,
+                    m == NT-1 ? N-m*NB : NB /*m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb*/,
+                    k == NT-1 ? N-k*NB : NB /*k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb*/,
+                    IB /*descL.mb*/,
+                    NB /*descA.nb*/,
+                    U    /*A(k, k)*/, NB /*descA.nb*/,
+                    L    /*A(m, k)*/, NB /*descA.nb*/,
+                    dL   /*L(m, k)*/, IB /*descL.mb*/,
                     IPIV /*IPIV(m, k)*/, 
-                    work, descL.nb, &iinfo);
-                if (_PLASMA_INFO == 0 && iinfo > 0 && m == descA.mt-1)
-                    _PLASMA_INFO = iinfo + descA.nb*k;
-                dplasma_private_memory_push(work_pool, work);
+                    work, NB /*descL.nb*/, &iinfo);
+                if (PLASMA_INFO == 0 && iinfo > 0 && m == NT /*descA.mt*/-1)
+                    PLASMA_INFO = iinfo + NB /*descA.nb*/*k;
+                dague_private_memory_push(work_pool, work);
 #else
      OUTPUT(("void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)"));
-#endif  /* !defined(DPLASMA_DRY_RUN) */
+#endif  /* !defined(DAGUE_DRY_RUN) */
 END
