@@ -1,0 +1,306 @@
+extern "C" %{
+   /**
+    * PLASMA include for defined and constants.
+    */
+#include <plasma.h>
+#include <core_sblas.h>
+
+extern int uplo;
+int PLASMA_INFO = 0;
+
+#include "dague.h"
+
+#if defined(DAGUE_CUDA_SUPPORT)
+#include "gpu_data.h"
+#include "../testing/pspotrf/gpu_gemm.h"
+extern int *gpu_counter;
+#endif
+
+#include "remote_dep.h"
+#include "data_dist/data_distribution.h"
+
+#ifdef DAGUE_CALL_TRACE
+#   include <stdlib.h>
+#   include <stdio.h>
+#   define OUTPUT(ARG)  printf ARG
+#else
+#   define OUTPUT(ARG)
+#endif
+
+#ifdef DAGUE_DRY_RUN
+#   define CORE(FN, ARGS)
+#else
+#   define CORE(FN, ARGS) CORE_##FN ARGS
+#endif
+%}
+
+/* Globals
+ */
+NB           [int]
+SIZE         [int]
+PRI_CHANGE   [int]
+
+/**************************************************
+ *                      POTRF                     *
+ **************************************************/
+POTRF(k) (high_priority)
+
+// Execution space
+k = 0..SIZE-1
+
+// Parallel partitioning
+: A(k, k)
+
+// Parameters
+RW T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
+     -> T TRSM(k, k+1..SIZE-1)
+     -> A(k, k)
+
+//; (k >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
+; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+    CORE(
+        spotrf, (
+            uplo,
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            T /* A(k, k) */, NB, /*A.nb,*/
+            &PLASMA_INFO )
+        );
+    OUTPUT((
+        "thread %d CORE_spotrf( %s, %d, A(%d,%d), %d)\n",
+            context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
+            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+            k, k, NB /*A.nb,*/ )
+        );
+END
+
+
+/**************************************************
+ *                      TRSM                      *
+ **************************************************/
+TRSM(k, n) (high_priority)
+
+// Execution space
+k = 0..SIZE-1
+n = k+1..SIZE-1
+
+// Parallel partitioning
+: A(n, k)
+
+// Parameters
+READ  T <- T POTRF(k)
+RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
+        -> A SYRK(k, n)
+        -> A GEMM(k, n+1..SIZE-1, n)
+        -> B GEMM(k, n, k+1..n-1)
+        -> A(n, k)
+
+//; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 2 : 1000000000
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+    if( uplo == PlasmaLower ) {
+        CORE(
+            strsm, (
+                PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                     C /*A(n, k)*/, NB /*A.nb*/ )
+            );
+        OUTPUT(( 
+            "thread %d CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, k, k, NB, /*A.nb,*/
+                     n, k, NB /*A.nb*/ )
+            );
+
+    } else {
+        CORE(
+            strsm, (
+                PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                     C /*A(k, n)*/, NB /*A.nb*/ )
+            );
+       OUTPUT((
+            "thread %d CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                1.0, k, k, NB, /*A.nb,*/
+                     k, n, NB /*A.nb*/ )
+            );
+    }
+END
+
+
+/**************************************************
+ *                      SYRK                      *
+ **************************************************/
+SYRK(k, n) (high_priority)
+
+// Execution space
+k = 0..SIZE-1
+n = k+1..SIZE-1
+
+// Parallel partitioning
+: A(n, n)
+
+//Parameters
+READ  A <- C TRSM(k, n)
+RW    T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
+        -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
+
+//; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1 : 1000000000
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, n );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+    if( uplo == PlasmaLower ) {
+        CORE(
+            ssyrk, (
+                PlasmaLower, PlasmaNoTrans,
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
+                 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "thread %d CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, n, k, NB, /*A.nb,*/
+                 1.0, n, n, NB /*A.nb*/ )
+            );
+    } else {
+        CORE(
+            ssyrk, (
+                PlasmaUpper, PlasmaTrans,
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "thread %d CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
+                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, k, n, NB, /*A.nb,*/
+                 1.0, n, n, NB /*A.nb*/ )
+            );
+    }
+END
+
+/**************************************************
+ *                      GEMM                      *
+ **************************************************/
+// Name
+GEMM(k, m, n)
+
+// Execution space
+k = 0..SIZE-1
+m = k+2..SIZE-1
+n = k+1..m-1
+
+// Parallel partitioning
+: A(m, n)
+
+// Parameters
+READ  A <- C TRSM(k, n)
+READ  B <- C TRSM(k, m)
+RW    C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
+        -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
+
+//; (m >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - m) * (SIZE - m) * (SIZE - m) + 1 : 1000000000
+; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
+    /* Should we do this later ? */
+    gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+    if( dague_using_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m )) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+        /* Continue with the task on the cores */
+    }
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+    if( uplo == PlasmaLower ) {
+        CORE(
+            sgemm, ( 
+                PlasmaNoTrans, PlasmaTrans,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, B /*A(m, k)*/, NB, /*A.nb,*/
+                      A /*A(n, k)*/, NB, /*A.nb,*/
+                 1.0, C /*A(m, n)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "thread %d CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, n, k, NB, /*A.nb,*/
+                      m, k, NB, /*A.nb,*/
+                 1.0, m, n, NB /*A.nb*/ )
+            );
+    } else {
+        CORE(
+            sgemm, (
+                PlasmaTrans, PlasmaNoTrans,
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                      B /*A(k, m)*/, NB, /*A.nb,*/
+                 1.0, C /*A(n, m)*/, NB /*A.nb*/ )
+            );
+        OUTPUT((
+            "%d CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
+                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                NB, /*A.nb,*/
+                NB, /*A.nb,*/
+                -1.0, k, n, NB, /*A.nb,*/
+                      k, m, NB, /*A.nb,*/
+                 1.0, n, m, NB /*A.nb*/ )
+            );
+    }
+#if defined(DAGUE_CUDA_SUPPORT)
+FIN:
+#endif
+END

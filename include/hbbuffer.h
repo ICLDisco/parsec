@@ -4,7 +4,7 @@
 #include "debug.h"
 #include "atomic.h"
 #include "lifo.h"
-
+#include <stdlib.h>
 /**
  * Hierarchical Bounded Buffers:
  *

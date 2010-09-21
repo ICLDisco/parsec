@@ -12,7 +12,6 @@
 #include "dequeue.h"
 #include "barrier.h"
 #include "profiling.h"
-#include "../Buf2Cache/buf2cache.h"
 #include "hbbuffer.h"
 
 #define PLACEHOLDER_SIZE 2
