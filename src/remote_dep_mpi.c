@@ -92,28 +92,6 @@ typedef struct dep_cmd_item_t
     dep_cmd_t cmd;
 } dep_cmd_item_t;
 
-/* condition variable code starts */
-pthread_cond_t mpi_progress_condition_variable;
-pthread_mutex_t mpi_progress_mutex;
-
-static inline void init_condition_var(){
-    pthread_mutex_init(&mpi_progress_mutex, NULL);
-    pthread_cond_init(&mpi_progress_condition_variable, NULL);
-}
-
-static inline void sleep_on_condition(const struct timespec *ts){
-    pthread_mutex_lock(&mpi_progress_mutex);
-    pthread_cond_timedwait(&mpi_progress_condition_variable, &mpi_progress_mutex, ts);
-    pthread_mutex_unlock(&mpi_progress_mutex);
-}
-
-static inline void signal_condition(void){
-    pthread_mutex_lock(&mpi_progress_mutex);
-    pthread_cond_signal(&mpi_progress_condition_variable);
-    pthread_mutex_unlock(&mpi_progress_mutex);
-}
-/* condition variable code ends */
-
 #ifdef DAGUE_DEBUG
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
@@ -151,8 +129,6 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 
     dague_dequeue_construct(&dep_cmd_queue);
     dague_dequeue_construct(&dep_activate_queue);
-
-    //init_condition_var();
 
     MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
     if(1 < np)
@@ -222,7 +198,6 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     item->cmd.activate.deps = deps;
     DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-    //signal_condition();
     return 1;
 }
 
@@ -251,7 +226,6 @@ void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_d
     AREF(src);
     DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-    //signal_condition();
 }
 
 #define YIELD_TIME 5000
@@ -279,9 +253,6 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
             {
                 remote_dep_mpi_progress(context->execution_units[0]);
             }
-/* condition variable code starts */
-            //sleep_on_condition(&ts);
-/* condition variable code ends */
             if(do_nano) nanosleep(&ts, NULL);
         }
 
@@ -719,7 +690,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                 ret++;
             }
         }
-    } while(0/*flag*/);
+    } while(flag);
     return ret;
 }
 
