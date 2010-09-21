@@ -7,61 +7,44 @@
 
 static int using_gpu = 0;
 
-#if defined(DAGUE_CUDA_SUPPORT)
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "include/lifo.h"
 #include "include/gpu_data.h"
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+static CUcontext dague_allocate_on_gpu_context;
+static int dague_gpu_allocation_initialized = 0;
 
 static void* dague_allocate_data_gpu(size_t matrix_size)
 {
     void* mat = NULL;
 
-#if defined(DAGUE_CUDA_SUPPORT)
     if( using_gpu ) {
         CUresult status;
-        gpu_device_t* gpu_device;
 
-        gpu_device = gpu_devices[0];
-        if( NULL != gpu_device ) {
-            status = cuCtxPushCurrent( gpu_device->ctx );
-            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+        status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
+        DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
+                                { 
+                                    fprintf(stderr, 
+                                            "Unable to allocate GPU-compatible data as requested.\n");
+                                    assert(0);
+                                    exit(2);
+                                } );
+
+        status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
+        if( CUDA_SUCCESS != status ) {
+            DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc failed ", status,
                                     { 
                                         fprintf(stderr, 
-                                                "Unable to allocate GPU-compatible data as requested.\n"
-                                                "  You might want to check that the number of preallocated buffers is\n"
-                                                "  not too large (not enough memory to satisfy request)\n"
-                                                "  and not too small (cannot allocate memory during execution of code in the GPU)\n");
+                                                "Unable to allocate GPU-compatible data as requested.\n");
                                         assert(0);
                                         exit(2);
                                     } );
-
-            status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
-            if( CUDA_SUCCESS != status ) {
-                DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc failed ", status,
-                                          { 
-                                              fprintf(stderr, 
-                                                      "Unable to allocate GPU-compatible data as requested.\n"
-                                                      "  You might want to check that the number of preallocated buffers is\n"
-                                                      "  not too large (not enough memory to satisfy request)\n"
-                                                      "  and not too small (cannot allocate memory during execution of code in the GPU)\n");
-                                              assert(0);
-                                              exit(2);
-                                          } );
-                mat = NULL;
-            }
-            status = cuCtxPopCurrent(NULL);
-            DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                      {} );
-        } else {
-            fprintf(stderr, "No device configured...\n");
-            exit(1);
         }
-    }
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
-    /* If nothing else worked so far, allocate the memory using malloc */
-    if( NULL == mat ) {
+        status = cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                {} );
+    } else {
         mat = malloc( matrix_size );
     }
 
@@ -78,11 +61,9 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
  */
 static void dague_free_data_gpu(void *dta)
 {
-#if defined(DAGUE_CUDA_SUPPORT)
     if( using_gpu )
         cuMemFreeHost( dta );
     else
-#endif
         free( dta );
 }
 
@@ -91,24 +72,15 @@ static void dague_free_data_gpu(void *dta)
  */
 void dague_data_enable_gpu( int nbgpu )
 {
-#if defined(DAGUE_CUDA_SUPPORT)
     using_gpu = nbgpu;
 
     dague_data_allocate = dague_allocate_data_gpu;
     dague_data_free     = dague_free_data_gpu;
-
-#else
-    fprintf(stderr, "Requesting GPU-enabled memory, although no CUDA support\n");
-#endif
 }
 
 int dague_using_gpu(void)
 {
-#if defined(DAGUE_CUDA_SUPPORT)
     return using_gpu;
-#else
-    return 0;
-#endif
 }
 
 #if defined(DAGUE_PROFILING)
@@ -203,6 +175,16 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         gpu_device->major = major;
         gpu_device->minor = minor;
         
+        if( dague_gpu_allocation_initialized == 0 ) {
+            status = cuCtxCreate( &dague_allocate_on_gpu_context, 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
+                                    {free(gpu_device); gpu_devices[i] = NULL; continue; } );
+            status = cuCtxPopCurrent(NULL);
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
+                                    {free(gpu_device); return -1;} );
+            dague_gpu_allocation_initialized = 1;
+        }
+          
         /* cuCtxCreate: Function works on floating contexts and current context */
         status = cuCtxCreate( &(gpu_device->ctx), 0 /*CU_CTX_BLOCKING_SYNC*/, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxCreate ", status,
@@ -240,4 +222,5 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
     return 0;
 }
 
-#endif
+#endif /* DAGUE_CUDA_SUPPORT */
+
