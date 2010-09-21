@@ -240,8 +240,20 @@ BODY
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
     if( dague_using_gpu() == 1 ) {
-        if( 0 == gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m ) )
+        int rc;
+
+        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m )) )
             goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+        /* Continue with the task on the cores */
     }
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
 #endif  /* defined(DAGUE_CUDA_SUPPORT) */
