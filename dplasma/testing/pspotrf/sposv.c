@@ -339,7 +339,7 @@ int main(int argc, char ** argv)
     
 #if defined(DAGUE_CUDA_SUPPORT)
     if( nbrequested_gpu != 0 ) {
-        if( 0 != dague_gpu_init( &nbrequested_gpu, 1 ) ) {
+        if( 0 != dague_gpu_init( &nbrequested_gpu, 0 ) ) {
             fprintf(stderr, "Unable to initialize the CUDA environment.\n");
             exit(1);
         }
