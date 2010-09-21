@@ -438,6 +438,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         }
     }
 
+    if( NULL == exec_context ) {
+        goto fetch_more_work;
+    }
     goto more_work_to_do;
 
  complete_previous_work:
