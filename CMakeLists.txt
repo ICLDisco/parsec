@@ -301,8 +301,9 @@ endif (DAGUE_MPI AND MPI_FOUND)
 # Now continue with compiling the tests.
 #
 #add_subdirectory(data_dist)
-add_subdirectory(tests)
 add_subdirectory(tools)
+add_subdirectory(tests)
+add_subdirectory(dplasma)
 
 # Configuration header
 configure_file (
