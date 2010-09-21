@@ -74,7 +74,7 @@ static void dague_statistics(char* str)
     getrusage(RUSAGE_SELF, &current);
 
     if ( !_dague_rusage_first_call ) {
-        float   usr, sys;
+        double usr, sys;
 
         usr = ((current.ru_utime.tv_sec - _dague_rusage.ru_utime.tv_sec) +
                (current.ru_utime.tv_usec - _dague_rusage.ru_utime.tv_usec) / 1000000.0);
