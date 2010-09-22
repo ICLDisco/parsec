@@ -30,7 +30,7 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "dtrsm.h"
+#include "dplasma.h"
 
 #define _FMULS (NRHS/1e3 * N/1e3 * ( N + 1 )/1e3 / 2.0)
 #define _FADDS (NRHS/1e3 * N/1e3 * ( N - 1 )/1e3 / 2.0)
