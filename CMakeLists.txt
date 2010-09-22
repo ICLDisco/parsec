@@ -285,6 +285,7 @@ add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/de
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
 set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+install(TARGETS dague ARCHIVE DESTINATION lib)
 
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
@@ -294,7 +295,8 @@ if (DAGUE_MPI AND MPI_FOUND)
   data_dist/matrix/tabular_distribution/tabular_distribution.c
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
-#  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+  #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+  install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
 endif (DAGUE_MPI AND MPI_FOUND)
 
 #
@@ -309,3 +311,4 @@ add_subdirectory(dplasma)
 configure_file (
   "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
+install(TARGETS ${PROJECT_INCLUDE_DIR}/dague_config.h PUBLIC_HEADER DESTINATION include)

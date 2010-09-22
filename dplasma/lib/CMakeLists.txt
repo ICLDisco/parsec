@@ -17,6 +17,10 @@ endforeach()
 
 add_library(dplasma ${generated_files} ${EXTRA_SOURCES})
 set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-I${PLASMA_SRC_DIR} -DADD_")
+install(TARGETS dplasma ARCHIVE DESTINATION lib)
 
-add_library(dplasma-mpi ${generated_files} ${EXTRA_SOURCES})
-set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -I${PLASMA_SRC_DIR} -DADD_ -DUSE_MPI")
+if (DAGUE_MPI AND MPI_FOUND)
+  add_library(dplasma-mpi ${generated_files} ${EXTRA_SOURCES})
+  set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -I${PLASMA_SRC_DIR} -DADD_ -DUSE_MPI")
+  install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
+endif (DAGUE_MPI AND MPI_FOUND)

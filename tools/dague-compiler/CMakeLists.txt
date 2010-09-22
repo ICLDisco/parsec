@@ -7,3 +7,4 @@ set_target_properties(dc PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dc PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 target_link_libraries(dc ${EXTRA_LIBS} dague -lm)
 
+install(TARGETS dc RUNTIME DESTINATION bin)
