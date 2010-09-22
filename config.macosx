@@ -18,7 +18,7 @@ elif [ "x$USER" == "xherault" ]; then
 elif [ "x$USER" == "xbosilca" ]; then 
 	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
 	PLASMA_DIR=${HOME}/opt/plasma-svn
-	PLASMA_SRC=${HOME}/unstable/dplasma/PLASMA/plasma-svn/
+#	PLASMA_SRC=${HOME}/unstable/dplasma/PLASMA/plasma-svn/
 	MY_OPTS="$HWLOC_OPTS -DPLASMA_SRC=${PLASMA_SRC}"
 fi
 

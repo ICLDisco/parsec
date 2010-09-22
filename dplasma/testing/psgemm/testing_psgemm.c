@@ -20,15 +20,12 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include <cblas.h>
 #include <math.h>
 #include <plasma.h>
-#include <control/common.h>
-#include <control/context.h>
-#include <control/allocate.h>
+#include <dplasma.h>
 #include <sys/time.h>
 
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "sgemm.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"
@@ -304,16 +301,11 @@ static void runtime_init(int argc, char **argv)
     }
     
     PLASMA_Init(1);
-
-    plasma_tune(PLASMA_FUNC_SGEMM, N, N, NRHS);
-    if( 0 != block_forced ) {
-        plasma_context_t* plasma = plasma_context_self();
-
-        PLASMA_NB = block_forced;
-        PLASMA_NBNBSIZE = PLASMA_NB * PLASMA_NB;
-
-        plasma->autotuning_enabled = 0;
-    }
+    if ( block_forced != 0 )
+    {
+	PLASMA_Disable(PLASMA_AUTOTUNING);
+	PLASMA_Set(PLASMA_TILE_SIZE, block_forced);
+    }    
 }
 
 static void runtime_fini(void)
@@ -348,11 +340,18 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     }
 #endif  /* USE_MPI */
 
-    dague_gemm = (dague_object_t*)dague_sgemm_new( (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC,
-                                                   ddescA.super.nb,
-                                                   ddescA.super.mt, ddescB.super.nt, ddescA.super.nt,
-                                                   -1.0,  /* alpha */
-                                                   1.0 ); /* beta */
+    dague_gemm = DAGUE_sgemm_New( PlasmaNoTrans, PlasmaNoTrans,
+				  ddescC.super.mt, ddescC.super.nt, ddescA.super.nt,
+				  (double)-1.0, (tiled_matrix_desc_t*)&ddescA, 
+				  (tiled_matrix_desc_t*)&ddescB, 
+				  (double)1.0, (tiled_matrix_desc_t*)&ddescC);
+
+    /* TODO : Check if it's the correct parameters */
+    /* (dague_ddesc_t*)&ddescB, (dague_ddesc_t*)&ddescA, (dague_ddesc_t*)&ddescC, */
+    /*   ddescA.super.nb, */
+    /*   ddescA.super.mt, ddescB.super.nt, ddescA.super.nt, */
+    /*   -1.0,  /\* alpha *\/ */
+    /*   1.0 ); /\* beta *\/ */
     dague_enqueue( dague, (dague_object_t*)dague_gemm);
 
     nbtasks = dague_gemm->nb_local_tasks;

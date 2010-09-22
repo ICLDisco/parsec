@@ -7,23 +7,8 @@ extern "C" %{
 #include <core_blas.h>
 #include "dague.h"
 #include "remote_dep.h"
-
 #include "data_dist/data_distribution.h"
-
-#define DAGUE_CALL_TRACE
-#ifdef DAGUE_CALL_TRACE
-#   include <stdlib.h>
-#   include <stdio.h>
-#   define OUTPUT(ARG)  printf ARG
-#else
-#   define OUTPUT(ARG)
-#endif
-
-#ifdef DAGUE_DRY_RUN
-#   define CORE(FN, ARGS)
-#else
-#   define CORE(FN, ARGS) FN ARGS
-#endif
+#include "dplasmatypes.h"
 
 %}
 
@@ -47,7 +32,7 @@ An   [int]
 trans[int]
 diag [int]
 
-alpha[double]
+alpha[TYPENAME]
 
 /**************************************************
  *                      TRSM                      *
@@ -68,9 +53,9 @@ RW    B <- (k == 0) ? B(0, n) : C GEMM(k-1, k, n)
         -> B(k, n)
 
 BODY
-      double lalpha = k == 0 ? alpha : (double)1.0;    
+      TYPENAME lalpha = k == 0 ? alpha : (TYPENAME)1.0;    
       CORE(
-	   CORE_dtrsm, (
+	   trsm, (
 			PlasmaLeft, PlasmaUpper, trans, diag,
 			k == Bmt-1 ? Bm - k * Bmb : Bmb,
 			n == Bnt-1 ? Bn - n * Bnb : Bnb,
@@ -108,14 +93,14 @@ RW    C <- (k == 0) ? B(m, n) : C GEMM(k-1, m, n)
         -> (k+1 == m) ? B TRSM(m, n) : C GEMM(k+1, m, n)
 
 BODY
-      double lalpha = k == 0 ? alpha : (double)1.0;    
+      TYPENAME lalpha = k == 0 ? alpha : (TYPENAME)1.0;    
       CORE(
-	   CORE_dgemm, (
+	   gemm, (
 			trans, PlasmaNoTrans,
 			m == Bmt-1 ? Bm-m*Bmb : Bmb,
 			n == Bnt-1 ? Bn-n*Bnb : Bnb,
 			Bmb,
-			(double)-1.0, A /* A(k, m)*/ , Amb,
+			(TYPENAME)-1.0, A /* A(k, m)*/ , Amb,
 			              B /* B(k, n)*/ , Bmb,
 			lalpha,       C /* B(m, n)*/ , Bmb)
 	   );
@@ -125,7 +110,7 @@ BODY
 	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
 	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
 	       Bmb,
-	       (double)-1.0, k, m, A, Amb,
+	       (TYPENAME)-1.0, k, m, A, Amb,
                              k, n, B, Bmb,
 	       lalpha,       m, n, C, Bmb)
 	      );

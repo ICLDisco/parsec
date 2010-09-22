@@ -312,7 +312,7 @@ int main(int argc, char ** argv)
     dague = setup_dague(&argc, &argv);
 
     /* Create TRSM DAGuE */
-    dague_trsm = DAGUE_dtrsm_getObject(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, &ddescA, &ddescB);
+    dague_trsm = DAGUE_dtrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, &ddescA, &ddescB);
     dague_enqueue( dague, (dague_object_t*)dague_trsm);
 
     printf("Total nb tasks to run: %u\n", dague->taskstodo);
