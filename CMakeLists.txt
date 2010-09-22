@@ -19,6 +19,9 @@ option(DAGUE_PAPI
 option(DAGUE_STATS
   "Enable the generation of statistics informations during execution
   (microbenchmarking)" OFF)
+option(DAGUE_LIFO_USE_LOCKS
+  "Use a spinlock-based implementation of LIFOs (instead of an atomic
+  operations-based LIFO implementation)" OFF)
 option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_GRAPHER

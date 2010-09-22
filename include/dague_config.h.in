@@ -18,6 +18,7 @@
 #cmakedefine DAGUE_DEBUG
 #cmakedefine DAGUE_DEBUG_HISTORY
 #cmakedefine DAGUE_DO_UNIT_TESTS
+#cmakedefine DAGUE_LIFO_USE_LOCKS
 /* CUDA Support */
 #cmakedefine DAGUE_CUDA_SUPPORT
 /* profiling */
