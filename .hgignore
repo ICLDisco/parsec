@@ -174,3 +174,4 @@ dplasma/lib/ztrsm_RUT.c
 dplasma/lib/ztrsm_RUT.h
 tools/dague-compiler/daguepp
 
+tests/unit/atomics/lifo
