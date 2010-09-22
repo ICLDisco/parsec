@@ -7,23 +7,8 @@ extern "C" %{
 #include <core_blas.h>
 #include "dague.h"
 #include "remote_dep.h"
-
 #include "data_dist/data_distribution.h"
-
-#define DAGUE_CALL_TRACE
-#ifdef DAGUE_CALL_TRACE
-#   include <stdlib.h>
-#   include <stdio.h>
-#   define OUTPUT(ARG)  printf ARG
-#else
-#   define OUTPUT(ARG)
-#endif
-
-#ifdef DAGUE_DRY_RUN
-#   define CORE(FN, ARGS)
-#else
-#   define CORE(FN, ARGS) FN ARGS
-#endif
+#include "dplasmatypes.h"
 
 %}
 
@@ -47,7 +32,7 @@ An   [int]
 trans[int]
 diag [int]
 
-alpha[double]
+alpha[TYPENAME]
 
 /**************************************************
  *                      TRSM                      *
@@ -69,7 +54,7 @@ RW    B <- (k == 0) ? B(m, 0) : C GEMM(k-1, m, k)
 
 BODY
       CORE(
-	   CORE_dtrsm, (
+	   trsm, (
 			PlasmaRight, PlasmaLower, trans, diag,
 			m == Bmt-1 ? Bm - m * Bmb : Bmb,
 			k == Bnt-1 ? Bn - k * Bnb : Bnb,
@@ -108,16 +93,16 @@ RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
 
 BODY
 
-      double minvalpha  = (double)-1.0 / alpha;
+      TYPENAME minvalpha  = (TYPENAME)-1.0 / alpha;
       CORE(
-	   CORE_dgemm, (
+	   gemm, (
 			trans, PlasmaNoTrans,
 			m == Bmt-1 ? Bm-m*Bmb : Bmb,
 			n == Bnt-1 ? Bn-n*Bnb : Bnb,
 			Bmb,
 			minvalpha,   B /* B(m, k)*/ , Bmb,
 			             A /* A(n, k)*/ , Amb,
-			(double)1.0, C /* B(m, n)*/ , Bmb)
+			(TYPENAME)1.0, C /* B(m, n)*/ , Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
@@ -127,6 +112,6 @@ BODY
 	       Bmb,
 	       minvalpha,   m, k, B, Bmb,
                             n, k, A, Amb,
-	       (double)1.0, m, n, C, Bmb)
+	       (TYPENAME)1.0, m, n, C, Bmb)
 	      );
 END

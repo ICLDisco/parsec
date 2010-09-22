@@ -3,25 +3,12 @@ extern "C" %{
      * PLASMA include for defined and constants.
      */
 #include <plasma.h>
-#include <core_dblas.h>
+#include <core_blas.h>
 
 #include "dague.h"
 #include "remote_dep.h"
 #include "data_dist/data_distribution.h"
-
-#ifdef DAGUE_CALL_TRACE
-#   include <stdlib.h>
-#   include <stdio.h>
-#   define OUTPUT(ARG)  printf ARG
-#else
-#   define OUTPUT(ARG)
-#endif
-    
-#ifdef DAGUE_DRY_RUN
-#   define CORE(FN, ARGS)
-#else
-#   define CORE(FN, ARGS) CORE_##FN ARGS
-#endif
+#include "dplasmatypes.h"
     
 extern int rank;
 %}
@@ -35,8 +22,8 @@ N
 K
 TRANSA   [int]
 TRANSB   [int]
-alpha    [float]
-beta     [float]
+alpha    [TYPENAME]
+beta     [TYPENAME]
 
 /* A(M, K) * B(K, N) = C(M, N) */
 /**************************************************
@@ -47,12 +34,12 @@ READ_A(n, m)
 n = 0 .. M-1
 m = 0 .. K-1
 
-: A(m, n)
+: A(n, m)
 
-A <- A(m, n)
+A <- A(n, m)
   -> A GEMM(n, 0, m)
 BODY
-    OUTPUT(("rank %d <- A(%d,%d)\n", rank, m, n));
+    OUTPUT(("rank %d <- A(%d,%d)\n", rank, n, m));
 END
 
 /**************************************************
@@ -63,12 +50,12 @@ READ_B(n, m)
 n = 0 .. K-1
 m = 0 .. N-1
 
-: B(n, m)
+: B(m, n)
 
-B <- B(n, m)
+B <- B(m, n)
   -> B GEMM(0, m, n)
 BODY
-    OUTPUT(("rank %d <- B(%d,%d)\n", rank, n, m));
+    OUTPUT(("rank %d <- B(%d,%d)\n", rank, m, n));
 END
 
 /**************************************************
@@ -93,7 +80,7 @@ RW   C <- (k == 0)     ? C(n,m) : C GEMM( n, m, k-1 )
        -> (k == (K-1)) ? C(n,m) : C GEMM( n, m, k+1 )
 BODY
         CORE(
-            dgemm, (
+            gemm, (
                 TRANSA, TRANSB,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -103,8 +90,8 @@ BODY
                 beta,  C /*C(n, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                "PlasmaNoTrans", "PlasmaTrans",
+            "CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
+                "PlasmaNoTrans", "Plasma[Conj]Trans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/

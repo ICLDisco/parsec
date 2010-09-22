@@ -1,19 +1,76 @@
-set(SOURCES LU.jdf TSQR.jdf dgemm_TN.jdf trsm_LLN.jdf trsm_LUT.jdf trsm_RUN.jdf
-  LU_sd.jdf dpotrf.jdf dgemm_NN.jdf dgemm_TT.jdf trsm_LLT.jdf trsm_RLN.jdf trsm_RUT.jdf
-  QR.jdf dgemm_NT.jdf sgemm.jdf trsm_LUN.jdf trsm_RLT.jdf spotrf_ll.jdf spotrf_rl.jdf)
-set(EXTRA_SOURCES memory_pool.c dtrsm.c pdgemm.c)
+set(JDF
+  gemm_NN.jdf gemm_TN.jdf gemm_NT.jdf gemm_TT.jdf
+  trsm_LLN.jdf trsm_LLT.jdf trsm_LUN.jdf trsm_LUT.jdf trsm_RLN.jdf trsm_RLT.jdf trsm_RUN.jdf trsm_RUT.jdf
+  )
 
+set(SOURCES
+  trsm.c gemm.c
+)
+
+set( OLDSRC 
+  LU.jdf TSQR.jdf 
+  LU_sd.jdf dpotrf.jdf 
+  QR.jdf  spotrf_ll.jdf spotrf_rl.jdf
+)
+set(EXTRA_SOURCES memory_pool.c)
+
+set(DAGUEPP ../../tools/dague-compiler/daguepp)
 set(generated_files)
-foreach(_file ${SOURCES})
+
+# JDF generation 
+foreach(_prec z c d s)
+  set(generated_files_${_prec})
+  foreach(_file ${JDF})
+    string(REPLACE ".jdf" "" file_tro ${_file})
+    add_custom_command(
+      OUTPUT ${_prec}${file_tro}.c ${_prec}${file_tro}.h
+      COMMAND ${DAGUEPP} -i ${_file} -o ${_prec}${file_tro}
+      MAIN_DEPENDENCY ${_file}
+      DEPENDS daguepp
+      ) 
+    list(APPEND generated_files_${_prec} "${_prec}${file_tro}.c")
+  endforeach()
+endforeach()
+
+#  precision generation 
+foreach(_prec z c d s)
+  foreach(_file ${SOURCES})
+    add_custom_command(
+      OUTPUT ${_prec}${_file}
+      COMMAND cp ${_file} ${_prec}${_file}
+      MAIN_DEPENDENCY ${_file}
+      ) 
+    list(APPEND generated_files_${_prec} "${_prec}${_file}")
+  endforeach()
+endforeach()
+
+foreach(_prec z c d s)
+  list(APPEND generated_files ${generated_files_${_prec}})
+endforeach()
+
+foreach(_file ${OLDSRC})
   string(REPLACE ".jdf" "" file_tro ${_file})
   add_custom_command(
     OUTPUT ${file_tro}.c ${file_tro}.h
-    COMMAND ../../tools/dague-compiler/daguepp -i ${_file} -o ${file_tro}
+    COMMAND ${DAGUEPP} -i ${_file} -o ${file_tro}
     MAIN_DEPENDENCY ${_file}
     DEPENDS daguepp
-  ) 
+    )
   list(APPEND generated_files "${file_tro}.c")
 endforeach()
+
+set_source_files_properties( ${generated_files_z}
+  PROPERTIES COMPILE_FLAGS  "-DDAGCOMPLEX -DDAGDOUBLE"
+)
+set_source_files_properties( ${generated_files_c}
+  PROPERTIES COMPILE_FLAGS  "-DDAGCOMPLEX -DDAGSINGLE"
+)
+set_source_files_properties( ${generated_files_d}
+  PROPERTIES COMPILE_FLAGS  "-DDAGREAL -DDAGDOUBLE"
+)
+set_source_files_properties( ${generated_files_s}
+  PROPERTIES COMPILE_FLAGS  "-DDAGREAL -DDAGSINGLE"
+)
 
 add_library(dplasma ${generated_files} ${EXTRA_SOURCES})
 set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-I${PLASMA_SRC_DIR} -DADD_")

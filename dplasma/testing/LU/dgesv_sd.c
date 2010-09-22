@@ -23,9 +23,6 @@
 #include <math.h>
 #include <plasma.h>
 #include <lapack.h>
-#include <control/common.h>
-#include <control/context.h>
-#include <control/allocate.h>
 
 #include "scheduling.h"
 #include "profiling.h"
