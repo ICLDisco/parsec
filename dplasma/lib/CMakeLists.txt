@@ -18,7 +18,8 @@ set(DAGUEPP ../../tools/dague-compiler/daguepp)
 set(generated_files)
 
 # JDF generation 
-foreach(_prec z c d s)
+set(PRECISIONS d s)
+foreach(_prec ${PRECISIONS})
   set(generated_files_${_prec})
   foreach(_file ${JDF})
     string(REPLACE ".jdf" "" file_tro ${_file})
@@ -33,7 +34,7 @@ foreach(_prec z c d s)
 endforeach()
 
 #  precision generation 
-foreach(_prec z c d s)
+foreach(_prec ${PRECISIONS})
   foreach(_file ${SOURCES})
     add_custom_command(
       OUTPUT ${_prec}${_file}
@@ -44,7 +45,7 @@ foreach(_prec z c d s)
   endforeach()
 endforeach()
 
-foreach(_prec z c d s)
+foreach(_prec ${PRECISIONS})
   list(APPEND generated_files ${generated_files_${_prec}})
 endforeach()
 
