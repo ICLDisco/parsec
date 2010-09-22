@@ -54,6 +54,8 @@ struct dague_arena_chunk_t {
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
 #define DAGUE_ARENA_ALIGNMENT_64b 8
+#define DAGUE_ARENA_ALIGNMENT_INT sizeof(int)
+#define DAGUE_ARENA_ALIGNMENT_PTR sizeof(void*)
 #define DAGUE_ARENA_ALIGNMENT_SSE 16
 #define DAGUE_ARENA_ALIGNMENT_CL1 64
 
