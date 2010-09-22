@@ -32,16 +32,16 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 
     ndevices = dague_using_gpu();
 
-	for( i = 0; i < ndevices; i++ ) {
-        unsigned int total_mem, tile_size, thread_gpu_mem, free_mem;
+    for( i = 0; i < ndevices; i++ ) {
+        size_t total_mem, tile_size, thread_gpu_mem, free_mem;
         unsigned int nb_allocations = 0;
         gpu_device_t* gpu_device;
         CUresult status;
         int major, minor;
         char module_path[20];
 
-	    status = cuDeviceGet( &hcuDevice, i );
-	    DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {ndevices = 0; return -1;} );
+        status = cuDeviceGet( &hcuDevice, i );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {ndevices = 0; return -1;} );
 
         status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {ndevices = 0; return -1;} );
@@ -103,9 +103,9 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
                                     ({
-                                        unsigned int _free_mem, _total_mem;
+                                        size_t _free_mem, _total_mem;
                                         cuMemGetInfo( &_free_mem, &_total_mem );
-                                        printf("Per context: free mem %u total mem %u\n", _free_mem, _total_mem);
+                                        printf("Per context: free mem %zu total mem %zu\n", _free_mem, _total_mem);
                                         free( gpu_elem );
                                         break;
                                     }) );
