@@ -21,8 +21,8 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT syn.c
-  COMMAND ../../tools/dpc syn.jdf syn.c
+  COMMAND ../../tools/dague-compiler/daguepp syn.jdf syn.c
   MAIN_DEPENDENCY syn.jdf
-  DEPENDS dpc
+  DEPENDS daguepp
   )
  

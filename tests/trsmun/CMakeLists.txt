@@ -21,8 +21,8 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT trsmun_jdf.c
-  COMMAND ../../tools/dpc trsmun.jdf trsmun_jdf.c
+  COMMAND ../../tools/dague-compiler/daguepp trsmun_jdf.c
   MAIN_DEPENDENCY trsmun.jdf
-  DEPENDS dpc
+  DEPENDS daguepp
   )
  

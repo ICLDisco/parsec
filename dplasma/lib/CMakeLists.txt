@@ -8,9 +8,9 @@ foreach(_file ${SOURCES})
   string(REPLACE ".jdf" "" file_tro ${_file})
   add_custom_command(
     OUTPUT ${file_tro}.c ${file_tro}.h
-    COMMAND ../../tools/dague-compiler/dc -i ${_file} -o ${file_tro}
+    COMMAND ../../tools/dague-compiler/daguepp -i ${_file} -o ${file_tro}
     MAIN_DEPENDENCY ${_file}
-    DEPENDS dc
+    DEPENDS daguepp
   ) 
   list(APPEND generated_files "${file_tro}.c")
 endforeach()

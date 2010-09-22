@@ -31,22 +31,22 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT multiple.c
-  COMMAND ../../tools/dpc multiple.jdf multiple.c
+  COMMAND ../../tools/dague-compiler/daguepp multiple.jdf multiple.c
   MAIN_DEPENDENCY multiple.jdf
-  DEPENDS dpc
+  DEPENDS daguepp
   )
  
 add_custom_command (
   OUTPUT types.c
-  COMMAND ../../tools/dpc types.jdf types.c
+  COMMAND ../../tools/dague-compiler/daguepp types.jdf types.c
   MAIN_DEPENDENCY types.jdf
-  DEPENDS dpc
+  DEPENDS daguepp
   )
   
 add_custom_command (
   OUTPUT pingpong.c
-  COMMAND ../../tools/dpc pingpong.jdf pingpong.c
+  COMMAND ../../tools/dague-compiler/daguepp pingpong.jdf pingpong.c
   MAIN_DEPENDENCY pingpong.jdf
-  DEPENDS dpc
+  DEPENDS daguepp
   )
  

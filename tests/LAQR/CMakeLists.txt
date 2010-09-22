@@ -20,7 +20,7 @@ endif( PLASMA_FOUND )
 # add the command to generate the source code
 add_custom_command (
   OUTPUT QR.c QR.h
-  COMMAND ../../tools/dague-compiler/dc -i QR.jdf -o QR
+  COMMAND ../../tools/dague-compiler/daguepp -i QR.jdf -o QR
   MAIN_DEPENDENCY QR.jdf
-  DEPENDS dc
+  DEPENDS daguepp
   )
