@@ -1,7 +1,10 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C Fortran)
+# The current version number
+set (DAGUE_VERSION_MAJOR 0)
+set (DAGUE_VERSION_MINOR 1)
 
-# should we use our own math functions
+# ccmake tunable parameters
 option(DAGUE_COLLECTIVE
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
 option(DAGUE_MPI
@@ -40,19 +43,43 @@ option(DAGUE_DEBUG
   "Enable the internal debugging of the DAGUE library" OFF)
 option(DAGUE_DO_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
-# The current version number
-set (DAGUE_VERSION_MAJOR 0)
-set (DAGUE_VERSION_MINOR 1)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
 
-set( PROJECT_INCLUDE_DIR include)
-
+# cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
+include (CMakeDetermineSystem)
+include (CheckCCompilerFlag)
+include (CheckFunctionExists)
+include (CheckSymbolExists)
+include (CheckIncludeFiles)
+
 
 #
+# check the capabilities of the system we are building for 
+#
+
+# Check for compiler tools 
+find_package(BISON)
+find_package(FLEX)
+
+# Fortran tricks
+STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
+IF (_match_ifort)
+    MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
+ENDIF (_match_ifort)
+
+STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
+IF (_match_ftn)
+    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
+    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
+ENDIF (_match_ftn)
+
+
 # check for the CPU we build for
-#
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
-
 STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86)
     MESSAGE(STATUS "Found target for X86")
@@ -71,8 +98,6 @@ IF (_mach_ppc)
     SET(ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
-ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-
 #
 # Fix the building system for 32 or 64 bits.
 #
@@ -88,9 +113,6 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 #       no idea how to correctly detect if the required/optional
 #          libraries are in the correct format.
 #
-set(LOCAL_FORTRAN_LINK_FLAGS "")
-
-include(${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
 set(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 if (BUILD_64bits)
   set( ARCH_BUILD "-m64" )
@@ -110,13 +132,15 @@ else (C_M32or64)
 endif (C_M32or64)
 unset( SAVE_CMAKE_REQUIRED_FLAGS )
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
+#
+# Check compiler flags and capabilities
+#
+CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
+IF( HAVE_STD_C99 )
+  SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
+ENDIF( HAVE_STD_C99 )
 
-#
 # Set warnings for debug builds 
-#
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
 IF( HAVE_WALL )
     SET( C_WFLAGS "${C_WFLAGS} -Wall" )
@@ -138,28 +162,8 @@ ENDIF( HAVE_WD )
 SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
 
-# Check for available functions
-include (${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
-include (${CMAKE_ROOT}/Modules/CheckSymbolExists.cmake)
-include (${CMAKE_ROOT}/Modules/FindFLEX.cmake)
-include (${CMAKE_ROOT}/Modules/FindBISON.cmake)
-include (${CMAKE_ROOT}/Modules/CheckCCompilerFlag.cmake)
-include (${CMAKE_ROOT}/Modules/CMakeDetermineSystem.cmake)
-include (${CMAKE_ROOT}/Modules/CheckIncludeFiles.cmake)
-
-find_package(BISON)
-find_package(FLEX)
-
-CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
-IF( HAVE_STD_C99 )
-  SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-ENDIF( HAVE_STD_C99 )
-
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-include_directories("${PROJECT_INCLUDE_DIR}")
-include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
-
-include(cmake_modules/CheckAtomicIntrinsic.cmake)
+# threads and atomics
+include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
@@ -176,11 +180,11 @@ endif(Threads_FOUND)
 set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};rt")
 check_function_exists(sched_setaffinity HAVE_SCHED_SETAFFINITY)
 
+# timeval, timespec, realtime clocks, etc
 include(CheckStructHasMember)
 check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
 if( NOT HAVE_TIMESPEC_TV_NSEC )
   add_definitions(-D_GNU_SOURCE)
-  #  set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
   check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
 endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
@@ -188,18 +192,24 @@ if( HAVE_CLOCK_GETTIME )
   set(EXTRA_LIBS "${EXTRA_LIBS};rt")
 endif( HAVE_CLOCK_GETTIME )
 
-STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
-IF (_match_ifort)
-    MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
-ENDIF (_match_ifort)
+# stdlib, stdio, string, getopt, etc
+check_include_files(stdarg.h HAVE_STDARG_H)
+check_function_exists(va_copy HAVE_VA_COPY)
+if (NOT HAVE_VA_COPY)
+  check_function_exists(__va_copy HAVE_UNDERSCORE_VA_COPY)
+endif (NOT HAVE_VA_COPY)
+check_function_exists(asprintf HAVE_ASPRINTF)
+check_function_exists(vasprintf HAVE_VASPRINTF)
+check_include_files(getopt.h HAVE_GETOPT_H)
+check_function_exists(getopt_long HAVE_GETOPT_LONG)
+check_include_files(errno.h HAVE_ERRNO_H)
+check_include_files(stddef.h HAVE_STDDEF_H)
+check_function_exists(getrusage HAVE_GETRUSAGE)
 
-STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
-IF (_match_ftn)
-    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
-ENDIF (_match_ftn)
 
+#
+# Find required packages
+#
 find_package(PLASMA REQUIRED)
 if( PLASMA_SRC )
     list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
@@ -215,16 +225,15 @@ set( PLASMA_SRC_DIR "${PLASMA_SRC}" )
 #
 # Find optional packages
 #
-
 find_package(HWLOC)
 if( HAVE_HWLOC )
   list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
   list(APPEND EXTRA_LIBS ${HWLOC_LIB})
   include_directories( ${HWLOC_INCLUDE_DIR} )
 else( HAVE_HWLOC )
-  if( !HAVE_HWLOC )
+  if( DAGUE_CACHE_AWARE )
     message( error "Cache awarness requires hwloc" )
-  endif( !HAVE_HWLOC )
+  endif( DAGUE_CACHE_AWARE )
 endif( HAVE_HWLOC )
 
 if (DAGUE_MPI)
@@ -248,9 +257,8 @@ if (DAGUE_PAPI)
 endif (DAGUE_PAPI)
 
 if( DAGUE_CUDA )
-  include (cmake_modules/FindCUDA.cmake)
-  set(CUDA_HOST_COMPILATION_CPP OFF)
   find_package(CUDA)
+  set(CUDA_HOST_COMPILATION_CPP OFF)
   if (CUDA_FOUND)
     include_directories(${CUDA_INCLUDE_DIRS})
     set( DAGUE_CUDA_SUPPORT 1)
@@ -259,19 +267,18 @@ if( DAGUE_CUDA )
   endif (CUDA_FOUND)
 endif( DAGUE_CUDA )
 
-check_include_files(stdarg.h HAVE_STDARG_H)
-check_function_exists(va_copy HAVE_VA_COPY)
-if (NOT HAVE_VA_COPY)
-  check_function_exists(__va_copy HAVE_UNDERSCORE_VA_COPY)
-endif (NOT HAVE_VA_COPY)
-check_function_exists(asprintf HAVE_ASPRINTF)
-check_function_exists(vasprintf HAVE_VASPRINTF)
-check_include_files(getopt.h HAVE_GETOPT_H)
-check_function_exists(getopt_long HAVE_GETOPT_LONG)
-check_include_files(errno.h HAVE_ERRNO_H)
-check_include_files(stddef.h HAVE_STDDEF_H)
-
-check_function_exists(getrusage HAVE_GETRUSAGE)
+#
+##
+###
+# Finished detecting the system, lets do our own things now
+###
+##
+#
+set(PROJECT_INCLUDE_DIR "include")
+include_directories("${PROJECT_INCLUDE_DIR}")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
+add_definitions(-DHAVE_CONFIG_H)
 
 # This should be killed when matrix is a separate lib
 include_directories(${PLASMA_INCLUDE_DIR})
@@ -315,3 +322,4 @@ configure_file (
   "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
+
