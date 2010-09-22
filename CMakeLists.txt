@@ -311,4 +311,4 @@ add_subdirectory(dplasma)
 configure_file (
   "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
-install(TARGETS ${PROJECT_INCLUDE_DIR}/dague_config.h PUBLIC_HEADER DESTINATION include)
+install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
