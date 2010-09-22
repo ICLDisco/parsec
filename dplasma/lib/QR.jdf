@@ -8,6 +8,11 @@ extern "C" %{
 #include <core_blas.h>
 #include <dague.h>
 
+/* Ugly hack */
+#if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
+#define CORE_dtsmqr CORE_dssmqr
+#endif
+
 #include "data_dist/data_distribution.h"
 #include "memory_pool.h"
 
