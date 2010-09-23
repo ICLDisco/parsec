@@ -7,6 +7,8 @@
 #ifndef LIFO_H_HAS_BEEN_INCLUDED
 #define LIFO_H_HAS_BEEN_INCLUDED
 
+#include "dague_config.h"
+#include <stdlib.h>
 #include "atomic.h"
 
 #if defined(DAGUE_LIFO_USE_LOCKS)
