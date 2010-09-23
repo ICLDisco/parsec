@@ -131,8 +131,12 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
                                               &moveout_key_start, &moveout_key_end);
 #endif  /* defined(PROFILING) */
 
-	for( i = 0; i < ndevices; i++ ) {
+    for( i = 0; i < ndevices; i++ ) {
+#if CUDA_VERSION >= 3020
+        size_t total_mem;
+#else
         unsigned int total_mem;
+#endif  /* CUDA_VERSION >= 3020 */
         gpu_device_t* gpu_device;
         CUdevprop devProps;
         char szName[256];

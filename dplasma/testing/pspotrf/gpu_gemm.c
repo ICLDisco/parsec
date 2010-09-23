@@ -18,9 +18,15 @@
 
 #include "data_distribution.h"
 
+#define DPLASMA_SCHEDULING 0
+#define DPLASMA_ONLY_GPU 0
 static volatile int32_t cpu_counter = 0;
 static int ndevices = 0;
-
+#if DPLASMA_SCHEDULING
+int *gpu_set;
+int *gpu_load;
+int MAX_QUEUE = 80;
+#endif
 #include "data_dist/matrix/matrix.h"
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
@@ -31,7 +37,16 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
     int i;
 
     ndevices = dague_using_gpu();
-
+#if DPLASMA_SCHEDULING
+	gpu_set = (int*)calloc(400, sizeof(int));
+	for( i = 0; i < 400 ; i++){
+		gpu_set[i] = 0;
+	}
+	gpu_load = (int*)calloc(ndevices, sizeof(int));
+	for( i = 0; i < ndevices;i++){
+		gpu_load[i] = 0;
+	}
+#endif
     for( i = 0; i < ndevices; i++ ) {
         size_t total_mem, tile_size, thread_gpu_mem, free_mem;
         unsigned int nb_allocations = 0;
@@ -47,7 +62,6 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {ndevices = 0; return -1;} );
 
         gpu_device = gpu_devices[i];
-
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
@@ -77,7 +91,6 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         } else {
             cuFuncSetBlockShape( gpu_device->hcuFunction, 64, 4, 1 );
         }
-
         /**
          * Prepare the reusable memory on the GPU.
          */
@@ -395,11 +408,52 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = gpu_cholesky_data_tile_write_owner( ddescA(exec_context), m, n );
-    if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
+/*    printf("k=%d, m=%d, n=%d\n",k,m,n);*/
+	if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
         which_gpu = 0; /* TODO */
+#if DPLASMA_SCHEDULING
+		if(ndevices > 1){
+			/* reverse odd-even */
+			
+			/* homogeneous GPU */
+			{
+				if(n % 2 == 0){
+					which_gpu = gpu_set[n] % ndevices;			
+				}
+				else{
+					which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
+				}
+			}
+
+			/* heterogenous GPU */
+			/* weight by percentage of getting n of (n) with performance factor */
+			{
+
+
+			}
+
+			dague_atomic_inc_32b( &(gpu_set[n]) );
+		}
+#endif
     }
-    gpu_device = gpu_devices[which_gpu];
-    
+    gpu_device = gpu_devices[which_gpu];\
+
+#if DPLASMA_SCHEDULING	
+
+	#if DPLASMA_ONLY_GPU
+
+	#else
+	/* return task to CPU when GPU got too much in queue */
+				 /* MAX QUEUE would derive from CPU(CORE) performance VS GPU performance individually*/
+	if(gpu_device->mutex > MAX_QUEUE ){
+		dague_atomic_inc_32b( &(cpu_counter) );
+		return -99;
+	}
+	#endif
+	/* keep n -- not being used yet*/
+	gpu_load[gpu_device->id]+=n;
+#endif
+
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
@@ -456,6 +510,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     waiting = (waiting + 1) % gpu_device->max_streams;
 
     gpu_device->executed_tasks++;
+/*	dague_atomic_dec_32b( &(gpu_device->workload) );*/
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
         status = (cudaError_t)cuCtxPopCurrent(NULL);

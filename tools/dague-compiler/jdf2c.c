@@ -1214,6 +1214,17 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     string_arena_free(sa);
 }
 
+/**
+ * Parse the whole dependency and try to figure out if there is any
+ * combination that will allow this task (based on its inputs) to be
+ * executed as a startup task. In other words, if there is any tuple
+ * of the execution space, which leads to all inputs comming directly
+ * from the matrix.
+ * We should ignore all dependencies that lack an input argument.
+ *
+ * @Return: If the task cannot be a startup task, then the pint
+ *          argument should be set to zero.
+ */
 static char* has_ready_input_dependency(void **elt, void *pint)
 {
     jdf_dataflow_list_t* list = (jdf_dataflow_list_t*)elt;
@@ -1237,7 +1248,7 @@ static char* has_ready_input_dependency(void **elt, void *pint)
         }
         deps = deps->next;
     }
-    if( (0 == can_be_startup) || (0 == has_input) ) {
+    if( (0 == can_be_startup) && (has_input) ) {
         *((int*)pint) = 0;
     }
     return NULL;
