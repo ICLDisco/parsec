@@ -39,7 +39,7 @@ static elt_t *create_elem(int base)
     unsigned int j;
 
     r = rand() % 1024;
-    posix_memalign( (void**)&elt, DAGUE_LIFO_ALIGNMENT, r * sizeof(unsigned int) + sizeof(elt_t) );
+    DAGUE_LIFO_ELT_ALLOC( elt, r * sizeof(unsigned int) + sizeof(elt_t) );
     elt->base = base;
     elt->nbelt = r;
     for(j = 0; j < r; j++)

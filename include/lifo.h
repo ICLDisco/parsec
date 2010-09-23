@@ -24,6 +24,8 @@ typedef struct dague_list_item_t {
 #endif  /* DAGUE_DEBUG */
 } dague_list_item_t;
 
+#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) elt = (__typeof__(elt))malloc( truesize )
+
 /* Make a well formed singleton list with a list item so that it can be 
  * puhsed. 
  */
@@ -134,12 +136,15 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
     return item;
 }
 
-#define DAGUE_LIFO_ALIGNMENT 8
-#define DAGUE_LIFO_CNTMASK  (DAGUE_LIFO_ALIGNMENT-1)
-#define DAGUE_LIFO_PTRMASK  (~(DAGUE_LIFO_CNTMASK))
-#define DAGUE_LIFO_CNT( v )   ( (uintptr_t) ( (uintptr_t)(v) & DAGUE_LIFO_CNTMASK ) )
-#define DAGUE_LIFO_PTR( v )   ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
-#define DAGUE_LIFO_VAL( p, c) ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
+#define DAGUE_LIFO_ALIGNMENT_BITS  3
+#define DAGUE_LIFO_ALIGNMENT      (1 << DAGUE_LIFO_ALIGNMENT_BITS )
+#define DAGUE_LIFO_CNTMASK        (DAGUE_LIFO_ALIGNMENT-1)
+#define DAGUE_LIFO_PTRMASK        (~(DAGUE_LIFO_CNTMASK))
+#define DAGUE_LIFO_CNT( v )       ( (uintptr_t) ( (uintptr_t)(v) & DAGUE_LIFO_CNTMASK ) )
+#define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
+#define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
+
+#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) posix_memalign( (void**)&(elt), DAGUE_LIFO_ALIGNMENT, (truesize) )
 
 typedef struct dague_atomic_lifo_t {
     dague_list_item_t *lifo_head;
@@ -207,7 +212,7 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
 
 static inline void dague_atomic_lifo_construct( dague_atomic_lifo_t* lifo )
 {
-    posix_memalign( (void**)&lifo->lifo_ghost, DAGUE_LIFO_ALIGNMENT, sizeof(dague_list_item_t));
+    DAGUE_LIFO_ELT_ALLOC( lifo->lifo_ghost, sizeof(dague_list_item_t));
     lifo->lifo_ghost->list_next = lifo->lifo_ghost;
     lifo->lifo_ghost->list_prev = lifo->lifo_ghost;
     lifo->lifo_head = lifo->lifo_ghost;
