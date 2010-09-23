@@ -521,7 +521,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     dague_atomic_lifo_construct(&ready_list);
 #endif  /* defined(DAGUE_USE_GLOBAL_LIFO) */
 
-    DAGUE_MEMPOOL_CONSTRUCT( &context->context_mempool, dague_execution_context_t, mempool_owner, nb_cores );
+    dague_mempool_construct( &context->context_mempool, sizeof(dague_execution_context_t),
+                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), nb_cores );
 
     if( nb_cores > 1 ) {
         pthread_attr_t thread_attr;
