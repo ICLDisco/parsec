@@ -522,7 +522,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
 #endif  /* defined(DAGUE_USE_GLOBAL_LIFO) */
 
     {
-        dague_execution_context_t fake_fontext;
+        dague_execution_context_t fake_context;
         dague_mempool_construct( &context->context_mempool, sizeof(dague_execution_context_t),
                                  ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), nb_cores );
     }
