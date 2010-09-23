@@ -289,7 +289,8 @@ include_directories(data_dist)
 #
 add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
   src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
-  src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
+  src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c
+  src/mempool.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
   data_dist/matrix/tabular_distribution/tabular_distribution.c 
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
@@ -300,7 +301,8 @@ install(TARGETS dague ARCHIVE DESTINATION lib)
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
     src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
-    src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
+    src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c
+    src/mempool.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
   data_dist/matrix/tabular_distribution/tabular_distribution.c
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)

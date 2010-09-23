@@ -13,6 +13,7 @@
 #include "barrier.h"
 #include "profiling.h"
 #include "hbbuffer.h"
+#include "mempool.h"
 
 #define PLACEHOLDER_SIZE 2
 
@@ -37,7 +38,8 @@ typedef struct dague_execution_unit_t {
 #  endif  /* PLACEHOLDER_SIZE */
 #endif  /* DAGUE_USE_LIFO */
 
-    dague_context_t* master_context;
+    dague_context_t*        master_context;
+    dague_thread_mempool_t* context_mempool;
 
 #if defined(HAVE_HWLOC)
     dague_hbbuffer_t    **eu_hierarch_queues; 
@@ -69,6 +71,7 @@ struct dague_context_t {
     dague_dequeue_t* fwd_OUT_dep_queue;
 #endif /*DAGUE_USE_LIFO */
 
+    dague_mempool_t context_mempool;
     pthread_t* pthreads;
 
     /* This field should always be the last one in the structure. Even if the

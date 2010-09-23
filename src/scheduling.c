@@ -69,12 +69,15 @@ int dague_schedule( dague_context_t* context, const dague_execution_context_t* e
 {
     dague_execution_context_t* new_context;
     dague_execution_unit_t* eu_context;
+    dague_thread_mempool_t *mpool;
 
     eu_context = context->execution_units[0];
 
-    new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
+    new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
+    mpool = new_context->mempool_owner;
     DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
+    new_context->mempool_owner = mpool;
 #if defined(DAGUE_CACHE_AWARE)
     new_context->data[1] = NULL;
 #endif
@@ -252,7 +255,7 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
     DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
     /* Release the execution context */
     DAGUE_STAT_DECREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
-    free( exec_context );
+    dague_thread_mempool_free( eu_context->context_mempool, exec_context );
     return rc;
 }
 
@@ -425,11 +428,15 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
         return -1;  /* Already enqueued in another context */
     }
 #endif
+    dague_execution_context_t *startup_list = NULL;
+
     context->taskstodo += object->nb_local_tasks;
-    if( NULL != object->startup_list ) {
-        /* We should add these tasks on the sstem queue */
-        __dague_schedule( context->execution_units[0], object->startup_list, 0 );
-        object->startup_list = NULL;  /* no more tasks */
+    if( NULL != object->startup_hook ) {
+        object->startup_hook(context->execution_units[0], object, &startup_list);
+        if( NULL != startup_list ) {
+            /* We should add these tasks on the sstem queue */
+            __dague_schedule( context->execution_units[0], startup_list, 0 );
+        }
     }
     return 0;
 }

@@ -176,6 +176,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->master_context = startup->master_context;
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
+    eu->context_mempool = &(eu->master_context->context_mempool.thread_mempools[eu->eu_id]);
+
 #ifdef DAGUE_PROFILING
     eu->eu_profile = dague_profiling_thread_init( 65536, "DAGuE Thread %d", eu->eu_id );
 #endif
@@ -519,6 +521,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     dague_atomic_lifo_construct(&ready_list);
 #endif  /* defined(DAGUE_USE_GLOBAL_LIFO) */
 
+    DAGUE_MEMPOOL_CONSTRUCT( &context->context_mempool, dague_execution_context_t, mempool_owner, nb_cores );
+
     if( nb_cores > 1 ) {
         pthread_attr_t thread_attr;
 
@@ -585,6 +589,8 @@ int dague_fini( dague_context_t** pcontext )
 #ifdef HAVE_PAPI
     papime_stop();
 #endif
+
+    dague_mempool_destruct( &context->context_mempool );
 
     /* Now wait until every thread is back */
     context->__dague_internal_finalization_in_progress = 1;
@@ -875,9 +881,12 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             char tmp2[128];
 #endif
             dague_execution_context_t* new_context;
-            new_context = (dague_execution_context_t*)malloc(sizeof(dague_execution_context_t));
+            dague_thread_mempool_t *mpool;
+            new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
+            mpool = new_context->mempool_owner;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
+            new_context->mempool_owner = mpool;
 
             DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),

@@ -9,6 +9,7 @@
 
 #include "dague_config.h"
 #include "debug.h"
+
 #ifdef HAVE_HWLOC
 #include "dague_hwloc.h"
 #endif
@@ -45,6 +46,7 @@ extern dague_free_data_t     dague_data_free;
 #include "execution_unit.h"
 #include "lifo.h"
 #include "datarepo.h"
+#include "mempool.h"
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -131,12 +133,13 @@ typedef struct {
 } dague_data_pair_t;
 
 struct dague_execution_context_t {
-    dague_list_item_t list_item;
-    dague_object_t      *dague_object;
-    const  dague_t      *function;
-    int32_t              priority;
-    dague_data_pair_t    data[MAX_PARAM_COUNT];
-    assignment_t         locals[MAX_LOCAL_COUNT];
+    dague_list_item_t       list_item;
+    dague_thread_mempool_t *mempool_owner;
+    dague_object_t         *dague_object;
+    const  dague_t         *function;
+    int32_t                 priority;    
+    dague_data_pair_t       data[MAX_PARAM_COUNT];
+    assignment_t            locals[MAX_LOCAL_COUNT];
 };
 
 extern int DAGUE_TILE_SIZE;
@@ -147,12 +150,16 @@ extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
 #endif
 
+typedef void (*dague_startup_fn_t)(dague_execution_unit_t *eu_context, 
+                                   dague_object_t *dague_object,
+                                   dague_execution_context_t** startup_list);
+
 struct dague_object {
     /** All dague_object_t structures hold these two arrays **/
     uint32_t                   object_id;
     uint32_t                   nb_local_tasks;
     uint32_t                   nb_functions;
-    dague_execution_context_t* startup_list;
+    dague_startup_fn_t         startup_hook;
     const dague_t**            functions_array;
     dague_dependencies_t**     dependencies_array;
 };
