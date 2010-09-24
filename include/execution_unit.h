@@ -7,19 +7,16 @@
 #ifndef DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 #define DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 
-#include <stdint.h>
-#include <pthread.h>
-#include "dequeue.h"
-#include "barrier.h"
-#include "profiling.h"
-#include "hbbuffer.h"
-#include "mempool.h"
-
-#define PLACEHOLDER_SIZE 2
+#include "dague_config.h"
 
 typedef struct dague_context_t dague_context_t;
+typedef struct dague_execution_unit dague_execution_unit_t;
 
-typedef struct dague_execution_unit_t {
+#include "hbbuffer.h"
+#include "mempool.h"
+#include "dequeue.h"
+
+struct dague_execution_unit {
     int32_t eu_id;
     pthread_t pthread_id;
 #if defined(DAGUE_PROFILING)
@@ -40,6 +37,7 @@ typedef struct dague_execution_unit_t {
 
     dague_context_t*        master_context;
     dague_thread_mempool_t* context_mempool;
+    dague_thread_mempool_t* datarepo_mempools[MAX_PARAM_COUNT+1];
 
 #if defined(HAVE_HWLOC)
     dague_hbbuffer_t    **eu_hierarch_queues; 
@@ -51,7 +49,15 @@ typedef struct dague_execution_unit_t {
 #endif /* HAVE_HWLOC */
 
     uint32_t* remote_dep_fw_mask;
-} dague_execution_unit_t;
+};
+
+#include <stdint.h>
+#include <pthread.h>
+#include "barrier.h"
+#include "profiling.h"
+#include "dague.h"
+
+#define PLACEHOLDER_SIZE 2
 
 struct dague_context_t {
     volatile int32_t __dague_internal_finalization_in_progress;
@@ -72,6 +78,7 @@ struct dague_context_t {
 #endif /*DAGUE_USE_LIFO */
 
     dague_mempool_t context_mempool;
+    dague_mempool_t datarepo_mempools[MAX_PARAM_COUNT+1];
     pthread_t* pthreads;
 
     /* This field should always be the last one in the structure. Even if the

@@ -164,6 +164,7 @@ static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
     dague_execution_unit_t* eu;
+    int pi;
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
@@ -177,6 +178,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
     eu->context_mempool = &(eu->master_context->context_mempool.thread_mempools[eu->eu_id]);
+    for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
+        eu->datarepo_mempools[pi] = &(eu->master_context->datarepo_mempools[pi].thread_mempools[eu->eu_id]);
 
 #ifdef DAGUE_PROFILING
     eu->eu_profile = dague_profiling_thread_init( 65536, "DAGuE Thread %d", eu->eu_id );
@@ -526,6 +529,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
         dague_mempool_construct( &context->context_mempool, sizeof(dague_execution_context_t),
                                  ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), nb_cores );
     }
+    {
+        data_repo_entry_t fake_entry;
+        int pi;
+        for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
+            dague_mempool_construct( &context->datarepo_mempools[pi], 
+                                     sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
+                                     ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
+                                     nb_cores);
+    }
 
     if( nb_cores > 1 ) {
         pthread_attr_t thread_attr;
@@ -595,6 +607,8 @@ int dague_fini( dague_context_t** pcontext )
 #endif
 
     dague_mempool_destruct( &context->context_mempool );
+    for(i = 0; i <= MAX_PARAM_COUNT; i++)
+        dague_mempool_destruct( &context->datarepo_mempools[i]);
 
     /* Now wait until every thread is back */
     context->__dague_internal_finalization_in_progress = 1;
@@ -938,7 +952,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #define is_inplace(ctx,param,dep) NULL
 #define is_read_only(ctx,param,dep) NULL
 
-dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu, 
+dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
                                              int param_index, int outdep_index, 

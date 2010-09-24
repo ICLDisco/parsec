@@ -8,36 +8,34 @@
 #define DAGUE_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
-#include "debug.h"
 
+#include <stdint.h>
+
+#include "debug.h"
 #ifdef HAVE_HWLOC
 #include "dague_hwloc.h"
 #endif
-#include <stdint.h>
 #if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
 typedef uint32_t dague_dependency_t;
 #else
 typedef uint32_t dague_dependency_t;
 #endif
 
-typedef struct dague_t dague_t;
-typedef struct dague_object dague_object_t;
-typedef struct dague_remote_deps_t dague_remote_deps_t;
+typedef struct dague_t                   dague_t;
+typedef struct dague_object              dague_object_t;
+typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
-typedef struct dague_dependencies_t dague_dependencies_t;
-
-#define MAX_LOCAL_COUNT  5
-#define MAX_PRED_COUNT   5
-#define MAX_PARAM_COUNT  5
-
-#ifdef HAVE_PAPI
-#define MAX_EVENTS 3
-#endif
+typedef struct dague_dependencies_t      dague_dependencies_t;
+typedef struct dague_data_pair_t         dague_data_pair_t;
 
 typedef void*(*dague_allocate_data_t)(size_t matrix_size);
 typedef void(*dague_free_data_t)(void *data);
 extern dague_allocate_data_t dague_data_allocate;
 extern dague_free_data_t     dague_data_free;
+
+#ifdef HAVE_PAPI
+#define MAX_EVENTS 3
+#endif
 
 #include "symbol.h"
 #include "expr.h"
@@ -45,8 +43,9 @@ extern dague_free_data_t     dague_data_free;
 #include "dep.h"
 #include "execution_unit.h"
 #include "lifo.h"
-#include "datarepo.h"
 #include "mempool.h"
+#include "arena.h"
+#include "datarepo.h"
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -77,21 +76,21 @@ struct dague_dependencies_t {
     dague_dependencies_union_t u; 
 };
 
-typedef int (dague_hook_t)(struct dague_execution_unit_t*, dague_execution_context_t*);
-typedef int (dague_release_deps_t)(struct dague_execution_unit_t*, dague_execution_context_t*, int, struct dague_remote_deps_t *, dague_arena_chunk_t **data);
+typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
+typedef int (dague_release_deps_t)(struct dague_execution_unit*, dague_execution_context_t*, int, struct dague_remote_deps_t *, dague_arena_chunk_t **data);
 
 typedef enum  {
     DAGUE_ITERATE_STOP,
     DAGUE_ITERATE_CONTINUE
 } dague_ontask_iterate_t;
 
-typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit_t *eu, 
+typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu, 
                                                          dague_execution_context_t *newcontext, 
                                                          dague_execution_context_t *oldcontext, 
                                                          int param_index, int outdep_index, 
                                                          int rank_src, int rank_dst,
                                                          void *param);
-typedef void (dague_traverse_function_t)(struct dague_execution_unit_t *, dague_execution_context_t *, dague_ontask_function_t *, void *);
+typedef void (dague_traverse_function_t)(struct dague_execution_unit *, dague_execution_context_t *, dague_ontask_function_t *, void *);
 
 #if defined(DAGUE_CACHE_AWARE)
 typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
@@ -126,11 +125,10 @@ struct dague_t {
     char*                 body;
 };
 
-
-typedef struct {
+struct dague_data_pair_t {
     data_repo_entry_t *data_repo;
     dague_arena_chunk_t *data;
-} dague_data_pair_t;
+};
 
 struct dague_execution_context_t {
     dague_list_item_t       list_item;
@@ -206,7 +204,7 @@ typedef struct {
 #endif
 } dague_release_dep_fct_arg_t;
 
-dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_t *eu, 
+dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
                                              int param_index, int outdep_index, 

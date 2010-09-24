@@ -6,6 +6,10 @@
 #ifndef __USE_REMOTE_DEP_H__
 #define __USE_REMOTE_DEP_H__
 
+#include "dague_config.h"
+
+typedef unsigned long remote_dep_datakey_t;
+
 #include "debug.h"
 
 #if defined(USE_MPI)
@@ -20,9 +24,9 @@ typedef void* dague_remote_dep_datatype_t;
 #include "assignment.h"
 #include "lifo.h"
 #include "execution_unit.h"
-#include "datarepo.h"
 #include "dague.h"
 #include "arena.h"
+#include "datarepo.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
@@ -32,8 +36,6 @@ typedef void* dague_remote_dep_datatype_t;
 #define DAGUE_ACTION_SEND_REMOTE_DEPS           0x2000
 #define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x4000
 #define DAGUE_ACTION_RELEASE_REMOTE_DEPS        (DAGUE_ACTION_SEND_INIT_REMOTE_DEPS | DAGUE_ACTION_SEND_REMOTE_DEPS)
-
-typedef unsigned long remote_dep_datakey_t;
 
 typedef struct remote_dep_wire_activate_t
 {
