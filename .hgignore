@@ -16,6 +16,7 @@ CMakeFiles
 \.\#.*
 .*Makefile
 .*cmake_install.cmake
+install_manifest.txt
 tools/dague-compiler/dc
 dplasma/lib/LU\.c
 dplasma/lib/LU\.h

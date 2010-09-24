@@ -118,16 +118,19 @@ struct dague_t {
 #if defined(DAGUE_CACHE_AWARE)
     dague_cache_rank_function_t *cache_rank_function;
 #endif
-    dague_hook_t*         hook;
-    dague_hook_t*         complete_execution;
+    dague_hook_t*             hook;
+    dague_hook_t*             complete_execution;
     dague_traverse_function_t *iterate_successors;
-    dague_release_deps_t* release_deps;
-    char*                 body;
+    dague_release_deps_t      *release_deps;
+    char*                     body;
 };
 
 struct dague_data_pair_t {
-    data_repo_entry_t *data_repo;
+    data_repo_entry_t   *data_repo;
     dague_arena_chunk_t *data;
+#if defined(DAGUE_CUDA_SUPPORT)
+    struct gpu_elem_t   *gpu_data;
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
 };
 
 struct dague_execution_context_t {

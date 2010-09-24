@@ -9,7 +9,7 @@
 
 int gpu_sgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* exec_context,
-               int uplo, void* A, void* B, void* C, int k, int n, int m );
+               int uplo );
 
 /****************************************************
  ** GPU-DATA that is Cholesky Specific Starts Here **
