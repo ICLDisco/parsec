@@ -10,7 +10,10 @@ extern "C" %{
 
 /* Ugly hack */
 #if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
-#define CORE_dtsmqr CORE_dssmqr
+#define CORE_dtsmqr(side, trans, M1, M2, NN, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
+  CORE_dssmqr(side, trans, M1, M2, NN, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK)
+#define CORE_dormqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
+  CORE_dormqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
 #endif
 
 #include "data_dist/data_distribution.h"
@@ -200,8 +203,8 @@ BODY
         PlasmaLeft, PlasmaTrans,
         (k == (MT-1)) ? (M-(k*NB)) : NB,
         (n == (NT-1)) ? (N-(n*NB)) : NB,
-        MB,
         (k == (MT-1)) ? (M-(k*NB)) : NB,
+        MB,
         V1 /*A(k, k)*/, NB,
         T  /*T(k, k)*/, MB,
         C1 /*A(k, n)*/, NB,
@@ -213,8 +216,8 @@ BODY
              "PlasmaLeft", "PlasmaTrans",
              (k == (MT-1)) ? (M-(k*NB)) : NB,
              (n == (NT-1)) ? (N-(n*NB)) : NB,
-             MB,
              (k == (MT-1)) ? (M-(k*NB)) : NB,
+             MB,
              V1 /*A(k, k)*/, NB,
              T  /*T(k, k)*/, MB,
              C1 /*A(k, n)*/, NB,
@@ -269,8 +272,8 @@ BODY
         NB,
         (m == (MT-1)) ? (M-(m*NB)) : NB,
         (n == (NT-1)) ? (N-(n*NB)) : NB,
-        MB,
         NB,
+        MB,
         C1 /*A(k, n)*/, NB,
         C2 /*A(m, n)*/, NB,
         V2 /*A(m, k)*/, NB,
@@ -284,8 +287,8 @@ BODY
              NB,
              (m == (MT-1)) ? (M-(m*NB)) : NB,
              (n == (NT-1)) ? (N-(n*NB)) : NB,
-             MB,
              NB,
+             MB,
              C1 /*A(k, n)*/, NB,
              C2 /*A(m, n)*/, NB,
              V2 /*A(m, k)*/, NB,
