@@ -9,6 +9,8 @@
 
 #include "dague_config.h"
 
+#define PLACEHOLDER_SIZE 2
+
 typedef struct dague_context_t dague_context_t;
 typedef struct dague_execution_unit dague_execution_unit_t;
 
@@ -57,7 +59,6 @@ struct dague_execution_unit {
 #include "profiling.h"
 #include "dague.h"
 
-#define PLACEHOLDER_SIZE 2
 
 struct dague_context_t {
     volatile int32_t __dague_internal_finalization_in_progress;
