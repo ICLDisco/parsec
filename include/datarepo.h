@@ -7,14 +7,17 @@
 #ifndef _datarepo_h_
 #define _datarepo_h_
 
-#include <stdlib.h>
+#include "dague_config.h"
 
+typedef struct data_repo_entry data_repo_entry_t;
+typedef struct data_repo_head  data_repo_head_t;
+typedef struct data_repo       data_repo_t;
+
+#include <stdlib.h>
 #include "atomic.h"
 #include "stats.h"
 #include "debug.h"
-
-typedef struct data_repo_entry data_repo_entry_t;
-
+#include "execution_unit.h"
 #include "arena.h"
 
 #define DEBUG_HEAVY(p)
@@ -59,26 +62,41 @@ typedef struct data_repo_entry data_repo_entry_t;
  *    are not collected.
  */
 
+/**
+ * data_repo_entries as mempool manageable elements:
+ *  a mempool manageable element must be a dague_list_item_t,
+ *  and it must have a pointer to it's own mempool_thread_t.
+ * Thus, we use the dague_list_item_t to point to the next fields,
+ * althgough this is not done atomically at the datarepo level (not
+ * needed), and we use the cache_friendly_emptiness of the dague_list_item_t
+ * to store the pointer to the mempool_thread_t.
+ *
+ * The following #define are here to help port the code.
+ */
+
+#define data_repo_next_entry     data_repo_next_item.list_next
+#define data_repo_mempool_owner  data_repo_next_item.cache_friendly_emptiness
+
 struct data_repo_entry {
+    dague_list_item_t data_repo_next_item;
     volatile uint32_t usagecnt;
     volatile uint32_t usagelmt;
     volatile uint32_t retained;
     long int key;
-    struct data_repo_entry *next_entry;
     dague_arena_chunk_t *data[1];
 };
 
-typedef struct data_repo_head {
+struct data_repo_head {
     volatile uint32_t  lock;
     uint32_t           size;
     data_repo_entry_t *first_entry;
-} data_repo_head_t;
+};
 
-typedef struct data_repo {
+struct data_repo {
     unsigned int      nbentries;
     unsigned int      nbdata;
     data_repo_head_t  heads[1];
-} data_repo_t;
+};
 
 static inline data_repo_t *data_repo_create_nothreadsafe(unsigned int hashsize, unsigned int nbdata)
 {
@@ -97,7 +115,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
     dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;
-        e = e->next_entry)
+        e = (data_repo_entry_t *)e->data_repo_next_entry)
         if( e->key == key ) break;
     dague_atomic_unlock(&repo->heads[h].lock);
 
@@ -108,41 +126,46 @@ static inline data_repo_entry_t *data_repo_lookup_entry(data_repo_t *repo, long 
  * you're done counting the number of references, otherwise the entry is non erasable.
  * See comment near the structure definition.
  */
-static inline data_repo_entry_t *data_repo_lookup_entry_and_create(data_repo_t *repo, long int key)
+static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *repo, long int key)
 {
-    data_repo_entry_t *e;
+    data_repo_entry_t *e, *n;
     int h = key % repo->nbentries;
     
     dague_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;
-        e = e->next_entry)
+        e = (data_repo_entry_t *)e->data_repo_next_entry)
         if( e->key == key ) {
             e->retained++; /* Until we update the usage limit */
             dague_atomic_unlock(&repo->heads[h].lock);
+            dague_thread_mempool_free( eu->datarepo_mempools[repo->nbdata], n );
             return e;
         }
+    dague_atomic_unlock(&repo->heads[h].lock);
 
-    e = (data_repo_entry_t*)calloc(1, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*));
-    e->next_entry = repo->heads[h].first_entry;
-    repo->heads[h].first_entry = e;
-    e->key = key;
-    e->usagelmt = 0;
-    e->usagecnt = 0;
-    e->retained = 1; /* Until we update the usage limit */
+    n = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
+    n->key = key;
+    n->usagelmt = 0;
+    n->usagecnt = 0;
+    n->retained = 1; /* Until we update the usage limit */
+
+    dague_atomic_lock(&repo->heads[h].lock);
+    n->data_repo_next_entry = (volatile dague_list_item_t *)repo->heads[h].first_entry;
+    repo->heads[h].first_entry = n;
     repo->heads[h].size++;
     DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     dague_atomic_unlock(&repo->heads[h].lock);
-    return e;
+
+    return n;
 }
 
 #if defined(DAGUE_DEBUG_HEAVY)
-# define data_repo_entry_used_once(repo, key) __data_repo_entry_used_once(repo, key, #repo, __FILE__, __LINE__)
-static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
+# define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
+static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
 #else
-# define data_repo_entry_used_once(repo, key) __data_repo_entry_used_once(repo, key)
-static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
+# define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
+static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key)
 #endif
 {
     data_repo_entry_t *e, *p;
@@ -153,7 +176,7 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
     p = NULL;
     for(e = repo->heads[h].first_entry;
         e != NULL;
-        p = e, e = e->next_entry)
+        p = e, e = (data_repo_entry_t*)e->data_repo_next_entry)
         if( e->key == key ) {
             r = dague_atomic_inc_32b(&e->usagecnt);
             break;
@@ -170,13 +193,14 @@ static inline void __data_repo_entry_used_once(data_repo_t *repo, long int key)
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
                      e, e->key, tablename, r, r, file, line));
         if( NULL != p ) {
-            p->next_entry = e->next_entry;
+            p->data_repo_next_entry = e->data_repo_next_entry;
         } else {
-            repo->heads[h].first_entry = e->next_entry;
+            repo->heads[h].first_entry = (data_repo_entry_t*)e->data_repo_next_entry;
         }
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
-        free(e);
+
+        dague_thread_mempool_free(eu->datarepo_mempools[repo->nbdata], e );
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
@@ -201,7 +225,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
     p = NULL;
     for(e = repo->heads[h].first_entry;
         e != NULL;
-        p = e, e = e->next_entry)
+        p = e, e = (data_repo_entry_t*)e->data_repo_next_entry)
         if( e->key == key ) {
             assert(e->retained > 0);
             do {
@@ -218,9 +242,9 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, file, line));
         if( NULL != p ) {
-            p->next_entry = e->next_entry;
+            p->data_repo_next_entry = e->data_repo_next_entry;
         } else {
-            repo->heads[h].first_entry = e->next_entry;
+            repo->heads[h].first_entry = (data_repo_entry_t*)e->data_repo_next_entry;
         }
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
@@ -235,17 +259,6 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
 
 static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 {
-    data_repo_entry_t *e, *n;
-    unsigned int i;
-    for(i = 0; i < repo->nbentries; i++) {
-        for(e = repo->heads[i].first_entry;
-            e != NULL;
-            e = n) {
-            n = e->next_entry;
-            free(e);
-            DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
-        }
-    }
     DAGUE_STAT_DECREASE(mem_hashtable,  sizeof(data_repo_t) + sizeof(data_repo_head_t) * (repo->nbentries-1) + STAT_MALLOC_OVERHEAD);
     free(repo);
 }

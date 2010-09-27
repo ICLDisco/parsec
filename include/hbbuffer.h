@@ -1,6 +1,10 @@
 #ifndef HBBUFFER_H_HAS_BEEN_INCLUDED
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 
+#include "dague_config.h"
+
+typedef struct dague_hbbuffer_t dague_hbbuffer_t;
+
 #include "debug.h"
 #include "atomic.h"
 #include "lifo.h"
@@ -33,14 +37,14 @@ typedef unsigned int (*dague_hbbuffer_ranking_fct_t)(dague_list_item_t *elt, voi
  */
 typedef void (*dague_hbbuffer_parent_push_fct_t)(void *store, dague_list_item_t *elt);
 
-typedef struct dague_hbbuffer_t {
+struct dague_hbbuffer_t {
     size_t size;       /**< the size of the buffer, in number of void* */
     size_t ideal_fill; /**< hint on the number of elements that should be there to increase parallelism */
     void    *parent_store; /**< pointer to this buffer parent store */
     /** function to push element to the parent store */
     dague_hbbuffer_parent_push_fct_t parent_push_fct;
     volatile dague_list_item_t *items[1]; /**< array of elements */
-} dague_hbbuffer_t;
+};
 
 static inline dague_hbbuffer_t *dague_hbbuffer_new(size_t size,  size_t ideal_fill,
                                                    dague_hbbuffer_parent_push_fct_t parent_push_fct,

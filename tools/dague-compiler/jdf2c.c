@@ -2391,7 +2391,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                 switch( dep->dep->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
                     if( NULL != dep->dep->guard->calltrue->var ) {
-                        coutput("    data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                        coutput("    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "    (void)AUNREF(context->data[%d].data);\n",
                                 dep->dep->guard->calltrue->func_or_mem, i,
                                 i);
@@ -2402,7 +2402,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         info.prefix = "";
                         info.sa = sa1;
                         coutput("    if( %s ) {\n"
-                                "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "      (void)AUNREF(context->data[%d].data);\n"
                                 "    }\n",
                                 dump_expr((void**)&dep->dep->guard->guard, &info),
@@ -2415,7 +2415,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         info.prefix = "";
                         info.sa = sa1;
                         coutput("    if( %s ) {\n"
-                                "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "      (void)AUNREF(context->data[%d].data);\n"
                                 "    }\n",
                                 dump_expr((void**)&dep->dep->guard->guard, &info),
@@ -2423,7 +2423,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                                 i);
                         if( NULL != dep->dep->guard->callfalse->var ) {
                             coutput(" else {\n"
-                                    "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                    "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                     "      (void)AUNREF(context->data[%d].data);\n"
                                     "    }\n",
                                     dep->dep->guard->callfalse->func_or_mem, i,
@@ -2433,7 +2433,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         info.prefix = "";
                         info.sa = sa1;
                         coutput("    if( !(%s) ) {\n"
-                                "      data_repo_entry_used_once( %s_repo, context->data[%d].data_repo->key );\n"
+                                "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "      (void)AUNREF(context->data[%d].data);\n"
                                 "    }\n",
                                 dump_expr((void**)&dep->dep->guard->guard, &info),
@@ -2480,7 +2480,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
-            "    arg.output_entry = data_repo_lookup_entry_and_create( %s_repo, %s_hash(__dague_object, %s) );\n"
+            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, %s) );\n"
             "  }\n",
             f->fname, f->fname, 
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,

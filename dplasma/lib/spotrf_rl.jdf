@@ -240,7 +240,7 @@ BODY
     if( dague_using_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo, A, B, C, k, n, m )) )
+        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo )) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */
