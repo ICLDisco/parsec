@@ -176,3 +176,8 @@ dplasma/lib/ztrsm_RUT.h
 tools/dague-compiler/daguepp
 
 tests/unit/atomics/lifo
+dplasma/lib/sgeqrt\.c
+dplasma/lib/sgeqrt\.h
+dplasma/testing/psgeqrf/magma_0\.2_64\.tar\.gz
+dplasma/testing/psgeqrf/psgeqrf
+dplasma/testing/psgeqrf/sgeqrf

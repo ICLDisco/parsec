@@ -1,0 +1,350 @@
+extern "C" %{
+   /**
+    * PLASMA include for defined and constants.
+    */
+#include <stdlib.h>
+#include <stdio.h>
+#include <plasma.h>
+#include <core_sblas.h>
+#include <dague.h>
+
+/* Ugly hack */
+#if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
+#define CORE_stsmqr(side, trans, M1, M2, NN, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
+  CORE_sssmqr(side, trans, M1, M2, NN, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK)
+#define CORE_sormqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
+  CORE_sormqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
+#endif
+
+#if defined(DAGUE_CUDA_SUPPORT)
+#include "gpu_data.h"
+#include "../testing/psgeqrf/gpu_stsmqr.h"
+extern int *gpu_counter;
+#endif
+
+#include "data_dist/data_distribution.h"
+#include "memory_pool.h"
+
+#if defined(DISTRIBUTED)
+extern dague_arena_t LITTLE_T, UPPER_TILE, LOWER_TILE;
+#endif
+
+#define OUTPUT(ARGS) printf ARGS
+
+/* TODO: this doesn't work with multiple objects */
+static dague_memory_pool_t *work_pool, *tau_pool;
+
+int sgeqrt_private_memory_initialization(int MB, int NB );
+int sgeqrt_private_memory_initialization(int MB, int NB )
+{
+    work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( work_pool, MB*NB );
+
+    tau_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( tau_pool, NB );
+
+    return 0;
+}
+
+int sgeqrt_private_memory_finalization(void);
+int sgeqrt_private_memory_finalization(void)
+{
+    return 0;
+}
+%}
+
+MB  /* Number of lines in a block for T and dL should be equal to NB */
+NB  /* Tile Size */
+M   /* Matrix Height (in lines) */
+N   /* Matrix Width (in columns) */
+
+MT = (M + (NB - 1)) / NB        /* Number of tiled lines */
+NT = (N + (NB - 1)) / NB        /* Number of tiled columns */
+MINMTNT = ((MT < NT) ? MT : NT)
+
+SGEQRT_HACK(k)  (high_priority)
+k = 0..MINMTNT-1
+
+: A(k, k)
+
+RW RV1 <- RV1 SGEQRT(k)
+       -> (k != NT-1) ? V1 SORMQR(k, k+1..NT-1) [LOWER_TILE]
+       -> A(k,k)                                [LOWER_TILE]
+;	(NT-k)*(NT-k)*(NT-k)
+
+BODY
+ /* nothing */
+END
+
+SGEQRT(k)  (high_priority)
+
+  // Execution space
+  k = 0..MINMTNT-1
+
+  // Parallel partitioning
+ : A(k, k)
+
+  RW RV1 <- (k == 0)    ? A(0,0) : C2 STSMQR(k-1,k,k)
+         -> RV1 SGEQRT_HACK(k)
+         -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)          [UPPER_TILE]
+  RW T   <- T(k,k)                                          [LITTLE_T]
+         -> T SORMQR(k, k+1..NT-1)                          [LITTLE_T]
+         -> T(k,k)                                          [LITTLE_T]
+
+; (NT-k)*(NT-k)*(NT-k)
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, k, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool); 
+    CORE_sgeqrt(
+        (k == (MT-1)) ? (M-(k*NB)) : NB,
+        (k == (NT-1)) ? (N-(k*NB)) : NB,
+        MB,
+        RV1 /*A(k, k)*/, NB,
+        T /*T(k, k)*/, MB,
+        tau, work);
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+#else
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool); 
+    OUTPUT(( "CORE_sgeqrt(%d, %d, %d, %p, %d, %p, %d, %p, %p)\n",
+              (k == (MT-1)) ? (M-(k*NB)) : NB,
+              (k == (NT-1)) ? (N-(k*NB)) : NB,
+              MB,
+              RV1 /*A(k, k)*/, NB,
+              T /*T(k, k)*/, MB,
+              tau, work));
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */
+END
+
+DTSQRT_OUT(k)  (high_priority)
+  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
+
+ : A(k, k)
+
+  RW R <- R DTSQRT(k, MT-1)      [UPPER_TILE]
+       -> A(k, k)                [UPPER_TILE]
+          
+  ; (NT-k)*(NT-k)*(NT-k)
+
+BODY
+/* nothing */
+END
+
+
+DTSQRT(k,m)  (high_priority)
+
+  // Execution space
+  k = 0..MINMTNT-1
+  m = k+1..MT-1
+
+  // Parallel partitioning
+  : A(m, k)
+
+  RW V2 <- (k == 0) ? A(m,0) : C2 STSMQR(k-1,k,m)
+        -> V2 STSMQR(k,k+1..NT-1,m)
+        -> A(m,k)
+  RW R  <- (m == k+1) ? RV1 SGEQRT(k) : R DTSQRT(k,m-1)        [UPPER_TILE]           
+        -> (m == MT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
+  RW T  <- T(m,k)                                              [LITTLE_T]
+        -> T STSMQR(k,k+1..NT-1,m)                             [LITTLE_T]
+        -> T(m,k)                                              [LITTLE_T]
+
+  ; (NT-k)*(NT-m)*(NT-m)
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, m, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool);
+    CORE_dtsqrt(
+        (m == (MT-1)) ? (M-(m*NB)) : NB,
+        (k == (NT-1)) ? (N-(k*NB)) : NB,
+        MB,
+        R  /*A(k, k)*/, NB,
+        V2 /*A(m, k)*/, NB,
+        T  /*T(m, k)*/, MB,
+        tau, work);
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+#else
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool);
+    OUTPUT(( "CORE_dtsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
+             (m == (MT-1)) ? (M-(m*NB)) : NB,
+             (k == (NT-1)) ? (N-(k*NB)) : NB,
+             MB,
+             R  /*A(k, k)*/, NB,
+             V2 /*A(m, k)*/, NB,
+             T  /*T(m, k)*/, MB,
+             tau, work));
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */
+END
+
+SORMQR(k,n)  (high_priority)
+
+  // Execution space
+  k = 0..MINMTNT-1
+  n = k+1..NT-1
+
+  // Parallel partitioning
+  : A(k, n)
+
+  READ T  <- T SGEQRT(k)                               [LITTLE_T]
+  READ V1 <- RV1 SGEQRT_HACK(k)                        [LOWER_TILE] 
+  RW   C1 <- (k == 0) ? A(k, n) : C2 STSMQR(k-1, n, k)
+          -> C1 STSMQR(k, n, k+1)
+
+  ; (NT-k)*(NT-n)*(NT-n)
+
+BODY
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, k, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+#if !defined(DAGUE_DRY_RUN)
+    void* work = dague_private_memory_pop(work_pool);
+    CORE_sormqr(
+        PlasmaLeft, PlasmaTrans,
+        (k == (MT-1)) ? (M-(k*NB)) : NB,
+        (n == (NT-1)) ? (N-(n*NB)) : NB,
+        (k == (MT-1)) ? (M-(k*NB)) : NB,
+        MB,
+        V1 /*A(k, k)*/, NB,
+        T  /*T(k, k)*/, MB,
+        C1 /*A(k, n)*/, NB,
+        work, NB);
+    dague_private_memory_push(work_pool, work);
+#else
+    void* work = dague_private_memory_pop(work_pool);
+    OUTPUT(( "CORE_sormqr(%s, %s, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+             "PlasmaLeft", "PlasmaTrans",
+             (k == (MT-1)) ? (M-(k*NB)) : NB,
+             (n == (NT-1)) ? (N-(n*NB)) : NB,
+             (k == (MT-1)) ? (M-(k*NB)) : NB,
+             MB,
+             V1 /*A(k, k)*/, NB,
+             T  /*T(k, k)*/, MB,
+             C1 /*A(k, n)*/, NB,
+             work, NB ));
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */ 
+END
+
+STSMQR_OUT(k, n)
+  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
+  n = k+1 .. NT-1
+
+  : A(k, n)
+  
+  RW A <- C1 STSMQR(k, n, MT-1)
+       -> A(k, n)
+          
+  ; (NT-k)*(NT-n)*(NT-n)
+
+BODY
+/* nothing */
+END
+
+STSMQR(k,n,m)
+
+  // Execution space
+  k = 0   .. MINMTNT-1
+  n = k+1 .. NT-1
+  m = k+1 .. MT-1
+
+  // Parallel partitioning
+  : A(m, n)
+
+  READ V2 <- V2 DTSQRT(k,m)
+  READ T  <- T DTSQRT(k,m)                                           [LITTLE_T]
+
+  RW C2   <- (k == 0) ? A(m,n) : C2 STSMQR(k-1,n,m)
+          -> ((n == k+1) & (m == k+1)) ? RV1 SGEQRT(k+1)
+          -> ((n == k+1) & (k  < m-1)) ? V2 DTSQRT(k+1,m)
+          -> ((k  < n-1) & (m == k+1)) ? C1 SORMQR(k+1,n)
+          -> ((k  < n-1) & (k  < m-1)) ? C2 STSMQR(k+1,n,m)
+  RW C1   <- (m == k+1) ? C1 SORMQR(k,n) : C1 STSMQR(k,n,m-1)
+          -> (m == MT-1) ? A STSMQR_OUT(k,n) : C1 STSMQR(k,n,m+1)
+
+  ; (NT-k)*(NT-n)*(NT-m)
+
+BODY
+    void *work = NULL;
+#if defined(DAGUE_CUDA_SUPPORT)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, m, k );
+    if( dague_using_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+        /* Continue with the task on the cores */
+    }    
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+
+#if !defined(DAGUE_DRY_RUN)
+    work = dague_private_memory_pop(work_pool);
+    CORE_stsmqr(
+        PlasmaLeft, PlasmaTrans,
+        NB,
+        (m == (MT-1)) ? (M-(m*NB)) : NB,
+        (n == (NT-1)) ? (N-(n*NB)) : NB,
+        NB,
+        MB,
+        C1 /*A(k, n)*/, NB,
+        C2 /*A(m, n)*/, NB,
+        V2 /*A(m, k)*/, NB,
+        T  /*T(m, k)*/, MB,
+        work, MB);
+    dague_private_memory_push(work_pool, work);
+#else
+    work = dague_private_memory_pop(work_pool);
+    OUTPUT(( "CORE_stsmqr(%s, %s, %d, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+             "PlasmaLeft", "PlasmaTrans",
+             NB,
+             (m == (MT-1)) ? (M-(m*NB)) : NB,
+             (n == (NT-1)) ? (N-(n*NB)) : NB,
+             NB,
+             MB,
+             C1 /*A(k, n)*/, NB,
+             C2 /*A(m, n)*/, NB,
+             V2 /*A(m, k)*/, NB,
+             T  /*T(m, k)*/, MB,
+             work, MB));
+    dague_private_memory_push(work_pool, work);
+#endif  /* DAGUE_DRY_RUN */ 
+#if defined(DAGUE_CUDA_SUPPORT)
+FIN:
+#endif
+END
+

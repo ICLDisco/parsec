@@ -11,6 +11,7 @@ set( OLDSRC
   LU.jdf TSQR.jdf 
   LU_sd.jdf dpotrf.jdf 
   QR.jdf  spotrf_ll.jdf spotrf_rl.jdf
+  sgeqrt.jdf
 )
 set(EXTRA_SOURCES memory_pool.c)
 
