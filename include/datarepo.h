@@ -68,17 +68,16 @@ typedef struct data_repo       data_repo_t;
  *  and it must have a pointer to it's own mempool_thread_t.
  * Thus, we use the dague_list_item_t to point to the next fields,
  * althgough this is not done atomically at the datarepo level (not
- * needed), and we use the cache_friendly_emptiness of the dague_list_item_t
- * to store the pointer to the mempool_thread_t.
+ * needed) 
  *
  * The following #define are here to help port the code.
  */
 
 #define data_repo_next_entry     data_repo_next_item.list_next
-#define data_repo_mempool_owner  data_repo_next_item.cache_friendly_emptiness
 
 struct data_repo_entry {
     dague_list_item_t data_repo_next_item;
+    dague_thread_mempool_t* data_repo_mempool_owner;
     volatile uint32_t usagecnt;
     volatile uint32_t usagelmt;
     volatile uint32_t retained;
@@ -138,7 +137,6 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_executi
         if( e->key == key ) {
             e->retained++; /* Until we update the usage limit */
             dague_atomic_unlock(&repo->heads[h].lock);
-            dague_thread_mempool_free( eu->datarepo_mempools[repo->nbdata], n );
             return e;
         }
     dague_atomic_unlock(&repo->heads[h].lock);
