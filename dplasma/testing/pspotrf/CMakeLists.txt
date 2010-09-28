@@ -1,6 +1,5 @@
 if( PLASMA_FOUND )
 
-  include_directories( ../../lib ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
   set(SPOTRF_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
   set(GPU_SUPPORT "")
 
@@ -22,7 +21,7 @@ if( PLASMA_FOUND )
   if( DAGUE_MPI AND MPI_FOUND )
     add_executable(mpi_sposv_rl sposv.c ${GPU_SUPPORT})
     set_target_properties(mpi_sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
-    set_target_properties(mpi_sposv_rl PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -I${PLASMA_SRC_DIR} -DADD_ -DUSE_MPI")
+    set_target_properties(mpi_sposv_rl PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(mpi_sposv_rl PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
     target_link_libraries(mpi_sposv_rl dplasma-mpi dague-mpi ${MPI_LIBRARIES} ${SPOTRF_REQUIRED_LIBRARIES})
 
@@ -35,7 +34,7 @@ if( PLASMA_FOUND )
 
  add_executable(sposv_rl sposv.c ${GPU_SUPPORT})
  set_target_properties(sposv_rl PROPERTIES LINKER_LANGUAGE Fortran)
- set_target_properties(sposv_rl PROPERTIES COMPILE_FLAGS "-I${PLASMA_SRC_DIR} -DADD_")
+ set_target_properties(sposv_rl PROPERTIES COMPILE_FLAGS "-DADD_")
  set_target_properties(sposv_rl PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
  target_link_libraries(sposv_rl dplasma dague ${SPOTRF_REQUIRED_LIBRARIES})
 

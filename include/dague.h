@@ -10,6 +10,7 @@
 #include "dague_config.h"
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "debug.h"
 #ifdef HAVE_HWLOC
@@ -28,8 +29,8 @@ typedef struct dague_execution_context_t dague_execution_context_t;
 typedef struct dague_dependencies_t      dague_dependencies_t;
 typedef struct dague_data_pair_t         dague_data_pair_t;
 
-typedef void*(*dague_allocate_data_t)(size_t matrix_size);
-typedef void(*dague_free_data_t)(void *data);
+typedef void* (*dague_allocate_data_t)(size_t matrix_size);
+typedef void (*dague_free_data_t)(void *data);
 extern dague_allocate_data_t dague_data_allocate;
 extern dague_free_data_t     dague_data_free;
 

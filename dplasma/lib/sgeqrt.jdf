@@ -87,6 +87,7 @@ SGEQRT(k)  (high_priority)
   RW RV1 <- (k == 0)    ? A(0,0) : C2 STSMQR(k-1,k,k)
          -> RV1 SGEQRT_HACK(k)
          -> (k == MT-1) ? A(k,k) : R DTSQRT(k,k+1)          [UPPER_TILE]
+  // Only output
   RW T   <- T(k,k)                                          [LITTLE_T]
          -> T SORMQR(k, k+1..NT-1)                          [LITTLE_T]
          -> T(k,k)                                          [LITTLE_T]
@@ -155,6 +156,7 @@ DTSQRT(k,m)  (high_priority)
         -> A(m,k)
   RW R  <- (m == k+1) ? RV1 SGEQRT(k) : R DTSQRT(k,m-1)        [UPPER_TILE]           
         -> (m == MT-1) ? R DTSQRT_OUT(k) : R DTSQRT(k,m+1)     [UPPER_TILE]
+  // Output only
   RW T  <- T(m,k)                                              [LITTLE_T]
         -> T STSMQR(k,k+1..NT-1,m)                             [LITTLE_T]
         -> T(m,k)                                              [LITTLE_T]

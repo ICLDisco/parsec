@@ -511,49 +511,48 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = gpu_qr_data_tile_write_owner( 0, ddescA(exec_context), m, n );
 /*    printf("k=%d, m=%d, n=%d\n",k,m,n);*/
-	if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
+    if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
         which_gpu = 0; /* TODO */
 #if DPLASMA_SCHEDULING
-		if(ndevices > 1){
-			/* reverse odd-even */
-			
-			/* homogeneous GPU */
-			{
-				if(n % 2 == 0){
-					which_gpu = gpu_set[n] % ndevices;			
-				}
-				else{
-					which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
-				}
-			}
+    if(ndevices > 1){
+        /* reverse odd-even */
+        /* homogeneous GPU */
+        {
+            if(n % 2 == 0){
+                which_gpu = gpu_set[n] % ndevices;			
+            }
+            else{
+                which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
+            }
+        }
 
-			/* heterogenous GPU */
-			/* weight by percentage of getting n of (n) with performance factor */
-			{
+        /* heterogenous GPU */
+        /* weight by percentage of getting n of (n) with performance factor */
+        {
 
 
-			}
+        }
 
-			dague_atomic_inc_32b( &(gpu_set[n]) );
-		}
+        dague_atomic_inc_32b( &(gpu_set[n]) );
+    }
 #endif
     }
     gpu_device = gpu_devices[which_gpu];\
 
 #if DPLASMA_SCHEDULING	
 
-	#if DPLASMA_ONLY_GPU
+#if DPLASMA_ONLY_GPU
 
-	#else
-	/* return task to CPU when GPU got too much in queue */
-				 /* MAX QUEUE would derive from CPU(CORE) performance VS GPU performance individually*/
-	if(gpu_device->mutex > MAX_QUEUE ){
-		dague_atomic_inc_32b( &(cpu_counter) );
-		return -99;
-	}
-	#endif
-	/* keep n -- not being used yet*/
-	gpu_load[gpu_device->id]+=n;
+#else
+/* return task to CPU when GPU got too much in queue */
+/* MAX QUEUE would derive from CPU(CORE) performance VS GPU performance individually*/
+    if(gpu_device->mutex > MAX_QUEUE ){
+        dague_atomic_inc_32b( &(cpu_counter) );
+        return -99;
+    }
+#endif
+    /* keep n -- not being used yet*/
+    gpu_load[gpu_device->id]+=n;
 #endif
 
     /* Check the GPU status */

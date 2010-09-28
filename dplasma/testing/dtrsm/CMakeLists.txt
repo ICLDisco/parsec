@@ -1,7 +1,5 @@
 if( PLASMA_FOUND )
 
-  include_directories( ../../lib ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
-  
   if( DAGUE_MPI AND MPI_FOUND )
 
     add_executable(mpi_trsm trsm.c )
