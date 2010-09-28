@@ -173,7 +173,7 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
     void* work = dague_private_memory_pop(work_pool);
     void* tau = dague_private_memory_pop(tau_pool);
-    CORE_dtsqrt(
+    CORE_stsqrt(
         (m == (MT-1)) ? (M-(m*NB)) : NB,
         (k == (NT-1)) ? (N-(k*NB)) : NB,
         MB,
@@ -186,7 +186,7 @@ BODY
 #else
     void* work = dague_private_memory_pop(work_pool);
     void* tau = dague_private_memory_pop(tau_pool);
-    OUTPUT(( "CORE_dtsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
+    OUTPUT(( "CORE_stsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
              (m == (MT-1)) ? (M-(m*NB)) : NB,
              (k == (NT-1)) ? (N-(k*NB)) : NB,
              MB,
