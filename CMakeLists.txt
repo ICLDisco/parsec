@@ -220,7 +220,6 @@ message(STATUS "Looking for control/common.h;context.h;allocate.h in ${PLASMA_IN
 #if( !FOUND_PLASMA_CONTROL )
 #  message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
 #endif( !FOUND_PLASMA_CONTROL )
-#set( PLASMA_SRC_DIR "${PLASMA_SRC}" )
 
 #
 # Find optional packages
