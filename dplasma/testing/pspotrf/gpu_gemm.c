@@ -26,7 +26,7 @@ static int ndevices = 0;
 #if DPLASMA_SCHEDULING
 uint32_t *gpu_set;
 int *gpu_load;
-int MAX_QUEUE = 80;
+int MAX_QUEUE = 55;
 #endif
 #include "data_dist/matrix/matrix.h"
 
@@ -144,6 +144,8 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         gpu_device->in_submit   = gpu_device->in_waiting   = 0;
         gpu_device->exec_submit = gpu_device->exec_waiting = 0;
         gpu_device->out_submit  = gpu_device->out_waiting  = 0;
+
+        gpu_device->max_exec_streams = gpu_device->max_streams - 2;
 
         gpu_device->fifo_pending_in = (struct dague_fifo_t*)malloc( sizeof(struct dague_fifo_t) );
         dague_fifo_construct( gpu_device->fifo_pending_in );
@@ -673,12 +675,12 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->exec_array[gpu_device->exec_submit] );
         /* Choose an exec_stream */
-        exec_stream = (exec_stream + 1) % (gpu_device->max_streams-2);
-        rc = gpu_sgemm_internal_submit( gpu_device, exec_context, gpu_device->streams[1 + exec_stream] );
+        exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams);
+        rc = gpu_sgemm_internal_submit( gpu_device, exec_context, gpu_device->streams[2 + exec_stream] );
         gpu_device->exec_array[gpu_device->exec_submit] = exec_context;
         exec_context = NULL;
         if( 0 != rc )  goto disable_gpu;
-        rc = cuEventRecord( gpu_device->exec_array_events[gpu_device->exec_submit], gpu_device->streams[1 + exec_stream] );
+        rc = cuEventRecord( gpu_device->exec_array_events[gpu_device->exec_submit], gpu_device->streams[2 + exec_stream] );
         gpu_device->exec_submit = (gpu_device->exec_submit + 1) % gpu_device->max_exec_tasks;
     }
  check_exec_completion:
@@ -718,11 +720,11 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     }
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->out_array[gpu_device->out_submit] );
-        rc = gpu_sgemm_internal_pop( gpu_device, exec_context, gpu_device->streams[gpu_device->max_streams-1] );
+        rc = gpu_sgemm_internal_pop( gpu_device, exec_context, gpu_device->streams[1] );
         gpu_device->out_array[gpu_device->out_submit] = exec_context;
         exec_context = NULL;
         if( 0 != rc ) goto disable_gpu;
-        rc = cuEventRecord( gpu_device->out_array_events[gpu_device->out_submit], gpu_device->streams[gpu_device->max_streams-1] );
+        rc = cuEventRecord( gpu_device->out_array_events[gpu_device->out_submit], gpu_device->streams[1] );
         gpu_device->out_submit = (gpu_device->out_submit + 1) % gpu_device->max_out_tasks;
     }
  check_out_deps:

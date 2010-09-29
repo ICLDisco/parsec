@@ -18,7 +18,6 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#define DAGUE_SMART_SCHEDULING 0
 #define DAGUE_MAX_STREAMS 4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 
@@ -33,6 +32,7 @@ typedef struct _gpu_device {
     int max_in_tasks,
         max_exec_tasks,
         max_out_tasks;
+    int max_exec_streams;
     struct dague_execution_context_t **in_array;
     struct dague_execution_context_t **exec_array;
     struct dague_execution_context_t **out_array;
@@ -51,9 +51,6 @@ typedef struct _gpu_device {
     int major;
     int minor;
     volatile uint32_t mutex;
-#if DAGUE_SMART_SCHEDULING
-    int lifoid;
-#endif
     dague_dequeue_t pending;
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
