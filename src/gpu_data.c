@@ -143,7 +143,6 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         CUresult status;
         int major, minor;
         CUdevice hcuDevice;
-        cudaError_t cuda_status;
 
 	    status = cuDeviceGet( &hcuDevice, i );
 	    DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {ndevices = 0; return -1;} );
@@ -199,6 +198,8 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
          */
         {
             int stream_id;
+            cudaError_t cuda_status;
+
             gpu_device->max_streams = DAGUE_MAX_STREAMS;
             for( stream_id = 0; stream_id < DAGUE_MAX_STREAMS; stream_id++ ) {
                 cuda_status = (cudaError_t)cuStreamCreate( &(gpu_device->streams[stream_id]), 0 );

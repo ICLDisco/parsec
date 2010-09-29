@@ -20,6 +20,7 @@
 
 #define DAGUE_SMART_SCHEDULING 0
 #define DAGUE_MAX_STREAMS 4
+#define DAGUE_MAX_EVENTS_PER_STREAM  4
 
 typedef struct _gpu_device {
     dague_list_item_t item;
@@ -28,6 +29,23 @@ typedef struct _gpu_device {
     CUfunction hcuFunction;
     CUstream streams[DAGUE_MAX_STREAMS];
     int max_streams;
+#if !defined(DAGUE_GPU_STREAM_PER_TASK)
+    int max_in_tasks,
+        max_exec_tasks,
+        max_out_tasks;
+    struct dague_execution_context_t **in_array;
+    struct dague_execution_context_t **exec_array;
+    struct dague_execution_context_t **out_array;
+    CUevent *in_array_events;
+    CUevent *exec_array_events;
+    CUevent *out_array_events;
+    int in_submit, in_waiting,
+        exec_submit, exec_waiting,
+        out_submit, out_waiting;
+    struct dague_fifo_t *fifo_pending_in;
+    struct dague_fifo_t *fifo_pending_exec;
+    struct dague_fifo_t *fifo_pending_out;
+#endif  /* DAGUE_GPU_STREAM_PER_TASK */
     int id;
     int executed_tasks;
     int major;

@@ -10,6 +10,7 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
+#include "fifo.h"
 
 #include <plasma.h>
 
@@ -34,7 +35,7 @@ static void compute_best_unit( uint64_t length, float* updated_value, char** bes
 int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 {
     CUdevice hcuDevice;
-    int i;
+    int i, j;
 
     ndevices = dague_using_gpu();
 #if DPLASMA_SCHEDULING
@@ -135,6 +136,50 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
             continue;
         }
         printf( "Allocate %u tiles on the GPU memory\n", nb_allocations );
+#if !defined(DAGUE_GPU_STREAM_PER_TASK)
+        /* Prepare the management arrays */
+        gpu_device->max_in_tasks   = DAGUE_MAX_EVENTS_PER_STREAM;
+        gpu_device->max_exec_tasks = DAGUE_MAX_EVENTS_PER_STREAM;
+        gpu_device->max_out_tasks  = DAGUE_MAX_EVENTS_PER_STREAM;
+        gpu_device->in_submit   = gpu_device->in_waiting   = 0;
+        gpu_device->exec_submit = gpu_device->exec_waiting = 0;
+        gpu_device->out_submit  = gpu_device->out_waiting  = 0;
+
+        gpu_device->fifo_pending_in = (struct dague_fifo_t*)malloc( sizeof(struct dague_fifo_t) );
+        dague_fifo_construct( gpu_device->fifo_pending_in );
+        gpu_device->fifo_pending_exec = (struct dague_fifo_t*)malloc( sizeof(struct dague_fifo_t) );
+        dague_fifo_construct( gpu_device->fifo_pending_exec );
+        gpu_device->fifo_pending_out = (struct dague_fifo_t*)malloc( sizeof(struct dague_fifo_t) );
+        dague_fifo_construct( gpu_device->fifo_pending_out );
+
+        gpu_device->in_array = (struct dague_execution_context_t**)malloc(gpu_device->max_in_tasks * sizeof(struct dague_execution_context_t*));
+        gpu_device->in_array_events = (CUevent*)malloc(gpu_device->max_in_tasks * sizeof(CUevent));
+        for( j= 0; j < gpu_device->max_in_tasks; j++ ) {
+            gpu_device->in_array[j] = NULL;
+            status = cuEventCreate(&(gpu_device->in_array_events[j]),
+                                   CU_EVENT_DISABLE_TIMING);
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
+                                    {continue;} );
+        }
+        gpu_device->exec_array = (struct dague_execution_context_t**)malloc(gpu_device->max_exec_tasks * sizeof(struct dague_execution_context_t*));
+        gpu_device->exec_array_events = (CUevent*)malloc(gpu_device->max_exec_tasks * sizeof(CUevent));
+        for( j= 0; j < gpu_device->max_exec_tasks; j++ ) {
+            gpu_device->exec_array[j] = NULL;
+            status = cuEventCreate(&(gpu_device->exec_array_events[j]),
+                                   CU_EVENT_DISABLE_TIMING);
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
+                                    {continue;} );
+        }
+        gpu_device->out_array = (struct dague_execution_context_t**)malloc(gpu_device->max_out_tasks * sizeof(struct dague_execution_context_t*));
+        gpu_device->out_array_events = (CUevent*)malloc(gpu_device->max_out_tasks * sizeof(CUevent));
+        for( j= 0; j < gpu_device->max_out_tasks; j++ ) {
+            gpu_device->out_array[j] = NULL;
+            status = cuEventCreate(&(gpu_device->out_array_events[j]),
+                                   CU_EVENT_DISABLE_TIMING);
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
+                                    {continue;} );
+        }
+#endif  /* defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {free(gpu_device); return -1;} );
@@ -196,7 +241,36 @@ int spotrf_cuda_fini(void)
         for( j = 0; j < gpu_device->max_streams; j++ ) {
             cuStreamDestroy( gpu_device->streams[j] );
         }
-        
+#if !defined(DAGUE_GPU_STREAM_PER_TASK)
+        /* Release all registered events */
+        for( j= 0; j < gpu_device->max_in_tasks; j++ ) {
+            assert( NULL == gpu_device->in_array[j] );
+            status = (cudaError_t)cuEventDestroy(gpu_device->in_array_events[j]);
+            DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
+                                    {continue;} );
+        }
+        free(gpu_device->in_array); gpu_device->in_array = NULL;
+        free(gpu_device->in_array_events); gpu_device->in_array_events = NULL;
+        for( j= 0; j < gpu_device->max_exec_tasks; j++ ) {
+            assert( NULL == gpu_device->exec_array[j] );
+            status = (cudaError_t)cuEventDestroy(gpu_device->exec_array_events[j]);
+            DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
+                                    {continue;} );
+        }
+        free(gpu_device->exec_array); gpu_device->exec_array = NULL;
+        free(gpu_device->exec_array_events); gpu_device->exec_array_events = NULL;
+        for( j= 0; j < gpu_device->max_out_tasks; j++ ) {
+            assert( NULL == gpu_device->out_array[j] );
+            status = (cudaError_t)cuEventDestroy(gpu_device->out_array_events[j]);
+            DAGUE_CUDA_CHECK_ERROR( "(FINI) cuEventDestroy ", status,
+                                    {continue;} );
+        }
+        free(gpu_device->out_array); gpu_device->out_array = NULL;
+        free(gpu_device->out_array_events); gpu_device->out_array_events = NULL;
+        free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
+        free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
+        free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
+#endif  /* defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
                                 {continue;} );
@@ -446,6 +520,257 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
     return return_code;
 }
 
+/* Try to execute a GEMM on a GPU.
+ *
+ * Returns:
+ *  0 - if the GEMM should be executed by some other meaning (in this case the
+ *         execution context is not released).
+ * -1 - if the GEMM is scheduled to be executed on a GPU.
+ */
+
+#if !defined(DAGUE_GPU_STREAM_PER_TASK)
+/**
+ * This version is based on 4 streams: one for transfers from the memory to
+ * the GPU, 2 for kernel executions and one for tranfers from the GPU into
+ * the main memory. The synchronization on each stream is based on CUDA events,
+ * such an event indicate that a specific epoch of the lifetime of a task has
+ * been completed. Each type of stream (in, exec and out) has a pending FIFO,
+ * where tasks ready to jump to the respective step are waiting.
+ */
+int gpu_sgemm( dague_execution_unit_t* eu_context,
+               dague_execution_context_t* exec_context,
+               int uplo )
+{
+    int which_gpu, rc, exec_stream = 0;
+    gpu_device_t* gpu_device;
+    cudaError_t status;
+    int n, m;
+
+    m = exec_context->locals[1].value;
+    n = exec_context->locals[2].value;
+    (void)uplo;
+    //DEBUG(("GEMM( k = %d, m = %d, n = %d )\n", k, m, n));
+    /* We always schedule the task on the GPU owning the C tile. */
+    which_gpu = gpu_cholesky_data_tile_write_owner( ddescA(exec_context), m, n );
+/*    printf("k=%d, m=%d, n=%d\n",k,m,n);*/
+    if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
+        which_gpu = 0; /* TODO */
+#if DPLASMA_SCHEDULING
+    if(ndevices > 1){
+        /* reverse odd-even */
+        /* homogeneous GPU */
+        {
+            if(n % 2 == 0){
+                which_gpu = gpu_set[n] % ndevices;			
+            }
+            else{
+                which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
+            }
+        }
+
+        /* heterogenous GPU */
+        /* weight by percentage of getting n of (n) with performance factor */
+        {
+
+
+        }
+
+        dague_atomic_inc_32b( &(gpu_set[n]) );
+    }
+#endif
+    }
+    gpu_device = gpu_devices[which_gpu];\
+
+#if DPLASMA_SCHEDULING	
+
+#if DPLASMA_ONLY_GPU
+
+#else
+/* return task to CPU when GPU got too much in queue */
+/* MAX QUEUE would derive from CPU(CORE) performance VS GPU performance individually*/
+    if(gpu_device->mutex > MAX_QUEUE ){
+        dague_atomic_inc_32b( &(cpu_counter) );
+        return -99;
+    }
+#endif
+    /* keep n -- not being used yet*/
+    gpu_load[gpu_device->id]+=n;
+#endif
+
+    /* Check the GPU status */
+    rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
+    if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
+        DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t*)exec_context );
+        dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)exec_context );
+        return -1;
+    }
+
+    status = (cudaError_t)cuCtxPushCurrent(gpu_device->ctx);
+    DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                              {return -2;} );
+
+ check_in_deps:
+    if( NULL != exec_context ) {
+        if( NULL != gpu_device->in_array[gpu_device->in_submit] ) {
+            /* No more room on the event list. Store the execution context */
+            dague_fifo_push(gpu_device->fifo_pending_in, (dague_list_item_t*)exec_context);
+            exec_context = NULL;
+        } else {
+            /* Get the oldest task */
+            if( !dague_fifo_is_empty(gpu_device->fifo_pending_in) ) {
+                dague_fifo_push(gpu_device->fifo_pending_in, (dague_list_item_t*)exec_context);
+                exec_context = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_in);
+            }
+        }
+    } else {
+        if( NULL == gpu_device->in_array[gpu_device->in_submit] ) {
+            exec_context = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_in);
+        }
+    }
+    if( NULL != exec_context ) {
+        assert( NULL == gpu_device->in_array[gpu_device->in_submit] );
+        rc = gpu_sgemm_internal_push( gpu_device, exec_context, gpu_device->streams[0] );
+        gpu_device->in_array[gpu_device->in_submit] = exec_context;
+        exec_context = NULL;
+        if( 0 > rc ) goto disable_gpu;
+        rc = cuEventRecord( gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0] );
+        gpu_device->in_submit = (gpu_device->in_submit + 1) % gpu_device->max_in_tasks;
+    }
+    assert( NULL == exec_context );
+    if( NULL != gpu_device->in_array[gpu_device->in_waiting] ) {
+        rc = cuEventQuery(gpu_device->in_array_events[gpu_device->in_waiting]);
+        if( CUDA_ERROR_NOT_READY == rc ) {
+            goto check_exec_completion;
+        } else if( CUDA_SUCCESS == rc ) {
+            /* Save the task for the next step */
+            exec_context = gpu_device->in_array[gpu_device->in_waiting];
+            gpu_device->in_array[gpu_device->in_waiting] = NULL;
+            gpu_device->in_waiting = (gpu_device->in_waiting + 1) % gpu_device->max_in_tasks;
+            goto exec_task;
+        } else {
+            DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
+                                      {goto disable_gpu;} );
+        }
+    }
+ exec_task:
+    if( NULL != exec_context ) {
+        if( NULL != gpu_device->exec_array[gpu_device->exec_submit] ) {
+            /* No more room on the event list. Store the execution context */
+            dague_fifo_push(gpu_device->fifo_pending_exec, (dague_list_item_t*)exec_context);
+            exec_context = NULL;
+        } else {
+            /* Get the oldest task */
+            if( !dague_fifo_is_empty(gpu_device->fifo_pending_exec) ) {
+                dague_fifo_push(gpu_device->fifo_pending_exec, (dague_list_item_t*)exec_context);
+                exec_context = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_exec);
+            }
+        }
+    } else {
+        if( NULL == gpu_device->exec_array[gpu_device->exec_submit] ) {
+            exec_context = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_exec);
+        }
+    }
+    if( NULL != exec_context ) {
+        assert( NULL == gpu_device->exec_array[gpu_device->exec_submit] );
+        /* Choose an exec_stream */
+        exec_stream = (exec_stream + 1) % (gpu_device->max_streams-2);
+        rc = gpu_sgemm_internal_submit( gpu_device, exec_context, gpu_device->streams[1 + exec_stream] );
+        gpu_device->exec_array[gpu_device->exec_submit] = exec_context;
+        exec_context = NULL;
+        if( 0 != rc )  goto disable_gpu;
+        rc = cuEventRecord( gpu_device->exec_array_events[gpu_device->exec_submit], gpu_device->streams[1 + exec_stream] );
+        gpu_device->exec_submit = (gpu_device->exec_submit + 1) % gpu_device->max_exec_tasks;
+    }
+ check_exec_completion:
+    assert( NULL == exec_context );
+    if( NULL != gpu_device->exec_array[gpu_device->exec_waiting] ) {
+        rc = cuEventQuery(gpu_device->exec_array_events[gpu_device->exec_waiting]);
+        if( CUDA_ERROR_NOT_READY == rc ) {
+            goto check_out_deps;
+        } else if( CUDA_SUCCESS == rc ) {
+            /* Save the task for the next step */
+            exec_context = gpu_device->exec_array[gpu_device->exec_waiting];
+            gpu_device->exec_array[gpu_device->exec_waiting] = NULL;
+            gpu_device->exec_waiting = (gpu_device->exec_waiting + 1) % gpu_device->max_exec_tasks;
+            goto out_task;
+        } else {
+            DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
+                                      {goto disable_gpu;} );
+        }
+    }
+ out_task:
+    if( NULL != exec_context ) {
+        if( NULL != gpu_device->out_array[gpu_device->out_submit] ) {
+            /* No more room on the event list. Store the execution context */
+            dague_fifo_push(gpu_device->fifo_pending_out, (dague_list_item_t*)exec_context);
+            exec_context = NULL;
+        } else {
+            /* Get the oldest task */
+            if( !dague_fifo_is_empty(gpu_device->fifo_pending_out) ) {
+                dague_fifo_push(gpu_device->fifo_pending_out, (dague_list_item_t*)exec_context);
+                exec_context = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_out);
+            }
+        }
+    } else {
+        if( NULL == gpu_device->out_array[gpu_device->out_submit] ) {
+            exec_context = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_out);
+        }
+    }
+    if( NULL != exec_context ) {
+        assert( NULL == gpu_device->out_array[gpu_device->out_submit] );
+        rc = gpu_sgemm_internal_pop( gpu_device, exec_context, gpu_device->streams[gpu_device->max_streams-1] );
+        gpu_device->out_array[gpu_device->out_submit] = exec_context;
+        exec_context = NULL;
+        if( 0 != rc ) goto disable_gpu;
+        rc = cuEventRecord( gpu_device->out_array_events[gpu_device->out_submit], gpu_device->streams[gpu_device->max_streams-1] );
+        gpu_device->out_submit = (gpu_device->out_submit + 1) % gpu_device->max_out_tasks;
+    }
+ check_out_deps:
+    assert( NULL == exec_context );
+    if( NULL != gpu_device->out_array[gpu_device->out_waiting] ) {
+        rc = cuEventQuery(gpu_device->out_array_events[gpu_device->out_waiting]);
+        if( CUDA_ERROR_NOT_READY == rc ) {
+            goto check_in_deps;
+        } else if( CUDA_SUCCESS == rc ) {
+            /* Save the task for the next step */
+            exec_context = gpu_device->out_array[gpu_device->out_waiting];
+            gpu_device->out_array[gpu_device->out_waiting] = NULL;
+            gpu_device->out_waiting = (gpu_device->out_waiting + 1) % gpu_device->max_out_tasks;
+            goto complete_task;
+        } else {
+            DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
+                                      {goto disable_gpu;} );
+        }
+    }
+
+ fetch_task_from_shared_dequeue:
+    assert( NULL == exec_context );
+    exec_context = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+    goto check_in_deps;
+
+ complete_task:
+    /* Everything went fine so far, the result is correct and back in the main memory */
+    DAGUE_LIST_ITEM_SINGLETON(exec_context);
+    dague_complete_execution( eu_context, exec_context );
+    gpu_device->executed_tasks++;
+    rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
+    if( 0 == rc ) {  /* I was the last one */
+        status = (cudaError_t)cuCtxPopCurrent(NULL);
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                {return -1;} );
+        return -1;
+    }
+    exec_context = NULL;
+    goto fetch_task_from_shared_dequeue;
+
+ disable_gpu:
+    /* Something wrong happened. Push all the pending tasks back on the
+     * cores, and disable the gpu.
+     */
+    exit(-20);
+    return -2;
+}
+#else
 static int
 gpu_sgemm_internal( gpu_device_t* gpu_device,
                     dague_execution_unit_t* eu_context,
@@ -478,12 +803,15 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
     return return_code;
 }
 
-/* Try to execute a GEMM on a GPU.
- *
- * Returns:
- *  0 - if the GEMM should be executed by some other meaning (in this case the
- *         execution context is not released).
- * -1 - if the GEMM is scheduled to be executed on a GPU.
+/**
+ * This version is based on 4 streams, each of them potentially containing
+ * all transfers from memory to the GPU, the kernel execution on the GPU and
+ * the transfers from the GPU to the main memory. The synchronizations are
+ * based on the fact that each stream contains only tasks related to a single
+ * kernel, so waiting for the stream to be empty means everything related to
+ * a task has been completed. There might be overlap between the operations on
+ * different streams, however it is difficult to schedule in advance transfers
+ * related to kernel that will be executed later.
  */
 int gpu_sgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* exec_context,
@@ -583,7 +911,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         } else if( CUDA_SUCCESS == stream_rc ) {  /* Done with this task */
             goto complete_previous_work;
         } else {
-            DAGUE_CUDA_CHECK_ERROR( "cuStreamQuery ", status,
+            DAGUE_CUDA_CHECK_ERROR( "cuStreamQuery ", stream_rc,
                                       {return -2;} );
         }
     }
@@ -641,7 +969,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                               {} );
     return -2;
 }
-
+#endif
 
 /****************************************************
  ** GPU-DATA that is Cholesky Specific Starts Here **
