@@ -141,7 +141,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         CUdevprop devProps;
         char szName[256];
         CUresult status;
-        int major, minor;
+        int major, minor, concurrency;
         CUdevice hcuDevice;
 
 	    status = cuDeviceGet( &hcuDevice, i );
@@ -154,6 +154,9 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 
         status = cuDeviceGetProperties( &devProps, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {ndevices = 0; return -1;} );
+
+        status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {ndevices = 0; return -1;} );
 
         printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
         if( dague_show_detailed_capabilities ) {
@@ -168,6 +171,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
             printf("\tmemPitch           : %d\n", devProps.memPitch );
             printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
             printf("\tclockRate          : %d\n", devProps.clockRate );
+            printf("\tconcurrency        : %s\n", (concurrency == 1 ? "yes" : "no") );
         }
         status = cuDeviceTotalMem( &total_mem, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceTotalMem ", status, {ndevices = 0; return -1;} );
@@ -201,7 +205,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
             cudaError_t cuda_status;
 
             gpu_device->max_streams = DAGUE_MAX_STREAMS;
-            for( stream_id = 0; stream_id < DAGUE_MAX_STREAMS; stream_id++ ) {
+            for( stream_id = 0; stream_id < gpu_device->max_streams; stream_id++ ) {
                 cuda_status = (cudaError_t)cuStreamCreate( &(gpu_device->streams[stream_id]), 0 );
                 DAGUE_CUDA_CHECK_ERROR( "cuStreamCreate ", cuda_status,
                                         ({
