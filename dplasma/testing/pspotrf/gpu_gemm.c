@@ -351,6 +351,13 @@ int spotrf_cuda_fini(void)
 #include "spotrf_rl.h"
 #define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
 
+/**
+ *  This function schedule the move of all the data required for a
+ *  specific task from the main memory into the GPU memory.
+ *
+ *  Returns: negative number if any error occured.
+ *           positive: the number of data to be moved.
+ */
 static inline int
 gpu_sgemm_internal_push( gpu_device_t* gpu_device,
                          dague_execution_context_t* exec_context,
@@ -358,7 +365,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 {
     gpu_elem_t *gpu_elem_A = NULL, *gpu_elem_B = NULL, *gpu_elem_C = NULL;
     dague_arena_chunk_t *aA, *aB, *aC;
-    int tile_size, return_code = 0, on_gpu;
+    int tile_size, return_code = 0, on_gpu, how_many = 0;
     CUdeviceptr d_A, d_B, d_C;
     cudaError_t status;
     void *A, *B, *C;
@@ -389,6 +396,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status, 
                                   {printf("<<%p>> -> <<%p>> [%d]\n", (void*)A, (void*)(long)d_A, tile_size); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
+        how_many++;
     }
     exec_context->data[0].gpu_data = (struct gpu_elem_t *)gpu_elem_A;
 
@@ -402,6 +410,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_B) ", status,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)B, (void*)(long)d_B); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
+        how_many++;
     }
     exec_context->data[1].gpu_data = (struct gpu_elem_t *)gpu_elem_B;
 
@@ -415,6 +424,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_C) ", status,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)C, (void*)(long)d_C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_in += tile_size;
+        how_many++;
     }
     exec_context->data[2].gpu_data = (struct gpu_elem_t *)gpu_elem_C;
 
@@ -423,7 +433,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 #endif  /* defined(PROFILING) */
 
  release_and_return_error:
-    return return_code;
+    return (return_code < 0 ? return_code : how_many);
 }
 
 static inline int
@@ -480,6 +490,13 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     return 0;
 }
 
+/**
+ *  This function schedule the move of all the modified data for a
+ *  specific task from the GPU memory into the main memory.
+ *
+ *  Returns: negative number if any error occured.
+ *           positive: the number of data to be moved.
+ */
 static inline int
 gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
                         dague_execution_context_t* exec_context,
@@ -487,7 +504,7 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
 {
     dague_arena_chunk_t *aC;
     gpu_elem_t *gpu_elem_C = NULL;
-    int return_code = 0, tile_size;
+    int return_code = 0, tile_size, how_many = 0;
     cudaError_t status;
     CUdeviceptr d_C;
     void* C;
@@ -514,12 +531,13 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device (d_C) ", status,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)(long)d_C, (void*)C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_out += tile_size;
+        how_many++;
 #if defined(DAGUE_PROFILING)
         dague_profiling_trace( gpu_device->profiling, moveout_key_end, 2 );
 #endif  /* defined(PROFILING) */
     }
  release_and_return_error:
-    return return_code;
+    return (return_code < 0 ? return_code : how_many);
 }
 
 /* Try to execute a GEMM on a GPU.
@@ -632,6 +650,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->in_array[gpu_device->in_submit] );
         rc = gpu_sgemm_internal_push( gpu_device, exec_context, gpu_device->streams[0] );
+        if( 0 == rc ) goto exec_task;  /* No data to be moved for this task */
         gpu_device->in_array[gpu_device->in_submit] = exec_context;
         exec_context = NULL;
         if( 0 > rc ) goto disable_gpu;
@@ -721,9 +740,10 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->out_array[gpu_device->out_submit] );
         rc = gpu_sgemm_internal_pop( gpu_device, exec_context, gpu_device->streams[1] );
+        if( 0 == rc ) goto complete_task;  /* no data to be moved */
         gpu_device->out_array[gpu_device->out_submit] = exec_context;
         exec_context = NULL;
-        if( 0 != rc ) goto disable_gpu;
+        if( 0 > rc ) goto disable_gpu;
         rc = cuEventRecord( gpu_device->out_array_events[gpu_device->out_submit], gpu_device->streams[1] );
         gpu_device->out_submit = (gpu_device->out_submit + 1) % gpu_device->max_out_tasks;
     }
@@ -790,7 +810,7 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
     return_code = gpu_sgemm_internal_push( gpu_device,
                                            exec_context,
                                            stream );
-    if( 0 != return_code ) goto release_and_return_error;
+    if( 0 > return_code ) goto release_and_return_error;
 
     return_code = gpu_sgemm_internal_submit( gpu_device,
                                              exec_context,
@@ -802,7 +822,7 @@ gpu_sgemm_internal( gpu_device_t* gpu_device,
                                           stream );
 
  release_and_return_error:
-    return return_code;
+    return (return_code < 0 ? return_code : 0);
 }
 
 /**
