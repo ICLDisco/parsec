@@ -32,12 +32,25 @@ int MAX_QUEUE = 55;
 #endif
 #include "data_dist/matrix/matrix.h"
 
+static int OHM_N = 2;
+static int OHM_M = 3;
+
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
 int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 {
     CUdevice hcuDevice;
     int i, j;
+
+    char *env;
+
+    env = getenv("OHM_N");
+    if( NULL != env )
+        OHM_N = atoi(env);
+
+    env = getenv("OHM_M");
+    if( NULL != env )
+        OHM_M = atoi(env);
 
     ndevices = dague_using_gpu();
 #if DPLASMA_SCHEDULING
@@ -663,11 +676,10 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 	   *  - plus "balancing" between CPU/GPU
 	   **/
 
-	if(m % 3 == 0 && n % 2 == 0){
-		dague_atomic_inc_32b( &(cpu_counter) );
-		return -99;
-
-	}
+        if( ((m % OHM_M) == 0) && ( (n % OHM_N) == 0) ){
+            dague_atomic_inc_32b( &(cpu_counter) );
+            return -99;
+        }
 #endif
 
 #endif
@@ -979,7 +991,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 	 * 	 - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU  	 
 	 * 	 - plus "balancing" between CPU/GPU
 	 */
-    	if(m % 3 == 0 && n % 2 == 0){
+        if( ((m % OHM_M) == 0) && ( (n % OHM_N) == 0) ){
     		dague_atomic_inc_32b( &(cpu_counter) );
     		return -99;
     	}
