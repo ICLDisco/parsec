@@ -565,6 +565,7 @@ void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                             {
                                 diff = 0;
                                 dc = 0;
+                                // printf("a: %e, b: %e\n", ((float *)bufferA)[0], ((float *)bufferB)[0]);
                                 for(k = 0 ; k < a->bsiz ; k++)
                                     if ( ( (((float *)bufferA)[k] - ((float *)bufferB)[k]) > eps) || (( ((float *)bufferA)[k]-((float *)bufferB)[k]) < -eps)  )
                                         {

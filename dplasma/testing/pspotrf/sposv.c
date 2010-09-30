@@ -366,8 +366,20 @@ int main(int argc, char ** argv)
                               0, 0,
                               LDA, LDA,
                               GRIDrows);
+    sym_two_dim_block_cyclic_init(&ddescB, matrix_RealFloat,
+                              nodes,
+                              cores,
+                              rank,
+                              dposv_force_nb, dposv_force_nb,
+                              0,
+                              N, N,
+                              0, 0,
+                              LDA, LDA,
+                              GRIDrows);
+    
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
+
 
     /*** THIS IS THE DAGUE COMPUTATION ***/
     TIME_START();
@@ -407,7 +419,6 @@ int main(int argc, char ** argv)
             char fname[20];
             sprintf(fname , "sposv_r%u", rank );
             printf("reading matrix from file\n");
-            ddescB = ddescA;
             data_read((tiled_matrix_desc_t *) &ddescB, fname);
 
             compare_dist_data_float((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
