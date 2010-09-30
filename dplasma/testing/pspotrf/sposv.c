@@ -32,7 +32,7 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 
 #include "scheduling.h"
 #include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #if defined(LLT_LL)
 #include "spotrf_ll.h"
 #else
@@ -74,8 +74,11 @@ unsigned int nrst = 1;
 unsigned int ncst = 1;
 PLASMA_enum uplo = PlasmaLower;
 
-PLASMA_desc descA;
-two_dim_block_cyclic_t ddescA;
+
+sym_two_dim_block_cyclic_t ddescA;
+
+sym_two_dim_block_cyclic_t ddescB;
+int checking = -1;
 
 static dague_object_t *dague_spotrf = NULL;
 
@@ -102,6 +105,7 @@ static void print_usage(void)
             "   -s --stile-row   : number of tile per row in a super tile (default: 1)\n"
             "   -P --pri_change  : the position on the diagonal from the end where we switch the priority (default: 0)\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n"
+            "   -x --check-result: if 0, write data on file, if 1 read data from file and compare with current matrix"
 #if defined(DAGUE_CUDA_SUPPORT)
             "   -G --gpu         : number of GPU required (default 0)\n"
 #endif
@@ -123,6 +127,7 @@ static void runtime_init(int argc, char **argv)
             {"stile-col",   required_argument,  0, 'e'},
             {"block-size",  required_argument,  0, 'B'},
             {"pri_change",  required_argument,  0, 'P'},
+            {"check-result",required_argument,  0, 'x'},
 #if defined(DAGUE_CUDA_SUPPORT)
             {"gpu",         required_argument,  0, 'G'},
 #endif
@@ -132,9 +137,9 @@ static void runtime_init(int argc, char **argv)
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
 #if defined(DAGUE_CUDA_SUPPORT)
-    static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:h:A:G:";
+    static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:x:h:A:G:";
 #else
-    static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:h:A:";
+    static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:x:h:A:";
 #endif
    
     /* parse arguments */
@@ -218,6 +223,10 @@ static void runtime_init(int argc, char **argv)
                 case 'P':
                     pri_change = atoi(optarg);
                     break;
+                case 'x':
+                    checking = atoi(optarg);
+                    break;
+               
                 case 'h':
                     print_usage();
                     exit(0);
@@ -347,7 +356,7 @@ int main(int argc, char ** argv)
 #endif
 
     /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_RealFloat,
+    sym_two_dim_block_cyclic_init(&ddescA, matrix_RealFloat,
                               nodes,
                               cores,
                               rank,
@@ -356,7 +365,6 @@ int main(int argc, char ** argv)
                               N, N,
                               0, 0,
                               LDA, LDA,
-                              nrst, ncst,
                               GRIDrows);
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
@@ -384,6 +392,27 @@ int main(int argc, char ** argv)
     SYNC_TIME_PRINT(("Dague computation:\t%u %u %g gflops\n", N, NB,
                      gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
     (void)gflops;
+
+
+    /* checking */
+    if(checking == 0)
+        {
+            char fname[20];
+            sprintf(fname , "sposv_r%u", rank );
+            printf("writing matrix to file\n");
+            data_write((tiled_matrix_desc_t *) &ddescA, fname);
+        }
+    else if (checking == 1)
+        {
+            char fname[20];
+            sprintf(fname , "sposv_r%u", rank );
+            printf("reading matrix from file\n");
+            ddescB = ddescA;
+            data_read((tiled_matrix_desc_t *) &ddescB, fname);
+
+            compare_dist_data_float((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
+        }
+        
 
     cleanup_dague(dague);
     /*** END OF DAGUE COMPUTATION ***/

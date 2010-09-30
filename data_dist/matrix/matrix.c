@@ -17,6 +17,7 @@
 
 #ifdef USE_MPI
 #include <mpi.h>
+#include <lapack.h>
 #endif
 
 #include "data_dist/data_distribution.h"
@@ -360,7 +361,7 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc)
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
     size_t i, j;
-    double * buf;
+    void* buf;
     tmpf = fopen(filename, "w");
     if(NULL == tmpf)
         {
@@ -372,7 +373,7 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
             {
                 if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
                     {
-                        buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                        buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
                         fwrite(buf, Ddesc->mtype, Ddesc->bsiz, tmpf );
                     }
             }
@@ -383,7 +384,7 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
     size_t i, j;
-    double * buf;
+    void * buf;
     tmpf = fopen(filename, "r");
     if(NULL == tmpf)
         {
@@ -395,7 +396,7 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
             {
                 if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
                     {
-                        buf = (double*)Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                        buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
                         fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
                     }
             }
@@ -405,17 +406,27 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
 
 
 #ifdef USE_MPI
-void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+
+void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
     MPI_Status status;
     void * bufferA;
     void * bufferB;
     void * tmpA = malloc(a->bsiz * a->mtype);
     void * tmpB = malloc(a->bsiz * a->mtype);
-    
+
     size_t i,j;
+    unsigned int k;
     uint32_t rankA, rankB;
     unsigned int count = 0;
+    int diff, dc;
+    double eps;
+    
+
+
+    eps= lapack_dlamch(lapack_eps);
+    // eps = 1e-13;
+    printf("epsilon is %e\n", eps);    
 
     if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
         {
@@ -436,8 +447,11 @@ void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                             }
                         else
                             {
-                                MPI_Recv(tmpA, a->bsiz, MPI_DOUBLE, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
-                                bufferA = tmpA;
+                                if (rankA < a->super.nodes)
+                                    {
+                                        MPI_Recv(tmpA, a->bsiz, MPI_DOUBLE, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                        bufferA = tmpA;
+                                    }
                             }
                         if ( rankB == 0)
                             {
@@ -445,14 +459,28 @@ void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                             }
                         else
                             {
-                                MPI_Recv(tmpB, b->bsiz, MPI_DOUBLE, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
-                                bufferB = tmpB;
+                                if (rankB < a->super.nodes)
+                                    {
+                                        MPI_Recv(tmpB, b->bsiz, MPI_DOUBLE, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                        bufferB = tmpB;
+                                    }
                             }
-
-                        if (memcmp(bufferA, bufferB, a->bsiz * a->mtype))
+                        if(rankA < a->super.nodes)
                             {
-                                count++;
-                                printf("tile (%zu, %zu) differs\n", i, j);
+                                diff = 0;
+                                dc = 0;
+                                for(k = 0 ; k < a->bsiz ; k++)
+                                    if ( ( (((double *)bufferA)[k] - ((double *)bufferB)[k]) > eps) || (( ((double *)bufferA)[k]-((double *)bufferB)[k]) < -eps)  )
+                                        {
+                                            diff = 1;
+                                            dc++;
+                                        }
+                                
+                                if (diff)
+                                    {
+                                        count++;
+                                        printf("tile (%zu, %zu) differs in %d numbers\n", i, j, dc);
+                                    }
                             }
                         
                     }
@@ -471,6 +499,113 @@ void compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
             }
     if(a->super.myrank == 0)
         printf("compared the matrices: %u difference(s)\n", count);
+}
+
+
+
+void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+{
+    MPI_Status status;
+    void * bufferA;
+    void * bufferB;
+    void * tmpA = malloc(a->bsiz * a->mtype);
+    void * tmpB = malloc(a->bsiz * a->mtype);
+
+    size_t i,j;
+    unsigned int k;
+    uint32_t rankA, rankB;
+    unsigned int count = 0;
+    int diff, dc;
+    float eps;
+    
+    
+
+    eps= lapack_slamch(lapack_eps);
+    // eps = 1e-8;
+    printf("epsilon is %e\n", eps);    
+
+    if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
+        {
+            if(a->super.myrank == 0)
+                printf("Cannot compare matrices\n");
+            return;
+        }
+    for(i = 0 ; i < a->lmt ; i++)
+        for(j = 0 ; j < a->lnt ; j++)
+            {
+                rankA = a->super.rank_of((dague_ddesc_t *) a, i, j );
+                rankB = b->super.rank_of((dague_ddesc_t *) b, i, j );
+                if (a->super.myrank == 0)
+                    {
+                        if ( rankA == 0)
+                            {
+                                bufferA = a->super.data_of((dague_ddesc_t *) a, i, j );
+                            }
+                        else
+                            {
+                                if(rankA < a->super.nodes)
+                                    {
+                                        MPI_Recv(tmpA, a->bsiz, MPI_FLOAT, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                        bufferA = tmpA;
+                                    }
+                            }
+                        if ( rankB == 0)
+                            {
+                                bufferB = b->super.data_of((dague_ddesc_t *) b, i, j );
+                            }
+                        else
+                            {
+                                if(rankB < a->super.nodes)
+                                    {
+                                        MPI_Recv(tmpB, b->bsiz, MPI_FLOAT, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
+                                        bufferB = tmpB;
+                                    }
+                            }
+                        if (rankA < a->super.nodes)
+                            {
+                                diff = 0;
+                                dc = 0;
+                                for(k = 0 ; k < a->bsiz ; k++)
+                                    if ( ( (((float *)bufferA)[k] - ((float *)bufferB)[k]) > eps) || (( ((float *)bufferA)[k]-((float *)bufferB)[k]) < -eps)  )
+                                        {
+                                            diff = 1;
+                                            dc++;
+                                        }
+                                
+                                if (diff)
+                                    {
+                                        count++;
+                                        printf("tile (%zu, %zu) differs in %d numbers\n", i, j, dc);
+                                    }
+                            }
+                        
+                    }
+                else /* a->super.myrank != 0 */
+                    {
+                        
+                        if ( rankA == a->super.myrank)
+                            {
+                                MPI_Send(a->super.data_of((dague_ddesc_t *) a, i, j ), a->bsiz, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+                            }
+                        if ( rankB == b->super.myrank)
+                            {
+                                MPI_Send(b->super.data_of((dague_ddesc_t *) b, i, j ), b->bsiz, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);                                                    
+                            }
+                    }
+            }
+    if(a->super.myrank == 0)
+        printf("compared the matrices: %u difference(s)\n", count);
+}
+#endif
+
+#ifndef USE_MPI
+void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+{
+    return;
+}
+void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+{
+    return;
 }
 
 #endif

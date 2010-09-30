@@ -20,6 +20,8 @@
 #include "dague.h"
 #include "data_dist/matrix/tabular_distribution/tabular_distribution.h"
 
+/* tiles arranged in colum major*/
+
 static uint32_t td_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
     int m, n, res;
