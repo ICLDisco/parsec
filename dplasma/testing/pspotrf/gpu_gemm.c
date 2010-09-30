@@ -20,7 +20,7 @@
 #include "data_distribution.h"
 
 #define DPLASMA_SCHEDULING 1
-#define DPLASMA_ONLY_GPU 1
+#define DPLASMA_ONLY_GPU 0
 #define DAGUE_GPU_USE_PRIORITIES 1
 
 static volatile uint32_t cpu_counter = 0;
@@ -641,24 +641,40 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
             }
 
-            dague_atomic_inc_32b( &(gpu_set[n]) );
-        }
+	    dague_atomic_inc_32b( &(gpu_set[n]) );
+	}
+#if DPLASMA_ONLY_GPU
+#else
+	/*
+	 **Rectangular Mesh **
+           1. Fact, a number of tile ahd GEMMs comes from Matrix size and tile size 
+         - we may have to change m,n in every tile size/ matrix size 
+           2. m and n is assign the size of squares which're going to mark over the 
+           * triangular bunch of GEMMs 
+           * 3. m % (?) == (?) and n % (?) == (?) marks which tile is gonna be executed on CPU 
+           * 4. all (?) values affect "square size" and "position"-- which affects how many GEMMs will be executed on CPU
+           * 5. Once we superpose/pile up "many square(m,n) -- like a mesh" on to triangular GEMMs, we will be able to caluculate how many GEMMs will be on CPU, also know which tiles 
+           * 6. The number GEMMs on GPU and CPU would meet "how many times GPU faster than CPU "
+           * I usually use m % 3 == 0 && n % 2 == 0 on C1060 (3x2 square)
+           * I usaully use m % 4 == 0 && n % 2 == 0 on C2050 (4x2 square)
+           * chance is lower that 1:6 or 1:8 becasue we pile up this square on to triangular
+           * Why this method ?
+	   *  - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU          
+	   *  - plus "balancing" between CPU/GPU
+	   **/
+
+	if(m % 3 == 0 && n % 2 == 0){
+		dague_atomic_inc_32b( &(cpu_counter) );
+		return -99;
+
+	}
+#endif
+
 #endif
     }
     gpu_device = gpu_devices[which_gpu];
 
 #if DPLASMA_SCHEDULING	
-
-#if DPLASMA_ONLY_GPU
-
-#else
-    /* return task to CPU when GPU got too much in queue */
-    /* MAX QUEUE would derive from CPU(CORE) performance VS GPU performance individually*/
-    if(gpu_device->mutex > MAX_QUEUE ) {
-        dague_atomic_inc_32b( &(cpu_counter) );
-        return -99;
-    }
-#endif
     /* keep n -- not being used yet*/
     gpu_load[gpu_device->id]+=n;
 #endif
@@ -918,43 +934,63 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
         which_gpu = 0; /* TODO */
 #if DPLASMA_SCHEDULING
-    if(ndevices > 1){
-        /* reverse odd-even */
-        /* homogeneous GPU */
-        {
-            if(n % 2 == 0){
-                which_gpu = gpu_set[n] % ndevices;			
-            }
-            else{
-                which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
-            }
-        }
+    	if(ndevices > 1){
+		/* reverse odd-even */
+		/* homogeneous GPU */
+		{
+	    		if(n % 2 == 0){
+				which_gpu = gpu_set[n] % ndevices;			
+	    		}
+	    		else{
+				which_gpu = ndevices - (gpu_set[n] % ndevices + 1);
+	    		}
+		}
+		
+		/* heterogenous GPU */
+		/* weight by percentage of getting n of (n) with performance factor */
+		{
+			
+		}
+		dague_atomic_inc_32b( &(gpu_set[n]) );
+    	}
+    	/*c1060 4 - 2  384-448  3-0-2-0 960 */
+    	/*c2050 5 - 2 448       4-2 960 */
 
-        /* heterogenous GPU */
-        /* weight by percentage of getting n of (n) with performance factor */
-        {
+#if DPLASMA_ONLY_GPU
+	
+#else
 
+	 /*
+	   **Rectangular Mesh **
 
-        }
-
-        dague_atomic_inc_32b( &(gpu_set[n]) );
-    }
+	   1. Fact, number of tile,GEMMs is come from Matrix size and tile size 
+	   	- we may have to change m,n in every tile size/ matrix size 
+	   2. m and n is assign the size of squares which're going to mark over the 
+	 * triangular bunch of GEMMs 
+	 * 3. m % (?) == (?) and n % (?) == (?) marks which tile is gonna be executed on CPU 
+	 * 4. all (?) values affect "square size" and "position"-- which affects how many GEMMs will be executed on CPU
+	 * 5. Once we superpose/pile up "many square(m,n) -- like a mesh" on to triangular GEMMs, we will be able to caluculate how many GEMMs will be on CPU, also know which tiles 
+	 * 6. The number GEMMs on GPU and CPU would meet "how many times GPU faster than CPU "
+	 * I usually use m % 3 == 0 && n % 2 == 0 on C1060 (3x2 square)
+	 * I usaully use m % 4 == 0 && n % 2 == 0 on C2050 (4x2 square)
+	 * chance is lower that 1:6 or 1:8 becasue we pile up this square on to triangular
+	 * 
+	 * Why this method ?
+	 * 	 - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU  	 
+	 * 	 - plus "balancing" between CPU/GPU
+	 */
+    	if(m % 3 == 0 && n % 2 == 0){
+    		dague_atomic_inc_32b( &(cpu_counter) );
+    		return -99;
+    	}
+#endif
+    
 #endif
     }
-    gpu_device = gpu_devices[which_gpu];\
+    gpu_device = gpu_devices[which_gpu];
 
 #if DPLASMA_SCHEDULING	
 
-#if DPLASMA_ONLY_GPU
-
-#else
-/* return task to CPU when GPU got too much in queue */
-/* MAX QUEUE would derive from CPU(CORE) performance VS GPU performance individually*/
-    if(gpu_device->mutex > MAX_QUEUE ){
-        dague_atomic_inc_32b( &(cpu_counter) );
-        return -99;
-    }
-#endif
     /* keep n -- not being used yet*/
     gpu_load[gpu_device->id]+=n;
 #endif
