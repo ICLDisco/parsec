@@ -386,11 +386,13 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     dague_profiling_trace( gpu_device->profiling, movein_key_start, 0 );
 #endif  /* defined(PROFILING) */
 
+    DEBUG(("Request Data of A(%d, %d) on GPU\n", n, k));
     on_gpu = gpu_cholesky_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, n, k, &gpu_elem_A);
     gpu_elem_A->memory_elem->memory = A;
     d_A = gpu_elem_A->gpu_mem;
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
+        DEBUG((" it is not there\n"));
         /* Push A into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_A, A, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status, 
@@ -400,11 +402,13 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     }
     exec_context->data[0].gpu_data = (struct gpu_elem_t *)gpu_elem_A;
 
+    DEBUG(("Request Data of B(%d, %d) on GPU\n", m, k));
     on_gpu = gpu_cholesky_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, m, k, &gpu_elem_B);
     d_B = gpu_elem_B->gpu_mem;
     gpu_elem_B->memory_elem->memory = B;
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
+        DEBUG((" it is not there\n"));
         /* Push B into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_B, B, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_B) ", status,
@@ -414,11 +418,13 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     }
     exec_context->data[1].gpu_data = (struct gpu_elem_t *)gpu_elem_B;
 
+    DEBUG(("Request Data of C(%d, %d) on GPU\n", m, n));
     on_gpu = gpu_cholesky_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
     d_C = gpu_elem_C->gpu_mem;
     gpu_elem_C->memory_elem->memory = C;
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
+        DEBUG((" it is not there\n"));
         /* Push C into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_C, C, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_C) ", status,
@@ -447,13 +453,19 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     int grid_width, grid_height;
     float alpha = -1.0, beta = 1.0;
     int offset;
+    int m, n, k;
 
+    k = exec_context->locals[0].value;
+    m = exec_context->locals[1].value;
+    n = exec_context->locals[2].value;
     gpu_elem_A = (gpu_elem_t *)exec_context->data[0].gpu_data;
     gpu_elem_B = (gpu_elem_t *)exec_context->data[1].gpu_data;
     gpu_elem_C = (gpu_elem_t *)exec_context->data[2].gpu_data;
     d_A = gpu_elem_A->gpu_mem;
     d_B = gpu_elem_B->gpu_mem;
     d_C = gpu_elem_C->gpu_mem;
+
+    DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", k, m, n));
 
 #if defined(DAGUE_PROFILING)
     dague_profiling_trace( gpu_device->profiling, compute_key_start, 1 );
@@ -508,9 +520,10 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
     cudaError_t status;
     CUdeviceptr d_C;
     void* C;
-    int n, k;
+    int n, k, m;
 
     k = exec_context->locals[0].value;
+    m = exec_context->locals[1].value;
     n = exec_context->locals[2].value;
 
     gpu_elem_C = (gpu_elem_t *)exec_context->data[2].gpu_data;
@@ -523,6 +536,7 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
     /* Pop C from the GPU */
     gpu_device->required_data_out += tile_size;
     if( (n == k+1) ) {
+        DEBUG(("Request out of GPU for C(%d, %d)\n", m, n));
 #if defined(DAGUE_PROFILING)
         dague_profiling_trace( gpu_device->profiling, moveout_key_start, 2 );
 #endif  /* defined(PROFILING) */
@@ -650,7 +664,8 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->in_array[gpu_device->in_submit] );
         rc = gpu_sgemm_internal_push( gpu_device, exec_context, gpu_device->streams[0] );
-        if( 0 == rc ) goto exec_task;  /* No data to be moved for this task */
+        DEBUG(("GPU Request number %d/%d\n", gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0]));
+        //        if( 0 == rc ) goto exec_task;  /* No data to be moved for this task */
         gpu_device->in_array[gpu_device->in_submit] = exec_context;
         exec_context = NULL;
         if( 0 > rc ) goto disable_gpu;
@@ -664,6 +679,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             goto check_exec_completion;
         } else if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
+            DEBUG(("Completion of GPU Request number %d\n", gpu_device->in_array_events[gpu_device->in_waiting]));
             exec_context = gpu_device->in_array[gpu_device->in_waiting];
             gpu_device->in_array[gpu_device->in_waiting] = NULL;
             gpu_device->in_waiting = (gpu_device->in_waiting + 1) % gpu_device->max_in_tasks;
@@ -696,6 +712,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         /* Choose an exec_stream */
         exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams);
         rc = gpu_sgemm_internal_submit( gpu_device, exec_context, gpu_device->streams[2 + exec_stream] );
+        DEBUG(("GPU Request number %d/%d\n", gpu_device->exec_array_events[gpu_device->exec_submit], gpu_device->streams[2 + exec_stream]));
         gpu_device->exec_array[gpu_device->exec_submit] = exec_context;
         exec_context = NULL;
         if( 0 != rc )  goto disable_gpu;
@@ -710,6 +727,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             goto check_out_deps;
         } else if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
+            DEBUG(("Completion of GPU Request number %d\n", gpu_device->exec_array_events[gpu_device->exec_waiting]));
             exec_context = gpu_device->exec_array[gpu_device->exec_waiting];
             gpu_device->exec_array[gpu_device->exec_waiting] = NULL;
             gpu_device->exec_waiting = (gpu_device->exec_waiting + 1) % gpu_device->max_exec_tasks;
@@ -740,6 +758,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->out_array[gpu_device->out_submit] );
         rc = gpu_sgemm_internal_pop( gpu_device, exec_context, gpu_device->streams[1] );
+        DEBUG(("GPU Request number %d/%d\n", gpu_device->out_array_events[gpu_device->out_submit], gpu_device->streams[1]));
         if( 0 == rc ) goto complete_task;  /* no data to be moved */
         gpu_device->out_array[gpu_device->out_submit] = exec_context;
         exec_context = NULL;
@@ -755,6 +774,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             goto check_in_deps;
         } else if( CUDA_SUCCESS == rc ) {
             /* Save the task for the next step */
+            DEBUG(("Completion of GPU Request number %d\n", gpu_device->out_array_events[gpu_device->out_waiting]));
             exec_context = gpu_device->out_array[gpu_device->out_waiting];
             gpu_device->out_array[gpu_device->out_waiting] = NULL;
             gpu_device->out_waiting = (gpu_device->out_waiting + 1) % gpu_device->max_out_tasks;
