@@ -366,16 +366,18 @@ int main(int argc, char ** argv)
                               0, 0,
                               LDA, LDA,
                               GRIDrows);
-    sym_two_dim_block_cyclic_init(&ddescB, matrix_RealFloat,
-                              nodes,
-                              cores,
-                              rank,
-                              dposv_force_nb, dposv_force_nb,
-                              0,
-                              N, N,
-                              0, 0,
-                              LDA, LDA,
-                              GRIDrows);
+    if( 1 == checking ) {
+        sym_two_dim_block_cyclic_init(&ddescB, matrix_RealFloat,
+                                      nodes,
+                                      cores,
+                                      rank,
+                                      dposv_force_nb, dposv_force_nb,
+                                      0,
+                                      N, N,
+                                      0, 0,
+                                      LDA, LDA,
+                                      GRIDrows);
+    }
     
     /* matrix generation */
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
