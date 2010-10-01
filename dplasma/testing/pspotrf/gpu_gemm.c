@@ -68,7 +68,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 #if CUDA_VERSION < 3020
         unsigned int total_mem, free_mem;
 #else
-        size_t size_t total_mem, free_mem;
+        size_t total_mem, free_mem;
 #endif  /* CUDA_VERSION < 3020 */
         unsigned int nb_allocations = 0;
         gpu_device_t* gpu_device;
