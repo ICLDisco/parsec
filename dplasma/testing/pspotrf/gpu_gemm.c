@@ -173,8 +173,11 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         gpu_device->in_array_events = (CUevent*)malloc(gpu_device->max_in_tasks * sizeof(CUevent));
         for( j= 0; j < gpu_device->max_in_tasks; j++ ) {
             gpu_device->in_array[j] = NULL;
-            status = cuEventCreate(&(gpu_device->in_array_events[j]),
-                                   CU_EVENT_DISABLE_TIMING);
+#if CUDA_VERSION >= 3020
+            status = cuEventCreate(&(gpu_device->in_array_events[j]), CU_EVENT_DISABLE_TIMING);
+#else
+            status = cuEventCreate(&(gpu_device->in_array_events[j]), CU_EVENT_DEFAULT);
+#endif  /* CUDA_VERSION >= 3020 */
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
         }
@@ -182,8 +185,11 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         gpu_device->exec_array_events = (CUevent*)malloc(gpu_device->max_exec_tasks * sizeof(CUevent));
         for( j= 0; j < gpu_device->max_exec_tasks; j++ ) {
             gpu_device->exec_array[j] = NULL;
-            status = cuEventCreate(&(gpu_device->exec_array_events[j]),
-                                   CU_EVENT_DISABLE_TIMING);
+#if CUDA_VERSION >= 3020
+            status = cuEventCreate(&(gpu_device->exec_array_events[j]), CU_EVENT_DISABLE_TIMING);
+#else
+            status = cuEventCreate(&(gpu_device->in_array_events[j]), CU_EVENT_DEFAULT);
+#endif  /* CUDA_VERSION >= 3020 */
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
         }
@@ -191,8 +197,11 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         gpu_device->out_array_events = (CUevent*)malloc(gpu_device->max_out_tasks * sizeof(CUevent));
         for( j= 0; j < gpu_device->max_out_tasks; j++ ) {
             gpu_device->out_array[j] = NULL;
-            status = cuEventCreate(&(gpu_device->out_array_events[j]),
-                                   CU_EVENT_DISABLE_TIMING);
+#if CUDA_VERSION >= 3020
+            status = cuEventCreate(&(gpu_device->out_array_events[j]), CU_EVENT_DISABLE_TIMING);
+#else
+            status = cuEventCreate(&(gpu_device->in_array_events[j]), CU_EVENT_DEFAULT);
+#endif  /* CUDA_VERSION >= 3020 */
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
         }
@@ -654,27 +663,27 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
             }
 
-	    dague_atomic_inc_32b( &(gpu_set[n]) );
-	}
+            dague_atomic_inc_32b( &(gpu_set[n]) );
+        }
 #if DPLASMA_ONLY_GPU
 #else
-	/*
-	 **Rectangular Mesh **
-           1. Fact, a number of tile ahd GEMMs comes from Matrix size and tile size 
-         - we may have to change m,n in every tile size/ matrix size 
-           2. m and n is assign the size of squares which're going to mark over the 
-           * triangular bunch of GEMMs 
-           * 3. m % (?) == (?) and n % (?) == (?) marks which tile is gonna be executed on CPU 
-           * 4. all (?) values affect "square size" and "position"-- which affects how many GEMMs will be executed on CPU
-           * 5. Once we superpose/pile up "many square(m,n) -- like a mesh" on to triangular GEMMs, we will be able to caluculate how many GEMMs will be on CPU, also know which tiles 
-           * 6. The number GEMMs on GPU and CPU would meet "how many times GPU faster than CPU "
-           * I usually use m % 3 == 0 && n % 2 == 0 on C1060 (3x2 square)
-           * I usaully use m % 4 == 0 && n % 2 == 0 on C2050 (4x2 square)
-           * chance is lower that 1:6 or 1:8 becasue we pile up this square on to triangular
-           * Why this method ?
-	   *  - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU          
-	   *  - plus "balancing" between CPU/GPU
-	   **/
+        /*
+        **Rectangular Mesh **
+        1. Fact, a number of tile ahd GEMMs comes from Matrix size and tile size 
+        - we may have to change m,n in every tile size/ matrix size 
+        2. m and n is assign the size of squares which're going to mark over the 
+        * triangular bunch of GEMMs 
+        * 3. m % (?) == (?) and n % (?) == (?) marks which tile is gonna be executed on CPU 
+        * 4. all (?) values affect "square size" and "position"-- which affects how many GEMMs will be executed on CPU
+        * 5. Once we superpose/pile up "many square(m,n) -- like a mesh" on to triangular GEMMs, we will be able to caluculate how many GEMMs will be on CPU, also know which tiles 
+        * 6. The number GEMMs on GPU and CPU would meet "how many times GPU faster than CPU "
+        * I usually use m % 3 == 0 && n % 2 == 0 on C1060 (3x2 square)
+        * I usaully use m % 4 == 0 && n % 2 == 0 on C2050 (4x2 square)
+        * chance is lower that 1:6 or 1:8 becasue we pile up this square on to triangular
+        * Why this method ?
+        *  - try to finish "each bunch of GEMMs" as soon as poosible with GPU+CPU          
+        *  - plus "balancing" between CPU/GPU
+        **/
 
         if( ((m % OHM_M) == 0) && ( (n % OHM_N) == 0) ){
             dague_atomic_inc_32b( &(cpu_counter) );
