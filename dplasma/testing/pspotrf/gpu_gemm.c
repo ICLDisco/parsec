@@ -64,7 +64,12 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 	}
 #endif
     for( i = 0; i < ndevices; i++ ) {
-        size_t total_mem, tile_size, thread_gpu_mem, free_mem;
+        size_t tile_size, thread_gpu_mem;
+#if CUDA_VERSION < 3020
+        unsigned int total_mem, free_mem;
+#else
+        size_t size_t total_mem, free_mem;
+#endif  /* CUDA_VERSION < 3020 */
         unsigned int nb_allocations = 0;
         gpu_device_t* gpu_device;
         CUresult status;
@@ -132,7 +137,11 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
                                     ({
+#if CUDA_VERSION < 3020
+                                        unsigned int _free_mem, _total_mem;
+#else
                                         size_t _free_mem, _total_mem;
+#endif  /* CUDA_VERSION < 3020 */
                                         cuMemGetInfo( &_free_mem, &_total_mem );
                                         printf("Per context: free mem %zu total mem %zu\n", _free_mem, _total_mem);
                                         free( gpu_elem );
@@ -188,7 +197,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 #if CUDA_VERSION >= 3020
             status = cuEventCreate(&(gpu_device->exec_array_events[j]), CU_EVENT_DISABLE_TIMING);
 #else
-            status = cuEventCreate(&(gpu_device->in_array_events[j]), CU_EVENT_DEFAULT);
+            status = cuEventCreate(&(gpu_device->exec_array_events[j]), CU_EVENT_DEFAULT);
 #endif  /* CUDA_VERSION >= 3020 */
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
@@ -200,7 +209,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
 #if CUDA_VERSION >= 3020
             status = cuEventCreate(&(gpu_device->out_array_events[j]), CU_EVENT_DISABLE_TIMING);
 #else
-            status = cuEventCreate(&(gpu_device->in_array_events[j]), CU_EVENT_DEFAULT);
+            status = cuEventCreate(&(gpu_device->out_array_events[j]), CU_EVENT_DEFAULT);
 #endif  /* CUDA_VERSION >= 3020 */
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
