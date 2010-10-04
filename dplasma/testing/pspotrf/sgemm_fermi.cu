@@ -1,357 +1,658 @@
 /*
-	blk_M=64 blk_N=64 blk_K=16 nthd_x=64 nthd_y=4
+    -- MAGMA (version 0.3) --
+       Univ. of Tennessee, Knoxville
+       Univ. of California, Berkeley
+       Univ. of Colorado, Denver
+       June 2010
+
+    -- Stan Tomov
+    -- Rajib Nath
 */
-#define  blk_M 64
-#define  blk_N 64 
+
+
+/*
+    This version is used with testing_stream_sgemm.cpp to add streams.
+    Streams work with a code that does not use textures. The textures currently
+    are given as a global variables so they can not be used concurrently.
+
+    blk_M=64 blk_N=64 blk_K=16 nthd_x=64 nthd_y=4
+*/
+
+#define  blks 4
+#define bx 4
+#define by 4
+
+#define  blk_M (16*bx)
+#define  blk_N (16*by)
+
 #define  blk_K 16
+#define  nth_x 64
 
-#define fermi_sgemm_kernel_N_N_64_64_16_64_4 sgemmNT
+#define nth_x_1 16
 
-extern "C" __global__ void fermi_sgemm_kernel_N_N_64_64_16_64_4( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta ) {
-	const  int tx = threadIdx.x;
-	const  int ty = threadIdx.y;
+#define tot_row blks
 
-    int iby = blockIdx.y ;
-    int ibx = blockIdx.x ;
-    //ibx = (blockIdx.x+ blockIdx.y ) % (m / 64 ) ;  
-    //iby = (ibx+blockIdx.y ) % (m / 64 ) ;  
-    ibx*=64 ; 
-    iby*=64 ; 
-    const  int idt = ty * 64 + tx;
+#include <cuda_runtime.h>
+#include <cuda.h>
 
+#define fermiSgemm_v2_kernel_NN sgemmNN
+#define fermiSgemm_v2_kernel_TN sgemmTN
+#define fermiSgemm_v2_kernel_NT sgemmNT
+#define fermiSgemm_v2_kernel_TT sgemmTT
 
-    int txr = idt /16 ; 
-	const  int tyr = idt %16 ; 
-	const  int res= idt%16;
-	int qot= idt/16;
-    //	const int qot_map[16]={0,4,1,5,2,6,3,7,8,12,9,13,10,14,11,15};
-	int qot_map[16]={0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15};
-	//int qot_map[16]={0,8,1,9,2,10,3,11,4,12,5,13,6,14,7,15};
-	//int qot_map[16]={0,13,2,11,4,9,6,7,8,5,10,1,12,3, 14,15};
-	qot=qot_map[qot];
-	txr = qot ; 
-	
-	//C += ibx  + idt%64 + __mul24 ( idtdivN_nc + iby ,ldc);
+extern "C" __global__ 
+void fermiSgemm_v2_kernel_NN( const float *A, int lda,
+                              const float *B, int ldb,
+                              float* C, int ldc,
+                              int k,
+                              float alpha, float beta)
+{
+    const  int tx = threadIdx.x;
+    const  int ty = threadIdx.y;
 
+    const int iby = blockIdx.y * blk_N;
+    const int ibx = blockIdx.x * blk_M;
+    const int idt = ty * nth_x + tx;
 
-	__shared__ float Bb[16][65];
-	__shared__ float Abs[64][17];
+    // TTT - this is to reorganize the threads form 64x4 (in tx x ty)
+    //       to 16x16 (in res x qot)
+    const int res= idt%nth_x_1;
+    const int qot= idt/nth_x_1;
 
-    float Cb[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-#undef preloadB 
-#undef preloadA
-#define preloadB 
-#define preloadA
-#ifdef  preloadA
-    float xxA[4];
-#endif
-#ifdef preloadB
-    float xxB[4];
-#endif
+    // ===== TTT - shared memory =================================================
+    __shared__ float Bb[blk_K][blk_N+1];
+    __shared__ float Abs[blk_M][blk_K+1];
+
+    // ===== TTT - registers for blks x blks register blocking ===================
+    float xxA[bx];
+    float xxB[by];
     
-    B+= res+ __mul24(iby+qot*4, ldb );
-#ifdef preloadB 
-    xxB[0] =B[0*ldb] ; 
-    xxB[1] =B[1*ldb] ; 
-    xxB[2] =B[2*ldb] ; 
-    xxB[3] =B[3*ldb] ; 
-#endif
-#ifndef preloadA 
-    xxA[0] =A[ty*4*lda + 0*lda];
-    xxA[1] =A[ty*4*lda + 1*lda];
-    xxA[2] =A[ty*4*lda + 2*lda];
-    xxA[3] =A[ty*4*lda + 3*lda];
-#endif
-#ifdef preloadB 
-    Bb[res][qot*4+0] =xxB[0] ;
-    Bb[res][qot*4+1] =xxB[1] ; 
-    Bb[res][qot*4+2] =xxB[2] ; 
-    Bb[res][qot*4+3] =xxB[3] ; 
-	//B+= __mul24(qot, ldb );
-	const float *Bend = B + k-16;
-#endif
-#ifdef preloadA 
-    A+= ibx +qot*lda + res ; 
-    Abs[res   ][qot] = A[ 0]; 
-    Abs[res+16][qot] = A[16]; 
-    Abs[res+32][qot] = A[32]; 
-    Abs[res+48][qot] = A[48]; 
-#endif
+    B+= res + __mul24(iby + qot * by, ldb );
+    A+= ibx + __mul24( qot, lda) + res ; 
 
-#ifndef preloadB 
-	Bb[res][qot+0] = B[0*ldb];
-	Bb[res][qot+16] = B[16*ldb];
-	Bb[res][qot+32] = B[32*ldb];
-	Bb[res][qot+48] = B[48*ldb];
-#endif
-#ifndef preloadA 
-    Abs[tx][ty*4+0] = A[ty*4*lda + 0*lda]; 
-    Abs[tx][ty*4+1] = A[ty*4*lda + 1*lda]; 
-    Abs[tx][ty*4+2] = A[ty*4*lda + 2*lda]; 
-    Abs[tx][ty*4+3] = A[ty*4*lda + 3*lda]; 
-#endif
+    int trackA =  ibx + __mul24( qot, lda) + res ;
+    int trackB =  res + __mul24(iby + qot * by, ldb );
+
+    // ===== TTT =================================================================
+    // 1. Read blocks A and B in shared memory (pre-fetch)
+    #pragma unroll
+    for(int y=0; y<by; y++)
+        Bb[res][qot*by+y] = B[y*ldb]; // fetch_x_B( trackB + y*ldb, B) ;
+	
+
+    // TTT - this reads 16 x 16 blocks per line 
+    #pragma unroll
+    for(int y=0; y<bx; y++)
+        Abs[res+y*16][qot] = A[y*16];//fetch_x_A(trackA +  y*16 , A);
+
+    __syncthreads();
+
+    const float *Bend = B + k-16;
+   
+    float Axs[bx];
+    float Bxp[by];
+
+    //float Cb[blks*blks] = {0,0,0,0,   ... };
+
+    //float Cb[9] = {0,0,0, 0,0,0, 0,0,0};
+    //float Cb[16] = {0,0,0,0,    0,0,0,0, 0,0,0,0, 0,0,0,0};
+    //float Cb[25] = {0,0,0,0,0, 0,0,0,0,0,  0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0};
+    float Cb[36] = {0,0,0,0,0,0, 0,0,0,0,0,0,  0,0,0,0,0,0, 0,0,0,0,0,0,
+                    0,0,0,0,0,0, 0,0,0,0,0,0};
+    //float Cb[30] = {0,0,0,0,0,0, 0,0,0,0,0,0,  0,0,0,0,0,0, 0,0,0,0,0,0,
+    //                0,0,0,0,0,0};
+    //float Cb[42] = {0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0,
+    //               0,0,0,0,0,0,0, 0,0,0,0,0, 0,0};   
+ 
+    //float Cb[49] = {0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0,
+    //                0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0};
+
+    do 
+    {
+	B += 16;
+	A += lda *16  ;
+	trackA+=16*lda ; 
+	trackB+=16;
+
+              #pragma unroll 
+              for( int j1=0;j1<8;j1++){
+
+                  // TTT
+                  // 2. Put 4 elements of B in registers
+                  #pragma unroll
+                  for( int y=0; y<by; y++)
+                      Bxp[y]= Bb[j1][qot+y*16];
+
+                  // TTT
+                  // 3. Put 4 elements of A in registers
+                  #pragma unroll
+                  for( int y=0; y<bx; y++)
+                      Axs[y] =  Abs[res+y*16][j1] ;
+
+                  // TTT
+                  // 4. Multiply them adding the result in C
+                  #pragma unroll 
+                  for( int x=0; x<bx; x++){
+                     #pragma unroll 
+                     for( int y=0; y<by; y++){
+                         Cb[x*by + y] += Axs[x]*Bxp[y];
+		     }
+		  }
+              } // j1 - loop
+
+        #pragma unroll
+        for( int y=0; y<by; y++)
+ 	   xxB[y] = B[y*ldb]; //fetch_x_B( trackB + y*ldb, B);
+
+        #pragma unroll
+        for( int y=0; y<bx; y++)
+	   xxA[y] = A[y*16]; //fetch_x_A(trackA + y*16 , A);
+
+              #pragma unroll 
+              for( int j1=8;j1<16;j1++){
+
+                  #pragma unroll
+                  for( int y=0;y<by;y++)
+                      Bxp[y]= Bb[j1][qot+y*16];
+
+                  #pragma unroll
+                  for( int y=0;y<bx;y++)
+                      Axs[y] =  Abs[res+y*16][j1] ;
+
+                  #pragma unroll 
+                  for( int x=0;x<bx;x++){
+                     #pragma unroll 
+                     for( int y=0; y<by; y++){
+                         Cb[x*by+y] += Axs[x]*Bxp[y];
+		     }
+		  }
+               }// j1 - loop
+
+	__syncthreads();
+	#pragma unroll
+	for(int y=0;y<bx;y++)
+	    Abs[res+y*16][qot] =xxA[y];
+
+	#pragma unroll
+	for(int y=0; y<by; y++)
+	    Bb[res][qot*by + y] =xxB[y];
+
 	__syncthreads();
 
-   
-    int j=0 ; 
-    float Axs[4];
-    float Bxp[4];
+    } 
+    while (B < Bend);
 
-#pragma unroll
-    for(  int y=0;y<4;y++)
-        Axs[y] = Abs[txr+y*16][j*4];
-#pragma unroll
-    for( int y=0;y<4;y++)
-        Bxp[y]= Bb[j*4][tyr+y*16]; 
+    // C += qot + ibx  + __mul24 (res +  iby ,ldc);
+    C += res + ibx + __mul24(qot + iby, ldc);
 
-#define block_global
-#define block_shared
-#undef block_shared
-#undef block_global
-	do {
-		B += 16;
-		A += 16 * lda;
-#ifndef block_global
-#ifdef preloadA 
-#pragma unroll 
-        for( int y=0;y<4;y++)
-            xxA[y]=  A[y*16]; 
-#endif
-#endif
-        {
-            j=0;
-#pragma unroll 
-            for( int j1=0;j1<3;j1++){
-#pragma unroll 
-                for( int x=0;x<4;x++)
-#pragma unroll 
-                    for( int y=0;y<4;y++)
-                        Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#pragma unroll
-                for( int y=0;y<4;y++)
-                    Bxp[y]= Bb[j*4+j1+1][tyr+y*16]; 
-#pragma unroll
-                for( int y=0;y<4;y++)
-                    Axs[y] = Abs[txr+y*16][j*4+j1+1] ;
-			}// j1 - loop
-#pragma unroll 
-	  	    for( int x=0;x<3;x++)
-#pragma unroll 
-                for( int y=0;y<4;y++)
-                    Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#pragma unroll 
-			for( int x=3;x<4;x++)
-#pragma unroll 
-                for( int y=0;y<4;y++){
-                    Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#ifdef preloadB 
-                    //xxB[y] = B[y*ldb] ;
-#endif
-                }
-        }// j  - loop 
-#ifndef block_global
-#ifdef preloadB 
-#pragma unroll 
-        for( int y=0;y<4;y++)
-            xxB[y] = B[y*ldb] ;
-#endif
-#endif
-        {
-		    j=1;
-#ifndef block_shared
-#pragma unroll
-            for(  int y=0;y<4;y++)
-                Axs[y] = Abs[txr+y*16][j*4] ;
-#pragma unroll
-            for( int y=0;y<4;y++)
-                Bxp[y]= Bb[j*4][tyr+y*16]; 
-#endif
-#pragma unroll 
-            for( int j1=0;j1<3;j1++){
-#pragma unroll 
-                for( int x=0;x<4;x++)
-#pragma unroll 
-                    for( int y=0;y<4;y++)
-                        Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#pragma unroll
-                for( int y=0;y<4;y++)
-                    Bxp[y]= Bb[j*4+j1+1][tyr+y*16]; 
-#pragma unroll
-                for( int y=0;y<4;y++)
-                    Axs[y] = Abs[txr+y*16][j*4+j1+1] ;
-			}// j1 - loop
-#pragma unroll 
-            for( int x=0;x<4;x++)
-#pragma unroll 
-                for( int y=0;y<4;y++){
-                    Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#ifdef preloadA 
-                    //xxA[y]=  A[y*16]; 
-#endif
-                }
-        }// j  - loop 
-			 
-#pragma unroll
-        for(j=2;j<4;j++){
-#ifndef block_shared
-#pragma unroll
-            for(  int y=0;y<4;y++)
-                Axs[y] = Abs[txr+y*16][j*4] ;
-#pragma unroll
-            for( int y=0;y<4;y++)
-                Bxp[y]= Bb[j*4][tyr+y*16]; 
-#endif
-#pragma unroll 
-            for( int j1=0;j1<3;j1++){
-#pragma unroll 
-                for( int x=0;x<4;x++)
-#pragma unroll 
-                    for( int y=0;y<4;y++)
-                        Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#pragma unroll
-                for( int y=0;y<4;y++)
-                    Bxp[y]= Bb[j*4+j1+1][tyr+y*16]; 
-#pragma unroll
-                for( int y=0;y<4;y++)
-                    Axs[y] = Abs[txr+y*16][j*4+j1+1] ;
-			}// j1 - loop
-#pragma unroll 
-            for( int x=0;x<4;x++)
-#pragma unroll 
-                for( int y=0;y<4;y++)
-                    Cb[x*4+y]  += Axs[x]*Bxp[y];	
-        }// j - loop 
-#ifndef preloadB 
-		//xxB[0] =B[0*ldb] ; 
-		//xxB[1] =B[16*ldb] ; 
-		//xxB[2] =B[32*ldb] ; 
-		//xxB[3] =B[48*ldb] ; 
-#endif
-#ifndef preloadA 
-		//xxA[0] =A[ty*4*lda + 0*lda];
-		//xxA[1] =A[ty*4*lda + 1*lda];
-		//xxA[2] =A[ty*4*lda + 2*lda];
-		//xxA[3] =A[ty*4*lda + 3*lda];
-#endif
-		__syncthreads();
-#ifndef preloadB 
-		Bb[res][qot+0]  = B[0*ldb];
-		Bb[res][qot+16] = B[16*ldb];
-		Bb[res][qot+32] = B[32*ldb];
-		Bb[res][qot+48] = B[48*ldb];
-#endif
-#ifdef preloadB 
-#pragma unroll
-		for(  int y=0;y<4;y++)
-            Bb[res][qot*4+y] =xxB[y];
-#endif
-#ifndef preloadA 
-	    Abs[tx][ty*4+0] = A[ty*4*lda + 0*lda]; 
-	    Abs[tx][ty*4+1] = A[ty*4*lda + 1*lda]; 
-	    Abs[tx][ty*4+2] = A[ty*4*lda + 2*lda]; 
-	    Abs[tx][ty*4+3] = A[ty*4*lda + 3*lda]; 
-#endif
-#ifdef preloadA 
-#pragma unroll
-		for(  int y=0;y<4;y++)
-            Abs[res+y*16   ][qot] =xxA[y]; 
-#endif
-		__syncthreads();
-		j=0;
-#ifndef block_shared
-#pragma unroll
-        for(  int y=0;y<4;y++)
-            Axs[y] = Abs[txr+y*16][j*4] ;
-#pragma unroll
-        for( int y=0;y<4;y++)
-            Bxp[y]= Bb[j*4][tyr+y*16]; 
-#endif
+        // TTT - this is unrolling the last iteration 
+        //       (data has been already prepared)
+	#pragma unroll 
+        for( int j1=0;j1<16;j1++){
 
-	} while (B < Bend);
+	   #pragma unroll
+	   for( int y=0;y<by;y++)
+		Bxp[y]= Bb[j1][qot+y*16];
+ 
+	   #pragma unroll
+	   for( int y=0;y<bx;y++)
+		Axs[y] = Abs[res+y*16][j1] ;
 
-    {
-#pragma unroll 
-        for( int j1=0;j1<3;j1++){
-#pragma unroll 
-            for( int x=0;x<4;x++)
-#pragma unroll 
-                for( int y=0;y<4;y++)
-                    Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#pragma unroll
-            for( int y=0;y<4;y++)
-                Bxp[y]= Bb[j*4+j1+1][tyr+y*16]; 
-#pragma unroll
-            for( int y=0;y<4;y++)
-                Axs[y] = Abs[txr+y*16][j*4+j1+1] ;
-        }// j1 - loop
-#pragma unroll 
-        for( int x=0;x<4;x++)
-#pragma unroll 
-            for( int y=0;y<4;y++)
-                Cb[x*4+y]  += Axs[x]*Bxp[y];	
-    }// j - loop 
-#pragma unroll
-    for(j=1;j<4;j++){
-#pragma unroll
-        for(  int y=0;y<4;y++)
-            Axs[y] = Abs[txr+y*16][j*4] ;
-#pragma unroll
-        for( int y=0;y<4;y++)
-            Bxp[y]= Bb[j*4][tyr+y*16]; 
-#pragma unroll 
-        for( int j1=0;j1<3;j1++){
-#pragma unroll 
-            for( int x=0;x<4;x++)
-#pragma unroll 
-                for( int y=0;y<4;y++)
-                    Cb[x*4+y]  += Axs[x]*Bxp[y];	
-#pragma unroll
-            for( int y=0;y<4;y++)
-                Bxp[y]= Bb[j*4+j1+1][tyr+y*16]; 
-#pragma unroll
-            for( int y=0;y<4;y++)
-                Axs[y] = Abs[txr+y*16][j*4+j1+1] ;
-        }// j1 - loop
-#pragma unroll 
-        for( int x=0;x<4;x++)
-#pragma unroll 
-            for( int y=0;y<4;y++)
-                Cb[x*4+y]  += Axs[x]*Bxp[y];	
-    }// j - loop 
-	//C += ibx  + txr*4 + __mul24 ( tyr*4 + iby ,ldc);
-	C += txr + ibx  + __mul24 (tyr +  iby ,ldc);
-#pragma unroll
-    for( int y=0;y<4;y++){
-#pragma unroll
-        for( int x=0;x<4;x++){
-            //C[txr+tyr*ldc] =alpha*Cb[y+x*4] + beta * C[txr+tyr*ldc];
-            C[x*16] =alpha*Cb[y+x*4] + beta * C[x*16];
-            //C[txr+x*16+y*ldc*16+tyr*ldc] =alpha*Cb[y+x*4] + beta * C[txr+x*16+y*ldc*16+tyr*ldc];
-            //C+=16;
-        }
-        //C-=16*4;
+	   #pragma unroll 
+	   for( int x=0;x<bx;x++)
+		#pragma unroll 
+		for( int y=0; y<by; y++)
+		   Cb[x*by+y]  += Axs[x]*Bxp[y];	
+	}// j1 - loop
+
+    #pragma unroll
+    for( int y=0; y<by; y++){
+ 	#pragma unroll
+        for(int x=0; x<bx; x++){
+	   C[x*16] = alpha*Cb[y+x*by] + beta * C[x*16];
+	}
+	   
         C+=ldc*16;
+    }
+}
+
+//========================================================================
+
+extern "C" __global__ 
+void fermiSgemm_v2_kernel_TN( const float *A, int lda,
+                              const float *B, int ldb,
+                              float* C, int ldc,
+                              int k,
+                              float alpha, float beta)
+{
+    const  int tx = threadIdx.x;
+    const  int ty = threadIdx.y;
+
+    const int iby = blockIdx.y * blk_N;
+    const int ibx = blockIdx.x * blk_M;
+    const int idt = ty * nth_x + tx;
+
+    const int res = idt%nth_x_1;
+    const int qot = idt/nth_x_1;
+
+    __shared__ float Bb[blk_K][blk_N+1];
+    __shared__ float Abs[blk_M][blk_K+1];
+
+    float xxA[blks];
+    float xxB[blks];
+
+    B+= res+ __mul24(iby + qot*blks, ldb );
+    int trackB = res+ __mul24(iby + qot*blks, ldb );
+
+    A+= __mul24( ibx + qot, lda ) + res; 
+    int trackA =  __mul24( ibx + qot,lda) + res;
+
+    #pragma unroll
+    for(int y=0; y<blks; y++)
+	Bb[res][qot*blks+y] = B[y*ldb]; //fetch_x_B(trackB + y*ldb, B ) ;
+
+    #pragma unroll
+    for(int y=0; y<blks; y++)
+	Abs[qot+16*y][res] = A[lda*16*y]; //fetch_x_A(trackA +  lda*16*y, A);
+
+    __syncthreads();
+
+    const float *Bend = B + k-16;
+   
+    float Axs[blks];
+    float Bxp[blks];
+
+    // float Cb[9] = {0,0,0, 0,0,0, 0,0,0};
+    // float Cb[16] = {0,0,0,0,    0,0,0,0, 0,0,0,0, 0,0,0,0};
+    //float Cb[25] = {0,0,0,0,0, 0,0,0,0,0,  0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0};
+    float Cb[36] = {0,0,0,0,0,0, 0,0,0,0,0,0,  0,0,0,0,0,0, 0,0,0,0,0,0,
+                    0,0,0,0,0,0, 0,0,0,0,0,0};
+
+    do 
+    {
+	B += 16;
+	A += 16;
+	trackA += 16 ; 
+	trackB += 16;
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+	   xxB[y] = B[y*ldb]; //fetch_x_B( trackB + y*ldb, B);
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+	   xxA[y] = A[lda*y*16]; //fetch_x_A(trackA + lda*y*16, A);
+
+        #pragma unroll 
+        for( int j1=0; j1<16; j1++){
+           
+            #pragma unroll
+            for( int y=0; y<blks; y++)
+                Bxp[y]= Bb[j1][qot + y*16];
+
+            #pragma unroll
+            for( int y=0; y<blks; y++)
+                Axs[y] = Abs[res + y*16][j1];
+
+            #pragma unroll 
+            for( int x=0;x<tot_row;x++){
+                #pragma unroll 
+                for(int y=0; y<blks; y++){
+                    Cb[x*blks + y] += Axs[x]*Bxp[y];
+						}
+					}
+        }// j1 - loop
+           
+	__syncthreads();
+	#pragma unroll
+	for(int y=0; y<blks; y++)
+	   Abs[qot + 16*y][res] = xxA[y]; 
+	
+	#pragma unroll
+	for( int y=0; y<blks; y++)
+	   Bb[res][qot*blks + y] = xxB[y];
+
+	__syncthreads();
+    } 
+    while (B < Bend);
+
+    C += res + ibx  + __mul24 (qot + iby, ldc);
+
+    #pragma unroll 
+    for( int j1=0; j1<16; j1++){
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+            Bxp[y] = Bb[j1][qot + y*16];
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+            Axs[y] =  Abs[res + y*16][j1] ;
+
+        #pragma unroll 
+        for( int x=0; x<blks; x++){
+           #pragma unroll 
+           for( int y=0; y<blks; y++){
+               Cb[x*blks + y]  += Axs[x]*Bxp[y];
+	   }
+	}
+    }// j1 - loop
+
+    #pragma unroll
+    for(int y=0;y<blks; y++){
+       #pragma unroll
+       for(int x=0; x<blks; x++){
+	  C[x*16] = alpha*Cb[y+x*blks] + beta * C[x*16];
+       }
+	   
+       C+=ldc*16;
+    }
+}
+
+//========================================================================
+
+extern "C" __global__ 
+void fermiSgemm_v2_kernel_TT( const float *A, int lda,
+                              const float *B, int ldb,
+                              float* C, int ldc,
+                              int k,
+                              float alpha, float beta)
+{
+    const  int tx = threadIdx.x;
+    const  int ty = threadIdx.y;
+
+    const int iby = blockIdx.y * blk_N;
+    const int ibx = blockIdx.x * blk_M;
+    const int idt = ty * nth_x + tx;
+
+    const int res = idt% nth_x_1;
+    const int qot = idt/ nth_x_1;
+
+    __shared__ float Bb[blk_K][blk_N+1];
+    __shared__ float Abs[blk_M][blk_K+1];
+
+    float xxA[blks];
+    float xxB[blks];
+
+    B += iby + res + __mul24(qot , ldb );
+    A += __mul24(ibx + qot, lda) + res; 
+
+    int trackA =  __mul24( ibx + qot, lda) + res;
+    int trackB =  iby+ res + __mul24(qot, ldb);
+
+    #pragma unroll
+    for(int y=0; y<blks; y++)
+      Bb[qot][res+16*y] = B[16*y]; //fetch_x_B(trackB+16*y, B);
+
+    #pragma unroll
+    for(int y=0; y<blks; y++)
+       Abs[qot + 16*y][res] = A[lda*16*y]; //fetch_x_A(trackA +  lda*16*y, A);
+
+    __syncthreads();
+
+    const float *Bend = B + k*ldb - 16*ldb;
+   
+    float Axs[blks];
+    float Bxp[blks];
+    
+    //float Cb[9] = {0,0,0, 0,0,0, 0,0,0};
+    //float Cb[16] = {0,0,0,0,    0,0,0,0, 0,0,0,0, 0,0,0,0};
+    //float Cb[25] = {0,0,0,0,0, 0,0,0,0,0,  0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0};
+    float Cb[36] = {0,0,0,0,0,0, 0,0,0,0,0,0,  0,0,0,0,0,0, 0,0,0,0,0,0,
+                    0,0,0,0,0,0, 0,0,0,0,0,0};
+
+    do 
+    {
+	B += 16*ldb;
+	A += 16;
+	trackA+=16 ; 
+	trackB+=16*ldb;
+
+	#pragma unroll
+        for( int y=0; y<blks; y++)
+           xxB[y] = B[16*y]; //fetch_x_B(trackB + 16*y, B);
+		
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+	   xxA[y] = A[lda*y*16]; //fetch_x_A(trackA + lda*y*16, A);
+
+        #pragma unroll 
+        for( int j1=0;j1<16;j1++){
+           #pragma unroll
+           for( int y=0; y<blks; y++)
+              Bxp[y]= Bb[j1][qot + y*16];
+
+           #pragma unroll
+           for( int y=0; y<blks; y++)
+              Axs[y] =  Abs[res + y*16][j1];
+
+           #pragma unroll 
+           for( int x=0; x<blks; x++){
+               #pragma unroll 
+               for( int y=0;y<blks;y++){
+                  Cb[x*blks+y] += Axs[x]*Bxp[y];
+	       }
+	    }
+        }// j1 - loop
+            
+	__syncthreads();
+	#pragma unroll
+	for( int y=0; y<blks; y++)
+	   Abs[qot + 16*y][res] = xxA[y];
+ 
+	#pragma unroll
+	for( int y=0; y<blks; y++)
+           Bb[qot][res+y*16] = xxB[y];
+
+	__syncthreads();
+    } 
+    while (B < Bend);
+
+    C += res + ibx  + __mul24 (qot +  iby ,ldc);
+
+    #pragma unroll 
+    for( int j1=0; j1<16; j1++){
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+            Bxp[y]= Bb[j1][qot + y*16];
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+            Axs[y] =  Abs[res + y*16][j1];
+
+        #pragma unroll 
+        for( int x=0; x<blks; x++){
+           #pragma unroll 
+           for( int y=0; y<blks; y++){
+              Cb[x*blks+y]  += Axs[x]*Bxp[y];
+	   }
+	}
+    }// j1 - loop
+
+    #pragma unroll
+    for( int y=0;y<blks;y++){
+	#pragma unroll
+        for(int x=0; x<blks; x++){
+	    C[x*16] = alpha*Cb[y+x*blks] + beta * C[x*16];
+	}
+	   
+	C+=ldc*16;
+    }
+}
+
+
+//========================================================================
+
+extern "C" __global__ 
+void fermiSgemm_v2_kernel_NT( const float *A, int lda,
+                              const float *B, int ldb,
+                              float* C, int ldc,
+                              int k,
+                              float alpha, float beta)
+{
+    const int iby = blockIdx.y * blk_N;
+    const int ibx = blockIdx.x * blk_M;
+    const int idt = threadIdx.y * nth_x + threadIdx.x;
+
+    const int res= idt%nth_x_1;
+    const int qot= idt/nth_x_1;
+/*
+    const int res= threadIdx.x;
+    const int qot= threadIdx.y;
+*/
+    __shared__ float Bb[blk_K][blk_N+1];
+    __shared__ float Abs[blk_M][blk_K+1];
+
+    float xxA[blks];
+    float xxB[blks];
+
+    B += iby + res + qot*ldb;
+    int trackB = iby + res + qot*ldb;	
+	
+    A+= ibx + qot* lda + res ; 
+    int trackA = ibx + qot*lda + res ;
+
+    #pragma unroll
+    for(int y=0; y<blks; y++)
+        Bb[qot][res+16*y] = B[16*y]; //fetch_x_B(trackB+16*y, B);
+
+    #pragma unroll
+    for(int y=0; y<blks; y++)
+	Abs[res+ y*16][qot] = A[y*16]; //fetch_x_A(trackA +  y*16, A);
+
+    __syncthreads();
+
+    const float *Bend = B + k*ldb - 16*ldb;
+   
+    float Axs[blks];
+    float Bxp[blks];
+
+    // float Cb[9] = {0,0,0, 0,0,0, 0,0,0};
+    // float Cb[16] = {0,0,0,0,    0,0,0,0, 0,0,0,0, 0,0,0,0};
+    //float Cb[25] = {0,0,0,0,0, 0,0,0,0,0,  0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0};
+    float Cb[36] = {0,0,0,0,0,0, 0,0,0,0,0,0,  0,0,0,0,0,0, 0,0,0,0,0,0,
+                    0,0,0,0,0,0, 0,0,0,0,0,0};
+
+    do 
+    {
+	B += 16*ldb;
+	A += lda *16  ;
+	trackA+=16*lda ; 
+	trackB+=16*ldb;
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+          xxB[y] = B[16*y]; //fetch_x_B( trackB + 16*y, B);
+
+        #pragma unroll
+        for( int y=0; y<blks; y++)
+	   xxA[y] = A[y*16]; // fetch_x_A(trackA +  y*16, A);
+
+        #pragma unroll 
+        for( int j1=0;j1<16;j1++){
+                  #pragma unroll
+                  for( int y=0; y<blks; y++)
+                      Bxp[y]= Bb[j1][qot + y*16];
+                  #pragma unroll
+                  for( int y=0; y<blks; y++)
+                      Axs[y] =  Abs[res + y*16][j1] ;
+
+                  #pragma unroll 
+                  for( int x=0; x<blks; x++){
+                     #pragma unroll 
+                     for( int y=0; y<blks; y++){
+                         Cb[x*blks+y] += Axs[x]*Bxp[y];
+		     }
+		  }
+        }// j1 - loop
+            
+	__syncthreads();
+	#pragma unroll
+	for( int y=0; y<blks; y++)
+	    Abs[res + y*16][qot] = xxA[y]; 
+
+	#pragma unroll
+	for( int y=0; y<blks; y++)
+            Bb[qot][res+y*16] = xxB[y];
+
+	__syncthreads();
+     } 
+     while (B < Bend);
+
+     C += res + ibx +(qot + iby)*ldc;
+
+	#pragma unroll 
+        for(int j1=0; j1<16; j1++){
+                  #pragma unroll
+                  for( int y=0; y<blks; y++)
+                      Bxp[y] = Bb[j1][qot + y*16];
+
+                  #pragma unroll
+                  for( int y=0; y<blks; y++)
+                      Axs[y] =  Abs[res + y*16][j1] ;
+
+                  #pragma unroll 
+                  for( int x=0; x<blks; x++){
+                     #pragma unroll 
+                     for( int y=0;y<blks;y++){
+                         Cb[x*blks+y]  += Axs[x]*Bxp[y];
+		     }
+		  }
+        }// j1 - loop
+
+	#pragma unroll
+   	for( int y=0;y<blks;y++){
+	   #pragma unroll
+           for(int x=0; x<blks; x++){
+	       C[x*16] = alpha*Cb[y + x*blks] + beta * C[x*16];
+	   }
+	   
+	   C+=ldc*16;
+	}
+}
+
+//=================================================================================
+#if 0
+#include<stdio.h>
+#include "cublas.h"
+
+extern "C" void
+magmablas_fermi_sgemm(char TRANSA, char TRANSB, int m , int n , int k , float alpha, 
+                      const float *A, int lda, const float *B, int ldb, float beta, 
+                      float *C, int ldc ) 
+{
+
+        if (m<=0 || n<=0 || k<=0)
+           return;
+
+        if( m % (16*bx) !=0 || n% (16*by) !=0 || k% (16) !=0 )
+	{
+		printf("Dimension Should Be multiple of %d\n", 16*blks);
+		printf("Calling cublasSgemm\n");
+		cublasSgemm(TRANSA, TRANSB, m, n, k, alpha, A, lda, B,ldb, 
+                            beta, C, ldc);
+		return;
 	}
 
-    /*
-      #pragma unroll 16
-      for ( int i = 0; i < 16; i++, C += ldc) {
-      C[0] =alpha*Cb[i] + beta * C[0];
-      }
-    */
-
-}
-
-
-#if 0
-extern "C" void
-magmablas_fermi_sgemm_kernel_N_N_64_64_16_64_4(char TRANSA, char TRANSB, 
- int m , int n , int k , float alpha, float *A , int lda , 
-float *B, int ldb , float beta , float *C, int ldc ) 
-{
         dim3 threads( 64, 4 );
-        dim3 grid(m/64+(m%64!=0),n/64+(n%64!=0));
-        fermi_sgemm_kernel_N_N_64_64_16_64_4<<< grid, threads >>> ( C, A, B, m, n, k, lda , ldb , ldc , alpha , beta ) ;
+	dim3 grid(m/(16*bx)+(m%(16*bx)!=0),n/(16*by)+(n%(16*by)!=0));
+
+        if( TRANSB == 'T' || TRANSB == 't') 
+	  if( TRANSA == 'N' ||  TRANSA == 'n') 
+           fermiSgemm_v2_kernel_NT<<< grid, threads>>>(C, A, B, m, n, k, lda, ldb, 
+                                                       ldc, alpha, beta);
+	  else
+           fermiSgemm_v2_kernel_TT<<< grid, threads>>>(C, A, B, m, n, k, lda, ldb, 
+                                                       ldc, alpha, beta);
+        else
+	  if( TRANSA == 'N' || TRANSA == 'n') 
+           fermiSgemm_v2_kernel_NN<<< grid, threads>>>(C, A, B, m, n, k, lda, ldb, 
+                                                       ldc, alpha, beta);
+          else
+           fermiSgemm_v2_kernel_TN<<< grid, threads>>>(C, A, B, m, n, k, lda, ldb, 
+                                                       ldc, alpha, beta);
+
 }
 #endif
+//====================================================================================
 

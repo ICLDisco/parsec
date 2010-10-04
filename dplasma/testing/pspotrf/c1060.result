@@ -1,0 +1,25 @@
+#TIMED							SIZE TILE GFLOPS		#CONFIG
+### TIMED 0.010692 doing	Dague computation:	1000 128 31.1756 gflops		#3-2-2-1
+### TIMED 0.030683 doing	Dague computation:	2000 256 86.9101 gflops		#3-2-2-1
+### TIMED 0.059104 doing	Dague computation:	3000 256 152.274 gflops		#3-2-2-1
+### TIMED 0.111139 doing	Dague computation:	4000 320 191.952 gflops		#3-1-2-0
+### TIMED 0.179443 doing	Dague computation:	5000 320 232.2 gflops		#3-2-2-1
+### TIMED 0.270615 doing	Dague computation:	6000 320 266.061 gflops		#3-0-2-0
+### TIMED 0.414468 doing	Dague computation:	7000 384 275.856 gflops		#3-2-2-0
+### TIMED 0.542613 doing	Dague computation:	8000 384 314.527 gflops		#3-0-2-0
+### TIMED 0.759258 doing	Dague computation:	9000 384 320.049 gflops		#3-2-2-0
+### TIMED 1.051062 doing	Dague computation:	10000 384 317.14 gflops		#3-2-2-0
+### TIMED 1.291342 doing        Dague computation:      11000 384 343.57 gflops		#3-1-2-0
+### TIMED 1.680207 doing	Dague computation:	12000 448 342.815 gflops	#3-1-2-0
+### TIMED 2.076613 doing        Dague computation:      13000 384 352.658 gflops	#3-0-2-0
+### TIMED 2.658124 doing	Dague computation:	14000 384 344.102 gflops	#3-0-2-0
+### TIMED 3.264311 doing	Dague computation:	15000 448 344.636 gflops	#3-0-2-0
+### TIMED 3.766182 doing	Dague computation:	16000 640 362.525 gflops	#3-0-2-0
+### TIMED 4.588070 doing	Dague computation:	17000 448 356.94 gflops		#3-0-2-0
+### TIMED 5.491700 doing	Dague computation:	18000 384 353.989 gflops	#3-0-2-0
+### TIMED 6.466061 doing	Dague computation:	19000 960 353.59 gflops		#3-0-2-0
+### TIMED 7.412882 doing	Dague computation:	20000 960 359.734 gflops	#3-0-2-0
+### TIMED 8.529247 doing	Dague computation:	21000 960 361.931 gflops	#3-0-2-0
+### TIMED 9.419186 doing	Dague computation:	22000 960 376.82 gflops		#3-0-2-0
+### TIMED 10.758294 doing	Dague computation:	23000 960 376.98 gflops		#3-0-2-0
+### TIMED 11.912066 doing	Dague computation:	24000 960 386.835 gflops	#3-0-2-0
