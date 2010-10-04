@@ -297,7 +297,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
     while( !all_tasks_done(master_context) ) {
-
+#if defined(DISTRIBUTED)
+        if( eu_context->eu_id == 0)
+        {
+            int ret;
+            /* check for remote deps completion */
+            while((ret = dague_remote_dep_progress(eu_context)) > 0)  {
+                found_remote += ret;
+                misses_in_a_row = 0;
+            }
+        }
+#else
+        (void) found_remote;
+#endif /* DISTRIBUTED */
+        
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
@@ -323,21 +336,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 #if !defined(DAGUE_USE_GLOBAL_LIFO)
             miss_local++;
 #endif
-#if defined(DISTRIBUTED)
-            /* check for remote deps completion */
-            if(dague_remote_dep_progress(eu_context) > 0)  {
-                found_remote++;
-                
-                exec_context = choose_local_job(eu_context);
-                
-                if( NULL != exec_context ) {
-                    misses_in_a_row = 0;
-                    goto do_some_work;
-                }
-            }
-#else
-            (void) found_remote;
-#endif /* DISTRIBUTED */
 
 #if !defined(DAGUE_USE_GLOBAL_LIFO)
             /* Work stealing from the other workers */

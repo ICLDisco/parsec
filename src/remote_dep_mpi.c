@@ -13,7 +13,7 @@
 #include "freelist.h"
 #include "arena.h"
 
-#define DAGUE_REMOTE_DEP_USE_THREADS
+#undef DAGUE_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
 
 static int remote_dep_mpi_init(dague_context_t* context);
@@ -29,24 +29,34 @@ static int remote_dep_nothread_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
 static int remote_dep_nothread_memcpy(void *dst, void *src, const dague_remote_dep_datatype_t datatype);
 
-#ifdef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(dague_context_t* context);
 static int remote_dep_dequeue_fini(dague_context_t* context);
 static int remote_dep_dequeue_on(dague_context_t* context);
 static int remote_dep_dequeue_off(dague_context_t* context);
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
 static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);
+
+
+
+#ifdef DAGUE_REMOTE_DEP_USE_THREADS
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
-#   define remote_dep_progress(ctx) remote_dep_dequeue_progress(ctx)
+#   define remote_dep_progress(ctx) 0 
 #   define remote_dep_release(ctx, deps) remote_dep_nothread_release(ctx, deps)
 #   define remote_dep_get_datatypes(deps) remote_dep_nothread_get_datatypes(deps)
 
 #else
-/* TODO */
+#   define remote_dep_init(ctx) remote_dep_dequeue_nothread_init(ctx)
+#   define remote_dep_fini(ctx) remote_dep_dequeue_nothread_fini(ctx)
+#   define remote_dep_on(ctx)   remote_dep_mpi_on(ctx)
+#   define remote_dep_off(ctx)  remote_dep_mpi_off(ctx)
+#   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
+#   define remote_dep_progress(ctx) remote_dep_dequeue_nothread_progress_one(ctx)
+#   define remote_dep_release(ctx, deps) remote_dep_nothread_release(ctx, deps)
+#   define remote_dep_get_datatypes(deps) remote_dep_nothread_get_datatypes(deps)
 #endif 
 
 
@@ -144,6 +154,22 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     return np;
 }
 
+static int remote_dep_dequeue_nothread_init(dague_context_t* context)
+{
+    dague_dequeue_construct(&dep_cmd_queue);
+    dague_dequeue_construct(&dep_activate_queue);
+
+    MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
+    remote_dep_mpi_init(context);
+    return np;
+}
+
+static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
+{
+    remote_dep_mpi_fini(context);
+    return 0;
+}
+
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
     if(1 < context->nb_nodes)
@@ -231,31 +257,30 @@ void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_d
 #define YIELD_TIME 5000
 #include "bindthread.h"
 
-static void* remote_dep_dequeue_main(dague_context_t* context)
+static int do_nano = 0;
+static int keep_probing = 1;
+
+static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_context)
 {
-    int keep_probing = 1;
-    struct timespec ts;
     dep_cmd_item_t* item;
     int ctl;
-    int do_nano = 0;
+    int ret = 0;
     
-    ctl = dague_bindthread(context->nb_cores);
-    printf("MPI bound to core %d\n", ctl);
-    if(ctl != context->nb_cores) do_nano = 1; 
-    np = remote_dep_mpi_init(context);
-    
-    ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
-
-    do {
-        while(NULL == (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)))
+    if(NULL == (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)))
+    {
+        if(dep_enabled)
         {
-            if(dep_enabled)
-            {
-                remote_dep_mpi_progress(context->execution_units[0]);
-            }
-            if(do_nano) nanosleep(&ts, NULL);
+            ret = remote_dep_mpi_progress(eu_context);
         }
-
+        if(do_nano && !ret) 
+        {
+            struct timespec ts;
+            ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
+            nanosleep(&ts, NULL);
+        }
+    }
+    else
+    {
         switch(item->action)
         {
             case DEP_ACTIVATE:
@@ -270,11 +295,11 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
                 }
                 if(0 == ctl)
                 {
-                    remote_dep_mpi_off(context);
+                    remote_dep_mpi_off(eu_context->master_context);
                 }
                 if(1 == ctl)
                 {
-                    remote_dep_mpi_on(context);
+                    remote_dep_mpi_on(eu_context->master_context);
                 }
                 break;
             case DEP_MEMCPY:
@@ -286,6 +311,23 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
                 break;
         }
         free(item);
+        ret += 1;
+    }
+    return ret;
+}
+
+static void* remote_dep_dequeue_main(dague_context_t* context)
+{
+    
+    int ctl = -1;
+
+    ctl = dague_bindthread(context->nb_cores);
+    printf("MPI bound to core %d\n", ctl);
+    if(ctl != context->nb_cores) do_nano = 1; 
+    np = remote_dep_mpi_init(context);
+
+    do {
+        remote_dep_dequeue_nothread_progress_one(context->execution_units[0]);
     } while(keep_probing);
     
     remote_dep_mpi_fini(context);
