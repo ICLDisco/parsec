@@ -13,7 +13,7 @@
 #include "freelist.h"
 #include "arena.h"
 
-#undef DAGUE_REMOTE_DEP_USE_THREADS
+#define DAGUE_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
 
 static int remote_dep_mpi_init(dague_context_t* context);
