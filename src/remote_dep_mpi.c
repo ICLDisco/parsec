@@ -29,26 +29,26 @@ static int remote_dep_nothread_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_nothread_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
 static int remote_dep_nothread_memcpy(void *dst, void *src, const dague_remote_dep_datatype_t datatype);
 
+static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
+#ifdef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(dague_context_t* context);
 static int remote_dep_dequeue_fini(dague_context_t* context);
 static int remote_dep_dequeue_on(dague_context_t* context);
 static int remote_dep_dequeue_off(dague_context_t* context);
-static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
-static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);
-
-
-
-#ifdef DAGUE_REMOTE_DEP_USE_THREADS
+/*static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context);*/
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
-#   define remote_dep_progress(ctx) 0 
+#   define remote_dep_progress(ctx) ((void)ctx,0) 
 #   define remote_dep_release(ctx, deps) remote_dep_nothread_release(ctx, deps)
 #   define remote_dep_get_datatypes(deps) remote_dep_nothread_get_datatypes(deps)
 
 #else
+static int remote_dep_dequeue_nothread_init(dague_context_t* context);
+static int remote_dep_dequeue_nothread_dini(dague_context_t* context);
+static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_context);
 #   define remote_dep_init(ctx) remote_dep_dequeue_nothread_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_nothread_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_mpi_on(ctx)
@@ -154,6 +154,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     return np;
 }
 
+#ifndef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_nothread_init(dague_context_t* context)
 {
     dague_dequeue_construct(&dep_cmd_queue);
@@ -169,6 +170,7 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
     remote_dep_mpi_fini(context);
     return 0;
 }
+#endif
 
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
@@ -227,6 +229,7 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     return 1;
 }
 
+#if 0 /* This is probably useless, keep it for now until it is clear what needs to happen to this */
 static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context)
 {
     dep_cmd_item_t* item;
@@ -241,6 +244,7 @@ static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context)
     }
     return 0;
 }
+#endif
 
 void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_dep_datatype_t datatype)
 {
