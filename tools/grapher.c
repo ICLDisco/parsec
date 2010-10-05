@@ -3,247 +3,225 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dplasma_config.h"
-#include "dplasma.h"
-#include "scheduling.h"
+#include "dague_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <stdarg.h>
 
-char *yyfilename;
-extern FILE* __dplasma_graph_file;
+#include "dague.h"
+#include "data_distribution.h"
 
-extern int yyparse();
-extern int dplasma_lineno;
+#define MAX_TASK_STRLEN 1024
 
-static int generate_dots = 1;
-
-static int generic_hook( dplasma_execution_unit_t* eu_context,
-                         dplasma_execution_context_t* exec_context )
+static uint32_t pseudo_rank_of(struct dague_ddesc *mat, ...)
 {
-    char tmp[128];
-    if( generate_dots ) {
-        char* color;
-        
-        if(0 == strcmp(exec_context->function->name, "DGEQRT") ) {
-            color = "#4488AA";
-        } else if(0 == strcmp(exec_context->function->name, "DTSQRT") ) {
-            color = "#CC99EE";
-        } else if(0 == strcmp(exec_context->function->name, "DORMQR") ) {
-            color = "#99CCFF";
-        } else if(0 == strcmp(exec_context->function->name, "DSSMQR") ) {
-            color = "#CCFF00";
-        } else if(0 == strcmp(exec_context->function->name, "POTRF") ) {
-            color = "#4488AA";
-        } else if(0 == strcmp(exec_context->function->name, "SYRK") ) {
-            color = "#CC99EE";
-        } else if(0 == strcmp(exec_context->function->name, "TRSM") ) {
-            color = "#99CCFF";
-        } else if(0 == strcmp(exec_context->function->name, "GEMM") ) {
-            color = "#CCFF00";
-        } else {
-            color = "#FFFFFF";
-        }
-        dplasma_service_to_string(exec_context, tmp, 128);
-        fprintf( __dplasma_graph_file, "%s [style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\"];\n",
-                 tmp, color, tmp );
-    } else {
-        printf("Execute %s\n", dplasma_service_to_string(exec_context, tmp, 128));
-    }
-    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    va_list ap;
+    va_start(ap, mat);
+    va_end(ap);
+    return 0;
 }
 
-static int generic_release_dependencies(dplasma_execution_unit_t *eu_context,
-                                        const dplasma_execution_context_t *exec_context,
-                                        int action_mask,
-                                        struct dplasma_remote_deps_t* upstream_remote_deps)
+static void *pseudo_data_of(struct dague_ddesc *mat, ...)
 {
-    char tmp[128];
-    dplasma_service_to_string(exec_context, tmp, 128);
-
-    fprintf( __dplasma_graph_file, "RELEASE deps for %s\n", tmp );
-    return dplasma_trigger_dependencies( eu_context, exec_context, 1 );
+    va_list ap;
+    va_start(ap, mat);
+    va_end(ap);
+    return NULL;
 }
 
-/**
- * This function generate all possible execution context for a given function with
- * respect to the predicates.
+static dague_ddesc_t pseudo_desc = {
+    .myrank = 0,
+    .cores = 1,
+    .nodes = 1,
+    .rank_of = pseudo_rank_of,
+    .data_of = pseudo_data_of,
+};
+
+typedef struct {
+    const char *command_name;
+    dague_object_t *(*create_function)(int argc, char **argv);
+} create_function_t;
+
+#define TEST_SET(fname, vname) do {                                     \
+        if( 0 == vname##_set ) {                                        \
+            fprintf(stderr, fname ": unable to create this function, "  \
+                    #vname" is not set\n");                             \
+            allset = 0;                                                \
+        }                                                               \
+    }while(0)
+#define TRY_SET(vname) do {                     \
+        if( !strcmp(argv[i], #vname) ) {        \
+            vname = atoi(argv[i+1]);            \
+            vname##_set = 1;                    \
+        }                                       \
+    } while(0)
+/*
+ * The following file is auto generated with the
+ * grapher_create_objects.sh script. It defines an array
+ * create_functions of NB_CREATE_FUNCTIONS create_function_t, and the
+ * value of NB_CREATE_FUNCTIONS. It uses the TEST_SET and TRY_SET 
+ * macros.
  */
-int dplasma_find_start_values( dplasma_execution_context_t* exec_context, int use_predicates, int jump_to_next )
+#include "grapher_create_objects.c"
+
+typedef struct vertex_list_t {
+    struct vertex_list_t *next;
+    char                 *value;
+} vertex_list_t;
+
+typedef struct edge_list_t {
+    const vertex_list_t *from;
+    const vertex_list_t *to;
+    struct edge_list_t *next;
+} edge_list_t;
+
+static vertex_list_t *vertices = NULL;
+static edge_list_t *edges = NULL;
+
+static vertex_list_t *lookup_create_vertex(const char *name)
 {
-    const expr_t** predicates = (const expr_t**)exec_context->function->preds;
-    const dplasma_t* object = exec_context->function;
-    int rc, actual_loop;
-
-    DEBUG(( "Function %s (loops %d)\n", object->name, object->nb_locals ));
-    if( 0 == object->nb_locals ) {
-        /* special case for the IN/OUT obejcts */
-        return 0;
+    vertex_list_t *v, *p;
+    
+    p = NULL;
+    for(v = vertices; NULL != v; v = v->next) {
+        if( !strcmp(v->value, name) )
+            return v;
+        p = v;
     }
 
-    /* Clear the predicates if not needed */
-    if( !use_predicates ) predicates = NULL;
+    v = (vertex_list_t*)calloc(1, sizeof(vertex_list_t));
+    v->value = strdup(name);
+    if( NULL == p )
+        vertices = v;
+    else
+        p->next = v;
+    return v;
+}
 
-    actual_loop = object->nb_locals - 1;
+static edge_list_t *lookup_create_edge(const vertex_list_t *from, const vertex_list_t *to)
+{
+    edge_list_t *e, *p;
 
-    if( jump_to_next )
-        goto find_next_value;
-
-    while(1) {
-        int value;
-
-        /* If this can be the starting point task return */
-        rc = dplasma_service_can_be_startup( exec_context );
-        if( rc == 0 )
-            return 0;
-
-      find_next_value:
-        /* Go to the next valid value for this loop context */
-        rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
-                                            exec_context->locals, &value );
-
-        /* If no more valid values, go to the previous loop,
-         * compute the next valid value and redo and reinitialize all other loops.
-         */
-        if( rc != EXPR_SUCCESS ) {
-            int current_loop = actual_loop;
-        one_loop_up:
-            DEBUG(("Loop index %d based on %s failed to get next value. Going up ...\n",
-                   actual_loop, object->locals[actual_loop]->name));
-            if( 0 == actual_loop ) {  /* we're done */
-                goto end_of_all_loops;
-            }
-            actual_loop--;  /* one level up */
-            rc = dplasma_symbol_get_next_value( object->locals[actual_loop], predicates,
-                                                exec_context->locals, &value );
-            if( rc != EXPR_SUCCESS ) {
-                goto one_loop_up;
-            }
-            DEBUG(("Keep going on the loop level %d (symbol %s value %d)\n", actual_loop,
-                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            for( actual_loop++; actual_loop <= current_loop; actual_loop++ ) {
-                rc = dplasma_symbol_get_first_value(object->locals[actual_loop], predicates,
-                                                    exec_context->locals, &value );
-                if( rc != EXPR_SUCCESS ) {  /* no values for this symbol in this context */
-                    goto one_loop_up;
-                }
-                DEBUG(("Loop index %d based on %s get first value %d\n", actual_loop,
-                       object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-            }
-            actual_loop = current_loop;  /* go back to the original loop */
-        } else {
-            DEBUG(("Loop index %d based on %s get next value %d\n", actual_loop,
-                   object->locals[actual_loop]->name, exec_context->locals[actual_loop].value));
-        }
+    p = NULL;
+    for(e = edges; NULL != e; e = e->next) {
+        if( e->from == from && e->to == to )
+            return e;
+        p = e;
     }
- end_of_all_loops:
 
-    return -1;
+    e = (edge_list_t*)calloc(1, sizeof(edge_list_t));
+    e->from = from;
+    e->to = to;
+    if( NULL == p )
+        edges = e;
+    else
+        p->next = e;
+    return e;
+}
+
+static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu, 
+                                              dague_execution_context_t *newcontext, 
+                                              dague_execution_context_t *oldcontext, 
+                                              int param_index, int outdep_index, 
+                                              int rank_src, int rank_dst,
+                                              void *param)
+{
+    char fromstr[MAX_TASK_STRLEN];
+    char tostr[MAX_TASK_STRLEN];
+    vertex_list_t *from;
+    vertex_list_t *to;
+
+    (void)eu;
+    (void)param_index;
+    (void)outdep_index;
+    (void)rank_src;
+    (void)rank_dst;
+    (void)param;
+
+    dague_service_to_string(oldcontext, fromstr, MAX_TASK_STRLEN);
+    dague_service_to_string(newcontext, tostr, MAX_TASK_STRLEN);
+    
+    from = lookup_create_vertex(fromstr);
+    to = lookup_create_vertex(tostr);
+    lookup_create_edge(from, to);
+
+    newcontext->function->iterate_successors(eu, newcontext, ontask_function, NULL);
+
+    return DAGUE_ITERATE_CONTINUE;
+}
+
+static int dump_graph(const char *filename)
+{
+    FILE *f;
+    vertex_list_t *v;
+    edge_list_t *e;
+    
+    f = fopen(filename, "w");
+    if( NULL == f ) {
+        fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
+        return -1;
+    }
+
+    fprintf(f, "digraph {\n");
+    for(v = vertices; NULL != v; v = v->next) {
+        fprintf(f, "  V%p [label=\"%s\"];\n",
+                v, v->value);
+    }
+    fprintf(f, "\n");
+    for(e = edges; NULL != e; e = e->next) {
+        fprintf(f, "  V%p -> V%p;\n", e->from, e->to);
+    }
+    fprintf(f, "}\n");
+    fclose(f);
+    return 0;
 }
 
 int main(int argc, char *argv[])
 {
-    dplasma_context_t* dplasma;
-    int total_nb_tasks = 0;
+    int i;
+    dague_object_t *o;
+    dague_execution_context_t *startup;
+    dague_list_item_t *s;
+    dague_context_t *dague;
 
-    yyfilename = strdup("(stdin)");
-    dplasma_lineno = 1;
-	yyparse();
-
-    /*symbol_dump_all("");*/
-    /*dplasma_dump_all();*/
-
-    dplasma = dplasma_init(1, &argc, &argv, 0);
-
-    __dplasma_graph_file = stdout;
-    /* If arguments are provided then they are supposed to initialize some of the
-     * global symbols. Try to do so ...
-     */
-    if( argc > 0 ) {
-        int i, j, nb_syms = dplasma_symbol_get_count();
-        const symbol_t* symbol;
-
-        for( i = 1; i < argc; i += 2 ) {
-            for( j = 0; j < nb_syms; j++ ) {
-                symbol = dplasma_symbol_get_element_at(j);
-                if( 0 == strcmp(argv[i], symbol->name) ) {
-                    expr_t* constant;
-
-                    constant = expr_new_int( atoi(argv[i+1]) );
-                    dplasma_assign_global_symbol( symbol->name, constant );
-                    break;
-                }
-            }
+    o = NULL;
+    dague = dague_init( 1, &argc, &argv, 1 );
+    for(i = 0; i < NB_CREATE_FUNCTIONS; i++) {
+        if( !strcmp( create_functions[i].command_name, argv[1]) ) {
+            o = create_functions[i].create_function(argc-2, argv+2);
+            break;
         }
     }
 
-    /* Make sure all symbols are correctly initialized */
-    {
-        const symbol_t* symbol;
-        int i = dplasma_symbol_get_count();
-        int uninitialized_symbols = 0;
-
-        for( --i; i >= 0; i-- ) {
-            symbol = dplasma_symbol_get_element_at(i);
-            if( (NULL == symbol->min) || (NULL == symbol->max) ) {
-                printf( "Symbol %s is not initialized\n", symbol->name );
-                uninitialized_symbols++;
+    if( o == NULL ) {
+        if(i == NB_CREATE_FUNCTIONS) {
+            fprintf(stderr, "Error: unable to find the function '%s'. You must choose between:\n",
+                    argv[1]);
+            for(i = 0; i < NB_CREATE_FUNCTIONS; i++) {
+                fprintf(stderr, "  %s\n", create_functions[i].command_name);
             }
         }
-        if( uninitialized_symbols ) {
-            printf( "We cannot generate the dependencies graph if there are uninitialized symbols\n" );
-            exit(-1);
-        }
+        return 1;
     }
 
-    /* Setup generic hook for all services */
-    {
-        dplasma_t* object;
-        int i, j;
-        for( i = 0; NULL != (object = (dplasma_t*)dplasma_element_at(i)); i++ ) {
-            object->hook = generic_hook;
-            object->release_deps = generic_release_dependencies;
-            for( j = 0; j < MAX_PRED_COUNT; j++ ) {
-                object->preds[j] = NULL;
-            }
-            total_nb_tasks += dplasma_compute_nb_tasks( object, 1 );
-        }
-        // dplasma_register_nb_tasks is waiting an unsigned int.
-        // problem arise with -1...
-        if ( total_nb_tasks < 0 ) {
-            fprintf( stderr, "Error during task generation, aborting" );
-            exit( 1 );
-        }
-        dplasma_register_nb_tasks(dplasma, total_nb_tasks);
-    }
+    o->startup_hook( dague->execution_units[0], o, &startup );
+    s = (dague_list_item_t*)startup;
+    do {
+        char fromstr[MAX_TASK_STRLEN];
+        dague_service_to_string((dague_execution_context_t*)s, fromstr, MAX_TASK_STRLEN);
+        lookup_create_vertex(fromstr);
+        s = (dague_list_item_t*)s->list_next;
+    } while( s != (dague_list_item_t*)startup );
 
-    {
-        dplasma_execution_context_t exec_context;
-        int i = 0, rc, first_task;
+    s = (dague_list_item_t*)startup;
+    do {
+        ((dague_execution_context_t*)s)->function->iterate_successors(dague->execution_units[0], (dague_execution_context_t*)s, ontask_function, NULL);
+        s = (dague_list_item_t*)s->list_next;
+    } while( s!= (dague_list_item_t*)startup );
 
-        for( i = 0; ; i++ ) {
-            memset(&exec_context, 0, sizeof(dplasma_execution_context_t));
-            exec_context.function = (dplasma_t*)dplasma_element_at(i);
-            if( NULL == exec_context.function ) {
-                break;
-            }
-            if( 0 == exec_context.function->nb_locals ) {
-                continue;
-            }
-            dplasma_set_initial_execution_context(&exec_context);
-            first_task = 0;
-            do {
-                rc = dplasma_find_start_values( &exec_context, 0, first_task );
-                if( rc == 0 ) {
-                    dplasma_schedule(dplasma, &exec_context);
-                    first_task = 1;
-                }
-            } while(rc != -1);
-        }
-    }
-    dplasma_progress(dplasma);
-
-    dplasma_fini(&dplasma);
+    dump_graph("grapher.dot");
 
     return 0;
 }

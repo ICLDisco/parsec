@@ -6,7 +6,7 @@ extern "C" %{
 #include <core_sblas.h>
 
 extern int uplo;
-int PLASMA_INFO = 0;
+static int PLASMA_INFO = 0;
 
 #include "dague.h"
 

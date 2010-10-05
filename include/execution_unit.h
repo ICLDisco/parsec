@@ -14,6 +14,7 @@
 typedef struct dague_context_t dague_context_t;
 typedef struct dague_execution_unit dague_execution_unit_t;
 
+#include <pthread.h>
 #include "hbbuffer.h"
 #include "mempool.h"
 #include "dequeue.h"

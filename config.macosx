@@ -14,7 +14,8 @@ else
 	MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_CUDA=OFF"
 fi
 elif [ "x$USER" == "xherault" ]; then
-	PLASMA_DIR=/Users/herault/Documents/Recherche/dplasma/plasma
+	PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma
+	MY_OPTS="-DHWLOC_DIR=/opt/local"
 elif [ "x$USER" == "xbosilca" ]; then 
 	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
 	PLASMA_DIR=${HOME}/opt/plasma-svn

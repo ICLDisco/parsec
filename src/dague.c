@@ -410,95 +410,97 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
         argc = (*pargc) - index;
     }
 
-    optind = 1;
-    do {
-        int ret;
+    if( argv != NULL ) {
+        optind = 1;
+        do {
+            int ret;
 #if defined(HAVE_GETOPT_LONG)
-        int option_index = 0;
-        
-        ret = getopt_long (argc, argv, "d:p:b:",
-                           long_options, &option_index);
+            int option_index = 0;
+            
+            ret = getopt_long (argc, argv, "d:p:b:",
+                               long_options, &option_index);
 #else
-        ret = getopt (argc, argv, "d:p:b:");
+            ret = getopt (argc, argv, "d:p:b:");
 #endif  /* defined(HAVE_GETOPT_LONG) */
-        if( -1 == ret ) break;  /* we're done */
-
-        switch(ret) {
-        case 'd':
-            if( NULL == __dague_graph_file ) {
-                int len = strlen(optarg) + 32;
-                char filename[len];
+            if( -1 == ret ) break;  /* we're done */
+            
+            switch(ret) {
+            case 'd':
+                if( NULL == __dague_graph_file ) {
+                    int len = strlen(optarg) + 32;
+                    char filename[len];
 #if defined(DISTRIBUTED) && defined(USE_MPI)
-                int rank;
-                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-                snprintf(filename, len, "%s%d", optarg, rank);
+                    int rank;
+                    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                    snprintf(filename, len, "%s%d", optarg, rank);
 #else
-                snprintf(filename, len, "%s", optarg);
+                    snprintf(filename, len, "%s", optarg);
 #endif
-                __dague_graph_file = fopen( filename, "w");
-            }
-            break;
-        case 'b':
-            {
-                char* option = strdup(optarg);
-                char* position;
-                if( NULL != (position = strchr(option, ':')) ) {
-                    /* range expression such as [start]:[end]:[step] */
-                    int start = 0, end, step = 1;
-                    if( position != option ) {  /* we have a starting position */
-                        start = strtol(option, NULL, 10);
-                    }
-                    end = start + nb_cores;  /* automatically compute the end */
-                    position++;  /* skip the : */
-                    if( '\0' != position[0] ) {
-                        if( ':' != position[0] ) {
-                            end = strtol(position, &position, 10);
-                            position = strchr(position, ':');  /* find the step */
+                    __dague_graph_file = fopen( filename, "w");
+                }
+                break;
+            case 'b':
+                {
+                    char* option = strdup(optarg);
+                    char* position;
+                    if( NULL != (position = strchr(option, ':')) ) {
+                        /* range expression such as [start]:[end]:[step] */
+                        int start = 0, end, step = 1;
+                        if( position != option ) {  /* we have a starting position */
+                            start = strtol(option, NULL, 10);
                         }
-                        if( NULL != position ) position++;  /* skip the : directly into the step */
-                        if( (NULL != position) && ('\0' != position[0]) ) {
-                            step = strtol(position, NULL, 10);
+                        end = start + nb_cores;  /* automatically compute the end */
+                        position++;  /* skip the : */
+                        if( '\0' != position[0] ) {
+                            if( ':' != position[0] ) {
+                                end = strtol(position, &position, 10);
+                                position = strchr(position, ':');  /* find the step */
+                            }
+                            if( NULL != position ) position++;  /* skip the : directly into the step */
+                            if( (NULL != position) && ('\0' != position[0]) ) {
+                                step = strtol(position, NULL, 10);
+                            }
                         }
-                    }
-                    DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
-                    {
-                        int where = start, skip = 1;
-                        for( i = 0; i < nb_cores; i++ ) {
-                            startup[i].bindto = where;
-                            where += step;
-                            if( where >= end ) {
-                                where = start + skip;
-                                skip++;
-                                if( (skip > step) && (i < (nb_cores - 1))) {
-                                    printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
-                                    break;
+                        DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
+                        {
+                            int where = start, skip = 1;
+                            for( i = 0; i < nb_cores; i++ ) {
+                                startup[i].bindto = where;
+                                where += step;
+                                if( where >= end ) {
+                                    where = start + skip;
+                                    skip++;
+                                    if( (skip > step) && (i < (nb_cores - 1))) {
+                                        printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
+                                        break;
+                                    }
                                 }
                             }
                         }
-                    }
-                } else {
-                    i = 0;
-                    /* array of cores c1,c2,... */
-                    position = option;
-                    while( NULL != position ) {
-                        /* We have more information than the number of cores. Ignore it! */
-                        if( i == nb_cores ) break;
-                        startup[i].bindto = strtol(position, &position, 10);
-                        i++;
-                        if( (',' != position[0]) || ('\0' == position[0]) ) {
-                            break;
+                    } else {
+                        i = 0;
+                        /* array of cores c1,c2,... */
+                        position = option;
+                        while( NULL != position ) {
+                            /* We have more information than the number of cores. Ignore it! */
+                            if( i == nb_cores ) break;
+                            startup[i].bindto = strtol(position, &position, 10);
+                            i++;
+                            if( (',' != position[0]) || ('\0' == position[0]) ) {
+                                break;
+                            }
+                            position++;
                         }
-                        position++;
+                        if( i < nb_cores ) {
+                            printf( "Based on the information provided to --bind some threads are not binded\n" );
+                        }
                     }
-                    if( i < nb_cores ) {
-                        printf( "Based on the information provided to --bind some threads are not binded\n" );
-                    }
+                    free(option);
                 }
-                free(option);
+                break;
             }
-            break;
-        }
-    } while(1);
+        } while(1);
+    }
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_cores );
@@ -696,10 +698,12 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
     index += snprintf( tmp + index, length - index, "%s", function->name );
     if( index >= length ) return tmp;
     for( i = 0; i < function->nb_locals; i++ ) {
-        index += snprintf( tmp + index, length - index, "_%d",
+        index += snprintf( tmp + index, length - index, "%s%d",
+                           (i == 0) ? "(" : ", ",
                            exec_context->locals[i].value );
         if( index >= length ) return tmp;
     }
+    index += snprintf(tmp + index, length - index, ")");
 
     return tmp;
 }
