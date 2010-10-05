@@ -486,11 +486,7 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     int grid_width, grid_height;
     float alpha = -1.0, beta = 1.0;
     int offset;
-    int m, n, k;
 
-    k = exec_context->locals[0].value;
-    m = exec_context->locals[1].value;
-    n = exec_context->locals[2].value;
     gpu_elem_A = (gpu_elem_t *)exec_context->data[0].gpu_data;
     gpu_elem_B = (gpu_elem_t *)exec_context->data[1].gpu_data;
     gpu_elem_C = (gpu_elem_t *)exec_context->data[2].gpu_data;
@@ -559,7 +555,7 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
     int n, k, m;
 
     k = exec_context->locals[0].value;
-    m = exec_context->locals[1].value;
+    m = exec_context->locals[1].value; (void)m;
     n = exec_context->locals[2].value;
 
     gpu_elem_C = (gpu_elem_t *)exec_context->data[2].gpu_data;
