@@ -1,10 +1,11 @@
 set(JDF
   gemm_NN.jdf gemm_TN.jdf gemm_NT.jdf gemm_TT.jdf
   trsm_LLN.jdf trsm_LLT.jdf trsm_LUN.jdf trsm_LUT.jdf trsm_RLN.jdf trsm_RLT.jdf trsm_RUN.jdf trsm_RUT.jdf
+  trmm_LLN.jdf trmm_LLT.jdf trmm_LUN.jdf trmm_LUT.jdf trmm_RLN.jdf trmm_RLT.jdf trmm_RUN.jdf trmm_RUT.jdf
   )
 
 set(SOURCES
-  trsm.c gemm.c
+  trsm.c gemm.c trmm.c
 )
 
 set( OLDSRC 

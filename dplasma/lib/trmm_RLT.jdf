@@ -1,0 +1,119 @@
+extern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   */
+  
+#include <plasma.h>
+#include <core_blas.h>
+#include "dague.h"
+#include "remote_dep.h"
+#include "data_dist/data_distribution.h"
+#include "dplasmatypes.h"
+
+%}
+
+/* Globals
+ * GRIDrows, GRIDcols, NB, SIZE
+ */
+Amb  [int]
+Anb  [int]
+Amt  [int]
+Ant  [int]
+Am   [int]
+An   [int]
+
+Bmb  [int]
+Bnb  [int]
+Bmt  [int]
+Bnt  [int]
+Bm   [int]
+Bn   [int]
+     
+side [int]
+uplo [int]
+trans[int]
+diag [int]
+
+alpha[TYPENAME]
+
+/**************************************************
+ *                      TRSM                      *
+ **************************************************/
+TRSM(m, k)
+
+// Execution space
+k = 0..Bnt-1
+m = 0..Bmt-1
+
+// Parallel partitioning
+: B(m,k)
+
+// Parameters
+READ  A <- A(k,k)
+RW    B <- (k == 0) ? B(m, 0) : C GEMM(k-1, m, k)
+        -> B GEMM(k, m, k+1..Bnt-1)
+        -> B(m, k)
+
+BODY
+      CORE(
+	   trsm, (
+			PlasmaRight, PlasmaLower, trans, diag,
+			m == Bmt-1 ? Bm - m * Bmb : Bmb,
+			k == Bnt-1 ? Bn - k * Bnb : Bnb,
+			alpha, A /*A(k, k)*/, Amb,
+                               B /*B(m, k)*/, Bmb)
+	   );
+
+      OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, "PlasmaRight", "PlasmaLower", "Trans/ConjTrans", "PlasmaNonUnit",
+	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
+	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
+	       alpha, k, k, A /*A(k, k)*/, Amb,
+                      m, k, B /*B(m. k)*/, Bmb)
+	      );
+END
+
+/**************************************************
+ *                      GEMM                      *
+ **************************************************/
+// Name
+GEMM(k, m, n)
+
+// Execution space
+k = 0..Bnt-1
+m = 0..Bmt-1
+n = k+1..Bnt-1
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+READ  A <- A(n, k)
+READ  B <- B TRSM(m, k)
+RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
+        -> (k+1 == n) ? B TRSM(m, n) : C GEMM(k+1, m, n)
+
+BODY
+
+      TYPENAME minvalpha  = (TYPENAME)-1.0 / alpha;
+      CORE(
+	   gemm, (
+			trans, PlasmaNoTrans,
+			m == Bmt-1 ? Bm-m*Bmb : Bmb,
+			n == Bnt-1 ? Bn-n*Bnb : Bnb,
+			Bmb,
+			minvalpha,   B /* B(m, k)*/ , Bmb,
+			             A /* A(n, k)*/ , Amb,
+			(TYPENAME)1.0, C /* B(m, n)*/ , Bmb)
+	   );
+
+      OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, "PlasmaNoTrans", "PlasmaNoTrans", 
+	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
+	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
+	       Bmb,
+	       minvalpha,   m, k, B, Bmb,
+                            n, k, A, Amb,
+	       (TYPENAME)1.0, m, n, C, Bmb)
+	      );
+END

@@ -1,0 +1,117 @@
+extern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   */
+  
+#include <plasma.h>
+#include <core_blas.h>
+#include "dague.h"
+#include "remote_dep.h"
+#include "data_dist/data_distribution.h"
+#include "dplasmatypes.h"
+
+%}
+
+/* Globals
+ * GRIDrows, GRIDcols, NB, SIZE
+ */
+Amb  [int]
+Anb  [int]
+Amt  [int]
+Ant  [int]
+Am   [int]
+An   [int]
+
+Bmb  [int]
+Bnb  [int]
+Bmt  [int]
+Bnt  [int]
+Bm   [int]
+Bn   [int]
+     
+side [int]
+uplo [int]
+trans[int]
+diag [int]
+
+alpha[TYPENAME]
+
+/**************************************************
+ *                      TRMM                      *
+ **************************************************/
+TRMM(m, n)
+
+// Execution space
+m = 0..Bmt-1
+n = 0..Bnt-1
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+READ  A <- A(m, m)
+RW    B <- B(m, n)
+        -> C GEMM(m, n, 0)
+        -> B(m, n)
+
+BODY
+      CORE(
+	   trmm, (
+		  side, uplo, trans, diag,
+		  m == Bmt-1 ? Bm - m * Bmb : Bmb,
+		  n == Bnt-1 ? Bn - n * Bnb : Bnb,
+		  alpha, A /*A(k, k)*/, Amb,
+		         B /*B(k, n)*/, Bmb)
+	   );
+
+      OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, "PlasmaRight", "PlasmaUpper", "Trans/ConjTrans", "PlasmaNonUnit",
+	       k == Bmt-1 ? Bm - k * Bmb : Bmb,
+	       n == Bnt-1 ? Bn - n * Bnb : Bnb,
+	       lalpha, k, k, A /*A(k, k)*/, Amb,
+	               k, n, B /*B(k, n)*/, Bmb)
+	      );
+END
+
+/**************************************************
+ *                      GEMM                      *
+ **************************************************/
+// Name
+GEMM(m, n, k)
+
+// Execution space
+m = 0..Bmt-1
+n = 0..Bnt-1
+k = m+1..Bmt-1
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+READ  A <- A(m, k)
+READ  B <- B(k, n) 
+RW    C <- (k == 0) ? B TRMM(m, n) : C GEMM(m, n, k-1)
+        -> (k == Bmt-1) ? B(m, n) : C GEMM(m, n, k+1)
+
+BODY
+      CORE(
+	   gemm, (
+		  trans, PlasmaNoTrans,
+		  m == Bmt-1 ? Bm-m*Bmb : Bmb,
+		  n == Bnt-1 ? Bn-n*Bnb : Bnb,
+		  k == Ant-1 ? An-k*Anb : Anb,
+		  alpha, A, Bmb,
+		         B, Bmb,
+		  (TYPENAME)1.0,  C, Bmb)
+	   );
+
+      OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, "Trans/ConjTrans", "PlasmaNoTrans", 
+	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
+	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
+	       Bmb,
+	       (TYPENAME)-1.0, k, m, A, Amb,
+                             k, n, B, Bmb,
+	       lalpha,       m, n, C, Bmb)
+	      );
+END
