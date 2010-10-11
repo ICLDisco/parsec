@@ -95,7 +95,7 @@ static dague_context_t *setup_tsqr( int* pargc
             , count // int process_GridRows
             );
 
-    generate_tiled_random_mat((tiled_matrix_desc_t *)&rtop);
+    generate_tiled_random_mat((tiled_matrix_desc_t *)&rtop, 100);
 
     dague_QR = (dague_object_t*)
         dague_TSQR_new( (dague_ddesc_t*)&rtop

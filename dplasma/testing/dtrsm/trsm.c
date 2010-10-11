@@ -300,8 +300,8 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
 
     /* matrix generation */
-    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB);
+    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 100);
 
     printf("matrix generated\n");
 

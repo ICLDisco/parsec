@@ -175,7 +175,7 @@ int main(int argc, char ** argv)
 
 
     /* matrix generation */
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescdLIPIV);
     memset(ddescdLIPIV.mat, NB * sizeof(int), 0);
 

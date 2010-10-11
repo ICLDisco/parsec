@@ -170,7 +170,7 @@ int main(int argc, char ** argv)
                               ddescA.super.lnt, N, nrst, ncst, GRIDrows);
 
     /* matrix generation */
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescL);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
 

@@ -127,8 +127,8 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_init(&ddescC, matrix_RealFloat, nodes, cores, rank,
                               NB, NB, IB, N, N, 0, 0,
                               N, N, nrst, ncst, GRIDrows);
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA);
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescC);    //#ifdef VTRACE 
     //    VT_ON();
     //#endif

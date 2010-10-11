@@ -32,21 +32,21 @@
  Rnd64seed is changed during the matrix generation time.
  */
 
-static unsigned long long int Rnd64seed = 100;
+//static unsigned long long int Rnd64seed = 100;
 #define Rnd64_A 6364136223846793005ULL
 #define Rnd64_C 1ULL
 #define RndF_Mul 5.4210108624275222e-20f
 #define RndD_Mul 5.4210108624275222e-20
 
 static unsigned long long int
-Rnd64_jump(unsigned long long int n) {
+Rnd64_jump(unsigned long long int n, unsigned long long int seed ) {
   unsigned long long int a_k, c_k, ran;
   int i;
 
   a_k = Rnd64_A;
   c_k = Rnd64_C;
 
-  ran = Rnd64seed;
+  ran = seed;
   for (i = 0; n; n >>= 1, ++i) {
     if (n & 1)
       ran = a_k * ran + c_k;
@@ -58,7 +58,7 @@ Rnd64_jump(unsigned long long int n) {
 }
 
 
-void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
+void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
@@ -71,7 +71,7 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, un
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
-      ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
+        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
 
       for (i = 0; i < nb; ++i) {
         x[0] = 0.5f - ran * RndF_Mul;
@@ -86,7 +86,7 @@ void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, un
     }
 }
 
-void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
+void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
@@ -98,7 +98,7 @@ void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
+        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
         
         for (i = 0; i < nb; ++i) {
             x[0] = 0.5f - ran * RndF_Mul;
@@ -108,14 +108,16 @@ void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned
     }
 }
 
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col)
+void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed)
 {
+   
     (void)row;
     (void)col;
+    (void)seed;
     memset( position, 0, Ddesc->bsiz * Ddesc->mtype );
 }
 
-void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col)
+void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
@@ -128,7 +130,7 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, u
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
-      ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
+        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m, seed );
 
       for (i = 0; i < nb; ++i) {
         x[0] = 0.5 - ran * RndD_Mul;
@@ -143,7 +145,7 @@ void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, u
     }
 }
 
-void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col)
+void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
@@ -155,7 +157,7 @@ void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsign
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m );
+        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
         
         for (i = 0; i < nb; ++i) {
             x[0] = 0.5 - ran * RndD_Mul;
@@ -177,7 +179,8 @@ typedef struct info_tiles{
     tile_coordinate_t * tiles;    
     unsigned int nb_elements;
     unsigned int starting_position;
-    void (*gen_fct)( tiled_matrix_desc_t *, void *, unsigned int, unsigned int);
+    unsigned long long int seed;
+    void (*gen_fct)( tiled_matrix_desc_t *, void *, unsigned int, unsigned int, unsigned long long int);
 } info_tiles_t;
 
 
@@ -207,13 +210,14 @@ static void * rand_dist_tiles(void * info)
                                                                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
                                                                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
-                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col);
+                                            ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col,
+                                            ((info_tiles_t *)info)->seed);
         }
     return NULL;
 }
 
 /* affecting the complete local view of a distributed matrix with random values */
-static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
+static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned long long int sed)
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
     unsigned int tiles_coord_size;      /* size of the above table */
@@ -261,6 +265,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
             info_gen[i].Ddesc = Mdesc;
             info_gen[i].nb_elements = pos / Mdesc->super.cores;
             info_gen[i].starting_position = j;
+            info_gen[i].seed = sed;
             j += info_gen[i].nb_elements;
             if (mtype == 1) /* cholesky like generation (symetric, diagonal dominant) */
                 {
@@ -345,17 +350,17 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype)
 
 void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc)
 {
-    rand_dist_matrix(Mdesc, 2);
+    rand_dist_matrix(Mdesc, 2, 0);
 }
 
-void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc)
+void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
 {
-    rand_dist_matrix(Mdesc, 1);
+    rand_dist_matrix(Mdesc, 1, seed);
 }
 
-void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc)
+void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
 {
-    rand_dist_matrix(Mdesc, 0);
+    rand_dist_matrix(Mdesc, 0, seed);
 }
 
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename){

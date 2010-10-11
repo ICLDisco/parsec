@@ -309,7 +309,7 @@ int main(int argc, char ** argv)
                               LDA, LDA,
                               GRIDrows);
     /* matrix generation */
-    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA);
+    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
 
     //#ifdef VTRACE 
     //    VT_ON();

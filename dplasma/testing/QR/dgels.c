@@ -147,7 +147,7 @@ int main(int argc, char ** argv)
                              NB, NB, IB, M, N, 0, 0, 
                              M, N, nrst, ncst, GRIDrows);
    /* matrix generation */
-   generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA);
+   generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
    printf("matrix generated\n");
    
    two_dim_block_cyclic_init(&ddescT, matrix_RealDouble, nodes, cores, rank,

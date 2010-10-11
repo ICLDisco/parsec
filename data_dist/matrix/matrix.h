@@ -44,22 +44,22 @@ typedef struct tiled_matrix_desc_t {
  * Generate the tile (row, col) int the buffer position.
  */
 
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col);
-void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col);
-void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col);
-void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col);
-void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col);
+void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
 
 /**
  * Generate the full distributed matrix using all nodes/cores available.
  * The matrix generated is symetric positive and diagonal dominant.
  */
-void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc);
+void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed);
 
 /**
  * Generate the full distributed matrix using all nodes/cores available.
  */
-void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc);
+void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed);
 
 /**
  * Generate the full distributed matrix using all nodes/cores available. Zeroing the matrix.
