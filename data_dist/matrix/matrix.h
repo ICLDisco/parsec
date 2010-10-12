@@ -78,8 +78,12 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
 
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
 
-
+#ifdef USE_MPI
 void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
 void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+#else
+#define compare_dist_data_double(...) do {} while(0)
+#define compare_dist_data_float(...) do {} while(0)
+#endif
 
 #endif /* _MATRIX_H_  */

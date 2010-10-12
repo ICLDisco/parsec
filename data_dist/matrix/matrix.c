@@ -630,15 +630,3 @@ void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
         printf("compared the matrices: %u difference(s)\n", count);
 }
 #endif
-
-#ifndef USE_MPI
-void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
-{
-    return;
-}
-void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
-{
-    return;
-}
-
-#endif
