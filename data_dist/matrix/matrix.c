@@ -442,8 +442,8 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
 void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
     MPI_Status status;
-    void * bufferA;
-    void * bufferB;
+    void * bufferA = NULL;
+    void * bufferB = NULL;
     void * tmpA = malloc(a->bsiz * a->mtype);
     void * tmpB = malloc(a->bsiz * a->mtype);
 
@@ -538,8 +538,8 @@ void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
     MPI_Status status;
-    void * bufferA;
-    void * bufferB;
+    void * bufferA = NULL;
+    void * bufferB = NULL;
     void * tmpA = malloc(a->bsiz * a->mtype);
     void * tmpB = malloc(a->bsiz * a->mtype);
 
