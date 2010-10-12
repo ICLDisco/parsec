@@ -367,7 +367,6 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 #endif  /* USE_MPI */
 
     dague_gemm = DAGUE_dgemm_New( PlasmaNoTrans, PlasmaTrans,
-				  ddescC.super.mt, ddescC.super.nt, ddescA.super.nt,
 				  (double)-1.0, (tiled_matrix_desc_t*)&ddescA,
 				  (tiled_matrix_desc_t*)&ddescB,
 				  (double)1.0, (tiled_matrix_desc_t*)&ddescC);

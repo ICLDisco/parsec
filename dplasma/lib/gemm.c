@@ -10,10 +10,9 @@
 #include "gemm.h"
 
 dague_object_t* 
-DAGUEprefix(gemm_New)( int transA, int transB, int m, int n, int k,
-		       TYPENAME alpha, const tiled_matrix_desc_t* ddescA,
-		       const tiled_matrix_desc_t* ddescB,
-		       TYPENAME beta, tiled_matrix_desc_t* ddescC)
+DAGUEprefix(gemm_New)( const int transA, const int transB,
+		       const TYPENAME alpha, const tiled_matrix_desc_t* ddescA, const tiled_matrix_desc_t* ddescB,
+		       const TYPENAME beta,  tiled_matrix_desc_t* ddescC)
 {
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
@@ -21,7 +20,7 @@ DAGUEprefix(gemm_New)( int transA, int transB, int m, int n, int k,
 							     (dague_ddesc_t*)ddescB,
 							     (dague_ddesc_t*)ddescA,
 							     ddescA->nb,
-							     m, n, k,
+							     ddescC->mt, ddescC->nt, ddescA->nt,
 							     transA, transB,
 							     alpha, beta);
         } else {
@@ -29,7 +28,7 @@ DAGUEprefix(gemm_New)( int transA, int transB, int m, int n, int k,
 							     (dague_ddesc_t*)ddescB,
 							     (dague_ddesc_t*)ddescA,
 							     ddescA->nb,
-							     m, n, k,
+							     ddescC->mt, ddescC->nt, ddescA->nt,
 							     transA, transB,
 							     alpha, beta);
         }
@@ -39,7 +38,7 @@ DAGUEprefix(gemm_New)( int transA, int transB, int m, int n, int k,
 							     (dague_ddesc_t*)ddescB,
 							     (dague_ddesc_t*)ddescA,
 							     ddescA->nb,
-							     m, n, k,
+							     ddescC->mt, ddescC->nt, ddescA->mt,
 							     transA, transB,
 							     alpha, beta);
         } else {
@@ -47,7 +46,7 @@ DAGUEprefix(gemm_New)( int transA, int transB, int m, int n, int k,
 							     (dague_ddesc_t*)ddescB,
 							     (dague_ddesc_t*)ddescA,
 							     ddescA->nb,
-							     m, n, k,
+							     ddescC->mt, ddescC->nt, ddescA->nt,
 							     transA, transB,
 							     alpha, beta);
         }
