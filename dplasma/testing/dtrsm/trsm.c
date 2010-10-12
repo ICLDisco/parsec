@@ -57,12 +57,23 @@ int ncst = 1;
 
 two_dim_block_cyclic_t ddescA;
 two_dim_block_cyclic_t ddescB;
+two_dim_block_cyclic_t ddescX;
 
 static dague_object_t *dague_trsm = NULL;
 
 #if defined(USE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
 #endif  /* USE_MPI */
+
+int   side[2]  = { PlasmaLeft,    PlasmaRight };
+int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
+int   diag[2]  = { PlasmaNonUnit, PlasmaUnit  };
+int   trans[3] = { PlasmaNoTrans, PlasmaTrans, PlasmaConjTrans };
+
+char *sidestr[2]  = { "Left ", "Right" };
+char *uplostr[2]  = { "Upper", "Lower" };
+char *diagstr[2]  = { "NonUnit", "Unit   " };
+char *transstr[3] = { "N", "T", "H" };
 
 /**********************************
  * static functions
@@ -287,6 +298,48 @@ static void cleanup_dague(dague_context_t* dague)
 }
 
 
+/*------------------------------------------------------------------------
+ *  Check the accuracy of the solution of the linear system
+ */
+
+static int check_solution(PLASMA_enum side, PLASMA_enum uplo, two_dim_block_cyclic_t *A, two_dim_block_cyclic_t *B, two_dim_block_cyclic_t *X )
+{
+    int info_solution;
+    double Rnorm, Anorm, Xnorm, Bnorm;
+    PLASMA_Complex64_t alpha, beta;
+    double eps = lapack_dlamch(lapack_eps);
+
+    alpha = 1.0;
+    beta  = -1.0;
+
+    DAGUE_dlantr( lapack_inf_norm, uplo, A, &Anorm );
+    DAGUE_dlange( lapack_inf_norm, B, &Bnorm );
+    DAGUE_dlange( lapack_inf_norm, X, &Xnorm );
+
+    DAGUE_dtrmm( PlasmaNoTrans, CblasNoTrans, CblasNoTrans, N, NRHS, N, CBLAS_SADDR(alpha), A1, LDA, B2, LDB, CBLAS_SADDR(beta), B1, LDB);
+    BLAS_zge_norm( blas_colmajor, blas_inf_norm, N, NRHS, B1, LDB, &Rnorm );
+
+    if (getenv("PLASMA_TESTING_VERBOSE"))
+      printf( "||A||_oo=%f\n||X||_oo=%f\n||B||_oo=%f\n||A X - B||_oo=%e\n", Anorm, Xnorm, Bnorm, Rnorm );
+
+    printf("============\n");
+    printf("Checking the Residual of the solution \n");
+    printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n",Rnorm/((Anorm*Xnorm+Bnorm)*N*eps));
+
+    if ( isnan(Rnorm/((Anorm*Xnorm+Bnorm)*N*eps)) || isinf(Rnorm/((Anorm*Xnorm+Bnorm)*N*eps)) || (Rnorm/((Anorm*Xnorm+Bnorm)*N*eps) > 60.0) ){
+        printf("-- The solution is suspicious ! \n");
+        info_solution = 1;
+     }
+    else{
+        printf("-- The solution is CORRECT ! \n");
+        info_solution = 0;
+    }
+
+    free(work);
+
+    return info_solution;
+}
+
 int main(int argc, char ** argv)
 {
     double gflops;
@@ -295,46 +348,111 @@ int main(int argc, char ** argv)
     /* parsing arguments */
     runtime_init(argc, argv);
 
-    /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N,    0, 0, LDA, LDA,  nrst, ncst, GRIDrows);
-    two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
-
-    /* matrix generation */
-    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 100);
-
-    printf("matrix generated\n");
-
-    /*** THIS IS THE DAGUE COMPUTATION ***/
-    TIME_START();
-
     /* Initialize DAGuE */
-    dague = setup_dague(&argc, &argv);
-
-    /* Create TRSM DAGuE */
-    dague_trsm = DAGUE_dtrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, &ddescA, &ddescB);
-    dague_enqueue( dague, (dague_object_t*)dague_trsm);
-
-    printf("Total nb tasks to run: %u\n", dague->taskstodo);
-
-    TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
-    
-    /* lets rock! */
-    SYNC_TIME_START();
     TIME_START();
-    dague_progress(dague);
-    TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n", rank, dague_trsm->nb_local_tasks, 
-                dague_trsm->nb_local_tasks/time_elapsed));
-    SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
-    gflops = (_FADDS+_FMULS)/(sync_time_elapsed)));
-   
-    (void) gflops;
-    TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - pri_change));
+    dague = setup_dague(&argc, &argv);
+    TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
+	
+    if ( checking == 0 ) {
+	/* initializing matrix structure */
+	two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N,    0, 0, LDA, LDA,  nrst, ncst, GRIDrows);
+	two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
+	
+	/* matrix generation */
+	printf("Generate matrices ... ");
+	generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+	generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+	printf("Done\n");
+	
+	/* Create TRSM DAGuE */
+	printf("Generate TRSM DAG ... ");
+	SYNC_TIME_START();
+	dague_trsm = DAGUE_dtrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, &ddescA, &ddescB);
+	dague_enqueue( dague, (dague_object_t*)dague_trsm);
+	printf("Done\n");
+	printf("Total nb tasks to run: %u\n", dague->taskstodo);
+	TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
+	
+	/* lets rock! */
+	SYNC_TIME_START();
+	TIME_START();
+	dague_progress(dague);
+	TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n", rank, dague_trsm->nb_local_tasks, 
+		    dague_trsm->nb_local_tasks/time_elapsed));
+	SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
+			 gflops = (_FADDS+_FMULS)/(sync_time_elapsed)));
+	
+	(void) gflops;
+	TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - pri_change));
+    }
+    else {
+	for (s=0; s<2; s++) {
+	    for (u=0; u<2; u++) {
+#ifdef COMPLEX
+		for (t=0; t<3; t++) {
+#else
+		for (t=0; t<2; t++) {
+#endif
+		    for (d=0; d<2; d++) {
 
-    /*data_dump((tiled_matrix_desc_t *) &ddescA);*/
-    cleanup_dague(dague);
-    /*** END OF DAGUE COMPUTATION ***/
-    
-    runtime_fini();
-    return 0;
+			printf("***************************************************\n");
+			/* initializing matrix structure */
+			two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N,    0, 0, LDA, LDA,  nrst, ncst, GRIDrows);
+			two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
+			two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
+			
+			/* matrix generation */
+			printf("Generate matrices ... ");
+			generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+			printf("Done\n");
+	
+			/* Create TRSM DAGuE */
+			SYNC_TIME_START();
+			printf("Generate TRSM DAG ... ");
+			dague_trsm = DAGUE_dtrsm_New(side[s], uplo[u], trans[t], diag[d], 
+						     (double)1.0, &ddescA, &ddescB);
+			dague_enqueue( dague, (dague_object_t*)dague_trsm);
+			printf("Done\n");
+			printf("Total nb tasks to run: %u\n", dague->taskstodo);
+			TIME_PRINT(("Dague initialization:\t%d %d\n", N, dposv_force_nb));
+			
+			/* lets rock! */
+			SYNC_TIME_START();
+			TIME_START();
+			dague_progress(dague);
+			TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n", rank, dague_trsm->nb_local_tasks, 
+				    dague_trsm->nb_local_tasks/time_elapsed));
+			SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, dposv_force_nb, 
+					 gflops = (_FADDS+_FMULS)/(sync_time_elapsed)));
+
+
+			/* Check the solution */
+			info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
+						       M, N, alpha, A, LDA, Binit, Bfinal, LDB);
+			
+			if (info_solution == 0) {
+			    printf(" ---- TESTING DTRSM (%s, %s, %s, %s) ...... PASSED !\n",
+				   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+			}
+			else {
+			    printf(" ---- TESTING DTRSM (%s, %s, %s, %s) ... FAILED !\n",
+				   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+			}
+			printf("***************************************************\n");
+		    }
+		}
+#ifdef __UNUSED__
+		}
+#ndif
+	    }
+	}
+
+	/*data_dump((tiled_matrix_desc_t *) &ddescA);*/
+	cleanup_dague(dague);
+	/*** END OF DAGUE COMPUTATION ***/
+	
+	runtime_fini();
+	return 0;
 }
