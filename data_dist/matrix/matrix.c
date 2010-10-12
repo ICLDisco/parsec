@@ -363,6 +363,27 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long i
     rand_dist_matrix(Mdesc, 0, seed);
 }
 
+
+void pddiagset(tiled_matrix_desc_t * Mdesc, double val){
+    unsigned int i, j;
+    unsigned int target;
+    double * buffer;
+    target = (Mdesc->lmt < Mdesc->lnt) ? Mdesc->lmt : Mdesc->lnt;
+
+    for( i = 0 ; i < target ; i++ )
+        {
+            if(Mdesc->super.myrank == Mdesc->super.rank_of( (dague_ddesc_t *)Mdesc, i, i ))
+                {
+                    buffer = Mdesc->super.data_of( (dague_ddesc_t *)Mdesc, i, i );
+                    for( j = 0 ; j < Mdesc->nb ; j++)
+                        {
+                            buffer[(j * Mdesc->mb) + j] = val;
+                        }
+                }
+        }
+    return;
+}
+
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
     size_t i, j;

@@ -66,6 +66,14 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long i
  */
 void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc);
 
+
+/**
+ * Set diagonal value of a double matrix to val.
+ */
+void pddiagset(tiled_matrix_desc_t * Mdesc, double val);
+
+
+
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
 
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
