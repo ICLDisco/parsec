@@ -37,36 +37,34 @@ diag [int]
 alpha[TYPENAME]
 
 /**************************************************
- *                      TRSM                      *
+ *                      TRMM                      *
  **************************************************/
-TRSM(k, n)
+TRMM(m, n)
 
 // Execution space
-k = Bmt-1..0
+m = 0..Bmt-1
 n = 0..Bnt-1
 
 // Parallel partitioning
-: B(k,n)
+: B(m, n)
 
 // Parameters
-READ  A <- A(k,k)
-RW    B <- (k == Bmt-1) ? B(0, n) : C GEMM(k-1, k, n)
-        -> B GEMM(k, 0..k-1, n)
-        -> B(k, n)
+READ  A <- A(m, m)
+RW    B <- B(m, n)
+        -> (m == Bmt-1) ? B(m, n) : C GEMM(m, n, m+1)
 
 BODY
-      TYPENAME lalpha = k == Bmt-1 ? alpha : (TYPENAME)1.0;
       CORE(
-	   trsm, (
-			PlasmaLeft, PlasmaLower, trans, diag,
-			k == Bmt-1 ? Bm - k * Bmb : Bmb,
-			n == Bnt-1 ? Bn - n * Bnb : Bnb,
-			lalpha, A /*A(k, k)*/, Amb,
-                                B /*B(k, n)*/, Bmb)
+	   trmm, (
+		  side, uplo, trans, diag,
+		  m == Bmt-1 ? Bm - m * Bmb : Bmb,
+		  n == Bnt-1 ? Bn - n * Bnb : Bnb,
+		  alpha, A /*A(k, k)*/, Amb,
+		         B /*B(k, n)*/, Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaRight", "PlasmaLower", "Trans/ConjTrans", "PlasmaNonUnit",
+	       context->eu_id, "PlasmaRight", "PlasmaUpper", "Trans/ConjTrans", "PlasmaNonUnit",
 	       k == Bmt-1 ? Bm - k * Bmb : Bmb,
 	       n == Bnt-1 ? Bn - n * Bnb : Bnb,
 	       lalpha, k, k, A /*A(k, k)*/, Amb,
@@ -78,33 +76,32 @@ END
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM(k, m, n)
+GEMM(m, n, k)
 
 // Execution space
-k = Bmt-1..0
-m = k-1..0
+m = 0..Bmt-1
 n = 0..Bnt-1
+k = m+1..Bmt-1
 
 // Parallel partitioning
 : B(m, n)
 
 // Parameters
 READ  A <- A(k, m)
-READ  B <- B TRSM(k, n)
-RW    C <- (k == Bmt-1) ? B(m, n) : C GEMM(k+1, m, n)
-        -> (k-1 == m)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
+READ  B <- B(k, n) 
+RW    C <- (k == m+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
+        -> (k == Bmt-1) ? B(m, n)      : C GEMM(m, n, k+1)
 
 BODY
-      TYPENAME lalpha = k == 0 ? alpha : (TYPENAME)1.0;    
       CORE(
 	   gemm, (
-			trans, PlasmaNoTrans,
-			m == Bmt-1 ? Bm-m*Bmb : Bmb,
-			n == Bnt-1 ? Bn-n*Bnb : Bnb,
-			Bmb,
-			(TYPENAME)-1.0, A /* A(k, m)*/ , Amb,
-			              B /* B(k, n)*/ , Bmb,
-			lalpha,       C /* B(m, n)*/ , Bmb)
+		  trans, PlasmaNoTrans,
+		  m == Bmt-1 ? Bm-m*Bmb : Bmb,
+		  n == Bnt-1 ? Bn-n*Bnb : Bnb,
+		  k == Amt-1 ? Am-k*Amb : Amb,
+		  alpha, A, Amb,
+		         B, Bmb,
+		  (TYPENAME)1.0, C, Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
@@ -112,7 +109,7 @@ BODY
 	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
 	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
 	       Bmb,
-	       (TYPENAME)-1.0, m, k, A, Amb,
+	       (TYPENAME)-1.0, k, m, A, Amb,
                              k, n, B, Bmb,
 	       lalpha,       m, n, C, Bmb)
 	      );

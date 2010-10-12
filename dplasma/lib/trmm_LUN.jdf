@@ -51,8 +51,7 @@ n = 0..Bnt-1
 // Parameters
 READ  A <- A(m, m)
 RW    B <- B(m, n)
-        -> C GEMM(m, n, 0)
-        -> B(m, n)
+        -> (m == Bmt-1) ? B(m, n) : C GEMM(m, n, m+1)
 
 BODY
       CORE(
@@ -90,8 +89,8 @@ k = m+1..Bmt-1
 // Parameters
 READ  A <- A(m, k)
 READ  B <- B(k, n) 
-RW    C <- (k == 0) ? B TRMM(m, n) : C GEMM(m, n, k-1)
-        -> (k == Bmt-1) ? B(m, n) : C GEMM(m, n, k+1)
+RW    C <- (k == m+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
+        -> (k == Bmt-1) ? B(m, n)      : C GEMM(m, n, k+1)
 
 BODY
       CORE(
