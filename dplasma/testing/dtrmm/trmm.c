@@ -106,10 +106,10 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
 
     cblas_dtrmm(CblasColMajor, (CBLAS_SIDE)side, (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans,
                 (CBLAS_DIAG)diag, M, N, alpha, A, LDA, B, LDB);
-    Blapacknorm = lapack_zlange(lapack_inf_norm, M, N, B, LDB, work);
+    Blapacknorm = lapack_dlange(lapack_inf_norm, M, N, B, LDB, work);
 
-    cblas_zaxpy(LDB * N, CBLAS_SADDR(mdone), C, 1, B, 1);
-    Rnorm = lapack_zlange(lapack_inf_norm, M, N, B, LDB, work);
+    cblas_daxpy(LDB * N, mdone, C, 1, B, 1);
+    Rnorm = lapack_dlange(lapack_inf_norm, M, N, B, LDB, work);
 
     if (getenv("PLASMA_TESTING_VERBOSE"))
 	printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
@@ -126,6 +126,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     }
     
     free(work);
+    free(A);
+    free(B);
+    free(C);
 
     return info_solution;
 }
@@ -142,8 +145,10 @@ int main(int argc, char ** argv)
     int rank  = iparam[IPARAM_RANK];
     int nodes = iparam[IPARAM_NNODES];
     int cores = iparam[IPARAM_NCORES];
-    int NB    = iparam[IPARAM_NB];
+    int M     = iparam[IPARAM_M];
     int N     = iparam[IPARAM_N];
+    int MB    = iparam[IPARAM_MB];
+    int NB    = iparam[IPARAM_NB];
     int LDA   = iparam[IPARAM_LDA];
     int NRHS  = iparam[IPARAM_NRHS];
     int LDB   = iparam[IPARAM_LDB];
@@ -160,8 +165,8 @@ int main(int argc, char ** argv)
 	int s = PlasmaLeft;
 
 	/* initializing matrix structure */
-	two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, NB, NB, 0, N, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
-	two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, NB, NB, 0, N, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+	two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
+	two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 	
 	/* matrix generation */
 	printf("Generate matrices ... ");
@@ -185,9 +190,12 @@ int main(int argc, char ** argv)
 		    rank, dague_trmm->nb_local_tasks, 
 		    dague_trmm->nb_local_tasks/time_elapsed));
 	SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB, 
-			 gflops = (_FADDS(s, N, NRHS) + _FMULS(s, N, NRHS))/(sync_time_elapsed)));
+			 gflops = (_FADDS(s, M, NRHS) + _FMULS(s, M, NRHS))/(sync_time_elapsed)));
 	(void) gflops;
 	TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
+
+	twoDBC_free(&ddescA);
+	twoDBC_free(&ddescB);
     }
     else {
 	int s, u, t, d;
@@ -207,9 +215,9 @@ int main(int argc, char ** argv)
 			printf(" ----- TESTING DTRMM (%s, %s, %s, %s) -------- \n",
 				   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
 			/* initializing matrix structure */
-			two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, NB, NB, 0, N, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
-			two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, NB, NB, 0, N, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
-			two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, NB, NB, 0, N, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+			two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
+			two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+			two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 			
 			/* matrix generation */
 			printf("Generate matrices ... ");
@@ -236,7 +244,7 @@ int main(int argc, char ** argv)
 				    dague_trmm->nb_local_tasks, 
 				    dague_trmm->nb_local_tasks/time_elapsed));
 			SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB, 
-					 gflops = (_FADDS(side[s], N, NRHS) + _FMULS(side[s], N, NRHS))/(sync_time_elapsed)));
+					 gflops = (_FADDS(side[s], M, NRHS) + _FMULS(side[s], M, NRHS))/(sync_time_elapsed)));
 			(void) gflops;
 
 			/* Check the solution */
@@ -252,6 +260,11 @@ int main(int argc, char ** argv)
 				   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
 			}
 			printf("***************************************************\n");
+
+
+			twoDBC_free(&ddescA);
+			twoDBC_free(&ddescB);
+			twoDBC_free(&ddescC);
 		    }
 		}
 #ifdef __UNUSED__
