@@ -4,8 +4,10 @@
 #ifdef DAGUE_CALL_TRACE
 #   include <stdlib.h>
 #   include <stdio.h>
+#   define printlog(...) fprintf(stderr, __VA_ARGS__)
 #   define OUTPUT(ARG)  printf ARG
 #else
+#   define printlog(...) do {} while(0)
 #   define OUTPUT(ARG)
 #endif
 
