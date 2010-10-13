@@ -95,7 +95,7 @@ BODY
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                alpha, i, k, NB, /*A.nb,*/
+                alpha, n, k, NB, /*A.nb,*/
                       k, m, NB, /*A.nb,*/
                 beta, n, m, NB /*A.nb*/ )
             );
