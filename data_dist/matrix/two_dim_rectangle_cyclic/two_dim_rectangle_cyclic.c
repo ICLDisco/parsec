@@ -236,6 +236,14 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 }
 
 
+void twoDBC_free( two_dim_block_cyclic_t * Ddesc )
+{
+    if ( Ddesc->mat != NULL ) {
+	free(Ddesc->mat);
+	Ddesc->mat = NULL;
+    }
+}
+
 #ifdef USE_MPI
 
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
