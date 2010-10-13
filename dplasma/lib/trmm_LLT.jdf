@@ -49,9 +49,10 @@ n = 0..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A <- A(m, m)
-RW    B <- B(m, n)
-        -> (m == Bmt-1) ? B(m, n) : C GEMM(m, n, m+1)
+READ  A   <- A(m, m)
+RW    B   <- B(m, n)
+          -> (m == Bmt-1) ? B(m, n) : C GEMM(m, n, m+1)
+READ  CTL <- (m == 0) ? CTL(m, n) : CTL1 GOK(m-1, n, m)              [CONTROL]
 
 BODY
       CORE(
@@ -63,13 +64,13 @@ BODY
 		         B /*B(k, n)*/, Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaRight", "PlasmaUpper", "Trans/ConjTrans", "PlasmaNonUnit",
-	       k == Bmt-1 ? Bm - k * Bmb : Bmb,
+      printlog("thread %d trmm( %d, %d )\n"
+	       "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, m, n, "Left", "Upper", "NoTrans", "[Non]Unit",
+	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
 	       n == Bnt-1 ? Bn - n * Bnb : Bnb,
-	       lalpha, k, k, A /*A(k, k)*/, Amb,
-	               k, n, B /*B(k, n)*/, Bmb)
-	      );
+	       alpha, m, m, A /*A(k, k)*/, Amb,
+	              m, n, B /*B(k, n)*/, Bmb);
 END
 
 /**************************************************
@@ -81,16 +82,18 @@ GEMM(m, n, k)
 // Execution space
 m = 0..Bmt-1
 n = 0..Bnt-1
-k = m+1..Bmt-1
+k = (m+1)..Bmt-1
 
 // Parallel partitioning
 : B(m, n)
 
 // Parameters
-READ  A <- A(k, m)
-READ  B <- B(k, n) 
-RW    C <- (k == m+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
-        -> (k == Bmt-1) ? B(m, n)      : C GEMM(m, n, k+1)
+READ  A   <- A(k, m)
+READ  B   <- B(k, n) 
+RW    C   <- (k == m+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
+          -> (k == Bmt-1) ? B(m, n)      : C GEMM(m, n, k+1)
+RW    CTL <- CTL(k, n)                                          [CONTROL]
+          -> CTL2 GOK(m, n, k)                                  [CONTROL]
 
 BODY
       CORE(
@@ -103,14 +106,36 @@ BODY
 		         B, Bmb,
 		  (TYPENAME)1.0, C, Bmb)
 	   );
-
-      OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "Trans/ConjTrans", "PlasmaNoTrans", 
+				       
+      printlog("thread %d gemm( %d, %d, %d )\n"
+	       "    ( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, m, n, k, "[Conj]Trans", "NoTrans", 
 	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
 	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
-	       Bmb,
-	       (TYPENAME)-1.0, k, m, A, Amb,
-                             k, n, B, Bmb,
-	       lalpha,       m, n, C, Bmb)
-	      );
+	       k == Amt-1 ? Am-k*Amb : Amb,
+	       alpha, k, m, A, Bmb, k, n, B, Bmb,
+	       (TYPENAME)1.0, m, n, C, Bmb);
+END
+
+/**************************************************
+ *                      GOK                       *
+ **************************************************/
+// Name
+GOK(m, n, k)
+
+// Execution space
+m = 0..Bmt-1
+n = 0..Bnt-1
+k = (m+1)..Bmt-1
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+RW    CTL1 <- (m == 0)   ? CTL(m, n)      : CTL1 GOK(m-1, n, k)    [CONTROL]
+           -> (m+1 == k) ? CTL TRMM(k, n) : CTL1 GOK(m+1, n, k)    [CONTROL]
+READ  CTL2 <- CTL GEMM(m, n, k)                                    [CONTROL]
+BODY
+      /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
+     printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, m, n, k);
 END
