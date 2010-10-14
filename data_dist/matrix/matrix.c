@@ -25,89 +25,6 @@
 #include "matrix.h"
 #include "bindthread.h"
 
-/*
- Rnd64seed is a global variable but it doesn't spoil thread safety. All matrix
- generating threads only read Rnd64seed. It is safe to set Rnd64seed before
- and after any calls to create_tile(). The only problem can be caused if
- Rnd64seed is changed during the matrix generation time.
- */
-
-//static unsigned long long int Rnd64seed = 100;
-#define Rnd64_A 6364136223846793005ULL
-#define Rnd64_C 1ULL
-#define RndF_Mul 5.4210108624275222e-20f
-#define RndD_Mul 5.4210108624275222e-20
-
-static unsigned long long int
-Rnd64_jump(unsigned long long int n, unsigned long long int seed ) {
-  unsigned long long int a_k, c_k, ran;
-  int i;
-
-  a_k = Rnd64_A;
-  c_k = Rnd64_C;
-
-  ran = seed;
-  for (i = 0; n; n >>= 1, ++i) {
-    if (n & 1)
-      ran = a_k * ran + c_k;
-    c_k *= (a_k + 1);
-    a_k *= a_k;
-  }
-
-  return ran;
-}
-
-
-void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col, unsigned long long int seed)
-{
-    unsigned int i, j, first_row, first_col;
-    unsigned int nb = Ddesc->nb;
-    unsigned int mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
-    float *x = position;
-    unsigned long long int ran;
-
-    /* These are global values of first row and column of the tile counting from 0 */
-    first_row = row * nb;
-    first_col = col * nb;
-
-    for (j = 0; j < nb; ++j) {
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
-
-      for (i = 0; i < nb; ++i) {
-        x[0] = 0.5f - ran * RndF_Mul;
-        ran = Rnd64_A * ran + Rnd64_C;
-        x += 1;
-      }
-    }
-    /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
-    if (row == col) {
-      for (i = 0; i < nb; ++i)
-          ((float *) position)[i + i * nb] += mn_max;
-    }
-}
-
-void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col, unsigned long long int seed)
-{
-    unsigned int i, j, first_row, first_col;
-    unsigned int nb = Ddesc->nb;
-    float *x = position;
-    unsigned long long int ran;
-
-    /* These are global values of first row and column of the tile counting from 0 */
-    first_row = row * nb;
-    first_col = col * nb;
-
-    for (j = 0; j < nb; ++j) {
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
-        
-        for (i = 0; i < nb; ++i) {
-            x[0] = 0.5f - ran * RndF_Mul;
-            ran = Rnd64_A * ran + Rnd64_C;
-            x += 1;
-        }
-    }
-}
-
 void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed)
 {
    
@@ -116,57 +33,6 @@ void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned in
     (void)seed;
     memset( position, 0, Ddesc->bsiz * Ddesc->mtype );
 }
-
-void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position, unsigned int row, unsigned int col, unsigned long long int seed)
-{
-    unsigned int i, j, first_row, first_col;
-    unsigned int nb = Ddesc->nb;
-    unsigned int mn_max = Ddesc->n > Ddesc->m ? Ddesc->n : Ddesc->m;
-    double *x = position;
-    unsigned long long int ran;
-
-    /* These are global values of first row and column of the tile counting from 0 */
-    first_row = row * nb;
-    first_col = col * nb;
-
-    for (j = 0; j < nb; ++j) {
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m, seed );
-
-      for (i = 0; i < nb; ++i) {
-        x[0] = 0.5 - ran * RndD_Mul;
-        ran = Rnd64_A * ran + Rnd64_C;
-        x += 1;
-      }
-    }
-    /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
-    if (row == col) {
-      for (i = 0; i < nb; ++i)
-          ((double*)position)[i + i * nb] += mn_max;
-    }
-}
-
-void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed)
-{
-    unsigned int i, j, first_row, first_col;
-    unsigned int nb = Ddesc->nb;
-    double *x = position;
-    unsigned long long int ran;
-
-    /* These are global values of first row and column of the tile counting from 0 */
-    first_row = row * nb;
-    first_col = col * nb;
-
-    for (j = 0; j < nb; ++j) {
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
-        
-        for (i = 0; i < nb; ++i) {
-            x[0] = 0.5 - ran * RndD_Mul;
-            ran = Rnd64_A * ran + Rnd64_C;
-            x += 1;
-        }
-    }
-}
-
 
 typedef struct tile_coordinate{
     unsigned int row;
@@ -271,11 +137,11 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
                 {
                     if(Mdesc->mtype == matrix_RealFloat) 
                         {
-                            info_gen[i].gen_fct = create_tile_cholesky_float;
+                            info_gen[i].gen_fct = matrix_stile_cholesky;
                         }
                     else if (Mdesc->mtype == matrix_RealDouble)
                         {
-                            info_gen[i].gen_fct = create_tile_cholesky_double;
+                            info_gen[i].gen_fct = matrix_dtile_cholesky;
                         }
                     else /* unknown type */
                         {
@@ -290,11 +156,11 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
                 {
                     if(Mdesc->mtype == matrix_RealFloat) 
                         {
-                            info_gen[i].gen_fct = create_tile_lu_float;
+                            info_gen[i].gen_fct = matrix_stile;
                         }
                     else if (Mdesc->mtype == matrix_RealDouble)
                         {
-                            info_gen[i].gen_fct = create_tile_lu_double;
+                            info_gen[i].gen_fct = matrix_dtile;
                         }
                     else /* unknown type */
                         {
@@ -435,198 +301,3 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
     fclose(tmpf);
     return 0;
 }
-
-
-#ifdef USE_MPI
-
-void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
-{
-    MPI_Status status;
-    void * bufferA = NULL;
-    void * bufferB = NULL;
-    void * tmpA = malloc(a->bsiz * a->mtype);
-    void * tmpB = malloc(a->bsiz * a->mtype);
-
-    size_t i,j;
-    unsigned int k;
-    uint32_t rankA, rankB;
-    unsigned int count = 0;
-    int diff, dc;
-    double eps;
-    
-
-
-    eps= lapack_dlamch(lapack_eps);
-    // eps = 1e-13;
-    printf("epsilon is %e\n", eps);    
-
-    if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
-        {
-            if(a->super.myrank == 0)
-                printf("Cannot compare matrices\n");
-            return;
-        }
-    for(i = 0 ; i < a->lmt ; i++)
-        for(j = 0 ; j < a->lnt ; j++)
-            {
-                rankA = a->super.rank_of((dague_ddesc_t *) a, i, j );
-                rankB = b->super.rank_of((dague_ddesc_t *) b, i, j );
-                if (a->super.myrank == 0)
-                    {
-                        if ( rankA == 0)
-                            {
-                                bufferA = a->super.data_of((dague_ddesc_t *) a, i, j );
-                            }
-                        else
-                            {
-                                if (rankA < a->super.nodes)
-                                    {
-                                        MPI_Recv(tmpA, a->bsiz, MPI_DOUBLE, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
-                                        bufferA = tmpA;
-                                    }
-                            }
-                        if ( rankB == 0)
-                            {
-                                bufferB = b->super.data_of((dague_ddesc_t *) b, i, j );
-                            }
-                        else
-                            {
-                                if (rankB < a->super.nodes)
-                                    {
-                                        MPI_Recv(tmpB, b->bsiz, MPI_DOUBLE, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
-                                        bufferB = tmpB;
-                                    }
-                            }
-                        if(rankA < a->super.nodes)
-                            {
-                                diff = 0;
-                                dc = 0;
-                                for(k = 0 ; k < a->bsiz ; k++)
-                                    if ( ( (((double *)bufferA)[k] - ((double *)bufferB)[k]) > eps) || (( ((double *)bufferA)[k]-((double *)bufferB)[k]) < -eps)  )
-                                        {
-                                            diff = 1;
-                                            dc++;
-                                        }
-                                
-                                if (diff)
-                                    {
-                                        count++;
-                                        printf("tile (%zu, %zu) differs in %d numbers\n", i, j, dc);
-                                    }
-                            }
-                        
-                    }
-                else /* a->super.myrank != 0 */
-                    {
-                        
-                        if ( rankA == a->super.myrank)
-                            {
-                                MPI_Send(a->super.data_of((dague_ddesc_t *) a, i, j ), a->bsiz, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-                            }
-                        if ( rankB == b->super.myrank)
-                            {
-                                MPI_Send(b->super.data_of((dague_ddesc_t *) b, i, j ), b->bsiz, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);                                                    
-                            }
-                    }
-            }
-    if(a->super.myrank == 0)
-        printf("compared the matrices: %u difference(s)\n", count);
-}
-
-
-
-void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
-{
-    MPI_Status status;
-    void * bufferA = NULL;
-    void * bufferB = NULL;
-    void * tmpA = malloc(a->bsiz * a->mtype);
-    void * tmpB = malloc(a->bsiz * a->mtype);
-
-    size_t i,j;
-    unsigned int k;
-    uint32_t rankA, rankB;
-    unsigned int count = 0;
-    int diff, dc;
-    float eps;
-    
-    
-
-    eps= lapack_slamch(lapack_eps);
-    // eps = 1e-8;
-    printf("epsilon is %e\n", eps);    
-
-    if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
-        {
-            if(a->super.myrank == 0)
-                printf("Cannot compare matrices\n");
-            return;
-        }
-    for(i = 0 ; i < a->lmt ; i++)
-        for(j = 0 ; j < a->lnt ; j++)
-            {
-                rankA = a->super.rank_of((dague_ddesc_t *) a, i, j );
-                rankB = b->super.rank_of((dague_ddesc_t *) b, i, j );
-                if (a->super.myrank == 0)
-                    {
-                        if ( rankA == 0)
-                            {
-                                bufferA = a->super.data_of((dague_ddesc_t *) a, i, j );
-                            }
-                        else
-                            {
-                                if(rankA < a->super.nodes)
-                                    {
-                                        MPI_Recv(tmpA, a->bsiz, MPI_FLOAT, rankA, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
-                                        bufferA = tmpA;
-                                    }
-                            }
-                        if ( rankB == 0)
-                            {
-                                bufferB = b->super.data_of((dague_ddesc_t *) b, i, j );
-                            }
-                        else
-                            {
-                                if(rankB < a->super.nodes)
-                                    {
-                                        MPI_Recv(tmpB, b->bsiz, MPI_FLOAT, rankB, MPI_ANY_TAG, MPI_COMM_WORLD, &status );
-                                        bufferB = tmpB;
-                                    }
-                            }
-                        if (rankA < a->super.nodes)
-                            {
-                                diff = 0;
-                                dc = 0;
-                                // printf("a: %e, b: %e\n", ((float *)bufferA)[0], ((float *)bufferB)[0]);
-                                for(k = 0 ; k < a->bsiz ; k++)
-                                    if ( ( (((float *)bufferA)[k] - ((float *)bufferB)[k]) > eps) || (( ((float *)bufferA)[k]-((float *)bufferB)[k]) < -eps)  )
-                                        {
-                                            diff = 1;
-                                            dc++;
-                                        }
-                                
-                                if (diff)
-                                    {
-                                        count++;
-                                        printf("tile (%zu, %zu) differs in %d numbers\n", i, j, dc);
-                                    }
-                            }
-                        
-                    }
-                else /* a->super.myrank != 0 */
-                    {
-                        
-                        if ( rankA == a->super.myrank)
-                            {
-                                MPI_Send(a->super.data_of((dague_ddesc_t *) a, i, j ), a->bsiz, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
-                            }
-                        if ( rankB == b->super.myrank)
-                            {
-                                MPI_Send(b->super.data_of((dague_ddesc_t *) b, i, j ), b->bsiz, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);                                                    
-                            }
-                    }
-            }
-    if(a->super.myrank == 0)
-        printf("compared the matrices: %u difference(s)\n", count);
-}
-#endif

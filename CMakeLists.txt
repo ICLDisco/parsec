@@ -284,27 +284,81 @@ include_directories(${PLASMA_INCLUDE_DIR})
 include_directories(data_dist)
 
 #
-# Setup targets
+#  Settings for targets
+# 
+
 #
-add_library(dague STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
-  src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
-  src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c
-  src/mempool.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
+# Sources depending on Precision 
+#
+set(PRECISIONS d s) # z c d s
+message(STATUS "Dir : ${CMAKE_CURRENT_SOURCE_DIR}")
+set(CODEGEN  ${CMAKE_CURRENT_SOURCE_DIR}/tools/codegen/codegen.py )
+set( NAMES 
+  data_dist/matrix/zmatrix.c
+  )
+
+#  precision generation 
+set(generated_files)
+foreach(_prec ${PRECISIONS})
+  set(generated_files_${_prec})
+  if( _prec MATCHES "z" )
+    list(APPEND generated_files_${_prec} "${_file}")
+  else()
+    foreach(_file ${NAMES})
+      string(REPLACE "/z" "/${_prec}" file_tro ${_file})
+      message(STATUS "gen ${file_tro}")
+      add_custom_command(
+	OUTPUT ${file_tro}
+	COMMAND python ${CODEGEN} ${_file}
+	MAIN_DEPENDENCY ${_file}
+	) 
+      list(APPEND generated_files_${_prec} "${file_tro}")
+    endforeach()
+  endif()
+  list(APPEND generated_files ${generated_files_${_prec}})
+endforeach()
+
+
+set(SRCS 
+  src/dague.c 
+  src/symbol.c 
+  src/expr.c 
+  src/params.c 
+  src/dep.c 
+  src/arena.c
+  src/scheduling.c 
+  src/profiling.c 
+  src/stats.c 
+  src/remote_dep.c 
+  src/barrier.c 
+  Buf2Cache/buf2cache.c
+  src/freelist.c 
+  src/debug.c 
+  src/bindthread.c 
+  src/gpu_data.c
+  src/mempool.c 
+  ${EXTRA_SOURCES} 
+  data_dist/matrix/matrix.c 
   data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
   data_dist/matrix/tabular_distribution/tabular_distribution.c 
-  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c )
+  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
+  ${generated_files}
+)
+
+#
+# Setup targets
+#
+add_library(dague STATIC 
+  ${SRCS}
+)
 set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 install(TARGETS dague ARCHIVE DESTINATION lib)
 
 if (DAGUE_MPI AND MPI_FOUND)
-  add_library(dague-mpi STATIC src/dague.c src/symbol.c src/expr.c src/params.c src/dep.c src/arena.c
-    src/scheduling.c src/profiling.c src/stats.c src/remote_dep.c src/barrier.c Buf2Cache/buf2cache.c
-    src/freelist.c src/debug.c src/bindthread.c src/gpu_data.c
-    src/mempool.c ${EXTRA_SOURCES} data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
-  data_dist/matrix/tabular_distribution/tabular_distribution.c
-  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c)
+  add_library(dague-mpi STATIC 
+    ${SRCS}
+    )
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
   #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   install(TARGETS dague-mpi ARCHIVE DESTINATION lib)

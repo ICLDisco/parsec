@@ -45,10 +45,25 @@ typedef struct tiled_matrix_desc_t {
  */
 
 void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void create_tile_lu_float(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void create_tile_lu_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void create_tile_cholesky_float(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void create_tile_cholesky_double(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+
+void matrix_ctile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ctile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ctile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ctile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+
+void matrix_dtile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_dtile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_dtile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_dtile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+
+void matrix_stile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_stile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_stile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_stile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
 
 /**
  * Generate the full distributed matrix using all nodes/cores available.
@@ -79,11 +94,15 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
 
 #ifdef USE_MPI
-void compare_dist_data_double(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void compare_dist_data_float(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
 #else
-#define compare_dist_data_double(...) do {} while(0)
-#define compare_dist_data_float(...) do {} while(0)
+#define matrix_zcompare_dist_data(...) do {} while(0)
+#define matrix_zcompare_dist_data(...) do {} while(0)
+#define matrix_zcompare_dist_data(...) do {} while(0)
+#define matrix_zcompare_dist_data(...) do {} while(0)
 #endif
 
 #endif /* _MATRIX_H_  */
