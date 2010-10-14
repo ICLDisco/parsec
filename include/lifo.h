@@ -210,6 +210,7 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
     return item;
 }
 
+#pragma GCC diagnostic ignored "-Wunused-result"
 static inline void dague_atomic_lifo_construct( dague_atomic_lifo_t* lifo )
 {
     DAGUE_LIFO_ELT_ALLOC( lifo->lifo_ghost, sizeof(dague_list_item_t));
@@ -217,6 +218,7 @@ static inline void dague_atomic_lifo_construct( dague_atomic_lifo_t* lifo )
     lifo->lifo_ghost->list_prev = lifo->lifo_ghost;
     lifo->lifo_head = lifo->lifo_ghost;
 }
+#pragma GCC diagnostic warning "-Wunused-result"
 
 #endif
 

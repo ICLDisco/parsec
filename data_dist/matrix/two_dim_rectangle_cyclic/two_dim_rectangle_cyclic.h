@@ -66,7 +66,10 @@ typedef struct two_dim_block_cyclic {
  * @param ncst number of column of tiles for block distribution
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, 
+			       unsigned int mb, unsigned int nb, unsigned int ib, 
+			       unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, 
+			       unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
 
 void twoDBC_free( two_dim_block_cyclic_t * Ddesc );
 void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
