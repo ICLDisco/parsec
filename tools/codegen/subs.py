@@ -53,6 +53,8 @@ subs = {
     ('#undef COMPLEX','#undef COMPLEX','#undef REAL','#undef REAL'),
     ('Workspace_s','Workspace_d','Workspace_c','Workspace_z'),
     ('workspace_s','workspace_d','workspace_c','workspace_z'),
+    ('matrix_s','matrix_d','matrix_c','matrix_z'),  # Functions 
+    ('smatrix','dmatrix','cmatrix','zmatrix'),      # Filename
     ('slag2d','dlag2s','clag2z','zlag2c'),
     ('saxpy','daxpy','caxpy','zaxpy'),
     ('ssymm','dsymm','chemm','zhemm'),
