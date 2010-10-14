@@ -42,12 +42,6 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 double time_elapsed;
 double sync_time_elapsed;
 
-two_dim_block_cyclic_t ddescA;
-two_dim_block_cyclic_t ddescB;
-two_dim_block_cyclic_t ddescC;
-
-static dague_object_t *dague_trmm = NULL;
-
 #if defined(USE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
 #endif  /* USE_MPI */
@@ -75,8 +69,8 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     int info_solution;
     double Anorm, Binitnorm, Bdaguenorm, Blapacknorm, Rnorm, result;
     double *A, *B, *C;
-    int M = ddescB->super.m;
-    int N = ddescB->super.n;
+    int M   = ddescB->super.m;
+    int N   = ddescB->super.n;
     int LDA = ddescA->super.lm;
     int LDB = ddescB->super.lm;
     double eps = lapack_dlamch(lapack_eps);
@@ -155,6 +149,22 @@ int main(int argc, char ** argv)
     int nrst  = iparam[IPARAM_STM];
     int ncst  = iparam[IPARAM_STN];
     int GRIDrows = iparam[IPARAM_GDROW];
+    int mt = (M%MB==0) ? (M/MB) : (M/MB+1);
+    int nt = (N%NB==0) ? (N/NB) : (N/NB+1);
+
+    two_dim_block_cyclic_t ddescA;
+    two_dim_block_cyclic_t ddescB;
+    two_dim_block_cyclic_t work;
+    
+    dague_object_t *dague_trmm = NULL;
+
+    /* Create workspace for control */
+    two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank, 
+			      1, 1, 1, mt, nt, 0, 0, mt, nt, 1, 1, GRIDrows);
+
+    /* initializing matrix structure */
+    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 
     /* Initialize DAGuE */
     TIME_START();
@@ -164,10 +174,6 @@ int main(int argc, char ** argv)
     if ( iparam[IPARAM_CHECK] == 0 ) {
 	int s = PlasmaLeft;
 
-	/* initializing matrix structure */
-	two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
-	two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
-	
 	/* matrix generation */
 	printf("Generate matrices ... ");
 	generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
@@ -177,7 +183,8 @@ int main(int argc, char ** argv)
 	/* Create TRMM DAGuE */
 	printf("Generate TRMM DAG ... ");
 	SYNC_TIME_START();
-	dague_trmm = DAGUE_dtrmm_New(s, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB);
+	dague_trmm = DAGUE_dtrmm_New(s, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (double)1.0, 
+				     (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&work);
 	dague_enqueue( dague, (dague_object_t*)dague_trmm);
 	printf("Done\n");
 	printf("Total nb tasks to run: %u\n", dague->taskstodo);
@@ -201,6 +208,9 @@ int main(int argc, char ** argv)
 	int s, u, t, d;
 	int info_solution;
 	double alpha = 1.0;
+	two_dim_block_cyclic_t ddescC;
+
+	two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 
 	for (s=0; s<2; s++) {
 	    for (u=0; u<2; u++) {
@@ -214,10 +224,6 @@ int main(int argc, char ** argv)
 			printf("***************************************************\n");
 			printf(" ----- TESTING DTRMM (%s, %s, %s, %s) -------- \n",
 				   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
-			/* initializing matrix structure */
-			two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
-			two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
-			two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 			
 			/* matrix generation */
 			printf("Generate matrices ... ");
@@ -227,25 +233,10 @@ int main(int argc, char ** argv)
 			printf("Done\n");
 	
 			/* Create TRMM DAGuE */
-			SYNC_TIME_START();
-			printf("Generate TRMM DAG ... ");
-			dague_trmm = DAGUE_dtrmm_New(side[s], uplo[u], trans[t], diag[d], 
-						     (double)alpha, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
-			dague_enqueue( dague, (dague_object_t*)dague_trmm);
+			printf("Compute ... ... ");
+			DAGUE_dtrmm(dague, side[s], uplo[u], trans[t], diag[d], (double)alpha, 
+				    (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
 			printf("Done\n");
-			printf("Total nb tasks to run: %u\n", dague->taskstodo);
-			TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
-			
-			/* lets rock! */
-			SYNC_TIME_START();
-			TIME_START();
-			dague_progress(dague);
-			TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n", rank, 
-				    dague_trmm->nb_local_tasks, 
-				    dague_trmm->nb_local_tasks/time_elapsed));
-			SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB, 
-					 gflops = (_FADDS(side[s], M, NRHS) + _FMULS(side[s], M, NRHS))/(sync_time_elapsed)));
-			(void) gflops;
 
 			/* Check the solution */
 			info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
@@ -260,21 +251,20 @@ int main(int argc, char ** argv)
 				   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
 			}
 			printf("***************************************************\n");
-
-
-			twoDBC_free(&ddescA);
-			twoDBC_free(&ddescB);
-			twoDBC_free(&ddescC);
 		    }
 		}
 #ifdef __UNUSED__
-		}
+		/* } */
 #endif
 	    }
 	}
+	twoDBC_free(&ddescC);
     }
     
-    /*data_dump((tiled_matrix_desc_t *) &ddescA);*/
+    twoDBC_free(&ddescA);
+    twoDBC_free(&ddescB);
+    twoDBC_free(&work);
+
     cleanup_dague(dague, "dtrmm");
     /*** END OF DAGUE COMPUTATION ***/
     
