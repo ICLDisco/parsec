@@ -423,7 +423,7 @@ int main(int argc, char ** argv)
             printf("reading matrix from file\n");
             data_read((tiled_matrix_desc_t *) &ddescB, fname);
 
-            compare_dist_data_float((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
+            matrix_scompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
         }
         
 

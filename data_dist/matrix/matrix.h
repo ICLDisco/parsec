@@ -95,14 +95,14 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
 
 #ifdef USE_MPI
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
-void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_ccompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_dcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
+void matrix_scompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
 #else
 #define matrix_zcompare_dist_data(...) do {} while(0)
-#define matrix_zcompare_dist_data(...) do {} while(0)
-#define matrix_zcompare_dist_data(...) do {} while(0)
-#define matrix_zcompare_dist_data(...) do {} while(0)
+#define matrix_ccompare_dist_data(...) do {} while(0)
+#define matrix_dcompare_dist_data(...) do {} while(0)
+#define matrix_scompare_dist_data(...) do {} while(0)
 #endif
 
 #endif /* _MATRIX_H_  */
