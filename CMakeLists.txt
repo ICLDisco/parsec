@@ -302,11 +302,11 @@ set(generated_files)
 foreach(_prec ${PRECISIONS})
   set(generated_files_${_prec})
   if( _prec MATCHES "z" )
-    list(APPEND generated_files_${_prec} "${_file}")
+    list(APPEND generated_files_${_prec} "${NAMES}")
   else()
     foreach(_file ${NAMES})
       string(REPLACE "/z" "/${_prec}" file_tro ${_file})
-      message(STATUS "gen ${file_tro}")
+      message(STATUS "gen ${file_tro} from ${_file} with ${CODEGEN}")
       add_custom_command(
         OUTPUT ${file_tro}
         COMMAND python ${CODEGEN} ${_file}
@@ -344,7 +344,7 @@ set(SRCS
   data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
   ${generated_files}
 )
-message (STATUS ${SRCS} )
+message (STATUS "${SRCS}" )
 
 #
 # Setup targets
