@@ -13,7 +13,7 @@ static void dague_thread_mempool_construct( dague_thread_mempool_t *thread_mempo
 
 void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t pool_offset, unsigned int nbthreads )
 {
-    int tid;
+    uint32_t tid;
 
     mempool->nb_thread_mempools = nbthreads;
     mempool->elt_size = elt_size;
@@ -50,7 +50,7 @@ static void dague_thread_mempool_destruct( dague_thread_mempool_t *thread_mempoo
 
 void dague_mempool_destruct( dague_mempool_t *mempool )
 {
-    int tid;
+    uint32_t tid;
     for(tid = 0; tid < mempool->nb_thread_mempools; tid++)
         dague_thread_mempool_destruct( &mempool->thread_mempools[tid] );
     free( mempool->thread_mempools );
