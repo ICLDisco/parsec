@@ -144,7 +144,7 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
 #define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
 
-#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) posix_memalign( (void**)&(elt), DAGUE_LIFO_ALIGNMENT, (truesize) )
+#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) ((void) posix_memalign( (void**)&(elt), DAGUE_LIFO_ALIGNMENT, (truesize) ))
 
 typedef struct dague_atomic_lifo_t {
     dague_list_item_t *lifo_head;
