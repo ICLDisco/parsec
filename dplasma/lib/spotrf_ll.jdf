@@ -17,7 +17,7 @@ extern int *gpu_counter;
 #endif
 
 #include "remote_dep.h"
-#include "data_dist/data_distribution.h"
+#include "data_distribution.h"
 
 #ifdef DAGUE_CALL_TRACE
 #   include <stdlib.h>

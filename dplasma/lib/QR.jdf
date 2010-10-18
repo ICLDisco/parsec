@@ -16,7 +16,7 @@ extern "C" %{
   CORE_dormqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
 #endif
 
-#include "data_dist/data_distribution.h"
+#include "data_distribution.h"
 #include "memory_pool.h"
 
 #if defined(DISTRIBUTED)

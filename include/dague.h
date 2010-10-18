@@ -166,9 +166,6 @@ struct dague_object {
     dague_dependencies_t**     dependencies_array;
 };
 
-struct dague_ddesc;
-
-#include "../data_dist/data_distribution.h"
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,

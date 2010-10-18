@@ -1,6 +1,7 @@
 extern "C" %{
 
 #include "dague.h"
+#include "data_distribution.h"
 
 #if defined(DISTRIBUTED)
 #include <mpi.h>

@@ -10,7 +10,7 @@ static int PLASMA_INFO = 0;
 
 #include "dague.h"
 #include "remote_dep.h"
-#include "data_dist/data_distribution.h"
+#include "data_distribution.h"
 
 #ifdef DAGUE_CALL_TRACE
 #   include <stdlib.h>

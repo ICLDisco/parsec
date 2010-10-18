@@ -9,7 +9,7 @@
 #define _MATRIX_H_ 
 
 #include <stdarg.h>
-#include "../data_distribution.h"
+#include "data_distribution.h"
 
 // TODO: This type is weird/broken, it needs to be fixed at some point
 enum matrix_type {
