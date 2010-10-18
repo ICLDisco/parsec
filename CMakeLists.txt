@@ -157,7 +157,8 @@ IF( HAVE_WD )
     #      but might be useful for some debugging sessions. 
     # 1419: warning about extern functions being declared in .c
     #       files
-    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419" )
+    # 1572: cuda compares floats with 0.0f. 
+    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
 ENDIF( HAVE_WD )
 SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
@@ -279,45 +280,9 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 add_definitions(-DHAVE_CONFIG_H)
 
-# This should be killed when matrix is a separate lib
-include_directories(${PLASMA_INCLUDE_DIR})
-include_directories(data_dist)
-
 #
 #  Settings for targets
 # 
-
-#
-# Sources depending on Precision 
-#
-set(PRECISIONS d s) # z c d s
-message(STATUS "Dir : ${CMAKE_CURRENT_SOURCE_DIR}")
-set(CODEGEN  ${CMAKE_CURRENT_SOURCE_DIR}/tools/codegen/codegen.py )
-set( NAMES 
-  data_dist/matrix/zmatrix.c
-  )
-
-#  precision generation 
-set(generated_files)
-foreach(_prec ${PRECISIONS})
-  set(generated_files_${_prec})
-  if( _prec MATCHES "z" )
-    list(APPEND generated_files_${_prec} "${NAMES}")
-  else()
-    foreach(_file ${NAMES})
-      string(REPLACE "/z" "/${_prec}" file_tro ${_file})
-      message(STATUS "gen ${file_tro} from ${_file} with ${CODEGEN}")
-      add_custom_command(
-        OUTPUT ${file_tro}
-        COMMAND python ${CODEGEN} ${_file}
-        MAIN_DEPENDENCY ${_file}
-      ) 
-      list(APPEND generated_files_${_prec} "${file_tro}")
-    endforeach()
-  endif()
-  list(APPEND generated_files ${generated_files_${_prec}})
-endforeach()
-
 
 set(SRCS 
   src/dague.c 
@@ -338,28 +303,18 @@ set(SRCS
   src/gpu_data.c
   src/mempool.c 
   ${EXTRA_SOURCES} 
-  data_dist/matrix/matrix.c 
-  data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
-  data_dist/matrix/tabular_distribution/tabular_distribution.c 
-  data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
-  ${generated_files}
 )
-message (STATUS "${SRCS}" )
 
 #
 # Setup targets
 #
-add_library(dague STATIC 
-  ${SRCS}
-)
+add_library(dague STATIC ${SRCS})
 set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
 #target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
 install(TARGETS dague ARCHIVE DESTINATION lib)
 
 if (DAGUE_MPI AND MPI_FOUND)
-  add_library(dague-mpi STATIC 
-    ${SRCS}
-    )
+  add_library(dague-mpi STATIC ${SRCS})
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
   #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
@@ -368,7 +323,7 @@ endif (DAGUE_MPI AND MPI_FOUND)
 #
 # Now continue with compiling the tests.
 #
-#add_subdirectory(data_dist)
+add_subdirectory(data_dist)
 add_subdirectory(tools)
 add_subdirectory(tests)
 add_subdirectory(dplasma)
