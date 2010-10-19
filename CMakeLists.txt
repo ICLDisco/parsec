@@ -209,20 +209,6 @@ check_function_exists(getrusage HAVE_GETRUSAGE)
 
 
 #
-# Find required packages
-#
-find_package(PLASMA REQUIRED)
-if( PLASMA_SRC )
-    list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
-endif( PLASMA_SRC )
-list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_DIR})
-message(STATUS "Looking for control/common.h;context.h;allocate.h in ${PLASMA_INCLUDE_DIR}")
-#check_include_files("control/common.h;control/context.h;control/allocate.h"   FOUND_PLASMA_CONTROL)
-#if( !FOUND_PLASMA_CONTROL )
-#  message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h in the PLASMA source directory")
-#endif( !FOUND_PLASMA_CONTROL )
-
-#
 # Find optional packages
 #
 find_package(HWLOC)
@@ -266,6 +252,23 @@ if( DAGUE_CUDA )
     set( DAGUE_CUDA_SUPPORT 0)
   endif (CUDA_FOUND)
 endif( DAGUE_CUDA )
+
+
+#                                                                                                            
+# Find required packages
+#
+find_package(PLASMA REQUIRED)
+if( PLASMA_SRC )
+    list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
+endif( PLASMA_SRC )
+#list(APPEND CMAKE_REQUIRED_INCLUDES ${PLASMA_INCLUDE_DIR})
+#message(STATUS "Looking for control/common.h;context.h;allocate.h in ${PLASMA_INCLUDE_DIR}")
+#check_include_files("control/common.h;control/context.h;control/allocate.h" FOUND_PLASMA_CONTROL)
+#if( !FOUND_PLASMA_CONTROL ) 
+#  message(FATAL_ERROR "Cannot find control/common.h;context.h;allocate.h
+#  in the PLASMA source directory")
+#endif( !FOUND_PLASMA_CONTROL )
+
 
 #
 ##
@@ -323,10 +326,10 @@ endif (DAGUE_MPI AND MPI_FOUND)
 #
 # Now continue with compiling the tests.
 #
-add_subdirectory(data_dist)
 add_subdirectory(tools)
-add_subdirectory(tests)
 add_subdirectory(dplasma)
+add_subdirectory(data_dist)
+add_subdirectory(tests)
 
 # Configuration header
 configure_file (

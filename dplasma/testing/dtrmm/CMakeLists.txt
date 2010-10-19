@@ -14,7 +14,7 @@ if( PLASMA_FOUND )
     set_target_properties(trmm PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(trmm PROPERTIES COMPILE_FLAGS "-DADD_")
     set_target_properties(trmm PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(trmm dplasma dague dague_matrix ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+    target_link_libraries(trmm dplasma dague dague_distribution_matrix ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
  
 endif( PLASMA_FOUND )
 

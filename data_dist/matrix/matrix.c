@@ -15,11 +15,6 @@
 #include <string.h>
 
 
-#ifdef USE_MPI
-#include <mpi.h>
-#include <lapack.h>
-#endif
-
 #include "data_distribution.h"
 
 #include "matrix.h"

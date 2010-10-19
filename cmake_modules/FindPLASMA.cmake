@@ -119,9 +119,9 @@ endif(BLAS_FOUND)
 include(FindPackageMessage)
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_FOUND)
-	message(STATUS "A Library with PLASMA API found.")
-	find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
-	  "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
+    message(STATUS "A Library with PLASMA API found.")
+    find_package_message(PLASMA "Found PLASMA: ${PLASMA_LIBRARIES}"
+      "[${PLASMA_INCLUDE_DIR}][${PLASMA_LIBRARIES}]")
   else(PLASMA_FOUND)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR
