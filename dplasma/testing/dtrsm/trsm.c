@@ -355,12 +355,14 @@ int main(int argc, char ** argv)
 	
     if ( checking == 0 ) {
 	/* initializing matrix structure */
-	two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N,    0, 0, LDA, LDA,  nrst, ncst, GRIDrows);
-	two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
+	two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb,  N, N,    0, 0, LDA, LDA,  nrst, ncst, GRIDrows);
+	two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb,  N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
 	
 	/* matrix generation */
-	printf("Generate matrices ... ");
-	generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+        printf("Generate matrices ... ");
+        ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
 	generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
 	printf("Done\n");
 	
@@ -399,10 +401,13 @@ int main(int argc, char ** argv)
 			/* initializing matrix structure */
 			two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, N,    0, 0, LDA, LDA,  nrst, ncst, GRIDrows);
 			two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
-			two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
+			two_dim_block_cyclic_init(&ddescX, matrix_RealDouble, nodes, cores, rank, dposv_force_nb, dposv_force_nb, 0, N, NRHS, 0, 0, LDA, NRHS, nrst, ncst, GRIDrows);
 			
 			/* matrix generation */
 			printf("Generate matrices ... ");
+                        ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+                        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+                        ddescX.mat = dague_data_allocate((size_t)ddescX.super.nb_local_tiles * (size_t)ddescX.super.bsiz * (size_t)ddescX.super.mtype);
 			generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
 			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
 			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);

@@ -119,14 +119,17 @@ int main(int argc, char ** argv)
     runtime_init(argc, argv);
 
     two_dim_block_cyclic_init(&ddescA, matrix_RealFloat, nodes, cores, rank,
-                              NB, NB, IB, N, N, 0, 0,
+                              NB, NB, N, N, 0, 0,
                               N, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescB, matrix_RealFloat, nodes, cores, rank,
-                              NB, NB, IB, N, N, 0, 0,
+                              NB, NB, N, N, 0, 0,
                               N, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescC, matrix_RealFloat, nodes, cores, rank,
-                              NB, NB, IB, N, N, 0, 0,
+                              NB, NB, N, N, 0, 0,
                               N, N, nrst, ncst, GRIDrows);
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+    ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescC);    //#ifdef VTRACE 

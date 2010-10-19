@@ -81,9 +81,6 @@ static dague_context_t *setup_tsqr( int* pargc
             , rank // int myrank
             , powerCount // int mb
             , powerCount // int nb
-            , 0 // innerBlocking
-                    // 1/5
-                    // 0 si n'a pas de inner blocking
             , height        // lm == m
             , powerCount    // ln == n
             , 0          // int i (in whole grand scheme)
@@ -94,6 +91,8 @@ static dague_context_t *setup_tsqr( int* pargc
             , 1 // int ncst
             , count // int process_GridRows
             );
+
+    rtop.mat = dague_data_allocate((size_t)rtop.super.nb_local_tiles * (size_t)rtop.super.bsiz * (size_t)rtop.super.mtype);
 
     generate_tiled_random_mat((tiled_matrix_desc_t *)&rtop, 100);
 

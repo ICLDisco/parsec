@@ -33,6 +33,10 @@ static uint32_t td_get_rank_for_tile(dague_ddesc_t * desc, ...)
     n = va_arg(ap, int);
     va_end(ap);
 
+    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
+    m += ((tiled_matrix_desc_t *)desc)->i;
+    n += ((tiled_matrix_desc_t *)desc)->j;
+    
     res = (Ddesc->super.lmt * n) + m;
     return Ddesc->tiles_table[res].rank;
 }
@@ -49,6 +53,11 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
+
+     /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
+    m += ((tiled_matrix_desc_t *)desc)->i;
+    n += ((tiled_matrix_desc_t *)desc)->j;
+
 #ifdef DISTRIBUTED
     assert(desc->myrank == td_get_rank_for_tile(desc, m, n));    
 #endif /* DISTRIBUTED */
@@ -58,9 +67,10 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
     return  Ddesc->tiles_table[res].tile;
 }
 
-void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, uint32_t nodes, uint32_t cores, uint32_t myrank, uint32_t mb, uint32_t nb, uint32_t ib, uint32_t lm, uint32_t ln, uint32_t i, uint32_t j, uint32_t m, uint32_t n, uint32_t * table )
+void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table )
 {
     size_t res;
+    unsigned int total = 0;
     
 
     // Filling matrix description with user parameter
@@ -70,7 +80,6 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.mtype = mtype;
     Ddesc->super.mb = mb;
     Ddesc->super.nb = nb;
-    Ddesc->super.ib = ib;
     Ddesc->super.lm = lm;
     Ddesc->super.ln = ln;
     Ddesc->super.i = i;
@@ -91,12 +100,12 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     /* allocate the table*/
     Ddesc->tiles_table = malloc((Ddesc->super.lmt) * (Ddesc->super.lnt) * sizeof(tile_elem_t));
 
-    /* affecting corresponding ranks and allocating tile memory */
     
+    /*
     for (res = 0 ; res < (Ddesc->super.lmt) * (Ddesc->super.lnt) ; res++)
         {
             Ddesc->tiles_table[res].rank = table[res];
-            if(table[res] == myrank) /* this tile belongs to me, allocating memory*/
+            if(table[res] == myrank) 
                 {
                     Ddesc->tiles_table[res].tile = dague_data_allocate( Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
                     if (Ddesc->tiles_table[res].tile == NULL)
@@ -109,19 +118,28 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
             else
                 Ddesc->tiles_table[res].tile = NULL;
         }
-
+    */
+    for (res = 0 ; res < (Ddesc->super.lmt) * (Ddesc->super.lnt) ; res++)
+        {
+            Ddesc->tiles_table[res].rank = table[res];
+            if(table[res] == myrank) 
+                {
+                    total++;   
+                }
+        }
+    Ddesc->super.nb_local_tiles = total;
     Ddesc->super.super.rank_of =  td_get_rank_for_tile;
     Ddesc->super.super.data_of =  td_get_local_tile;
     
 }
 
 
-uint32_t * create_2dbc(uint32_t size, uint32_t block, uint32_t nbproc, uint32_t Grow)
+unsigned int * create_2dbc(unsigned int size, unsigned int block, unsigned int nbproc, unsigned int Grow)
 {
-    uint32_t nbtiles;
-    uint32_t * res;
-    uint32_t Gcol;
-    uint32_t i, j, k, cr, rr, rank;
+    unsigned int nbtiles;
+    unsigned int * res;
+    unsigned int Gcol;
+    unsigned int i, j, k, cr, rr, rank;
     if (nbproc % Grow != 0)
         {
             printf("bad process grid\n");
@@ -129,7 +147,7 @@ uint32_t * create_2dbc(uint32_t size, uint32_t block, uint32_t nbproc, uint32_t 
         }
 
     nbtiles = (size + block - 1) / block;
-    res = malloc(nbtiles * nbtiles * sizeof(uint32_t));
+    res = malloc(nbtiles * nbtiles * sizeof(unsigned int));
     
     if (res == NULL)
         {

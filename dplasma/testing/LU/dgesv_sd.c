@@ -157,14 +157,13 @@ int main(int argc, char ** argv)
     runtime_init(argc, argv);
 
     two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, 
-                              NB, NB, IB, N, N, 0, 0, 
+                              NB, NB, N, N, 0, 0, 
                               N, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescdLIPIV,
                               matrix_RealDouble,
                               nodes,
                               cores,
                               rank,
-                              (IB+1),
                               NB,
                               IB,
                               (IB+1)*ddescA.super.mt, N,
@@ -175,6 +174,8 @@ int main(int argc, char ** argv)
 
 
     /* matrix generation */
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    ddescdLIPIV.mat = dague_data_allocate((size_t)ddescdLIPIV.super.nb_local_tiles * (size_t)ddescdLIPIV.super.bsiz * (size_t)ddescdLIPIV.super.mtype);
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescdLIPIV);
     memset(ddescdLIPIV.mat, NB * sizeof(int), 0);
@@ -401,7 +402,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 
     dague_LU = (dague_object_t*)dague_LU_sd_new( (dague_ddesc_t*)&ddescdLIPIV,
                                               (dague_ddesc_t*)&ddescA,
-                                              ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, ddescA.super.ib );
+                                              ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, IB );
     dague_enqueue( dague, (dague_object_t*)dague_LU);
 
     nbtasks = dague_LU->nb_local_tasks;

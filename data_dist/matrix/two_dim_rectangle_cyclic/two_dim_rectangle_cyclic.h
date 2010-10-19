@@ -55,7 +55,6 @@ typedef struct two_dim_block_cyclic {
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile
- * @param ib number of column in an inner block
  * @param lm number of rows of the entire matrix
  * @param ln number of column of the entire matrix
  * @param i starting row index for the computation on a submatrix
@@ -67,11 +66,11 @@ typedef struct two_dim_block_cyclic {
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, 
-			       unsigned int mb, unsigned int nb, unsigned int ib, 
+			       unsigned int mb, unsigned int nb, 
 			       unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, 
 			       unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
 
-void twoDBC_free( two_dim_block_cyclic_t * Ddesc );
+
 void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 
 #ifdef USE_MPI

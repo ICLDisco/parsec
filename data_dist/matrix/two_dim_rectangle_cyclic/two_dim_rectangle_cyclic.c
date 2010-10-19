@@ -33,6 +33,9 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
+    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
+    m += ((tiled_matrix_desc_t *)desc)->i;
+    n += ((tiled_matrix_desc_t *)desc)->j;
     /* for tile (m,n), first find coordinate of process in
        process grid which possess the tile in block cyclic dist */
     str = m / Ddesc->nrst; /* (m,n) is in super-tile (str, stc)*/
@@ -47,32 +50,6 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     return res;
 }
 
-void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda)
-{
-  unsigned int i, j, il, jl, x, y;
-    double *bdl, *f77;
-    int64_t dec;
-
-    /* check which tiles to generate */
-    for ( j = 0 ; j < Mdesc->super.lnt ; j++)
-        for ( i = 0 ; i < Mdesc->super.lmt ; i++)
-        {
-	    if( Mdesc->super.super.myrank ==
-		Mdesc->super.super.rank_of((dague_ddesc_t *)Mdesc, i, j ) )
-	    {
-		il = i / ( Mdesc->nrst * Mdesc->GRIDrows ) +  (i % ( Mdesc->nrst * Mdesc->GRIDrows )) - ( Mdesc->nrst * Mdesc->rowRANK );
-		jl = j / ( Mdesc->ncst * Mdesc->GRIDcols ) +  (j % ( Mdesc->ncst * Mdesc->GRIDcols )) - ( Mdesc->ncst * Mdesc->colRANK );
-		dec = ((int64_t)(Mdesc->super.nb)*(int64_t)lda*(int64_t)(jl)) + (int64_t)((Mdesc->super.mb)*(il));
-		bdl = Mdesc->super.super.data_of((dague_ddesc_t *)Mdesc, i, j );
-		f77 = &A[ dec ];
-
-		for (y = 0; y < (Mdesc->super.nb); y++)
-		  for (x = 0; x < (Mdesc->super.mb); x++)
-		    f77[lda*y+x] = bdl[(Mdesc->super.nb)*y + x];
-	    }
-	}
-    return;
-}
 
 static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
@@ -85,6 +62,11 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
+
+    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
+    m += ((tiled_matrix_desc_t *)desc)->i;
+    n += ((tiled_matrix_desc_t *)desc)->j;
+    
 #ifdef DISTRIBUTED
     //   if ( desc->myrank != twoDBC_get_rank_for_tile(desc, m, n) )
     //  {
@@ -127,14 +109,14 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
 {
     unsigned int temp;
     unsigned int nbstile_r;
     unsigned int nbstile_c;
 
 #ifdef DAGUE_DEBUG
-    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, ib = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) mtype, nodes, cores, myrank,  mb,  nb,  ib,  lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
+    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) mtype, nodes, cores, myrank,  mb,  nb,   lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
 #endif
 
 
@@ -145,7 +127,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.mtype = mtype;
     Ddesc->super.mb = mb;
     Ddesc->super.nb = nb;
-    Ddesc->super.ib = ib;
     Ddesc->super.lm = lm;
     Ddesc->super.ln = ln;
     Ddesc->super.i = i;
@@ -223,26 +204,48 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     /*  printf("process %d(%d,%d) handles %d x %d tiles\n",
         Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
-    /* Allocate memory for matrices in block layout */
+    Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c; 
+
+
     //   printf("Process %u: Ddesc->nb_elem_r = %u, Ddesc->nb_elem_c = %u, Ddesc->super.bsiz = %u, Ddesc->super.mtype = %zu\n", myrank, Ddesc->nb_elem_r, Ddesc->nb_elem_c, Ddesc->super.bsiz, (size_t) Ddesc->super.mtype);
-    Ddesc->mat = dague_data_allocate((size_t)Ddesc->nb_elem_r * (size_t)Ddesc->nb_elem_c * (size_t)Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
+    
+    /* Ddesc->mat = dague_data_allocate((size_t)Ddesc->nb_elem_r * (size_t)Ddesc->nb_elem_c * (size_t)Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");
             exit(-1);
-        }
+            }*/
     Ddesc->super.super.rank_of =  twoDBC_get_rank_for_tile;
     Ddesc->super.super.data_of =  twoDBC_get_local_tile;
 }
 
-
-void twoDBC_free( two_dim_block_cyclic_t * Ddesc )
+void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda)
 {
-    if ( Ddesc->mat != NULL ) {
-	free(Ddesc->mat);
-	Ddesc->mat = NULL;
-    }
+  unsigned int i, j, il, jl, x, y;
+    double *bdl, *f77;
+    int64_t dec;
+
+    /* check which tiles to generate */
+    for ( j = 0 ; j < Mdesc->super.lnt ; j++)
+        for ( i = 0 ; i < Mdesc->super.lmt ; i++)
+        {
+	    if( Mdesc->super.super.myrank ==
+		Mdesc->super.super.rank_of((dague_ddesc_t *)Mdesc, i, j ) )
+	    {
+		il = i / ( Mdesc->nrst * Mdesc->GRIDrows ) +  (i % ( Mdesc->nrst * Mdesc->GRIDrows )) - ( Mdesc->nrst * Mdesc->rowRANK );
+		jl = j / ( Mdesc->ncst * Mdesc->GRIDcols ) +  (j % ( Mdesc->ncst * Mdesc->GRIDcols )) - ( Mdesc->ncst * Mdesc->colRANK );
+		dec = ((int64_t)(Mdesc->super.nb)*(int64_t)lda*(int64_t)(jl)) + (int64_t)((Mdesc->super.mb)*(il));
+		bdl = Mdesc->super.super.data_of((dague_ddesc_t *)Mdesc, i, j );
+		f77 = &A[ dec ];
+
+		for (y = 0; y < (Mdesc->super.nb); y++)
+		  for (x = 0; x < (Mdesc->super.mb); x++)
+		    f77[lda*y+x] = bdl[(Mdesc->super.nb)*y + x];
+	    }
+	}
+    return;
 }
+
 
 #ifdef USE_MPI
 

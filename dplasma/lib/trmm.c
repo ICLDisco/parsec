@@ -91,7 +91,7 @@ DAGUEprefix(trmm)( dague_context_t *dague, const PLASMA_enum side, const PLASMA_
     two_dim_block_cyclic_t work;  
     /* Create workspace for control */
     two_dim_block_cyclic_init(&work, matrix_Integer, B->super.nodes, B->super.cores, B->super.myrank, 
-			      1, 1, 1, B->mt, B->nt, 0, 0, B->mt, B->nt, 1, 1, ((two_dim_block_cyclic_t*)B)->GRIDrows);
+			      1, 1, B->mt, B->nt, 0, 0, B->mt, B->nt, 1, 1, ((two_dim_block_cyclic_t*)B)->GRIDrows);
     
     dague_trmm = DAGUEprefix(trmm_New)(side, uplo, trans, diag, alpha, 
 				       A, B, (tiled_matrix_desc_t *)&work);
@@ -99,5 +99,5 @@ DAGUEprefix(trmm)( dague_context_t *dague, const PLASMA_enum side, const PLASMA_
     dague_enqueue( dague, (dague_object_t*)dague_trmm);
     dague_progress(dague);
 
-    twoDBC_free(&work);
+    dague_data_free(&work.mat);
 }

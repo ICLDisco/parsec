@@ -28,6 +28,10 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
+    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
+    m += ((tiled_matrix_desc_t *)desc)->i;
+    n += ((tiled_matrix_desc_t *)desc)->j;
+    
     if ( m < n )
         {
     //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
@@ -56,6 +60,11 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
+
+    /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
+    m += ((tiled_matrix_desc_t *)desc)->i;
+    n += ((tiled_matrix_desc_t *)desc)->j;
+    
     /*if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
         {
             printf("Tile (%d, %d) is looked for on process %u but is not local\n", m, n, desc->myrank);*/
@@ -101,7 +110,6 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     Ddesc->super.mtype = mtype;
     Ddesc->super.mb = mb;
     Ddesc->super.nb = nb;
-    Ddesc->super.ib = ib;
     Ddesc->super.lm = lm;
     Ddesc->super.ln = ln;
     Ddesc->super.i = i;
@@ -152,12 +160,13 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
 
     /* Allocate memory for matrices in block layout */
     printf("Process %u allocates %u tiles\n", myrank, total);
-    Ddesc->mat = dague_data_allocate((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
+    Ddesc->super.nb_local_tiles = total;
+    /*    Ddesc->mat = dague_data_allocate((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
     if (Ddesc->mat == NULL)
         {
             perror("matrix memory allocation failed\n");
             exit(-1);
-        }
+            } */
     Ddesc->super.super.rank_of =  sym_twoDBC_get_rank_for_tile;
     Ddesc->super.super.data_of =  sym_twoDBC_get_local_tile;
 }

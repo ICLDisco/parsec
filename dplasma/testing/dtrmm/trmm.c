@@ -160,11 +160,11 @@ int main(int argc, char ** argv)
 
     /* Create workspace for control */
     two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank, 
-			      1, 1, 1, mt, nt, 0, 0, mt, nt, 1, 1, GRIDrows);
+			      1, 1, mt, nt, 0, 0, mt, nt, 1, 1, GRIDrows);
 
     /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
-    two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescB, matrix_RealDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 
     /* Initialize DAGuE */
     TIME_START();
@@ -176,6 +176,8 @@ int main(int argc, char ** argv)
 
 	/* matrix generation */
 	printf("Generate matrices ... ");
+        ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
 	generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
 	generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
 	printf("Done\n");
@@ -201,8 +203,8 @@ int main(int argc, char ** argv)
 	(void) gflops;
 	TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
 
-	twoDBC_free(&ddescA);
-	twoDBC_free(&ddescB);
+	dague_data_free(&ddescA.mat);
+	dague_data_free(&ddescB.mat);
     }
     else {
 	int s, u, t, d;
@@ -210,7 +212,7 @@ int main(int argc, char ** argv)
 	double alpha = 1.0;
 	two_dim_block_cyclic_t ddescC;
 
-	two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, MB, NB, 0, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+	two_dim_block_cyclic_init(&ddescC, matrix_RealDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
 
 	for (s=0; s<2; s++) {
 	    for (u=0; u<2; u++) {
@@ -227,6 +229,9 @@ int main(int argc, char ** argv)
 			
 			/* matrix generation */
 			printf("Generate matrices ... ");
+                        ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+                        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+                        ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
 			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
 			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
 			generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
@@ -258,12 +263,12 @@ int main(int argc, char ** argv)
 #endif
 	    }
 	}
-	twoDBC_free(&ddescC);
+	dague_data_free(&ddescC.mat);
     }
     
-    twoDBC_free(&ddescA);
-    twoDBC_free(&ddescB);
-    twoDBC_free(&work);
+    dague_data_free(&ddescA.mat);
+    dague_data_free(&ddescB.mat);
+    dague_data_free(&work.mat);
 
     cleanup_dague(dague, "dtrmm");
     /*** END OF DAGUE COMPUTATION ***/

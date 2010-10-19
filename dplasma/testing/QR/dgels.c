@@ -144,15 +144,17 @@ int main(int argc, char ** argv)
    runtime_init(argc, argv);
    /* initializing matrix structure */
    two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, 
-                             NB, NB, IB, M, N, 0, 0, 
+                             NB, NB, M, N, 0, 0, 
                              M, N, nrst, ncst, GRIDrows);
    /* matrix generation */
+   ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
    printf("matrix generated\n");
    
    two_dim_block_cyclic_init(&ddescT, matrix_RealDouble, nodes, cores, rank,
-                             IB, NB, IB, IB*ddescA.super.mt, N, 0, 0,
+                             IB, NB, IB*ddescA.super.mt, N, 0, 0,
                              IB*ddescA.super.mt, N, nrst, ncst, GRIDrows);
+   ddescT.mat = dague_data_allocate((size_t)ddescT.super.nb_local_tiles * (size_t)ddescT.super.bsiz * (size_t)ddescT.super.mtype);
    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
 
    /*** THIS IS THE DAGUE COMPUTATION ***/

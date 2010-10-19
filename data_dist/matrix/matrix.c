@@ -211,6 +211,7 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
 
 void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc)
 {
+    
     rand_dist_matrix(Mdesc, 2, 0);
 }
 

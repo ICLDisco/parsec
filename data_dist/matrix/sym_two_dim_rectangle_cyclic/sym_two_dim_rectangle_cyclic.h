@@ -57,7 +57,6 @@ typedef struct sym_two_dim_block_cyclic {
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile
- * @param ib number of column in an inner block
  * @param lm number of rows of the entire matrix
  * @param ln number of column of the entire matrix
  * @param i starting row index for the computation on a submatrix
@@ -66,7 +65,7 @@ typedef struct sym_two_dim_block_cyclic {
  * @param n numbr of column of the entire submatrix
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int ib, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows );
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows );
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

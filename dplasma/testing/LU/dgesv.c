@@ -160,16 +160,19 @@ int main(int argc, char ** argv)
     runtime_init(argc, argv);
 
     two_dim_block_cyclic_init(&ddescA, matrix_RealDouble, nodes, cores, rank, 
-                              NB, NB, IB, N, N, 0, 0, 
+                              NB, NB,  N, N, 0, 0, 
                               N, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescL, matrix_RealDouble, nodes, cores, rank, 
-                              IB, NB, IB, IB*ddescA.super.mt, N, 0, 0, 
+                              IB, NB, IB*ddescA.super.mt, N, 0, 0, 
                               IB*ddescA.super.mt, N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescIPIV, matrix_Integer, nodes, cores, rank, 
-                              1, NB, IB, ddescA.super.lmt, N, 0, 0, 
+                              1, NB,  ddescA.super.lmt, N, 0, 0, 
                               ddescA.super.lnt, N, nrst, ncst, GRIDrows);
 
     /* matrix generation */
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    ddescL.mat = dague_data_allocate((size_t)ddescL.super.nb_local_tiles * (size_t)ddescL.super.bsiz * (size_t)ddescL.super.mtype);
+    ddescIPIV.mat = dague_data_allocate((size_t)ddescIPIV.super.nb_local_tiles * (size_t)ddescIPIV.super.bsiz * (size_t)ddescIPIV.super.mtype);
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescL);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
@@ -396,7 +399,7 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 
     dague_LU = (dague_object_t*)dague_LU_new( (dague_ddesc_t*)&ddescL,(dague_ddesc_t*)&ddescIPIV,
                                               (dague_ddesc_t*)&ddescA,
-                                              ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, ddescA.super.ib );
+                                              ddescA.super.n, ddescA.super.nb, ddescA.super.lnt, IB );
     dague_enqueue( dague, (dague_object_t*)dague_LU);
 
     nbtasks = dague_LU->nb_local_tasks;

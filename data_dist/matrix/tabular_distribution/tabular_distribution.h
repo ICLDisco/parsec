@@ -54,7 +54,6 @@ typedef struct tabular_distribution {
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile
- * @param ib number of column in an inner block
  * @param lm number of rows of the entire matrix
  * @param ln number of column of the entire matrix
  * @param i starting row index for the computation on a submatrix
@@ -64,11 +63,11 @@ typedef struct tabular_distribution {
  * @param table mpi rank for each tile, column major ordering
  */
 
-void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, uint32_t nodes, uint32_t cores, uint32_t myrank, uint32_t mb, uint32_t nb, uint32_t ib, uint32_t lm, uint32_t ln, uint32_t i, uint32_t j, uint32_t m, uint32_t n, uint32_t * table );
+void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table );
 
 
 
 
-uint32_t * create_2dbc(uint32_t size, uint32_t block, uint32_t nbproc, uint32_t Grow);
+unsigned int * create_2dbc(unsigned int size, unsigned int block, unsigned int nbproc, unsigned int Grow);
 
 #endif /* __TABULAR_DISTRIBUTION_H__ */

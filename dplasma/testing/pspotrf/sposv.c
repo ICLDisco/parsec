@@ -361,7 +361,6 @@ int main(int argc, char ** argv)
                               cores,
                               rank,
                               dposv_force_nb, dposv_force_nb,
-                              0,
                               N, N,
                               0, 0,
                               LDA, LDA,
@@ -372,14 +371,15 @@ int main(int argc, char ** argv)
                                       cores,
                                       rank,
                                       dposv_force_nb, dposv_force_nb,
-                                      0,
                                       N, N,
                                       0, 0,
                                       LDA, LDA,
                                       GRIDrows);
+        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
     }
     
     /* matrix generation */
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
 
 
