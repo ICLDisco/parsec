@@ -1,4 +1,4 @@
-Add_Subdirectory(dtrmm)
+#Add_Subdirectory(dtrmm)
 Add_Subdirectory(LU)
 Add_Subdirectory(QR)
 Add_Subdirectory(TSQR)
