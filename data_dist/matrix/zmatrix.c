@@ -79,12 +79,21 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
+        if( (first_col + j) >= Ddesc->ln ) /* padding for columns  */
+            {
+                break;
+            }
 #ifdef COMPLEX
         ran = Rnd64_jump( 2*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m) , seed);
 #else
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
 #endif	
 	for (i = 0; i < nb; ++i) {
+            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
+                {
+                    break;
+                }
+            
 	    x[0] = 0.5f - ran * RndF_Mul;
 	    ran = Rnd64_A * ran + Rnd64_C;
 #ifdef COMPLEX
@@ -98,6 +107,10 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     if (row == col) {
 	x = (PLASMA_Complex64_t*)position;
 	for (i = 0; i < nb; ++i) {
+            if( ((first_row + i) >= Ddesc->lm) || ((first_col + i) >= Ddesc->ln) ) /* padding for diagonal */
+                {
+                    break;
+                }
 #ifdef COMPLEX
 	    x[i + i * nb] += mn_max - I*cimag(x[i + i * nb]);
 #else
@@ -120,12 +133,20 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
+        if( (first_col + j) >= Ddesc->ln ) /* padding for columns  */
+            {
+                break;
+            }
 #ifdef COMPLEX
         ran = Rnd64_jump( 2*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m) , seed);
 #else
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
 #endif	
 	for (i = 0; i < nb; ++i) {
+            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
+                {
+                    break;
+                }
 	    x[0] = 0.5f - ran * RndF_Mul;
 	    ran = Rnd64_A * ran + Rnd64_C;
 #ifdef COMPLEX
