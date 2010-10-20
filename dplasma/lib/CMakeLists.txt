@@ -16,7 +16,8 @@ set( OLDSRC
 )
 set(EXTRA_SOURCES memory_pool.c)
 
-set(DAGUEPP ../../tools/dague-compiler/daguepp)
+# this is incorrect, needs to be adressed later on
+set(DAGUEPP ${CMAKE_SOURCE_DIR}/tools/dague-compiler/daguepp)
 set(generated_files)
 
 # JDF generation 
