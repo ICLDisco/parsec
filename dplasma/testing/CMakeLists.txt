@@ -6,6 +6,6 @@ Add_Subdirectory(TSQR)
 Add_Subdirectory(psgemm)
 Add_Subdirectory(pdgemm)
 Add_Subdirectory(pspotrf)
-Add_Subdirectory(pdpotrf)
+#Add_Subdirectory(pdpotrf)
 Add_Subdirectory(psgeqrf)
 
