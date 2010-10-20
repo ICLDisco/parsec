@@ -1,4 +1,3 @@
-include_directories(${PLASMA_INCLUDE_DIR})
 
 #
 # Sources depending on Precision 

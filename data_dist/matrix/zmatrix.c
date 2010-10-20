@@ -158,7 +158,20 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
 
 #ifdef USE_MPI
 
-#include <lapack.h>
+//#include <lapack.h>
+
+static double lamch(void) 
+{
+    double eps = 1.0;
+
+    do {
+        eps /= 2.0;
+    } while((1.0 + eps/2.0) != 1.0);
+    //eps = lapack_zlamch(lapack_eps);
+    printf("epsilon is %e\n", eps);    
+    return eps;
+}
+
 
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
@@ -175,10 +188,7 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
     int diff, dc;
     double eps;
     
-    eps = lapack_zlamch(lapack_eps);
-
-    // eps = 1e-13;
-    printf("epsilon is %e\n", eps);    
+    eps = lamch();
 
     if( (a->bsiz != b->bsiz) || (a->mtype != b->mtype) )
         {
