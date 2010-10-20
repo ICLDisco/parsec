@@ -19,7 +19,6 @@
 
 #ifdef USE_MPI
 #include <mpi.h>
-#include <lapack.h>
 #endif
 
 #include "data_distribution.h"
@@ -66,12 +65,12 @@ Rnd64_jump(unsigned long long int n, unsigned long long int seed ) {
 }
 
 void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position, 
-			   unsigned int row, unsigned int col, unsigned long long int seed)
+                           unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
-    PLASMA_Complex64_t mn_max = max(Ddesc->n, Ddesc->m);
-    PLASMA_Complex64_t *x = (PLASMA_Complex64_t*)position;
+    PLASMA_Complex64_t mn_max = (PLASMA_Complex64_t) max(Ddesc->n, Ddesc->m);
+    PLASMA_Complex64_t *x = (PLASMA_Complex64_t*) position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
@@ -87,41 +86,40 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
         ran = Rnd64_jump( 2*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m) , seed);
 #else
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
-#endif	
-	for (i = 0; i < nb; ++i) {
-            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
-                {
-                    break;
-                }
-            
-	    x[0] = 0.5f - ran * RndF_Mul;
-	    ran = Rnd64_A * ran + Rnd64_C;
-#ifdef COMPLEX
-	    x[0] += I*(0.5f - ran * RndF_Mul);
-	    ran = Rnd64_A * ran + Rnd64_C;
 #endif
-	    x += 1;
-	}
+        for (i = 0; i < nb; ++i) {
+            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
+            {
+                break;
+            }
+            x[0] = 0.5f - ran * RndF_Mul;
+            ran = Rnd64_A * ran + Rnd64_C;
+#ifdef COMPLEX
+            x[0] += I*(0.5f - ran * RndF_Mul);
+            ran = Rnd64_A * ran + Rnd64_C;
+#endif
+            x += 1;
+        }
     }
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
-	x = (PLASMA_Complex64_t*)position;
-	for (i = 0; i < nb; ++i) {
+        x = (PLASMA_Complex64_t*)position;
+        for (i = 0; i < nb; ++i) {
             if( ((first_row + i) >= Ddesc->lm) || ((first_col + i) >= Ddesc->ln) ) /* padding for diagonal */
-                {
-                    break;
-                }
+            {
+                break;
+            }
 #ifdef COMPLEX
-	    x[i + i * nb] += mn_max - I*cimag(x[i + i * nb]);
+            x[i + i * nb] += mn_max - I*cimag(x[i + i * nb]);
 #else
-	    x[i + i * nb] += mn_max;
+            x[i + i * nb] += mn_max;
 #endif
-	}
+        }
     }
 }
 
 void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position, 
-		  unsigned int row, unsigned int col, unsigned long long int seed)
+                  unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
@@ -141,24 +139,26 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
         ran = Rnd64_jump( 2*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m) , seed);
 #else
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
-#endif	
-	for (i = 0; i < nb; ++i) {
-            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
-                {
-                    break;
-                }
-	    x[0] = 0.5f - ran * RndF_Mul;
-	    ran = Rnd64_A * ran + Rnd64_C;
-#ifdef COMPLEX
-	    x[0] += I*(0.5f - ran * RndF_Mul);
-	    ran = Rnd64_A * ran + Rnd64_C;
 #endif
-	    x += 1;
-	}
+        for (i = 0; i < nb; ++i) {
+            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
+            {
+                break;
+            }
+            x[0] = 0.5f - ran * RndF_Mul;
+            ran = Rnd64_A * ran + Rnd64_C;
+#ifdef COMPLEX
+            x[0] += I*(0.5f - ran * RndF_Mul);
+            ran = Rnd64_A * ran + Rnd64_C;
+#endif
+            x += 1;
+        }
     }
 }
 
 #ifdef USE_MPI
+
+#include <lapack.h>
 
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
