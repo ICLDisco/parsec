@@ -23,10 +23,11 @@
 #include "profiling.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
+#include "dplasmatypes.h"
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "gpu_gemm.h"
+#include "../gpu_gemm.h"
 #endif
 
 //#ifdef VTRACE
@@ -42,14 +43,14 @@ double sync_time_elapsed;
 unsigned int dposv_force_nb = 120;
 #define NB dposv_force_nb
 unsigned int pri_change = 0;
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 static int nbrequested_gpu = 0;
 #endif
 unsigned int cores = 1;
-unsigned int nodes = 1;
+int nodes = 1;
 static uint32_t N = 0;
 
-unsigned int rank = 0;
+int rank = 0;
 unsigned int LDA = 0;
 unsigned int NRHS = 1;
 unsigned int LDB = 0;
@@ -63,7 +64,7 @@ sym_two_dim_block_cyclic_t ddescA;
 sym_two_dim_block_cyclic_t ddescB;
 int checking = -1;
 
-static dague_object_t *dague_spotrf = NULL;
+static dague_object_t *dague_potrf = NULL;
 
 #if defined(USE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
@@ -89,7 +90,7 @@ static void print_usage(void)
             "   -P --pri_change  : the position on the diagonal from the end where we switch the priority (default: 0)\n"
             "   -B --block-size  : change the block size from the size tuned by PLASMA\n"
             "   -x --check-result: if 0, write data on file, if 1 read data from file and compare with current matrix"
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
             "   -G --gpu         : number of GPU required (default 0)\n"
 #endif
             );
@@ -111,7 +112,7 @@ static void runtime_init(int argc, char **argv)
             {"block-size",  required_argument,  0, 'B'},
             {"pri_change",  required_argument,  0, 'P'},
             {"check-result",required_argument,  0, 'x'},
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
             {"gpu",         required_argument,  0, 'G'},
 #endif
             {"help",        no_argument,        0, 'h'},
@@ -119,7 +120,7 @@ static void runtime_init(int argc, char **argv)
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:x:h:A:G:";
 #else
     static char shortopts[] = "c:n:a:r:b:g:e:s:B:P:x:h:A:";
@@ -213,7 +214,7 @@ static void runtime_init(int argc, char **argv)
                 case 'h':
                     print_usage();
                     exit(0);
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
                 case 'G':
                     nbrequested_gpu = atoi(optarg);
                     break;
@@ -308,16 +309,11 @@ int main(int argc, char ** argv)
     double gflops;
 
 #ifdef USE_MPI
-    int _rank, _nodes;
-
     /* mpi init */
     MPI_Init(&argc, &argv);
     
-    MPI_Comm_size(MPI_COMM_WORLD, &_nodes);
-    nodes = (unsigned int)_nodes;
-    MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
-    rank = (unsigned int)_rank;
-
+    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
     nodes = 1;
     rank = 0;
@@ -329,7 +325,7 @@ int main(int argc, char ** argv)
     //    VT_ON();
     //#endif
     
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if( nbrequested_gpu != 0 ) {
         if( 0 != dague_gpu_init( &nbrequested_gpu, 0 ) ) {
             fprintf(stderr, "Unable to initialize the CUDA environment.\n");
@@ -339,7 +335,7 @@ int main(int argc, char ** argv)
 #endif
 
     /* initializing matrix structure */
-    sym_two_dim_block_cyclic_init(&ddescA, matrix_RealFloat,
+    sym_two_dim_block_cyclic_init(&ddescA, DAGUE_TYPE_ENUM,
                               nodes,
                               cores,
                               rank,
@@ -349,7 +345,7 @@ int main(int argc, char ** argv)
                               LDA, LDA,
                               GRIDrows);
     if( 1 == checking ) {
-        sym_two_dim_block_cyclic_init(&ddescB, matrix_RealFloat,
+        sym_two_dim_block_cyclic_init(&ddescB, DAGUE_TYPE_ENUM,
                                       nodes,
                                       cores,
                                       rank,
@@ -371,7 +367,7 @@ int main(int argc, char ** argv)
     dague = setup_dague(&argc, &argv);
     TIME_PRINT(("Dague initialization:\t%u %u\n", N, dposv_force_nb));
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(nbrequested_gpu != 0) {
         if( 0 != spotrf_cuda_init( (tiled_matrix_desc_t *) &ddescA ) ) {
             fprintf(stderr, "Unable to load GEMM operations.\n");
@@ -385,7 +381,7 @@ int main(int argc, char ** argv)
     TIME_START();
     dague_progress(dague);
     TIME_PRINT(("Dague proc %u:\ttasks: %u\t%f task/s\n", rank,
-                dague_spotrf->nb_local_tasks, dague_spotrf->nb_local_tasks/time_elapsed));
+                dague_potrf->nb_local_tasks, dague_potrf->nb_local_tasks/time_elapsed));
     SYNC_TIME_PRINT(("Dague computation:\t%u %u %g gflops\n", N, NB,
                      gflops = (((N/1e3)*(N/1e3)*(N/1e3)/3.0))/(sync_time_elapsed)));
     (void)gflops;
@@ -433,14 +429,14 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     dague = dague_init(cores, pargc, pargv, dposv_force_nb);
 
 #if defined(LLT_LL)
-    dague_spotrf = (dague_object_t*)DAGUE_spotrf_ll_New(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
+    dague_potrf = (dague_object_t*)DAGUEprefix(potrf_ll_New)(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
 #else
-    dague_spotrf = (dague_object_t*)DAGUE_spotrf_rl_New(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
+    dague_potrf = (dague_object_t*)DAGUEprefix(potrf_rl_New)(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
 #endif
-    dague_enqueue( dague, (dague_object_t*)dague_spotrf);
+    dague_enqueue( dague, (dague_object_t*)dague_potrf);
 
     printf("Cholesky %ux%u has %u tasks to run. Total nb tasks to run: %u\n", 
-           ddescA.super.nb, ddescA.super.nt, dague_spotrf->nb_local_tasks, dague->taskstodo);
+           ddescA.super.nb, ddescA.super.nt, dague_potrf->nb_local_tasks, dague->taskstodo);
 
     printf("GRIDrows = %u, GRIDcols = %u, rrank = %u, crank = %u\n", ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
     return dague;
@@ -451,12 +447,12 @@ static void cleanup_dague(dague_context_t* dague)
 #ifdef DAGUE_PROFILING
     char* filename = NULL;
     
-    asprintf( &filename, "%s.%u.profile", "sposv", rank );
+    asprintf( &filename, "%s%s.%u.profile", QUOTEME(TYPELETTER), "posv", rank );
     dague_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DAGUE_PROFILING */
     
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     spotrf_cuda_fini();
 #endif
     dague_fini(&dague);
