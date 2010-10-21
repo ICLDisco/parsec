@@ -21,6 +21,7 @@ class Conversion:
   debug = False;
   test = False;
   make = False;
+  valid_precisions = [];
   files_in = [];
   files_out = [];
   def __init__(self, file, match, content):
@@ -38,6 +39,8 @@ class Conversion:
       self.precision = match[2].lower();
       # ['c','d','s']
       self.precisions = match[3].lower().split();
+      if len(self.valid_precisions):
+        self.precisions = self.valid_precisions;
     except:
       raise ValueError(path.join(self.file[0],self.file[1])+' : Invalid conversion string');
     self.files_in.append(rel);
@@ -59,12 +62,14 @@ class Conversion:
       new_file = self.convert(self.file[1], precision);
       if self.debug: print precision,':',
       if new_file <> self.file[1]:
-        if self.make:
-          print new_file+':',self.file[1];
-          print "\t"+path.realpath(sys.argv[0]),"--file",path.realpath(self.file[1]);
-        self.names.append(new_file);
         conversion = path.join(self.file[0], new_file);
-        self.files_out.append(relpath(conversion));
+        file_out = relpath(conversion);
+        if self.make:
+          file_in = relpath(path.join(self.file[0],self.file[1]));
+          print file_out+':',file_in;
+          print "\t$(PYTHON)",path.realpath(sys.argv[0]),"--file",file_in,'-p',precision;
+        self.names.append(new_file);
+        self.files_out.append(file_out);
         if self.debug: print relpath(conversion), ':',
         try:
           date = path.getmtime(conversion);
@@ -94,7 +99,6 @@ class Conversion:
       fd = open(path.join(self.file[0],name), 'w');
       fd.write(data);
       fd.close();
-    #if self.debug: print 'Exported', ', '.join(self.names);
     
     
   def convert_data(self):
@@ -151,6 +155,7 @@ parser.add_option('--out-files','--out', help='Print the filenames for the preci
 parser.add_option('--out-clean','--clean', help='Remove the files that are the product of generation.', action='store_true', dest='out_clean', default=False);
 parser.add_option('--threads', help='Enter the number of threads to use for conversion.', action='store', type='int', dest='threads', default=1);
 parser.add_option('--file','-f', help='Specify a file(s) on which to operate.', action='append', dest='files', type='string', default=[]);
+parser.add_option('--prec','-p', help='Specify a precision(s) on which to operate.', action='append', dest='precs', type='string', default=[]);
 parser.add_option('--make', help='Spew a GNU Make friendly file to standard out.', action='store_true', dest='make', default=False);
 parser.add_option('--test', help='Don\'t actually do any work.', action='store_true', dest='test', default=False);
 (options, args) = parser.parse_args();
@@ -186,8 +191,14 @@ if options.debug: Conversion.debug = True;
 if options.make: Conversion.make = True;
 if options.out_print or options.out_clean or options.in_print or options.make or options.test:
   Conversion.test = True;
+if len(options.precs):
+  Conversion.valid_precisions = options.precs;
 if options.make:
-  print 'generation: gen';
+  print '## Automatically generated Makefile';
+  print 'PYTHON ?= python';
+
+if len(work) is 0:
+  sys.exit(0);
 
 for tuple in work:
   try:
@@ -198,10 +209,11 @@ for tuple in work:
     continue;
 
 if options.make:
+  print 'gen = ',' '+' '.join(c.files_out);
   print 'cleangen:';
-  print '\trm -f '+' '.join(c.files_out);
-  print 'gen:',' '+' '.join(c.files_out);
-  print '.PHONY: cleangen gen generation';
+  print '\trm -f $(gen)';
+  print 'generation: $(gen)';
+  print '.PHONY: cleangen generation';
 if options.in_print: print ' '.join(c.files_in);
 if options.out_print: print ' '.join(c.files_out);
 if options.out_clean:
