@@ -5,7 +5,8 @@
 include(precision_generation)
 set(generated_files "")
 include_directories(".")
-precisions_rules(generated_files "s;d;z;c" pmatrix.c)
+precisions_rules(generated_files "+;s;d" zmatrix.c)
+message(STATUS "${generated_files}")
 
 if (DAGUE_MPI AND MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC

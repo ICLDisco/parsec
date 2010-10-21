@@ -6,6 +6,7 @@ import sys;
 import re;
 import shlex;
 import os;
+import shutil;
 from os import path;
 from optparse import OptionParser;
 from subs import subs;
@@ -23,6 +24,7 @@ class Conversion:
   make = False;
   valid_precisions = [];
   files_in = [];
+  prefix = '';
   files_out = [];
   def __init__(self, file, match, content):
     self.content = content;
@@ -55,14 +57,21 @@ class Conversion:
   def convert_names(self):
     self.names = [];
     self.dates = [];
+    self.copy = [];
     self.converted = [];
     load = False;
     if self.debug: print '|'.join(self.types), self.precision, relpath(path.join(self.file[0],self.file[1]));
     for precision in self.precisions:
       new_file = self.convert(self.file[1], precision);
       if self.debug: print precision,':',
-      if new_file <> self.file[1]:
-        conversion = path.join(self.file[0], new_file);
+      copy = False;
+      if new_file <> self.file[1] or self.prefix:
+        if self.prefix: 
+          conversion = path.join(self.prefix, new_file);
+          if new_file == self.file[1]: 
+            copy = True;
+        else:
+          conversion = path.join(self.file[0], new_file);
         file_out = relpath(conversion);
         if self.make:
           file_in = relpath(path.join(self.file[0],self.file[1]));
@@ -89,14 +98,19 @@ class Conversion:
         else: print >> sys.stderr, new_file, 'had no change for', precision;
         self.names.append(None);
         self.dates.append(None);
+      self.copy.append(copy);
     return load;
     
   def export_data(self):
     for i in range(len(self.names)):
       name = self.names[i];
       data = self.converted[i];
-      if data is None or name is None: continue;
-      fd = open(path.join(self.file[0],name), 'w');
+      copy = self.copy[i];
+      if name is None: continue;
+      if copy:
+        shutil.copy(relpath(name), self.files_out[i]);
+        continue;
+      fd = open(self.files_out[i], 'w');
       fd.write(data);
       fd.close();
     
@@ -106,7 +120,8 @@ class Conversion:
       precision = self.precisions[i];
       name = self.names[i];
       date = self.dates[i];
-      if name is not None and (date is None or date > 0):
+      copy = self.copy[i];
+      if name is not None and not copy and (date is None or date > 0):
         self.converted.append(self.convert(self.content, precision));
       else: self.converted.append(None);
       
@@ -156,6 +171,7 @@ parser.add_option('--out-clean','--clean', help='Remove the files that are the p
 parser.add_option('--threads', help='Enter the number of threads to use for conversion.', action='store', type='int', dest='threads', default=1);
 parser.add_option('--file','-f', help='Specify a file(s) on which to operate.', action='append', dest='files', type='string', default=[]);
 parser.add_option('--prec','-p', help='Specify a precision(s) on which to operate.', action='append', dest='precs', type='string', default=[]);
+parser.add_option('--output-filename-prefix', '--prefix', help="Specify a prefix that will be concatenated to all generated files names.", action='store', dest='prefix', type='string', default='');
 parser.add_option('--make', help='Spew a GNU Make friendly file to standard out.', action='store_true', dest='make', default=False);
 parser.add_option('--test', help='Don\'t actually do any work.', action='store_true', dest='test', default=False);
 (options, args) = parser.parse_args();
@@ -193,6 +209,7 @@ if options.out_print or options.out_clean or options.in_print or options.make or
   Conversion.test = True;
 if len(options.precs):
   Conversion.valid_precisions = options.precs;
+if options.prefix: Conversion.prefix = options.prefix;
 if options.make:
   print '## Automatically generated Makefile';
   print 'PYTHON ?= python';
