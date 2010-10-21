@@ -3,9 +3,6 @@ include(JDFsupport)
 
 set(EXTRA_SOURCES memory_pool.c dplasmaaux.c)
 
-
-
-
 ### Generate .c files from .jdf
 set(OLDJDF 
   TSQR sgeqrt 
