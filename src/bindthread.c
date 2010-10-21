@@ -53,7 +53,7 @@ int dague_bindthread(int cpu)
    
    /* Get a copy of its cpuset that we may modify.  */
    /* Get only one logical processor (in case the core is SMT/hyperthreaded).  */
-#if HWLOC_API_VERSION < 0x00010000
+#if !defined(HAVE_HWLOC_BITMAP)
    cpuset = hwloc_cpuset_dup(obj->cpuset);
    hwloc_cpuset_singlify(cpuset);
 #else
@@ -64,7 +64,7 @@ int dague_bindthread(int cpu)
    /* And try to bind ourself there.  */
    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
      char *str = NULL;
-#if HWLOC_API_VERSION < 0x00010000
+#if !defined(HAVE_HWLOC_BITMAP)
      hwloc_cpuset_asprintf(&str, obj->cpuset);
 #else
      hwloc_bitmap_asprintf(&str, obj->cpuset);
@@ -78,7 +78,7 @@ int dague_bindthread(int cpu)
    cpu = obj->children[0]->os_index;
     
    /* Free our cpuset copy */
-#if HWLOC_API_VERSION < 0x00010000
+#if !defined(HAVE_HWLOC_BITMAP)
    hwloc_cpuset_free(cpuset);
 #else
    hwloc_bitmap_free(cpuset);

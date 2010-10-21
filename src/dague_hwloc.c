@@ -87,7 +87,7 @@ int dague_hwloc_master_id( int level, int processor_id )
     for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
 					            
-#if HWLOC_API_VERSION < 0x00010000
+#if !defined(HAVE_HWLOC_BITMAP)
         if(hwloc_cpuset_isset(obj->cpuset, processor_id)) {
             return hwloc_cpuset_first(obj->cpuset);
         }
@@ -111,7 +111,7 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
 		
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
 				 
-#if HWLOC_API_VERSION < 0x00010000
+#if !defined(HAVE_HWLOC_BITMAP)
         if(hwloc_cpuset_isset(obj->cpuset, master_id)){
             return hwloc_cpuset_weight(obj->cpuset);
         }
