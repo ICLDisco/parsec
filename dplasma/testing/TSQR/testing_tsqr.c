@@ -20,7 +20,7 @@
 #include <plasma.h>
 #include <lapack.h>
 
-#include "TSQR.h"
+#include "generated/TSQR.h"
 
 /* globals and argv set values */
 int nbtasks = -1;

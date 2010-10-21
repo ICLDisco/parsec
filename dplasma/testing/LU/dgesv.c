@@ -27,7 +27,7 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "LU.h"
+#include "generated/LU.h"
 
 //#ifdef VTRACE
 //#include "vt_user.h"

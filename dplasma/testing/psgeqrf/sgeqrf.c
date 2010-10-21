@@ -33,7 +33,7 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "sgeqrt.h"
+#include "generated/sgeqrt.h"
 
 #if defined(DAGUE_CUDA_SUPPORT)
 #include "gpu_data.h"
