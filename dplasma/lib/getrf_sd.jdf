@@ -11,6 +11,7 @@ extern "C" %{
 
 #include "data_dist/matrix/matrix.h"
 #include "memory_pool.h"
+#include "dplasmatypes.h"
 
 #define CdL(dLIPIV)  _compute_dL((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), (char*)(dLIPIV))
 static inline TYPENAME* _compute_dL(tiled_matrix_desc_t* dLIPIV, char* ptrIPIV)
