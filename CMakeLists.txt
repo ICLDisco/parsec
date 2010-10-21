@@ -309,6 +309,7 @@ endif (DAGUE_MPI AND MPI_FOUND)
 #
 # Now continue with compiling the tests.
 #
+set(DAGUEPP ${CMAKE_SOURCE_DIR}/tools/dague-compiler/daguepp)
 add_subdirectory(tools)
 add_subdirectory(dplasma)
 add_subdirectory(data_dist)

@@ -11,8 +11,7 @@
 #   define OUTPUT(ARG)
 #endif
 
-#if (defined DAGCOMPLEX) 
-#if (defined DAGDOUBLE)
+#if   defined(PRECISION_z) 
 #define TYPENAME   PLASMA_Complex64_t
 #define TYPELETTER z
 #define PRECNAME   double
@@ -20,7 +19,7 @@
 #define CORE(FN, ARGS) CORE_z##FN ARGS
 #define dagueprefix(fn) dague_z##fn
 #define DAGUEprefix(fn) DAGUE_z##fn
-#else 
+#elif defined(PRECISION_c)
 #define TYPENAME   PLASMA_Complex32_t
 #define TYPELETTER c
 #define PRECNAME   float
@@ -28,9 +27,7 @@
 #define CORE(FN, ARGS) CORE_c##FN ARGS
 #define dagueprefix(fn) dague_c##fn
 #define DAGUEprefix(fn) DAGUE_c##fn
-#endif
-#else
-#if (defined DAGDOUBLE)
+#elif defined(PRECISION_d)
 #define TYPENAME   double
 #define TYPELETTER d
 #define PRECNAME   double
@@ -38,7 +35,7 @@
 #define CORE(FN, ARGS) CORE_d##FN ARGS
 #define dagueprefix(fn) dague_d##fn
 #define DAGUEprefix(fn) DAGUE_d##fn
-#else 
+#elif defined(PRECISION_s) 
 #define TYPENAME   float
 #define TYPELETTER s
 #define PRECNAME   float
@@ -46,7 +43,8 @@
 #define CORE(FN, ARGS) CORE_s##FN ARGS
 #define dagueprefix(fn) dague_s##fn
 #define DAGUEprefix(fn) DAGUE_s##fn
-#endif
+#else
+#error "Precision is not selected. You have to set Precision_[zcdf]"
 #endif
 
 #ifdef DAGUE_DRY_RUN

@@ -1,25 +1,21 @@
-#ifdef DAGCOMPLEX
-#ifdef DAGDOUBLE
-#include "zgemm_NN.h"
-#include "zgemm_NT.h"
-#include "zgemm_TN.h"
-#include "zgemm_TT.h"
-#else /* DAGSINGLE */
-#include "cgemm_NN.h"
-#include "cgemm_NT.h"
-#include "cgemm_TN.h"
-#include "cgemm_TT.h"
-#endif
-#else /* DAGREAL */
-#ifdef DAGDOUBLE
-#include "dgemm_NN.h"
-#include "dgemm_NT.h"
-#include "dgemm_TN.h"
-#include "dgemm_TT.h"
-#else
-#include "sgemm_NN.h"
-#include "sgemm_NT.h"
-#include "sgemm_TN.h"
-#include "sgemm_TT.h"
-#endif
+#if   defined(PRECISION_z)
+#include "generated/zgemm_NN.h"
+#include "generated/zgemm_NT.h"
+#include "generated/zgemm_TN.h"
+#include "generated/zgemm_TT.h"
+#elif defined(PRECISION_c)
+#include "generated/cgemm_NN.h"
+#include "generated/cgemm_NT.h"
+#include "generated/cgemm_TN.h"
+#include "generated/cgemm_TT.h"
+#elif defined(PRECISION_d)
+#include "generated/dgemm_NN.h"
+#include "generated/dgemm_NT.h"
+#include "generated/dgemm_TN.h"
+#include "generated/dgemm_TT.h"
+#elif defined(PRECISION_f)
+#include "generated/sgemm_NN.h"
+#include "generated/sgemm_NT.h"
+#include "generated/sgemm_TN.h"
+#include "generated/sgemm_TT.h"
 #endif
