@@ -23,17 +23,17 @@ work_pool [dague_memory_pool_t*]
 INFO [int*]
 
 /************************************************************************************
- *                                   DGETRF                                         *
+ *                                    GETRF                                         *
  ************************************************************************************/
 
-DGETRF_HACK(k)
+GETRF_HACK(k)
 k = 0..NT-1
 
 : A(k, k)
 
-RW LU <- LU DGETRF(k)
-      -> (k != NT-1) ?                 L DGESSM(k, k+1..NT-1)  [LOWER_TILE]
-      -> A(k,k)                                                [LOWER_TILE]
+RW LU <- LU GETRF(k)
+      -> (k != NT-1) ?                 L GESSM(k, k+1..NT-1)  [LOWER_TILE]
+      -> A(k,k)                                               [LOWER_TILE]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -41,27 +41,27 @@ BODY
  /* nothing */
 END
 
-DGETRF(k)
+GETRF(k)
 k = 0..NT-1
 
 : A(k, k)
 
-//This DSSSSM always run on the same node, so typing will have no effect.
-RW LU <- (k == 0)    ? A(0, 0)       : C2 DSSSSM(k-1, k, k)
-      -> (k == NT-1) ? A(NT-1, NT-1) : U DTSTRF(k, k+1)        [UPPER_TILE]
-      -> LU DGETRF_HACK(k)
-RW IPIV <- IPIV(k, k)                                          [PIVOT_VECT]
-        -> IPIV DGESSM(k, k+1..NT-1)                           [PIVOT_VECT]
-        -> IPIV(k, k)                                          [PIVOT_VECT]
+//This SSSSM always run on the same node, so typing will have no effect.
+RW LU <- (k == 0)    ? A(0, 0)       : C2 SSSSM(k-1, k, k)
+      -> (k == NT-1) ? A(NT-1, NT-1) : U TSTRF(k, k+1)        [UPPER_TILE]
+      -> LU GETRF_HACK(k)
+RW IPIV <- IPIV(k, k)                                         [PIVOT_VECT]
+        -> IPIV GESSM(k, k+1..NT-1)                           [PIVOT_VECT]
+        -> IPIV(k, k)                                         [PIVOT_VECT]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
     int iinfo = 0;
-    /*debug_warning(context->eu_id, "before", "DGETRF", k, -1, -1);*/
+    /*debug_warning(context->eu_id, "before", "GETRF", k, -1, -1);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, LU, "LU=A", k, k);*/
-    /*debug_warning(context->eu_id, "before", "DGETRF", k, -1, -1);*/
+    /*debug_warning(context->eu_id, "before", "GETRF", k, -1, -1);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
     CORE(getrf, (
                 k == NT-1 ? N-k*NB : NB, /*k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb*/
@@ -69,42 +69,42 @@ BODY
                 IB /*descL.mb*/,
                 LU /*A(k, k)*/, NB /*descA.nb*/,
                 IPIV /*IPIV(k, k)*/, &iinfo));
-    /*debug_warning(context->eu_id, "after", "DGETRF", k, -1, -1);*/
+    /*debug_warning(context->eu_id, "after", "GETRF", k, -1, -1);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, LU, "LU=A", k, k);*/
-    /*debug_warning(context->eu_id, "after", "DGETRF", k, -1, -1);*/
+    /*debug_warning(context->eu_id, "after", "GETRF", k, -1, -1);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
     if (*INFO == 0 && iinfo > 0 && k == NT /*descA.mt*/-1)
         *INFO = iinfo + NB /*descA.nb*/*k;
 #else
-    OUTPUT(( "void task_DGETRF(double *A, int *IPIV)" ));
+    OUTPUT(( "void task_GETRF(double *A, int *IPIV)" ));
 #endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 /************************************************************************************
- *                                   DGESSM                                         *
+ *                                    GESSM                                         *
  ************************************************************************************/
 
-DGESSM(k, n)
+GESSM(k, n)
 
 k = 0   .. NT-2
 n = k+1 .. NT-1
 
 : A(k, n)
 
-READ L    <- LU DGETRF_HACK(k)                                  [LOWER_TILE]
-READ IPIV <- IPIV DGETRF(k)                                     [PIVOT_VECT]
-RW   C1   <- (k == 0) ? A(k, n) : C2 DSSSSM(k-1, n, k)
-          -> C1 DSSSSM(k, n, k+1)
+READ L    <- LU GETRF_HACK(k)                                  [LOWER_TILE]
+READ IPIV <- IPIV GETRF(k)                                     [PIVOT_VECT]
+RW   C1   <- (k == 0) ? A(k, n) : C2 SSSSM(k-1, n, k)
+          -> C1 SSSSM(k, n, k+1)
 
 ; (NT-k)*(NT-n)*(NT-n)
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
-    /*debug_warning(context->eu_id, "before", "DGESSM", k, n, -1);*/
+    /*debug_warning(context->eu_id, "before", "GESSM", k, n, -1);*/
     /*debug_lower((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, L, "L=A", k, k);*/
-    /*debug_warning(context->eu_id, "before", "DGESSM", k, n, -1);*/
+    /*debug_warning(context->eu_id, "before", "GESSM", k, n, -1);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-    /*debug_warning(context->eu_id, "before", "DGESSM", k, n, -1);*/
+    /*debug_warning(context->eu_id, "before", "GESSM", k, n, -1);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
     CORE(gessm, (
                 k == NT-1 ? N-k*NB : NB /* k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb */,
@@ -114,30 +114,30 @@ BODY
                 IPIV /*IPIV(k, k)*/,
                 L /*A(k, k)*/, NB /* descA.nb */,
                 C1 /*A(k, n)*/, NB /* descA.nb */));
-    /*debug_warning(context->eu_id, "after", "DGESSM", k, n, -1);*/
+    /*debug_warning(context->eu_id, "after", "GESSM", k, n, -1);*/
     /*debug_lower((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, L, "L=A", k, k);*/
-    /*debug_warning(context->eu_id, "after", "DGESSM", k, n, -1);*/
+    /*debug_warning(context->eu_id, "after", "GESSM", k, n, -1);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-    /*debug_warning(context->eu_id, "after", "DGESSM", k, n, -1);*/
+    /*debug_warning(context->eu_id, "after", "GESSM", k, n, -1);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
 #else
-     OUTPUT(("void task_DGESSM(int *IPIV, double *L, double *C1)"));
+     OUTPUT(("void task_GESSM(int *IPIV, double *L, double *C1)"));
 #endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 
 
 /************************************************************************************
- *                                   DTSTRF                                         *
+ *                                    TSTRF                                         *
  ************************************************************************************/
 
-DTSTRF_OUT(k)
+TSTRF_OUT(k)
 k = 0 .. NT-2
   
 : A(k, k)  
 
-RW A <- U DTSTRF(k, NT-1) [UPPER_TILE]
-     -> A(k, k)           [UPPER_TILE]
+RW A <- U TSTRF(k, NT-1) [UPPER_TILE]
+     -> A(k, k)          [UPPER_TILE]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -146,23 +146,23 @@ BODY
 END
 
 
-DTSTRF(k, m)
+TSTRF(k, m)
 k = 0..NT-2
 m = k+1..NT-1
 
 : A(m, k)
 
-RW C1 <- (k == 0) ? A(m, 0) : C2 DSSSSM(k-1, k, m)
-      -> C3 DSSSSM(k, k+1..NT-1, m)
+RW C1 <- (k == 0) ? A(m, 0) : C2 SSSSM(k-1, k, m)
+      -> C3 SSSSM(k, k+1..NT-1, m)
       -> A(m, k)
-RW U  <- (m == k+1) ? LU DGETRF(k) : U DTSTRF(k, m-1)         [UPPER_TILE]
-      -> (m == NT-1) ? A DTSTRF_OUT(k) : U DTSTRF(k, m+1)     [UPPER_TILE]
-RW dL <- L(m, k)                                              [LITTLE_L]
-      -> dL DSSSSM(k, k+1..NT-1, m)                           [LITTLE_L]
-      -> L(m, k)                                              [LITTLE_L]
-RW IPIV <- IPIV(m, k)                                         [PIVOT_VECT]
-        -> IPIV DSSSSM(k, k+1..NT-1, m)                       [PIVOT_VECT]
-        -> IPIV(m, k)                                         [PIVOT_VECT]
+RW U  <- (m == k+1) ? LU GETRF(k) : U TSTRF(k, m-1)         [UPPER_TILE]
+      -> (m == NT-1) ? A TSTRF_OUT(k) : U TSTRF(k, m+1)     [UPPER_TILE]
+RW dL <- L(m, k)                                            [LITTLE_L]
+      -> dL SSSSM(k, k+1..NT-1, m)                          [LITTLE_L]
+      -> L(m, k)                                            [LITTLE_L]
+RW IPIV <- IPIV(m, k)                                       [PIVOT_VECT]
+        -> IPIV SSSSM(k, k+1..NT-1, m)                      [PIVOT_VECT]
+        -> IPIV(m, k)                                       [PIVOT_VECT]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -170,13 +170,13 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
      int iinfo = 0;
      void* work = dague_private_memory_pop(work_pool);
-     /*debug_warning(context->eu_id, "before", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
      /*debug_upper((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, U, "U=A", k, k);*/
-     /*debug_warning(context->eu_id, "before", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
      /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", m, k);*/
-     /*debug_warning(context->eu_id, "before", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
      /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-     /*debug_warning(context->eu_id, "before", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
      /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
      CORE(tstrf, (
                  m == NT-1 ? N-m*NB : NB /* m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb */,
@@ -188,33 +188,33 @@ BODY
                  dL /*L(m, k)*/, IB /* descL.mb */,
                  IPIV /*IPIV(m, k)*/, 
                  work, NB /* descL.nb */, &iinfo));
-     /*debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
      /*debug_upper((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, U, "U=A", k, k);*/
-     /*debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
      /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", m, k);*/
-     /*debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
      /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-     /*debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);*/
+     /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
      /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
      if (*INFO == 0 && iinfo > 0 && m == NT /*descA.mt*/-1)
          *INFO = iinfo + NB /*descA.nb*/*k;
      dague_private_memory_push(work_pool, work);
 #else
-     OUTPUT(("void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)"));
+     OUTPUT(("void task_TSTRF(double *U, double *L, double *dL, int *IPIV)"));
 #endif  /* !defined(DAGUE_DRY_RUN) */
 END
 
 /************************************************************************************
- *                                   DSSSSM                                         *
+ *                                    SSSSM                                         *
  ************************************************************************************/
 
-DSSSSM_OUT(k, n)
+SSSSM_OUT(k, n)
 k = 0 .. NT-2
 n = k+1 .. NT - 1
   
 : A(k, n)
   
-RW A <- C1 DSSSSM(k, n, NT-1)
+RW A <- C1 SSSSM(k, n, NT-1)
      -> A(k, n)
           
 ; (NT-k)*(NT-n)*(NT-n)
@@ -223,38 +223,38 @@ BODY
 /* nothing */
 END
   
-DSSSSM(k, n, m)
+SSSSM(k, n, m)
 k = 0   .. NT-2
 n = k+1 .. NT-1
 m = k+1 .. NT-1
 
 : A(m, n)
 
-READ C3   <- C1 DTSTRF(k, m)
-READ dL   <- dL DTSTRF(k, m)                                       [LITTLE_L]
-READ IPIV <- IPIV DTSTRF(k, m)                                     [PIVOT_VECT]
+READ C3   <- C1 TSTRF(k, m)
+READ dL   <- dL TSTRF(k, m)                                       [LITTLE_L]
+READ IPIV <- IPIV TSTRF(k, m)                                     [PIVOT_VECT]
 
-RW   C2 <- (k == 0)   ? A(m, n)      : C2 DSSSSM(k-1, n, m)
-        -> ((n == k+1) & (m == k+1)) ? LU DGETRF(k+1)
-        -> ((n == k+1) & (k  < m-1)) ? C1 DTSTRF(k+1, m)
-        -> ((k  < n-1) & (m == k+1)) ? C1 DGESSM(k+1, n)
-        -> ((k  < n-1) & (k  < m-1)) ? C2 DSSSSM(k+1, n, m)
-RW   C1 <- (m == k+1)  ? C1 DGESSM(k, n) : C1 DSSSSM(k, n, m-1)
-        -> (m == NT-1) ? A DSSSSM_OUT(k, n)  : C1 DSSSSM(k, n, m+1)
+RW   C2 <- (k == 0)   ? A(m, n)      : C2 SSSSM(k-1, n, m)
+        -> ((n == k+1) & (m == k+1)) ? LU GETRF(k+1)
+        -> ((n == k+1) & (k  < m-1)) ? C1 TSTRF(k+1, m)
+        -> ((k  < n-1) & (m == k+1)) ? C1 GESSM(k+1, n)
+        -> ((k  < n-1) & (k  < m-1)) ? C2 SSSSM(k+1, n, m)
+RW   C1 <- (m == k+1)  ? C1 GESSM(k, n) : C1 SSSSM(k, n, m-1)
+        -> (m == NT-1) ? A SSSSM_OUT(k, n)  : C1 SSSSM(k, n, m+1)
 
 ; (NT-k)*(NT-n)*(NT-n)
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
-    /*debug_warning(context->eu_id, "before", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-    /*debug_warning(context->eu_id, "before", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C2, "C2=A", m, n);*/
-    /*debug_warning(context->eu_id, "before", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
     /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-    /*debug_warning(context->eu_id, "before", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C3, "C3=A", m, k);*/
-    /*debug_warning(context->eu_id, "before", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
     CORE(ssssm, (
                 NB /*descA.nb*/,
@@ -267,18 +267,18 @@ BODY
                 dL /*L(m, k)*/, IB /* descL.mb */,
                 C3 /*A(m, k)*/, NB /* descA.nb */,
                 IPIV /*IPIV(m, k)*/));
-    /*debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-    /*debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C2, "C2=A", m, n);*/
-    /*debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
     /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-    /*debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C3, "C3=A", m, k);*/
-    /*debug_warning(context->eu_id, "after", "DSSSSM", k, n, m);*/
+    /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
  #else
-    OUTPUT(("void task_DSSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"));
+    OUTPUT(("void task_SSSSM(double *C1,  double *C2, double *dL, double *L, int *IPIV)"));
 #endif  /*!defined(DAGUE_DRY_RUN)*/
 END
 
