@@ -29,14 +29,6 @@ endforeach()
 
 message(STATUS "generate precisions: ${generated_files}")
 
-add_library(dague_distribution_matrix STATIC 
-    matrix.c 
-    tabular_distribution/tabular_distribution.c 
-    two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
-    sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
-    ${generated_files})
-    install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
-
 if (DAGUE_MPI AND MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC
         matrix.c
@@ -47,5 +39,13 @@ if (DAGUE_MPI AND MPI_FOUND)
     set_target_properties(dague_distribution_matrix-mpi PROPERTIES COMPILE_FLAGS
                             "${MPI_COMPILE_FLAGS} -DUSE_MPI")
     install(TARGETS dague_distribution_matrix-mpi ARCHIVE DESTINATION lib)
+else()
+    add_library(dague_distribution_matrix STATIC 
+        matrix.c 
+        tabular_distribution/tabular_distribution.c 
+        two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
+        sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
+        ${generated_files})
+    install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
 endif()
 

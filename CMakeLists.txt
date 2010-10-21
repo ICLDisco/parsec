@@ -294,22 +294,25 @@ set(SRCS
 #
 # Setup targets
 #
-add_library(dague STATIC ${SRCS})
-set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-#target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
-install(TARGETS dague ARCHIVE DESTINATION lib)
 
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dague-mpi STATIC ${SRCS})
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
   #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
+else (DAGUE_MPI AND MPI_FOUND)
+  add_library(dague STATIC ${SRCS})
+  set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  #  target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
+  install(TARGETS dague ARCHIVE DESTINATION lib)
 endif (DAGUE_MPI AND MPI_FOUND)
 
 #
 # Now continue with compiling the tests.
 #
-set(DAGUEPP ${CMAKE_SOURCE_DIR}/tools/dague-compiler/daguepp)
+include(JDFsupport)
+include(precision_generation)
+
 add_subdirectory(tools)
 add_subdirectory(dplasma)
 add_subdirectory(data_dist)
