@@ -2,19 +2,18 @@ set(JDF
   gemm_NN.jdf gemm_TN.jdf gemm_NT.jdf gemm_TT.jdf
   trsm_LLN.jdf trsm_LLT.jdf trsm_LUN.jdf trsm_LUT.jdf trsm_RLN.jdf trsm_RLT.jdf trsm_RUN.jdf trsm_RUT.jdf
   trmm_LLN.jdf trmm_LLT.jdf trmm_LUN.jdf trmm_LUT.jdf trmm_RLN.jdf trmm_RLT.jdf trmm_RUN.jdf trmm_RUT.jdf
+  potrf_rl.jdf potrf_ll.jdf getrf.jdf getrf_sd.jdf geqrf.jdf
   )
 
 set(SOURCES
-  trsm.c gemm.c trmm.c
+  trsm_wrapper.c gemm_wrapper.c trmm_wrapper.c potrf_wrapper.c getrf_wrapper.c geqrf_wrapper.c
 )
 
 set( OLDSRC 
-  LU.jdf TSQR.jdf 
-  LU_sd.jdf dpotrf.jdf 
-  QR.jdf  spotrf_ll.jdf spotrf_rl.jdf
+  TSQR.jdf 
   sgeqrt.jdf
 )
-set(EXTRA_SOURCES memory_pool.c)
+set(EXTRA_SOURCES memory_pool.c dplasmaaux.c)
 
 set(DAGUEPP ../../tools/dague-compiler/daguepp)
 set(generated_files)

@@ -18,39 +18,14 @@ extern "C" %{
 
 #include "data_distribution.h"
 #include "memory_pool.h"
-
-#if defined(DISTRIBUTED)
-extern dague_arena_t LITTLE_T, UPPER_TILE, LOWER_TILE;
-#endif
-
-#define OUTPUT(ARGS) printf ARGS
-
-/* TODO: this doesn't work with multiple objects */
-static dague_memory_pool_t *work_pool, *tau_pool;
-
-int dgels_private_memory_initialization(int MB, int NB );
-int dgels_private_memory_initialization(int MB, int NB )
-{
-    work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( work_pool, MB*NB );
-
-    tau_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( tau_pool, NB );
-
-    return 0;
-}
-
-int dgels_private_memory_finalization(void);
-int dgels_private_memory_finalization(void)
-{
-    return 0;
-}
 %}
 
 MB  /* Number of lines in a block for T and dL should be equal to NB */
 NB  /* Tile Size */
 M   /* Matrix Height (in lines) */
 N   /* Matrix Width (in columns) */
+work_pool  [dague_memory_pool_t*]
+tau_pool   [dague_memory_pool_t*]
 
 MT = (M + (NB - 1)) / NB        /* Number of tiled lines */
 NT = (N + (NB - 1)) / NB        /* Number of tiled columns */

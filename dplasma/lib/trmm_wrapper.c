@@ -1,9 +1,15 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <plasma.h>
 #include <dague.h>
 #include <scheduling.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
-#include "trmm.h"
+#include "trmm_wrapper.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 dague_object_t * 

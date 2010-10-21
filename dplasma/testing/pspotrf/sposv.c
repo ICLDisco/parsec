@@ -5,10 +5,6 @@
  */
 
 #include "dague.h"
-#ifdef USE_MPI
-#include "remote_dep.h"
-extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
-#endif  /* defined(USE_MPI) */
 
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
@@ -18,13 +14,6 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include <string.h>
 #include <sys/time.h>
 
-#if defined(DAGUE_CUDA_SUPPORT)
-/* CUDA INCLUDE */
-#include <cuda.h>
-#include <cublas.h>
-#include <cuda_runtime_api.h>
-#endif
-
 #include <cblas.h>
 #include <math.h>
 #include <plasma.h>
@@ -33,12 +22,7 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
-#if defined(LLT_LL)
-#include "spotrf_ll.h"
-#else
-#include "spotrf_rl.h"
-#endif
-#include "remote_dep.h"
+#include "dplasma.h"
 
 #if defined(DAGUE_CUDA_SUPPORT)
 #include "gpu_data.h"
@@ -73,10 +57,9 @@ unsigned int GRIDrows = 1;
 unsigned int nrst = 1;
 unsigned int ncst = 1;
 PLASMA_enum uplo = PlasmaLower;
-
+int INFO;
 
 sym_two_dim_block_cyclic_t ddescA;
-
 sym_two_dim_block_cyclic_t ddescB;
 int checking = -1;
 
@@ -449,30 +432,10 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
    
     dague = dague_init(cores, pargc, pargv, dposv_force_nb);
 
-#ifdef USE_MPI
-    /**
-     * Redefine the default type after dague_init.
-     */
-    {
-        char type_name[MPI_MAX_OBJECT_NAME];
-        MPI_Datatype default_ddt;
-    
-        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%u*%u", NB, NB);
-    
-        MPI_Type_contiguous(NB * NB, MPI_FLOAT, &default_ddt);
-        MPI_Type_set_name(default_ddt, type_name);
-        MPI_Type_commit(&default_ddt);
-        dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, NB*NB*sizeof(float), 
-                              DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-    }
-#endif  /* USE_MPI */
-
 #if defined(LLT_LL)
-    dague_spotrf = (dague_object_t*)dague_spotrf_ll_new( (dague_ddesc_t*)&ddescA, 
-                                                         ddescA.super.nb, ddescA.super.nt, pri_change );
+    dague_spotrf = (dague_object_t*)DAGUE_spotrf_ll_New(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
 #else
-    dague_spotrf = (dague_object_t*)dague_spotrf_rl_new( (dague_ddesc_t*)&ddescA, 
-                                                         ddescA.super.nb, ddescA.super.nt, pri_change );
+    dague_spotrf = (dague_object_t*)DAGUE_spotrf_rl_New(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
 #endif
     dague_enqueue( dague, (dague_object_t*)dague_spotrf);
 
@@ -488,7 +451,7 @@ static void cleanup_dague(dague_context_t* dague)
 #ifdef DAGUE_PROFILING
     char* filename = NULL;
     
-    asprintf( &filename, "%s.%u.profile", "dposv", rank );
+    asprintf( &filename, "%s.%u.profile", "sposv", rank );
     dague_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DAGUE_PROFILING */

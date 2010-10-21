@@ -3,10 +3,6 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 
-#if defined(DISTRIBUTED)
-#include <mpi.h>
-extern dague_arena_t RTILE_T;
-#endif
 extern int rank;
 
 %}

@@ -961,6 +961,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                              dague_execution_context_t *oldcontext, 
                                              int param_index, int outdep_index, 
                                              int src_rank, int dst_rank,
+                                             dague_arena_t* arena,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
@@ -969,21 +970,15 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 #if defined(DISTRIBUTED)
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
             void* data;
-            if(NULL != (data = is_read_only(oldcontext, param_index, outdep_index)))
-            {
+
+            data = is_read_only(oldcontext, param_index, outdep_index);
+            if(NULL != data) {
                 arg->deps->msg.which &= ~(1 << param_index); /* unmark all data that are RO we already hold from previous tasks */
-                arg->deps->output[param_index].data = data;
+            } else {
+                data = is_inplace(oldcontext, param_index, outdep_index);  /* Can we do it inplace */
             }
-            else if(NULL != (data = is_inplace(oldcontext, param_index, outdep_index)))
-            {
-                arg->deps->output[param_index].data = data; /* inplace there, don't allocate but still receive */
-                arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
-            }
-            else
-            {
-                arg->deps->output[param_index].data = NULL; /* not local or inplace, lets allocate it */ 
-                arg->deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
-            }
+            arg->deps->output[param_index].data = data; /* if still NULL allocate it */
+            arg->deps->output[param_index].type = arena;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
             int _array_pos, _array_mask;
@@ -993,7 +988,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[param_index].type = oldcontext->function->out[param_index]->dep_out[outdep_index]->type;
+                arg->remote_deps->output[param_index].type = arena;
                 arg->remote_deps->output[param_index].data = arg->data[param_index];
                 arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[param_index].count++;
@@ -1002,6 +997,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
         }
 #else
         (void)src_rank;
+        (void)arena;
 #endif
 
         if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&

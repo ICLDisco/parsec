@@ -3,34 +3,17 @@ extern "C" %{
     * PLASMA include for defined and constants.
     */
 #include <plasma.h>
-#include <core_sblas.h>
-
-extern int uplo;
-static int PLASMA_INFO = 0;
+#include <core_blas.h>
 
 #include "dague.h"
+#include "remote_dep.h"
+#include "data_distribution.h"
+#include "dplasmatypes.h"
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL)
 #include "gpu_data.h"
 #include "../testing/pspotrf/gpu_gemm.h"
 extern int *gpu_counter;
-#endif
-
-#include "remote_dep.h"
-#include "data_distribution.h"
-
-#ifdef DAGUE_CALL_TRACE
-#   include <stdlib.h>
-#   include <stdio.h>
-#   define OUTPUT(ARG)  printf ARG
-#else
-#   define OUTPUT(ARG)
-#endif
-
-#ifdef DAGUE_DRY_RUN
-#   define CORE(FN, ARGS)
-#else
-#   define CORE(FN, ARGS) CORE_##FN ARGS
 #endif
 %}
 
@@ -39,6 +22,8 @@ extern int *gpu_counter;
 NB           [int]
 SIZE         [int]
 PRI_CHANGE   [int]
+uplo         [int]
+INFO         [int*]
 
 /**************************************************
  *                      POTRF                     *
@@ -60,20 +45,20 @@ WRITE   F -> F GEMM(k, k+1..SIZE-1, 0)
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL) */
 
     (void) F;
     CORE(
-        spotrf, (
+        potrf, (
             uplo,
             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
             T /* A(k, k) */, NB, /*A.nb,*/
-            &PLASMA_INFO )
+            INFO )
         );
     OUTPUT((
-        "CORE_spotrf( %s, %d, A(%d,%d), %d)\n",
+        "CORE_potrf( %s, %d, A(%d,%d), %d)\n",
             (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
             k, k, NB /*A.nb,*/ )
@@ -105,14 +90,14 @@ RW      C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - k - m - 1) * (m - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL) */
 
     if( uplo == PlasmaLower ) {
         CORE(
-            strsm, (
+            trsm, (
                 PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -120,7 +105,7 @@ BODY
                      C /*A(m, k)*/, NB /*A.nb*/ ) 
             );
         OUTPUT(( 
-            "CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+            "CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
                 "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -129,7 +114,7 @@ BODY
             );
     } else {
         CORE(
-            strsm, (
+            trsm, (
                 PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -137,7 +122,7 @@ BODY
                      C /*A(k, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_strsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+            "CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
                 "PlasmaLeft", "PlasmaUpper", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -169,14 +154,14 @@ RW    T <- (n == 0) ? A(k, k) : T SYRK(k, n-1)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL) */
     (void) F;
     if( uplo == PlasmaLower ) {
         CORE(
-            ssyrk, (
+            syrk, (
                 PlasmaLower, PlasmaNoTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -184,7 +169,7 @@ BODY
                  1.0, T /*A(k, k)*/, NB /*A.nb*/ )
             );
         OUTPUT(( 
-            "CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "CORE_syrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaLower", "PlasmaNoTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -194,7 +179,7 @@ BODY
 
     } else {
         CORE(
-            ssyrk, (
+            syrk, (
                 PlasmaUpper, PlasmaTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -202,7 +187,7 @@ BODY
                  1.0, T /*A(k, k)*/, NB /*A.nb*/ )
             );
         OUTPUT(( 
-            "CORE_ssyrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "CORE_syrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaUpper", "PlasmaTrans",
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -236,7 +221,7 @@ RW    C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
     if( dague_using_gpu() == 1 ) {
@@ -256,12 +241,12 @@ BODY
         /* Continue with the task on the cores */
     }
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL) */
 
     (void) F;
     if( uplo == PlasmaLower ) {
         CORE( 
-            sgemm, (
+            gemm, (
                 PlasmaNoTrans, PlasmaTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -271,7 +256,7 @@ BODY
                  1.0, C /*A(m, k)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaNoTrans", "PlasmaTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -282,7 +267,7 @@ BODY
             );
     } else {
         CORE(
-            sgemm, (
+            gemm, (
                 PlasmaTrans, PlasmaNoTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -292,7 +277,7 @@ BODY
                  1.0, C /*A(k, m)*/, NB /*A.nb*/ )
             );
         OUTPUT((
-            "CORE_sgemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+            "CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
                 "PlasmaTrans", "PlasmaNoTrans",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
@@ -302,7 +287,7 @@ BODY
                  1.0, k, m, NB /*A.nb*/ )
             );
     }
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(DAGREAL)
 FIN:
 #endif
 END

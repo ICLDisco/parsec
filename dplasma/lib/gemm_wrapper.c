@@ -7,7 +7,7 @@
 #include <dague.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
-#include "gemm.h"
+#include "gemm_wrapper.h"
 
 dague_object_t* 
 DAGUEprefix(gemm_New)( const int transA, const int transB,

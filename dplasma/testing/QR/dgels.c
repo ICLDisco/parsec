@@ -26,15 +26,13 @@
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "QR.h"
+#include "dplasma.h"
 
 static void runtime_init(int argc, char **argv);
 static void runtime_fini(void);
 
 static dague_context_t *setup_dague(int* pargc, char** pargv[]);
 static void cleanup_dague(dague_context_t* context);
-
-static void create_datatypes(void);
 
 #if defined(DEBUG_MATRICES)
 static void debug_matrices(void);
@@ -116,15 +114,6 @@ int GRIDrows = 1;
 
 two_dim_block_cyclic_t ddescA;
 two_dim_block_cyclic_t ddescT;
-#if defined(DISTRIBUTED)
-#include "arena.h"
-
-dague_arena_t LOWER_TILE, UPPER_TILE, LITTLE_T;
-MPI_Datatype MPI_LOWER_TILE, MPI_UPPER_TILE, MPI_LITTLE_T;
-#endif
-
-/* TODO Remove this ugly stuff */
-extern int dgels_private_memory_initialization(int MB, int NB );
 
 int main(int argc, char ** argv)
 {
@@ -375,16 +364,12 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     
     dague = dague_init(cores, pargc, pargv, NB);
 
-    create_datatypes();
-    
     /* TODO: this should be computed by the generated code, not me */
     MT = (M + (NB-1))/NB;
     NT = (N + (NB-1))/NB;
     MINMTNT = ((MT < NT)  ? MT : NT);
 
-    dague_QR = (dague_object_t*)dague_QR_new((dague_ddesc_t*)&ddescT, (dague_ddesc_t*)&ddescA, 
-                                             MB, NB, M, N, 
-                                             MT, NT, MINMTNT);
+    dague_QR = (dague_object_t*)DAGUE_dgeqrf_New((tiled_matrix_desc_t*)&ddescT, (tiled_matrix_desc_t*)&ddescA, IB);
     dague_enqueue( dague, (dague_object_t*)dague_QR);
 
     nbtasks = dague_QR->nb_local_tasks;
@@ -392,8 +377,6 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
            ddescA.super.nb, ddescA.super.nt, dague_QR->nb_local_tasks, dague->taskstodo);
     printf("GRIDrows = %u, GRIDcols = %u, rrank = %u, crank = %u\n", 
            ddescA.GRIDrows, ddescA.GRIDcols, ddescA.rowRANK, ddescA.colRANK );
-    
-    dgels_private_memory_initialization(MB, NB);
     
     return dague;
 }
@@ -411,55 +394,3 @@ static void cleanup_dague(dague_context_t* dague)
     dague_fini(&dague);
 }
 
-/*
- * These datatype creation function works only when the matrix
- * is COLUMN major. In case the matrix storage is ROW major
- * these functions have to be changed.
- */
-static void create_datatypes(void)
-{
-#if defined(DISTRIBUTED)
-    int *blocklens, *indices, count, i;
-    MPI_Datatype tmp;
-    MPI_Aint lb, ub;
-
-    count = NB; 
-    blocklens = (int*)malloc( count * sizeof(int) );
-    indices = (int*)malloc( count * sizeof(int) );
-
-    /* UPPER_TILE with the diagonal */
-    for( i = 0; i < count; i++ ) {
-        blocklens[i] = i + 1;
-        indices[i] = i * NB;
-    }
-    MPI_Type_indexed(count, blocklens, indices, MPI_DOUBLE, &MPI_UPPER_TILE);
-    MPI_Type_set_name(MPI_UPPER_TILE, "Upper");
-    MPI_Type_commit(&MPI_UPPER_TILE);
-    MPI_Type_get_extent(MPI_UPPER_TILE, &lb, &ub);
-    dague_arena_construct(&UPPER_TILE, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_UPPER_TILE); 
-    
-    /* LOWER_TILE without the diagonal */
-    for( i = 0; i < count-1; i++ ) {
-        blocklens[i] = NB - i - 1;
-        indices[i] = i * NB + i + 1;
-    }
-    MPI_Type_indexed(count-1, blocklens, indices, MPI_DOUBLE, &tmp);
-    MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &MPI_LOWER_TILE);
-    MPI_Type_set_name(MPI_LOWER_TILE, "Lower");
-    MPI_Type_commit(&MPI_LOWER_TILE);
-	MPI_Type_get_extent(MPI_LOWER_TILE, &lb, &ub);
-    dague_arena_construct(&LOWER_TILE, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_LOWER_TILE);
-
-    /* LITTLE_T is a NB*IB rectangle (containing IB*IB Lower tiles) */
-    MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &MPI_LITTLE_T);
-	//MPI_Type_contiguous(NB*IB, MPI_DOUBLE, &tmp);
-    //MPI_Type_create_resized(tmp, 0, NB*NB*sizeof(double), &MPI_LITTLE_T);
-    MPI_Type_set_name(MPI_LITTLE_T, "T");
-    MPI_Type_commit(&MPI_LITTLE_T);
-	MPI_Type_get_extent(MPI_LITTLE_T, &lb, &ub);
-	dague_arena_construct(&LITTLE_T, ub, DAGUE_ARENA_ALIGNMENT_SSE, &MPI_LITTLE_T);
-    
-    free(blocklens);
-    free(indices);
-#endif
-}

@@ -5,6 +5,6 @@ ADD_FLEX_BISON_DEPENDENCY(dague_flex dague_yacc)
 add_executable(daguepp main.c jdf.c jdf2c.c ${BISON_dague_yacc_OUTPUTS} ${FLEX_dague_flex_OUTPUTS})
 set_target_properties(daguepp PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(daguepp PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-target_link_libraries(daguepp ${EXTRA_LIBS} -lm)
+target_link_libraries(daguepp -lm)
 
 install(TARGETS daguepp RUNTIME DESTINATION bin)
