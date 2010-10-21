@@ -52,15 +52,23 @@ int dague_bindthread(int cpu)
      return 0;
    
    /* Get a copy of its cpuset that we may modify.  */
-   cpuset = hwloc_cpuset_dup(obj->cpuset);
-    
    /* Get only one logical processor (in case the core is SMT/hyperthreaded).  */
+#if HWLOC_API_VERSION < 0x00010000
+   cpuset = hwloc_cpuset_dup(obj->cpuset);
    hwloc_cpuset_singlify(cpuset);
-    
+#else
+   cpuset = hwloc_bitmap_dup(obj->cpuset);
+   hwloc_bitmap_singlify(cpuset);
+#endif
+
    /* And try to bind ourself there.  */
    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
      char *str = NULL;
+#if HWLOC_API_VERSION < 0x00010000
      hwloc_cpuset_asprintf(&str, obj->cpuset);
+#else
+     hwloc_bitmap_asprintf(&str, obj->cpuset);
+#endif
      printf("Couldn't bind to cpuset %s\n", str);
      free(str);
      return -1;
@@ -70,8 +78,11 @@ int dague_bindthread(int cpu)
    cpu = obj->children[0]->os_index;
     
    /* Free our cpuset copy */
+#if HWLOC_API_VERSION < 0x00010000
    hwloc_cpuset_free(cpuset);
-    
+#else
+   hwloc_bitmap_free(cpuset);
+#endif
    /* Destroy topology object.  */
    hwloc_topology_destroy(topology);  
  }
