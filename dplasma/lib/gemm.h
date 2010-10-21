@@ -13,7 +13,7 @@
 #include "generated/dgemm_NT.h"
 #include "generated/dgemm_TN.h"
 #include "generated/dgemm_TT.h"
-#elif defined(PRECISION_f)
+#elif defined(PRECISION_s)
 #include "generated/sgemm_NN.h"
 #include "generated/sgemm_NT.h"
 #include "generated/sgemm_TN.h"
