@@ -2730,8 +2730,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
-    coutput("  (void)nc;(void)arena;\n"
-            "  nc.dague_object = exec_context->dague_object;\n");
+    coutput("  nc.dague_object = exec_context->dague_object;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = __dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
             "#endif\n",
@@ -2840,7 +2839,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
         }
         coutput("\n");
     }
-    coutput("  (void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;\n");
+    coutput("  (void)nc;(void)arena;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;\n");
     coutput("}\n"
             "\n");
 
