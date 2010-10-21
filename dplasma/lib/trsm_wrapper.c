@@ -1,8 +1,14 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <plasma.h>
 #include <dague.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
-#include "trsm.h"
+#include "trsm_wrapper.h"
 
 dague_object_t * 
 DAGUEprefix(trsm_New)(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,

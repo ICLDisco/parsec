@@ -1,6 +1,9 @@
 #ifndef _DPLASMAJDF_H_
 #define _DPLASMAJDF_H_
 
+#define QUOTEME_(x) #x
+#define QUOTEME(x) QUOTEME_(x)
+
 #ifdef DAGUE_CALL_TRACE
 #   include <stdlib.h>
 #   include <stdio.h>
@@ -19,6 +22,8 @@
 #define CORE(FN, ARGS) CORE_z##FN ARGS
 #define dagueprefix(fn) dague_z##fn
 #define DAGUEprefix(fn) DAGUE_z##fn
+#define MPITYPE  MPI_DOUBLE_COMPLEX
+
 #elif defined(PRECISION_c)
 #define TYPENAME   PLASMA_Complex32_t
 #define TYPELETTER c
@@ -27,6 +32,8 @@
 #define CORE(FN, ARGS) CORE_c##FN ARGS
 #define dagueprefix(fn) dague_c##fn
 #define DAGUEprefix(fn) DAGUE_c##fn
+#define MPITYPE  MPI_COMPLEX
+
 #elif defined(PRECISION_d)
 #define TYPENAME   double
 #define TYPELETTER d
@@ -35,6 +42,8 @@
 #define CORE(FN, ARGS) CORE_d##FN ARGS
 #define dagueprefix(fn) dague_d##fn
 #define DAGUEprefix(fn) DAGUE_d##fn
+#define MPITYPE  MPI_DOUBLE
+
 #elif defined(PRECISION_s) 
 #define TYPENAME   float
 #define TYPELETTER s
@@ -43,6 +52,7 @@
 #define CORE(FN, ARGS) CORE_s##FN ARGS
 #define dagueprefix(fn) dague_s##fn
 #define DAGUEprefix(fn) DAGUE_s##fn
+#define MPITYPE  MPI_FLOAT
 #else
 #error "Precision is not selected. You have to set Precision_[zcdf]"
 #endif
@@ -51,5 +61,11 @@
 #undef CORE
 #define CORE(FN, ARGS)
 #endif
-    
+
+#ifndef USE_MPI
+#define TEMP_TYPE MPITYPE
+#undef MPITYPE
+#define MPITYPE ((dague_remote_dep_datatype_t)QUOTEME(TEMP_TYPE))
+#undef TEMP_TYPE
+#endif  /* USE_MPI */
 #endif /* _DPLASMAJDF_H_ */

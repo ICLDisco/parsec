@@ -10,10 +10,6 @@ extern "C" %{
 #include "data_distribution.h"
 #include "dplasmatypes.h"
 
-#if defined(DISTRIBUTED)
-extern dague_arena_t CONTROL;
-#endif
-
 %}
 
 /* Globals

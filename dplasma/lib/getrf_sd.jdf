@@ -12,31 +12,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "memory_pool.h"
 
-#if defined(DISTRIBUTED)
-extern dague_arena_t LOWER_TILE, UPPER_TILE, PIVOT_VECT, LITTLE_L_PIVOT_VECT;
-#endif
-
-int PLASMA_INFO;
-
-#define OUTPUT(ARGS) printf ARGS
-
-static dague_memory_pool_t *work_pool;
-
-int dgesv_sd_private_memory_initialization(int mb, int nb);
-int dgesv_sd_private_memory_initialization(int mb, int nb)
-{
-    work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( work_pool, mb * nb );
-
-    return 0;
-}
-
-int dgesv_sd_private_memory_finalization(void);
-int dgesv_sd_private_memory_finalization(void)
-{
-    return 0;
-}
-
 #define CdL(dLIPIV)  _compute_dL((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), (char*)(dLIPIV))
 static inline double* _compute_dL(tiled_matrix_desc_t* dLIPIV, char* ptrIPIV)
 {
@@ -52,6 +27,9 @@ N       /* Matrix Size (columns = rows) */
 NB      /* Tile Size */
 NT      /* Number of tiled columns */
 IB
+work_pool [dague_memory_pool_t*]
+INFO  [int*]
+
 /************************************************************************************
  *                                   DGETRF                                         *
  ************************************************************************************/
@@ -103,8 +81,8 @@ BODY
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, LU, "LU=A", k, k);*/
     /*debug_warning(context->eu_id, "after", "DGETRF", k, -1, -1);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), context->eu_id, IPIV, "IPIV", k, k);*/
-    if (PLASMA_INFO == 0 && iinfo > 0 && k == NT /*descA.mt*/-1)
-        PLASMA_INFO = iinfo + NB /*descA.nb*/*k;
+    if (*INFO == 0 && iinfo > 0 && k == NT /*descA.mt*/-1)
+        *INFO = iinfo + NB /*descA.nb*/*k;
 #else
     OUTPUT(( "void task_DGETRF(double *A, int *IPIV)" ));
 #endif  /* !defined(DAGUE_DRY_RUN) */
@@ -223,8 +201,8 @@ BODY
      /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), context->eu_id, CdL(dLIPIV), "dL=L", m, k);*/
      /*debug_warning(context->eu_id, "after", "DTSTRF", k, m, -1);*/
      /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), context->eu_id, CIPIV(dLIPIV), "IPIV", m, k);*/
-     if (PLASMA_INFO == 0 && iinfo > 0 && m == NT /*descA.mt*/-1)
-         PLASMA_INFO = iinfo + NB /*descA.nb*/*k;
+     if (*INFO == 0 && iinfo > 0 && m == NT /*descA.mt*/-1)
+         *INFO = iinfo + NB /*descA.nb*/*k;
      dague_private_memory_push(work_pool, work);
 #else
      OUTPUT(("void task_DTSTRF(double *U, double *L, double *dL, int *IPIV)"));

@@ -365,10 +365,33 @@ dependencies:  dependency dependencies
 
 dependency:   ARROW guarded_call optional_type 
               {
+                  struct jdf_name_list *g, *e, *prec;
+                  int datatype_index = 0;
                   jdf_dep_t *d = new(jdf_dep_t);
                   d->type = $1;
                   d->guard = $2;
-                  d->datatype = $3;
+                  if( NULL == $3 ) {
+                      $3 = "DEFAULT";
+                  }
+
+                  for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+                      if( 0 == strcmp($3, g->name) ) {
+                          break;
+                      }
+                      datatype_index++;
+                      prec = g;
+                  }
+                  if( NULL == g ) {
+                      e = new(struct jdf_name_list);
+                      e->name = strdup($3);
+                      e->next = NULL;
+                      if( NULL != prec ) {
+                          prec->next = e;
+                      } else {
+                          current_jdf.datatypes = e;
+                      }
+                  }
+                  d->datatype_name = strdup($3);
                   d->lineno = current_lineno;
                   $$ = d;
               }

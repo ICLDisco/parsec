@@ -9,8 +9,6 @@ extern "C" %{
 #include "remote_dep.h"
 #include "data_distribution.h"
 #include "dplasmatypes.h"
-
-extern int rank;
 %}
 
 /*
@@ -39,7 +37,7 @@ m = 0 .. K-1
 A <- A(n, m)
   -> A GEMM(n, 0, m)
 BODY
-    OUTPUT(("rank %d <- A(%d,%d)\n", rank, n, m));
+    OUTPUT(("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, n, m));
 END
 
 /**************************************************
@@ -55,7 +53,7 @@ m = 0 .. N-1
 B <- B(n, m)
   -> B GEMM(0, m, n)
 BODY
-    OUTPUT(("rank %d <- B(%d,%d)\n", rank, n, m));
+    OUTPUT(("rank %d <- B(%d,%d)\n", __dague_object->super.B->myrank, n, m));
 END
 
 /**************************************************

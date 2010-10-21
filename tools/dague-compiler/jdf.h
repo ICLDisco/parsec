@@ -51,6 +51,7 @@ typedef struct jdf {
     struct jdf_global_entry   *globals;
     struct jdf_function_entry *functions;
     struct jdf_data_entry     *data;
+    struct jdf_name_list      *datatypes;
 } jdf_t;
 
 extern jdf_t current_jdf;
@@ -146,7 +147,7 @@ typedef unsigned int jdf_dep_type_t;
 typedef struct jdf_dep {
     jdf_dep_type_t           type;
     struct jdf_guarded_call *guard;
-    char                    *datatype;
+    char*                    datatype_name;
     int                      lineno;
 } jdf_dep_t;
 

@@ -1,7 +1,6 @@
 if( PLASMA_FOUND )
-  set(SGEQRF_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
   set(GPU_SUPPORT "")
-
+  set(SGEQRF_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES})
   if( CUDA_FOUND)
     set(CUDA_BUILD_CUBIN ON)
     set(CUDA_BUILD_EMULATION OFF)
@@ -23,8 +22,7 @@ if( PLASMA_FOUND )
     set_target_properties(sgeqrf PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(sgeqrf PROPERTIES COMPILE_FLAGS "-DADD_")
     set_target_properties(sgeqrf PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(sgeqrf dplasma dague dague_distribution_matrix ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS} ${SGEQRF_REQUIRED_LIBRARIES})
+    target_link_libraries(sgeqrf dplasma dague dague_distribution_matrix ${EXTRA_LIBS} ${SGEQRF_REQUIRED_LIBRARIES})
   endif( DAGUE_MPI AND MPI_FOUND )
-
 endif( PLASMA_FOUND )
 

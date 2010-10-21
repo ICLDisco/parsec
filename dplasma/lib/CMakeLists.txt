@@ -1,13 +1,14 @@
 include(precision_generation)
 include(JDFsupport)
 
-set(EXTRA_SOURCES memory_pool.c)
+set(EXTRA_SOURCES memory_pool.c dplasmaaux.c)
+
+
+
 
 ### Generate .c files from .jdf
 set(OLDJDF 
-  dpotrf spotrf_ll spotrf_rl
-  LU LU_sd
-  QR TSQR sgeqrt 
+  TSQR sgeqrt 
 )
 jdf_rules(generated_files "${OLDJDF}")
 
@@ -15,11 +16,16 @@ set(JDF
   gemm_NN gemm_TN gemm_NT gemm_TT
   trsm_LLN trsm_LLT trsm_LUN trsm_LUT trsm_RLN trsm_RLT trsm_RUN trsm_RUT
   trmm_LLN trmm_LLT trmm_LUN trmm_LUT trmm_RLN trmm_RLT trmm_RUN trmm_RUT
+  potrf_rl potrf_ll 
+  getrf getrf_sd 
+  geqrf
 )
 jdf_rules(precisionstub_files "${JDF}")
 precisions_rules(generated_files "/;${DPLASMA_PRECISIONS}" "${precisionstub_files}")
 
-set(SOURCES trsm.c gemm.c trmm.c)
+set(SOURCES
+  trsm_wrapper.c gemm_wrapper.c trmm_wrapper.c potrf_wrapper.c getrf_wrapper.c geqrf_wrapper.c
+)
 precisions_rules(generated_files "${DPLASMA_PRECISIONS}" "${SOURCES}") 
 
 message(STATUS "${generated_files}")

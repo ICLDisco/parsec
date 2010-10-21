@@ -59,6 +59,7 @@ if(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
   check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR )
   check_c_source_compiles( "#include <hwloc.h>
     int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" HAVE_HWLOC_OBJ_PU)
+  check_library_exists(${HWLOC_LIB} hwloc_bitmap_free "" HAVE_HWLOC_BITMAP)
   set(HWLOC_FOUND TRUE)
 else(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
   set(HWLOC_FOUND FALSE)

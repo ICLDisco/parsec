@@ -19,7 +19,7 @@ struct dep {
     const dague_t*   dague;
     const expr_t*    call_params[MAX_CALL_PARAM_COUNT];
     const param_t*   param;
-    void*            type;
+    int              datatype_index;
 };
 
 void dep_dump(const dep_t *d, const struct dague_object *dague_object, const char *prefix);
