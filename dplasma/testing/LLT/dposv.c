@@ -23,7 +23,6 @@
 #include "profiling.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
-#include "generated/dpotrf.h"
 
 #if defined(DAGUE_CUDA_SUPPORT) && 0
 #include "gpu_data.h"
@@ -428,14 +427,10 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
     dague_context_t *dague;
    
     dague = dague_init(cores, pargc, pargv, dposv_force_nb);
-#if 0
 #if defined(LLT_LL)
     dague_dpotrf = (dague_object_t*)DAGUE_dpotrf_ll_New(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
 #else
     dague_dpotrf = (dague_object_t*)DAGUE_dpotrf_rl_New(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
-#endif
-#else 
-    dague_dpotrf = (dague_object_t*)dague_dportrf_new(uplo, (tiled_matrix_desc_t*)&ddescA, &INFO);
 #endif
     dague_enqueue( dague, (dague_object_t*)dague_dpotrf);
 
