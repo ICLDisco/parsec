@@ -25,7 +25,7 @@ set(SOURCES
 )
 precisions_rules(generated_files "${DPLASMA_PRECISIONS}" "${SOURCES}") 
 
-message(STATUS "${generated_files}")
+#message(STATUS "${generated_files}")
 
 
 if (DAGUE_MPI AND MPI_FOUND)

@@ -25,26 +25,23 @@ macro(precisions_rules OUTPUTLIST PRECISIONS SOURCES)
     set(precisions_rules_PP 1)
    else()
     set(prec_rules_OSRC "generated/${prec_rules_PREC}${prec_rules_BSRC}.${prec_rules_ESRC}")
+
     if(${precisions_rules_SED})
       add_custom_command(
         OUTPUT ${prec_rules_OSRC}
         COMMAND mkdir -p generated && sed 's/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
         MAIN_DEPENDENCY ${prec_rules_SOURCE})
+    
     elseif(${precisions_rules_PP})
-              message(STATUS "execute
       execute_process(COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} --prefix generated/ --out 
                       OUTPUT_VARIABLE prec_rules_OSRC)
-                  ")
-      execute_process(COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} --prefix generated/ --out 
-                      OUTPUT_VARIABLE prec_rules_OSRC)
-                  #message(STATUS "rule2 is ${prec_rules_OSRC}")
-                  string(STRIP ${prec_rules_OSRC} prec_rules_OSRC)
-      message(STATUS "rule3 is ${prec_rules_OSRC}")
+      string(STRIP ${prec_rules_OSRC} prec_rules_OSRC)
       add_custom_command(
         OUTPUT ${prec_rules_OSRC}
         COMMAND mkdir -p generated && ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} --prefix ${CMAKE_CURRENT_BINARY_DIR}/generated
         MAIN_DEPENDENCY ${prec_rules_SOURCE}
         DEPENDS ${PRECISIONPP})
+    
     else()
       add_custom_command(
         OUTPUT ${prec_rules_OSRC}
