@@ -284,14 +284,14 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
             {
                 if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
                     {
-			size_t ret;
+                        size_t ret;
                         buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
                         ret = fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
-			if ( ret !=  Ddesc->bsiz )
-			    {
-				printf("Error reading file: %s", filename);
-				return -1;
-			    }
+                        if ( ret !=  Ddesc->bsiz )
+                            {
+                                printf("Error reading file: %s", filename);
+                                return -1;
+                            }
                     }
             }
     fclose(tmpf);

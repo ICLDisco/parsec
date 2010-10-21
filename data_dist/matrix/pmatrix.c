@@ -25,8 +25,38 @@
 #include "matrix.h"
 #include "bindthread.h"
 
+#if   defined(PRECISION_z)
+#include <complex.h>
+#define prefix(func) matrix_z##func
 #define COMPLEX
-#undef REAL
+#define double double
+#define abs cabs
+
+#elif defined(PRECISION_c)
+#include <complex.h>
+#define prefix(func) matrix_c##func
+#define COMPLEX
+#define double float
+#define abs cabsf
+#define cimag cimagf
+
+#elif defined(PRECISION_d)
+#define prefix(func) matrix_d##func
+#undef COMPLEX
+#define complex
+#define double double
+#define abs fabs
+
+#elif defined(PRECISION_s)
+#define prefix(func) matrix_s##func
+#undef COMPLEX
+#define complex
+#define double float
+#define abs fabsf
+
+#else
+#error "The precision is not set properly. You have to select a precision with "-DPRECISION_p" where p is among z;c;d;s"
+#endif
 
 #ifndef max
 #define max(a,b) ( (a) > (b) ? (a) : (b) )
@@ -64,13 +94,13 @@ Rnd64_jump(unsigned long long int n, unsigned long long int seed ) {
   return ran;
 }
 
-void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position, 
-                           unsigned int row, unsigned int col, unsigned long long int seed)
+void prefix(tile_cholesky(tiled_matrix_desc_t * Ddesc, void * position, 
+                           unsigned int row, unsigned int col, unsigned long long int seed))
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
-    PLASMA_Complex64_t mn_max = (PLASMA_Complex64_t) max(Ddesc->n, Ddesc->m);
-    PLASMA_Complex64_t *x = (PLASMA_Complex64_t*) position;
+    complex double mn_max = (complex double) max(Ddesc->n, Ddesc->m);
+    complex double *x = (complex double*) position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
@@ -103,7 +133,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     }
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
-        x = (PLASMA_Complex64_t*)position;
+        x = (complex double*)position;
         for (i = 0; i < nb; ++i) {
             if( ((first_row + i) >= Ddesc->lm) || ((first_col + i) >= Ddesc->ln) ) /* padding for diagonal */
             {
@@ -118,12 +148,12 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     }
 }
 
-void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position, 
-                  unsigned int row, unsigned int col, unsigned long long int seed)
+void prefix(tile(tiled_matrix_desc_t * Ddesc, void * position, 
+                  unsigned int row, unsigned int col, unsigned long long int seed))
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
-    PLASMA_Complex64_t *x = (PLASMA_Complex64_t*)position;
+    complex double *x = (complex double*)position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
@@ -160,7 +190,7 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
 
 //#include <lapack.h>
 
-static double lamch(void) 
+static double lamch(void)
 {
     double eps = 1.0;
 
@@ -173,13 +203,13 @@ static double lamch(void)
 }
 
 
-void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
+void prefix(compare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b))
 {
     MPI_Status status;
-    PLASMA_Complex64_t * bufferA = NULL;
-    PLASMA_Complex64_t * bufferB = NULL;
-    PLASMA_Complex64_t * tmpA = malloc(a->bsiz * sizeof(PLASMA_Complex64_t));
-    PLASMA_Complex64_t * tmpB = malloc(a->bsiz * sizeof(PLASMA_Complex64_t));
+    complex double * bufferA = NULL;
+    complex double * bufferB = NULL;
+    complex double * tmpA = malloc(a->bsiz * sizeof(double));
+    complex double * tmpB = malloc(a->bsiz * sizeof(double));
 
     size_t i,j;
     unsigned int k;
@@ -232,8 +262,8 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                                 diff = 0;
                                 dc = 0;
                                 for(k = 0 ; k < a->bsiz ; k++)
-                                    if ( cabs(bufferA[k] - bufferB[k]) > eps )
-                                        {
+                                    if ( abs(bufferA[k] - bufferB[k]) > eps )
+                                    {
                                             diff = 1;
                                             dc++;
                                         }
@@ -264,3 +294,4 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 }
 
 #endif
+
