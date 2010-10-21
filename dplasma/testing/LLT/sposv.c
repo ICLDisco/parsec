@@ -34,9 +34,9 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include "profiling.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #if defined(LLT_LL)
-#include "spotrf_ll.h"
+#include "generated/spotrf_ll.h"
 #else
-#include "spotrf_rl.h"
+#include "generated/spotrf_rl.h"
 #endif
 #include "remote_dep.h"
 

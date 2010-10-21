@@ -381,7 +381,7 @@ int spotrf_cuda_fini(void)
         (OFFSET) += sizeof(float);                                      \
     } while (0)
 
-#include "spotrf_rl.h"
+#include "generated/spotrf_rl.h"
 #define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
 
 /**

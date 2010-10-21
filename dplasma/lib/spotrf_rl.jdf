@@ -12,7 +12,7 @@ static int PLASMA_INFO = 0;
 
 #if defined(DAGUE_CUDA_SUPPORT)
 #include "gpu_data.h"
-#include "../testing/pspotrf/gpu_gemm.h"
+#include "../testing/LLT/gpu_gemm.h"
 extern int *gpu_counter;
 #endif
 

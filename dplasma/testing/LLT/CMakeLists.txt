@@ -44,5 +44,23 @@ if( PLASMA_FOUND )
  set_target_properties(sposv_ll PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
  target_link_libraries(sposv_ll dplasma dague dague_distribution_matrix ${SPOTRF_REQUIRED_LIBRARIES})
 
+
+ set(DPOTRF_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+ set(GPU_SUPPORT "")
+           
+ if( DAGUE_MPI AND MPI_FOUND )
+   add_executable(mpi_dposv dposv.c)
+   set_target_properties(mpi_dposv PROPERTIES LINKER_LANGUAGE Fortran)
+   set_target_properties(mpi_dposv PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+   set_target_properties(mpi_dposv PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
+   target_link_libraries(mpi_dposv dplasma-mpi dague-mpi dague_distribution_matrix-mpi ${MPI_LIBRARIES} ${DPOTRF_REQUIRED_LIBRARIES})
+ endif( DAGUE_MPI AND MPI_FOUND )
+                                                                         
+ add_executable(dposv dposv.c)
+ set_target_properties(dposv PROPERTIES LINKER_LANGUAGE Fortran)
+ set_target_properties(dposv PROPERTIES COMPILE_FLAGS "-DADD_")
+ set_target_properties(dposv PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
+ target_link_libraries(dposv dplasma dague dague_distribution_matrix ${DPOTRF_REQUIRED_LIBRARIES})
+                                                                   
 endif( PLASMA_FOUND )
 
