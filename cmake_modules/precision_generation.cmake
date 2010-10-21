@@ -25,7 +25,7 @@ macro(precisions_rules OUTPUTLIST PRECISIONS SOURCES)
     if(precisions_rules_SED)
       add_custom_command(
         OUTPUT "${prec_rules_OSRC}"
-        COMMAND mkdir -p generated && sed '{ s/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g }' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
+        COMMAND mkdir -p generated && sed 's/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
         MAIN_DEPENDENCY ${prec_rules_SOURCE}
         DEPENDS ${DAGUEPP})
     else()
