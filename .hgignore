@@ -18,9 +18,10 @@ CMakeFiles
 .*cmake_install.cmake
 install_manifest.txt
 
-data_dist/matrix/generated
-dplasma/lib/generated
+.*/generated/.*
 
+dplasma/testing/LLT/mpi_[zcds]posv_[rl]l
+dplasma/testing/LLT/[zcds]posv_[rl]l
 dplasma/testing/LU/dgesv
 dplasma/testing/LU/dgesv_sd
 dplasma/testing/LU/mpi_dgesv
@@ -33,14 +34,8 @@ dplasma/testing/dtrsm/mpi_trsm
 dplasma/testing/dtrsm/trsm
 dplasma/testing/pdgemm/dgemm
 dplasma/testing/pdgemm/pdgemm
-dplasma/testing/pdpotrf/llt
-dplasma/testing/pdpotrf/mpi_llt
 dplasma/testing/psgemm/psgemm
 dplasma/testing/psgemm/sgemm
-dplasma/testing/pspotrf/mpi_sposv_ll
-dplasma/testing/pspotrf/mpi_sposv_rl
-dplasma/testing/pspotrf/sposv_ll
-dplasma/testing/pspotrf/sposv_rl
 dplasma/testing/dtrmm/trmm
 tools/dague-compiler/daguepp
 tests/unit/atomics/lifo
