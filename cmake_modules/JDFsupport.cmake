@@ -15,12 +15,14 @@ set(DAGUEPP ${CMAKE_BINARY_DIR}/tools/dague-compiler/daguepp)
 #
 macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
   foreach(jdf_rules_SOURCE ${jdf_rules_SOURCES})
-    string(REGEX REPLACE "^(.*/)*(.+)\\.*.*" "\\2" jdf_rules_BSRC ${jdf_rules_SOURCE})
+    # Remove .jdf if present
+    string(REGEX REPLACE ".jdf" "" jdf_rules_SRC ${jdf_rules_SOURCE}) 
+    string(REGEX REPLACE "^(.*/)*(.+)\\.*.*" "\\2" jdf_rules_BSRC ${jdf_rules_SRC})
     set(jdf_rules_OSRC "generated/${jdf_rules_BSRC}")
     add_custom_command(
       OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-      COMMAND mkdir -p generated && ${DAGUEPP} -i ${CMAKE_CURRENT_SOURCE_DIR}/${jdf_rules_SOURCE}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
-      MAIN_DEPENDENCY ${jdf_rules_SOURCE}.jdf
+      COMMAND mkdir -p generated && ${DAGUEPP} -i ${CMAKE_CURRENT_SOURCE_DIR}/${jdf_rules_SRC}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+      MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
       DEPENDS ${DAGUEPP})
 #   add_custom_target(${jdf_rules_BSRC} DEPENDS ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c)
 #   set_source_files_properties(${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c PROPERTIES GENERATED 1)
@@ -28,5 +30,11 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
 #   message(STATUS "rule to generate ${jdf_rules_OSRC}.[ch] from ${jdf_rules_SOURCE}.jdf")
   endforeach()
 endmacro(jdf_rules)
+
+macro(jdf_addextension jdf_SOURCES jdf_NAMES)
+  foreach(jdf_NAME ${jdf_NAMES})
+    list(APPEND ${jdf_SOURCES} "${jdf_NAMES}.jdf")
+  endforeach()
+endmacro(jdf_addextension)
 
 
