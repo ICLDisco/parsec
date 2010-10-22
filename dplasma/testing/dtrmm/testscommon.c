@@ -7,7 +7,25 @@
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
+#include <plasma.h>
 #include "testscommon.h"
+
+/*******************************
+ * globals and argv set values *
+ *******************************/
+#if defined(USE_MPI)
+MPI_Datatype SYNCHRO = MPI_BYTE;
+#endif  /* USE_MPI */
+
+int   side[2]  = { PlasmaLeft,    PlasmaRight };
+int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
+int   diag[2]  = { PlasmaNonUnit, PlasmaUnit  };
+int   trans[3] = { PlasmaNoTrans, PlasmaTrans, PlasmaConjTrans };
+
+char *sidestr[2]  = { "Left ", "Right" };
+char *uplostr[2]  = { "Upper", "Lower" };
+char *diagstr[2]  = { "NonUnit", "Unit   " };
+char *transstr[3] = { "N", "T", "H" };
 
 /**********************************
  *  Print Usage

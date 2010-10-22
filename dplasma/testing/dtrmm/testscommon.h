@@ -22,6 +22,25 @@ enum iparam_timing {
   IPARAM_INBPARAM
 };
 
+/*******************************
+ * globals values
+ *******************************/
+/* Define a double type which not pass through the precision generation process */
+typedef double DagDouble_t;
+
+#if defined(USE_MPI)
+extern MPI_Datatype SYNCHRO;
+#endif  /* USE_MPI */
+
+extern int side[2];
+extern int uplo[2];
+extern int diag[2];
+extern int trans[3];
+extern char *sidestr[2];
+extern char *uplostr[2];
+extern char *diagstr[2];
+extern char *transstr[3];
+
 void print_usage(void);
 void runtime_init(int argc, char **argv, int *iparam);
 void runtime_fini(void);
