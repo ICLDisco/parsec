@@ -1,7 +1,10 @@
 extern "C" %{
-   /**
-    * PLASMA include for defined and constants.
-    */
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -37,7 +40,7 @@ k = 0..SIZE-1
 : A(k, k)
 
 // Parameters
-RW T <- (k == 0) ? A(k, k) : T SYRK(k-1, k)
+RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
      -> T TRSM(k, k+1..SIZE-1)
      -> A(k, k)
 
@@ -48,19 +51,18 @@ BODY
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     gpu_cholesky_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
-    CORE(
-        potrf, (
+    DRYRUN(
+        CORE_zpotrf(
             uplo,
             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
             T /* A(k, k) */, NB, /*A.nb,*/
             INFO )
         );
-    OUTPUT((
-        "thread %d CORE_potrf( %s, %d, A(%d,%d), %d)\n",
-            context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
-            NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-            k, k, NB /*A.nb,*/ )
-        );
+    printlog(
+             "thread %d CORE_potrf( %s, %d, A(%d,%d), %d)\n",
+             context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
+             NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+             k, k, NB /*A.nb,*/ );
 END
 
 
@@ -79,7 +81,7 @@ n = k+1..SIZE-1
 // Parameters
 READ  T <- T POTRF(k)
 RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
-        -> A SYRK(k, n)
+        -> A HERK(k, n)
         -> A GEMM(k, n+1..SIZE-1, n)
         -> B GEMM(k, n, k+1..n-1)
         -> A(n, k)
@@ -94,48 +96,46 @@ BODY
 #endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
-        CORE(
-            trsm, (
+        DRYRUN(
+            CORE_ztrsm(
                 PlasmaRight, PlasmaLower, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
-                     C /*A(n, k)*/, NB /*A.nb*/ )
+                (Dague_Complex64_t)1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                                        C /*A(n, k)*/, NB /*A.nb*/ )
             );
-        OUTPUT(( 
-            "thread %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                1.0, k, k, NB, /*A.nb,*/
-                     n, k, NB /*A.nb*/ )
-            );
+        printlog( 
+                 "thread %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                 context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 1.0, k, k, NB, /*A.nb,*/
+                 n, k, NB /*A.nb*/ );
 
     } else {
-        CORE(
-            trsm, (
+        DRYRUN(
+            CORE_ztrsm(
                 PlasmaLeft, PlasmaUpper, PlasmaTrans, PlasmaNonUnit,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                1.0, T /*A(k, k)*/, NB, /*A.nb,*/
-                     C /*A(k, n)*/, NB /*A.nb*/ )
+                (Dague_Complex64_t)1.0, T /*A(k, k)*/, NB, /*A.nb,*/
+                                        C /*A(k, n)*/, NB /*A.nb*/ )
             );
-       OUTPUT((
-            "thread %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+       printlog(
+                "thread %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
                 context->eu_id, "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, k, k, NB, /*A.nb,*/
-                     k, n, NB /*A.nb*/ )
-            );
+                k, n, NB /*A.nb*/ );
     }
 END
 
 
 /**************************************************
- *                      SYRK                      *
+ *                      HERK                      *
  **************************************************/
-SYRK(k, n) (high_priority)
+HERK(k, n) (high_priority)
 
 // Execution space
 k = 0..SIZE-1
@@ -146,8 +146,8 @@ n = k+1..SIZE-1
 
 //Parameters
 READ  A <- C TRSM(k, n)
-RW    T <- (k == 0) ? A(n,n) : T SYRK(k-1, n)
-        -> (n == k+1) ? T POTRF(k+1) : T SYRK(k+1,n)
+RW    T <- (k == 0) ? A(n,n) : T HERK(k-1, n)
+        -> (n == k+1) ? T POTRF(k+1) : T HERK(k+1,n)
 
 //; (n >= (SIZE - PRI_CHANGE)) ? 10 * (SIZE - n) * (SIZE - n) * (SIZE - n) + 1 : 1000000000
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
@@ -159,39 +159,37 @@ BODY
 #endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
-        CORE(
-            syrk, (
+        DRYRUN(
+            CORE_zherk(
                 PlasmaLower, PlasmaNoTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A /*A(n, k)*/, NB, /*A.nb,*/
-                 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
+                (double)-1.0, A /*A(n, k)*/, NB, /*A.nb,*/
+                (double) 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
-        OUTPUT((
-            "thread %d CORE_syrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
-                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                -1.0, n, k, NB, /*A.nb,*/
-                 1.0, n, n, NB /*A.nb*/ )
-            );
+        printlog(
+                 "thread %d CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->eu_id, "PlasmaLower", "PlasmaNoTrans",
+                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 -1.0, n, k, NB, /*A.nb,*/
+                 1.0, n, n, NB /*A.nb*/ );
     } else {
-        CORE(
-            syrk, (
+        DRYRUN(
+            CORE_zherk(
                 PlasmaUpper, PlasmaTrans,
                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
-                 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
+                (double)-1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                (double) 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
-        OUTPUT((
-            "thread %d CORE_syrk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                context->eu_id, "PlasmaLower", "PlasmaNoTrans",
-                NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                -1.0, k, n, NB, /*A.nb,*/
-                 1.0, n, n, NB /*A.nb*/ )
-            );
+        printlog(
+                 "thread %d CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->eu_id, "PlasmaLower", "PlasmaNoTrans",
+                 NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 -1.0, k, n, NB, /*A.nb,*/
+                 1.0, n, n, NB /*A.nb*/ );
     }
 END
 
@@ -242,47 +240,45 @@ BODY
 #endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
-        CORE(
-            gemm, ( 
+        DRYRUN(
+            CORE_zgemm( 
                 PlasmaNoTrans, PlasmaTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, B /*A(m, k)*/, NB, /*A.nb,*/
-                      A /*A(n, k)*/, NB, /*A.nb,*/
-                 1.0, C /*A(m, n)*/, NB /*A.nb*/ )
+                (Dague_Complex64_t)-1.0, B /*A(m, k)*/, NB, /*A.nb,*/
+                                         A /*A(n, k)*/, NB, /*A.nb,*/
+                (Dague_Complex64_t) 1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
-        OUTPUT((
-            "thread %d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                NB, /*A.nb,*/
-                -1.0, n, k, NB, /*A.nb,*/
-                      m, k, NB, /*A.nb,*/
-                 1.0, m, n, NB /*A.nb*/ )
-            );
+        printlog(
+                 "thread %d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
+                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 NB, /*A.nb,*/
+                 -1.0, n, k, NB, /*A.nb,*/
+                       m, k, NB, /*A.nb,*/
+                  1.0, m, n, NB /*A.nb*/ );
     } else {
-        CORE(
-            gemm, (
+        DRYRUN(
+            CORE_zgemm(
                 PlasmaTrans, PlasmaNoTrans,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 NB, /*A.nb,*/
-                -1.0, A /*A(k, n)*/, NB, /*A.nb,*/
-                      B /*A(k, m)*/, NB, /*A.nb,*/
-                 1.0, C /*A(n, m)*/, NB /*A.nb*/ )
+                (Dague_Complex64_t)-1.0, A /*A(k, n)*/, NB, /*A.nb,*/
+                                         B /*A(k, m)*/, NB, /*A.nb,*/
+                (Dague_Complex64_t) 1.0, C /*A(n, m)*/, NB /*A.nb*/ )
             );
-        OUTPUT((
-            "%d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                NB, /*A.nb,*/
-                -1.0, k, n, NB, /*A.nb,*/
-                      k, m, NB, /*A.nb,*/
-                 1.0, n, m, NB /*A.nb*/ )
-            );
+        printlog(
+                 "%d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
+                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 NB, /*A.nb,*/
+                 -1.0, k, n, NB, /*A.nb,*/
+                       k, m, NB, /*A.nb,*/
+                 1.0, n, m, NB /*A.nb*/ );
     }
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 FIN:
