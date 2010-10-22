@@ -192,7 +192,7 @@ int main(int argc, char ** argv)
         /* Create GEMM DAGuE */
         printf("Generate GEMM DAG ... ");
         SYNC_TIME_START();
-        dague_gemm = dplasma_dgemm_New(tA, tB, 
+        dague_gemm = dplasma_zgemm_New(tA, tB, 
                                        (Dague_Complex64_t)alpha, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, 
                                        (Dague_Complex64_t)beta,  (tiled_matrix_desc_t *)&ddescC );
         dague_enqueue( dague, (dague_object_t*)dague_gemm);
