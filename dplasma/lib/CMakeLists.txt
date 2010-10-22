@@ -14,7 +14,7 @@ precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}")
 
 ### Generate .c files from .jdf
 set(OLDJDF 
-  TSQR.jdf sgeqrt.jdf 
+  TSQR.jdf
 )
 jdf_rules(generated_files "${OLDJDF}")
 

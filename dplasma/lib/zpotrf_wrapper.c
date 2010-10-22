@@ -12,8 +12,8 @@
 #include "dplasma.h"
 #include "dplasmaaux.h"
 
-#include "generate/zpotrf_rl.h"
-#include "generate/zpotrf_ll.h"
+#include "generated/zpotrf_rl.h"
+#include "generated/zpotrf_ll.h"
 
 dague_object_t* 
 dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
@@ -24,8 +24,8 @@ dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INF
 
     object = dague_zpotrf_rl_new( (dague_ddesc_t*)ddescA, 
 				  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-    dplasma_aux_create_tile_type(MPITYPE, ddescA->nb, &default_ddt);
-    dague_arena_construct(object->arenas[dplasma_zpotrf_rl_DEFAULT_ARENA], 
+    dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+    dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
 			  ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
                           DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     return (dague_object_t*)object;
@@ -37,7 +37,7 @@ dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_des
     dague_object_t *dague_zpotrf = NULL;
 
     int info;
-    dague_zpotrf = dague_zpotrf_New(uplo, (dague_ddesc_t*)ddescA, &info);
+    dague_zpotrf = dplasma_zpotrf_New(uplo, ddescA, &info);
 
     dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
     dague_progress(dague);
@@ -54,9 +54,9 @@ dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* 
 
     object = dague_zpotrf_rl_new( (dague_ddesc_t*)ddescA, 
 				  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-    dplasma_aux_create_tile_type(MPITYPE, ddescA->nb, &default_ddt);
+    dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
 
-    dague_arena_construct(object->arenas[dplasma_zpotrf_rl_DEFAULT_ARENA], 
+    dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
 			  ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
                           DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     return (dague_object_t*)object;
@@ -71,8 +71,8 @@ dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* 
 
     object = dague_zpotrf_ll_new( (dague_ddesc_t*)ddescA, 
 				  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-    dplasma_aux_create_tile_type(MPITYPE, ddescA->nb, &default_ddt);
-    dague_arena_construct(object->arenas[dplasma_zpotrf_ll_DEFAULT_ARENA], 
+    dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+    dague_arena_construct(object->arenas[DAGUE_zpotrf_ll_DEFAULT_ARENA], 
 			  ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
                           DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
 

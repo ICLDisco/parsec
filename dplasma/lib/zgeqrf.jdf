@@ -5,12 +5,14 @@ extern "C" %{
    * @precisions normal z -> s d c
    *
    */
-#include <stdlib.h>
-#include <stdio.h>
 #include <plasma.h>
 #include <core_blas.h>
-#include <dague.h>
+
+#include "dague.h"
+#include "data_dist/matrix/matrix.h"
 #include "dplasmatypes.h"
+
+#define PRECISION_z
 
 /* Ugly hack to be remove with plasma 2.3 */
 #if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
@@ -18,6 +20,12 @@ extern "C" %{
   CORE_zssmqr(side, trans, M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK))
 #define CORE_zunmqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
   CORE_zunmqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
+#endif
+
+#if defined(DAGUE_CUDA_SUPPORT)
+#include "gpu_data.h"
+#include "../testing/psgeqrf/gpu_stsmqr.h"
+extern int *gpu_counter;
 #endif
 
 #include "data_distribution.h"
@@ -68,6 +76,10 @@ GEQRT(k)  (high_priority)
 ; (NT-k)*(NT-k)*(NT-k)
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, k, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT)  && defined(PRECISION_s) */
 
     void* work = dague_private_memory_pop(work_pool);
     void* tau = dague_private_memory_pop(tau_pool); 
@@ -131,6 +143,11 @@ TSQRT(k,m)  (high_priority)
   ; (NT-k)*(NT-m)*(NT-m)
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, m, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT)  && defined(PRECISION_s) */
 
     void* work = dague_private_memory_pop(work_pool);
     void* tau = dague_private_memory_pop(tau_pool);
@@ -175,6 +192,11 @@ UNMQR(k,n)  (high_priority)
   ; (NT-k)*(NT-n)*(NT-n)
 
 BODY
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, k, k );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 
     void* work = dague_private_memory_pop(work_pool);
 
@@ -243,9 +265,32 @@ TSMQR(k,n,m)
   ; (NT-k)*(NT-n)*(NT-m)
 
 BODY
+    void *work;
 
-    void* work = dague_private_memory_pop(work_pool);
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
+    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, m, k );
+    if( dague_using_gpu() > 0 ) {
+        int rc;
 
+        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+        /* Continue with the task on the cores */
+    }    
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
+    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+
+    work = dague_private_memory_pop(work_pool);
     DRYRUN(
         CORE_ztsmqr(
             PlasmaLeft, PlasmaTrans,
@@ -276,5 +321,8 @@ BODY
               work, MB);
 
     dague_private_memory_push(work_pool, work);
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+FIN:
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 END
 

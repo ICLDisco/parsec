@@ -8,11 +8,10 @@ extern "C" %{
   
 #include <plasma.h>
 #include <core_blas.h>
+
 #include "dague.h"
-#include "remote_dep.h"
 #include "data_distribution.h"
 #include "dplasmatypes.h"
-
 %}
 
 /* Globals

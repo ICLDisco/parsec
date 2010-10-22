@@ -9,20 +9,16 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "dague.h"
-#include "remote_dep.h"
 #include "data_distribution.h"
 #include "dplasmatypes.h"
 
-#define COMPLEX
-#undef REAL
-#define DOUBLE
-#undef SINGLE
+#define PRECISION_z
 
-#if defined(DAGUE_CUDA_SUPPORT) && (defined(REAL) && defined(SINGLE))
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "gpu_data.h"
 #include "../testing/LLT/gpu_gemm.h"
 extern int *gpu_counter;
-#endif
+#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 %}
 
 /* Globals
@@ -30,7 +26,7 @@ extern int *gpu_counter;
 NB           [int]
 SIZE         [int]
 PRI_CHANGE   [int]
-uplo         [int]
+uplo         [PLASMA_enum]
 INFO         [int*]
 
 /**************************************************

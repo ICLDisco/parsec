@@ -43,28 +43,28 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
 #if defined(USE_MPI)
     MPI_Type_get_extent(tile_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
-    dague_arena_construct(object->arenas[dplasma_zgeqrf_DEFAULT_ARENA], extent,
+    dague_arena_construct(object->arenas[DAGUE_zgeqrf_DEFAULT_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &tile_ddt);
 
     dplasma_aux_create_lower_type(MPITYPE, ddescA->nb, &lower_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
-    dague_arena_construct(object->arenas[dplasma_zgeqrf_LOWER_TILE_ARENA], extent,
+    dague_arena_construct(object->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &lower_ddt);
 
     dplasma_aux_create_upper_type(MPITYPE, ddescA->nb, &upper_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
-    dague_arena_construct(object->arenas[dplasma_zgeqrf_UPPER_TILE_ARENA], extent,
+    dague_arena_construct(object->arenas[DAGUE_zgeqrf_UPPER_TILE_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &upper_ddt);
 
     dplasma_aux_create_rectangle_type(MPITYPE, T->mb, ddescA->nb, -1,  &littlet_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(littlet_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
-    dague_arena_construct(object->arenas[dplasma_zgeqrf_LITTLE_T_ARENA], extent,
+    dague_arena_construct(object->arenas[DAGUE_zgeqrf_LITTLE_T_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &littlet_ddt);
 
     return (dague_object_t*)object;
@@ -75,10 +75,10 @@ dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_des
 {
     dague_object_t *dague_zgeqrf = NULL;
 
-    dague_zgeqrf = dague_zgeqrf_New(A, T, &info);
+    dague_zgeqrf = dplasma_zgeqrf_New(A, T);
 
     dague_enqueue( dague, (dague_object_t*)dague_zgeqrf);
     dague_progress(dague);
 
-    return 1;
+    return 0;
 }
