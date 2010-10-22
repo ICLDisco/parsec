@@ -1,6 +1,13 @@
 Add_Subdirectory(common)
 
-Add_Subdirectory(dtrmm)
+include(testings)
+
+set(TESTS
+  testing_ztrmm.c
+)
+
+testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
+
 Add_Subdirectory(dtrsm)
 Add_Subdirectory(LLT)
 Add_Subdirectory(LU)

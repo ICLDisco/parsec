@@ -34,8 +34,8 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
 
-#include "../testscommon.h"
-#include "../timing.h"
+#include "testscommon.h"
+#include "timing.h"
 
 #define _FMULS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (N) * (M) * ((M)+1) ) : ( 0.5 * (M) * (N) * ((N)+1) ) )
 #define _FADDS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (N) * (M) * ((M)-1) ) : ( 0.5 * (M) * (N) * ((N)-1) ) )
