@@ -9,16 +9,17 @@
 #define _MATRIX_H_ 
 
 #include <stdarg.h>
+#include "precision.h"
 #include "data_distribution.h"
 
 // TODO: This type is weird/broken, it needs to be fixed at some point (was not conceived originally to compare 2 matrices...)
 enum matrix_type {
-    matrix_Byte           = sizeof(char),   /**< unsigned char */
-    matrix_Integer        = sizeof(int),    /**< signed int */
-    matrix_RealFloat      = sizeof(float),  /**< float */
-    matrix_RealDouble     = sizeof(double), /**< double */
-    matrix_ComplexFloat   = sizeof(float),  /**< complex float */
-    matrix_ComplexDouble  = sizeof(double)  /**< complex double */
+    matrix_Byte          = sizeof(char),              /**< unsigned char */
+    matrix_Integer       = sizeof(int),               /**< signed int */
+    matrix_RealFloat     = sizeof(float),             /**< float */
+    matrix_RealDouble    = sizeof(double),            /**< double */
+    matrix_ComplexFloat  = sizeof(Dague_Complex32_t), /**< complex float */
+    matrix_ComplexDouble = sizeof(Dague_Complex64_t)  /**< complex double */
 };
 
 typedef struct tiled_matrix_desc_t {

@@ -21,6 +21,7 @@ if (DAGUE_MPI AND MPI_FOUND)
 else()
     add_library(dague_distribution_matrix STATIC 
         matrix.c 
+        precision.c 
         tabular_distribution/tabular_distribution.c 
         two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
         sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
