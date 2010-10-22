@@ -13,6 +13,15 @@ extern "C" %{
 #include "memory_pool.h"
 #include "dplasmatypes.h"
 
+/* Ugly hack to be remove with plasma 2.3 */
+#if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
+#define SSSSM(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \
+  (M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
+#else
+#define SSSSM(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \
+  (M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
+#endif
+
 #define CdL(dLIPIV)  _compute_dL((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), (char*)(dLIPIV))
 static inline TYPENAME* _compute_dL(tiled_matrix_desc_t* dLIPIV, char* ptrIPIV)
 {
@@ -261,8 +270,9 @@ BODY
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A),context->eu_id, C3, "C3=A", m, k);*/
     /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
     /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.dLIPIV), context->eu_id, CIPIV(dLIPIV), "IPIV", m, k);*/
-    CORE(ssssm,(
+    CORE( ssssm, SSSSM(
                 NB /*descA.nb*/,
+                n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
                 m == NT-1 ? N-m*NB : NB /* m == descA.nt-1 ? descA.m-m*descA.nb : descA.nb */,
                 n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
                 IB /*descL.mb*/,
@@ -271,7 +281,8 @@ BODY
                 C2 /*A(m, n)*/, NB /* descA.nb */,
                 CdL(dLIPIV) /*L(m, k)*/, IB /* descL.mb */,
                 C3 /*A(m, k)*/, NB /* descA.nb */,
-                CIPIV(dLIPIV) /*IPIV(m, k)*/));
+                CIPIV(dLIPIV) /*IPIV(m, k)*/)
+	  );
     /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
     /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
     /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/

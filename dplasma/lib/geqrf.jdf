@@ -7,13 +7,19 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 #include <dague.h>
+#include "dplasmatypes.h"
 
-/* Ugly hack */
+/* Ugly hack to be remove with plasma 2.3 */
 #if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
-#define CORE_dtsmqr(side, trans, M1, M2, NN, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
-  CORE_dssmqr(side, trans, M1, M2, NN, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK)
-#define CORE_dormqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
-  CORE_dormqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
+#define TSMQR(side, trans, M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
+  CORE(ssmqr, (side, trans, M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK))
+#define ORMQR(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
+  (side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
+#else
+#define TSMQR(side, trans, M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
+  CORE(tsmqr, (side, trans, M1, N1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK))
+#define ORMQR(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
+  (side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
 #endif
 
 #include "data_distribution.h"
@@ -176,7 +182,7 @@ DORMQR(k,n)  (high_priority)
 BODY
 #if !defined(DAGUE_DRY_RUN)
     void* work = dague_private_memory_pop(work_pool);
-    CORE_dormqr(
+    CORE( ormqr, ORMQR(
         PlasmaLeft, PlasmaTrans,
         (k == (MT-1)) ? (M-(k*NB)) : NB,
         (n == (NT-1)) ? (N-(n*NB)) : NB,
@@ -185,7 +191,7 @@ BODY
         V1 /*A(k, k)*/, NB,
         T  /*T(k, k)*/, MB,
         C1 /*A(k, n)*/, NB,
-        work, NB);
+        work, NB) );
     dague_private_memory_push(work_pool, work);
 #else
     void* work = dague_private_memory_pop(work_pool);
@@ -244,18 +250,18 @@ DTSMQR(k,n,m)
 BODY
 #if !defined(DAGUE_DRY_RUN)
     void* work = dague_private_memory_pop(work_pool);
-    CORE_dtsmqr(
-        PlasmaLeft, PlasmaTrans,
-        NB,
-        (m == (MT-1)) ? (M-(m*NB)) : NB,
-        (n == (NT-1)) ? (N-(n*NB)) : NB,
-        NB,
-        MB,
-        C1 /*A(k, n)*/, NB,
-        C2 /*A(m, n)*/, NB,
-        V2 /*A(m, k)*/, NB,
-        T  /*T(m, k)*/, MB,
-        work, MB);
+    TSMQR(PlasmaLeft, PlasmaTrans,
+	  NB,
+	  (n == (NT-1)) ? (N-(n*NB)) : NB,
+	  (m == (MT-1)) ? (M-(m*NB)) : NB,
+	  (n == (NT-1)) ? (N-(n*NB)) : NB,
+	  NB,
+	  MB,
+	  C1 /*A(k, n)*/, NB,
+	  C2 /*A(m, n)*/, NB,
+	  V2 /*A(m, k)*/, NB,
+	  T  /*T(m, k)*/, MB,
+	  work, MB) ;
     dague_private_memory_push(work_pool, work);
 #else
     void* work = dague_private_memory_pop(work_pool);
