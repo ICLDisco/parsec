@@ -196,7 +196,7 @@ else:
   for root, dirs, files in os.walk(startDir, True, None):
     for file in files:
       if file.startswith('.'): continue;
-      if not file.endswith('.c') and not file.endswith('.h') and not file.endswith('.f'):
+      if not file.endswith('.c') and not file.endswith('.h') and not file.endswith('.f') and not file.endswith('.jdf'):
         continue;
       check_gen(path.join(root,file));
     if '.svn' in dirs:
