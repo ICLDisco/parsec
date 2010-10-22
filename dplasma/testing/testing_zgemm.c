@@ -40,8 +40,8 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #define COMPLEX
 #undef REAL
 
-#define _FMULS(M, N, K) ( (M) * (N) * (K) )
-#define _FADDS(M, N, K) ( (M) * (N) * (K) )
+#define _FMULS(M, N, K) ( (double)(M) * (double)(N) * (double)(K) )
+#define _FADDS(M, N, K) ( (double)(M) * (double)(N) * (double)(K) )
 
 /**********************************
  * static functions
@@ -134,8 +134,7 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
 int main(int argc, char ** argv)
 {
     int iparam[IPARAM_INBPARAM];
-    DagDouble_t flops;
-    DagDouble_t gflops;
+    DagDouble_t flops, gflops;
     dague_context_t* dague;
 
     /* parsing arguments */
@@ -193,7 +192,7 @@ int main(int argc, char ** argv)
         /* Create GEMM DAGuE */
         printf("Generate GEMM DAG ... ");
         SYNC_TIME_START();
-        dague_gemm = dplasma_dgemm_New(tA, tB, 
+        dague_gemm = dplasma_zgemm_New(tA, tB, 
                                        (Dague_Complex64_t)alpha, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, 
                                        (Dague_Complex64_t)beta,  (tiled_matrix_desc_t *)&ddescC );
         dague_enqueue( dague, (dague_object_t*)dague_gemm);
@@ -208,7 +207,8 @@ int main(int argc, char ** argv)
                     rank, dague_gemm->nb_local_tasks,
                     dague_gemm->nb_local_tasks/time_elapsed));
         SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
-                         gflops = flops/(sync_time_elapsed)));
+                         gflops = (flops/1e9)/(sync_time_elapsed)));
+
         (void) gflops;
         TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
     }
