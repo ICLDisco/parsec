@@ -9,7 +9,6 @@ set(TESTS
 
 testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 
-Add_Subdirectory(dtrsm)
 Add_Subdirectory(LLT)
 Add_Subdirectory(LU)
 Add_Subdirectory(QR)
