@@ -1,3 +1,5 @@
+Add_Subdirectory(common)
+
 Add_Subdirectory(dtrmm)
 Add_Subdirectory(dtrsm)
 Add_Subdirectory(LLT)
