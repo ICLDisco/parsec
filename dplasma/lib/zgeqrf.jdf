@@ -1,0 +1,280 @@
+extern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
+#include <stdlib.h>
+#include <stdio.h>
+#include <plasma.h>
+#include <core_blas.h>
+#include <dague.h>
+#include "dplasmatypes.h"
+
+/* Ugly hack to be remove with plasma 2.3 */
+#if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
+#define CORE_ztsmqr(side, trans, M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
+  CORE_zssmqr(side, trans, M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK))
+#define CORE_zunmqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
+  CORE_zunmqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
+#endif
+
+#include "data_distribution.h"
+#include "memory_pool.h"
+%}
+
+MB  /* Number of lines in a block for T and dL should be equal to NB */
+NB  /* Tile Size */
+M   /* Matrix Height (in lines) */
+N   /* Matrix Width (in columns) */
+work_pool  [dague_memory_pool_t*]
+tau_pool   [dague_memory_pool_t*]
+
+MT = (M + (NB - 1)) / NB        /* Number of tiled lines */
+NT = (N + (NB - 1)) / NB        /* Number of tiled columns */
+MINMTNT = ((MT < NT) ? MT : NT)
+
+GEQRT_HACK(k)  (high_priority)
+k = 0..MINMTNT-1
+
+: A(k, k)
+
+RW RV1 <- RV1 GEQRT(k)
+       -> (k != NT-1) ? V1 UNMQR(k, k+1..NT-1) [LOWER_TILE]
+       -> A(k,k)                                [LOWER_TILE]
+;	(NT-k)*(NT-k)*(NT-k)
+
+BODY
+ /* nothing */
+END
+
+GEQRT(k)  (high_priority)
+
+  // Execution space
+  k = 0..MINMTNT-1
+
+  // Parallel partitioning
+ : A(k, k)
+
+  RW RV1 <- (k == 0)    ? A(0,0) : C2 TSMQR(k-1,k,k)
+         -> RV1 GEQRT_HACK(k)
+         -> (k == MT-1) ? A(k,k) : R TSQRT(k,k+1)          [UPPER_TILE]
+  // Only output
+  RW T   <- T(k,k)                                          [LITTLE_T]
+         -> T UNMQR(k, k+1..NT-1)                          [LITTLE_T]
+         -> T(k,k)                                          [LITTLE_T]
+
+; (NT-k)*(NT-k)*(NT-k)
+
+BODY
+
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool); 
+
+    DRYRUN(
+        CORE_zgeqrt(
+            (k == (MT-1)) ? (M-(k*NB)) : NB,
+            (k == (NT-1)) ? (N-(k*NB)) : NB,
+            MB,
+            RV1 /*A(k, k)*/, NB,
+            T /*T(k, k)*/, MB,
+            tau, work);
+        );
+
+    printlog( "CORE_zgeqrt(%d, %d, %d, %p, %d, %p, %d, %p, %p)\n",
+              (k == (MT-1)) ? (M-(k*NB)) : NB,
+              (k == (NT-1)) ? (N-(k*NB)) : NB,
+              MB,
+              RV1 /*A(k, k)*/, NB,
+              T /*T(k, k)*/, MB,
+              tau, work);
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+
+END
+
+TSQRT_OUT(k)  (high_priority)
+  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
+
+ : A(k, k)
+
+  RW R <- R TSQRT(k, MT-1)      [UPPER_TILE]
+       -> A(k, k)                [UPPER_TILE]
+          
+  ; (NT-k)*(NT-k)*(NT-k)
+
+BODY
+/* nothing */
+END
+
+
+TSQRT(k,m)  (high_priority)
+
+  // Execution space
+  k = 0..MINMTNT-1
+  m = k+1..MT-1
+
+  // Parallel partitioning
+  : A(m, k)
+
+  RW V2 <- (k == 0) ? A(m,0) : C2 TSMQR(k-1,k,m)
+        -> V2 TSMQR(k,k+1..NT-1,m)
+        -> A(m,k)
+  RW R  <- (m == k+1) ? RV1 GEQRT(k) : R TSQRT(k,m-1)        [UPPER_TILE]           
+        -> (m == MT-1) ? R TSQRT_OUT(k) : R TSQRT(k,m+1)     [UPPER_TILE]
+  // Output only
+  RW T  <- T(m,k)                                              [LITTLE_T]
+        -> T TSMQR(k,k+1..NT-1,m)                             [LITTLE_T]
+        -> T(m,k)                                              [LITTLE_T]
+
+  ; (NT-k)*(NT-m)*(NT-m)
+
+BODY
+
+    void* work = dague_private_memory_pop(work_pool);
+    void* tau = dague_private_memory_pop(tau_pool);
+
+    DRYRUN(
+        CORE_ztsqrt(
+            (m == (MT-1)) ? (M-(m*NB)) : NB,
+            (k == (NT-1)) ? (N-(k*NB)) : NB,
+            MB,
+            R  /*A(k, k)*/, NB,
+            V2 /*A(m, k)*/, NB,
+            T  /*T(m, k)*/, MB,
+            tau, work);
+        );
+    printlog( "CORE_dtsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
+              (m == (MT-1)) ? (M-(m*NB)) : NB,
+              (k == (NT-1)) ? (N-(k*NB)) : NB,
+              MB,
+              R  /*A(k, k)*/, NB,
+              V2 /*A(m, k)*/, NB,
+              T  /*T(m, k)*/, MB,
+              tau, work);
+    dague_private_memory_push(tau_pool, tau);
+    dague_private_memory_push(work_pool, work);
+
+END
+
+UNMQR(k,n)  (high_priority)
+
+  // Execution space
+  k = 0..MINMTNT-1
+  n = k+1..NT-1
+
+  // Parallel partitioning
+  : A(k, n)
+
+  READ T  <- T GEQRT(k)                               [LITTLE_T]
+  READ V1 <- RV1 GEQRT_HACK(k)                        [LOWER_TILE] 
+  RW   C1 <- (k == 0) ? A(k, n) : C2 TSMQR(k-1, n, k)
+          -> C1 TSMQR(k, n, k+1)
+
+  ; (NT-k)*(NT-n)*(NT-n)
+
+BODY
+
+    void* work = dague_private_memory_pop(work_pool);
+
+    DRYRUN(
+        CORE_zunmqr(
+            PlasmaLeft, PlasmaTrans,
+            (k == (MT-1)) ? (M-(k*NB)) : NB,
+            (n == (NT-1)) ? (N-(n*NB)) : NB,
+            (k == (MT-1)) ? (M-(k*NB)) : NB,
+            MB,
+            V1 /*A(k, k)*/, NB,
+            T  /*T(k, k)*/, MB,
+            C1 /*A(k, n)*/, NB,
+            work, NB);
+        );
+
+    printlog( "CORE_zunmqr(%s, %s, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+              "PlasmaLeft", "PlasmaTrans",
+              (k == (MT-1)) ? (M-(k*NB)) : NB,
+              (n == (NT-1)) ? (N-(n*NB)) : NB,
+              (k == (MT-1)) ? (M-(k*NB)) : NB,
+              MB,
+              V1 /*A(k, k)*/, NB,
+              T  /*T(k, k)*/, MB,
+              C1 /*A(k, n)*/, NB,
+              work, NB );
+    dague_private_memory_push(work_pool, work);
+END
+
+TSMQR_OUT(k, n)
+  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
+  n = k+1 .. NT-1
+
+  : A(k, n)
+  
+  RW A <- C1 TSMQR(k, n, MT-1)
+       -> A(k, n)
+          
+  ; (NT-k)*(NT-n)*(NT-n)
+
+BODY
+/* nothing */
+END
+
+TSMQR(k,n,m)
+
+  // Execution space
+  k = 0   .. MINMTNT-1
+  n = k+1 .. NT-1
+  m = k+1 .. MT-1
+
+  // Parallel partitioning
+  : A(m, n)
+
+  READ V2 <- V2 TSQRT(k,m)
+  READ T  <- T TSQRT(k,m)                                           [LITTLE_T]
+
+  RW C2   <- (k == 0) ? A(m,n) : C2 TSMQR(k-1,n,m)
+          -> ((n == k+1) & (m == k+1)) ? RV1 GEQRT(k+1)
+          -> ((n == k+1) & (k  < m-1)) ? V2 TSQRT(k+1,m)
+          -> ((k  < n-1) & (m == k+1)) ? C1 UNMQR(k+1,n)
+          -> ((k  < n-1) & (k  < m-1)) ? C2 TSMQR(k+1,n,m)
+  RW C1   <- (m == k+1) ? C1 UNMQR(k,n) : C1 TSMQR(k,n,m-1)
+          -> (m == MT-1) ? A TSMQR_OUT(k,n) : C1 TSMQR(k,n,m+1)
+
+  ; (NT-k)*(NT-n)*(NT-m)
+
+BODY
+
+    void* work = dague_private_memory_pop(work_pool);
+
+    DRYRUN(
+        CORE_ztsmqr(
+            PlasmaLeft, PlasmaTrans,
+            NB,
+            (n == (NT-1)) ? (N-(n*NB)) : NB,
+            (m == (MT-1)) ? (M-(m*NB)) : NB,
+            (n == (NT-1)) ? (N-(n*NB)) : NB,
+            NB,
+            MB,
+            C1 /*A(k, n)*/, NB,
+            C2 /*A(m, n)*/, NB,
+            V2 /*A(m, k)*/, NB,
+            T  /*T(m, k)*/, MB,
+            work, MB);
+        );
+
+    printlog( "CORE_ztsmqr(%s, %s, %d, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
+              "PlasmaLeft", "PlasmaTrans",
+              NB,
+              (m == (MT-1)) ? (M-(m*NB)) : NB,
+              (n == (NT-1)) ? (N-(n*NB)) : NB,
+              NB,
+              MB,
+              C1 /*A(k, n)*/, NB,
+              C2 /*A(m, n)*/, NB,
+              V2 /*A(m, k)*/, NB,
+              T  /*T(m, k)*/, MB,
+              work, MB);
+
+    dague_private_memory_push(work_pool, work);
+END
+

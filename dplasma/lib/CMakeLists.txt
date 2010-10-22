@@ -9,26 +9,21 @@ set(OLDJDF
 )
 jdf_rules(generated_files "${OLDJDF}")
 
-set(JDF
-  geqrf
-)
-jdf_rules(precisionstub_files "${JDF}")
-precisions_rules(generated_files "/;${DPLASMA_PRECISIONS}" "${precisionstub_files}")
-
-set(NAMES
+set( jdfNAMES
   zgemm_NN zgemm_TN zgemm_NT zgemm_TT
   ztrsm_LLN ztrsm_LLT ztrsm_LUN ztrsm_LUT ztrsm_RLN ztrsm_RLT ztrsm_RUN ztrsm_RUT
   ztrmm_LLN ztrmm_LLT ztrmm_LUN ztrmm_LUT ztrmm_RLN ztrmm_RLT ztrmm_RUN ztrmm_RUT
   zpotrf_rl zpotrf_ll 
   zgetrf zgetrf_sd 
+  zgeqrf
 )
 
 # codegen.py need extension to detect if it's a file to parse or not
-jdf_addextension( jdfSOURCES "${NAMES}" )
+jdf_addextension( jdfSOURCES "${jdfNAMES}" )
 #message(STATUS ${jdfSOURCES})
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${jdfSOURCES}")
 #message(STATUS ${generated_jdf})
-jdf_rules(precisionstub_files_new "${generated_jdf}")
+jdf_rules(precisionstub_files "${generated_jdf}")
 
 set(HEADERS
   # headers
@@ -51,7 +46,7 @@ precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}")
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma-mpi
     ${generated_files} 
-    ${precisionstub_files_new}
+    ${precisionstub_files}
     ${EXTRA_SOURCES}
     )
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
