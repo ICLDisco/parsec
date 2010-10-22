@@ -1,14 +1,18 @@
-#include "dague.h"
-#if defined(HAVE_GETOPT_H)
-#include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
 #include <plasma.h>
+#include "dague.h"
 #include "testscommon.h"
+
+#if defined(HAVE_GETOPT_H)
+#include <getopt.h>
+#endif  /* defined(HAVE_GETOPT_H) */
+
+
 
 /*******************************
  * globals and argv set values *
@@ -55,7 +59,7 @@ void runtime_init(int argc, char **argv, int *iparam)
     /* Initialize iparam */
     iparam[IPARAM_RANK]     = 0;     /* Rank                              */
     iparam[IPARAM_NNODES]   = 1;     /* Number of nodes                   */
-    iparam[IPARAM_NCORES]   = 1;     /* Number of cores                   */
+    iparam[IPARAM_NCORES]   = 0;     /* Number of cores                   */
     iparam[IPARAM_NGPUS]    = 0;     /* Number of GPUs                    */
     iparam[IPARAM_M]        = 0;     /* Number of rows of the matrix      */
     iparam[IPARAM_N]        = 0;     /* Number of columns of the matrix   */
@@ -119,16 +123,6 @@ void runtime_init(int argc, char **argv, int *iparam)
         {
             case 'c':
                 iparam[IPARAM_NCORES] = atoi(optarg);
-                if( iparam[IPARAM_NCORES] <= 0 )
-                {
-                    iparam[IPARAM_NCORES] = sysconf(_SC_NPROCESSORS_ONLN);
-                    if(iparam[IPARAM_NCORES] == -1)
-                    {
-                        perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
-                        iparam[IPARAM_NCORES] = 1;
-                    }
-                    printf("Number of cores (computing threads) set to %d\n", iparam[IPARAM_NCORES]);
-                }
                 break;
         
             case 'n':
@@ -208,24 +202,33 @@ void runtime_init(int argc, char **argv, int *iparam)
             exit(2);
         }
 
+    /* Set some sensible default to the number of cores */
+    if( iparam[IPARAM_NCORES] <= 0 )
+    {
+        iparam[IPARAM_NCORES] = sysconf(_SC_NPROCESSORS_ONLN);
+        if(iparam[IPARAM_NCORES] == -1)
+        {
+            perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
+            iparam[IPARAM_NCORES] = 1;
+        }
+        printf("Number of cores (computing threads) set to %d\n", iparam[IPARAM_NCORES]);
+    }
+    
     /* For now, we only have square matrices */
     iparam[IPARAM_M]  = iparam[IPARAM_N];
     iparam[IPARAM_MB] = iparam[IPARAM_NB];
-    if((iparam[IPARAM_NNODES] % iparam[IPARAM_GDROW]) != 0)
-        {
-            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", iparam[IPARAM_GDROW], iparam[IPARAM_NNODES]);
-            exit(2);
-        }
-    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
     
-    if(iparam[IPARAM_LDA] <= 0) 
-        {
-            iparam[IPARAM_LDA] = iparam[IPARAM_M];
-        }
-    if(iparam[IPARAM_LDB] <= 0) 
-        {
-            iparam[IPARAM_LDB] = iparam[IPARAM_M];
-        }
+    /* Check that the process grid divides the number of processors */
+    if((iparam[IPARAM_NNODES] % iparam[IPARAM_GDROW]) != 0)
+    {
+        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", iparam[IPARAM_GDROW], iparam[IPARAM_NNODES]);
+        exit(2);
+    }
+    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
+   
+    /* Set some sensible defaults for the leading dimensions */
+    if(iparam[IPARAM_LDA] <= 0) iparam[IPARAM_LDA] = iparam[IPARAM_M];
+    if(iparam[IPARAM_LDB] <= 0) iparam[IPARAM_LDB] = iparam[IPARAM_M];
     
     /* PLASMA_Init(1); */
 }
