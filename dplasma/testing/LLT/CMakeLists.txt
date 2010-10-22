@@ -24,14 +24,14 @@ if( PLASMA_FOUND )
       set_target_properties(${target} PROPERTIES LINKER_LANGUAGE Fortran)
       set_target_properties(${target} PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/../common ${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI -DPRECISION_${prec_rules}")
       set_target_properties(${target} PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-      target_link_libraries(${target} dplasma-mpi dplasmatest-mpi dague-mpi dague_distribution_matrix-mpi
+      target_link_libraries(${target} dplasma-mpi dplasma_testscommon-mpi dague-mpi dague_distribution_matrix-mpi
         ${MPI_LIBRARIES} ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
       set(target "mpi_${prec_rules}potrf_ll")
       add_executable(${target} generated/testing_${prec_rules}potrf.c ${GPU_SUPPORT})
       set_target_properties(${target} PROPERTIES LINKER_LANGUAGE Fortran)
       set_target_properties(${target} PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/../common ${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI -DLLT_LL -DPRECISION_${prec_rules}")
       set_target_properties(${target} PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-      target_link_libraries(${target} dplasma-mpi dplasmatest-mpi dague-mpi dague_distribution_matrix-mpi
+      target_link_libraries(${target} dplasma-mpi dplasma_testscommon-mpi dague-mpi dague_distribution_matrix-mpi
         ${MPI_LIBRARIES} ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
     else()
       set(target "${prec_rules}potrf_rl")
@@ -39,14 +39,14 @@ if( PLASMA_FOUND )
       set_target_properties(${target} PROPERTIES LINKER_LANGUAGE Fortran)
       set_target_properties(${target} PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/../common -DADD_ -DPRECISION_${prec_rules}")
       set_target_properties(${target} PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-      target_link_libraries(${target} dplasma dplasmatest dague dague_distribution_matrix
+      target_link_libraries(${target} dplasma dplasma_testscommon dague dague_distribution_matrix
         ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
       set(target "${prec_rules}potrf_ll")
       add_executable(${target} generated/testing_${prec_rules}potrf.c ${GPU_SUPPORT})
       set_target_properties(${target} PROPERTIES LINKER_LANGUAGE Fortran)
       set_target_properties(${target} PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/../common -DADD_ -DLLT_LL -DPRECISION_${prec_rules}")
       set_target_properties(${target} PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-      target_link_libraries(${target} dplasma dplasmatest dague dague_distribution_matrix
+      target_link_libraries(${target} dplasma dplasma_testscommon dague dague_distribution_matrix
         ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
     endif()
   endforeach()

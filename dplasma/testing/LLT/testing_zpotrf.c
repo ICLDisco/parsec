@@ -31,7 +31,6 @@
 #include "testscommon.h"
 #include "timing.h"
 
-#define PRECISION_z
 #define COMPLEX
 #undef REAL
 
