@@ -57,14 +57,16 @@
 #define DAGUEprefix(fn) DAGUE_s##fn
 #define MPITYPE  MPI_FLOAT
 #define DAGUE_TYPE_ENUM matrix_RealFloat
-
 #else
-#error "Precision is not selected. You have to define PRECISION_[zcdf]"
+/*#error "Precision is not selected. You have to define PRECISION_[zcdf]"*/
 #endif
 
 #ifdef DAGUE_DRY_RUN
 #undef CORE
 #define CORE(FN, ARGS)
+#define DRYRUN( body )
+#else
+#define DRYRUN( body ) body
 #endif
 
 #ifndef USE_MPI
