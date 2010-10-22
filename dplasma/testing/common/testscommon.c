@@ -120,8 +120,15 @@ void runtime_init(int argc, char **argv, int *iparam)
             case 'c':
                 iparam[IPARAM_NCORES] = atoi(optarg);
                 if( iparam[IPARAM_NCORES] <= 0 )
-                    iparam[IPARAM_NCORES] = 1;
-                //printf("Number of cores (computing threads) set to %d\n", cores);
+                {
+                    iparam[IPARAM_NCORES] = sysconf(_SC_NPROCESSORS_ONLN);
+                    if(iparam[IPARAM_NCORES] == -1)
+                    {
+                        perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
+                        iparam[IPARAM_NCORES] = 1;
+                    }
+                    printf("Number of cores (computing threads) set to %d\n", iparam[IPARAM_NCORES]);
+                }
                 break;
         
             case 'n':
