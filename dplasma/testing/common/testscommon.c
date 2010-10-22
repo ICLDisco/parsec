@@ -1,14 +1,18 @@
-#include "dague.h"
-#if defined(HAVE_GETOPT_H)
-#include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
 #include <plasma.h>
+#include "dague.h"
 #include "testscommon.h"
+
+#if defined(HAVE_GETOPT_H)
+#include <getopt.h>
+#endif  /* defined(HAVE_GETOPT_H) */
+
+
 
 /*******************************
  * globals and argv set values *
@@ -55,7 +59,7 @@ void runtime_init(int argc, char **argv, int *iparam)
     /* Initialize iparam */
     iparam[IPARAM_RANK]     = 0;     /* Rank                              */
     iparam[IPARAM_NNODES]   = 1;     /* Number of nodes                   */
-    iparam[IPARAM_NCORES]   = 1;     /* Number of cores                   */
+    iparam[IPARAM_NCORES]   = 0;     /* Number of cores                   */
     iparam[IPARAM_NGPUS]    = 0;     /* Number of GPUs                    */
     iparam[IPARAM_M]        = 0;     /* Number of rows of the matrix      */
     iparam[IPARAM_N]        = 0;     /* Number of columns of the matrix   */
@@ -117,68 +121,67 @@ void runtime_init(int argc, char **argv, int *iparam)
         
         switch (c)
         {
-	case 'c':
-	    iparam[IPARAM_NCORES] = atoi(optarg);
-	    if( iparam[IPARAM_NCORES] <= 0 )
-		iparam[IPARAM_NCORES] = 1;
-	    //printf("Number of cores (computing threads) set to %d\n", cores);
-	    break;
-	    
-	case 'n':
-	    iparam[IPARAM_N] = atoi(optarg);
-	    //printf("matrix size set to %d\n", N);
-	    break;
-	    
-	case 'g':
-	    iparam[IPARAM_GDROW] = atoi(optarg);
-	    break;
-	case 's':
-	    iparam[IPARAM_STM] = atoi(optarg);
-	    if( iparam[IPARAM_STM] <= 0 )
+            case 'c':
+                iparam[IPARAM_NCORES] = atoi(optarg);
+                break;
+        
+            case 'n':
+                iparam[IPARAM_N] = atoi(optarg);
+                //printf("matrix size set to %d\n", N);
+                break;
+    
+            case 'g':
+                iparam[IPARAM_GDROW] = atoi(optarg);
+                break;
+
+            case 's':
+                iparam[IPARAM_STM] = atoi(optarg);
+                if( iparam[IPARAM_STM] <= 0 )
                 {
                     fprintf(stderr, "select a positive value for the row super tile size\n");
                     exit(2);
                 }                
-	    /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
-	    break;
-	case 'e':
-	    iparam[IPARAM_STN] = atoi(optarg);
-	    if( iparam[IPARAM_STN] <= 0 )
+                /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
+                break;
+
+            case 'e':
+                iparam[IPARAM_STN] = atoi(optarg);
+                if( iparam[IPARAM_STN] <= 0 )
                 {
                     fprintf(stderr, "select a positive value for the col super tile size\n");
                     exit(2);
                 }                
-	    /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
-	    break;
+                /*printf("processes receives tiles by blocks of %dx%d\n", ddescA.nrst, ddescA.ncst);*/
+            break;
             
-	case 'r':
-	    iparam[IPARAM_NRHS] = atoi(optarg);
-	    printf("number of RHS set to %d\n", iparam[IPARAM_NRHS]);
-	    break;
-	case 'a':
-	    iparam[IPARAM_LDA] = atoi(optarg);
-	    printf("LDA set to %d\n", iparam[IPARAM_LDA]);
-	    break;                
-	case 'b':
-	    iparam[IPARAM_LDB] = atoi(optarg);
-	    printf("LDB set to %d\n",iparam[IPARAM_LDB]);
-	    break;
+        case 'r':
+            iparam[IPARAM_NRHS] = atoi(optarg);
+            printf("number of RHS set to %d\n", iparam[IPARAM_NRHS]);
+            break;
+        case 'a':
+            iparam[IPARAM_LDA] = atoi(optarg);
+            printf("LDA set to %d\n", iparam[IPARAM_LDA]);
+            break;                
+        case 'b':
+            iparam[IPARAM_LDB] = atoi(optarg);
+            printf("LDB set to %d\n",iparam[IPARAM_LDB]);
+            break;
             
         case 'B':
-	    iparam[IPARAM_NB] = atoi(optarg);
-	    if( iparam[IPARAM_NB] <= 0 )
+            iparam[IPARAM_NB] = atoi(optarg);
+            if( iparam[IPARAM_NB] <= 0 )
                 {
                     fprintf(stderr, "select a positive value for the block size\n");
                     exit(2);
                 }
-	    break;
-	    
+            break;
+            
         case 'P':
-	    iparam[IPARAM_PRIORITY] = atoi(optarg);
-	    break;
+            iparam[IPARAM_PRIORITY] = atoi(optarg);
+            break;
         case 'C':
-	    iparam[IPARAM_CHECK] = 1;
-	    break;
+            iparam[IPARAM_CHECK] = 1;
+            break;
         case 'h':
             print_usage();
             exit(0);
@@ -199,24 +202,33 @@ void runtime_init(int argc, char **argv, int *iparam)
             exit(2);
         }
 
+    /* Set some sensible default to the number of cores */
+    if( iparam[IPARAM_NCORES] <= 0 )
+    {
+        iparam[IPARAM_NCORES] = sysconf(_SC_NPROCESSORS_ONLN);
+        if(iparam[IPARAM_NCORES] == -1)
+        {
+            perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
+            iparam[IPARAM_NCORES] = 1;
+        }
+        printf("Number of cores (computing threads) set to %d\n", iparam[IPARAM_NCORES]);
+    }
+    
     /* For now, we only have square matrices */
     iparam[IPARAM_M]  = iparam[IPARAM_N];
     iparam[IPARAM_MB] = iparam[IPARAM_NB];
-    if((iparam[IPARAM_NNODES] % iparam[IPARAM_GDROW]) != 0)
-        {
-            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", iparam[IPARAM_GDROW], iparam[IPARAM_NNODES]);
-            exit(2);
-        }
-    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
     
-    if(iparam[IPARAM_LDA] <= 0) 
-        {
-            iparam[IPARAM_LDA] = iparam[IPARAM_M];
-        }
-    if(iparam[IPARAM_LDB] <= 0) 
-        {
-	    iparam[IPARAM_LDB] = iparam[IPARAM_M];
-        }
+    /* Check that the process grid divides the number of processors */
+    if((iparam[IPARAM_NNODES] % iparam[IPARAM_GDROW]) != 0)
+    {
+        fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", iparam[IPARAM_GDROW], iparam[IPARAM_NNODES]);
+        exit(2);
+    }
+    //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
+   
+    /* Set some sensible defaults for the leading dimensions */
+    if(iparam[IPARAM_LDA] <= 0) iparam[IPARAM_LDA] = iparam[IPARAM_M];
+    if(iparam[IPARAM_LDB] <= 0) iparam[IPARAM_LDB] = iparam[IPARAM_M];
     
     /* PLASMA_Init(1); */
 }
@@ -246,51 +258,51 @@ dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam, int type)
         MPI_Datatype default_ddt;
         char type_name[MPI_MAX_OBJECT_NAME];
     
-	switch( type ) {
-	case PlasmaRealFloat:
-	    snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", 
-		     iparam[IPARAM_MB], iparam[IPARAM_NB]);
+        switch( type ) {
+        case PlasmaRealFloat:
+            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", 
+                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
     
-	    MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_FLOAT, &default_ddt);
-	    MPI_Type_set_name(default_ddt, type_name);
-	    MPI_Type_commit(&default_ddt);
-	    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(float), 
-				  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-	    break;
-	case PlasmaRealDouble:
-	    snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", 
-		     iparam[IPARAM_MB], iparam[IPARAM_NB]);
+            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_FLOAT, &default_ddt);
+            MPI_Type_set_name(default_ddt, type_name);
+            MPI_Type_commit(&default_ddt);
+            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(float), 
+                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
+            break;
+        case PlasmaRealDouble:
+            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", 
+                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
     
-	    MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_DOUBLE, &default_ddt);
-	    MPI_Type_set_name(default_ddt, type_name);
-	    MPI_Type_commit(&default_ddt);
-	    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(double), 
-				  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-	    break;
-	case PlasmaComplexFloat:
-	    snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_COMPLEX*%d*%d", 
-		     iparam[IPARAM_MB], iparam[IPARAM_NB]);
+            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_DOUBLE, &default_ddt);
+            MPI_Type_set_name(default_ddt, type_name);
+            MPI_Type_commit(&default_ddt);
+            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(double), 
+                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
+            break;
+        case PlasmaComplexFloat:
+            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_COMPLEX*%d*%d", 
+                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
     
-	    MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_COMPLEX, &default_ddt);
-	    MPI_Type_set_name(default_ddt, type_name);
-	    MPI_Type_commit(&default_ddt);
-	    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(PLASMA_Complex32_t), 
-				  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-	    break;
-	case PlasmaComplexDouble:
-	    snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE_COMPLEX*%d*%d", 
-		     iparam[IPARAM_MB], iparam[IPARAM_NB]);
+            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_COMPLEX, &default_ddt);
+            MPI_Type_set_name(default_ddt, type_name);
+            MPI_Type_commit(&default_ddt);
+            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(PLASMA_Complex32_t), 
+                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
+            break;
+        case PlasmaComplexDouble:
+            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE_COMPLEX*%d*%d", 
+                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
     
-	    MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_DOUBLE_COMPLEX, &default_ddt);
-	    MPI_Type_set_name(default_ddt, type_name);
-	    MPI_Type_commit(&default_ddt);
-	    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(PLASMA_Complex64_t), 
-				  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-	    break;
-	default:
-	    fprintf(stderr, "Type Inconnu\n");
-	    exit(2);
-	}
+            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_DOUBLE_COMPLEX, &default_ddt);
+            MPI_Type_set_name(default_ddt, type_name);
+            MPI_Type_commit(&default_ddt);
+            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(PLASMA_Complex64_t), 
+                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
+            break;
+        default:
+            fprintf(stderr, "Type Inconnu\n");
+            exit(2);
+        }
     }
 #endif  /* USE_MPI */
 

@@ -51,7 +51,7 @@ k = 0..MINMTNT-1
 RW RV1 <- RV1 GEQRT(k)
        -> (k != NT-1) ? V1 UNMQR(k, k+1..NT-1) [LOWER_TILE]
        -> A(k,k)                                [LOWER_TILE]
-;	(NT-k)*(NT-k)*(NT-k)
+; (NT-k)*(NT-k)*(NT-k)
 
 BODY
  /* nothing */

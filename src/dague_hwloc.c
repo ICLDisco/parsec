@@ -49,7 +49,7 @@ int dague_hwloc_distance( int id1, int id2 )
 
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id1);
     hwloc_obj_t obj2 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id2);
-	 
+
     while( obj && obj2) {
         if(obj == obj2 ) {
             return count*2;
@@ -67,11 +67,11 @@ int dague_hwloc_master_id( int level, int processor_id )
 #if defined(HAVE_HWLOC)
     int count = 0, div = 0, real_cores, cores;
     unsigned int i;
-	        
+        
     real_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
     cores = real_cores;
     div = cores;
-		        
+    
     if( 0 < (processor_id / cores) ) {
         while(processor_id) {
             if( (processor_id % div) == 0) {
@@ -86,7 +86,7 @@ int dague_hwloc_master_id( int level, int processor_id )
 
     for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
-					            
+
 #if !defined(HAVE_HWLOC_BITMAP)
         if(hwloc_cpuset_isset(obj->cpuset, processor_id)) {
             return hwloc_cpuset_first(obj->cpuset);
@@ -106,11 +106,9 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
 #if defined(HAVE_HWLOC)
     unsigned int i;
-	     
-    for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++){	 
-		
+    
+    for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++){ 
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
-				 
 #if !defined(HAVE_HWLOC_BITMAP)
         if(hwloc_cpuset_isset(obj->cpuset, master_id)){
             return hwloc_cpuset_weight(obj->cpuset);
@@ -122,7 +120,6 @@ unsigned int dague_hwloc_nb_cores( int level, int master_id )
 #endif
     }
 #endif  /* defined(HAVE_HWLOC) */
-
     return 0;
 }
  
@@ -136,7 +133,7 @@ int dague_hwloc_nb_levels(void)
  
     
 size_t dague_hwloc_cache_size( unsigned int level, int master_id )
-{	    
+{   
 #if defined(HAVE_HWLOC)
 #if defined(HAVE_HWLOC_OBJ_PU) || 1
     hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);
@@ -158,6 +155,5 @@ size_t dague_hwloc_cache_size( unsigned int level, int master_id )
         obj = HWLOC_GET_PARENT(obj);
     }
 #endif  /* defined(HAVE_HWLOC) */
-	 
     return 0;
 }
