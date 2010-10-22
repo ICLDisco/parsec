@@ -71,6 +71,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 			       unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
 
 
+int  twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
 void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 
 #ifdef USE_MPI

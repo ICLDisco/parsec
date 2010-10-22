@@ -246,6 +246,29 @@ void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda)
     return;
 }
 
+int twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda) 
+{
+    /* switch(Mdesc->super.mtype) { */
+    /* case matrix_RealFloat: */
+    /*     //twoDBC_stolapack(Mdesc, (float*)A, lda); */
+    /*     break; */
+    /* case matrix_RealDouble: */
+    /*     twoDBC_to_lapack_double(Mdesc, (double*)A, lda); */
+    /*     break; */
+    /* case matrix_ComplexFloat: */
+    /*     //twoDBC_ctolapack(Mdesc, (Dague_Complex32_t*)A, lda); */
+    /*     break; */
+    /* case matrix_ComplexDouble: */
+    /*     //twoDBC_ztolapack(Mdesc, (Dague_Complex64_t*)A, lda); */
+    /*     break; */
+    /* default: */
+        twoDBC_to_lapack_double(Mdesc, (double*)A, lda);
+    /*     printf("The matrix type is not handle by this function\n"); */
+    /*     return -1; */
+    /* } */
+
+  return 0;
+}
 
 #ifdef USE_MPI
 
