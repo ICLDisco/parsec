@@ -1,5 +1,8 @@
 include(precision_generation)
 include(JDFsupport)
+# reset variables
+set(generated_files "")
+set(generated_jdf "")
 
 set(EXTRA_SOURCES memory_pool.c dplasmaaux.c)
 
@@ -9,7 +12,7 @@ set(OLDJDF
 )
 jdf_rules(generated_files "${OLDJDF}")
 
-set( jdfNAMES
+set(JDF
   zgemm_NN zgemm_TN zgemm_NT zgemm_TT
   ztrsm_LLN ztrsm_LLT ztrsm_LUN ztrsm_LUT ztrsm_RLN ztrsm_RLT ztrsm_RUN ztrsm_RUT
   ztrmm_LLN ztrmm_LLT ztrmm_LUN ztrmm_LUT ztrmm_RLN ztrmm_RLT ztrmm_RUN ztrmm_RUT
@@ -19,17 +22,14 @@ set( jdfNAMES
 )
 
 # codegen.py need extension to detect if it's a file to parse or not
-jdf_addextension( jdfSOURCES "${jdfNAMES}" )
-#message(STATUS ${jdfSOURCES})
-precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${jdfSOURCES}")
-#message(STATUS ${generated_jdf})
-jdf_rules(precisionstub_files "${generated_jdf}")
+jdf_addextension( JSRC "${JDF}" )
+precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JSRC}")
+jdf_rules(generated_files "${generated_jdf}")
 
 set(HEADERS
-  # headers
   dplasma_z.h
 )
-precisions_rules(generated_files "+;s;d;c;z" "${HEADERS}") 
+precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}") 
 
 set(SOURCES
   # Level 3 Blas
@@ -37,27 +37,25 @@ set(SOURCES
   zgemm_wrapper.c 
   ztrmm_wrapper.c 
   # Lapack
-#  zpotrf_wrapper.c 
-#  zgetrf_wrapper.c 
-#  zgeqrf_wrapper.c
+  zpotrf_wrapper.c 
+  zgetrf_wrapper.c 
+  zgeqrf_wrapper.c
 )
 precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}") 
 
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma-mpi
     ${generated_files} 
-    ${precisionstub_files}
-    ${EXTRA_SOURCES}
-    )
+    ${EXTRA_SOURCES})
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
   install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
+  install(FILES dplasma.h ${generated_headers} ARCHIVE DESTINATION include)
 else (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma 
-    ${generated_files} 
-    ${precisionstub_files_new}
-    ${EXTRA_SOURCES}
-    )
+    ${generated_files}
+    ${EXTRA_SOURCES})
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
+  install(FILES dplasma.h ${generated_headers} ARCHIVE DESTINATION include)
 endif (DAGUE_MPI AND MPI_FOUND)
 
