@@ -23,7 +23,6 @@
 
 #include "data_distribution.h"
 #include "matrix.h"
-#include "bindthread.h"
 
 #define COMPLEX
 #undef REAL
@@ -69,8 +68,8 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
-    PLASMA_Complex64_t mn_max = (PLASMA_Complex64_t) max(Ddesc->n, Ddesc->m);
-    PLASMA_Complex64_t *x = (PLASMA_Complex64_t*) position;
+    Dague_Complex64_t mn_max = (Dague_Complex64_t) max(Ddesc->n, Ddesc->m);
+    Dague_Complex64_t *x = (Dague_Complex64_t*) position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
@@ -103,7 +102,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     }
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
-        x = (PLASMA_Complex64_t*)position;
+        x = (Dague_Complex64_t*)position;
         for (i = 0; i < nb; ++i) {
             if( ((first_row + i) >= Ddesc->lm) || ((first_col + i) >= Ddesc->ln) ) /* padding for diagonal */
             {
@@ -123,7 +122,7 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
 {
     unsigned int i, j, first_row, first_col;
     unsigned int nb = Ddesc->nb;
-    PLASMA_Complex64_t *x = (PLASMA_Complex64_t*)position;
+    Dague_Complex64_t *x = (Dague_Complex64_t*)position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
@@ -176,10 +175,10 @@ static double lamch(void)
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
     MPI_Status status;
-    PLASMA_Complex64_t * bufferA = NULL;
-    PLASMA_Complex64_t * bufferB = NULL;
-    PLASMA_Complex64_t * tmpA = malloc(a->bsiz * sizeof(PLASMA_Complex64_t));
-    PLASMA_Complex64_t * tmpB = malloc(a->bsiz * sizeof(PLASMA_Complex64_t));
+    Dague_Complex64_t * bufferA = NULL;
+    Dague_Complex64_t * bufferB = NULL;
+    Dague_Complex64_t * tmpA = malloc(a->bsiz * sizeof(Dague_Complex64_t));
+    Dague_Complex64_t * tmpB = malloc(a->bsiz * sizeof(Dague_Complex64_t));
 
     size_t i,j;
     unsigned int k;
