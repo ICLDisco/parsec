@@ -111,7 +111,7 @@ WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
                         return VAR;                                        }
 "("                   { return OPEN_PAR;                                   }
 ")"                   { return CLOSE_PAR;                                  }
-\[[a-zA-Z_]+[a-zA-Z0-0_]*[\*]*\]                                                                     { 
+\[.*\]                { 
                         yylval.string = strdup(yytext + 1);
                         yylval.string[ strlen(yylval.string) - 1 ] = '\0';
                         return OPTIONAL_INFO;                              }
