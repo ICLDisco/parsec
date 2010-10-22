@@ -76,6 +76,7 @@ subs = {
     ('SSYMM','DSYMM','CHEMM','ZHEMM'),
     ('ssyrk','dsyrk','cherk','zherk'),
     ('SSYRK','DSYRK','CHERK','ZHERK'),
+    ('SYRK','SYRK','HERK','HERK'),
     ('sgesv','dgesv','cgesv','zgesv'),
     ('SUNGESV','SUNGESV','CUNGESV','CUNGESV'),
     ('SGESV','DGESV','CGESV','ZGESV'),
