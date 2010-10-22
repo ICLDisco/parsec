@@ -204,7 +204,7 @@ void runtime_init(int argc, char **argv, int *iparam)
     iparam[IPARAM_MB] = iparam[IPARAM_NB];
     if((iparam[IPARAM_NNODES] % iparam[IPARAM_GDROW]) != 0)
         {
-            fprintf(stderr, "GRIDrows %u does not divide the total number of nodes %d\n", iparam[IPARAM_GDROW], iparam[IPARAM_NNODES]);
+            fprintf(stderr, "GRIDrows %d does not divide the total number of nodes %d\n", iparam[IPARAM_GDROW], iparam[IPARAM_NNODES]);
             exit(2);
         }
     //printf("Grid is %dx%d\n", ddescA.GRIDrows, ddescA.GRIDcols);
@@ -305,7 +305,8 @@ void cleanup_dague(dague_context_t* dague, char *name)
     asprintf( &filename, "%s.%d.profile", name, rank );
     dague_profiling_dump_xml(filename);
     free(filename);
+#else
+    (void) name;
 #endif  /* DAGUE_PROFILING */
-    
     dague_fini(&dague);
 }
