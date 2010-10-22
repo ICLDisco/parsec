@@ -10,7 +10,6 @@ set(OLDJDF
 jdf_rules(generated_files "${OLDJDF}")
 
 set(JDF
-  getrf getrf_sd 
   geqrf
 )
 jdf_rules(precisionstub_files "${JDF}")
@@ -21,6 +20,7 @@ set(NAMES
   ztrsm_LLN ztrsm_LLT ztrsm_LUN ztrsm_LUT ztrsm_RLN ztrsm_RLT ztrsm_RUN ztrsm_RUT
   ztrmm_LLN ztrmm_LLT ztrmm_LUN ztrmm_LUT ztrmm_RLN ztrmm_RLT ztrmm_RUN ztrmm_RUT
   zpotrf_rl zpotrf_ll 
+  zgetrf zgetrf_sd 
 )
 
 # codegen.py need extension to detect if it's a file to parse or not
