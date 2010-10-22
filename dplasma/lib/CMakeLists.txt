@@ -49,7 +49,7 @@ if (DAGUE_MPI AND MPI_FOUND)
     ${generated_headers}
     ${generated_files} 
     ${EXTRA_SOURCES})
-  set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
+  set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}  -DUSE_MPI")
   install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
   install(FILES dplasma.h ${generated_headers} DESTINATION include)
 else (DAGUE_MPI AND MPI_FOUND)
@@ -57,7 +57,7 @@ else (DAGUE_MPI AND MPI_FOUND)
     ${generated_headers}
     ${generated_files}
     ${EXTRA_SOURCES})
-  set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
+# set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
   install(FILES dplasma.h ${generated_headers} DESTINATION include)
 endif (DAGUE_MPI AND MPI_FOUND)

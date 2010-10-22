@@ -1,24 +1,22 @@
-set(SOURCES 
-  testscommon.c 
-  )
+set(SOURCES testscommon.c)
 
 if (DAGUE_MPI AND MPI_FOUND)
-  add_library(dplasmatest-mpi
+  add_library(dplasma_testscommon-mpi
     ${SOURCES}
     )
-  set_target_properties(dplasmatest-mpi 
+  set_target_properties(dplasma_testscommon-mpi 
     PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI"
     )
   install(TARGETS 
-    dplasmatest-mpi ARCHIVE DESTINATION lib
+    dplasma_testscommon-mpi ARCHIVE DESTINATION lib
     )
 else (DAGUE_MPI AND MPI_FOUND)
-  add_library(dplasmatest 
+  add_library(dplasma_testscommon
     ${SOURCES}
     )
-  set_target_properties(dplasmatest 
+  set_target_properties(dplasma_testscommon 
     PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS 
-    dplasmatest ARCHIVE DESTINATION lib)
+    dplasma_testscommon ARCHIVE DESTINATION lib)
 endif (DAGUE_MPI AND MPI_FOUND)
 
