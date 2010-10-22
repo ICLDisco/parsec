@@ -31,9 +31,9 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
   endforeach()
 endmacro(jdf_rules)
 
-macro(jdf_addextension jdf_SOURCES jdf_NAMES)
-  foreach(jdf_NAME ${jdf_NAMES})
-    list(APPEND ${jdf_SOURCES} "${jdf_NAMES}.jdf")
+macro(jdf_addextension jdf_addextension_OUTPUT jdf_addextension_INPUTS)
+  foreach(jdf_addextension_INPUT ${jdf_addextension_INPUTS})
+    list(APPEND ${jdf_addextension_OUTPUT} ${jdf_addextension_INPUT}.jdf )
   endforeach()
 endmacro(jdf_addextension)
 
