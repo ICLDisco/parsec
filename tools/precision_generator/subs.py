@@ -141,6 +141,7 @@ subs = {
     ('SORMLQ','DORMLQ','CUNMLQ','ZUNMLQ'),
     ('sormqr','dormqr','cunmqr','zunmqr'),
     ('SORMQR','DORMQR','CUNMQR','ZUNMQR'),
+    ('ORMQR','ORMQR','UNMQR','UNMQR'),
     ('slamch','dlamch','slamch','dlamch'),
     ('slarnv','dlarnv','slarnv','dlarnv'),
     ('slauum','dlauum','clauum','zlauum'),
