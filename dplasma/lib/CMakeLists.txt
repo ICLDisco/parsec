@@ -47,6 +47,7 @@ precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}")
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma-mpi
     ${generated_files} 
+    ${generated_headers} 
     ${EXTRA_SOURCES})
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
   install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
@@ -54,6 +55,7 @@ if (DAGUE_MPI AND MPI_FOUND)
 else (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma 
     ${generated_files}
+    ${generated_headers} 
     ${EXTRA_SOURCES})
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
