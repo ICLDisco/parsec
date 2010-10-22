@@ -10,6 +10,7 @@
 #include <dague.h>
 #include <scheduling.h>
 #include "dplasma.h"
+#include "dplasmaaux.h"
 
 #include "generated/zgemm_NN.h"
 #include "generated/zgemm_NT.h"
@@ -21,43 +22,65 @@ dplasma_zgemm_New( const int transA, const int transB,
                    const Dague_Complex64_t alpha, const tiled_matrix_desc_t* ddescA, const tiled_matrix_desc_t* ddescB,
                    const Dague_Complex64_t beta,  tiled_matrix_desc_t* ddescC)
 {
+    dague_remote_dep_datatype_t default_ddt;
+    dague_object_t* zgemm_object;
+    dague_arena_t* arena;
+
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
-            return (dague_object_t*)dague_zgemm_NN_new((dague_ddesc_t*)ddescC,
-                                                       (dague_ddesc_t*)ddescB,
-                                                       (dague_ddesc_t*)ddescA,
-                                                       ddescA->nb,
-                                                       ddescC->mt, ddescC->nt, ddescA->nt,
-                                                       transA, transB,
-                                                       alpha, beta);
+            dague_zgemm_NN_object_t* object;
+            object = dague_zgemm_NN_new((dague_ddesc_t*)ddescC,
+                                        (dague_ddesc_t*)ddescB,
+                                        (dague_ddesc_t*)ddescA,
+                                        ddescA->nb,
+                                        ddescC->mt, ddescC->nt, ddescA->nt,
+                                        transA, transB,
+                                        alpha, beta);
+            arena = object->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
+            zgemm_object = (dague_object_t*)object;
         } else {
-            return (dague_object_t*)dague_zgemm_NT_new((dague_ddesc_t*)ddescC,
-                                                       (dague_ddesc_t*)ddescB,
-                                                       (dague_ddesc_t*)ddescA,
-                                                       ddescA->nb,
-                                                       ddescC->mt, ddescC->nt, ddescA->nt,
-                                                       transA, transB,
-                                                       alpha, beta);
+            dague_zgemm_NT_object_t* object;
+            object = dague_zgemm_NT_new((dague_ddesc_t*)ddescC,
+                                        (dague_ddesc_t*)ddescB,
+                                        (dague_ddesc_t*)ddescA,
+                                        ddescA->nb,
+                                        ddescC->mt, ddescC->nt, ddescA->nt,
+                                        transA, transB,
+                                        alpha, beta);
+            arena = object->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
+            zgemm_object = (dague_object_t*)object;
         }
     } else {
         if( PlasmaNoTrans == transB ) {
-            return (dague_object_t*)dague_zgemm_TN_new((dague_ddesc_t*)ddescC,
-                                                       (dague_ddesc_t*)ddescB,
-                                                       (dague_ddesc_t*)ddescA,
-                                                       ddescA->nb,
-                                                       ddescC->mt, ddescC->nt, ddescA->mt,
-                                                       transA, transB,
-                                                       alpha, beta);
+            dague_zgemm_TN_object_t* object;
+            object = dague_zgemm_TN_new((dague_ddesc_t*)ddescC,
+                                        (dague_ddesc_t*)ddescB,
+                                        (dague_ddesc_t*)ddescA,
+                                        ddescA->nb,
+                                        ddescC->mt, ddescC->nt, ddescA->mt,
+                                        transA, transB,
+                                        alpha, beta);
+            arena = object->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
+            zgemm_object = (dague_object_t*)object;
         } else {
-            return (dague_object_t*)dague_zgemm_TT_new((dague_ddesc_t*)ddescC,
-                                                       (dague_ddesc_t*)ddescB,
-                                                       (dague_ddesc_t*)ddescA,
-                                                       ddescA->nb,
-                                                       ddescC->mt, ddescC->nt, ddescA->nt,
-                                                       transA, transB,
-                                                       alpha, beta);
+            dague_zgemm_TT_object_t* object;
+            object = dague_zgemm_TT_new((dague_ddesc_t*)ddescC,
+                                        (dague_ddesc_t*)ddescB,
+                                        (dague_ddesc_t*)ddescA,
+                                        ddescA->nb,
+                                        ddescC->mt, ddescC->nt, ddescA->nt,
+                                        transA, transB,
+                                        alpha, beta);
+            arena = object->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
+            zgemm_object = (dague_object_t*)object;
         }
     }
+
+    dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+    dague_arena_construct(arena,
+                          ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t),
+                          DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
+    return zgemm_object;
 }
 
 void

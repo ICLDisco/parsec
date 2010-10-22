@@ -325,24 +325,6 @@ static dague_context_t *setup_dague(int* pargc, char** pargv[])
 
     dague = dague_init(cores, pargc, pargv, ddescA.super.nb);
 
-#ifdef USE_MPI
-    /**
-     * Redefine the default type after dague_init.
-     */
-    {
-        char type_name[MPI_MAX_OBJECT_NAME];
-        MPI_Datatype default_ddt;
-
-        snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%u*%u", ddescA.super.nb, ddescA.super.nb);
-    
-        MPI_Type_contiguous(ddescA.super.nb * ddescA.super.nb, MPI_FLOAT, &default_ddt);
-        MPI_Type_set_name(default_ddt, type_name);
-        MPI_Type_commit(&default_ddt);
-        dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, NB*NB*sizeof(float), 
-                              DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-    }
-#endif  /* USE_MPI */
-
     dague_gemm = DAGUE_sgemm_New( PlasmaNoTrans, PlasmaNoTrans,
 				  (double)-1.0, (tiled_matrix_desc_t*)&ddescA, 
 				  (tiled_matrix_desc_t*)&ddescB, 
