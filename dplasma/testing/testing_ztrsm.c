@@ -63,10 +63,8 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     double eps = LAPACKE_dlamch_work('e');
     double *work = (double *)malloc(max(M, N)* sizeof(double));
     int Am, An;
-    Dague_Complex64_t mdone = (Dague_Complex64_t)-1.0;
+    Dague_Complex64_t mzone = (Dague_Complex64_t)-1.0;
 
-    M = ddescB->super.m;
-    N = ddescB->super.n;
     if (side == PlasmaLeft) {
         Am = M; An = M;
     } else {
@@ -91,7 +89,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
 
     Blapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    cblas_zaxpy(LDB * N, CBLAS_SADDR(mdone), C, 1, B, 1);
+    cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), C, 1, B, 1);
     Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
     if (getenv("DPLASMA_TESTING_VERBOSE"))
@@ -155,10 +153,12 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
 
     /* Initialize DAGuE */
     TIME_START();
-    dague = setup_dague(&argc, &argv, iparam, PlasmaRealDouble);
+    dague = setup_dague(&argc, &argv, iparam, PlasmaComplexDouble);
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
@@ -167,8 +167,6 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         printf("Generate matrices ... ");
-        ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
         printf("Done\n");
@@ -193,9 +191,6 @@ int main(int argc, char ** argv)
                          gflops = flops/(sync_time_elapsed)));
         (void) gflops;
         TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
-
-        dague_data_free(&ddescA.mat);
-        dague_data_free(&ddescB.mat);
     }
     else {
         int s, u, t, d;
@@ -204,6 +199,7 @@ int main(int argc, char ** argv)
         two_dim_block_cyclic_t ddescC;
 
         two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
+        ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
@@ -220,9 +216,6 @@ int main(int argc, char ** argv)
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
-                        ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-                        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
-                        ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
