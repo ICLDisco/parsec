@@ -1,6 +1,9 @@
 extern "C" %{
   /**
    * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
    */
   
 #include <plasma.h>
@@ -32,7 +35,7 @@ An   [int]
 trans[int]
 diag [int]
 
-alpha[TYPENAME]
+alpha[Dague_Complex64_t]
 
 /**************************************************
  *                      TRSM                      *
@@ -53,21 +56,22 @@ RW    B <- (k == Bmt-1) ? B(m, 0) : C GEMM(k+1, m, k)
         -> B(m, k)
 
 BODY
-      CORE(
-	   trsm, (
-			PlasmaRight, PlasmaUpper, trans, diag,
+      Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      DRYRUN(
+	   CORE_ztrsm(
+			PlasmaRight, PlasmaLower, trans, diag,
 			m == Bmt-1 ? Bm - m * Bmb : Bmb,
 			k == Bnt-1 ? Bn - k * Bnb : Bnb,
-			alpha, A /*A(k, k)*/, Amb,
-                               B /*B(m, k)*/, Bmb)
+			lalpha, A /*A(k, k)*/, Amb,
+                                B /*B(m, k)*/, Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaRight", "PlasmaUpper", "Trans/ConjTrans", "PlasmaNonUnit",
+	       context->eu_id, "PlasmaRight", "PlasmaLower", "Trans/ConjTrans", "PlasmaNonUnit",
 	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
 	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
-	       alpha, k, k, A /*A(k, k)*/, Amb,
-	              m, k, B /*B(m, k)*/, Bmb)
+	       lalpha, k, k, A /*A(k, k)*/, Amb,
+                       m, k, B /*B(m, k)*/, Bmb)
 	      );
 END
 
@@ -86,22 +90,22 @@ n = k-1..0
 : B(m, n)
 
 // Parameters
-READ  A <- A(n, k)
+READ  A <- A(m, k)
 READ  B <- B TRSM(m, k)
-RW    C <- (k == Bnt-1) ? B(m, n)      : C GEMM(k+1, m, n)
+RW    C <- (k == Bmt-1) ? B(m, n) : C GEMM(k+1, m, n)
         -> (k-1 == n)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
 
 BODY
-      TYPENAME minvalpha  = (TYPENAME)-1.0 / alpha;
-      CORE(
-	   gemm, (
+      Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      DRYRUN(
+	   CORE_zgemm(
 			PlasmaNoTrans, trans,
 			m == Bmt-1 ? Bm-m*Bmb : Bmb,
 			Bmb,
 			k == Bnt-1 ? Bn-k*Bnb : Bnb,
-			minvalpha,   B /* B(m, k)*/ , Bmb,
-			             A /* A(n, k)*/ , Amb,
-			(TYPENAME)1.0, C /* B(m, n)*/ , Bmb)
+			(Dague_Complex64_t)-1.0, B /* B(m, k)*/ , Bmb,
+			              A /* A(k, n)*/ , Amb,
+			lalpha,       C /* B(m, n)*/ , Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
@@ -109,8 +113,8 @@ BODY
 	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
 	       Bmb,
 	       k == Bnt-1 ? Bn-k*Bnb : Bnb,
-	       minvalpha,   m, k, B, Bmb,
-                            n, k, A, Amb,
-	       (TYPENAME)1.0, m, n, C, Bmb)
+	       (Dague_Complex64_t)-1.0, m, k, B, Bmb,
+                             k, n, A, Amb,
+	       lalpha,       m, n, C, Bmb)
 	      );
 END

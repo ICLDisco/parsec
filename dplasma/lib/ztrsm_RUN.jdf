@@ -1,6 +1,9 @@
 extern "C" %{
   /**
    * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
    */
   
 #include <plasma.h>
@@ -32,7 +35,7 @@ An   [int]
 trans[int]
 diag [int]
 
-alpha[TYPENAME]
+alpha[Dague_Complex64_t]
 
 /**************************************************
  *                      TRSM                      *
@@ -53,9 +56,9 @@ RW    B <- (k == 0) ? B(m, 0) : C GEMM(k-1, m, k)
         -> B(m, k)
 
 BODY
-      TYPENAME lalpha = k == 0 ? alpha : (TYPENAME)1.0;    
-      CORE(
-	   trsm, (
+      Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      DRYRUN(
+	   CORE_ztrsm(
 			PlasmaRight, PlasmaUpper, trans, diag,
 			m == Bmt-1 ? Bm - m * Bmb : Bmb,
 			k == Bnt-1 ? Bn - k * Bnb : Bnb,
@@ -93,14 +96,14 @@ RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
         -> (k+1 == n) ? B TRSM(m, n) : C GEMM(k+1, m, n)
 
 BODY
-      TYPENAME lalpha = k == 0 ? alpha : (TYPENAME)1.0;    
-      CORE(
-	   gemm, (
+      Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      DRYRUN(
+	   CORE_zgemm(
 			trans, PlasmaNoTrans,
 			m == Bmt-1 ? Bm-m*Bmb : Bmb,
 			n == Bnt-1 ? Bn-n*Bnb : Bnb,
 			Bmb,
-			(TYPENAME)1.0, B /* B(m, k)*/ , Bmb,
+			(Dague_Complex64_t)1.0, B /* B(m, k)*/ , Bmb,
 			             A /* A(k, n)*/ , Amb,
 			lalpha,      C /* B(m, n)*/ , Bmb)
 	   );
@@ -110,7 +113,7 @@ BODY
 	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
 	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
 	       Bmb,
-	       (TYPENAME)1.0, m, k, B, Bmb,
+	       (Dague_Complex64_t)1.0, m, k, B, Bmb,
                             k, n, A, Amb,
 	       lalpha,      m, n, C, Bmb)
 	      );

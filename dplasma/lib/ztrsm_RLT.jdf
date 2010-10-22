@@ -1,6 +1,9 @@
 extern "C" %{
   /**
    * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
    */
   
 #include <plasma.h>
@@ -32,43 +35,42 @@ An   [int]
 trans[int]
 diag [int]
 
-alpha[TYPENAME]
+alpha[Dague_Complex64_t]
 
 /**************************************************
  *                      TRSM                      *
  **************************************************/
-TRSM(k, n)
+TRSM(m, k)
 
 // Execution space
-k = Bmt-1..0
-n = 0..Bnt-1
+k = 0..Bnt-1
+m = 0..Bmt-1
 
 // Parallel partitioning
-: B(k,n)
+: B(m,k)
 
 // Parameters
 READ  A <- A(k,k)
-RW    B <- (k == Bmt-1) ? B(0, n) : C GEMM(k-1, k, n)
-        -> B GEMM(k, 0..k-1, n)
-        -> B(k, n)
+RW    B <- (k == 0) ? B(m, 0) : C GEMM(k-1, m, k)
+        -> B GEMM(k, m, k+1..Bnt-1)
+        -> B(m, k)
 
 BODY
-      TYPENAME lalpha = k == Bmt-1 ? alpha : (TYPENAME)1.0;
-      CORE(
-	   trsm, (
-			PlasmaLeft, PlasmaLower, trans, diag,
-			k == Bmt-1 ? Bm - k * Bmb : Bmb,
-			n == Bnt-1 ? Bn - n * Bnb : Bnb,
-			lalpha, A /*A(k, k)*/, Amb,
-                                B /*B(k, n)*/, Bmb)
+      DRYRUN(
+	   CORE_ztrsm(
+			PlasmaRight, PlasmaLower, trans, diag,
+			m == Bmt-1 ? Bm - m * Bmb : Bmb,
+			k == Bnt-1 ? Bn - k * Bnb : Bnb,
+			alpha, A /*A(k, k)*/, Amb,
+                               B /*B(m, k)*/, Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
 	       context->eu_id, "PlasmaRight", "PlasmaLower", "Trans/ConjTrans", "PlasmaNonUnit",
-	       k == Bmt-1 ? Bm - k * Bmb : Bmb,
-	       n == Bnt-1 ? Bn - n * Bnb : Bnb,
-	       lalpha, k, k, A /*A(k, k)*/, Amb,
-	               k, n, B /*B(k, n)*/, Bmb)
+	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
+	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
+	       alpha, k, k, A /*A(k, k)*/, Amb,
+                      m, k, B /*B(m. k)*/, Bmb)
 	      );
 END
 
@@ -79,39 +81,40 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = Bmt-1..0
-m = k-1..0
-n = 0..Bnt-1
+k = 0..Bnt-1
+m = 0..Bmt-1
+n = k+1..Bnt-1
 
 // Parallel partitioning
 : B(m, n)
 
 // Parameters
-READ  A <- A(k, m)
-READ  B <- B TRSM(k, n)
-RW    C <- (k == Bmt-1) ? B(m, n) : C GEMM(k+1, m, n)
-        -> (k-1 == m)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
+READ  A <- A(n, k)
+READ  B <- B TRSM(m, k)
+RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
+        -> (k+1 == n) ? B TRSM(m, n) : C GEMM(k+1, m, n)
 
 BODY
-      TYPENAME lalpha = k == 0 ? alpha : (TYPENAME)1.0;    
-      CORE(
-	   gemm, (
+
+      Dague_Complex64_t minvalpha  = (Dague_Complex64_t)-1.0 / alpha;
+      DRYRUN(
+	   CORE_zgemm(
 			trans, PlasmaNoTrans,
 			m == Bmt-1 ? Bm-m*Bmb : Bmb,
 			n == Bnt-1 ? Bn-n*Bnb : Bnb,
 			Bmb,
-			(TYPENAME)-1.0, A /* A(k, m)*/ , Amb,
-			              B /* B(k, n)*/ , Bmb,
-			lalpha,       C /* B(m, n)*/ , Bmb)
+			minvalpha,   B /* B(m, k)*/ , Bmb,
+			             A /* A(n, k)*/ , Amb,
+			(Dague_Complex64_t)1.0, C /* B(m, n)*/ , Bmb)
 	   );
 
       OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "Trans/ConjTrans", "PlasmaNoTrans", 
+	       context->eu_id, "PlasmaNoTrans", "PlasmaNoTrans", 
 	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
 	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
 	       Bmb,
-	       (TYPENAME)-1.0, m, k, A, Amb,
-                             k, n, B, Bmb,
-	       lalpha,       m, n, C, Bmb)
+	       minvalpha,   m, k, B, Bmb,
+                            n, k, A, Amb,
+	       (Dague_Complex64_t)1.0, m, n, C, Bmb)
 	      );
 END
