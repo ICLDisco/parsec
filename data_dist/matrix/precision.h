@@ -26,10 +26,10 @@ typedef double _Complex Dague_Complex64_t;
 
 /* Sun doesn't ship the complex.h header. Sun Studio doesn't have it and older GCC compilers don't have it either. */
 #if defined(__SUNPRO_C) || defined(__SUNPRO_CC) || defined(sun) || defined(__sun)
-#undef PLASMA_HAS_COMPLEX_H
+#undef DAGUE_HAS_COMPLEX_H
 #endif
 
-#ifdef PLASMA_HAS_COMPLEX_H
+#ifdef DAGUE_HAS_COMPLEX_H
 #include <complex.h>
 #else
 
@@ -49,6 +49,6 @@ extern Dague_Complex64_t conj(Dague_Complex64_t z);
 }
 #endif
 
-#endif /* PLASMA_HAS_COMPLEX_H */
+#endif /* DAGUE_HAS_COMPLEX_H */
 
 #endif /* _PRECISION_H_ */
