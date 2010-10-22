@@ -87,13 +87,13 @@ if(BLAS_FOUND)
     find_library(PLASMA_quark_LIB quark
       PATHS ${PLASMA_LIBRARIES}
       DOC "Where the PLASMA quark libraries are")
-    find_library(PLASMA_lapack_cwrapper_LIB lapack_cwrapper
+    find_library(PLASMA_lapack_cwrapper_LIB lapacke
       PATHS ${PLASMA_LIBRARIES}
-      DOC "Where the PLASMA clapack libraries are")
+      DOC "Where the PLASMA lapack C interface libraries are")
     if( NOT PLASMA_lapack_cwrapper_LIB )
-      find_library(PLASMA_lapack_cwrapper_LIB lapacke
+      find_library(PLASMA_lapack_cwrapper_LIB lapack_cwrapper
         PATHS ${PLASMA_LIBRARIES}
-        DOC "Where the PLASMA clapack libraries are")
+        DOC "Where the PLASMA lapack C wrapper libraries are")
     endif( NOT PLASMA_lapack_cwrapper_LIB )
     if( PLASMA_cblas_LIB AND PLASMA_coreblas_LIB AND PLASMA_corelapack_LIB AND PLASMA_plasma_LIB )
       set( PLASMA_LIBRARIES "${PLASMA_coreblas_LIB};${PLASMA_plasma_LIB};${PLASMA_quark_LIB};${PLASMA_lapack_cwrapper_LIB};${PLASMA_corelapack_LIB};${PLASMA_cblas_LIB}")
