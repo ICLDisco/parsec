@@ -10,8 +10,6 @@ set(OLDJDF
 jdf_rules(generated_files "${OLDJDF}")
 
 set(JDF
-  gemm_NN gemm_TN gemm_NT gemm_TT
-  trsm_LLN trsm_LLT trsm_LUN trsm_LUT trsm_RLN trsm_RLT trsm_RUN trsm_RUT
   potrf_rl potrf_ll 
   getrf getrf_sd 
   geqrf
@@ -20,6 +18,8 @@ jdf_rules(precisionstub_files "${JDF}")
 precisions_rules(generated_files "/;${DPLASMA_PRECISIONS}" "${precisionstub_files}")
 
 set(NAMES
+  zgemm_NN zgemm_TN zgemm_NT zgemm_TT
+  ztrsm_LLN ztrsm_LLT ztrsm_LUN ztrsm_LUT ztrsm_RLN ztrsm_RLT ztrsm_RUN ztrsm_RUT
   ztrmm_LLN ztrmm_LLT ztrmm_LUN ztrmm_LUT ztrmm_RLN ztrmm_RLT ztrmm_RUN ztrmm_RUT
 )
 
@@ -30,10 +30,23 @@ precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${jdfSOURCES}")
 #message(STATUS ${generated_jdf})
 jdf_rules(precisionstub_files_new "${generated_jdf}")
 
-set(SOURCES
-  trsm_wrapper.c gemm_wrapper.c trmm_wrapper.c potrf_wrapper.c getrf_wrapper.c geqrf_wrapper.c
+set(HEADERS
+  # headers
+  dplasma_z.h
 )
-precisions_rules(generated_files "${DPLASMA_PRECISIONS}" "${SOURCES}") 
+precisions_rules(generated_files "+;s;d;c;z" "${HEADERS}") 
+
+set(SOURCES
+  # Level 3 Blas
+  ztrsm_wrapper.c 
+  zgemm_wrapper.c 
+  ztrmm_wrapper.c 
+  # Lapack
+#  zpotrf_wrapper.c 
+#  zgetrf_wrapper.c 
+#  zgeqrf_wrapper.c
+)
+precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}") 
 
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma-mpi
