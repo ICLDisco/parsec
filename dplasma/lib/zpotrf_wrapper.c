@@ -23,10 +23,10 @@ dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INF
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
     object = dague_zpotrf_rl_new( (dague_ddesc_t*)ddescA, 
-				  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
+                                  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
     dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
     dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
-			  ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
+                          ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
                           DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     return (dague_object_t*)object;
 }
@@ -53,11 +53,11 @@ dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* 
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
     object = dague_zpotrf_rl_new( (dague_ddesc_t*)ddescA, 
-				  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
+                                  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
     dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
 
     dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
-			  ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
+                          ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
                           DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
     return (dague_object_t*)object;
 }
@@ -70,10 +70,10 @@ dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* 
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
     object = dague_zpotrf_ll_new( (dague_ddesc_t*)ddescA, 
-				  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
+                                  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
     dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
     dague_arena_construct(object->arenas[DAGUE_zpotrf_ll_DEFAULT_ARENA], 
-			  ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
+                          ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
                           DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
 
     return (dague_object_t*)object;
