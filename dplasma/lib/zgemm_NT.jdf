@@ -40,7 +40,7 @@ m = 0 .. K-1
 A <- A(n, m)
   -> A GEMM(n, 0, m)
 BODY
-    OUTPUT(("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, n, m));
+    printlog("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, n, m);
 END
 
 /**************************************************
@@ -56,7 +56,7 @@ m = 0 .. N-1
 B <- B(m, n)
   -> B GEMM(0, m, n)
 BODY
-    OUTPUT(("rank %d <- B(%d,%d)\n", __dague_object->super.B->myrank, m, n));
+    printlog("rank %d <- B(%d,%d)\n", __dague_object->super.B->myrank, m, n);
 END
 
 /**************************************************
@@ -90,16 +90,17 @@ BODY
                        B /*B(k, m)*/, NB, /*A.nb,*/
                 beta,  C /*C(n, m)*/, NB /*A.nb*/ )
             );
-        OUTPUT((
-            "CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                "PlasmaNoTrans", "Plasma[Conj]Trans",
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                NB, /*A.nb,*/
-                alpha, i, k, NB, /*A.nb,*/
-                      k, m, NB, /*A.nb,*/
-                beta, n, m, NB /*A.nb*/ )
-            );
+
+        printlog("thread %d gemm( %d, %d, %d )\n"
+                 "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
+                 context->eu_id, n, m, k,
+                 "PlasmaNoTrans", "Plasma[Conj]Trans",
+                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
+                 NB, /*A.nb,*/
+                 NB, /*A.nb,*/
+                 alpha, n, k, NB, /*A.nb,*/
+                        k, m, NB, /*A.nb,*/
+                 beta,  n, m, NB /*A.nb*/ );
 END
 
 extern "C" %{
