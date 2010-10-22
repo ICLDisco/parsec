@@ -4,6 +4,7 @@ include(testings)
 
 set(TESTS
   testing_ztrmm.c
+  testing_ztrsm.c
 )
 
 testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
