@@ -60,7 +60,8 @@ int dplasma_aux_create_upper_type( dague_remote_dep_datatype_t oldtype,
                                    dague_remote_dep_datatype_t* newtype )
 {
 #if defined(USE_MPI)
-    int *blocklens, *indices, i, oldsize;
+    int *blocklens, *indices, oldsize;
+    unsigned int i;
     MPI_Datatype tmp;
 
     blocklens = (int*)malloc( tile_nb * sizeof(int) );
@@ -97,7 +98,8 @@ int dplasma_aux_create_lower_type( dague_remote_dep_datatype_t oldtype,
                                    dague_remote_dep_datatype_t* newtype )
 {
 #if defined(USE_MPI)
-    int *blocklens, *indices, i, oldsize;
+    int *blocklens, *indices, oldsize;
+    unsigned int i;
     MPI_Datatype tmp;
 
     blocklens = (int*)malloc( tile_nb * sizeof(int) );
