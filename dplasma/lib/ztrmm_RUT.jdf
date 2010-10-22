@@ -1,8 +1,11 @@
 extern "C" %{
   /**
    * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
    */
-  
+
 #include <plasma.h>
 #include <core_blas.h>
 #include "dague.h"
@@ -28,13 +31,13 @@ Bmt  [int]
 Bnt  [int]
 Bm   [int]
 Bn   [int]
-     
+
 side [int]
 uplo [int]
 trans[int]
 diag [int]
 
-alpha[TYPENAME]
+alpha[Dague_Complex64_t]
 
 /**************************************************
  *                      TRMM                      *
@@ -55,22 +58,22 @@ RW    B   <- B(m, n)
 READ  CTL <- (n == 0) ? CTL(m, n) : CTL1 GOK(m, n-1, n)              [CONTROL]
 
 BODY
-      CORE(
-	   trmm, (
-		  side, uplo, trans, diag,
-		  m == Bmt-1 ? Bm - m * Bmb : Bmb,
-		  n == Bnt-1 ? Bn - n * Bnb : Bnb,
-		  alpha, A /*A(k, k)*/, Amb,
-		         B /*B(k, n)*/, Bmb)
-	   );
+      DRYRUN(
+          CORE_ztrmm(
+              side, uplo, trans, diag,
+              m == Bmt-1 ? Bm - m * Bmb : Bmb,
+              n == Bnt-1 ? Bn - n * Bnb : Bnb,
+              alpha, A /*A(k, k)*/, Amb,
+                     B /*B(k, n)*/, Bmb)
+           );
 
       printlog("thread %d trmm( %d, %d )\n"
-	       "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, m, n, "Right", "Upper", "NoTrans", "[Non]Unit",
-	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
-	       n == Bnt-1 ? Bn - n * Bnb : Bnb,
-	       alpha, n, n, A /*A(k, k)*/, Amb,
-	              m, n, B /*B(k, n)*/, Bmb);
+               "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+               context->eu_id, m, n, "Right", "Upper", "NoTrans", "[Non]Unit",
+               m == Bmt-1 ? Bm - m * Bmb : Bmb,
+               n == Bnt-1 ? Bn - n * Bnb : Bnb,
+               alpha, n, n, A /*A(k, k)*/, Amb,
+                      m, n, B /*B(k, n)*/, Bmb);
 END
 
 /**************************************************
@@ -89,32 +92,32 @@ k = (n+1)..Bnt-1
 
 // Parameters
 READ  A <- B(m, k)
-READ  B <- A(n, k) 
+READ  B <- A(n, k)
 RW    C <- (k == n+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
         -> (k == Bnt-1) ? B(m, n)      : C GEMM(m, n, k+1)
 RW    CTL <- CTL(m, k)                                          [CONTROL]
           -> CTL2 GOK(m, n, k)                                  [CONTROL]
 
 BODY
-      CORE(
-	   gemm, (
-		  PlasmaNoTrans, trans,
-		  m == Bmt-1 ? Bm-m*Bmb : Bmb,
-		  n == Bnt-1 ? Bn-n*Bnb : Bnb,
-		  k == Ant-1 ? An-k*Anb : Anb,
-		  alpha, A, Bmb,
-		         B, Amb,
-		  (TYPENAME)1.0,  C, Bmb)
-	   );
-				       
+      DRYRUN(
+          CORE_zgemm(
+              PlasmaNoTrans, trans,
+              m == Bmt-1 ? Bm-m*Bmb : Bmb,
+              n == Bnt-1 ? Bn-n*Bnb : Bnb,
+              k == Ant-1 ? An-k*Anb : Anb,
+              alpha, A, Bmb,
+                     B, Amb,
+              (Dague_Complex64_t)1.0,  C, Bmb)
+          );
+
       printlog("thread %d gemm( %d, %d, %d )\n"
-	       "    ( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, m, n, k, "NoTrans", "[Conj]Trans", 
-	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
-	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
-	       k == Ant-1 ? An-k*Anb : Anb,
-	       alpha, m, k, A, Bmb, n, k, B, Bmb,
-	       (TYPENAME)1.0, m, n, C, Bmb);
+               "    ( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+               context->eu_id, m, n, k, "NoTrans", "[Conj]Trans",
+               m == Bmt-1 ? Bm-m*Bmb : Bmb,
+               n == Bnt-1 ? Bn-n*Bnb : Bnb,
+               k == Ant-1 ? An-k*Anb : Anb,
+               alpha, m, k, A, Bmb, n, k, B, Bmb,
+               (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
 
 /**************************************************

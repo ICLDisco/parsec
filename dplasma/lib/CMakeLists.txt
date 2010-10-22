@@ -12,7 +12,6 @@ jdf_rules(generated_files "${OLDJDF}")
 set(JDF
   gemm_NN gemm_TN gemm_NT gemm_TT
   trsm_LLN trsm_LLT trsm_LUN trsm_LUT trsm_RLN trsm_RLT trsm_RUN trsm_RUT
-  trmm_LLN trmm_LLT trmm_LUT trmm_RLN trmm_RLT trmm_RUN trmm_RUT
   potrf_rl potrf_ll 
   getrf getrf_sd 
   geqrf
@@ -21,12 +20,14 @@ jdf_rules(precisionstub_files "${JDF}")
 precisions_rules(generated_files "/;${DPLASMA_PRECISIONS}" "${precisionstub_files}")
 
 set(NAMES
-  ztrmm_LUN
+  ztrmm_LLN ztrmm_LLT ztrmm_LUN ztrmm_LUT ztrmm_RLN ztrmm_RLT ztrmm_RUN ztrmm_RUT
 )
 
 # codegen.py need extension to detect if it's a file to parse or not
 jdf_addextension( jdfSOURCES "${NAMES}" )
+#message(STATUS ${jdfSOURCES})
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${jdfSOURCES}")
+#message(STATUS ${generated_jdf})
 jdf_rules(precisionstub_files_new "${generated_jdf}")
 
 set(SOURCES

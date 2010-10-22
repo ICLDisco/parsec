@@ -1,6 +1,9 @@
 extern "C" %{
   /**
    * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
    */
   
 #include <plasma.h>
@@ -34,7 +37,7 @@ uplo [int]
 trans[int]
 diag [int]
 
-alpha[TYPENAME]
+alpha[Dague_Complex64_t]
 
 /**************************************************
  *                      TRMM                      *
@@ -55,8 +58,8 @@ RW    B   <- B(m, n)
 READ  CTL <- (n == Bnt-1) ? CTL(m, n) : CTL1 GOK(m, n+1, n)              [CONTROL]
 
 BODY
-      CORE(
-	   trmm, (
+      DRYRUN(
+	   CORE_ztrmm(
 		  side, uplo, trans, diag,
 		  m == Bmt-1 ? Bm - m * Bmb : Bmb,
 		  n == Bnt-1 ? Bn - n * Bnb : Bnb,
@@ -95,15 +98,15 @@ RW    C   <- (k == n-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
 RW    CTL <- CTL(k, n)                                          [CONTROL]
           -> CTL2 GOK(m, n, k)                                  [CONTROL]
 BODY
-      CORE(
-	   gemm, (
+      DRYRUN(
+	   CORE_zgemm(
 		  PlasmaNoTrans, trans,
 		  m == Bmt-1 ? Bm-m*Bmb : Bmb,
 		  n == Bnt-1 ? Bn-n*Bnb : Bnb,
 		  Bmb,
 		  alpha, A, Bmb,
 		         B, Amb,
-		  (TYPENAME)1.0,  C, Bmb)
+		  (Dague_Complex64_t)1.0,  C, Bmb)
 	   );
 				       
       printlog("thread %d gemm( %d, %d, %d )\n"
@@ -114,7 +117,7 @@ BODY
 	       Bmb,
 	       alpha, A, Bmb,
 		      B, Bmb,
-	       (TYPENAME)1.0, C, Bmb);
+	       (Dague_Complex64_t)1.0, C, Bmb);
 END
 
 /**************************************************
