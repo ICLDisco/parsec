@@ -46,6 +46,7 @@ precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}")
 ### Generate the lib 
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma-mpi
+    ${generated_headers}
     ${generated_files} 
     ${EXTRA_SOURCES})
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
@@ -53,6 +54,7 @@ if (DAGUE_MPI AND MPI_FOUND)
   install(FILES dplasma.h ${generated_headers} DESTINATION include)
 else (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma 
+    ${generated_headers}
     ${generated_files}
     ${EXTRA_SOURCES})
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
