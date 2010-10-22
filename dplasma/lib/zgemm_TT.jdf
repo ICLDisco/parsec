@@ -1,7 +1,10 @@
 extern "C" %{
-    /**
-     * PLASMA include for defined and constants.
-     */
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -20,8 +23,8 @@ N
 K
 TRANSA   [int]
 TRANSB   [int]
-alpha    [TYPENAME]
-beta     [TYPENAME]
+alpha    [Dague_Complex64_t]
+beta     [Dague_Complex64_t]
 
 /* A(M, K) * B(K, N) = C(M, N) */
 /**************************************************
@@ -77,8 +80,8 @@ READ B <- (n == 0)     ? B READ_B(k,m) : B GEMM( (n+M-1) % M, m, k )
 RW   C <- (k == 0)     ? C(n,m) : C GEMM( n, m, k-1 )
        -> (k == (K-1)) ? C(n,m) : C GEMM( n, m, k+1 )
 BODY
-        CORE(
-            gemm, (
+        DRYRUN(
+            CORE_zgemm(
                 TRANSA, TRANSB,
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
