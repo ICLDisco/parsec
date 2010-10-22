@@ -266,12 +266,12 @@ int main(int argc, char ** argv)
         }
 #endif
 
-        dague_data_free(&ddescC2.mat);
+        dague_data_free(ddescC2.mat);
     }
 
-    dague_data_free(&ddescA.mat);
-    dague_data_free(&ddescB.mat);
-    dague_data_free(&ddescC.mat);
+    dague_data_free(ddescA.mat);
+    dague_data_free(ddescB.mat);
+    dague_data_free(ddescC.mat);
 
     cleanup_dague(dague, "zgemm");
     /*** END OF DAGUE COMPUTATION ***/
