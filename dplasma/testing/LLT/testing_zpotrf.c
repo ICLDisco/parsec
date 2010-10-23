@@ -108,7 +108,11 @@ int main(int argc, char ** argv)
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
         PLASMA_enum uplo = PlasmaLower;
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+        flops = 2.*_FADDS_POTRF(N) + 6.*_FMULS_POTRF(N);
+#else
         flops = _FADDS_POTRF(N) + _FMULS_POTRF(N);
+#endif
 
         /* matrix generation */
         printf("Generate matrices ... ");

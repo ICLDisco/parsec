@@ -177,7 +177,11 @@ int main(int argc, char ** argv)
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+        flops = 2.*_FADDS(M, N, K) + 6.*_FMULS(M, N, K);
+#else
         flops = _FADDS(M, N, K) + _FMULS(M, N, K);
+#endif
 
         /* matrix generation */
         printf("Generate matrices ... ");

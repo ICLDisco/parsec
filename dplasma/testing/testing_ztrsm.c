@@ -160,7 +160,11 @@ int main(int argc, char ** argv)
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
         int s = PlasmaLeft;
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+        flops = 2.*_FADDS(s, M, NRHS) + 6.*_FMULS(s, M, NRHS);
+#else
         flops = _FADDS(s, M, NRHS) + _FMULS(s, M, NRHS);
+#endif
 
         /* matrix generation */
         printf("Generate matrices ... ");
@@ -255,5 +259,5 @@ int main(int argc, char ** argv)
     /*** END OF DAGUE COMPUTATION ***/
 
     runtime_fini();
-    return 0;
+    return EXIT_SUCCESS;
 }
