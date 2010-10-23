@@ -75,10 +75,12 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     twoDBC_to_lapack( ddescA, A, LDA );
     twoDBC_to_lapack( ddescB, B, LDB );
     twoDBC_to_lapack( ddescC, C, LDB );
-
-    Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, An, A, LDA, work );
-    Binitnorm  = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work );
-    Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M, N, C, LDB, work );
+    
+    /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
+    //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, An, A, LDA, work );
+    Anorm      = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), Am, A, LDA, work );
+    Binitnorm  = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  B, LDB, work );
+    Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  C, LDB, work );
 
     cblas_ztrmm(CblasColMajor,
                 (CBLAS_SIDE)side, (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
@@ -143,10 +145,6 @@ int main(int argc, char ** argv)
 
     dague_object_t *dague_trmm = NULL;
 
-    /* Create workspace for control */
-    two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank,
-                              1, 1, mt, nt, 0, 0, mt, nt, 1, 1, GRIDrows);
-
     /* initializing matrix structure */
     two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, nrst, ncst, GRIDrows);
@@ -165,6 +163,10 @@ int main(int argc, char ** argv)
 #else
         flops = _FADDS(s, M, NRHS) + _FMULS(s, M, NRHS);
 #endif
+
+	/* Create workspace for control */
+	two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank, 1, 1, mt, nt, 0, 0, mt, nt, 1, 1, GRIDrows);
+	work.mat = dague_data_allocate((size_t)work.super.nb_local_tiles * (size_t)work.super.bsiz * (size_t)work.super.mtype);
 
         /* matrix generation */
         printf("Generate matrices ... ");
@@ -192,6 +194,8 @@ int main(int argc, char ** argv)
                          gflops = flops/(sync_time_elapsed)));
         (void) gflops;
         TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
+
+	dague_data_free(work.mat);
     }
     else {
         int s, u, t, d;
@@ -217,7 +221,7 @@ int main(int argc, char ** argv)
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+			generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 400);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
                         printf("Done\n");
@@ -248,12 +252,11 @@ int main(int argc, char ** argv)
 #endif
             }
         }
-        dague_data_free(&ddescC.mat);
+        dague_data_free(ddescC.mat);
     }
 
-    dague_data_free(&ddescA.mat);
-    dague_data_free(&ddescB.mat);
-    dague_data_free(&work.mat);
+    dague_data_free(ddescA.mat);
+    dague_data_free(ddescB.mat);
 
     cleanup_dague(dague, "ztrmm");
     /*** END OF DAGUE COMPUTATION ***/

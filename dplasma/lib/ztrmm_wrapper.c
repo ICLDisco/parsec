@@ -109,6 +109,7 @@ dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
     /* Create workspace for control */
     two_dim_block_cyclic_init(&work, matrix_Integer, B->super.nodes, B->super.cores, B->super.myrank,
                               1, 1, B->mt, B->nt, 0, 0, B->mt, B->nt, 1, 1, ((two_dim_block_cyclic_t*)B)->GRIDrows);
+    work.mat = dague_data_allocate((size_t)work.super.nb_local_tiles * (size_t)work.super.bsiz * (size_t)work.super.mtype);
     
     dague_ztrmm = dplasma_ztrmm_New(side, uplo, trans, diag, alpha,
 				    A, B, (tiled_matrix_desc_t *)&work);
@@ -116,5 +117,5 @@ dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
     dague_enqueue( dague, (dague_object_t*)dague_ztrmm);
     dague_progress(dague);
 
-    dague_data_free(&work.mat);
+    dague_data_free(work.mat);
 }
