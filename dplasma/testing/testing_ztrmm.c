@@ -40,8 +40,8 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #define COMPLEX
 #undef REAL
 
-#define _FMULS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (N) * (M) * ((M)+1) ) : ( 0.5 * (M) * (N) * ((N)+1) ) )
-#define _FADDS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (N) * (M) * ((M)-1) ) : ( 0.5 * (M) * (N) * ((N)-1) ) )
+#define _FMULS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)+1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)+1) ) )
+#define _FADDS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)-1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)-1) ) )
 
 /**********************************
  * static functions

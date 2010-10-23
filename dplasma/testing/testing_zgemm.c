@@ -40,8 +40,8 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #define COMPLEX
 #undef REAL
 
-#define _FMULS(M, N, K) ( (double)(M) * (double)(N) * (double)(K) )
-#define _FADDS(M, N, K) ( (double)(M) * (double)(N) * (double)(K) )
+#define _FMULS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
+#define _FADDS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
 
 /**********************************
  * static functions
