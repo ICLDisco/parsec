@@ -37,9 +37,6 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include "testscommon.h"
 #include "timing.h"
 
-#define COMPLEX
-#undef REAL
-
 #define _FMULS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)+1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)+1) ) )
 #define _FADDS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)-1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)-1) ) )
 
@@ -203,7 +200,7 @@ int main(int argc, char ** argv)
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
-#ifdef COMPLEX
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
                 for (t=0; t<3; t++) {
 #else
                 for (t=0; t<2; t++) {

@@ -37,9 +37,6 @@ extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
 #include "testscommon.h"
 #include "timing.h"
 
-#define COMPLEX
-#undef REAL
-
 #define _FMULS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
 #define _FADDS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
 
@@ -218,7 +215,7 @@ int main(int argc, char ** argv)
         
         two_dim_block_cyclic_init(&ddescC2, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, nrst, ncst, GRIDrows);
 
-#ifdef COMPLEX
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
         for (tA=0; tA<3; tA++) {
             for (tB=0; tB<3; tB++) {
 #else
