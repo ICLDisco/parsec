@@ -165,11 +165,11 @@ int main(int argc, char ** argv)
         
         matrix_scompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
 
-        dague_data_free(&ddescB.mat);
+        dague_data_free(ddescB.mat);
     }
 #endif
 
-    dague_data_free(&ddescA.mat);
+    dague_data_free(ddescA.mat);
 
     cleanup_dague(dague, "zpotrf");
     /*** END OF DAGUE COMPUTATION ***/

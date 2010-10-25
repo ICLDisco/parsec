@@ -122,9 +122,9 @@ int main(int argc, char ** argv)
         TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
     }
     
-    dague_data_free(&ddescA.mat);
-    dague_data_free(&ddescL.mat);
-    dague_data_free(&ddescIPIV.mat);
+    dague_data_free(ddescA.mat);
+    dague_data_free(ddescL.mat);
+    dague_data_free(ddescIPIV.mat);
 
     cleanup_dague(dague, "zgetrf");
     /*** END OF DAGUE COMPUTATION ***/

@@ -145,8 +145,8 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    dague_data_free(&ddescA.mat);
-    dague_data_free(&ddescT.mat);
+    dague_data_free(ddescA.mat);
+    dague_data_free(ddescT.mat);
 
     cleanup_dague(dague, "zgeqrf");
     /*** END OF DAGUE COMPUTATION ***/
