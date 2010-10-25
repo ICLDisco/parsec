@@ -11,5 +11,5 @@ else
 /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
 export CC=icc
 export FC=ifort
-cmake .  -DBLAS_LIBRARIES="-L/opt/intel/Compiler/11.1/072/mkl/lib/em64t -lmkl_intel_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=$HOME/dague/plasma-svn/plasma-installer/install -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=/opt/hwloc
+cmake .  -DBLAS_LIBRARIES="-L/opt/intel/Compiler/11.1/072/mkl/lib/em64t -lmkl_intel_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=/opt/plasma -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=/opt/hwloc
 fi
