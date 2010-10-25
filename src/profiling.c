@@ -317,9 +317,9 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 do {
                     refstrresize = d->key_to_string(d, profile->events[start_idx].ref_id, refstr, refstrsize);
                     
-                    if( refstrresize > refstrsize ) {
-                        refstr = (char*)realloc(refstr, refstrresize);
-                        refstrsize = refstrresize;
+                    if( refstrresize >= refstrsize ) {
+                        refstr = (char*)realloc(refstr, refstrresize+1);
+                        refstrsize = refstrresize+1;
                     } else {
                         break;
                     }
