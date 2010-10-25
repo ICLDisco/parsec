@@ -16,25 +16,33 @@
 #include "generated/zpotrf_rl.h"
 #include "generated/zpotrf_ll.h"
 
-dague_object_t* 
-dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
+dague_object_t* dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
 {
+#if defined(USE_MPI)
+    MPI_Aint lb = 0, extent = 0;
+#else
+    int64_t lb = 0, extent = 0;
+#endif  /* defined(USE_MPI) */
     dague_zpotrf_rl_object_t* object;
-    dague_remote_dep_datatype_t default_ddt;
+    dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
     object = dague_zpotrf_rl_new( (dague_ddesc_t*)ddescA, 
                                   ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-    
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+
+#if defined(USE_MPI)
+    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
+    MPI_Type_get_extent(default_dtt, &lb, &extent);
+#else
+    default_dtt = NULL;
+    extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
+#endif
     dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
-                          ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
-                          DAGUE_ARENA_ALIGNMENT_SSE, default_ddt);
+                          extent, DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
     return (dague_object_t*)object;
 }
 
-int
-dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA) 
+int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA) 
 {
     dague_object_t *dague_zpotrf = NULL;
 
@@ -47,37 +55,59 @@ dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_des
     return info;
 }
 
-dague_object_t* 
-dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
+dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
 {
+#if defined(USE_MPI)
+    MPI_Aint lb = 0, extent = 0;
+#else
+    int64_t lb = 0, extent = 0;
+#endif  /* defined(USE_MPI) */
     dague_zpotrf_rl_object_t* object;
-    dague_remote_dep_datatype_t default_ddt;
+    dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
     object = dague_zpotrf_rl_new( (dague_ddesc_t*)ddescA, 
                                   ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-    
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+   
+#if defined(USE_MPI)
+    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
+    MPI_Type_get_extent(default_dtt, &lb, &extent);
+#else
+    default_dtt = NULL;
+    extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
+#endif
     dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
                           ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
-                          DAGUE_ARENA_ALIGNMENT_SSE, default_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
+    
     return (dague_object_t*)object;
 }
 
-dague_object_t* 
-dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
+dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
 {
+#if defined(USE_MPI)
+    MPI_Aint lb = 0, extent = 0;
+#else
+    int64_t lb = 0, extent = 0;
+#endif  /* defined(USE_MPI) */
     dague_zpotrf_ll_object_t* object;
-    dague_remote_dep_datatype_t default_ddt;
+    dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
     object = dague_zpotrf_ll_new( (dague_ddesc_t*)ddescA, 
                                   ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-    
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+   
+#if defined(USE_MPI)
+    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
+    MPI_Type_get_extent(default_dtt, &lb, &extent);
+#else
+    default_dtt = NULL;
+    extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
+#endif
     dague_arena_construct(object->arenas[DAGUE_zpotrf_ll_DEFAULT_ARENA], 
                           ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t), 
-                          DAGUE_ARENA_ALIGNMENT_SSE, default_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
+    
     return (dague_object_t*)object;
 }
 
