@@ -257,6 +257,10 @@ if( DAGUE_CUDA )
   endif (CUDA_FOUND)
 endif( DAGUE_CUDA )
 
+if( DAGUE_PROFILING )
+  list(APPEND EXTRA_SOURCES src/profiling.c)
+endif( DAGUE_PROFILING )
+
 #
 ##
 ###
@@ -282,7 +286,6 @@ set(SRCS
   src/dep.c 
   src/arena.c
   src/scheduling.c 
-  src/profiling.c 
   src/stats.c 
   src/remote_dep.c 
   src/barrier.c 
