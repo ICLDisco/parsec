@@ -31,9 +31,6 @@
 #include "testscommon.h"
 #include "timing.h"
 
-#define COMPLEX
-#undef REAL
-
 #define _FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
 #define _FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))
 
