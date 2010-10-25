@@ -21,9 +21,11 @@
 #include "dequeue.h"
 
 typedef struct dague_profiling_output_t {
-    unsigned int key;
-    unsigned long id;
-    dague_time_t timestamp;
+    unsigned int   key;
+    unsigned long  id;
+    dague_time_t   timestamp;
+    dague_ddesc_t *ddesc_ref;
+    uint32_t       ref_id;
 #if defined(HAVE_PAPI)
     long long counter_value;
 #endif /* defined(HAVE_PAPI) */
@@ -243,7 +245,8 @@ int dague_profiling_dictionary_flush( void )
     return 0;
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id )
+int dague_profiling_trace_with_ref( dague_thread_profiling_t* context, int key, unsigned long id,
+                                    dague_ddesc_t *ref_desc, uint32_t ref_id )
 {
     unsigned int my_event = context->events_count++;
 
@@ -252,9 +255,16 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
     }
     context->events[my_event].key = key;
     context->events[my_event].id  = id;
-    context->events[my_event].timestamp = take_time();
+    context->events[my_event].ddesc_ref = ref_desc;
+    context->events[my_event].ref_id = ref_id;
+    context->events[my_event].timestamp = take_time();    
     
     return 0;
+}
+
+int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id )
+{
+    return dague_profiling_trace_with_ref( context, key, id, NULL, 0 );
 }
 
 static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile, 
@@ -264,6 +274,8 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
     unsigned int key, start_idx, end_idx, displayed_key;
     uint64_t start, end;
     static int displayed_error_message = 0;
+    char *refstr = malloc(4);
+    int refstrsize = 4, refstrresize;
 
     for( key = 0; key < dague_prof_keys_count; key++ ) {
         displayed_key = 0;
@@ -300,11 +312,28 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             
             fprintf(out, "     <EVENT>\n");
 
+            if( NULL != profile->events[start_idx].ddesc_ref ) {
+                dague_ddesc_t *d = profile->events[start_idx].ddesc_ref;
+                do {
+                    refstrresize = d->key_to_string(d, profile->events[start_idx].ref_id, refstr, refstrsize);
+                    
+                    if( refstrresize > refstrsize ) {
+                        refstr = (char*)realloc(refstr, refstrresize);
+                        refstrsize = refstrresize;
+                    } else {
+                        break;
+                    }
+                } while(1);
+            } else {
+                refstr[0] = '\0';
+            }
+
             fprintf(out, "       <ID>%lu</ID>\n"
                          "       <START>%"PRIu64"</START>\n"
-                         "       <END>%"PRIu64"</END>\n",
+                         "       <END>%"PRIu64"</END>\n"
+                         "       <REF>%s</REF>\n",
                     profile->events[start_idx].id,
-                    start, end);
+                    start, end, refstr);
 #ifdef HAVE_PAPI
             fprintf(out, "       <PAPI_START>%ld</PAPI_START>\n"
                          "       <PAPI_END>%ld</PAPI_END>\n",
@@ -317,6 +346,8 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             fprintf(out, "    </KEY>\n");
         }
     }
+
+    free(refstr);
     return 0;
 }
 

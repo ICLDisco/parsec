@@ -842,9 +842,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DAGUE_PROFILING)\n"
-            "#define TAKE_TIME(context, key, id) dague_profiling_trace(context->eu_profile, __dague_object->key, id)\n"
+            "#define TAKE_TIME(context, key, id, refdesc, refid) dague_profiling_trace_with_ref(context->eu_profile, __dague_object->key, id, refdesc, refid)\n"
             "#else\n"
-            "#define TAKE_TIME(context, key, id)\n"
+            "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
             "#endif\n"
             "#include <mempool.h>\n", 
             jdf_basename, 
@@ -2290,7 +2290,8 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
 
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    string_arena_t *sa, *sa2;
+    string_arena_t *sa, *sa2, *sa3;
+    expr_info_t linfo;
     assignment_info_t ai;
     jdf_dataflow_list_t *fl;
     int di;
@@ -2337,10 +2338,19 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     jdf_generate_code_cache_awareness_update(jdf, f);
 
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
-    coutput("  TAKE_TIME(context, %s_start_key, %s_hash( __dague_object, %s ));\n",
+    sa3 = string_arena_new(64);
+    linfo.prefix = "";
+    linfo.sa = sa2;
+    coutput("  TAKE_TIME(context, %s_start_key, %s_hash( __dague_object, %s), __dague_object->super.%s, __dague_object->super.%s->data_key(__dague_object->super.%s, %s) );\n",
             f->fname, f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                 dump_string, NULL, "", "", ", ", ""));
+                                 dump_string, NULL, "", "", ", ", ""),
+            f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+            UTIL_DUMP_LIST_FIELD(sa3, f->predicate->parameters, next, expr,
+                                 dump_expr, &linfo,
+                                 "", "", ", ", "") );
+    string_arena_free(sa3);
+
     coutput("%s\n", f->body);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
@@ -2364,7 +2374,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
-    coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ));\n",
+    coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ), NULL, 0);\n",
             f->fname, f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""));
