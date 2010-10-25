@@ -46,14 +46,14 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_DEFAULT_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &tile_ddt);
 
-    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &lower_ddt);
+    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &lower_ddt);
 
-    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &upper_ddt);
+    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */

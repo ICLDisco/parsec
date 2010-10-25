@@ -44,14 +44,14 @@ dplasma_zgetrf_New(tiled_matrix_desc_t* ddescA,
     dague_arena_construct(object->arenas[DAGUE_zgetrf_DEFAULT_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &tile_ddt);
 
-    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &lower_ddt);
+    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_LOWER_TILE_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &lower_ddt);
 
-    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &upper_ddt);
+    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
@@ -104,8 +104,9 @@ dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
 #endif  /* defined(USE_MPI) */
 
     object = dague_zgetrf_sd_new( (dague_ddesc_t*)LIPIV, (dague_ddesc_t*)ddescA,
-                                        ddescA->n, ddescA->nb, ddescA->nt, LIPIV->mb, NULL, INFO );
+				  ddescA->n, ddescA->nb, ddescA->nt, (LIPIV->mb-1), NULL, INFO );
     object->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+
     dague_private_memory_init( object->work_pool, LIPIV->mb * ddescA->nb * sizeof(Dague_Complex64_t) );
 
     dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
@@ -115,14 +116,14 @@ dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_DEFAULT_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &tile_ddt);
 
-    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &lower_ddt);
+    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_LOWER_TILE_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, &lower_ddt);
 
-    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &upper_ddt);
+    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */

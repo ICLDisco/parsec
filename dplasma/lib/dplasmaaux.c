@@ -56,7 +56,7 @@ int dplasma_aux_create_tile_type( dague_remote_dep_datatype_t oldtype,
 }
 
 int dplasma_aux_create_upper_type( dague_remote_dep_datatype_t oldtype,
-                                   unsigned int tile_nb,
+                                   unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype )
 {
 #if defined(USE_MPI)
@@ -64,12 +64,13 @@ int dplasma_aux_create_upper_type( dague_remote_dep_datatype_t oldtype,
     unsigned int i;
     MPI_Datatype tmp;
 
+    diag = min(diag, 0);
     blocklens = (int*)malloc( tile_nb * sizeof(int) );
     indices = (int*)malloc( tile_nb * sizeof(int) );
 
     /* UPPER_TILE with the diagonal */
     for( i = 0; i < tile_nb; i++ ) {
-        blocklens[i] = i + 1;
+        blocklens[i] = i + diag;
         indices[i] = i * tile_nb;
     }
     MPI_Type_indexed(tile_nb, blocklens, indices, oldtype, &tmp);
@@ -88,13 +89,13 @@ int dplasma_aux_create_upper_type( dague_remote_dep_datatype_t oldtype,
     free(blocklens);
     free(indices);
 #else
-    *newtype = NULL; (void)oldtype; (void)tile_nb;
+    *newtype = NULL; (void)oldtype; (void)tile_nb; (void)diag;
 #endif  /* USE_MPI */
     return 0;
 }
 
 int dplasma_aux_create_lower_type( dague_remote_dep_datatype_t oldtype,
-                                   unsigned int tile_nb,
+                                   unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype )
 {
 #if defined(USE_MPI)
@@ -102,13 +103,14 @@ int dplasma_aux_create_lower_type( dague_remote_dep_datatype_t oldtype,
     unsigned int i;
     MPI_Datatype tmp;
 
+    diag = (diag == 0) ? 1 : 0;
     blocklens = (int*)malloc( tile_nb * sizeof(int) );
     indices = (int*)malloc( tile_nb * sizeof(int) );
 
     /* LOWER_TILE without the diagonal */
     for( i = 0; i < tile_nb-1; i++ ) {
-        blocklens[i] = tile_nb - i - 1;
-        indices[i] = i * tile_nb + i + 1;
+        blocklens[i] = tile_nb - i - diag;
+        indices[i] = i * tile_nb + i + diag;
     }
     MPI_Type_indexed(tile_nb-1, blocklens, indices, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
@@ -126,7 +128,7 @@ int dplasma_aux_create_lower_type( dague_remote_dep_datatype_t oldtype,
     free(blocklens);
     free(indices);
 #else
-    *newtype = NULL; (void)oldtype; (void)tile_nb;
+    *newtype = NULL; (void)oldtype; (void)tile_nb; (void)diag;
 #endif  /* USE_MPI */
     return 0;
 }

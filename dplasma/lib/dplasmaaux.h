@@ -20,10 +20,10 @@ int dplasma_aux_create_tile_type( dague_remote_dep_datatype_t oldtype,
                                   unsigned int tile_nb,
                                   dague_remote_dep_datatype_t* newtype );
 int dplasma_aux_create_upper_type( dague_remote_dep_datatype_t oldtype,
-                                   unsigned int tile_nb,
+                                   unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
 int dplasma_aux_create_lower_type( dague_remote_dep_datatype_t oldtype,
-                                   unsigned int tile_nb,
+                                   unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
 
 #endif  /* DPLASMA_AUX_H_HAS_BEEN_INCLUDED */
