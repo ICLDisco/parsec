@@ -49,7 +49,7 @@ struct dague_arena_chunk_t {
     volatile uint32_t refcount;
     uint32_t cache_friendly_emptyness;
     dague_arena_t* origin;
-	void* data;
+    void* data;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
@@ -71,11 +71,11 @@ struct dague_arena_chunk_t {
 int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
                           size_t alignment,
-                          dague_remote_dep_datatype_t* opaque_dtt);
+                          dague_remote_dep_datatype_t opaque_dtt);
 int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
-                             dague_remote_dep_datatype_t* opaque_dtt,
+                             dague_remote_dep_datatype_t opaque_dtt,
                              int32_t max_used,
                              int32_t max_released); 
 void dague_arena_destruct(dague_arena_t* arena);

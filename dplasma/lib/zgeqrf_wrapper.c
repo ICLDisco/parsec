@@ -16,9 +16,8 @@
 
 #include "generated/zgeqrf.h"
 
-dague_object_t*
-dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
-		    tiled_matrix_desc_t *T )
+dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
+                                    tiled_matrix_desc_t *T )
 {
     dague_zgeqrf_object_t* object;
     dague_remote_dep_datatype_t tile_ddt, lower_ddt, upper_ddt, littlet_ddt;
@@ -31,47 +30,46 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
     
     MINMTNT = ((ddescA->lmt < ddescA->lnt)  ? ddescA->lmt : ddescA->lnt);
     object = dague_zgeqrf_new( (dague_ddesc_t*)T, (dague_ddesc_t*)ddescA,
-			       ddescA->mb, ddescA->nb,
-			       ddescA->m, ddescA->n, NULL, NULL, ddescA->lmt, ddescA->lnt,
-			       MINMTNT );
+                               ddescA->mb, ddescA->nb,
+                               ddescA->m, ddescA->n, NULL, NULL, ddescA->lmt, ddescA->lnt,
+                               MINMTNT );
     object->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->work_pool, ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t) );
     object->tau_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->tau_pool, ddescA->nb * sizeof(Dague_Complex64_t) );
 
-    dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
+    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(tile_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_DEFAULT_ARENA], extent,
-                          DAGUE_ARENA_ALIGNMENT_SSE, &tile_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, tile_ddt);
 
-    dplasma_aux_create_lower_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
+    dplasma_datatype_define_lower(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA], extent,
-                          DAGUE_ARENA_ALIGNMENT_SSE, &lower_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, lower_ddt);
 
-    dplasma_aux_create_upper_type(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
+    dplasma_datatype_define_upper(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_UPPER_TILE_ARENA], extent,
-                          DAGUE_ARENA_ALIGNMENT_SSE, &upper_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, upper_ddt);
 
-    dplasma_aux_create_rectangle_type(MPI_DOUBLE_COMPLEX, T->mb, ddescA->nb, -1,  &littlet_ddt);
+    dplasma_datatype_define_rectangle(MPI_DOUBLE_COMPLEX, T->mb, ddescA->nb, -1,  &littlet_ddt);
 #if defined(USE_MPI)
     MPI_Type_get_extent(littlet_ddt, &lb, &extent);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_LITTLE_T_ARENA], extent,
-                          DAGUE_ARENA_ALIGNMENT_SSE, &littlet_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, littlet_ddt);
 
     return (dague_object_t*)object;
 }
 
-int
-dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T) 
+int dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T) 
 {
     dague_object_t *dague_zgeqrf = NULL;
 
