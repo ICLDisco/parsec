@@ -91,11 +91,6 @@ dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_
         }
     }
 
-    printlog("TRMM A:%ux%u (%ux%u) and B:%ux%u (%ux%u) has %u tasks to run.\n",
-             A->m, A->n, A->mt, A->nt,
-             B->m, B->n, B->mt, B->nt,
-             dague_trmm->nb_local_tasks);
-
     return dague_trmm;
 }
 
