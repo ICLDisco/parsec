@@ -20,7 +20,7 @@
 #include <cblas.h>
 #include <math.h>
 #include <plasma.h>
-#include <lapack.h>
+#include <lapacke.h>
 
 #include "scheduling.h"
 #include "profiling.h"
