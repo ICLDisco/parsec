@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include "data_distribution.h"
 
 /** 
  * Note about thread safety:
@@ -114,7 +115,7 @@ int dague_profiling_add_dictionary_keyword( const char*name, const char* attribu
 int dague_profiling_dictionary_flush( void );
 
 /**
- * Traces one event.
+ * Traces one event, without a reference tile
  * Not thread safe (but it takes a thread_context parameter, and threads should not share 
  * the same thread_context parameter anyway).
  *
@@ -131,6 +132,27 @@ int dague_profiling_dictionary_flush( void );
  * not thread safe
  */
 int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id );
+
+/**
+ * Traces one event, with a reference tile
+ * Not thread safe (but it takes a thread_context parameter, and threads should not share 
+ * the same thread_context parameter anyway).
+ *
+ * @param [IN] context: a thread profiling context (should be the thread profiling context of the
+ *                      calling thread).
+ * @param [IN] key:     the key (as returned by add_dictionary_keyword) of the event to log
+ * @param [IN] id:      a (possibly unique) event identifier. Events are coupled together: start/end.
+ *                      a couple (start, end) has
+ *                        - the same key
+ *                        - end is the next "end" event with the same key and the same id as start in the
+ *                          event buffer of the thread context
+ *                        - if no matching end is found, this is an error
+ * @param [IN] ref_desc: the dague_ddesc_t of the reference tile
+ * @param [IN] ref_id:   the unique id of the tile using the data_key function of ref_desc and the coordinates of the tile
+ * @return 0 if success, -1 otherwise.
+ * not thread safe
+ */
+int dague_profiling_trace_with_ref( dague_thread_profiling_t* context, int key, unsigned long id, dague_ddesc_t *ref_desc, uint32_t ref_id );
 
 /**
  * Dump the current profile in the said filename.
