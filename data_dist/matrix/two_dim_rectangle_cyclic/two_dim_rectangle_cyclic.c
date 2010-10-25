@@ -254,7 +254,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 #endif /* DAGUE_PROFILING */
 }
 
-static int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
+int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
 {
   unsigned int i, j, il, jl, x, y;
     double *bdl, *f77;
