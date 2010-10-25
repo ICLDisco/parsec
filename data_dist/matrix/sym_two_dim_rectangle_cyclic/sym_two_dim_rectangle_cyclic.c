@@ -104,9 +104,9 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 {
     unsigned int m, n;
-    two_dim_block_cyclic_t * Ddesc;
+    sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
@@ -116,10 +116,10 @@ static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a u
 }
 static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
 {
-    two_dim_block_cyclic_t * Ddesc;    
+    sym_two_dim_block_cyclic_t * Ddesc;    
     unsigned int row, column;
     int res;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     column = datakey / Ddesc->super.lmt;
     row = datakey % Ddesc->super.lmt;
     res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
