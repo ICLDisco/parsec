@@ -250,6 +250,7 @@ dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam, int type)
     
     dague = dague_init(iparam[IPARAM_NCORES], pargc, pargv, iparam[IPARAM_MB]);
 
+#if 0
 #ifdef USE_MPI
     /**
      * Redefine the default type after dague_init.
@@ -305,6 +306,7 @@ dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam, int type)
         }
     }
 #endif  /* USE_MPI */
+#endif
 
     return dague;
 }

@@ -9,10 +9,6 @@
 
 
 #include "dague.h"
-#ifdef USE_MPI
-#include "remote_dep.h"
-extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
-#endif  /* defined(USE_MPI) */
 
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
