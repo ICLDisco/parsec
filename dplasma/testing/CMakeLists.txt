@@ -7,6 +7,7 @@ set(TESTS
   testing_ztrmm.c
   testing_ztrsm.c
   testing_zgetrf.c
+  testing_zgetrf_sd.c
   testing_zgeqrf.c
 )
 

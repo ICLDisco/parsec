@@ -65,7 +65,6 @@ int main(int argc, char ** argv)
     int ncst  = iparam[IPARAM_STN];
     int GRIDrows = iparam[IPARAM_GDROW];
     int mt = (M%MB==0) ? (M/MB) : (M/MB+1);
-    int nt = (N%NB==0) ? (N/NB) : (N/NB+1);
     int info;
 
     two_dim_block_cyclic_t ddescA;
@@ -99,9 +98,9 @@ int main(int argc, char ** argv)
 	/* Create GETRF DAGuE */
         printf("Generate GETRF DAG ... ");
         SYNC_TIME_START();
-	dague_zgetrf = (dague_object_t*)dplasma_zgetrf_New( (tiled_matrix_desc_t*)&ddescA,
-							    (tiled_matrix_desc_t*)&ddescLIPIV,
-							    &info );
+	dague_zgetrf = (dague_object_t*)dplasma_zgetrf_sd_New( (tiled_matrix_desc_t*)&ddescA,
+							       (tiled_matrix_desc_t*)&ddescLIPIV,
+							       &info );
 	dague_enqueue( dague, (dague_object_t*)dague_zgetrf);
         printf("Done\n");
         printf("Total nb tasks to run: %u\n", dague->taskstodo);
