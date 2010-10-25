@@ -99,6 +99,39 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
+
+#ifdef DAGUE_PROFILING
+static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+{
+    unsigned int m, n;
+    two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    va_start(ap, desc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+
+    return ((n * Ddesc->super.lmt) + m);    
+}
+static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer) /* return a string meaningful for profiling about data */
+{
+    two_dim_block_cyclic_t * Ddesc;    
+    unsigned int row, column;
+    int res;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    column = datakey / Ddesc->super.lmt;
+    row = datakey % Ddesc->super.lmt;
+    res = sprintf(buffer, "(%u, %u)", row, column);
+    if (res < 0)
+        {
+            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
+        }
+    return res;
+}
+#endif /* DAGUE_PROFILING */
+
+
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows )
 {
     unsigned int nb_elem, nb_elem_col, column, total;
@@ -169,4 +202,9 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
             } */
     Ddesc->super.super.rank_of =  sym_twoDBC_get_rank_for_tile;
     Ddesc->super.super.data_of =  sym_twoDBC_get_local_tile;
+#ifdef DAGUE_PROFILING
+    Ddesc->super.super.data_key = sym_twoDBC_data_key;
+    Ddesc->super.super.key_to_string = sym_twoDBC_key_to_string;
+#endif /* DAGUE_PROFILING */
+
 }
