@@ -18,7 +18,7 @@ union _internal_chunk_prefix_t {
 int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
                           size_t alignment,
-                          dague_remote_dep_datatype_t* opaque_dtt)
+                          dague_remote_dep_datatype_t opaque_dtt)
 {
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
@@ -27,7 +27,7 @@ int dague_arena_construct(dague_arena_t* arena,
     dague_atomic_lifo_construct(&arena->lifo);
     arena->alignment = alignment;
     arena->elem_size = elem_size;
-    arena->opaque_dtt = *opaque_dtt;
+    arena->opaque_dtt = opaque_dtt;
     arena->used = 0;     
     arena->released = 0;
     arena->max_used = INT32_MAX;
@@ -40,7 +40,7 @@ int dague_arena_construct(dague_arena_t* arena,
 int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
-                             dague_remote_dep_datatype_t* opaque_dtt,
+                             dague_remote_dep_datatype_t opaque_dtt,
                              int32_t max_used,
                              int32_t max_released)
 {
