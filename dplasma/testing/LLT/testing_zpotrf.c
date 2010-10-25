@@ -26,7 +26,6 @@
 #include "profiling.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
-#include "dplasmatypes.h"
 
 #include "testscommon.h"
 #include "timing.h"
@@ -76,7 +75,7 @@ int main(int argc, char ** argv)
     
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if( iparam[IPARAM_NGPUS] > 0 ) {
-        if( 0 != dague_gpu_init( &nbrequested_gpu, 0 ) ) {
+        if( 0 != dague_gpu_init( &iparam[IPARAM_NGPUS], 0 ) ) {
             fprintf(stderr, "Unable to initialize the CUDA environment.\n");
             exit(1);
         }
