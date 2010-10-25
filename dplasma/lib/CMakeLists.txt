@@ -4,7 +4,13 @@ include(JDFsupport)
 set(generated_files "")
 set(generated_jdf "")
 
-set(EXTRA_SOURCES memory_pool.c dplasmatypes.c)
+
+if(CUDA_FOUND AND "${DPLASMA_PRECISIONS}" MATCHES "s")
+  set(GPU_KERNEL_SOURCES cuda_stsmqr.c)
+else()
+  set(GPU_KERNEL_SOURCES "")
+endif()
+set(EXTRA_SOURCES ${GPU_KERNEL_SOURCES} memory_pool.c dplasmatypes.c dplasmaaux.c)
 
 ### generate the dplasma headers for all possible precisions
 set(HEADERS

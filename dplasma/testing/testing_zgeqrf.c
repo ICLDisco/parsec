@@ -39,10 +39,15 @@
 #include "testscommon.h"
 #include "timing.h"
 
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#include "gpu_data.h"
+#include "cuda_stsmqr.h"
+#endif
+
 #define _FMULS_GEQRF(M, N) ( ( (M) > (N) ) ? ((DagDouble_t)(N) * ( (DagDouble_t)(N) * ( 0.5 - (1. / 3.) * (DagDouble_t)(N) + (DagDouble_t)(M) ) + (DagDouble_t)(M) ) ) \
-			     : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) + 2. * (DagDouble_t)(N) ) ) )
+                             : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) + 2. * (DagDouble_t)(N) ) ) )
 #define _FADDS_GEQRF(M, N) ( ( (M) > (N) ) ? ((DagDouble_t)(N) * ( (DagDouble_t)(N) * ( 0.5 - (1. / 3.) * (DagDouble_t)(N) + (DagDouble_t)(M) )                    ) ) \
-			     : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) +      (DagDouble_t)(N) ) ) )
+                             : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) +      (DagDouble_t)(N) ) ) )
 
 int main(int argc, char ** argv)
 {
@@ -73,6 +78,15 @@ int main(int argc, char ** argv)
     
     dague_object_t *dague_zgeqrf = NULL;
     
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    if( iparam[IPARAM_NGPUS] > 0 ) {
+        if( 0 != dague_gpu_init( &iparam[IPARAM_NGPUS], 0 ) ) {
+            fprintf(stderr, "Unable to initialize the CUDA environment.\n");
+            exit(1);
+        }
+    }
+#endif
+
     /* initializing matrix structure */
     two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M,     N, 0, 0, LDA,   N, nrst, ncst, GRIDrows);
     two_dim_block_cyclic_init(&ddescT, matrix_ComplexDouble, nodes, cores, rank, IB, NB, mt*IB, N, 0, 0, mt*IB, N, nrst, ncst, GRIDrows);
@@ -87,6 +101,15 @@ int main(int argc, char ** argv)
     TIME_START();
     dague = setup_dague(&argc, &argv, iparam, PlasmaComplexDouble);
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
+
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    if( iparam[IPARAM_NGPUS] > 0 ) {
+        if( 0 != stsmqr_cuda_init( (tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescT ) ) {
+            fprintf(stderr, "Unable to load TSMQR operations.\n");
+            exit(1);
+	}
+    }
+#endif
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
@@ -115,7 +138,13 @@ int main(int argc, char ** argv)
         (void) gflops;
         TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
     }
-    
+
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    if( iparam[IPARAM_NGPUS] > 0 ) {
+	stsmqr_cuda_fini();
+    }
+#endif
+
     dague_data_free(&ddescA.mat);
     dague_data_free(&ddescT.mat);
 
