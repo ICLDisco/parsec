@@ -4,7 +4,7 @@ include(JDFsupport)
 set(generated_files "")
 set(generated_jdf "")
 
-set(EXTRA_SOURCES memory_pool.c dplasmaaux.c)
+set(EXTRA_SOURCES memory_pool.c dplasmatypes.c)
 
 ### generate the dplasma headers for all possible precisions
 set(HEADERS

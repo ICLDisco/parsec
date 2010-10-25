@@ -10,7 +10,7 @@
 #include <dague.h>
 #include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmaaux.h"
+#include "dplasmatypes.h"
 
 #include "generated/zgemm_NN.h"
 #include "generated/zgemm_NT.h"
@@ -76,10 +76,10 @@ dplasma_zgemm_New( const int transA, const int transB,
         }
     }
 
-    dplasma_aux_create_tile_type(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
+    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
     dague_arena_construct(arena,
                           ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t),
-                          DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
+                          DAGUE_ARENA_ALIGNMENT_SSE, default_ddt);
     return zgemm_object;
 }
 
@@ -91,8 +91,8 @@ dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
     dague_object_t *dague_zgemm = NULL;
 
     dague_zgemm = dplasma_zgemm_New(transA, transB, 
-				    alpha, A, B,
-				    beta, C);
+                                    alpha, A, B,
+                                    beta, C);
 
     dague_enqueue( dague, (dague_object_t*)dague_zgemm);
     dague_progress(dague);

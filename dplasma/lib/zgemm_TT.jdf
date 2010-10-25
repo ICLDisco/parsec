@@ -10,7 +10,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "dplasmatypes.h"
+#include "dplasmajdf.h"
 %}
 
 /*
