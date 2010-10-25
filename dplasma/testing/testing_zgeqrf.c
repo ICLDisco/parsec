@@ -39,8 +39,10 @@
 #include "testscommon.h"
 #include "timing.h"
 
-#define _FMULS_GEQRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N)) - (DagDouble_t)(N) ) )
-#define _FADDS_GEQRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N))                    ) )
+#define _FMULS_GEQRF(M, N) ( ( (M) > (N) ) ? ((DagDouble_t)(N) * ( (DagDouble_t)(N) * ( 0.5 - (1. / 3.) * (DagDouble_t)(N) + (DagDouble_t)(M) ) + (DagDouble_t)(M) ) ) \
+			     : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) + 2. * (DagDouble_t)(N) ) ) )
+#define _FADDS_GEQRF(M, N) ( ( (M) > (N) ) ? ((DagDouble_t)(N) * ( (DagDouble_t)(N) * ( 0.5 - (1. / 3.) * (DagDouble_t)(N) + (DagDouble_t)(M) )                    ) ) \
+			     : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) +      (DagDouble_t)(N) ) ) )
 
 int main(int argc, char ** argv)
 {
