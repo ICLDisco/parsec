@@ -22,9 +22,9 @@ extern "C" %{
   CORE_zunmqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
 #endif
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "../testing/psgeqrf/gpu_stsmqr.h"
+#include "cuda_stsmqr.h"
 extern int *gpu_counter;
 #endif
 
