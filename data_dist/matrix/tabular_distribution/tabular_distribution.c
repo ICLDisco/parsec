@@ -67,6 +67,38 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
     return  Ddesc->tiles_table[res].tile;
 }
 
+
+#ifdef DAGUE_PROFILING
+static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+{
+    unsigned int m, n;
+    two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    va_start(ap, desc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+
+    return ((n * Ddesc->super.lmt) + m);    
+}
+static int  td_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
+{
+    two_dim_block_cyclic_t * Ddesc;    
+    unsigned int row, column;
+    int res;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    column = datakey / Ddesc->super.lmt;
+    row = datakey % Ddesc->super.lmt;
+    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
+    if (res < 0)
+        {
+            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
+        }
+    return res;
+}
+#endif /* DAGUE_PROFILING */
+
 void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table )
 {
     size_t res;
@@ -130,7 +162,11 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.nb_local_tiles = total;
     Ddesc->super.super.rank_of =  td_get_rank_for_tile;
     Ddesc->super.super.data_of =  td_get_local_tile;
-    
+#ifdef DAGUE_PROFILING
+    Ddesc->super.super.data_key = td_data_key;
+    Ddesc->super.super.key_to_string = td_key_to_string;
+#endif /* DAGUE_PROFILING */
+
 }
 
 

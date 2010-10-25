@@ -109,6 +109,37 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
+#ifdef DAGUE_PROFILING
+static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
+{
+    unsigned int m, n;
+    two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    va_start(ap, desc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+
+    return ((n * Ddesc->super.lmt) + m);    
+}
+static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
+{
+    two_dim_block_cyclic_t * Ddesc;    
+    unsigned int row, column;
+    int res;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    column = datakey / Ddesc->super.lmt;
+    row = datakey % Ddesc->super.lmt;
+    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
+    if (res < 0)
+        {
+            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
+        }
+    return res;
+}
+#endif /* DAGUE_PROFILING */
+
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
 {
     unsigned int temp;
@@ -217,9 +248,13 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
             }*/
     Ddesc->super.super.rank_of =  twoDBC_get_rank_for_tile;
     Ddesc->super.super.data_of =  twoDBC_get_local_tile;
+#ifdef DAGUE_PROFILING
+    Ddesc->super.super.data_key = twoDBC_data_key;
+    Ddesc->super.super.key_to_string = twoDBC_key_to_string;
+#endif /* DAGUE_PROFILING */
 }
 
-void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda)
+static int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
 {
   unsigned int i, j, il, jl, x, y;
     double *bdl, *f77;
@@ -243,7 +278,7 @@ void twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda)
 		    f77[lda*y+x] = bdl[(Mdesc->super.nb)*y + x];
 	    }
 	}
-    return;
+    return 0;
 }
 
 int twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda) 

@@ -149,6 +149,14 @@ function svgtranslate( x ) {
     <g id="hrule">
      <rect x='<?php echo "$X_OFFSET";?>' y="66.00" width="<?php echo "$WIDTH";?>" height="2.0" />
 <?php
+
+function collide($e, $c) {
+    return ( 
+            (($e->START >= $c->START) && ($e->START <= $c->END)) ||
+            (($e->END >= $c->START) && ($e->END <= $c->END))
+           );
+}
+
 for( $i = 0; $i < 20; $i++) {
     $x = $i * $WIDTH/20.0 + $X_OFFSET;
     $time = sprintf("%.2le %s", $i * $totaltime / 20.0, $shorttimeunit);
@@ -189,11 +197,31 @@ foreach ($ALLXML as $xml) {
             $attributes = $my_dk->ATTRIBUTES;
             
             foreach ( $key->EVENT as $event ) {
+
+                #compute how many events on this line collide with this one
+                #and the y index of this event
+                #This makes the generation quadratic in number of events per line
+                $cyid = 0;
+                $nby = 0;
+                
+                foreach ( $key->EVENT as $candidate ) {
+                    if( $event == $candidate ) {
+                        $eyid = $cyid;
+                    } 
+                    if( collide($candidate, $event) ) {
+                        $cyid++;
+                        $nby++;
+                    }
+                }
+
+                $eheight = $h/$nby; #$nby >= 1 because collide($event, $event)
+                $ey = $y + $eyid * $eyheight;
+
                 $duration = ($event->END - $event->START);
                 $x = $event->START * $scale;
                 $w = $duration * $scale;
                 $id = $event->ID;
-                echo "        <rect x='$x' y='$y' width='$w' height='$h' style='$attributes' id='$name$id'>\n";
+                echo "        <rect x='$x' y='$ey' width='$w' height='$eheight' style='$attributes' id='$name$id'>\n";
                 echo "         <FName>$name</FName>\n";
                 echo "         <FDesc>$duration $timeunit</FDesc>\n";
                 echo "         <FID>$id</FID>\n";

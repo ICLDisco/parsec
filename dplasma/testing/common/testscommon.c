@@ -315,6 +315,13 @@ void cleanup_dague(dague_context_t* dague, char *name)
 {
 #ifdef DAGUE_PROFILING
     char* filename = NULL;
+    int rank;
+
+#if defined(USE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    rank = 0;
+#endif
     
     asprintf( &filename, "%s.%d.profile", name, rank );
     dague_profiling_dump_xml(filename);

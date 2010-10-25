@@ -17,7 +17,7 @@ extern "C" %{
 /* Ugly hack to be remove with plasma 2.3 */
 #if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
 #define CORE_ztsmqr(side, trans, M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
-  CORE_zssmqr(side, trans, M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK))
+  CORE_zssmqr(side, trans, M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK)
 #define CORE_zunmqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
   CORE_zunmqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
 #endif
