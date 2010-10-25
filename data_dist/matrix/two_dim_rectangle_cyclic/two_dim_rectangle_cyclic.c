@@ -252,10 +252,34 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.super.data_key = twoDBC_data_key;
     Ddesc->super.super.key_to_string = twoDBC_key_to_string;
 #endif /* DAGUE_PROFILING */
-
-
 }
 
+static int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
+{
+  unsigned int i, j, il, jl, x, y;
+    double *bdl, *f77;
+    int64_t dec;
+
+    /* check which tiles to generate */
+    for ( j = 0 ; j < Mdesc->super.lnt ; j++)
+        for ( i = 0 ; i < Mdesc->super.lmt ; i++)
+        {
+	    if( Mdesc->super.super.myrank ==
+		Mdesc->super.super.rank_of((dague_ddesc_t *)Mdesc, i, j ) )
+	    {
+		il = i / ( Mdesc->nrst * Mdesc->GRIDrows ) +  (i % ( Mdesc->nrst * Mdesc->GRIDrows )) - ( Mdesc->nrst * Mdesc->rowRANK );
+		jl = j / ( Mdesc->ncst * Mdesc->GRIDcols ) +  (j % ( Mdesc->ncst * Mdesc->GRIDcols )) - ( Mdesc->ncst * Mdesc->colRANK );
+		dec = ((int64_t)(Mdesc->super.nb)*(int64_t)lda*(int64_t)(jl)) + (int64_t)((Mdesc->super.mb)*(il));
+		bdl = Mdesc->super.super.data_of((dague_ddesc_t *)Mdesc, i, j );
+		f77 = &A[ dec ];
+
+		for (y = 0; y < (Mdesc->super.nb); y++)
+		  for (x = 0; x < (Mdesc->super.mb); x++)
+		    f77[lda*y+x] = bdl[(Mdesc->super.nb)*y + x];
+	    }
+	}
+    return 0;
+}
 
 int twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda) 
 {
