@@ -2,6 +2,7 @@
 #set(CMAKE_Fortran_COMPILER "vtf77")
 #Add_Subdirectory(trsmun)
 #Add_Subdirectory(LAQR)
+#Add_Subdirectory(rtt)
 if (DAGUE_DO_UNIT_TESTS )
   Add_Subdirectory(unit)
 #  Add_Subdirectory(debug)
