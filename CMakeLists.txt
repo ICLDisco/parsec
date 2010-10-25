@@ -227,7 +227,7 @@ endif( HAVE_HWLOC )
 if (DAGUE_MPI)
   find_package(MPI)
   if (MPI_FOUND)
-    include_directories( ${MPI_INCLUDE_PATH} ) 
+    include_directories( ${MPI_INCLUDE_PATH} )
   else (MPI_FOUND)
     message(error "MPI support is required in order to build the distributed version of DAGuE."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
@@ -250,7 +250,8 @@ if( DAGUE_CUDA )
   if (CUDA_FOUND)
     include_directories(${CUDA_INCLUDE_DIRS})
     set( DAGUE_CUDA_SUPPORT 1)
-    set( EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
+    list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
+    list(APPEND EXTRA_SOURCES src/gpu_data.c)
   else (CUDA_FOUND)
     set( DAGUE_CUDA_SUPPORT 0)
   endif (CUDA_FOUND)
@@ -289,7 +290,6 @@ set(SRCS
   src/freelist.c 
   src/debug.c 
   src/bindthread.c 
-  src/gpu_data.c
   src/mempool.c 
   ${EXTRA_SOURCES} 
 )

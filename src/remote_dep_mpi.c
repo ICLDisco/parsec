@@ -869,6 +869,8 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
     INC_NEXT_TAG(MAX_PARAM_COUNT);
 }
 
+#if 0
+/* DEPRECATED, TODO: REMOVE */
 /* Exported default datatype */
 static MPI_Datatype MPI_DAGUE_DEFAULT_DATA_TYPE;
 dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
@@ -887,3 +889,5 @@ void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
     dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, ub, 
                           DAGUE_ARENA_ALIGNMENT_SSE, &MPI_DAGUE_DEFAULT_DATA_TYPE);
 }
+#endif 
+

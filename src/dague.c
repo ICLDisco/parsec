@@ -371,6 +371,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
     papime_start();
 #endif
 
+#if 0
     DAGUE_TILE_SIZE = tile_size;  /* TODO: REMOVE ME */
 
 #if defined(USE_MPI)
@@ -378,6 +379,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
      * at least authorize to pass something different that MPI_DOUBLE?
      */
     remote_dep_mpi_create_default_datatype(tile_size, MPI_DOUBLE);
+#endif
 #endif
 
 #if defined(HAVE_HWLOC)
