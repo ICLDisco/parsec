@@ -114,7 +114,7 @@ static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a u
 
     return ((n * Ddesc->super.lmt) + m);    
 }
-static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer) /* return a string meaningful for profiling about data */
+static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
 {
     two_dim_block_cyclic_t * Ddesc;    
     unsigned int row, column;
@@ -122,7 +122,7 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
     Ddesc = (two_dim_block_cyclic_t *)desc;
     column = datakey / Ddesc->super.lmt;
     row = datakey % Ddesc->super.lmt;
-    res = sprintf(buffer, "(%u, %u)", row, column);
+    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
     if (res < 0)
         {
             printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
