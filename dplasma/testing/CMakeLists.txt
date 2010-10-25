@@ -15,5 +15,4 @@ testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 
 Add_Subdirectory(LLT)
 Add_Subdirectory(TSQR)
-Add_Subdirectory(psgeqrf)
 
