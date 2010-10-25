@@ -18,6 +18,7 @@ typedef struct dague_execution_unit dague_execution_unit_t;
 #include "hbbuffer.h"
 #include "mempool.h"
 #include "dequeue.h"
+#include "profiling.h"
 
 struct dague_execution_unit {
     int32_t eu_id;
