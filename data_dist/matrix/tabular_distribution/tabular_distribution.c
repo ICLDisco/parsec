@@ -165,6 +165,8 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
 #ifdef DAGUE_PROFILING
     Ddesc->super.super.data_key = td_data_key;
     Ddesc->super.super.key_to_string = td_key_to_string;
+    Ddesc->super.super.key = NULL;
+    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROFILING */
 
 }

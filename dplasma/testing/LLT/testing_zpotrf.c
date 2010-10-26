@@ -85,6 +85,9 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     sym_two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank,
                                   MB, NB, N, N, 0, 0, LDA, N, GRIDrows);
+#if defined(DAGUE_PROFILING)
+    ddescA.super.super.key = strdup("A");
+#endif
     ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
 
     /* Initialize DAGuE */
@@ -158,6 +161,9 @@ int main(int argc, char ** argv)
         sym_two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank,
                                       MB, NB, N, N, 0, 0, LDA, N, GRIDrows);
         ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+#if defined(DAGUE_PROFILING)
+        ddescB.super.super.key = strdup("B");
+#endif
 
         sprintf(fname , "sposv_r%u", rank );
         printf("reading matrix from file\n");
@@ -166,10 +172,16 @@ int main(int argc, char ** argv)
         matrix_scompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
 
         dague_data_free(ddescB.mat);
+#if defined(DAGUE_PROFILING)
+        free(ddescB.super.super.key);
+#endif
     }
 #endif
 
     dague_data_free(ddescA.mat);
+#if defined(DAGUE_PROFILING)
+        free(ddescA.super.super.key);
+#endif
 
     cleanup_dague(dague, "zpotrf");
     /*** END OF DAGUE COMPUTATION ***/

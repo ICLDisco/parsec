@@ -267,6 +267,48 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
     return dague_profiling_trace_with_ref( context, key, id, NULL, 0 );
 }
 
+static void dague_profiling_dump_data_dimensions( FILE *out )
+{
+    dague_list_item_t *it;
+    dague_thread_profiling_t* profile;
+    unsigned int key, start_idx;
+    dague_ddesc_t **disp_ddesc = NULL;
+    char          **disp_vals  = NULL;
+    int  disp_nb = 0;
+
+    dague_atomic_lock( &threads.atomic_lock );
+
+    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
+         it != &threads.ghost_element; 
+         it = (dague_list_item_t*)it->list_next ) {
+        profile = (dague_thread_profiling_t*)it;
+        for( key = 0; key < dague_prof_keys_count; key++ ) {
+            for( start_idx = 0; start_idx < min(profile->events_count, profile->events_limit); start_idx++ ) {
+                if( NULL != profile->events[start_idx].ddesc_ref &&
+                    NULL != profile->events[start_idx].ddesc_ref->key_dim ) {
+                    disp_nb++;
+                    disp_ddesc = (dague_ddesc_t**)realloc(disp_ddesc, disp_nb * sizeof(dague_ddesc_t*));
+                    disp_vals  = (char**)realloc(disp_vals, disp_nb * sizeof(char*));
+                    disp_ddesc[disp_nb-1] = profile->events[start_idx].ddesc_ref;
+                    disp_vals[disp_nb-1]  = profile->events[start_idx].ddesc_ref->key_dim;
+                    profile->events[start_idx].ddesc_ref->key_dim = NULL;
+                    fprintf(out, "    <INFO NAME=\"DIMENSION\">%s%s</INFO>\n",
+                            (NULL == profile->events[start_idx].ddesc_ref->key) ? "" : profile->events[start_idx].ddesc_ref->key,
+                            disp_vals[disp_nb-1]);
+                }
+            }
+        }
+    }
+
+    dague_atomic_unlock( &threads.atomic_lock );
+
+    for(; disp_nb > 0; disp_nb--) {
+        disp_ddesc[disp_nb-1]->key_dim = disp_vals[disp_nb-1];
+    }
+    free(disp_ddesc);
+    free(disp_vals);
+}
+
 static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile, 
                                          FILE *out,
                                          dague_time_t relative )
@@ -275,6 +317,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
     uint64_t start, end;
     static int displayed_error_message = 0;
     char *refstr = malloc(4);
+    char *refstrprefix;
     int refstrsize = 4, refstrresize;
 
     for( key = 0; key < dague_prof_keys_count; key++ ) {
@@ -316,6 +359,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 dague_ddesc_t *d = profile->events[start_idx].ddesc_ref;
                 do {
                     refstrresize = d->key_to_string(d, profile->events[start_idx].ref_id, refstr, refstrsize);
+                    refstrprefix = (d->key == NULL) ? "" : d->key;
                     
                     if( refstrresize >= refstrsize ) {
                         refstr = (char*)realloc(refstr, refstrresize+1);
@@ -326,14 +370,15 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 } while(1);
             } else {
                 refstr[0] = '\0';
+                refstrprefix = "";
             }
 
             fprintf(out, "       <ID>%lu</ID>\n"
                          "       <START>%"PRIu64"</START>\n"
                          "       <END>%"PRIu64"</END>\n"
-                         "       <REF>%s</REF>\n",
+                         "       <REF>%s%s</REF>\n",
                     profile->events[start_idx].id,
-                    start, end, refstr);
+                    start, end, refstrprefix, refstr);
 #ifdef HAVE_PAPI
             fprintf(out, "       <PAPI_START>%ld</PAPI_START>\n"
                          "       <PAPI_END>%ld</PAPI_END>\n",
@@ -374,6 +419,9 @@ int dague_profiling_dump_xml( const char* filename )
     for(info = dague_profiling_infos; info != NULL; info = info->next ) {
         fprintf(tracefile, "    <INFO NAME=\"%s\">%d</INFO>\n", info->key, info->value);
     }
+
+    dague_profiling_dump_data_dimensions( tracefile );
+
     fprintf(tracefile,
             "  </INFOS>\n"
             "  <DICTIONARY>\n");
