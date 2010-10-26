@@ -41,7 +41,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
     MPI_Type_get_extent(tile_ddt, &lb, &extent);
 #else
-    tile_dtt = NULL;
+    tile_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_DEFAULT_ARENA], extent,
@@ -52,7 +52,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_lower(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #else
-    lower_dtt = NULL;
+    lower_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_LOWER_TILE_ARENA], extent,
@@ -63,7 +63,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_upper(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #else
-    upper_dtt = NULL;
+    upper_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_UPPER_TILE_ARENA], extent,
@@ -74,7 +74,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_rectangle(MPI_INT, 1, ddescA->nb, -1, &pivot_ddt);
     MPI_Type_get_extent(pivot_ddt, &lb, &extent);
 #else
-    pivot_dtt = NULL;
+    pivot_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(int);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_PIVOT_VECT_ARENA], extent,
@@ -85,7 +85,7 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_rectangle(MPI_INT, L->mb, ddescA->nb, -1, &littlel_ddt);
     MPI_Type_get_extent(littlel_ddt, &lb, &extent);
 #else
-    littlel_dtt = NULL;
+    littlel_ddt = NULL;
     extent = L->mb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_LITTLE_L_ARENA], extent,
@@ -133,7 +133,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
     MPI_Type_get_extent(tile_ddt, &lb, &extent);
 #else
-    tile_dtt = NULL;
+    tile_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_DEFAULT_ARENA], extent,
@@ -144,7 +144,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_lower(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #else
-    lower_dtt = NULL;
+    lower_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_LOWER_TILE_ARENA], extent,
@@ -155,7 +155,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_upper(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #else
-    upper_dtt = NULL;
+    upper_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_UPPER_TILE_ARENA], extent,
@@ -166,7 +166,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_rectangle(MPI_INT, 1, ddescA->nb, -1, &pivot_ddt);
     MPI_Type_get_extent(pivot_ddt, &lb, &extent);
 #else
-    pivot_dtt = NULL;
+    pivot_ddt = NULL;
     extent = ddescA->nb * sizeof(int);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_PIVOT_VECT_ARENA], extent,
@@ -177,7 +177,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_rectangle(MPI_DOUBLE_COMPLEX, LIPIV->mb, ddescA->nb, ddescA->nb*ddescA->nb, &littlel_pivot_ddt);
     MPI_Type_get_extent(littlel_pivot_ddt, &lb, &extent);
 #else
-    littlel_pivot_dtt = NULL;
+    littlel_pivot_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgetrf_sd_LITTLE_L_PIVOT_VECT_ARENA], extent,

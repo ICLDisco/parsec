@@ -42,7 +42,7 @@ dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
     MPI_Type_get_extent(tile_ddt, &lb, &extent);
 #else
-    tile_dtt = NULL;
+    tile_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_DEFAULT_ARENA], extent,
@@ -52,7 +52,7 @@ dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_lower(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
     MPI_Type_get_extent(lower_ddt, &lb, &extent);
 #else
-    tile_dtt = NULL;
+    tile_ddt = NULL;
     extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA], extent,
@@ -62,8 +62,8 @@ dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_upper(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
     MPI_Type_get_extent(upper_ddt, &lb, &extent);
 #else
-    tile_dtt = NULL;
-    extent = ddescA->nb * ddesA->nb * sizeof(Dague_Complex64_t);
+    tile_ddt = NULL;
+    extent = ddescA->nb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_UPPER_TILE_ARENA], extent,
                           DAGUE_ARENA_ALIGNMENT_SSE, upper_ddt);
@@ -72,7 +72,7 @@ dague_object_t* dplasma_zgeqrf_New( tiled_matrix_desc_t* ddescA,
     dplasma_datatype_define_rectangle(MPI_DOUBLE_COMPLEX, T->mb, ddescA->nb, -1,  &littlet_ddt);
     MPI_Type_get_extent(littlet_ddt, &lb, &extent);
 #else
-    littlet_dtt = NULL;
+    littlet_ddt = NULL;
     extent = T->mb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(USE_MPI) */
     dague_arena_construct(object->arenas[DAGUE_zgeqrf_LITTLE_T_ARENA], extent,
