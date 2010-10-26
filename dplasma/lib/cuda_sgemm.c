@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "gpu_gemm.h"
+#include "cuda_sgemm.h"
 #include "dague_config.h"
 #include "gpu_data.h"
 #include "dague.h"

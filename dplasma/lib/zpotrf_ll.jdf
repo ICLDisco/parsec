@@ -16,7 +16,7 @@ extern "C" %{
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "../testing/LLT/gpu_gemm.h"
+#include "cuda_sgemm.h"
 extern int *gpu_counter;
 #endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
 %}
@@ -234,8 +234,8 @@ BODY
         }
         if( -2 == rc ) {
             /* The GPU failed to execute this task, but the task was already rescheduled */
-	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
-	    exit(2);
+            fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+            exit(2);
         }
         /* Continue with the task on the cores */
     }

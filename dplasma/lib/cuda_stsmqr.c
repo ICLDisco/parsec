@@ -282,7 +282,7 @@ int stsmqr_cuda_fini(void)
         (OFFSET) += sizeof(float);                                      \
     } while (0)
 
-#include "generated/sgeqrt.h"
+#include "generated/sgeqrf.h"
 #define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrt_object_t*)(ec)->dague_object)->A))
 #define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrt_object_t*)(ec)->dague_object)->T))
 

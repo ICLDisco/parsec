@@ -6,7 +6,7 @@ set(generated_jdf "")
 
 
 if(CUDA_FOUND AND "${DPLASMA_PRECISIONS}" MATCHES "s")
-  set(GPU_KERNEL_SOURCES cuda_stsmqr.c)
+  set(GPU_KERNEL_SOURCES cuda_sgemm.c cuda_stsmqr.c)
 else()
   set(GPU_KERNEL_SOURCES "")
 endif()

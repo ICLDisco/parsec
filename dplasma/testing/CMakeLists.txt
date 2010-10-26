@@ -1,11 +1,12 @@
 Add_Subdirectory(common)
 
-include(testings)
+include(TestingRules.cmake)
 
 set(TESTS
   testing_zgemm.c
   testing_ztrmm.c
   testing_ztrsm.c
+  testing_zpotrf.c
   testing_zgetrf.c
   testing_zgetrf_sd.c
   testing_zgeqrf.c
@@ -13,6 +14,12 @@ set(TESTS
 
 testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 
-Add_Subdirectory(LLT)
+#Add the LL define to potrf LL 
+#testings_addexec(lltargets "+;${DPLASMA_PRECISIONS}" "testing_zpotrf_ll.c")
+foreach(target ${lltargets})
+  set_target_properties(${target} PROPERTIES COMPILE_FLAGS "-DLLT_LL")
+endforeach()
+
+#Add_Subdirectory(LLT)
 Add_Subdirectory(TSQR)
 

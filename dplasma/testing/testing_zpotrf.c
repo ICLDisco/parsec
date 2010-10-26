@@ -38,7 +38,7 @@
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "../gpu_gemm.h"
+#include "cuda_sgemm.h"
 #endif
 
 //#ifdef VTRACE

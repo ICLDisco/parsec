@@ -13,7 +13,7 @@ if( CUDA_FOUND)
   cuda_add_library( sgemm-sm_20 sgemm_fermi.cu)
   set(GPU_SUPPORT gpu_gemm.c)
 endif (CUDA_FOUND)
-
+if(0)
 if( PLASMA_FOUND )
   precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "testing_zpotrf.c")
 
@@ -52,4 +52,4 @@ if( PLASMA_FOUND )
   endforeach()
                                                                    
 endif( PLASMA_FOUND )
-
+endif()
