@@ -13,7 +13,7 @@
 #include <assert.h>
 
 #include "jdf.h"
-#include "dague.tab.h"
+#include "dague.y.h"
 
 extern char *yyfilename;
 extern int current_lineno;

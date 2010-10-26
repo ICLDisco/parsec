@@ -5,11 +5,13 @@
  *                         reserved.
  */
 
-#include "jdf.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "jdf.h"
+
+#include "dague.y.h"
 
 /*
 static expr_t *global_expr_stack[MAX_EXPR_STACK_COUNT];

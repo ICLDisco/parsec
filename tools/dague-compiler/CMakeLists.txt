@@ -1,5 +1,5 @@
-BISON_TARGET(dague_yacc dague.y ${CMAKE_CURRENT_BINARY_DIR}/dague.tab.c)
-FLEX_TARGET(dague_flex dague.l  ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
+BISON_TARGET(dague_yacc dague.y ${CMAKE_CURRENT_BINARY_DIR}/dague.y.c)
+FLEX_TARGET(dague_flex dague.l  ${CMAKE_CURRENT_BINARY_DIR}/dague.l.c)
 ADD_FLEX_BISON_DEPENDENCY(dague_flex dague_yacc)
 
 add_executable(daguepp main.c jdf.c jdf2c.c ${BISON_dague_yacc_OUTPUTS} ${FLEX_dague_flex_OUTPUTS})
