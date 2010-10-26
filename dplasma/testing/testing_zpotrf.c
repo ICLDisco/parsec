@@ -148,13 +148,13 @@ int main(int argc, char ** argv)
     }
 #else
     /* Old checking by comparison: will be remove because doesn't check anything */
-    if ( iparam[IPARAM_CHECK] == 0 ) {
+    if ( iparam[IPARAM_CHECK] == 1 ) {
         char fname[20];
-        sprintf(fname , "zposv_r%u", rank );
+        sprintf(fname , "zposv_r%d", rank );
         printf("writing matrix to file\n");
         data_write((tiled_matrix_desc_t *) &ddescA, fname);
     } 
-    else {
+    else if( iparam[IPARAM_CHECK] == 2 ) {
         char fname[20];
         sym_two_dim_block_cyclic_t ddescB;
 
@@ -165,7 +165,7 @@ int main(int argc, char ** argv)
         ddescB.super.super.key = strdup("B");
 #endif
 
-        sprintf(fname , "sposv_r%u", rank );
+        sprintf(fname , "sposv_r%d", rank );
         printf("reading matrix from file\n");
         data_read((tiled_matrix_desc_t *) &ddescB, fname);
         
