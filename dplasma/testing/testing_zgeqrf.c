@@ -97,6 +97,11 @@ int main(int argc, char ** argv)
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
 
+#if defined(DAGUE_PROFILING)
+    ddescA.super.super.key = strdup("A");
+    ddescT.super.super.key = strdup("T");
+#endif
+
     /* Initialize DAGuE */
     TIME_START();
     dague = setup_dague(&argc, &argv, iparam, PlasmaComplexDouble);
@@ -147,6 +152,11 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
+
+#if defined(DAGUE_PROFILING)
+    free(ddescA.super.super.key);
+    free(ddescT.super.super.key);
+#endif
 
     cleanup_dague(dague, "zgeqrf");
     /*** END OF DAGUE COMPUTATION ***/
