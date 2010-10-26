@@ -13,11 +13,11 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
       ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS}
       )
   else ( DAGUE_MPI AND MPI_FOUND )
-    set(testings_addexe_CFLAGS  "-DADD")
-    set(testings_addexe_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-    set(testings_addexe_LIBS   
-      dplasma  dplasma_testscommon dague  dague_distribution_matrix 
-      ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS}
+    set(testings_addexec_CFLAGS  "-DADD")
+    set(testings_addexec_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
+    set(testings_addexec_LIBS   
+      dplasma dplasma_testscommon dague dague_distribution_matrix 
+      ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS}
       )
   endif()
 
