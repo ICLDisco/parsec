@@ -44,7 +44,7 @@ extern char *transstr[3];
 void print_usage(void);
 void runtime_init(int argc, char **argv, int *iparam);
 void runtime_fini(void);
-dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam, int type);
+dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam);
 void cleanup_dague(dague_context_t* dague, char *name);
 
 #endif /* _TESTSCOMMON_H */

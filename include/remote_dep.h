@@ -132,10 +132,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 /* Memcopy a particular data using datatype specification */
 void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, const dague_remote_dep_datatype_t datatype);
 
-/* Create a default datatype */
-extern struct dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
-//extern dague_remote_dep_datatype_t DAGUE_DEFAULT_DATA_TYPE;
-void remote_dep_mpi_create_default_datatype(int tile_size, dague_remote_dep_datatype_t base);
 #else 
 # define dague_remote_dep_init(ctx) (1)
 # define dague_remote_dep_fini(ctx) (0)
@@ -143,7 +139,6 @@ void remote_dep_mpi_create_default_datatype(int tile_size, dague_remote_dep_data
 # define dague_remote_dep_off(ctx)  (0)
 # define dague_remote_dep_progress(ctx) (0)
 # define dague_remote_dep_activate(ctx, o, r, c) (-1)
-# define DAGUE_DEFAULT_DATA_TYPE    (NULL)
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */

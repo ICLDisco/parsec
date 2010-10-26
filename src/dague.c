@@ -107,8 +107,6 @@ static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
 
-int DAGUE_TILE_SIZE = 0;
-
 const dague_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
     unsigned int i;
@@ -298,6 +296,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif
 
 #if defined(DAGUE_CACHE_AWARE)
+#error "The DAGUE_CACHE_AWARE code depends on obsolete global TILE_SIZE. Please disable this option (in ccmake toggle DAGUE_CACHE_AWARE to off)."
 #define TILE_SIZE (120*120*sizeof(double))
         for(level = 0; level < dague_hwloc_nb_levels(); level++) {
             master = dague_hwloc_master_id(level, eu->eu_id);
@@ -340,7 +339,7 @@ extern int num_events;
 extern char* event_names[];
 #endif
 
-dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_size )
+dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 {
     int argc = (*pargc), i;
     char** argv = NULL;
@@ -369,17 +368,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[], int tile_
 
 #if defined(HAVE_PAPI)
     papime_start();
-#endif
-
-#if 0
-    DAGUE_TILE_SIZE = tile_size;  /* TODO: REMOVE ME */
-
-#if defined(USE_MPI)
-    /* Change this to pass the MPI Datatype as parameter to dague_init, or 
-     * at least authorize to pass something different that MPI_DOUBLE?
-     */
-    remote_dep_mpi_create_default_datatype(tile_size, MPI_DOUBLE);
-#endif
 #endif
 
 #if defined(HAVE_HWLOC)

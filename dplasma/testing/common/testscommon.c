@@ -244,69 +244,11 @@ void runtime_fini(void)
 /*
  *  DaGUE Setup
  */
-dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam, int type)
+dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam)
 {
     dague_context_t *dague;
     
-    dague = dague_init(iparam[IPARAM_NCORES], pargc, pargv, iparam[IPARAM_MB]);
-
-#if 0
-#ifdef USE_MPI
-    /**
-     * Redefine the default type after dague_init.
-     */
-    {
-        MPI_Datatype default_ddt;
-        char type_name[MPI_MAX_OBJECT_NAME];
-    
-        switch( type ) {
-        case PlasmaRealFloat:
-            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_FLOAT*%d*%d", 
-                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
-    
-            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_FLOAT, &default_ddt);
-            MPI_Type_set_name(default_ddt, type_name);
-            MPI_Type_commit(&default_ddt);
-            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(float), 
-                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-            break;
-        case PlasmaRealDouble:
-            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", 
-                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
-    
-            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_DOUBLE, &default_ddt);
-            MPI_Type_set_name(default_ddt, type_name);
-            MPI_Type_commit(&default_ddt);
-            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(double), 
-                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-            break;
-        case PlasmaComplexFloat:
-            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_COMPLEX*%d*%d", 
-                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
-    
-            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_COMPLEX, &default_ddt);
-            MPI_Type_set_name(default_ddt, type_name);
-            MPI_Type_commit(&default_ddt);
-            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(PLASMA_Complex32_t), 
-                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-            break;
-        case PlasmaComplexDouble:
-            snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE_COMPLEX*%d*%d", 
-                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
-    
-            MPI_Type_contiguous(iparam[IPARAM_MB]*iparam[IPARAM_NB], MPI_DOUBLE_COMPLEX, &default_ddt);
-            MPI_Type_set_name(default_ddt, type_name);
-            MPI_Type_commit(&default_ddt);
-            dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, iparam[IPARAM_MB]*iparam[IPARAM_NB]*sizeof(PLASMA_Complex64_t), 
-                                  DAGUE_ARENA_ALIGNMENT_SSE, &default_ddt);
-            break;
-        default:
-            fprintf(stderr, "Type Inconnu\n");
-            exit(2);
-        }
-    }
-#endif  /* USE_MPI */
-#endif
+    dague = dague_init(iparam[IPARAM_NCORES], pargc, pargv);
 
     return dague;
 }

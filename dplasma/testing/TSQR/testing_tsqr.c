@@ -63,8 +63,8 @@ static dague_context_t *setup_tsqr( int* pargc
 
     dague = dague_init( totalCore
                       , pargc
-                      , pargv
-                      , powerCount*powerCount*sizeof(double)/*NB*/);
+                      , pargv );
+                      
 
     printf( "%i> procCount:%i powerCount:%i height:%i\n"
           , rank

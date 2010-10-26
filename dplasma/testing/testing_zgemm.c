@@ -169,7 +169,7 @@ int main(int argc, char ** argv)
 
     /* Initialize DAGuE */
     TIME_START();
-    dague = setup_dague(&argc, &argv, iparam, PlasmaRealDouble);
+    dague = setup_dague(&argc, &argv, iparam);
     TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
