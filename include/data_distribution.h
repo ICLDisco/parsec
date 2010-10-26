@@ -8,6 +8,8 @@
 #ifndef _DATA_DISTRIBUTION_H_ 
 #define _DATA_DISTRIBUTION_H_ 
 
+#include "dague_config.h"
+
 #include <stdarg.h>
 #include <unistd.h>
 #include <stdint.h>

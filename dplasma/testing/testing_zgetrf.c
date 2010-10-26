@@ -83,6 +83,12 @@ int main(int argc, char ** argv)
     ddescL.mat    = dague_data_allocate((size_t)ddescL.super.nb_local_tiles    * (size_t)ddescL.super.bsiz    * (size_t)ddescL.super.mtype   );
     ddescIPIV.mat = dague_data_allocate((size_t)ddescIPIV.super.nb_local_tiles * (size_t)ddescIPIV.super.bsiz * (size_t)ddescIPIV.super.mtype);
 
+#if defined(DAGUE_PROFILING)
+    ddescA.super.super.key = strdup("A");
+    ddescL.super.super.key = strdup("L");
+    ddescIPIV.super.super.key = strdup("IPIV");
+#endif
+
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescL);
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
@@ -128,6 +134,11 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, "zgetrf");
     /*** END OF DAGUE COMPUTATION ***/
+#if defined(DAGUE_PROFILING)
+    free(ddescA.super.super.key);
+    free(ddescL.super.super.key);
+    free(ddescIPIV.super.super.key);
+#endif
 
     runtime_fini();
     return EXIT_SUCCESS;
