@@ -28,6 +28,7 @@ int *gpu_load;
 int MAX_QUEUE = 80;
 #endif
 #include "data_dist/matrix/matrix.h"
+#include "memory_pool.h"
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
@@ -283,8 +284,8 @@ int stsmqr_cuda_fini(void)
     } while (0)
 
 #include "generated/sgeqrf.h"
-#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrt_object_t*)(ec)->dague_object)->A))
-#define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrt_object_t*)(ec)->dague_object)->T))
+#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->A))
+#define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->T))
 
 static inline int
 gpu_stsmqr_internal_push( gpu_device_t* gpu_device,
