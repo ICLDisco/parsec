@@ -28,7 +28,7 @@ class Conversion:
   files_out = [];
   def __init__(self, file, match, content):
     self.content = content;
-    file = path.realpath(file);
+    #file = path.realpath(file);
     rel = relpath(file);
     self.file = list(path.split(file));
     self.date = path.getmtime(file);

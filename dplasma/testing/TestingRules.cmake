@@ -21,11 +21,9 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     )
   endif()
 
-  set(testing_addexec_GENFILES "")
+  set(testings_addexec_GENFILES "")
   precisions_rules(testings_addexec_GENFILES "${PRECISIONS}" "${ZSOURCES}")
-  
   foreach(testings_addexec_GENFILE ${testings_addexec_GENFILES})
-    message(STATUS "${testings_addexec_GENFILE}")
     string(REGEX REPLACE "\\.[scdz]" "" testings_addexec_EXEC ${testings_addexec_GENFILE})
     string(REGEX REPLACE "generated/" "" testings_addexec_EXEC ${testings_addexec_EXEC})
 
