@@ -11,8 +11,8 @@
 
 #if defined(USE_MPI)
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
-                                       unsigned int tile_nb,
                                        unsigned int tile_mb,
+                                       unsigned int tile_nb,
                                        int resized,
                                        dague_remote_dep_datatype_t* newtype );
 int dplasma_datatype_define_tile( dague_remote_dep_datatype_t oldtype,
@@ -25,7 +25,7 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
 #else
-# define dplasma_datatype_define_rectangle( oldtype, tile_nb, tile_mb, resized, newtype) (*(newtype) = NULL)
+# define dplasma_datatype_define_rectangle( oldtype, tile_mb, tile_nb, resized, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
 # define dplasma_datatype_define_upper(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_lower(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
