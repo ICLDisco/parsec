@@ -72,7 +72,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 
 
 int  twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
-int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
+int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 
 #ifdef USE_MPI
 
