@@ -1,5 +1,5 @@
-include(precision_generation)
-include(JDFsupport)
+include(RulesPrecisions)
+include(RulesJDF)
 # reset variables
 set(generated_files "")
 set(generated_jdf "")

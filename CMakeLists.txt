@@ -316,8 +316,6 @@ endif (DAGUE_MPI AND MPI_FOUND)
 #
 # Now continue with compiling the tests.
 #
-include(JDFsupport)
-include(precision_generation)
 
 add_subdirectory(tools)
 add_subdirectory(dplasma)

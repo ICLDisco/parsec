@@ -2,7 +2,7 @@
 #
 # Sources depending on Precision 
 #
-include(precision_generation)
+include(RulesPrecisions)
 set(generated_files "")
 include_directories(".")
 precisions_rules(generated_files "+;s;d" zmatrix.c)

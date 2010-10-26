@@ -1,5 +1,4 @@
-include(precision_generation)
-include(JDFsupport)
+include(RulesPrecisions)
 
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   include_directories(common)
