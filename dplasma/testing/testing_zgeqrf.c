@@ -14,67 +14,41 @@
 #include "cuda_stsmqr.h"
 #endif
 
-#define _FMULS_GEQRF(M, N) ( ( (M) > (N) ) ? ((DagDouble_t)(N) * ( (DagDouble_t)(N) * ( 0.5 - (1. / 3.) * (DagDouble_t)(N) + (DagDouble_t)(M) ) + (DagDouble_t)(M) ) ) \
-                             : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) + 2. * (DagDouble_t)(N) ) ) )
-#define _FADDS_GEQRF(M, N) ( ( (M) > (N) ) ? ((DagDouble_t)(N) * ( (DagDouble_t)(N) * ( 0.5 - (1. / 3.) * (DagDouble_t)(N) + (DagDouble_t)(M) )                    ) ) \
-                             : ( (DagDouble_t)(M) * ( (DagDouble_t)(M) * ( -0.5 - (1. / 3.) * (DagDouble_t)(M) + (DagDouble_t)(N) ) +      (DagDouble_t)(N) ) ) )
+#define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \
+                                       : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
+#define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
+                                       : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + (N))))
 
 int main(int argc, char ** argv)
 {
-    int iparam[IPARAM_SIZEOF];
     dague_context_t* dague;
+    int iparam[IPARAM_SIZEOF];
 
     /* Set defaults for non argv iparams */
     iparam_default_solve(iparam);
-#if defined(PRECISION_s)
+    iparam[IPARAM_LDA] = -'m';
+    iparam[IPARAM_LDB] = -'m';
+    iparam_default_ibnbmb(iparam, 48, 144, 144);
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     iparam[IPARAM_NGPUS] = 0;
 #else
     iparam[IPARAM_NGPUS] = -1;
 #endif
-    iparam[IPARAM_LDA] = -'m';
-    iparam[IPARAM_LDB] = -'m';
-    iparam[IPARAM_NB] = iparam[IPARAM_MB] = 144;
-    iparam[IPARAM_IB] = 48;
+
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-
-    int rank  = iparam[IPARAM_RANK];
-    int nodes = iparam[IPARAM_NNODES];
-    int cores = iparam[IPARAM_NCORES];
-    int gpus  = iparam[IPARAM_NGPUS];
-    int prio  = iparam[IPARAM_PRIO];
-    int P     = iparam[IPARAM_P];
-    int Q     = iparam[IPARAM_Q];
-    int M     = iparam[IPARAM_M];
-    int N     = iparam[IPARAM_N];
-    int LDA   = iparam[IPARAM_LDA];
-    int LDB   = iparam[IPARAM_LDB];
-    int MB    = iparam[IPARAM_MB];
-    int NB    = iparam[IPARAM_NB];
-    int IB    = iparam[IPARAM_IB];
-    int SMB   = iparam[IPARAM_SMB];
-    int SNB   = iparam[IPARAM_SNB];
-    int loud  = iparam[IPARAM_VERBOSE];
-    int mt    = (M%MB==0) ? (M/MB) : (M/MB+1);
-
-    DagDouble_t flops, gflops;
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-    flops = 2.*_FADDS_GEQRF(M, N) + 6.*_FMULS_GEQRF(M, N);
-#else
-    flops = _FADDS_GEQRF(M, N) + _FMULS_GEQRF(M, N);
-#endif
+    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_FLOPS_COUNT(FADDS_GEQRF, FMULS_GEQRF, ((DagDouble_t)M,(DagDouble_t)N))
 
     /* initializing matrix structure */
-    two_dim_block_cyclic_t ddescA;
-    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M,     N, 0, 0, LDA,   N, SMB, SNB, P);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-    
-    two_dim_block_cyclic_t ddescT;
-    two_dim_block_cyclic_init(&ddescT, matrix_ComplexDouble, nodes, cores, rank, IB, NB, mt*IB, N, 0, 0, mt*IB, N, SMB, SNB, P);
-    ddescT.mat = dague_data_allocate((size_t)ddescT.super.nb_local_tiles * (size_t)ddescT.super.bsiz * (size_t)ddescT.super.mtype);
-    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
-
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
+                                    LDA, N, SMB, SNB, P))
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
+        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
+                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+                                    MT*IB, N, SMB, SNB, P))
 #if defined(DAGUE_PROFILING)
     ddescA.super.super.key = strdup("A");
     ddescT.super.super.key = strdup("T");
@@ -84,37 +58,31 @@ int main(int argc, char ** argv)
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
     {
-        if(loud) printf("Load GPU kernels ... ");
+        if(loud) printf("+++ Load GPU kernel ... ");
         if(0 != stsmqr_cuda_init((tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT)) 
         {
-            fprintf(stderr, "Unable to load TSMQR operations.\n");
+            fprintf(stderr, "XXX Unable to load GPU kernel.\n");
             exit(3);
         }
         if(loud) printf("Done\n");
     }
 #endif
 
-    if(iparam[IPARAM_CHECK] == 0)
+    if(!check) 
     {
-        /* Create GEQRF DAGuE */
-        if(loud) printf("Generate GEQRF DAG ... ");
-        TIME_START();
-        dague_object_t* dague_zgeqrf = 
-            dplasma_zgeqrf_New((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescT);
-        dague_enqueue(dague, dague_zgeqrf);
-        if(loud) printf("Done\n");
-        if(loud) TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+        /* matrix generation */
+        if(loud > 2) printf("+++ Generate matrices ... ");
+        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
+        if(loud > 2) printf("Done\n");
+
+        /* Create DAGuE */
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf, 
+                                           ((tiled_matrix_desc_t*)&ddescA,
+                                            (tiled_matrix_desc_t*)&ddescT))
 
         /* lets rock! */
-        SYNC_TIME_START();
-        TIME_START();
-        dague_progress(dague);
-        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
-                    rank, dague_zgeqrf->nb_local_tasks, 
-                    dague_zgeqrf->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
-                         gflops = (flops/1e9)/(sync_time_elapsed)));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgegrf)
     }
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)

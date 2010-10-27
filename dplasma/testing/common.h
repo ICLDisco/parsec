@@ -76,14 +76,17 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int LDA   = iparam[IPARAM_LDA];\
   int LDB   = iparam[IPARAM_LDB];\
   int LDC   = iparam[IPARAM_LDC];\
+  int IB    = iparam[IPARAM_IB];\
   int MB    = iparam[IPARAM_MB];\
   int NB    = iparam[IPARAM_NB];\
   int SMB   = iparam[IPARAM_SMB];\
   int SNB   = iparam[IPARAM_SNB];\
+  int MT    = (M%MB==0) ? (M/MB) : (M/MB+1); \
+  int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;\
-  (void)LDA;(void)LDB;(void)LDC;(void)MB;(void)NB;(void)SMB;(void)SNB;(void)check;(void)loud;
+  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
