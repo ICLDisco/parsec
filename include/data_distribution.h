@@ -46,6 +46,8 @@ static inline void dague_ddesc_destroy(dague_ddesc_t *d)
     if( NULL != d->key )
         free(d->key);
     d->key = NULL;
+#else
+    (void)d;
 #endif
 }
 
