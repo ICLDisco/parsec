@@ -21,7 +21,7 @@ static inline double get_cur_time(void)
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
 #define TIME_PRINT(rank, print) do { \
   TIME_STOP(); \
-  printf("[%d] TIMED %f seconds :\t", rank, time_elapsed); \
+  printf("[%d] TIMED %f s\t: ", rank, time_elapsed); \
   printf print; \
 } while(0)
 
@@ -38,7 +38,7 @@ static inline double get_cur_time(void)
 # define SYNC_TIME_PRINT(rank, print) do {                          \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            printf("### TIMED %f s :\t", sync_time_elapsed);        \
+            printf("### TIMED %f s\t: ", sync_time_elapsed);        \
             printf print;                                           \
         }                                                           \
   } while(0)
@@ -52,7 +52,7 @@ static inline double get_cur_time(void)
 # define SYNC_TIME_PRINT(rank, print) do {                           \
         SYNC_TIME_STOP();                                           \
         if(0 == rank) {                                             \
-            printf("### TIMED %f doing\t", sync_time_elapsed);      \
+            printf("### TIMED %f s\t: ", sync_time_elapsed);      \
             printf print;                                           \
         }                                                           \
     } while(0)

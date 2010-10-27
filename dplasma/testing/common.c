@@ -147,7 +147,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'g':
                 if(iparam[IPARAM_NGPUS] == -1)
                 {
-                    fprintf(stderr, "!! This test does not have GPU support. GPU disabled.\n");
+                    fprintf(stderr, "!!! This test does not have GPU support. GPU disabled.\n");
                     break;
                 }
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
@@ -197,7 +197,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             iparam[IPARAM_NCORES] = 1;
         }
         if(verbose) 
-            fprintf(stderr, "++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
+            fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
     }
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
     
@@ -209,15 +209,15 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     int pqnp = iparam[IPARAM_Q] * iparam[IPARAM_P];
     if(pqnp > iparam[IPARAM_NNODES])
     {
-        fprintf(stderr, "xx the process grid PxQ (%dx%d) is larger than the number of nodes (%d)!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
+        fprintf(stderr, "xxx the process grid PxQ (%dx%d) is larger than the number of nodes (%d)!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
         exit(2);
     }
     if(verbose && (pqnp < iparam[IPARAM_NNODES])) 
     {
-        fprintf(stderr, "!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
+        fprintf(stderr, "!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
-    if(verbose > 1) fprintf(stderr, "++ nodes x cores + gpu : %d x %d + %d (%d+%d)\n"
-                                    "++ P x Q               : %d x %d (%d/%d)\n",
+    if(verbose > 1) fprintf(stderr, "+++ nodes x cores + gpu : %d x %d + %d (%d+%d)\n"
+                                    "+++ P x Q               : %d x %d (%d/%d)\n",
                                     iparam[IPARAM_NNODES],
                                     iparam[IPARAM_NCORES],
                                     iparam[IPARAM_NGPUS],
@@ -235,7 +235,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             iparam[IPARAM_N] = atoi(argv[optind++]);
             continue;
         }
-        fprintf(stderr, "xx the matrix size (N) is not set!\n");
+        fprintf(stderr, "xxx the matrix size (N) is not set!\n");
         exit(2);
     }
     if(0 == iparam[IPARAM_M]) iparam[IPARAM_M] = iparam[IPARAM_N];
@@ -263,29 +263,29 @@ static void parse_arguments(int argc, char** argv, int* iparam)
 
     if(verbose > 1) 
     {
-        fprintf(stderr, "++ N x M x K|NRHS      : %d x %d x %d\n",
+        fprintf(stderr, "+++ N x M x K|NRHS      : %d x %d x %d\n",
                         iparam[IPARAM_N], iparam[IPARAM_M], iparam[IPARAM_K]);
     }
     if(verbose > 2)
     {
         if(iparam[IPARAM_LDB] && iparam[IPARAM_LDC])
-            fprintf(stderr, "++ LDA , LDB , LDC     : %d , %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB], iparam[IPARAM_LDC]);
+            fprintf(stderr, "+++ LDA , LDB , LDC     : %d , %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB], iparam[IPARAM_LDC]);
         else if(iparam[IPARAM_LDB])
-            fprintf(stderr, "++ LDA , LDB           : %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB]);
+            fprintf(stderr, "+++ LDA , LDB           : %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB]);
         else
-            fprintf(stderr, "++ LDA                 : %d\n", iparam[IPARAM_LDA]);
+            fprintf(stderr, "+++ LDA                 : %d\n", iparam[IPARAM_LDA]);
     }
     if(verbose > 1)
     {
         if(iparam[IPARAM_IB] > 0)
-            fprintf(stderr, "++ NB x MB , IB        : %d x %d , %d\n", 
+            fprintf(stderr, "+++ NB x MB , IB        : %d x %d , %d\n", 
                             iparam[IPARAM_NB], iparam[IPARAM_MB], iparam[IPARAM_IB]);
         else
-            fprintf(stderr, "++ NB x MB             : %d x %d\n", 
+            fprintf(stderr, "+++ NB x MB             : %d x %d\n", 
                             iparam[IPARAM_NB], iparam[IPARAM_MB]);
 
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
-            fprintf(stderr, "++ SNB x SMB           : %d x %d\n", iparam[IPARAM_SNB], iparam[IPARAM_SMB]);
+            fprintf(stderr, "+++ SNB x SMB           : %d x %d\n", iparam[IPARAM_SNB], iparam[IPARAM_SMB]);
     }
 }
 
@@ -360,12 +360,12 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     {
         if(0 != dague_gpu_init(&iparam[IPARAM_NGPUS], 0))
         {
-            fprintf(stderr, "xx DAGuE is unable to initialize the CUDA environment.\n");
+            fprintf(stderr, "xxx DAGuE is unable to initialize the CUDA environment.\n");
             exit(3);
         }
     }
 #endif
-    if(verbose) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialization"));
+    if(verbose) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;
 }
 

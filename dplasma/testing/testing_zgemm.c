@@ -24,7 +24,7 @@ int main(int argc, char ** argv)
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
-    iparam_default_ibnbmb(iparam, 0, 200, 200);
+    iparam_default_ibnbmb(iparam, -1, 200, 200);
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
@@ -56,13 +56,13 @@ int main(int argc, char ** argv)
     if(!check) 
     {
         /* matrix generation */
-        if(loud) printf("Generate matrices ... ");
+        if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 300);
-        if(loud) printf("Done\n");
+        if(loud > 2) printf("Done\n");
 
-        /* Create GEMM DAGuE */
+        /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm, 
                                            (tA, tB, alpha,
                                             (tiled_matrix_desc_t *)&ddescA, 
