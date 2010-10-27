@@ -7,28 +7,17 @@
  *
  */
 
-
-#include "dague.h"
-#ifdef USE_MPI
-#include "remote_dep.h"
-extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
-#endif  /* defined(USE_MPI) */
-
-#if defined(HAVE_GETOPT_H)
-#include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
-#include <math.h>
 
-/* Plasma and math libs */
+#include <math.h>
 #include <cblas.h>
 #include <plasma.h>
 #include <lapacke.h>
 #include <core_blas.h>
 
+#include "dague.h"
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
@@ -59,13 +48,13 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     int LDB = ddescB->super.lm;
     double eps = LAPACKE_dlamch_work('e');
     double *work = (double *)malloc(max(M, N)* sizeof(double));
-    int Am, An;
+    int Am;
     Dague_Complex64_t mzone = (Dague_Complex64_t)-1.0;
 
     if (side == PlasmaLeft) {
-        Am = M; An = M;
+        Am = M;
     } else {
-        Am = N; An = N;
+        Am = N;
     }
 
     A = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
@@ -75,10 +64,12 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     twoDBC_to_lapack( ddescA, A, LDA );
     twoDBC_to_lapack( ddescB, B, LDB );
     twoDBC_to_lapack( ddescC, C, LDB );
-
-    Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, An, A, LDA, work );
-    Binitnorm  = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work );
-    Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M, N, C, LDB, work );
+    
+    /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
+    //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );
+    Anorm      = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), Am, A, LDA, work );
+    Binitnorm  = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  B, LDB, work );
+    Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  C, LDB, work );
 
     cblas_ztrsm(CblasColMajor,
                 (CBLAS_SIDE)side, (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
@@ -114,84 +105,80 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
 int main(int argc, char ** argv)
 {
     int iparam[IPARAM_SIZEOF];
-    DagDouble_t flops;
-    DagDouble_t gflops;
     dague_context_t* dague;
-
-    /* parsing arguments */
-    runtime_init(argc, argv, iparam);
+    
+    /* Set defaults for non argv iparam */
+    iparam_default_solve(iparam);
+    iparam[IPARAM_NGPUS] = -1;
+    /* Initialize DAGuE */
+    dague = setup_dague(argc, argv, iparam);
 
     int rank  = iparam[IPARAM_RANK];
     int nodes = iparam[IPARAM_NNODES];
     int cores = iparam[IPARAM_NCORES];
+    int P     = iparam[IPARAM_P];
     int M     = iparam[IPARAM_M];
     int N     = iparam[IPARAM_N];
+    int NRHS  = iparam[IPARAM_K];
+    int LDA   = iparam[IPARAM_LDA];
+    int LDB   = iparam[IPARAM_LDB];
     int MB    = iparam[IPARAM_MB];
     int NB    = iparam[IPARAM_NB];
-    int LDA   = iparam[IPARAM_LDA];
-    int NRHS  = iparam[IPARAM_NRHS];
-    int LDB   = iparam[IPARAM_LDB];
-    int SMB  = iparam[IPARAM_SMB];
-    int SNB  = iparam[IPARAM_SNB];
-    int P = iparam[IPARAM_P];
-    int mt = (M%MB==0) ? (M/MB) : (M/MB+1);
-    int nt = (N%NB==0) ? (N/NB) : (N/NB+1);
+    int SMB   = iparam[IPARAM_SMB];
+    int SNB   = iparam[IPARAM_SNB];
+    int loud  = iparam[IPARAM_VERBOSE];
+    int mt    = (M%MB==0) ? (M/MB) : (M/MB+1);
+    int nt    = (N%NB==0) ? (N/NB) : (N/NB+1);
 
-    two_dim_block_cyclic_t ddescA;
-    two_dim_block_cyclic_t ddescB;
-    two_dim_block_cyclic_t work;
-
-    dague_object_t *dague_trsm = NULL;
-
-    /* Create workspace for control */
-    two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank,
-                              1, 1, mt, nt, 0, 0, mt, nt, 1, 1, P);
-
-    /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    SMB, SNB, P);
-    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
-
-    /* Initialize DAGuE */
-    TIME_START();
-    dague = setup_dague(&argc, &argv, iparam);
-    TIME_PRINT(rank, ("Dague initialization:\t%d %d\n", N, NB));
-
-    if ( iparam[IPARAM_CHECK] == 0 ) {
-        int s = PlasmaLeft;
+    DagDouble_t flops, gflops;
+    int s = PlasmaLeft;
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-        flops = 2.*_FADDS(s, M, NRHS) + 6.*_FMULS(s, M, NRHS);
+    flops = 2.*_FADDS(s, M, NRHS) + 6.*_FMULS(s, M, NRHS);
 #else
-        flops = _FADDS(s, M, NRHS) + _FMULS(s, M, NRHS);
+    flops = _FADDS(s, M, NRHS) + _FMULS(s, M, NRHS);
 #endif
 
-        /* matrix generation */
-        printf("Generate matrices ... ");
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-        printf("Done\n");
+    /* initializing matrix structure */
+    if(loud) printf("Generate matrices ... ");
+    two_dim_block_cyclic_t ddescA;
+    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    SMB, SNB, P);
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    
+    two_dim_block_cyclic_t ddescB;
+    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
+    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+    
+    two_dim_block_cyclic_t work;
+    two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank, 1, 1, mt, nt, 0, 0, mt, nt, 1, 1, P);
+    work.mat = dague_data_allocate((size_t)work.super.nb_local_tiles * (size_t)work.super.bsiz * (size_t)work.super.mtype);
+    if(loud) printf("Done\n");
 
+    if(iparam[IPARAM_CHECK] == 0) 
+    {
         /* Create TRSM DAGuE */
-        printf("Generate TRSM DAG ... ");
-        SYNC_TIME_START();
-        dague_trsm = dplasma_dtrsm_New(s, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (Dague_Complex64_t)1.0,
-                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB); /*, (tiled_matrix_desc_t *)&work);*/
-        dague_enqueue( dague, (dague_object_t*)dague_trsm);
-        printf("Done\n");
-        printf("Total nb tasks to run: %u\n", dague->taskstodo);
+        if(loud) printf("Generate ZTRSM DAG ... ");
+        TIME_START();
+        dague_object_t* dague_trsm = 
+            dplasma_ztrsm_New(s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                (Dague_Complex64_t)1.0, 
+                (tiled_matrix_desc_t *)&ddescA, 
+                (tiled_matrix_desc_t *)&ddescB); /*, 
+                (tiled_matrix_desc_t *)&work);*/
+        dague_enqueue(dague, dague_trsm);
+        if(loud) printf("Done\n");
+        if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
 
         /* lets rock! */
         SYNC_TIME_START();
         TIME_START();
         dague_progress(dague);
-        TIME_PRINT(rank, ("Dague proc %d:\ttasks: %u\t%f task/s\n",
+        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
                     rank, dague_trsm->nb_local_tasks,
                     dague_trsm->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(rank, ("Dague computation:\t%d %d %f gflops\n", N, NB,
-                         gflops = flops/(sync_time_elapsed)));
-        (void) gflops;
-        TIME_PRINT(rank, ("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIO]));
+        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
+                         gflops = (flops/1e9)/(sync_time_elapsed)));
     }
     else {
         int s, u, t, d;
@@ -217,7 +204,7 @@ int main(int argc, char ** argv)
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+			generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 400);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
                         printf("Done\n");
@@ -251,13 +238,10 @@ int main(int argc, char ** argv)
         dague_data_free(ddescC.mat);
     }
 
+    dague_data_free(work.mat);
     dague_data_free(ddescA.mat);
     dague_data_free(ddescB.mat);
-    dague_data_free(&work.mat);
 
-    cleanup_dague(dague, "ztrsm");
-    /*** END OF DAGUE COMPUTATION ***/
-
-    runtime_fini();
-    return EXIT_SUCCESS;
+    cleanup_dague(dague);
+    return 0;
 }
