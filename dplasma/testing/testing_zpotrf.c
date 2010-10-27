@@ -27,8 +27,8 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
 
-#include "testscommon.h"
-#include "timing.h"
+#include "common.h"
+#include "common_timing.h"
 
 #define _FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
 #define _FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))

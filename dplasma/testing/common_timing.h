@@ -1,8 +1,8 @@
 #ifndef TIMING_H
 #define TIMING_H
 
-double time_elapsed;
-double sync_time_elapsed;
+static double time_elapsed;
+static double sync_time_elapsed;
 
 static inline double get_cur_time(void)
 {

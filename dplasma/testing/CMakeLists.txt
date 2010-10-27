@@ -1,4 +1,3 @@
-Add_Subdirectory(common)
 
 include(TestingRules.cmake)
 
@@ -20,6 +19,5 @@ foreach(target ${lltargets})
   set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${${target}_COMPILE_FLAGS} -DLLT_LL")
 endforeach()
 
-#Add_Subdirectory(LLT)
 Add_Subdirectory(TSQR)
 

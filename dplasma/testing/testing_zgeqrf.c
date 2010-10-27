@@ -36,8 +36,8 @@
 //#include "vt_user.h"
 //#endif
 
-#include "testscommon.h"
-#include "timing.h"
+#include "common.h"
+#include "common_timing.h"
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "gpu_data.h"

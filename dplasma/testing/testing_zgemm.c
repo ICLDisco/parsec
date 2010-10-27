@@ -30,8 +30,8 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
 
-#include "testscommon.h"
-#include "timing.h"
+#include "common.h"
+#include "common_timing.h"
 
 #define _FMULS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
 #define _FADDS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
@@ -126,126 +126,134 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
 
 int main(int argc, char ** argv)
 {
-    int iparam[IPARAM_INBPARAM];
-    DagDouble_t flops, gflops;
     dague_context_t* dague;
+    int iparam[IPARAM_SIZEOF];
 
-    /* parsing arguments */
-    runtime_init(argc, argv, iparam);
-
+    /* Set defaults for non argv iparams */
+    iparam_default_gemm(iparam);
+    /* Initialize DAGuE */
+    dague = setup_dague(argc, argv, iparam);
+    
     int rank  = iparam[IPARAM_RANK];
     int nodes = iparam[IPARAM_NNODES];
     int cores = iparam[IPARAM_NCORES];
+    int gpus  = iparam[IPARAM_NGPUS];
+    int prio  = iparam[IPARAM_PRIO];
+    int P     = iparam[IPARAM_P];
+    int Q     = iparam[IPARAM_Q];
     int M     = iparam[IPARAM_M];
     int N     = iparam[IPARAM_N];
-    int K     = iparam[IPARAM_N]; /* We could use NHRHS */
-    int MB    = iparam[IPARAM_MB];
-    int NB    = iparam[IPARAM_NB];
+    int K     = iparam[IPARAM_K];
     int LDA   = iparam[IPARAM_LDA];
     int LDB   = iparam[IPARAM_LDB];
-    int LDC   = iparam[IPARAM_LDA];
-    int nrst  = iparam[IPARAM_STM];
-    int ncst  = iparam[IPARAM_STN];
-    int GRIDrows = iparam[IPARAM_GDROW];
-
-    two_dim_block_cyclic_t ddescA;
-    two_dim_block_cyclic_t ddescB;
-    two_dim_block_cyclic_t ddescC;
-
-    dague_object_t *dague_gemm = NULL;
-
-    int tA = PlasmaNoTrans;
-    int tB = PlasmaNoTrans;
+    int LDC   = iparam[IPARAM_LDC];
+    int MB    = iparam[IPARAM_MB];
+    int NB    = iparam[IPARAM_NB];
+    int SMB   = iparam[IPARAM_SMB];
+    int SNB   = iparam[IPARAM_SNB];
+    int check = iparam[IPARAM_CHECK];
+    int loud  = iparam[IPARAM_VERBOSE];
+    
+    int tA    = PlasmaNoTrans;
+    int tB    = PlasmaNoTrans;
     Dague_Complex64_t alpha =  0.51;
     Dague_Complex64_t beta  = -0.42;
 
-    /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, K, 0, 0, LDA, K, nrst, ncst, GRIDrows);
-    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, K, N, 0, 0, LDB, N, nrst, ncst, GRIDrows);
-    two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, nrst, ncst, GRIDrows);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
-    ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
-
-    /* Initialize DAGuE */
-    TIME_START();
-    dague = setup_dague(&argc, &argv, iparam);
-    TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
-
-    if ( iparam[IPARAM_CHECK] == 0 ) {
+    DagDouble_t flops, gflops;
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-        flops = 2.*_FADDS(M, N, K) + 6.*_FMULS(M, N, K);
+    flops = 2.*_FADDS(M, N, K) + 6.*_FMULS(M, N, K);
 #else
-        flops = _FADDS(M, N, K) + _FMULS(M, N, K);
+    flops = _FADDS(M, N, K) + _FMULS(M, N, K);
 #endif
 
+    /* initializing matrix structure */
+    two_dim_block_cyclic_t ddescA;
+    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, K, 0, 0, LDA, K, SMB, SNB, P);
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    
+    two_dim_block_cyclic_t ddescB;
+    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, K, N, 0, 0, LDB, N, SMB, SNB, P);
+    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+    
+    two_dim_block_cyclic_t ddescC;
+    two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, SMB, SNB, P);
+    ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
+
+    two_dim_block_cyclic_t ddescC2;
+    if(check) {
+        two_dim_block_cyclic_init(&ddescC2, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, SMB, SNB, P);
+        ddescC2.mat = dague_data_allocate((size_t)ddescC2.super.nb_local_tiles * (size_t)ddescC2.super.bsiz * (size_t)ddescC2.super.mtype);
+    }
+    
+    if(!check) 
+    {
         /* matrix generation */
-        printf("Generate matrices ... ");
+        if(loud) printf("Generate matrices ... ");
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 300);
-        printf("Done\n");
+        if(loud) printf("Done\n");
 
         /* Create GEMM DAGuE */
-        printf("Generate GEMM DAG ... ");
-        SYNC_TIME_START();
-        dague_gemm = dplasma_zgemm_New(tA, tB, 
-                                       (Dague_Complex64_t)alpha, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, 
-                                       (Dague_Complex64_t)beta,  (tiled_matrix_desc_t *)&ddescC );
-        dague_enqueue( dague, (dague_object_t*)dague_gemm);
-        printf("Done\n");
-        printf("Total nb tasks to run: %u\n", dague->taskstodo);
+        if(loud) printf("Generate GEMM DAG ... ");
+        TIME_START();
+        dague_object_t* dague_gemm = 
+            dplasma_zgemm_New(tA, tB, 
+                              (Dague_Complex64_t)alpha,
+                              (tiled_matrix_desc_t *)&ddescA, 
+                              (tiled_matrix_desc_t *)&ddescB,
+                              (Dague_Complex64_t)beta,
+                              (tiled_matrix_desc_t *)&ddescC);
+        dague_enqueue(dague, dague_gemm);
+        if(loud) printf("Done\n");
+        if(loud) TIME_PRINT(("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
 
         /* lets rock! */
         SYNC_TIME_START();
         TIME_START();
         dague_progress(dague);
-        TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n",
+        if(loud) TIME_PRINT(("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
                     rank, dague_gemm->nb_local_tasks,
                     dague_gemm->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
+        SYNC_TIME_PRINT(("Dague progress:\t%d %d %f gflops\n", N, NB,
                          gflops = (flops/1e9)/(sync_time_elapsed)));
-
-        (void) gflops;
-        TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
     }
-    else {
-        int info_solution;
-        two_dim_block_cyclic_t ddescC2;
-        
-        two_dim_block_cyclic_init(&ddescC2, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, nrst, ncst, GRIDrows);
-
+    else
+    { 
+/* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-        for (tA=0; tA<3; tA++) {
-            for (tB=0; tB<3; tB++) {
+        for(tA=0; tA<3; tA++) {
+            for(tB=0; tB<3; tB++) {
 #else
-        for (tA=0; tA<2; tA++) {
-            for (tB=0; tB<2; tB++) {
+        for(tA=0; tA<2; tA++) {
+            for(tB=0; tB<2; tB++) {
 #endif
                 printf("***************************************************\n");
                 printf(" ----- TESTING DGEMM (%s, %s) -------- \n",
                        transstr[tA], transstr[tB]);
                 
                 /* matrix generation */
-                printf("Generate matrices ... ");
+                if(loud) printf("Generate matrices ... ");
                 generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA,  100);
                 generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB,  200);
                 generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC,  300);
                 generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC2, 300);
-                printf("Done\n");
+                if(loud) printf("Done\n");
 
                 /* Create GEMM DAGuE */
-                printf("Compute ... ... ");
+                if(loud) printf("Compute ... ... ");
                 dplasma_dgemm(dague, trans[tA], trans[tB],
-                              (Dague_Complex64_t)alpha, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, 
-                              (Dague_Complex64_t)beta,  (tiled_matrix_desc_t *)&ddescC );
-                printf("Done\n");
+                              (Dague_Complex64_t)alpha,
+                              (tiled_matrix_desc_t *)&ddescA, 
+                              (tiled_matrix_desc_t *)&ddescB, 
+                              (Dague_Complex64_t)beta, 
+                              (tiled_matrix_desc_t *)&ddescC);
+                if(loud) printf("Done\n");
                 
                 /* Check the solution */
-                info_solution = check_solution( trans[tA], trans[tB], 
-                                                alpha, &ddescA,  &ddescB, 
-                                                beta,  &ddescC2, &ddescC);
-                
+                int info_solution = check_solution( trans[tA], trans[tB], 
+                                                    alpha, &ddescA,  &ddescB, 
+                                                    beta,  &ddescC2, &ddescC);
                 if (info_solution == 0) {
                     printf(" ---- TESTING DGEMM (%s, %s) ...... PASSED !\n",
                            transstr[tA], transstr[tB]);
@@ -253,15 +261,10 @@ int main(int argc, char ** argv)
                 else {
                     printf(" ---- TESTING DGEMM (%s, %s) ... FAILED !\n",
                            transstr[tA], transstr[tB]);
-
                 }
                 printf("***************************************************\n");
             }
         }
-#ifdef __UNUSED__
-            }
-        }
-#endif
 
         dague_data_free(ddescC2.mat);
     }
@@ -270,9 +273,6 @@ int main(int argc, char ** argv)
     dague_data_free(ddescB.mat);
     dague_data_free(ddescC.mat);
 
-    cleanup_dague(dague, "zgemm");
-    /*** END OF DAGUE COMPUTATION ***/
-
-    runtime_fini();
+    cleanup_dague(dague);
     return 0;
 }

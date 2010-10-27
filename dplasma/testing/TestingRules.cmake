@@ -1,7 +1,7 @@
 include(RulesPrecisions)
 
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
-  include_directories(common)
+  include_directories(.)
 
   set(testings_addexec_CFLAGS  "${PLASMA_CFLAGS} -DADD_")
   set(testings_addexec_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
@@ -11,12 +11,12 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} ${testings_addexec_CFLAGS} -DUSE_MPI")
     set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
     set(testings_addexec_LIBS   
-      dplasma-mpi  dplasma_testscommon-mpi dague-mpi  dague_distribution_matrix-mpi 
+      dplasma-mpi dague-mpi dague_distribution_matrix-mpi 
       ${testings_addexec_LIBS} ${PLASMA_LIBRARIES} ${MPI_LIBRARIES} 
       )
   else ( DAGUE_MPI AND MPI_FOUND )
     set(testings_addexec_LIBS   
-      dplasma dplasma_testscommon dague dague_distribution_matrix 
+      dplasma dague dague_distribution_matrix 
       ${testings_addexec_LIBS} ${PLASMA_LIBRARIES} 
       )
   endif()
@@ -27,7 +27,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     string(REGEX REPLACE "\\.[scdz]" "" testings_addexec_EXEC ${testings_addexec_GENFILE})
     string(REGEX REPLACE "generated/" "" testings_addexec_EXEC ${testings_addexec_EXEC})
 
-    add_executable(${testings_addexec_EXEC} ${testings_addexec_GENFILE})
+    add_executable(${testings_addexec_EXEC} ${testings_addexec_GENFILE} common.c common_timing.h)
     set_target_properties(${testings_addexec_EXEC} PROPERTIES
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"

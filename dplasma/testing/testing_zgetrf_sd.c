@@ -36,8 +36,8 @@
 //#include "vt_user.h"
 //#endif
 
-#include "testscommon.h"
-#include "timing.h"
+#include "common.h"
+#include "common_timing.h"
 
 #define _FMULS_GETRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N)) - (DagDouble_t)(N) ) )
 #define _FADDS_GETRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N))                    ) )

@@ -1,4 +1,4 @@
-set(SOURCES testscommon.c)
+set(SOURCES common.c)
 
 if (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma_testscommon-mpi
