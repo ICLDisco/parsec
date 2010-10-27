@@ -80,7 +80,7 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
   # Validate the include file <plasma.h>
   find_path(PLASMA_INCLUDE_FOUND
     plasma.h
-    "${PLASMA_INCLUDE_DIRS}"
+    PATHS ${PLASMA_INCLUDE_DIRS}
     )
   if(NOT PLASMA_INCLUDE_FOUND)
     if(PLASMA_FIND_REQUIRED)
@@ -93,8 +93,18 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
   set(PLASMA_tmp_libraries ${CMAKE_REQUIRED_LIBRARIES})
   set(PLASMA_tmp_flags ${CMAKE_REQUIRED_FLAGS})
-  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${PLASMA_LIBRARIES}")
-  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${PLASMA_CFLAGS} ${PLASMA_LDFLAGS}")
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES})
+
+# CMAKE_REQUIRED_FLAGS must be a string, not a list
+# if CMAKE_REQUIRED_FLAGS is a list (separated by ;), only the first element of the list is passed to check_c_source_compile
+# Since PLASMA_LDFLAGS and PLASMA_CFLAGS hold lists, we convert them by hand to a string
+  foreach(arg ${PLASMA_LDFLAGS})
+   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+  endforeach(arg ${PLASMA_LDFLAGS})
+  foreach(arg ${PLASMA_CFLAGS})
+   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+  endforeach(arg ${PLASMA_CFLAGS})
+
   check_c_source_compiles(
     "int main(int argc, char* argv[]) {
        PLASMA_zgeqrf(); return 0;
