@@ -49,7 +49,7 @@ int main(int argc, char ** argv)
                                     nodes, cores, rank, MB, NB, M, N, 0, 0, 
                                     LDC, N, SMB, SNB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
-        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
+        two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
                                     nodes, cores, rank, MB, NB, M, N, 0, 0, 
                                     LDC, N, SMB, SNB, P))
     

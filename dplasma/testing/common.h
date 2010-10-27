@@ -128,7 +128,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 /* Paste code to allocate a matrix in desc if cond_init is true */
 #define PASTE_CODE_ALLOCATE_MATRIX(DDESC, COND, TYPE, INIT_PARAMS) \
   TYPE##_t DDESC; \
-  if(cond) {\
+  if(COND) {\
     TYPE##_init INIT_PARAMS; \
     DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
                                     (size_t)DDESC.super.bsiz * \
