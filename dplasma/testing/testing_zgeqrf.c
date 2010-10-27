@@ -29,7 +29,11 @@ int main(int argc, char ** argv)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
     iparam_default_ibnbmb(iparam, 48, 144, 144);
-    PASTE_CODE_IPARAM_ENABLE_GPU(defined(PRECISION_s), iparam)
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    iparam[IPARAM_NGPUS] = 0;
+#else
+    iparam[IPARAM_NGPUS] = -1;
+#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -79,7 +83,7 @@ int main(int argc, char ** argv)
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgegrf)
-	}
+    }
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
