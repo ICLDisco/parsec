@@ -57,11 +57,46 @@ enum iparam_t {
   IPARAM_SIZEOF
 };
 
+#define SET_IBNBMB_DEFAULTS(iparam, IB, NB, MB) do {
+    iparam[IPARAM_IB] = (IB);
+    iparam[IPARAM_NB] = (NB);
+    iparam[IPARAM_MB] = (MB);
+}
+
+#define DECLARE_IPARAM_LOCALS(iparam) \
+  int rank  = iparam[IPARAM_RANK];\
+  int nodes = iparam[IPARAM_NNODES];\
+  int cores = iparam[IPARAM_NCORES];\
+  int gpus  = iparam[IPARAM_NGPUS];\
+  int prio  = iparam[IPARAM_PRIO];\
+  int P     = iparam[IPARAM_P];\
+  int Q     = iparam[IPARAM_Q];\
+  int M     = iparam[IPARAM_M];\
+  int N     = iparam[IPARAM_N];\
+  int K     = iparam[IPARAM_K];\
+  int LDA   = iparam[IPARAM_LDA];\
+  int LDB   = iparam[IPARAM_LDB];\
+  int LDC   = iparam[IPARAM_LDC];\
+  int MB    = iparam[IPARAM_MB];\
+  int NB    = iparam[IPARAM_NB];\
+  int SMB   = iparam[IPARAM_SMB];\
+  int SNB   = iparam[IPARAM_SNB];\
+  int check = iparam[IPARAM_CHECK];\
+  int loud  = iparam[IPARAM_VERBOSE];\
+  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prios;(void)P;(void)Q;(void)M;(void)N;(void)K;\
+  (void)LDA;(void)LDB;(void)LDC;(void)MB;(void)NB;(void)SMB;(void)SNB;(void)check;(void)loud;
+
+/* Define a double type which not pass through the precision generation process */
+typedef double DagDouble_t;
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+#define FLOPS_COUNT(FADD,FMUL,PARAMS) (2. * FADD PARAMS + 6. * FMUL PARAMS)
+#else 
+#define FLOPS_COUNT(FADD,FMUL,PARAMS) (FADD PARAMS + FMUL PARAMS);
+#endif
+
 /*******************************
  * globals values
  *******************************/
-/* Define a double type which not pass through the precision generation process */
-typedef double DagDouble_t;
 
 #if defined(USE_MPI)
 extern MPI_Datatype SYNCHRO;

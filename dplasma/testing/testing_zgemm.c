@@ -10,12 +10,12 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
-#define _FMULS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
-#define _FADDS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
-
 static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
                           Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal);
+
+#   define FMULS(M, N, K) ((M) * (N) * (K))
+#   define FADDS(M, N, K) ((M) * (N) * (K))
 
 int main(int argc, char ** argv)
 {
@@ -24,40 +24,16 @@ int main(int argc, char ** argv)
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
+    SET_IBNBMB_DEFAULTS(iparam, 0, 200, 200);
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    
-    int rank  = iparam[IPARAM_RANK];
-    int nodes = iparam[IPARAM_NNODES];
-    int cores = iparam[IPARAM_NCORES];
-    int gpus  = iparam[IPARAM_NGPUS];
-    int prio  = iparam[IPARAM_PRIO];
-    int P     = iparam[IPARAM_P];
-    int Q     = iparam[IPARAM_Q];
-    int M     = iparam[IPARAM_M];
-    int N     = iparam[IPARAM_N];
-    int K     = iparam[IPARAM_K];
-    int LDA   = iparam[IPARAM_LDA];
-    int LDB   = iparam[IPARAM_LDB];
-    int LDC   = iparam[IPARAM_LDC];
-    int MB    = iparam[IPARAM_MB];
-    int NB    = iparam[IPARAM_NB];
-    int SMB   = iparam[IPARAM_SMB];
-    int SNB   = iparam[IPARAM_SNB];
-    int check = iparam[IPARAM_CHECK];
-    int loud  = iparam[IPARAM_VERBOSE];
-    
+    DECLARE_IPARAM_LOCALS
+    DagDouble_t gflops, flops = FLOPS_COUNT(FADD, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
+
     int tA    = PlasmaNoTrans;
     int tB    = PlasmaNoTrans;
     Dague_Complex64_t alpha =  0.51;
     Dague_Complex64_t beta  = -0.42;
-
-    DagDouble_t flops, gflops;
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-    flops = 2.*_FADDS(M, N, K) + 6.*_FMULS(M, N, K);
-#else
-    flops = _FADDS(M, N, K) + _FMULS(M, N, K);
-#endif
 
     /* initializing matrix structure */
     two_dim_block_cyclic_t ddescA;
