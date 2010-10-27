@@ -124,4 +124,16 @@ void cleanup_dague(dague_context_t* dague);
 static inline int max(int a, int b) { return a > b ? a : b; }
 static inline int min(int a, int b) { return a < b ? a : b; }
 
+
+/* Paste code to allocate a matrix in desc if cond_init is true */
+#define PASTE_CODE_ALLOCATE_MATRIX(DDESC, COND, TYPE, INIT_PARAMS) \
+  TYPE##_t DDESC; \
+  if(cond) {\
+    TYPE##_init INIT_PARAMS; \
+    DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
+                                    (size_t)DDESC.super.bsiz * \
+                                    (size_t)DDESC.super.mtype); \
+  }
+
+
 #endif /* _TESTSCOMMON_H */

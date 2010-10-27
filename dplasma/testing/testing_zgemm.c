@@ -36,23 +36,22 @@ int main(int argc, char ** argv)
     Dague_Complex64_t beta  = -0.42;
 
     /* initializing matrix structure */
-    two_dim_block_cyclic_t ddescA;
-    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, K, 0, 0, LDA, K, SMB, SNB, P);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-    
-    two_dim_block_cyclic_t ddescB;
-    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, K, N, 0, 0, LDB, N, SMB, SNB, P);
-    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
-    
-    two_dim_block_cyclic_t ddescC;
-    two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, SMB, SNB, P);
-    ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
-
-    two_dim_block_cyclic_t ddescC2;
-    if(check) {
-        two_dim_block_cyclic_init(&ddescC2, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDC, N, SMB, SNB, P);
-        ddescC2.mat = dague_data_allocate((size_t)ddescC2.super.nb_local_tiles * (size_t)ddescC2.super.bsiz * (size_t)ddescC2.super.mtype);
-    }
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, M, K, 0, 0, 
+                                    LDA, K, SMB, SNB, P))
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, K, N, 0, 0, 
+                                    LDB, N, SMB, SNB, P))
+    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
+        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
+                                    LDC, N, SMB, SNB, P))
+    PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
+        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
+                                    LDC, N, SMB, SNB, P))
     
     if(!check) 
     {
