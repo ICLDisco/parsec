@@ -7,31 +7,8 @@
  *
  */
 
-
-#include "dague.h"
-#ifdef USE_MPI
-#include <mpi.h>
-#endif  /* defined(USE_MPI) */
-
-#include <stdlib.h>
-#include <stdio.h>
-
-#include <cblas.h>
-#include <math.h>
-#include <plasma.h>
-#include <lapacke.h>
-
-#include "scheduling.h"
-#include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "dplasma.h"
-
-//#ifdef VTRACE
-//#include "vt_user.h"
-//#endif
-
 #include "common.h"
-#include "common_timing.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "cuda_stsmqr.h"

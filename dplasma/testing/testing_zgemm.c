@@ -7,116 +7,15 @@
  *
  */
 
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-/* Plasma and math libs */
-#include <math.h>
-#include <cblas.h>
-#include <plasma.h>
-#include <lapacke.h>
-#include <core_blas.h>
-
-#include "dague.h"
-#include "scheduling.h"
-#include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "dplasma.h"
-
 #include "common.h"
-#include "common_timing.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 #define _FMULS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
 #define _FADDS(M, N, K) ( (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)(K) )
 
-/**********************************
- * static functions
- **********************************/
-
-/*------------------------------------------------------------------------
- *  Check the accuracy of the solution
- */
 static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
-                          Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal )
-{
-    int info_solution;
-    double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
-    double eps, result;
-    double *work;
-    int Am, An, Bm, Bn;
-    Dague_Complex64_t mzone = (Dague_Complex64_t)-1.0;
-    Dague_Complex64_t *A, *B, *Cinit, *Cfinal;
-
-    int M   = ddescC->super.m;
-    int N   = ddescC->super.n;
-    int K   = ( transA == PlasmaNoTrans ) ? ddescA->super.n : ddescA->super.m ;
-    int LDA = ddescA->super.lm;
-    int LDB = ddescB->super.lm;
-    int LDC = ddescC->super.lm;
-
-    eps = LAPACKE_dlamch_work('e');
-
-    if (transA == PlasmaNoTrans) {
-        Am = M; An = K;
-    } else {
-        Am = K; An = M;
-    }
-    if (transB == PlasmaNoTrans) {
-        Bm = K; Bn = N;
-    } else {
-        Bm = N; Bn = K;
-    }
-
-    work  = (double *)malloc(max(K,max(M, N))* sizeof(double));
-    A     = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
-    B     = (Dague_Complex64_t *)malloc((ddescB->super.mt)*(ddescB->super.nt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
-    Cinit = (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
-    Cfinal= (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
-
-    twoDBC_to_lapack( ddescA, A,     LDA );
-    twoDBC_to_lapack( ddescB, B,     LDB );
-    twoDBC_to_lapack( ddescC,      Cinit,  LDC );
-    twoDBC_to_lapack( ddescCfinal, Cfinal, LDC );
-
-    Anorm        = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', Am, An, A,      LDA, work);
-    Bnorm        = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', Bm, Bn, B,      LDB, work);
-    Cinitnorm    = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M,  N,  Cinit,  LDC, work);
-    Cdplasmanorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M,  N,  Cfinal, LDC, work);
-
-    cblas_zgemm(CblasColMajor,
-                (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
-                M, K, N, CBLAS_SADDR(alpha), A, LDA, B, LDB,
-                CBLAS_SADDR(beta), Cinit, LDC);
-
-    Clapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cinit, LDC, work);
-
-    cblas_zaxpy(LDC * N, CBLAS_SADDR(mzone), Cinit, 1, Cfinal, 1);
-    Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cfinal, LDC, work);
-
-    if (getenv("DPLASMA_TESTING_VERBOSE"))
-        printf("Rnorm %e, Anorm %e, Bnorm %e, Cinit %e, Cdplasmanorm %e, Clapacknorm %e\n",
-               Rnorm, Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm);
-    
-    result = Rnorm / ((Anorm + Bnorm + Cinitnorm) * max(M,N) * eps);
-    if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
-        printf("-- The solution is suspicious ! \n");
-        info_solution = 1;
-    }
-    else{
-        printf("-- The solution is CORRECT ! \n");
-        info_solution = 0;
-    }
-
-    free(work);
-    free(A);
-    free(B);
-    free(Cinit);
-    free(Cfinal);
-
-    return info_solution;
-}
+                          Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal);
 
 int main(int argc, char ** argv)
 {
@@ -269,4 +168,95 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague);
     return 0;
+}
+
+
+
+
+/**********************************
+ * static functions
+ **********************************/
+
+/*------------------------------------------------------------------------
+ *  Check the accuracy of the solution
+ */
+static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
+                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
+                          Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal )
+{
+    int info_solution;
+    double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
+    double eps, result;
+    double *work;
+    int Am, An, Bm, Bn;
+    Dague_Complex64_t mzone = (Dague_Complex64_t)-1.0;
+    Dague_Complex64_t *A, *B, *Cinit, *Cfinal;
+
+    int M   = ddescC->super.m;
+    int N   = ddescC->super.n;
+    int K   = ( transA == PlasmaNoTrans ) ? ddescA->super.n : ddescA->super.m ;
+    int LDA = ddescA->super.lm;
+    int LDB = ddescB->super.lm;
+    int LDC = ddescC->super.lm;
+
+    eps = LAPACKE_dlamch_work('e');
+
+    if (transA == PlasmaNoTrans) {
+        Am = M; An = K;
+    } else {
+        Am = K; An = M;
+    }
+    if (transB == PlasmaNoTrans) {
+        Bm = K; Bn = N;
+    } else {
+        Bm = N; Bn = K;
+    }
+
+    work  = (double *)malloc(max(K,max(M, N))* sizeof(double));
+    A     = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
+    B     = (Dague_Complex64_t *)malloc((ddescB->super.mt)*(ddescB->super.nt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
+    Cinit = (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
+    Cfinal= (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
+
+    twoDBC_to_lapack( ddescA, A,     LDA );
+    twoDBC_to_lapack( ddescB, B,     LDB );
+    twoDBC_to_lapack( ddescC,      Cinit,  LDC );
+    twoDBC_to_lapack( ddescCfinal, Cfinal, LDC );
+
+    Anorm        = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', Am, An, A,      LDA, work);
+    Bnorm        = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', Bm, Bn, B,      LDB, work);
+    Cinitnorm    = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M,  N,  Cinit,  LDC, work);
+    Cdplasmanorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M,  N,  Cfinal, LDC, work);
+
+    cblas_zgemm(CblasColMajor,
+                (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
+                M, K, N, CBLAS_SADDR(alpha), A, LDA, B, LDB,
+                CBLAS_SADDR(beta), Cinit, LDC);
+
+    Clapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cinit, LDC, work);
+
+    cblas_zaxpy(LDC * N, CBLAS_SADDR(mzone), Cinit, 1, Cfinal, 1);
+    Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cfinal, LDC, work);
+
+    if (getenv("DPLASMA_TESTING_VERBOSE"))
+        printf("Rnorm %e, Anorm %e, Bnorm %e, Cinit %e, Cdplasmanorm %e, Clapacknorm %e\n",
+               Rnorm, Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm);
+    
+    result = Rnorm / ((Anorm + Bnorm + Cinitnorm) * max(M,N) * eps);
+    if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
+        printf("-- The solution is suspicious ! \n");
+        info_solution = 1;
+    }
+    else{
+        printf("-- The solution is CORRECT ! \n");
+        info_solution = 0;
+    }
+
+    free(work);
+    free(A);
+    free(B);
+    free(Cinit);
+    free(Cfinal);
+
+    return info_solution;
 }

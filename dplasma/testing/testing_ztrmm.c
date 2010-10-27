@@ -7,38 +7,162 @@
  *
  */
 
-
-#include "dague.h"
-#ifdef USE_MPI
-#include "remote_dep.h"
-extern dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
-#endif  /* defined(USE_MPI) */
-
-#if defined(HAVE_GETOPT_H)
-#include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/time.h>
-#include <math.h>
-
-/* Plasma and math libs */
-#include <cblas.h>
-#include <plasma.h>
-#include <lapacke.h>
-#include <core_blas.h>
-
-#include "scheduling.h"
-#include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "dplasma.h"
-
 #include "common.h"
-#include "common_timing.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+
+static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
+                          two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC );
 
 #define _FMULS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)+1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)+1) ) )
 #define _FADDS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)-1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)-1) ) )
+
+
+int main(int argc, char ** argv)
+{
+    int iparam[IPARAM_SIZEOF];
+    dague_context_t* dague;
+    
+    /* Set defaults for non argv iparam */
+    iparam_default_solve(iparam);
+    iparam[IPARAM_NGPUS] = -1;
+    /* Initialize DAGuE */
+    dague = setup_dague(argc, argv, iparam);
+
+    int rank  = iparam[IPARAM_RANK];
+    int nodes = iparam[IPARAM_NNODES];
+    int cores = iparam[IPARAM_NCORES];
+    int P     = iparam[IPARAM_P];
+    int M     = iparam[IPARAM_M];
+    int N     = iparam[IPARAM_N];
+    int NRHS  = iparam[IPARAM_K];
+    int LDA   = iparam[IPARAM_LDA];
+    int LDB   = iparam[IPARAM_LDB];
+    int MB    = iparam[IPARAM_MB];
+    int NB    = iparam[IPARAM_NB];
+    int SMB   = iparam[IPARAM_SMB];
+    int SNB   = iparam[IPARAM_SNB];
+    int loud  = iparam[IPARAM_VERBOSE];
+    int mt    = (M%MB==0) ? (M/MB) : (M/MB+1);
+    int nt    = (N%NB==0) ? (N/NB) : (N/NB+1);
+
+    DagDouble_t flops, gflops;
+    int s = PlasmaLeft;
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+    flops = 2.*_FADDS(s, M, NRHS) + 6.*_FMULS(s, M, NRHS);
+#else
+    flops = _FADDS(s, M, NRHS) + _FMULS(s, M, NRHS);
+#endif
+
+    /* initializing matrix structure */
+    if(loud) printf("Generate matrices ... ");
+    two_dim_block_cyclic_t ddescA;
+    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    SMB, SNB, P);
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
+    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    
+    two_dim_block_cyclic_t ddescB;
+    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
+    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+    
+    two_dim_block_cyclic_t work;
+    two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank, 1, 1, mt, nt, 0, 0, mt, nt, 1, 1, P);
+    work.mat = dague_data_allocate((size_t)work.super.nb_local_tiles * (size_t)work.super.bsiz * (size_t)work.super.mtype);
+    if(loud) printf("Done\n");
+
+    if(iparam[IPARAM_CHECK] == 0) 
+    {
+        /* Create TRMM DAGuE */
+        if(loud) printf("Generate ZTRMM DAG ... ");
+        TIME_START();
+        dague_object_t* dague_trmm = 
+            dplasma_ztrmm_New(s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                (Dague_Complex64_t)1.0, 
+                (tiled_matrix_desc_t *)&ddescA, 
+                (tiled_matrix_desc_t *)&ddescB, 
+                (tiled_matrix_desc_t *)&work);
+        dague_enqueue(dague, dague_trmm);
+        if(loud) printf("Done\n");
+        if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+
+        /* lets rock! */
+        SYNC_TIME_START();
+        TIME_START();
+        dague_progress(dague);
+        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
+                    rank, dague_trmm->nb_local_tasks,
+                    dague_trmm->nb_local_tasks/time_elapsed));
+        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
+                         gflops = (flops/1e9)/(sync_time_elapsed)));
+    }
+    else {
+        int s, u, t, d;
+        int info_solution;
+        Dague_Complex64_t alpha = 1.0;
+        two_dim_block_cyclic_t ddescC;
+
+        two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
+        ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
+
+        for (s=0; s<2; s++) {
+            for (u=0; u<2; u++) {
+#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+                for (t=0; t<3; t++) {
+#else
+                for (t=0; t<2; t++) {
+#endif
+                    for (d=0; d<2; d++) {
+
+                        printf("***************************************************\n");
+                        printf(" ----- TESTING DTRMM (%s, %s, %s, %s) -------- \n",
+                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+
+                        /* matrix generation */
+                        printf("Generate matrices ... ");
+			generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 400);
+                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
+                        printf("Done\n");
+
+                        /* Create TRMM DAGuE */
+                        printf("Compute ... ... ");
+                        dplasma_dtrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
+                                      (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
+                        printf("Done\n");
+
+                        /* Check the solution */
+                        info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
+                                                       alpha, &ddescA, &ddescB, &ddescC);
+
+                        if (info_solution == 0) {
+                            printf(" ---- TESTING DTRMM (%s, %s, %s, %s) ...... PASSED !\n",
+                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                        }
+                        else {
+                            printf(" ---- TESTING DTRMM (%s, %s, %s, %s) ... FAILED !\n",
+                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                        }
+                        printf("***************************************************\n");
+                    }
+                }
+#ifdef __UNUSED__
+                }
+#endif
+            }
+        }
+        dague_data_free(ddescC.mat);
+    }
+
+    dague_data_free(work.mat);
+    dague_data_free(ddescA.mat);
+    dague_data_free(ddescB.mat);
+
+    cleanup_dague(dague);
+    return 0;
+}
+
+
 
 /**********************************
  * static functions
@@ -111,156 +235,4 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     free(C);
 
     return info_solution;
-}
-
-int main(int argc, char ** argv)
-{
-    int iparam[IPARAM_SIZEOF];
-    DagDouble_t flops;
-    DagDouble_t gflops;
-    dague_context_t* dague;
-
-    /* parsing arguments */
-    runtime_init(argc, argv, iparam);
-
-    int rank  = iparam[IPARAM_RANK];
-    int nodes = iparam[IPARAM_NNODES];
-    int cores = iparam[IPARAM_NCORES];
-    int M     = iparam[IPARAM_M];
-    int N     = iparam[IPARAM_N];
-    int MB    = iparam[IPARAM_MB];
-    int NB    = iparam[IPARAM_NB];
-    int LDA   = iparam[IPARAM_LDA];
-    int NRHS  = iparam[IPARAM_NRHS];
-    int LDB   = iparam[IPARAM_LDB];
-    int SMB  = iparam[IPARAM_SMB];
-    int SNB  = iparam[IPARAM_SNB];
-    int P = iparam[IPARAM_P];
-    int mt = (M%MB==0) ? (M/MB) : (M/MB+1);
-    int nt = (N%NB==0) ? (N/NB) : (N/NB+1);
-
-    two_dim_block_cyclic_t ddescA;
-    two_dim_block_cyclic_t ddescB;
-    two_dim_block_cyclic_t work;
-
-    dague_object_t *dague_trmm = NULL;
-
-    /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N,    0, 0, LDA, N,    SMB, SNB, P);
-    two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-    ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
-
-    /* Initialize DAGuE */
-    TIME_START();
-    dague = setup_dague(&argc, &argv, iparam);
-    TIME_PRINT(rank, ("Dague initialization:\t%d %d\n", N, NB));
-
-    if ( iparam[IPARAM_CHECK] == 0 ) {
-        int s = PlasmaLeft;
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-        flops = 2.*_FADDS(s, M, NRHS) + 6.*_FMULS(s, M, NRHS);
-#else
-        flops = _FADDS(s, M, NRHS) + _FMULS(s, M, NRHS);
-#endif
-
-	/* Create workspace for control */
-	two_dim_block_cyclic_init(&work, matrix_Integer, nodes, cores, rank, 1, 1, mt, nt, 0, 0, mt, nt, 1, 1, P);
-	work.mat = dague_data_allocate((size_t)work.super.nb_local_tiles * (size_t)work.super.bsiz * (size_t)work.super.mtype);
-
-        /* matrix generation */
-        printf("Generate matrices ... ");
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-        printf("Done\n");
-
-        /* Create TRMM DAGuE */
-        printf("Generate TRMM DAG ... ");
-        SYNC_TIME_START();
-        dague_trmm = dplasma_dtrmm_New(s, PlasmaLower, PlasmaNoTrans, PlasmaUnit, (Dague_Complex64_t)1.0,
-                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&work);
-        dague_enqueue( dague, (dague_object_t*)dague_trmm);
-        printf("Done\n");
-        printf("Total nb tasks to run: %u\n", dague->taskstodo);
-
-        /* lets rock! */
-        SYNC_TIME_START();
-        TIME_START();
-        dague_progress(dague);
-        TIME_PRINT(rank, ("Dague proc %d:\ttasks: %u\t%f task/s\n",
-                    rank, dague_trmm->nb_local_tasks,
-                    dague_trmm->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(rank, ("Dague computation:\t%d %d %f gflops\n", N, NB,
-                         gflops = flops/(sync_time_elapsed)));
-        (void) gflops;
-        TIME_PRINT(rank, ("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIO]));
-
-	dague_data_free(work.mat);
-    }
-    else {
-        int s, u, t, d;
-        int info_solution;
-        Dague_Complex64_t alpha = 1.0;
-        two_dim_block_cyclic_t ddescC;
-
-        two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
-        ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
-
-        for (s=0; s<2; s++) {
-            for (u=0; u<2; u++) {
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-                for (t=0; t<3; t++) {
-#else
-                for (t=0; t<2; t++) {
-#endif
-                    for (d=0; d<2; d++) {
-
-                        printf("***************************************************\n");
-                        printf(" ----- TESTING DTRMM (%s, %s, %s, %s) -------- \n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
-
-                        /* matrix generation */
-                        printf("Generate matrices ... ");
-			generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 400);
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
-                        printf("Done\n");
-
-                        /* Create TRMM DAGuE */
-                        printf("Compute ... ... ");
-                        dplasma_dtrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
-                                      (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
-                        printf("Done\n");
-
-                        /* Check the solution */
-                        info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
-                                                       alpha, &ddescA, &ddescB, &ddescC);
-
-                        if (info_solution == 0) {
-                            printf(" ---- TESTING DTRMM (%s, %s, %s, %s) ...... PASSED !\n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
-                        }
-                        else {
-                            printf(" ---- TESTING DTRMM (%s, %s, %s, %s) ... FAILED !\n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
-                        }
-                        printf("***************************************************\n");
-                    }
-                }
-#ifdef __UNUSED__
-                }
-#endif
-            }
-        }
-        dague_data_free(ddescC.mat);
-    }
-
-    dague_data_free(ddescA.mat);
-    dague_data_free(ddescB.mat);
-
-    cleanup_dague(dague, "ztrmm");
-    /*** END OF DAGUE COMPUTATION ***/
-
-    runtime_fini();
-    return 0;
 }

@@ -1,7 +1,37 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ *
+ */
 #ifndef _TESTSCOMMON_H
 #define _TESTSCOMMON_H
 
+/* includes used by the testing_*.c */
+
+/* system and io */
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+/* Plasma and math libs */
+#include <math.h>
+#include <cblas.h>
+#include <plasma.h>
+#include <lapacke.h>
+#include <core_blas.h>
+/* dague things */
 #include "dague.h"
+#include "scheduling.h"
+#include "profiling.h"
+#include "dplasma.h"
+/* timings */
+#include "common_timing.h"
+#ifdef DAGUE_VTRACE
+#include "vt_user.h"
+#endif
+
+
+
 
 enum iparam_t {
   IPARAM_RANK,       /* Rank                              */
