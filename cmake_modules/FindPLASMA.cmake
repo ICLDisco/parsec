@@ -28,7 +28,8 @@ if(NOT _LANGUAGES_ MATCHES Fortran)
   endif(PLASMA_FIND_REQUIRED)
 endif(NOT _LANGUAGES_ MATCHES Fortran)
 
-unset(PLASMA_COMPILE_SUCCESS)
+unset(PLASMA_C_COMPILE_SUCCESS)
+unset(PLASMA_F_COMPILE_SUCCESS)
 
 # First we try to use pkg-config to find what we're looking for
 # in the directory specified by the PLASMA_DIR or PLASMA_PKG_DIR
@@ -80,7 +81,7 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
   # Validate the include file <plasma.h>
   find_path(PLASMA_INCLUDE_FOUND
     plasma.h
-    "${PLASMA_INCLUDE_DIRS}"
+    PATHS ${PLASMA_INCLUDE_DIRS}
     )
   if(NOT PLASMA_INCLUDE_FOUND)
     if(PLASMA_FIND_REQUIRED)
@@ -90,17 +91,33 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
   # Validate the library
   include(CheckCSourceCompiles)
+  include(CheckFortranFunctionExists)
 
   set(PLASMA_tmp_libraries ${CMAKE_REQUIRED_LIBRARIES})
   set(PLASMA_tmp_flags ${CMAKE_REQUIRED_FLAGS})
-  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${PLASMA_LIBRARIES}")
-  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${PLASMA_CFLAGS} ${PLASMA_LDFLAGS}")
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${PLASMA_LIBRARIES})
+
+# CMAKE_REQUIRED_FLAGS must be a string, not a list
+# if CMAKE_REQUIRED_FLAGS is a list (separated by ;), only the first element of the list is passed to check_c_source_compile
+# Since PLASMA_LDFLAGS and PLASMA_CFLAGS hold lists, we convert them by hand to a string
+  foreach(arg ${PLASMA_LDFLAGS})
+   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+  endforeach(arg ${PLASMA_LDFLAGS})
+  foreach(arg ${PLASMA_CFLAGS})
+   set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${arg}")
+  endforeach(arg ${PLASMA_CFLAGS})
+
   check_c_source_compiles(
     "int main(int argc, char* argv[]) {
        PLASMA_zgeqrf(); return 0;
      }"
-    PLASMA_COMPILE_SUCCESS
+    PLASMA_C_COMPILE_SUCCESS
     )
+
+  if(NOT PLASMA_C_COMPILE_SUCCESS)
+    CHECK_FORTRAN_FUNCTION_EXISTS(PLASMA_zgeqrf PLASMA_F_COMPILE_SUCCESS)
+  endif(NOT PLASMA_C_COMPILE_SUCCESS)
+
   set(${CMAKE_REQUIRED_LIBRARIES} PLASMA_tmp_libraries)
   set(${CMAKE_REQUIRED_FLAGS} PLASMA_tmp_flags)
   unset(PLASMA_tmp_libraries)
@@ -109,8 +126,14 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 endif(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
 if(NOT PLASMA_FIND_QUIETLY)
-  if(PLASMA_COMPILE_SUCCESS)
-    message(STATUS "A Library with PLASMA API found.")
+  if(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
+    if(PLASMA_C_COMPILE_SUCCESS)
+      message(STATUS "A Library with PLASMA API found (using C compiler+linker).")
+    else(PLASMA_C_COMPILE_SUCCESS)
+      set(PLASMA_REQUIRE_FORTRAN_LINKER TRUE)
+      mark_as_advanced(PLASMA_REQUIRE_FORTRAN_LINKER)
+      message(STATUS "A Library with PLASMA API found (using C compiler and Fortran linker).")
+    endif(PLASMA_C_COMPILE_SUCCESS)
     string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
     find_package_message(PLASMA
       "Found PLASMA: ${PLASMA_LIBRARIES}
@@ -119,7 +142,7 @@ if(NOT PLASMA_FIND_QUIETLY)
     PLASMA_INCLUDE_DIRS = [${PLASMA_INCLUDE_DIRS}]
     PLASMA_LIBRARY_DIRS = [${PLASMA_LIBRARY_DIRS}]"
       "[${PLASMA_CFLAGS}][${PLASMA_LDFLAGS}][${PLASMA_INCLUDE_DIRS}][${PLASMA_LIBRARY_DIRS}]")
-  else(PLASMA_COMPILE_SUCCESS)
+  else(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
     if(PLASMA_FIND_REQUIRED)
       message(FATAL_ERROR
         "A required library with PLASMA API not found. Please specify library location.")
@@ -127,5 +150,8 @@ if(NOT PLASMA_FIND_QUIETLY)
       message(STATUS
         "A library with PLASMA API not found. Please specify library location.")
     endif(PLASMA_FIND_REQUIRED)
-  endif(PLASMA_COMPILE_SUCCESS)
+  endif(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
 endif(NOT PLASMA_FIND_QUIETLY)
+
+unset(PLASMA_C_COMPILE_SUCCESS)
+unset(PLASMA_F_COMPILE_SUCCESS)
