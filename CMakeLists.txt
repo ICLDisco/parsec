@@ -333,3 +333,12 @@ configure_file (
   "${PROJECT_INCLUDE_DIR}/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
+
+# build a CPack driven installer package
+include (InstallRequiredSystemLibraries)
+set (CPACK_RESOURCE_FILE_LICENSE  
+     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
+include (CPack)
+
