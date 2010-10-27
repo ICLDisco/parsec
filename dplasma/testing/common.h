@@ -88,9 +88,11 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-#define FLOPS_COUNT(FADD,FMUL,PARAMS) (2. * FADD PARAMS + 6. * FMUL PARAMS)
+#define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
+  double gflops, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
 #else 
-#define FLOPS_COUNT(FADD,FMUL,PARAMS) (FADD PARAMS + FMUL PARAMS);
+#define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
+  double gflops, flops = (FADD PARAMS + FMUL PARAMS);
 #endif
 
 /*******************************
@@ -134,6 +136,26 @@ static inline int min(int a, int b) { return a < b ? a : b; }
                                     (size_t)DDESC.super.bsiz * \
                                     (size_t)DDESC.super.mtype); \
   }
+
+#define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS) \
+  if(loud) printf("Generate "KERNEL" DAG ... "); \
+  SYNC_TIME_START(); \
+  dague_object_t* dague_##KERNEL = dplasma_##KERNEL##_New PARAMS; \
+  dague_enqueue(DAGUE, dague_##KERNEL); \
+  if(loud) printf("Done\n"); \
+  if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+
+
+#define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL) \
+  SYNC_TIME_START(); \
+  TIME_START(); \
+  dague_progress(DAGUE); \
+  if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n", \
+              rank, dague_##KERNEL->nb_local_tasks, \
+              dague_##KERNEL->nb_local_tasks/time_elapsed)); \
+  SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB, \
+                   gflops = (flops/1e9)/(sync_time_elapsed))); \
+  (void)gflops;
 
 
 #endif /* _TESTSCOMMON_H */

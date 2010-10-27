@@ -28,7 +28,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    DagDouble_t gflops, flops = FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
+    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K))
 
     int tA    = PlasmaNoTrans;
     int tB    = PlasmaNoTrans;
@@ -63,28 +63,15 @@ int main(int argc, char ** argv)
         if(loud) printf("Done\n");
 
         /* Create GEMM DAGuE */
-        if(loud) printf("Generate GEMM DAG ... ");
-        SYNC_TIME_START();
-        dague_object_t* dague_gemm = 
-            dplasma_zgemm_New(tA, tB, 
-                              (Dague_Complex64_t)alpha,
-                              (tiled_matrix_desc_t *)&ddescA, 
-                              (tiled_matrix_desc_t *)&ddescB,
-                              (Dague_Complex64_t)beta,
-                              (tiled_matrix_desc_t *)&ddescC);
-        dague_enqueue(dague, dague_gemm);
-        if(loud) printf("Done\n");
-        if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm, 
+                                           (tA, tB, (Dague_Complex64_t)alpha,
+                                            (tiled_matrix_desc_t *)&ddescA, 
+                                            (tiled_matrix_desc_t *)&ddescB,
+                                            (Dague_Complex64_t)beta,
+                                            (tiled_matrix_desc_t *)&ddescC))
 
         /* lets rock! */
-        SYNC_TIME_START();
-        TIME_START();
-        dague_progress(dague);
-        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
-                    rank, dague_gemm->nb_local_tasks,
-                    dague_gemm->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
-                         gflops = (flops/1e9)/(sync_time_elapsed)));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgemm)
     }
     else
     { 
