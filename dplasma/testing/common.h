@@ -57,11 +57,11 @@ enum iparam_t {
   IPARAM_SIZEOF
 };
 
-#define SET_IBNBMB_DEFAULTS(iparam, IB, NB, MB) do {
-    iparam[IPARAM_IB] = (IB);
-    iparam[IPARAM_NB] = (NB);
-    iparam[IPARAM_MB] = (MB);
-}
+#define SET_IBNBMB_DEFAULTS(iparam, IB, NB, MB) do { \
+    iparam[IPARAM_IB] = (IB); \
+    iparam[IPARAM_NB] = (NB); \
+    iparam[IPARAM_MB] = (MB); \
+} while(0)
 
 #define DECLARE_IPARAM_LOCALS(iparam) \
   int rank  = iparam[IPARAM_RANK];\
@@ -83,7 +83,7 @@ enum iparam_t {
   int SNB   = iparam[IPARAM_SNB];\
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
-  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prios;(void)P;(void)Q;(void)M;(void)N;(void)K;\
+  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;\
   (void)LDA;(void)LDB;(void)LDC;(void)MB;(void)NB;(void)SMB;(void)SNB;(void)check;(void)loud;
 
 /* Define a double type which not pass through the precision generation process */
