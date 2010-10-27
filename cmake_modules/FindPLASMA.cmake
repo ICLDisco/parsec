@@ -42,9 +42,41 @@ endif(PLASMA_DIR)
 set(ENV{PKG_CONFIG_PATH} "${PLASMA_PKG_DIR}:$ENV{PKG_CONFIG_PATH}")
 pkg_search_module(PLASMA plasma)
 if(PKG_CONFIG_FOUND)
-  if(NOT PLASMA_FOUND)
-    message(FATAL_ERROR "No detection of PLASMA except via pkg-config available yet.")
-  endif(NOT PLASMA_FOUND)
+  if(PLASMA_FOUND)
+    # 
+    # There is a circular dependency in PLASMA between the libplasma and libcoreblas.
+    # Unfortunately, this cannot be handled by pkg-config (as it remove the duplicates)
+    # so we have to add it by hand.
+    # 
+    list(APPEND PLASMA_LDFLAGS -lplasma)
+    string(REGEX REPLACE ";" " " PLASMA_LDFLAGS "${PLASMA_LDFLAGS}")
+  endif(PLASMA_FOUND)
+endif(PKG_CONFIG_FOUND)
+
+if(NOT PLASMA_FOUND)
+  #
+  # No pkg-config supported on this system. Hope the user provided
+  # all the required variables in order to detect PLASMA. This include
+  # either:
+  # - PLASMA_INCLUDE_DIRS, PLASMA_LDFLAGS or PLASMA_LIBRARIES
+  # - PLASMA_DIR and PLASMA_LIBRARIES
+  #
+  if(NOT PLASMA_INCLUDE_DIRS)
+    if(NOT PLASMA_DIR)
+      message(FATAL_ERROR "pkg-config not available. You need to provide PLASMA_DIR and PLASMA_LIBRARIES")
+    endif(NOT PLASMA_DIR)
+    set(PLASMA_INCLUDE_DIRS "${PLASMA_DIR}/include")
+  endif(NOT PLASMA_INCLUDE_DIRS)
+  if(NOT PLASMA_LDFLAGS)
+    if(PLAMA_DIR)
+      set(PLASMA_LDFLAGS "${PLASMA_DIR}/lib")
+    else(PLAMA_DIR)
+      message(FATAL_ERROR "pkg-config not available. You need to provide PLASMA_DIR and PLASMA_LIBRARIES")
+    endif(PLAMA_DIR)
+  endif(NOT PLASMA_LDFLAGS)
+endif(NOT PLASMA_FOUND)
+
+if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
   # Validate the include file <plasma.h>
   find_path(PLASMA_INCLUDE_FOUND
     plasma.h
@@ -61,8 +93,8 @@ if(PKG_CONFIG_FOUND)
 
   set(PLASMA_tmp_libraries ${CMAKE_REQUIRED_LIBRARIES})
   set(PLASMA_tmp_flags ${CMAKE_REQUIRED_FLAGS})
-  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${PLASMA_LDFLAGS}")
-  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}:${PLASMA_CFLAGS}")
+  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${PLASMA_LIBRARIES}")
+  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${PLASMA_CFLAGS} ${PLASMA_LDFLAGS}")
   check_c_source_compiles(
     "int main(int argc, char* argv[]) {
        PLASMA_zgeqrf(); return 0;
@@ -74,10 +106,7 @@ if(PKG_CONFIG_FOUND)
   unset(PLASMA_tmp_libraries)
   unset(PLASMA_tmp_includes)
   unset(PLASMA_tmp_flags)
-else(PKG_CONFIG_FOUND)
-  message(FATAL_ERROR "pkg-config not supported on this environment.")
-endif(PKG_CONFIG_FOUND)
-
+endif(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
 if(NOT PLASMA_FIND_QUIETLY)
   if(PLASMA_COMPILE_SUCCESS)

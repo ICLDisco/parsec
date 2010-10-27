@@ -9,15 +9,18 @@ doxygen/*
 .*\.tab\.h
 .*\.profile
 dague_config.h
+dague.pc
 lex\.yy\.c
 CMakeCache.txt
 CMakeScripts
 CMakeFiles
+_CPack_Packages
+CPackConfig.cmake
+CPackSourceConfig.cmake
 \.\#.*
 .*Makefile
 .*cmake_install.cmake
 install_manifest.txt
-
 .*/generated/.*
 
 dplasma/testing/testing_[zcds]gemm

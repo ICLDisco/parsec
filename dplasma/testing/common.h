@@ -55,4 +55,13 @@ void iparam_default_gemm(int* iparam);
 dague_context_t *setup_dague(int argc, char* argv[], int *iparam);
 void cleanup_dague(dague_context_t* dague);
 
+/**
+ * No macro with the name max or min is acceptable as there is
+ * no way to correctly define them without borderline effects.
+ */
+#undef max
+#undef min 
+static inline int max(int a, int b) { return a > b ? a : b; }
+static inline int min(int a, int b) { return a < b ? a : b; }
+
 #endif /* _TESTSCOMMON_H */

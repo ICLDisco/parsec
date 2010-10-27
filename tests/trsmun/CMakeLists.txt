@@ -7,14 +7,14 @@ if( PLASMA_FOUND )
     set_target_properties(pdtrsmun PROPERTIES LINKER_LANGUAGE Fortran)
     set_target_properties(pdtrsmun PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
     set_target_properties(pdtrsmun PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
-    target_link_libraries(pdtrsmun dplasma-mpi ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS})
+    target_link_libraries(pdtrsmun dplasma-mpi ${PLASMA_LDFLAGS} ${MPI_LIBRARIES} ${EXTRA_LIBS})
   endif( DPLASMA_MPI AND MPI_FOUND )
 
   add_executable(dtrsmun dtrsmun.c data_management.c trsmun_jdf.c)
   set_target_properties(dtrsmun PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(dtrsmun PROPERTIES COMPILE_FLAGS "-DADD_")
   set_target_properties(dtrsmun PROPERTIES LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
-  target_link_libraries(dtrsmun dplasma ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+  target_link_libraries(dtrsmun dplasma ${PLASMA_LDFLAGS} ${EXTRA_LIBS})
 
 endif( PLASMA_FOUND )
 

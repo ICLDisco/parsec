@@ -322,25 +322,23 @@ add_subdirectory(dplasma)
 add_subdirectory(data_dist)
 add_subdirectory(tests)
 
-# Write the pkg-config file
-set(pkgconfig
-"prefix=${CMAKE_INSTALL_PREFIX}
-exec_prefix=\${prefix}
-libdir=\${exec_prefix}/lib
-includedir=\${prefix}/include
-
-Name: DAGuE
-Description: Distributed DAG scheduling.
-Version: 0.0.1
-Requires: plasma
-Libs: -L\${libdir} -ldague
-Libs.private:
-Cflags: -I\${includedir}/")
-message(WARNING ${pkgconfig})
-
 # Configuration header
 configure_file (
   "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
+
+# pkg-config file
+configure_file (
+  "${PROJECT_INCLUDE_DIR}/dague.pc.in"
+  "${PROJECT_INCLUDE_DIR}/dague.pc")
+install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
+
+# build a CPack driven installer package
+include (InstallRequiredSystemLibraries)
+set (CPACK_RESOURCE_FILE_LICENSE  
+     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
+include (CPack)
 

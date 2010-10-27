@@ -3,21 +3,32 @@ rm -rf CMakeCache.txt CMakeFiles
 
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC="/opt/hwloc-1.0.2"
-  PLASMA="/home/bosilca/opt/plasma-svn"
+  PLASMADIR="/home/bosilca/opt/plasma-svn"
   CUDA="/opt/cuda"
 elif [ "x$USER" = "xYOURSELF" ]; then
   HWLOC=SOMEWHERE
-  PLASMA=SOMEWHERE
+  PLASMADIR=SOMEWHERE
   CUDA=SOMEWHERE
 else
   HWLOC="/opt/hwloc"
-  PLASMA="/opt/plasma"
+  PLASMADIR="/opt/plasma"
   CUDA="/opt/cuda"
 fi
 
+PLASMA="-DPLASMA_DIR=${PLASMADIR}"
+# If your system do not provide pkg-config or you don't have
+# a recent version of PLASMA (2.1.0 at least), then instead
+# of using only -DPLASMA_DIR=... you should use
+# -DPLASMA_LDFLAGS="-L${PLASMADIR} -L/opt/mkl/lib/em64t" and
+# -DPLASMA_LIBRARIES="-lplasma -lcoreblas -lquark -llapacke -lmkl_gf_lp64 -lmkl_sequential -lmkl_core  -lpthread -lm"
+
+#PLASMA="-DPLASMA_DIR=${PLASMADIR} \
+#        -DPLASMA_LDFLAGS=\\\"-L${PLASMADIR}/lib -L/opt/mkl/lib/em64t\\\" \
+#        -DPLASMA_LIBRARIES=\\\"-lplasma -lcoreblas -lquark -llapacke -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lm\\\""
+
 if [ "x$1" = "xgcc" ]; then
 # to compile with gcc and plasma-2.1
-cmake .  -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" -DPLASMA_DIR=/opt/plasma-2.2.0-mkl_seq_lp64-intel-11.1.072 -DCUDA_DIR=/opt/cuda ${HWLOC} 
+cmake . ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} 
 
 else
 # Compile with icc, ifort, plasma 2.2
@@ -25,5 +36,5 @@ else
 /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
 export CC=icc
 export FC=ifort
-cmake .  -DPLASMA_DIR=${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
+cmake . ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
 fi
