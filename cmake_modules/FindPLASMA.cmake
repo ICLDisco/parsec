@@ -115,7 +115,13 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
     )
 
   if(NOT PLASMA_C_COMPILE_SUCCESS)
-    CHECK_FORTRAN_FUNCTION_EXISTS(PLASMA_zgeqrf PLASMA_F_COMPILE_SUCCESS)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+    check_c_source_compiles(
+      "int main(int argc, char* argv[]) {
+       PLASMA_zgeqrf(); return 0;
+     }"
+     PLASMA_F_COMPILE_SUCCESS
+    )
   endif(NOT PLASMA_C_COMPILE_SUCCESS)
 
   set(${CMAKE_REQUIRED_LIBRARIES} PLASMA_tmp_libraries)
