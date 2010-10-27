@@ -12,7 +12,7 @@
 
 static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA,
-                          two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC)
+						two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC);
 
 #define _FMULS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)+1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)+1) ) )
 #define _FADDS(side, M, N) ( side == PlasmaLeft ? ( 0.5 * (DagDouble_t)(N) * (DagDouble_t)(M) * (DagDouble_t)((M)-1) ) : ( 0.5 * (DagDouble_t)(M) * (DagDouble_t)(N) * (DagDouble_t)((N)-1) ) )
