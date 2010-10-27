@@ -60,7 +60,7 @@ enum iparam_t {
 void iparam_default_facto(int* iparam);
 void iparam_default_solve(int* iparam);
 void iparam_default_gemm(int* iparam);
-void iparam_default_ibnbmb(int* iparam, int ib, int nb int mb); 
+void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb); 
 
 #define PASTE_CODE_IPARAM_LOCALS(iparam) \
   int rank  = iparam[IPARAM_RANK];\

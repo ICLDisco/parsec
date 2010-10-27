@@ -50,8 +50,8 @@ void print_usage(void)
             "Mandatory argument:\n"
             " number            : dimension (N) of the matrices (required)\n"
             "Optional arguments:\n"
-            " -c --nb-cores     : number of concurent threads (default: number of physical hyper-threads)\n"
-            " -g --nb-gpus      : number of GPU (default: 0)\n"
+            " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
+            " -g --gpus         : number of GPU (default: 0)\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
             " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
@@ -82,7 +82,9 @@ void print_usage(void)
 static struct option long_options[] =
 {
     {"cores",       required_argument,  0, 'c'},
-    {"gpus",        required_argument,  0, 'g'},
+    {"c",           required_argument,  0, 'c'},
+    {"gpus",        optional_argument,  0, 'g'},
+    {"g",           optional_argument,  0, 'g'},
     {"grid-rows",   required_argument,  0, 'p'},
     {"p",           required_argument,  0, 'p'},
     {"P",           required_argument,  0, 'p'},
