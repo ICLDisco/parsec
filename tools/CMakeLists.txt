@@ -1,7 +1,7 @@
 
 #add_executable(grapher grapher.c)
 #ADD_DEPENDENCIES(grapher grapher_create_objects.c)
-#target_link_libraries(grapher dplasma dague ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS})
+#target_link_libraries(grapher dplasma dague ${EXTRA_LIBS})
 
 Add_Subdirectory(dague-compiler)
 
