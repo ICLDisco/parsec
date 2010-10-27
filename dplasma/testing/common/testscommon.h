@@ -47,4 +47,11 @@ void runtime_fini(void);
 dague_context_t *setup_dague(int* pargc, char** pargv[], int *iparam);
 void cleanup_dague(dague_context_t* dague, char *name);
 
+/**
+ * No macro with the name max or min is acceptable as there is
+ * no way to correctly define them without borderline effects.
+ */
+static inline int max(int a, int b) { return a > b ? a : b; }
+static inline int min(int a, int b) { return a < b ? a : b; }
+
 #endif /* _TESTSCOMMON_H */
