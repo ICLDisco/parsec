@@ -1,6 +1,6 @@
 if( PLASMA_FOUND )
 
-  include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src)
+  include_directories(${PLASMA_INCLUDE_DIRS})
   
   if( DPLASMA_MPI AND MPI_FOUND )
     add_executable(pdtrsmun dtrsmun.c data_management.c trsmun_jdf.c)

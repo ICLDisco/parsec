@@ -271,7 +271,7 @@ endif( DAGUE_PROFILING )
 set(PROJECT_INCLUDE_DIR "include")
 include_directories("${PROJECT_INCLUDE_DIR}")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
+#include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 add_definitions(-DHAVE_CONFIG_H)
 
 #
@@ -321,6 +321,22 @@ add_subdirectory(tools)
 add_subdirectory(dplasma)
 add_subdirectory(data_dist)
 add_subdirectory(tests)
+
+# Write the pkg-config file
+set(pkgconfig
+"prefix=${CMAKE_INSTALL_PREFIX}
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: DAGuE
+Description: Distributed DAG scheduling.
+Version: 0.0.1
+Requires: plasma
+Libs: -L\${libdir} -ldague
+Libs.private:
+Cflags: -I\${includedir}/")
+message(WARNING ${pkgconfig})
 
 # Configuration header
 configure_file (

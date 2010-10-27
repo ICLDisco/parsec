@@ -1,5 +1,5 @@
 if( PLASMA_FOUND )
-  include_directories( ${PLASMA_INCLUDE_DIR} ${PLASMA_INCLUDE_DIR}/../src )
+  include_directories(${PLASMA_INCLUDE_DIRS})
   
  add_executable(ladgels dgels.c QR.c)
   set_target_properties(ladgels PROPERTIES LINKER_LANGUAGE Fortran)

@@ -3,21 +3,22 @@ include(RulesPrecisions)
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   include_directories(common)
 
+  set(testings_addexec_CFLAGS  "${PLASMA_CFLAGS} -DADD_")
+  set(testings_addexec_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
+  set(testings_addexec_LIBS    "${EXTRA_LIBS}")
   # Set flags for compilation
   if( DAGUE_MPI AND MPI_FOUND )
-    set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} -DADD_ -DUSE_MPI")
-    set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${LOCAL_FORTRAN_LINK_FLAGS}")
+    set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} ${testings_addexec_CFLAGS} -DUSE_MPI")
+    set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
     set(testings_addexec_LIBS   
       dplasma-mpi  dplasma_testscommon-mpi dague-mpi  dague_distribution_matrix-mpi 
-      ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${MPI_LIBRARIES} ${EXTRA_LIBS}
-    )
+      ${testings_addexec_LIBS} ${PLASMA_LIBRARIES} ${MPI_LIBRARIES} 
+      )
   else ( DAGUE_MPI AND MPI_FOUND )
-    set(testings_addexec_CFLAGS  "-DADD")
-    set(testings_addexec_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
     set(testings_addexec_LIBS   
       dplasma dplasma_testscommon dague dague_distribution_matrix 
-      ${PLASMA_LIBRARIES} ${BLAS_LIBRARIES} ${EXTRA_LIBS}
-    )
+      ${testings_addexec_LIBS} ${PLASMA_LIBRARIES} 
+      )
   endif()
 
   set(testings_addexec_GENFILES "")
@@ -31,7 +32,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
                             LINK_FLAGS "${testings_addexec_LDFLAGS}")
-    target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS})
+    target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${PLASMA_LDFLAGS})
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})
   endforeach()
 
