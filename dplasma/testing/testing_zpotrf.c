@@ -13,107 +13,98 @@
 #include "cuda_sgemm.h"
 #endif
 
-#define _FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
-#define _FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))
+#if define(LLT_LL)
+#define KPOTRF zpotrf_ll
+#else
+#define KPOTRF zpotrf
+#endif
 
-#define _FMULS_POTRS(N, NRHS) ( (NRHS) * ( (N) * ((N) + 1.) ) )
-#define _FADDS_POTRS(N, NRHS) ( (NRHS) * ( (N) * ((N) - 1.) ) )
+#define FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
+#define FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))
+
+#define FMULS_POTRS(N, NRHS) ( (NRHS) * ( (N) * ((N) + 1.) ) )
+#define FADDS_POTRS(N, NRHS) ( (NRHS) * ( (N) * ((N) - 1.) ) )
+
 
 int main(int argc, char ** argv)
 {
-    int iparam[IPARAM_SIZEOF];
     dague_context_t* dague;
+    int iparam[IPARAM_SIZEOF];
 
     /* Set defaults for non argv iparams */
-    iparam_default_solve(iparam);
-#if !defined(PRECISION_s) || !defined(DAGUE_CUDA_SUPPORT)
+    iparam_default_facto(iparam);
+    iparam_default_ibnbmb(iparam, -1, 180, 180);
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    iparam[IPARAM_NGPUS] = 0;
+#else
     iparam[IPARAM_NGPUS] = -1;
 #endif
+
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
+    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PLASMA_enum uplo = PlasmaLower;
+    PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N))
 
-    int rank  = iparam[IPARAM_RANK];
-    int nodes = iparam[IPARAM_NNODES];
-    int cores = iparam[IPARAM_NCORES];
-    //int M     = iparam[IPARAM_M];
-    int N     = iparam[IPARAM_N];
-    int NRHS  = iparam[IPARAM_K];
-    int MB    = iparam[IPARAM_MB];
-    int NB    = iparam[IPARAM_NB];
-    int IB    = iparam[IPARAM_IB];
-    int LDA   = iparam[IPARAM_LDA];
-    int LDB   = iparam[IPARAM_LDB];
-    int SMB   = iparam[IPARAM_SMB];
-    int SNB   = iparam[IPARAM_SNB];
-    int P     = iparam[IPARAM_P];
-    int loud  = iparam[IPARAM_VERBOSE];
-    int info;
-
-    DagDouble_t flops, gflops;
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-    flops = 2.*_FADDS_POTRF(N) + 6.*_FMULS_POTRF(N);
-#else
-    flops = _FADDS_POTRF(N) + _FMULS_POTRF(N);
-#endif
-    
-    //#ifdef VTRACE 
-    //    VT_ON();
-    //#endif
-    
     /* initializing matrix structure */
-    sym_two_dim_block_cyclic_t ddescA;
-    sym_two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank,
-                                  MB, NB, N, N, 0, 0, LDA, N, P);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(0 != spotrf_cuda_init((tiled_matrix_desc_t *) &ddescA)) {
-            fprintf(stderr, "Unable to load GPU GEMM kernels.\n");
-            exit(3);
-        }
-    }
-#endif
-    if(loud) printf("Generate matrices ... ");
-    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-    if(loud) printf("Done\n");
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, N, N, 0, 0, 
+                                    LDA, N, P))
 #if defined(DAGUE_PROFILING)
     ddescA.super.super.key = strdup("A");
 #endif
 
-    if(iparam[IPARAM_CHECK] == 0) 
+    /* load the GPU kernel */
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    if(iparam[IPARAM_NGPUS] > 0)
     {
-        PLASMA_enum uplo = PlasmaLower;
-        
-        /* Create TRMM DAGuE */
-        if(loud) printf("Generate ZPOTRF DAG ... ");
-        SYNC_TIME_START();
-#if defined(LLT_LL)
-        dague_object_t* dague_zpotrf = 
-            dplasma_zpotrf_ll_New(uplo, (tiled_matrix_desc_t*)&ddescA, &info);
-#else
-        dague_object_t* dague_zpotrf = 
-            dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t*)&ddescA, &info);
-#endif
-        dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
+        if(loud) printf("+++ Load GPU kernel ... ");
+        if(0 != spotrf_cuda_init((tiled_matrix_desc_t *)&ddescA))
+        {
+            fprintf(stderr, "XXX Unable to load GPU kernel.\n");
+            exit(3);
+        }
         if(loud) printf("Done\n");
-        if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+    }
+#endif
 
+    if(!check) 
+    {
+        /* matrix generation */
+        if(loud > 2) printf("+++ Generate matrices ... ");
+        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+        if(loud > 2) printf("Done\n");
+        /* Create DAGuE */
+        PASTE_CODE_ENQUEUE_KERNEL(dague, KPOTRF, 
+                                           (uplo, 
+                                            (tiled_matrix_desc_t*)&ddescA,
+                                            &info))
         /* lets rock! */
-        SYNC_TIME_START();
-        TIME_START();
-        dague_progress(dague);
-        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
-                    rank, dague_zpotrf->nb_local_tasks,
-                    dague_zpotrf->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
-                         gflops = (flops/1e9)/(sync_time_elapsed)));
+        PASTE_CODE_PROGRESS_KERNEL(dague, KPOTRF)
     }
-#if 0 /* Future check */
-    else {
 
+    /* OLD UGLY CHECK GOES HERE */
+
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    if(iparam[IPARAM_NGPUS] > 0) 
+    {
+        sgemm_cuda_fini();
     }
-#else
+#endif
+
+    dague_data_free(ddescA.mat);
+
+#if defined(DAGUE_PROFILING)
+    free(ddescA.super.super.key);
+#endif
+
+    cleanup_dague(dague);
+    return EXIT_SUCCESS;
+}
+
+
+#if 0 /* OLD ULGLY CHECK */
     /* Old checking by comparison: will be remove because doesn't check anything */
     if(iparam[IPARAM_CHECK] == 1) {
         char fname[20];
@@ -132,24 +123,16 @@ int main(int argc, char ** argv)
         ddescB.super.super.key = strdup("B");
 #endif
 
-        sprintf(fname , "sposv_r%d", rank );
+        sprintf(fname , "zposv_r%d", rank );
         printf("reading matrix from file\n");
         data_read((tiled_matrix_desc_t *) &ddescB, fname);
         
-        matrix_scompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
+        matrix_zcompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
 
         dague_data_free(ddescB.mat);
 #if defined(DAGUE_PROFILING)
         free(ddescB.super.super.key);
 #endif
-    }
 #endif
 
-    dague_data_free(ddescA.mat);
-#if defined(DAGUE_PROFILING)
-    free(ddescA.super.super.key);
-#endif
-
-    cleanup_dague(dague);
-    return EXIT_SUCCESS;
-}
+ 
