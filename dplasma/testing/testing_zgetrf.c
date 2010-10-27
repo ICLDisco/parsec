@@ -40,7 +40,7 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-
+    
     /* Set defaults for non argv iparams */
     iparam_default_solve(iparam);
     iparam[IPARAM_NGPUS] = -1;
@@ -92,12 +92,12 @@ int main(int argc, char ** argv)
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
 
 
-
 #if defined(DAGUE_PROFILING)
     ddescA.super.super.key = strdup("A");
     ddescL.super.super.key = strdup("L");
     ddescIPIV.super.super.key = strdup("IPIV");
 #endif
+
     if(iparam[IPARAM_CHECK] == 0) 
     {
         /* Create GETRF DAGuE */

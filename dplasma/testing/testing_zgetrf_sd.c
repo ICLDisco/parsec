@@ -98,7 +98,6 @@ int main(int argc, char ** argv)
                                   &info);
         dague_enqueue( dague, (dague_object_t*)dague_zgetrf);
         if(loud) printf("Done\n");
-        printf("Total nb tasks to run: %u\n", dague->taskstodo);
         if(loud) TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
 
         /* lets rock! */
