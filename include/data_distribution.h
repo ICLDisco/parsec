@@ -13,6 +13,8 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdlib.h>
+
 #ifdef USE_MPI
 #include "mpi.h"
 #endif /*USE_MPI */
@@ -33,6 +35,25 @@ typedef struct dague_ddesc {
     MPI_Comm comm;
 #endif /* USE_MPI */
 } dague_ddesc_t;
+
+static inline void dague_ddesc_destroy(dague_ddesc_t *d)
+{
+#if defined(DAGUE_PROFILING)
+    if( NULL != d->key_dim )
+        free(d->key_dim);
+    d->key_dim = NULL;
+
+    if( NULL != d->key )
+        free(d->key);
+    d->key = NULL;
+#endif
+}
+
+#if defined(DAGUE_PROFILING)
+#define dague_ddesc_set_key(d, k) (d)->key = strdup(k)
+#else
+#define dague_ddesc_set_key(d, k) do {} while(0)
+#endif
 
 #endif /* _DATA_DISTRIBUTION_H_ */
 

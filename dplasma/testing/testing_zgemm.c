@@ -122,11 +122,15 @@ int main(int argc, char ** argv)
         }
 
         dague_data_free(ddescC2.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescC2);
     }
 
     dague_data_free(ddescA.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescB.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
     dague_data_free(ddescC.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
 
     cleanup_dague(dague);
     return 0;
