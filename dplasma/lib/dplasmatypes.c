@@ -54,7 +54,7 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
     unsigned int i;
     MPI_Datatype tmp;
 
-    diag = min(diag, 0);
+    diag = (diag == 0) ? 1 : 0;
     blocklens = (int*)malloc( tile_nb * sizeof(int) );
     indices = (int*)malloc( tile_nb * sizeof(int) );
 
