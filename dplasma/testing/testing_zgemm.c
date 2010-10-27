@@ -64,10 +64,10 @@ int main(int argc, char ** argv)
 
         /* Create GEMM DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm, 
-                                           (tA, tB, (Dague_Complex64_t)alpha,
+                                           (tA, tB, alpha,
                                             (tiled_matrix_desc_t *)&ddescA, 
                                             (tiled_matrix_desc_t *)&ddescB,
-                                            (Dague_Complex64_t)beta,
+                                            beta,
                                             (tiled_matrix_desc_t *)&ddescC))
 
         /* lets rock! */

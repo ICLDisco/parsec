@@ -138,12 +138,12 @@ static inline int min(int a, int b) { return a < b ? a : b; }
   }
 
 #define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS) \
-  if(loud) printf("Generate "KERNEL" DAG ... "); \
+  if(loud) printf("Generate " #KERNEL " DAG ... "); \
   SYNC_TIME_START(); \
-  dague_object_t* dague_##KERNEL = dplasma_##KERNEL##_New PARAMS; \
-  dague_enqueue(DAGUE, dague_##KERNEL); \
+  dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS; \
+  dague_enqueue(DAGUE, DAGUE_##KERNEL); \
   if(loud) printf("Done\n"); \
-  if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+  if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", DAGUE->taskstodo));
 
 
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL) \
@@ -151,8 +151,8 @@ static inline int min(int a, int b) { return a < b ? a : b; }
   TIME_START(); \
   dague_progress(DAGUE); \
   if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n", \
-              rank, dague_##KERNEL->nb_local_tasks, \
-              dague_##KERNEL->nb_local_tasks/time_elapsed)); \
+              rank, DAGUE_##KERNEL->nb_local_tasks, \
+              DAGUE_##KERNEL->nb_local_tasks/time_elapsed)); \
   SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB, \
                    gflops = (flops/1e9)/(sync_time_elapsed))); \
   (void)gflops;
