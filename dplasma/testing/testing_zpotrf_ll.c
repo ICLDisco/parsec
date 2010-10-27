@@ -47,7 +47,7 @@
 
 int main(int argc, char ** argv)
 {
-    int iparam[IPARAM_INBPARAM];
+    int iparam[IPARAM_SIZEOF];
     DagDouble_t flops;
     DagDouble_t gflops;
     dague_context_t* dague;
@@ -66,7 +66,7 @@ int main(int argc, char ** argv)
     int NB    = iparam[IPARAM_NB];
     int LDA   = iparam[IPARAM_LDA];
     //int NRHS  = iparam[IPARAM_NRHS];
-    int GRIDrows = iparam[IPARAM_GDROW];
+    int P = iparam[IPARAM_P];
     int info;
 
     //#ifdef VTRACE 
@@ -84,7 +84,7 @@ int main(int argc, char ** argv)
 
     /* initializing matrix structure */
     sym_two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank,
-                                  MB, NB, N, N, 0, 0, LDA, N, GRIDrows);
+                                  MB, NB, N, N, 0, 0, LDA, N, P);
 #if defined(DAGUE_PROFILING)
     ddescA.super.super.key = strdup("A");
 #endif
@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     TIME_START();
     dague = setup_dague(&argc, &argv, iparam);
-    TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
+    TIME_PRINT(rank, ("Dague initialization:\t%d %d\n", N, NB));
 
     
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
@@ -134,13 +134,13 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         TIME_START();
         dague_progress(dague);
-        TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n",
+        TIME_PRINT(rank, ("Dague proc %d:\ttasks: %u\t%f task/s\n",
                     rank, dague_zpotrf->nb_local_tasks,
                     dague_zpotrf->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
+        SYNC_TIME_PRINT(rank, ("Dague computation:\t%d %d %f gflops\n", N, NB,
                          gflops = flops/(sync_time_elapsed)));
         (void) gflops;
-        TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
+        TIME_PRINT(rank, ("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIO]));
     }
 #if 0 /* Future check */
     else {
@@ -159,7 +159,7 @@ int main(int argc, char ** argv)
         sym_two_dim_block_cyclic_t ddescB;
 
         sym_two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank,
-                                      MB, NB, N, N, 0, 0, LDA, N, GRIDrows);
+                                      MB, NB, N, N, 0, 0, LDA, N, P);
         ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
 #if defined(DAGUE_PROFILING)
         ddescB.super.super.key = strdup("B");

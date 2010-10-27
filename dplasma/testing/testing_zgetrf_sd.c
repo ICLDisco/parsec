@@ -44,7 +44,7 @@
 
 int main(int argc, char ** argv)
 {
-    int iparam[IPARAM_INBPARAM];
+    int iparam[IPARAM_SIZEOF];
     DagDouble_t flops;
     DagDouble_t gflops;
     dague_context_t* dague;
@@ -61,9 +61,9 @@ int main(int argc, char ** argv)
     int NB    = iparam[IPARAM_NB];
     int IB    = iparam[IPARAM_IB];
     int LDA   = iparam[IPARAM_LDA];
-    int nrst  = iparam[IPARAM_STM];
-    int ncst  = iparam[IPARAM_STN];
-    int GRIDrows = iparam[IPARAM_GDROW];
+    int SMB  = iparam[IPARAM_SMB];
+    int SNB  = iparam[IPARAM_SNB];
+    int P = iparam[IPARAM_P];
     int mt = (M%MB==0) ? (M/MB) : (M/MB+1);
     int info;
 
@@ -73,9 +73,9 @@ int main(int argc, char ** argv)
     dague_object_t *dague_zgetrf = NULL;
     
     /* initializing matrix structure */
-    two_dim_block_cyclic_init(&ddescA,     matrix_ComplexDouble, nodes, cores, rank, MB,   NB, M,         N, 0, 0, LDA,       N, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescA,     matrix_ComplexDouble, nodes, cores, rank, MB,   NB, M,         N, 0, 0, LDA,       N, SMB, SNB, P);
     /* In each tile we store IPIV followed by L */
-    two_dim_block_cyclic_init(&ddescLIPIV, matrix_ComplexDouble, nodes, cores, rank, IB+1, NB, mt*(IB+1), N, 0, 0, mt*(IB+1), N, nrst, ncst, GRIDrows);
+    two_dim_block_cyclic_init(&ddescLIPIV, matrix_ComplexDouble, nodes, cores, rank, IB+1, NB, mt*(IB+1), N, 0, 0, mt*(IB+1), N, SMB, SNB, P);
 
     ddescA.mat     = dague_data_allocate((size_t)ddescA.super.nb_local_tiles    *(size_t)ddescA.super.bsiz    *(size_t)ddescA.super.mtype    );
     ddescLIPIV.mat = dague_data_allocate((size_t)ddescLIPIV.super.nb_local_tiles*(size_t)ddescLIPIV.super.bsiz*(size_t)ddescLIPIV.super.mtype);
@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     TIME_START();
     dague = setup_dague(&argc, &argv, iparam);
-    TIME_PRINT(("Dague initialization:\t%d %d\n", N, NB));
+    TIME_PRINT(rank, ("Dague initialization:\t%d %d\n", N, NB));
 
     if ( iparam[IPARAM_CHECK] == 0 ) {
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
@@ -109,12 +109,12 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         TIME_START();
         dague_progress(dague);
-        TIME_PRINT(("Dague proc %d:\ttasks: %u\t%f task/s\n",
+        TIME_PRINT(rank, ("Dague proc %d:\ttasks: %u\t%f task/s\n",
                     rank, dague_zgetrf->nb_local_tasks, dague_zgetrf->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(("Dague computation:\t%d %d %f gflops\n", N, NB,
+        SYNC_TIME_PRINT(rank, ("Dague computation:\t%d %d %f gflops\n", N, NB,
                          gflops = flops/(sync_time_elapsed)));
         (void) gflops;
-        TIME_PRINT(("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIORITY]));
+        TIME_PRINT(rank, ("Dague priority change at position \t%u\n", ddescA.super.nt - iparam[IPARAM_PRIO]));
     }
     
     dague_data_free(ddescA.mat);

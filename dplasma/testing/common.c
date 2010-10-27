@@ -1,4 +1,5 @@
 #include "common.h"
+#include "common_timing.h"
 #include "dague.h"
 #include <plasma.h>
 
@@ -12,7 +13,9 @@
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
-
+#if defined(DAGUE_CUDA_SUPPORT)
+#include "gpu_data.h"
+#endif
 
 /*******************************
  * globals and argv set values *
@@ -134,6 +137,11 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'g':
+                if(iparam[IPARAM_NGPUS] == -1)
+                {
+                    fprintf(stderr, "!! This test does not have GPU support. GPU disabled.\n");
+                    break;
+                }
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
                 else        iparam[IPARAM_NGPUS] = INT_MAX;
                 break;
@@ -183,6 +191,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         if(verbose) 
             fprintf(stderr, "++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
     }
+    if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
     
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
@@ -325,7 +334,23 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]); 
 #endif
     parse_arguments(argc, argv, iparam);
-    return dague_init(iparam[IPARAM_NCORES], &argc, &argv);
+    int verbose = iparam[IPARAM_VERBOSE];
+    if(iparam[IPARAM_RANK] > 0 && verbose < 3) verbose = 0;
+    
+    TIME_START();
+    dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
+#if defined(DAGUE_CUDA_SUPPORT)
+    if(iparam[IPARAM_NGPUS] > 0)
+    {
+        if(0 != dague_gpu_init(&iparam[IPARAM_NGPUS], 0))
+        {
+            fprintf(stderr, "xx DAGuE is unable to initialize the CUDA environment.\n");
+            exit(3);
+        }
+    }
+#endif
+    if(verbose) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialization"));
+    return ctx;
 }
 
 void cleanup_dague(dague_context_t* dague)

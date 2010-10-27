@@ -8,23 +8,17 @@
  */
 
 
-#include "dague.h"
-
-#if defined(HAVE_GETOPT_H)
-#include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
-#include <math.h>
-
 /* Plasma and math libs */
+#include <math.h>
 #include <cblas.h>
 #include <plasma.h>
 #include <lapacke.h>
 #include <core_blas.h>
 
+#include "dague.h"
 #include "scheduling.h"
 #include "profiling.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
@@ -206,16 +200,16 @@ int main(int argc, char ** argv)
                               (tiled_matrix_desc_t *)&ddescC);
         dague_enqueue(dague, dague_gemm);
         if(loud) printf("Done\n");
-        if(loud) TIME_PRINT(("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+        if(loud) TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
 
         /* lets rock! */
         SYNC_TIME_START();
         TIME_START();
         dague_progress(dague);
-        if(loud) TIME_PRINT(("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
+        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
                     rank, dague_gemm->nb_local_tasks,
                     dague_gemm->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(("Dague progress:\t%d %d %f gflops\n", N, NB,
+        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
                          gflops = (flops/1e9)/(sync_time_elapsed)));
     }
     else
