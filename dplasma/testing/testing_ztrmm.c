@@ -59,13 +59,13 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     int LDB = ddescB->super.lm;
     double eps = LAPACKE_dlamch_work('e');
     double *work = (double *)malloc(max(M, N)* sizeof(double));
-    int Am, An;
+    int Am;
     Dague_Complex64_t mzone = (Dague_Complex64_t)-1.0;
 
     if (side == PlasmaLeft) {
-        Am = M; An = M;
+        Am = M;
     } else {
-        Am = N; An = N;
+        Am = N;
     }
 
     A = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
@@ -77,7 +77,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     twoDBC_to_lapack( ddescC, C, LDB );
     
     /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
-    //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, An, A, LDA, work );
+    //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );
     Anorm      = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), Am, A, LDA, work );
     Binitnorm  = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  B, LDB, work );
     Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  C, LDB, work );
