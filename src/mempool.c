@@ -46,6 +46,7 @@ static void dague_thread_mempool_destruct( dague_thread_mempool_t *thread_mempoo
     void *elt;
     while( (elt = dague_atomic_lifo_pop( &thread_mempool->mempool ) ) != NULL ) 
         free(elt);
+    dague_atomic_lifo_destruct( &thread_mempool->mempool );
 }
 
 void dague_mempool_destruct( dague_mempool_t *mempool )

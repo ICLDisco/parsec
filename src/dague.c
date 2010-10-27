@@ -613,7 +613,7 @@ int dague_fini( dague_context_t** pcontext )
 
     (void) dague_remote_dep_fini( context );
     
-    for(i = 1; i < context->nb_cores; i++) {
+    for(i = 0; i < context->nb_cores; i++) {
 #if defined(DAGUE_USE_LIFO) && !defined(DAGUE_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
         context->execution_units[i]->eu_task_queue = NULL;
@@ -626,9 +626,18 @@ int dague_fini( dague_context_t** pcontext )
         free(context->execution_units[i]->eu_hierarch_queues);
         context->execution_units[i]->eu_hierarch_queues = NULL;
         context->execution_units[i]->eu_nb_hierarch_queues = 0;
-        //free(context->execution_units[i]->eu_system_queue);
+        free(context->execution_units[i]->eu_system_queue);
         context->execution_units[i]->eu_system_queue = NULL;
+#if defined(USE_HIERARCHICAL_QUEUES)
+#warning Memory Leak: if you want to re-eanble hierarchical queues, you need to compute the leader of the queue again, and free it here
+#else
+        dague_hbbuffer_destroy(context->execution_units[i]->eu_task_queue);
+        context->execution_units[i]->eu_task_queue = NULL;
+#endif
+
 #endif  /* !defined(DAGUE_USE_GLOBAL_LIFO)  && defined(HAVE_HWLOC)*/
+
+        free(context->execution_units[i]);
     }
     
 #ifdef DAGUE_PROFILING
