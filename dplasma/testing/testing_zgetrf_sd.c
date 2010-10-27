@@ -42,9 +42,12 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     dague_context_t* dague;
 
-    /* parsing arguments */
-    runtime_init(argc, argv, iparam);
-
+    /* Set defaults for non argv iparams */
+    iparam_default_solve(iparam);
+    iparam[IPARAM_NGPUS] = -1;
+    /* Initialize DAGuE */
+    dague = setup_dague(argc, argv, iparam);
+    
     int rank  = iparam[IPARAM_RANK];
     int nodes = iparam[IPARAM_NNODES];
     int cores = iparam[IPARAM_NCORES];
