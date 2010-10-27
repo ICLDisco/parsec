@@ -84,6 +84,25 @@ dplasma_zgemm_New( const int transA, const int transB,
 }
 
 void
+dplasma_zgemm_Destruct( const int transA, const int transB, dague_object_t *o )
+{
+
+    if( PlasmaNoTrans == transA ) {
+        if( PlasmaNoTrans == transB ) {
+            dague_zgemm_NN_destroy(o);
+        } else {
+            dague_zgemm_NT_destroy(o);
+        }
+    } else {
+        if( PlasmaNoTrans == transB ) {
+            dague_zgemm_TN_destroy(o);
+        } else {
+            dague_zgemm_TT_destroy(o);
+        }
+    }
+}
+
+void
 dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
                const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
                const Dague_Complex64_t beta,  tiled_matrix_desc_t *C)
