@@ -10,86 +10,72 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
-#define _FMULS_GETRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N)) - (DagDouble_t)(N) ) )
-#define _FADDS_GETRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N))                    ) )
+#define FMULS_GETRF(M, N) (0.5 * (N) * ((N) * ((M) - (1./3.) * (N)) - (N)))
+#define FADDS_GETRF(M, N) (0.5 * (N) * ((N) * ((M) - (1./3.) * (N))))
 
 int main(int argc, char ** argv)
 {
-    int iparam[IPARAM_SIZEOF];
     dague_context_t* dague;
-
-    /* Set defaults for non argv iparams */
-    iparam_default_solve(iparam);
-    iparam[IPARAM_NGPUS] = -1;
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    int iparam[IPARAM_SIZEOF];
     
-    int rank  = iparam[IPARAM_RANK];
-    int nodes = iparam[IPARAM_NNODES];
-    int cores = iparam[IPARAM_NCORES];
-    int M     = iparam[IPARAM_M];
-    int N     = iparam[IPARAM_N];
-    int MB    = iparam[IPARAM_MB];
-    int NB    = iparam[IPARAM_NB];
-    int IB    = iparam[IPARAM_IB];
-    int LDA   = iparam[IPARAM_LDA];
-    int SMB   = iparam[IPARAM_SMB];
-    int SNB   = iparam[IPARAM_SNB];
-    int P     = iparam[IPARAM_P];
-    int mt    = (M%MB==0) ? (M/MB) : (M/MB+1);
-    int loud  = iparam[IPARAM_VERBOSE];
-    int info;
-
-    DagDouble_t flops, gflops;
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
-    flops = 2.*_FADDS_GETRF(M, N) + 6.*_FMULS_GETRF(M, N);
+    /* Set defaults for non argv iparams */
+    iparam_default_facto(iparam);
+    iparam[IPARAM_LDA] = -'m';
+    iparam[IPARAM_LDB] = -'m';
+    iparam_default_ibnbmb(iparam, 60, 200, 200);
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) && 0
+    iparam[IPARAM_NGPUS] = 0;
 #else
-    flops = _FADDS_GETRF(M, N) + _FMULS_GETRF(M, N);
+    iparam[IPARAM_NGPUS] = -1;
 #endif
 
+    /* Initialize DAGuE */
+    dague = setup_dague(argc, argv, iparam);
+    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_FLOPS_COUNT(FADDS_GETRF, FMULS_GETRF, ((DagDouble_t)M,(DagDouble_t)N))
+
     /* initializing matrix structure */
-    two_dim_block_cyclic_t ddescA;
-    two_dim_block_cyclic_init(&ddescA, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, N, 0, 0, LDA, N, SMB, SNB, P);
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles * (size_t)ddescA.super.bsiz * (size_t)ddescA.super.mtype);
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-    
+    int info = 0;
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
+                                    LDA, N, SMB, SNB, P))
     /* In each tile we store IPIV followed by L */
-    two_dim_block_cyclic_t ddescLIPIV;
-    two_dim_block_cyclic_init(&ddescLIPIV, matrix_ComplexDouble, nodes, cores, rank, IB+1, NB, mt*(IB+1), N, 0, 0, mt*(IB+1), N, SMB, SNB, P);
-    ddescLIPIV.mat = dague_data_allocate((size_t)ddescLIPIV.super.nb_local_tiles * (size_t)ddescLIPIV.super.bsiz * (size_t)ddescLIPIV.super.mtype);
-    generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescLIPIV);
+    PASTE_CODE_ALLOCATE_MATRIX(ddescLIPIV, 1, 
+        two_dim_block_cyclic, (&ddescLIPIV, matrix_ComplexDouble, 
+                                    nodes, cores, rank, IB+1, NB, MT*(IB+1), N, 0, 0, 
+                                    MT*(IB+1), N, SMB, SNB, P))
 
 #if defined(DAGUE_PROFILING)
     ddescA.super.super.key = strdup("A");
     ddescLIPIV.super.super.key = strdup("LIPIV");
 #endif
 
-    if(iparam[IPARAM_CHECK] == 0) {
-        /* Create GETRF DAGuE */
-        if(loud) printf("Generate GETRF DAG ... ");
-        SYNC_TIME_START();
-        dague_object_t* dague_zgetrf = 
-            dplasma_zgetrf_sd_New((tiled_matrix_desc_t*)&ddescA,
-                                  (tiled_matrix_desc_t*)&ddescLIPIV,
-                                  &info);
-        dague_enqueue( dague, (dague_object_t*)dague_zgetrf);
-        if(loud) printf("Done\n");
-        if(loud) TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
-
+    if(!check)
+    {
+        /* matrix generation */
+        if(loud > 2) printf("+++ Generate matrices ... ");
+        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescLIPIV);
+        if(loud > 2) printf("Done\n");
+        /* Create DAGuE */
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_sd,
+                                            ((tiled_matrix_desc_t*)&ddescA,
+                                             (tiled_matrix_desc_t*)&ddescLIPIV,
+                                             &info)) 
         /* lets rock! */
-        SYNC_TIME_START();
-        TIME_START();
-        dague_progress(dague);
-        if(loud) TIME_PRINT(rank, ("Dague proc %d:\tcomputed %u tasks,\t%f task/s\n",
-                    rank, dague_zgetrf->nb_local_tasks, 
-                    dague_zgetrf->nb_local_tasks/time_elapsed));
-        SYNC_TIME_PRINT(rank, ("Dague progress:\t%d %d %f gflops\n", N, NB,
-                         gflops = (flops/1e9)/(sync_time_elapsed)));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_sd)
     }
     
     dague_data_free(ddescA.mat);
     dague_data_free(ddescLIPIV.mat);
 
     cleanup_dague(dague);
+
+#if defined(DAGUE_PROFILING)
+    free(ddescA.super.super.key);
+    free(ddescLIPIV.super.super.key);
+#endif
     return EXIT_SUCCESS;
 }
+
