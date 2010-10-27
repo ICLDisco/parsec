@@ -27,7 +27,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     string(REGEX REPLACE "\\.[scdz]" "" testings_addexec_EXEC ${testings_addexec_GENFILE})
     string(REGEX REPLACE "generated/" "" testings_addexec_EXEC ${testings_addexec_EXEC})
 
-    add_executable(${testings_addexec_EXEC} ${testings_addexec_GENFILE} common.c common_timing.h)
+    add_executable(${testings_addexec_EXEC} ${testings_addexec_GENFILE})
     set_target_properties(${testings_addexec_EXEC} PROPERTIES
                             LINKER_LANGUAGE Fortran
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
