@@ -25,7 +25,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
 
     /* Set defaults for non argv iparams */
-    iparam_default_solve(iparam);
+    iparam_default_facto(iparam);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
     iparam_default_ibnbmb(iparam, 48, 144, 144);
@@ -82,7 +82,7 @@ int main(int argc, char ** argv)
                                             (tiled_matrix_desc_t*)&ddescT))
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgegrf)
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf)
     }
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
