@@ -3,7 +3,11 @@ include(RulesPrecisions)
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   include_directories(.)
 
-  set(testings_addexec_CFLAGS  "${PLASMA_CFLAGS} -DADD_")
+  set(testings_addexec_CFLAGS "-DADD_")
+  foreach(arg ${PLASMA_CFLAGS})
+    set(testings_addexec_CFLAGS "${testings_addexec_CFLAGS} ${arg}")
+  endforeach(arg ${PLASMA_CFLAGS})
+
   set(testings_addexec_LDFLAGS "${LOCAL_FORTRAN_LINK_FLAGS}")
   set(testings_addexec_LIBS    "${EXTRA_LIBS}")
   # Set flags for compilation
