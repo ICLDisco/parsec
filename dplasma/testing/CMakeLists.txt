@@ -1,6 +1,7 @@
 if(DAGUE_MPI AND MPI_FOUND)
   add_library(common-mpi common.c common_timing.h)
-  set_target_properties(common-mpi PROPERTIES COMPILE_FLAGS "-DUSE_MPI")
+  set_target_properties(common-mpi PROPERTIES COMPILE_FLAGS
+      "${MPI_COMPILE_FLAGS} -DUSE_MPI")
 else()
   add_library(common common.c common_timing.h)
 endif()
