@@ -7,32 +7,8 @@
  *
  */
 
-
-#ifdef USE_MPI
-#include <mpi.h>
-#endif  /* defined(USE_MPI) */
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#include <math.h>
-#include <cblas.h>
-#include <plasma.h>
-#include <lapacke.h>
-
-#include "dague.h"
-#include "scheduling.h"
-#include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "dplasma.h"
-
 #include "common.h"
-#include "common_timing.h"
-
-//#ifdef VTRACE
-//#include "vt_user.h"
-//#endif
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 #define _FMULS_GETRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N)) - (DagDouble_t)(N) ) )
 #define _FADDS_GETRF(M, N) ( 0.5 * (DagDouble_t)(N) * ( (DagDouble_t)(N) * ((DagDouble_t)(M) - (1. / 3.) * (DagDouble_t)(N))                    ) )

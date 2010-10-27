@@ -7,30 +7,11 @@
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#include <math.h>
-#include <cblas.h>
-#include <plasma.h>
-#include <lapacke.h>
-
-#include "dague.h"
-#include "scheduling.h"
-#include "profiling.h"
+#include "common.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
-#include "dplasma.h"
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "cuda_sgemm.h"
 #endif
-
-#include "common.h"
-#include "common_timing.h"
-
-//#ifdef VTRACE
-//#include "vt_user.h"
-//#endif
 
 #define _FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
 #define _FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))
