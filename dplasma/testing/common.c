@@ -45,7 +45,7 @@ void print_usage(void)
             " -g --nb-gpus      : number of GPU (default: 0)\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
-            " -k --pri-change   : activate prioritized DAG k steps before the end (default: 0)\n"
+            " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
             "                   : with no argument, prioritized DAG from the start\n"
             "\n"
             " -N                : dimension (N) of the matrices (required)\n"
@@ -55,8 +55,9 @@ void print_usage(void)
             " -A --LDA          : leading dimension of the matrix A (default: full)\n"
             " -B --LDB          : leading dimension of the matrix B (default: full)\n"
             " -C --LDC          : leading dimension of the matrix C (default: full)\n"
-            " -t --NB           : columns in a tile    (default: autotuned)\n"
-            " -T --MB           : rows in a tile  (default: NB)\n"
+            " -i --IB           : inner blocking     (default: autotuned)\n"
+            " -t --NB           : columns in a tile  (default: autotuned)\n"
+            " -T --MB           : rows in a tile     (default: autotuned)\n"
             " -s --SNB          : columns of tiles in a supertile (default: 1)\n"
             " -S --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -x --check        : verify the results\n"
@@ -66,53 +67,69 @@ void print_usage(void)
            );
 }
 
-#define GETOPT_STRING "c:g;p:P:q:Q:k;N:M:A:B:C:i:t:T:s:S:xv;h"
+#define GETOPT_STRING "c:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::h"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
 {
-    {"nb-cores",    required_argument,  0, 'c'},
-    {"nb-gpus",     required_argument,  0, 'g'},
+    {"cores",       required_argument,  0, 'c'},
+    {"gpus",        required_argument,  0, 'g'},
     {"grid-rows",   required_argument,  0, 'p'},
+    {"p",           required_argument,  0, 'p'},
+    {"P",           required_argument,  0, 'p'},
     {"grid-cols",   required_argument,  0, 'q'},
-    {"pri-change",  optional_argument,  0, 'k'},
+    {"q",           required_argument,  0, 'q'},
+    {"Q",           required_argument,  0, 'q'},
+    {"prio-switch", optional_argument,  0, 'k'},
+    {"k",           optional_argument,  0, 'k'},
 
     {"N",           required_argument,  0, 'N'},
     {"M",           required_argument,  0, 'M'},
     {"K",           required_argument,  0, 'K'},
     {"RHS",         required_argument,  0, 'K'},
     {"LDA",         required_argument,  0, 'A'},
+    {"A",           required_argument,  0, 'A'},
     {"LDB",         required_argument,  0, 'B'},
+    {"B",           required_argument,  0, 'B'},
     {"LDC",         required_argument,  0, 'C'},
+    {"C",           required_argument,  0, 'C'},
     {"IB",          required_argument,  0, 'i'},
+    {"i",           required_argument,  0, 'i'},
     {"NB",          required_argument,  0, 't'},
+    {"t",           required_argument,  0, 't'},
     {"MB",          required_argument,  0, 'T'},
+    {"T",           required_argument,  0, 'T'},
     {"SNB",         required_argument,  0, 's'},
+    {"s",           required_argument,  0, 's'},
     {"SMB",         required_argument,  0, 'S'},
+    {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
+    {"x",           required_argument,  0, 'x'},
 
     {"verbose",     optional_argument,  0, 'v'},
+    {"v",           required_argument,  0, 'v'},
     {"help",        no_argument,        0, 'h'},
+    {"h",           no_argument,        0, 'h'},
     {0, 0, 0, 0}
 };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
 static void parse_arguments(int argc, char** argv, int* iparam) 
 {
-    int optind = 0;
-    int verbose;
+    int opt = 0;
     int c;
 
     do
     {
 #if defined(HAVE_GETOPT_LONG)
-        c = getopt_long(argc, argv, GETOPT_STRING,
-                        long_options, &optind);
+        c = getopt_long_only(argc, argv, "",
+                        long_options, &opt);
 #else
         c = getopt(argc, argv, GETOPT_STRING);
-        (void) optind;
+        (void) opt;
 #endif  /* defined(HAVE_GETOPT_LONG) */
-        
+    
+        printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
@@ -120,11 +137,12 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
                 else        iparam[IPARAM_NGPUS] = INT_MAX;
                 break;
-            case 'p': iparam[IPARAM_P] = atoi(optarg); break;
-            case 'q': iparam[IPARAM_Q] = atoi(optarg);
+            case 'p': case 'P': iparam[IPARAM_P] = atoi(optarg); break;
+            case 'q': case 'Q': iparam[IPARAM_Q] = atoi(optarg); break;
             case 'k':
                 if(optarg)  iparam[IPARAM_PRIO] = atoi(optarg);
                 else        iparam[IPARAM_PRIO] = INT_MAX;
+                break;
             
             case 'N': iparam[IPARAM_N] = atoi(optarg); break;
             case 'M': iparam[IPARAM_M] = atoi(optarg); break;
@@ -151,7 +169,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 break; /* Assume anything else is dague/mpi stuff */
         }
     } while(-1 != c);
-    verbose = iparam[IPARAM_VERBOSE];
+    int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
     
     /* Set some sensible default to the number of cores */
     if(iparam[IPARAM_NCORES] <= 0)
@@ -163,7 +181,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             iparam[IPARAM_NCORES] = 1;
         }
         if(verbose) 
-            fprintf(stderr, "++ cores detected: %d\n", iparam[IPARAM_NCORES]);
+            fprintf(stderr, "++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
     }
     
     /* Check the process grid */
@@ -181,14 +199,15 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     {
         fprintf(stderr, "!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
-    if(verbose > 1) fprintf(stderr, "++ nodes:\t%d\n"
-                                    "++ cores:\t%d\n"
-                                    "++ (PxQ):\t(%dx%d)"
-                                    "++ PUs:\t%d", 
+    if(verbose > 1) fprintf(stderr, "++ nodes x cores + gpu : %d x %d + %d (%d+%d)\n"
+                                    "++ P x Q               : %d x %d (%d/%d)\n",
                                     iparam[IPARAM_NNODES],
                                     iparam[IPARAM_NCORES],
+                                    iparam[IPARAM_NGPUS],
+                                    iparam[IPARAM_NNODES] * iparam[IPARAM_NCORES],
+                                    iparam[IPARAM_NNODES] * iparam[IPARAM_NGPUS],
                                     iparam[IPARAM_P], iparam[IPARAM_Q],
-                                    pqnp * iparam[IPARAM_NCORES]); 
+                                    pqnp, iparam[IPARAM_NNODES]); 
 
     /* Set matrices dimensions to default values if not provided */
     /* Search for N as a bare number if not provided by -N */
@@ -217,30 +236,39 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(-'k' == iparam[IPARAM_LDC]) iparam[IPARAM_LDC] = iparam[IPARAM_K];
 
     /* Set no defaults for IB, NB, MB, the algorithm have to do it */
-    
+    assert(iparam[IPARAM_NB]); 
+    assert(iparam[IPARAM_MB]);
+    assert(iparam[IPARAM_IB]);
+
     /* No supertiling by default */    
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
 
     if(verbose > 1) 
     {
-        fprintf(stderr, "++ NxM:\t%dx%d\n-- K/RHS:\t%d\n",
+        fprintf(stderr, "++ N x M x K|NRHS      : %d x %d x %d\n",
                         iparam[IPARAM_N], iparam[IPARAM_M], iparam[IPARAM_K]);
     }
     if(verbose > 2)
     {
-        fprintf(stderr, "++ LDA:\t%d\n", iparam[IPARAM_LDA]);
-        if(iparam[IPARAM_LDB]) fprintf(stderr, "++ LDB:\t%d\n", iparam[IPARAM_LDB]);
-        if(iparam[IPARAM_LDC]) fprintf(stderr, "++ LDC:\t%d\n", iparam[IPARAM_LDB]);
+        if(iparam[IPARAM_LDB] && iparam[IPARAM_LDC])
+            fprintf(stderr, "++ LDA , LDB , LDC     : %d , %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB], iparam[IPARAM_LDC]);
+        else if(iparam[IPARAM_LDB])
+            fprintf(stderr, "++ LDA , LDB           : %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB]);
+        else
+            fprintf(stderr, "++ LDA                 : %d\n", iparam[IPARAM_LDA]);
     }
     if(verbose > 1)
     {
-        fprintf(stderr, "++ NBxMB:\t%dx%d\n", 
-                        iparam[IPARAM_NB], iparam[IPARAM_MB]);
-        if(iparam[IPARAM_IB])
-            fprintf(stderr, "++ IB:\t%d\n", iparam[IPARAM_IB]);
+        if(iparam[IPARAM_IB] > 0)
+            fprintf(stderr, "++ NB x MB , IB        : %d x %d , %d\n", 
+                            iparam[IPARAM_NB], iparam[IPARAM_MB], iparam[IPARAM_IB]);
+        else
+            fprintf(stderr, "++ NB x MB             : %d x %d\n", 
+                            iparam[IPARAM_NB], iparam[IPARAM_MB]);
+
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
-            fprintf(stderr, "++ SNBxSMB:\t%dx%d\n", iparam[IPARAM_SNB], iparam[IPARAM_SMB]);
+            fprintf(stderr, "++ SNB x SMB           : %d x %d\n", iparam[IPARAM_SNB], iparam[IPARAM_SMB]);
     }
 }
 
@@ -278,6 +306,8 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
+    iparam[IPARAM_NB] = iparam[IPARAM_MB] = 64;
+    iparam[IPARAM_IB] = -1;
 }
 
 #ifdef DAGUE_PROFILING
