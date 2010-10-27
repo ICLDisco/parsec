@@ -9,8 +9,8 @@ include(TestingRules.cmake)
 
 set(TESTS
   testing_zgemm.c
-  #  testing_ztrmm.c
-  #testing_ztrsm.c
+  testing_ztrmm.c
+  testing_ztrsm.c
   testing_zpotrf.c
   testing_zgetrf.c
   testing_zgetrf_sd.c

@@ -116,7 +116,7 @@ int main(int argc, char ** argv)
 #endif
         dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
         if(loud) printf("Done\n");
-        if(loud) TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+        if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
 
         /* lets rock! */
         SYNC_TIME_START();
