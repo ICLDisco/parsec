@@ -32,7 +32,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS_COUNT(FADDS_GEQRF, FMULS_GEQRF, ((DagDouble_t)M,(DagDouble_t)N))
+    PASTE_CODE_FLOPS_COUNT(FADDS_GETRF, FMULS_GETRF, ((DagDouble_t)M,(DagDouble_t)N))
 
     /* initializing matrix structure */
     int info = 0;
