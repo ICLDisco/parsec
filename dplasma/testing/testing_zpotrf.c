@@ -13,11 +13,6 @@
 #include "cuda_sgemm.h"
 #endif
 
-#if define(LLT_LL)
-#define KPOTRF zpotrf_ll
-#else
-#define KPOTRF zpotrf
-#endif
 
 #define FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
 #define FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))
@@ -47,6 +42,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N))
 
     /* initializing matrix structure */
+    int info = 0;
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                     nodes, cores, rank, MB, NB, N, N, 0, 0, 
@@ -75,13 +71,19 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
         if(loud > 2) printf("Done\n");
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, KPOTRF, 
+#if defined(LLT_LL)
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf_ll, 
                                            (uplo, 
                                             (tiled_matrix_desc_t*)&ddescA,
                                             &info))
-        /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, KPOTRF)
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_ll)
+#else
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf, 
+                                           (uplo, 
+                                            (tiled_matrix_desc_t*)&ddescA,
+                                            &info))
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf)
+#endif
     }
 
     /* OLD UGLY CHECK GOES HERE */
