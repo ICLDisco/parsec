@@ -626,7 +626,8 @@ int dague_fini( dague_context_t** pcontext )
         free(context->execution_units[i]->eu_hierarch_queues);
         context->execution_units[i]->eu_hierarch_queues = NULL;
         context->execution_units[i]->eu_nb_hierarch_queues = 0;
-        free(context->execution_units[i]->eu_system_queue);
+        if( i == 0 )
+            free(context->execution_units[i]->eu_system_queue);
         context->execution_units[i]->eu_system_queue = NULL;
 #if defined(USE_HIERARCHICAL_QUEUES)
 #warning Memory Leak: if you want to re-eanble hierarchical queues, you need to compute the leader of the queue again, and free it here
