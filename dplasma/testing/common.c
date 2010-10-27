@@ -294,6 +294,14 @@ static void iparam_default(int* iparam)
     iparam[IPARAM_NNODES] = 1;
 }
 
+void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)
+{
+    iparam[IPARAM_IB] = ib;
+    iparam[IPARAM_NB] = nb;
+    iparam[IPARAM_MB] = mb;
+}
+
+
 void iparam_default_facto(int* iparam)
 {
     iparam_default(iparam);

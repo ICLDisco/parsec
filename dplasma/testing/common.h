@@ -57,13 +57,12 @@ enum iparam_t {
   IPARAM_SIZEOF
 };
 
-#define SET_IBNBMB_DEFAULTS(iparam, IB, NB, MB) do { \
-    iparam[IPARAM_IB] = (IB); \
-    iparam[IPARAM_NB] = (NB); \
-    iparam[IPARAM_MB] = (MB); \
-} while(0)
+void iparam_default_facto(int* iparam);
+void iparam_default_solve(int* iparam);
+void iparam_default_gemm(int* iparam);
+void iparam_default_ibnbmb(int* iparam, int ib, int nb int mb); 
 
-#define DECLARE_IPARAM_LOCALS(iparam) \
+#define PASTE_CODE_IPARAM_LOCALS(iparam) \
   int rank  = iparam[IPARAM_RANK];\
   int nodes = iparam[IPARAM_NNODES];\
   int cores = iparam[IPARAM_NCORES];\
@@ -112,10 +111,6 @@ extern const char *diagstr[2];
 extern const char *transstr[3];
 
 void print_usage(void);
-
-void iparam_default_facto(int* iparam);
-void iparam_default_solve(int* iparam);
-void iparam_default_gemm(int* iparam);
 
 dague_context_t *setup_dague(int argc, char* argv[], int *iparam);
 void cleanup_dague(dague_context_t* dague);

@@ -24,10 +24,10 @@ int main(int argc, char ** argv)
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
-    SET_IBNBMB_DEFAULTS(iparam, 0, 200, 200);
+    iparam_default_ibnbmb(iparam, 0, 200, 200);
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    DECLARE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_IPARAM_LOCALS(iparam)
     DagDouble_t gflops, flops = FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
 
     int tA    = PlasmaNoTrans;
@@ -65,7 +65,7 @@ int main(int argc, char ** argv)
 
         /* Create GEMM DAGuE */
         if(loud) printf("Generate GEMM DAG ... ");
-        TIME_START();
+        SYNC_TIME_START();
         dague_object_t* dague_gemm = 
             dplasma_zgemm_New(tA, tB, 
                               (Dague_Complex64_t)alpha,
@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
                               (tiled_matrix_desc_t *)&ddescC);
         dague_enqueue(dague, dague_gemm);
         if(loud) printf("Done\n");
-        if(loud) TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
+        if(loud) SYNC_TIME_PRINT(rank, ("DAG creation: %u total tasks enqueued\n", dague->taskstodo));
 
         /* lets rock! */
         SYNC_TIME_START();
