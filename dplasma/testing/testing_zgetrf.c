@@ -40,7 +40,6 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    DagDouble_t flops, gflops;
 
     /* Set defaults for non argv iparams */
     iparam_default_solve(iparam);
@@ -69,7 +68,7 @@ int main(int argc, char ** argv)
     int nt    = (N%NB==0) ? (N/NB) : (N/NB+1);
     int info;
 
-    
+    DagDouble_t flops, gflops;
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
     flops = 2.*_FADDS_GETRF(M, N) + 6.*_FMULS_GETRF(M, N);
 #else
@@ -93,12 +92,12 @@ int main(int argc, char ** argv)
     generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
 
 
+
 #if defined(DAGUE_PROFILING)
     ddescA.super.super.key = strdup("A");
     ddescL.super.super.key = strdup("L");
     ddescIPIV.super.super.key = strdup("IPIV");
 #endif
-
     if(iparam[IPARAM_CHECK] == 0) 
     {
         /* Create GETRF DAGuE */
