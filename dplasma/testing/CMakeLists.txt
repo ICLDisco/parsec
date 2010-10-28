@@ -6,7 +6,7 @@ else()
   add_library(common common.c common_timing.h)
 endif()
   
-include(TestingRules.cmake)
+include(RulesTestings.cmake)
 
 set(TESTS
   testing_zgemm.c

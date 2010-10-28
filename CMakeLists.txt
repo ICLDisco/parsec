@@ -268,9 +268,14 @@ endif( DAGUE_PROFILING )
 ###
 ##
 #
-set(PROJECT_INCLUDE_DIR "include")
-include_directories("${PROJECT_INCLUDE_DIR}")
+set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+include_directories("${PROJECT_INCLUDE_DIR}")
+STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} DAGUE_COMPILE_INPLACE)
+if(NOT DAGUE_COMPILE_INPLACE)
+  include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+endif(NOT DAGUE_COMPILE_INPLACE)
 #include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 add_definitions(-DHAVE_CONFIG_H)
 
@@ -324,13 +329,13 @@ add_subdirectory(tests)
 
 # Configuration header
 configure_file (
-  "${PROJECT_INCLUDE_DIR}/dague_config.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague_config.h" DESTINATION include)
 
 # pkg-config file
 configure_file (
-  "${PROJECT_INCLUDE_DIR}/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc")
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 

@@ -253,20 +253,23 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(-'k' == iparam[IPARAM_LDC]) iparam[IPARAM_LDC] = iparam[IPARAM_K];
 
     /* Set no defaults for IB, NB, MB, the algorithm have to do it */
-    assert(iparam[IPARAM_NB]); 
-    assert(iparam[IPARAM_MB]);
-    assert(iparam[IPARAM_IB]);
+    assert(iparam[IPARAM_IB]); /* check that defaults have been set */
+    if(iparam[IPARAM_MB] <= 0 && iparam[IPARAM_NB] > 0)
+        iparam[IPARAM_MB] = iparam[IPARAM_NB];
+    if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
+    if(iparam[IPARAM_MB] == 0) iparam[IPARAM_MB] = iparam[IPARAM_NB];
+    if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
 
     /* No supertiling by default */    
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
 
-    if(verbose > 1) 
+    if(verbose) 
     {
         fprintf(stderr, "+++ N x M x K|NRHS      : %d x %d x %d\n",
                         iparam[IPARAM_N], iparam[IPARAM_M], iparam[IPARAM_K]);
     }
-    if(verbose > 2)
+    if(verbose > 1)
     {
         if(iparam[IPARAM_LDB] && iparam[IPARAM_LDC])
             fprintf(stderr, "+++ LDA , LDB , LDC     : %d , %d , %d\n", iparam[IPARAM_LDA], iparam[IPARAM_LDB], iparam[IPARAM_LDC]);
@@ -275,7 +278,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         else
             fprintf(stderr, "+++ LDA                 : %d\n", iparam[IPARAM_LDA]);
     }
-    if(verbose > 1)
+    if(verbose)
     {
         if(iparam[IPARAM_IB] > 0)
             fprintf(stderr, "+++ NB x MB , IB        : %d x %d , %d\n", 
@@ -299,9 +302,9 @@ static void iparam_default(int* iparam)
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)
 {
-    iparam[IPARAM_IB] = ib;
-    iparam[IPARAM_NB] = nb;
-    iparam[IPARAM_MB] = mb;
+    iparam[IPARAM_IB] = ib ? ib : -1;
+    iparam[IPARAM_NB] = -nb;
+    iparam[IPARAM_MB] = -mb;
 }
 
 
@@ -332,8 +335,6 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
-    iparam[IPARAM_NB] = iparam[IPARAM_MB] = 64;
-    iparam[IPARAM_IB] = -1;
 }
 
 #ifdef DAGUE_PROFILING
@@ -352,7 +353,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #endif
     parse_arguments(argc, argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
-    if(iparam[IPARAM_RANK] > 0 && verbose < 3) verbose = 0;
+    if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
     
     TIME_START();
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
@@ -366,7 +367,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         }
     }
 #endif
-    if(verbose) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
+    if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;
 }
 
