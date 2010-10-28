@@ -12,6 +12,7 @@ set(PRECISIONPP ${CMAKE_SOURCE_DIR}/tools/precision_generator/codegen.py)
 # the target receives a -DPRECISION_p in its cflags. 
 #
 macro(precisions_rules OUTPUTLIST PRECISIONS SOURCES)
+ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
  set(precisions_rules_SED 0)
  set(precisions_rules_PP 0)
  foreach(prec_rules_SOURCE ${SOURCES})
@@ -29,7 +30,7 @@ macro(precisions_rules OUTPUTLIST PRECISIONS SOURCES)
     if(${precisions_rules_SED})
       add_custom_command(
         OUTPUT ${prec_rules_OSRC}
-        COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/generated && sed 's/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
+        COMMAND sed 's/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
         MAIN_DEPENDENCY ${prec_rules_SOURCE})
     
     elseif(${precisions_rules_PP})
@@ -38,14 +39,14 @@ macro(precisions_rules OUTPUTLIST PRECISIONS SOURCES)
       string(STRIP ${prec_rules_OSRC} prec_rules_OSRC)
       add_custom_command(
         OUTPUT ${prec_rules_OSRC}
-        COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/generated && ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} --prefix ${CMAKE_CURRENT_BINARY_DIR}/generated
+        COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} --prefix ${CMAKE_CURRENT_BINARY_DIR}/generated
         MAIN_DEPENDENCY ${prec_rules_SOURCE}
         DEPENDS ${PRECISIONPP})
     
     else()
       add_custom_command(
         OUTPUT ${prec_rules_OSRC}
-        COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/generated && cp ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} ${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/generated && cp ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} ${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
         MAIN_DEPENDENCY ${prec_rules_SOURCE})
     endif()
     set_source_files_properties(${prec_rules_OSRC} PROPERTIES COMPILE_FLAGS "-DPRECISION_${prec_rules_PREC}")
