@@ -28,7 +28,8 @@ void jdf_fatal(int lineno, const char *format, ...);
  */
 typedef uint64_t jdf_warning_mask_t;
 #define JDF_WARN_MASKED_GLOBALS          ((jdf_warning_mask_t)(1 <<  0))
-#define JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS ((jdf_warning_mask_t)(1 <<  0))
+#define JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS ((jdf_warning_mask_t)(1 <<  1))
+#define JDF_WARN_REMOTE_MEM_REFERENCE    ((jdf_warning_mask_t)(1 <<  2))
 #define JDF_ALL_WARNINGS                 ((jdf_warning_mask_t)(0xffffffffffffffff))
 int jdf_sanity_checks( jdf_warning_mask_t mask );
 
@@ -237,6 +238,8 @@ typedef struct jdf_expr {
 #define jdf_ta2 u.ternary.arg2
 #define jdf_var u.varname
 #define jdf_cst u.cstval
+
+char *malloc_and_dump_jdf_expr_list( const jdf_expr_list_t *e );
 
 #define JDF_COUNT_LIST_ENTRIES(LIST, TYPEOF, NEXT, COUNT)    \
     do {                                                     \

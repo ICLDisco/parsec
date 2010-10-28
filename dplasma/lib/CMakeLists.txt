@@ -29,7 +29,7 @@ precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}")
 
 ### Generate .c files from .jdf
 set(OLDJDF 
-  TSQR.jdf
+  ${CMAKE_CURRENT_SOURCE_DIR}/TSQR.jdf
 )
 jdf_rules(generated_files "${OLDJDF}")
 
@@ -66,7 +66,6 @@ if (DAGUE_MPI AND MPI_FOUND)
     ${EXTRA_SOURCES})
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}  -DUSE_MPI")
   install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
-  install(FILES dplasma.h ${generated_headers} DESTINATION include)
 else (DAGUE_MPI AND MPI_FOUND)
   add_library(dplasma 
     ${generated_headers}
@@ -74,6 +73,6 @@ else (DAGUE_MPI AND MPI_FOUND)
     ${EXTRA_SOURCES})
 # set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
-  install(FILES dplasma.h ${generated_headers} DESTINATION include)
 endif (DAGUE_MPI AND MPI_FOUND)
+install(FILES dplasma.h ${generated_headers} DESTINATION include)
 
