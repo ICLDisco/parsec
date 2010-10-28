@@ -63,6 +63,7 @@ void dague_arena_destruct(dague_arena_t* arena)
     while(NULL != (item = dague_atomic_lifo_pop(&arena->lifo))) {
         arena->data_free(item);
     }
+    dague_atomic_lifo_destruct(&arena->lifo);
 }
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)

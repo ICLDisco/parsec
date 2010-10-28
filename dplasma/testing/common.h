@@ -139,7 +139,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
                                         (size_t)DDESC.super.bsiz *      \
                                         (size_t)DDESC.super.mtype);     \
-        dague_ddesc_set_key((dague_ddesc_t*)&##DDESC, #DDESC);          \
+        dague_ddesc_set_key((dague_ddesc_t*)&DDESC, #DDESC);            \
     }
 
 #define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS) \

@@ -166,6 +166,7 @@ struct dague_object {
     dague_arena_t**            arenas_array;
 };
 
+void dague_destruct_dependencies(dague_dependencies_t* d);
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
