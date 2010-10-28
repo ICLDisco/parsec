@@ -118,7 +118,7 @@ static struct option long_options[] =
     {"x",           required_argument,  0, 'x'},
 
     {"verbose",     optional_argument,  0, 'v'},
-    {"v",           required_argument,  0, 'v'},
+    {"v",           optional_argument,  0, 'v'},
     {"help",        no_argument,        0, 'h'},
     {"h",           no_argument,        0, 'h'},
     {0, 0, 0, 0}
@@ -140,7 +140,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         (void) opt;
 #endif  /* defined(HAVE_GETOPT_LONG) */
     
-        printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
+ //       printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
