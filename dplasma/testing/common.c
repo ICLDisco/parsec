@@ -59,7 +59,7 @@ void print_usage(void)
             "\n"
             " -N                : dimension (N) of the matrices (required)\n"
             " -M                : dimension (M) of the matrices (default: N)\n"
-            " -K --RHS  C<-A*B+C: dimension (K) of the matrices (default: N)\n"
+            " -K --NRHS C<-A*B+C: dimension (K) of the matrices (default: N)\n"
             "           AX=B    : columns in the right hand side (default: 1)\n"
             " -A --LDA          : leading dimension of the matrix A (default: full)\n"
             " -B --LDB          : leading dimension of the matrix B (default: full)\n"
@@ -97,7 +97,7 @@ static struct option long_options[] =
     {"N",           required_argument,  0, 'N'},
     {"M",           required_argument,  0, 'M'},
     {"K",           required_argument,  0, 'K'},
-    {"RHS",         required_argument,  0, 'K'},
+    {"NRHS",        required_argument,  0, 'K'},
     {"LDA",         required_argument,  0, 'A'},
     {"A",           required_argument,  0, 'A'},
     {"LDB",         required_argument,  0, 'B'},
