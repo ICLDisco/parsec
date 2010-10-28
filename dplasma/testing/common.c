@@ -83,8 +83,8 @@ static struct option long_options[] =
 {
     {"cores",       required_argument,  0, 'c'},
     {"c",           required_argument,  0, 'c'},
-    {"gpus",        optional_argument,  0, 'g'},
-    {"g",           optional_argument,  0, 'g'},
+    {"gpus",        required_argument,  0, 'g'},
+    {"g",           required_argument,  0, 'g'},
     {"grid-rows",   required_argument,  0, 'p'},
     {"p",           required_argument,  0, 'p'},
     {"P",           required_argument,  0, 'p'},
