@@ -43,7 +43,7 @@ alpha[Dague_Complex64_t]
 TRSM(k, n)
 
 // Execution space
-k = Bmt-1..0
+k = 0..Bmt-1
 n = 0..Bnt-1
 
 // Parallel partitioning
@@ -82,8 +82,8 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = Bmt-1..0
-m = k-1..0
+k = 0..Bmt-1
+m = 0..k-1
 n = 0..Bnt-1
 
 // Parallel partitioning

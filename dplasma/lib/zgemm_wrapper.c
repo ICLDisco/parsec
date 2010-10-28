@@ -89,15 +89,15 @@ dplasma_zgemm_Destruct( const int transA, const int transB, dague_object_t *o )
 
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_NN_destroy(o);
+            dague_zgemm_NN_destroy((dague_zgemm_NN_object_t *)o);
         } else {
-            dague_zgemm_NT_destroy(o);
+            dague_zgemm_NT_destroy((dague_zgemm_NT_object_t *)o);
         }
     } else {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_TN_destroy(o);
+            dague_zgemm_TN_destroy((dague_zgemm_TN_object_t *)o);
         } else {
-            dague_zgemm_TT_destroy(o);
+            dague_zgemm_TT_destroy((dague_zgemm_TT_object_t *)o);
         }
     }
 }
