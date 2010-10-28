@@ -53,7 +53,7 @@ TSQR( level, index )
                         ? Rbottom TSQR( level + 1, index / 2 )   [RTILE_T]
 
                      -> (level == treeHeight)
-                        ? A( 0, 0 )                              [RTILE_T]
+                        ? A( 2*index, 0 )                              [RTILE_T]
 BODY
     printf( "TSQR level: %i index: %i\n", level, index );
 END

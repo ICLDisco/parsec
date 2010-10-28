@@ -42,6 +42,18 @@ alpha[Dague_Complex64_t]
 /**************************************************
  *                      TRMM                      *
  **************************************************/
+TRMM_IN(m)
+m = 0..Bmt-1
+
+:A(m, m)
+
+READ A <- A(m, m)
+       -> A TRMM(m, 0..Bnt-1)
+
+BODY
+ /* Nothing */
+END
+
 TRMM(m, n)
 
 // Execution space
@@ -52,7 +64,7 @@ n = 0..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A   <- A(m, m)
+READ  A   <- A TRMM_IN(m)
 RW    B   <- B(m, n)
           -> (m == 0)     ? B(m, n)   : C GEMM(m, n, m-1)
 READ  CTL <- (m == Bmt-1) ? CTL(m, n) : CTL1 GOK(m+1, n, m)              [CONTROL]
@@ -79,6 +91,32 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
+GEMM_IN_A(k, m)
+m = 0..Bmt-1
+k = 0..m-1
+
+:A(k, m)
+
+READ A <- A(k, m)
+       -> A GEMM(m, 0..Bnt-1, k)
+
+BODY
+ /* Nothing */
+END
+
+GEMM_IN_B(m, n, k)
+m = 0..Bmt-1
+n = 0..Bnt-1
+k = 0..m-1
+
+: B(k, n)
+
+READ B <- B(k, n)
+       -> B GEMM(m, n, k)
+BODY
+ /* Nothing */
+END
+
 // Name
 GEMM(m, n, k)
 
@@ -91,11 +129,11 @@ k = 0..m-1
 : B(m, n)
 
 // Parameters
-READ  A   <- A(k, m)
-READ  B   <- B(k, n) 
+READ  A   <- A GEMM_IN_A(k, m)
+READ  B   <- B GEMM_IN_B(m, n, k)
 RW    C   <- (k == m-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
           -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
-RW    CTL <- CTL(k, n)                                          [CONTROL]
+RW    CTL <- CTL(m, n)                                          [CONTROL]
           -> CTL2 GOK(m, n, k)                                  [CONTROL]
 BODY
       DRYRUN(

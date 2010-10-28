@@ -137,6 +137,30 @@ END
 /**************************************************
  *                      HERK                      *
  **************************************************/
+HERK_IN_A(k)
+k = 1..SIZE-1
+
+:A(k, k)
+
+READ A <- A(k, k)
+       -> A HERK(k, 0..k-1)
+
+BODY
+ /* Nothing */
+END
+
+HERK_IN_F(k)
+k = 1..SIZE-1
+
+:A(k, k)
+
+READ A <- A(k, k)
+       -> F HERK(k, 0..k-1)
+
+BODY
+ /* Nothing */
+END
+
 HERK(k, n) (high_priority)
 
 // Execution space
@@ -148,8 +172,8 @@ n = 0..k-1
 
 //Parameters
 READ  A <- C TRSM(n, k)
-READ  F <- (n == 0) ? C TRSM(k-1, k) : A(k,k)
-RW    T <- (n == 0) ? A(k, k) : T HERK(k, n-1)
+READ  F <- (n == 0) ? C TRSM(k-1, k) : A HERK_IN_F(k)
+RW    T <- (n == 0) ? A HERK_IN_F(k) : T HERK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T HERK(k, n+1)
 
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
@@ -200,6 +224,32 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
+GEMM_IN_A(m, k)
+k = 0..SIZE-1
+m = k+1..SIZE-1
+
+:A(m, k)
+
+READ A <- A(m, k)
+       -> A GEMM(k, m, 0..k-1)
+
+BODY
+  /* Nothing */
+END
+
+GEMM_IN_F(m, k)
+k = 0..SIZE-1
+m = k+1..SIZE-1
+
+:A(m, k)
+
+READ A <- A(m, k)
+       -> F GEMM(k, m, 0..k-1)
+
+BODY
+  /* Nothing */
+END
+
 GEMM(k, m, n)
 
 // Execution space
@@ -213,8 +263,8 @@ n = 0..k-1
 // Parameters
 READ  A <- C TRSM(n, k)
 READ  B <- C TRSM(n, m)
-READ  F <- (n == 0) ? F POTRF(k) : A(m, k)
-RW    C <- (n == 0) ? A(m, k) : C GEMM(k, m, n-1)
+READ  F <- (n == 0) ? F POTRF(k) : A GEMM_IN_F(m, k)
+RW    C <- (n == 0) ? A GEMM_IN_A(m, k) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000

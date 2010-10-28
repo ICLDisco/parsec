@@ -40,6 +40,18 @@ alpha[Dague_Complex64_t]
 /**************************************************
  *                      TRSM                      *
  **************************************************/
+TRSM_IN(k)
+k = 0..Bmt-1
+
+: A(k, k)
+
+RW A <- A(k, k)
+     -> A TRSM(k, 0..Bnt-1)
+
+BODY
+ /* Nothing */
+END
+
 TRSM(k, n)
 
 // Execution space
@@ -50,8 +62,8 @@ n = 0..Bnt-1
 : B(k,n)
 
 // Parameters
-READ  A <- A(k,k)
-RW    B <- (k == 0) ? B(0,n) : C GEMM(k-1, k, n)
+READ  A <- A TRSM_IN(k)
+RW    B <- (k == 0) ? B(k, n) : C GEMM(k-1, k, n)
         -> B GEMM(k, k+1..Bmt-1, n)
         -> B(k, n)
 
@@ -78,6 +90,19 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
+GEMM_IN(m, k)
+k = 0..Bmt-1
+m = k+1..Bmt-1
+
+:A(m, k)
+
+RW A <- A(m, k)
+     -> A GEMM(k, m, 0..Bnt-1)
+
+BODY
+  /* Nothing */
+END
+
 // Name
 GEMM(k, m, n)
 
@@ -90,7 +115,7 @@ n = 0..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A <- A(m, k)
+READ  A <- A GEMM_IN(m, k)
 READ  B <- B TRSM(k, n)
 RW    C <- (k == 0) ? B(m, n) : C GEMM(k-1, m, n)
         -> (k+1 == m) ? B TRSM(m, n) : C GEMM(k+1, m, n)
