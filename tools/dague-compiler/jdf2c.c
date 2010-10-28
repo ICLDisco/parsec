@@ -813,6 +813,10 @@ static void jdf_generate_header_file(const jdf_t* jdf)
                                   dump_string, NULL, "", " dague_ddesc_t *", ", ", ""),
             UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, sa3,
                             "", "", ", ", ""));
+
+    houtput("extern void dague_%s_destroy( dague_%s_object_t *o );\n",
+            jdf_basename, jdf_basename);
+
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
@@ -1872,6 +1876,50 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 
     string_arena_free(sa1);
     string_arena_free(sa2);
+}
+
+static void jdf_generate_destructor( const jdf_t *jdf )
+{
+    struct jdf_name_list* g;
+    string_arena_t *sa = string_arena_new(64);
+
+    coutput("void dague_%s_destroy( dague_%s_object_t *o )\n"
+            "{\n"
+            "  dague_object_t *d = (dague_object_t *)o;\n"
+            "  __dague_%s_internal_object_t *io = (__dague_%s_internal_object_t*)o;\n"
+            "  int i;\n",
+            jdf_basename, jdf_basename,
+            jdf_basename,
+            jdf_basename);
+
+    coutput("  free(d->functions_array);\n"
+            "  d->functions_array = NULL;\n"
+            "  d->nb_functions = 0;\n");
+
+    for( g = jdf->datatypes; NULL != g; g = g->next ) {
+        coutput("  dague_arena_destruct(o->arenas[DAGUE_%s_%s_ARENA]);\n"
+                "  free(o->arenas[DAGUE_%s_%s_ARENA]);\n",
+                jdf_basename, g->name,
+                jdf_basename, g->name);
+    }
+
+    coutput("  /* Destroy the data repositories for this object */\n"
+            "%s",
+            UTIL_DUMP_LIST_FIELD( sa, jdf->functions, next, fname,
+                                  dump_string, NULL, "", "   data_repo_destroy_nothreadsafe(io->", 
+                                  "_repository);\n", "_repository);\n"));
+
+    coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++)\n"
+            "    dague_destruct_dependencies( d->dependencies_array[i] );\n"
+            "  free( d->dependencies_array );\n",
+            jdf_basename);
+
+    coutput("  free(o);\n");
+
+    coutput("}\n"
+            "\n");
+
+    string_arena_free(sa);
 }
 
 static void jdf_generate_constructor( const jdf_t* jdf )
@@ -2935,6 +2983,8 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Generate the externally visible function.
      */
     jdf_generate_constructor(jdf);
+
+    jdf_generate_destructor( jdf );
 
     /**
      * Dump all the epilogue sections

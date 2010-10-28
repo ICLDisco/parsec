@@ -67,6 +67,8 @@ char* event_names[MAX_EVENTS];
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
 
+static void dague_object_empty_repository(void);
+
 static void dague_statistics(char* str)
 {
     struct rusage current;
@@ -680,6 +682,8 @@ int dague_fini( dague_context_t** pcontext )
     }
 #endif
 
+    dague_object_empty_repository();
+
     free(context);
     *pcontext = NULL;
     return 0;
@@ -1034,9 +1038,28 @@ void dague_dump_execution_context( dague_execution_context_t* exec_context )
     printf( "Task %s\n", dague_service_to_string( exec_context, tmp, 128 ) );
 }
 
+void dague_destruct_dependencies(dague_dependencies_t* d)
+{
+    int i;
+    if( d->flags & DAGUE_DEPENDENCIES_FLAG_NEXT ) {
+        for(i = d->min; i <= d->max; i++)
+            if( NULL != d->u.next[i-d->min] )
+                dague_destruct_dependencies(d->u.next[i-d->min]);
+    }
+    free(d);
+}
+
 /* TODO: Change this code to something better */
 static dague_object_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
+
+static void dague_object_empty_repository(void)
+{
+    free(object_array);
+    object_array = NULL;
+    object_array_size = 1;
+    object_array_pos = 0;
+}
 
 /**< Retrieve the local object attached to a unique object id */
 dague_object_t* dague_object_lookup( uint32_t object_id )
