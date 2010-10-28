@@ -64,7 +64,7 @@ int main(int argc, char ** argv)
     }
     else
     { 
-        int s, u, t, d;
+        int u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 1.0;
 

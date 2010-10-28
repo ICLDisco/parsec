@@ -67,7 +67,7 @@ int main(int argc, char ** argv)
     }
     else
     { 
-        int s, u, t, d;
+        int u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 1.0;
         two_dim_block_cyclic_t ddescC;
@@ -121,8 +121,7 @@ int main(int argc, char ** argv)
             }
         }
         dague_data_free(ddescC.mat);
-		dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
-
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
     }
 
     dague_data_free(ddescA.mat);
