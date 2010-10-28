@@ -108,7 +108,7 @@ class Conversion:
       copy = self.copy[i];
       if name is None: continue;
       if copy:
-        shutil.copy(relpath(name), self.files_out[i]);
+        shutil.copy(self.files_in[i], self.files_out[i]);
         continue;
       fd = open(self.files_out[i], 'w');
       fd.write(data);
