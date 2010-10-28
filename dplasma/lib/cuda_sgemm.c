@@ -74,7 +74,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         gpu_device_t* gpu_device;
         CUresult status;
         int major, minor;
-        char module_path[20];
+        char module_path[FILENAME_MAX];
 
         status = cuDeviceGet( &hcuDevice, i );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {ndevices = 0; return -1;} );
@@ -86,9 +86,10 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
-        
+        env=getenv("DAGUE_CUBIN_PATH");
         assert(gpu_device->major < 10 && gpu_device->minor < 10);
-        snprintf(module_path, 20, "sgemm-sm_%1d%1d.cubin", gpu_device->major, gpu_device->minor);
+        snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", 
+                 env?env:"../lib", gpu_device->major, gpu_device->minor);
         status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
                                 {
