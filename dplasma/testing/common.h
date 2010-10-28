@@ -86,7 +86,7 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
-(void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS;\
+  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;
 
 /* Define a double type which not pass through the precision generation process */
