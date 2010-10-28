@@ -41,6 +41,7 @@ static void usage(void)
             "  --Wmasked          Do NOT print warnings for masked variables\n"
             "  --Wmutexin         Do NOT print warnings for non-obvious mutual exclusion of\n"
             "                     input flows\n"
+            "  --Wremoteref       Do NOT print warnings for potential remote memory references\n"
             "\n",
             DEFAULTS.input,
             DEFAULTS.output_c,
@@ -53,6 +54,7 @@ static void parse_args(int argc, char *argv[])
     int ch;
     int wmasked = 0;
     int wmutexinput = 0;
+    int wremoteref = 0;
     int print_jdf_line = 0;
     char *c = NULL;
     char *h = NULL;
@@ -67,6 +69,7 @@ static void parse_args(int argc, char *argv[])
         { "function-name", required_argument,       NULL,  'f' },
         { "Wmasked",       no_argument,         &wmasked,   1  },
         { "Wmutexin",      no_argument,     &wmutexinput,   1  },
+        { "Wremoteref",    no_argument,      &wremoteref,   1  },
         { "noline",        no_argument,  &print_jdf_line,   1  },
         { "help",          no_argument,             NULL,  'h' },
         { NULL,            0,                       NULL,   0  }
@@ -107,6 +110,9 @@ static void parse_args(int argc, char *argv[])
             }
             if( wmutexinput ) {
                 JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
+            }
+            if( wremoteref ) {
+                JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_REMOTE_MEM_REFERENCE;
             }
             if( print_jdf_line ) {
                 JDF_COMPILER_GLOBAL_ARGS.noline = 1;
