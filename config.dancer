@@ -16,6 +16,7 @@ else
   HWLOC="/opt/hwloc"
   PLASMADIR="/opt/plasma"
   CUDA="/opt/cuda"
+  MPI="-DMPI_COMPILER=/usr/bin/mpicc"
 fi
 
 PLASMA="-DPLASMA_DIR=${PLASMADIR}"
@@ -39,5 +40,5 @@ else
 /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
 export CC=icc
 export FC=ifort
-cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
+cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
 fi
