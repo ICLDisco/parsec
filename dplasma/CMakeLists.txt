@@ -12,6 +12,7 @@ if( PLASMA_SRC )
 endif( PLASMA_SRC )
 
 include_directories(lib)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib/)
 include_directories(${PLASMA_INCLUDE_DIRS})
 Add_Subdirectory(lib)
 Add_Subdirectory(testing)

@@ -1,6 +1,9 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
 
+LOCATION=`dirname $0`
+echo $LOCATION
+
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC="/opt/hwloc-1.0.2"
   PLASMADIR="/home/bosilca/opt/plasma-svn"
@@ -28,7 +31,7 @@ PLASMA="-DPLASMA_DIR=${PLASMADIR}"
 
 if [ "x$1" = "xgcc" ]; then
 # to compile with gcc and plasma-2.1
-cmake . ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} 
+cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} 
 
 else
 # Compile with icc, ifort, plasma 2.2
@@ -36,5 +39,5 @@ else
 /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
 export CC=icc
 export FC=ifort
-cmake . ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
+cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
 fi

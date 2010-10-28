@@ -21,12 +21,12 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
     set(jdf_rules_OSRC "generated/${jdf_rules_BSRC}")
     add_custom_command(
       OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-      COMMAND mkdir -p generated && ${DAGUEPP} -i ${CMAKE_CURRENT_SOURCE_DIR}/${jdf_rules_SRC}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+      COMMAND mkdir -p generated && ${DAGUEPP} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
       MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
       DEPENDS ${DAGUEPP})
 #   add_custom_target(${jdf_rules_BSRC} DEPENDS ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c)
 #   set_source_files_properties(${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c PROPERTIES GENERATED 1)
-    list(APPEND ${jdf_rules_OUTPUTLIST} "${jdf_rules_OSRC}.h;${jdf_rules_OSRC}.c")
+    list(APPEND ${jdf_rules_OUTPUTLIST} "${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h;${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c")
 #   message(STATUS "rule to generate ${jdf_rules_OSRC}.[ch] from ${jdf_rules_SOURCE}.jdf")
   endforeach()
 endmacro(jdf_rules)
