@@ -25,15 +25,11 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 60, 200, 200);
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) && 0
     iparam[IPARAM_NGPUS] = 0;
-#else
-    iparam[IPARAM_NGPUS] = -1;
 #endif
-
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
     PASTE_CODE_FLOPS_COUNT(FADDS_GETRF, FMULS_GETRF, ((DagDouble_t)M,(DagDouble_t)N))
-
     /* initializing matrix structure */
     int info = 0;
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 

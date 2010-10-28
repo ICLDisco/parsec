@@ -294,6 +294,7 @@ static void iparam_default(int* iparam)
     /* Just in case someone forget to add the initialization :) */
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int)); 
     iparam[IPARAM_NNODES] = 1;
+	iparam[NGPUS] = -1;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)

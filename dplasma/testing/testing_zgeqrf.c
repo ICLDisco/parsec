@@ -26,14 +26,12 @@ int main(int argc, char ** argv)
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
+#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+    iparam[IPARAM_NGPUS] = 0;
+#endif
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
     iparam_default_ibnbmb(iparam, 48, 144, 144);
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#else
-    iparam[IPARAM_NGPUS] = -1;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
