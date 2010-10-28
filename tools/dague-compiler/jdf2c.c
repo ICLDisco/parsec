@@ -2055,6 +2055,25 @@ static void jdf_generate_hashfunctions(const jdf_t *jdf)
     }
 }
 
+/** Helper for sanity checker **/
+char *malloc_and_dump_jdf_expr_list(const jdf_expr_list_t *el)
+{
+    char *res;
+    string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa2 = string_arena_new(64);
+    expr_info_t info;
+
+    info.sa = sa2;
+    info.prefix = "";
+    UTIL_DUMP_LIST_FIELD(sa, el, next, expr,
+                         dump_expr, &info, "", "", ", ", "");
+    res = strdup( string_arena_get_string(sa) );
+    string_arena_free(sa);
+    string_arena_free(sa2);
+
+    return res;
+}
+
 /** Code Generators */
 
 static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call, 

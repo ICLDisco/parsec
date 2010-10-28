@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "jdf.h"
 
@@ -485,6 +486,128 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
     return rc;
 }
 
+static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
+                                            const jdf_dep_t *dep,
+                                            const jdf_call_t *d,
+                                            const jdf_expr_t *cond,
+                                            const jdf_function_entry_t *f)
+{
+    int ret;
+    char *cparams;
+    char *dparams;
+    char *condstr;
+    jdf_expr_list_t plist;
+
+    /* Simple case: d is a call to another kernel, not a memory reference */
+    if( NULL != d->var )
+        return 1;
+
+    cparams = malloc_and_dump_jdf_expr_list(c->parameters);
+    dparams = malloc_and_dump_jdf_expr_list(d->parameters);
+
+    if( strcmp(d->func_or_mem, c->func_or_mem) ) {
+        /* Another simple case: d is not refering to the same matrix as c.
+         * There is a risk: depends on the data distribution...
+         */
+        jdf_warn(dep->lineno, 
+                 "Function %s runs on a node depending on data %s(%s), but refers directly (as %s) to data %s(%s).\n"
+                 "  This is a potential direct remote memory reference.\n"
+                 "  If both data are located on different nodes at runtime, this will result in a fault.\n",
+                 f->fname, c->func_or_mem, cparams,
+                 (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                 d->func_or_mem, dparams);
+        ret = 0;
+    } else {
+        /* Hard case: c and d are referring to the same matrix.
+         * Let's try to assess whether they are referring to the same tile
+         */
+        if( strcmp(dparams, cparams) ) {
+            /* Very hard case: c and d do not have the same textual representation...
+             * Depends on the condition, depends on the expression evaluation...
+             */
+
+            if( cond ) {
+                plist.expr = (jdf_expr_t *)cond;
+                plist.next = NULL;
+                condstr = malloc_and_dump_jdf_expr_list(&plist);
+
+                jdf_warn(dep->lineno,
+                         "Function %s runs on a node depending on %s(%s), but refers directly (as %s) to data %s(%s), if %s is true.\n"
+                         "  This is a potential direct remote memory reference.\n"
+                         "  To remove this warning, %s(%s) should be syntaxically equal to %s(%s).\n"
+                         "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
+                         f->fname, c->func_or_mem, cparams,
+                         (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                         d->func_or_mem, dparams, condstr,
+                         d->func_or_mem, dparams, c->func_or_mem, cparams);
+                free(condstr);
+            } else {
+                jdf_warn(dep->lineno,
+                         "Function %s runs on a node depending on %s(%s), but refers directly (as %s) to data %s(%s).\n"
+                         "  This is a potential direct remote memory reference.\n"
+                         "  To remove this warning, %s(%s) should be syntaxically equal to %s(%s).\n"
+                         "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
+                         f->fname, c->func_or_mem, cparams,
+                         (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                         d->func_or_mem, dparams, 
+                         d->func_or_mem, dparams, c->func_or_mem, cparams);
+            }
+
+            ret = 0;
+        } else {
+            /* Clear match between the reference and the other */
+            ret = 1;
+        }
+    }
+
+    free(cparams);
+    free(dparams);
+
+    return ret;
+}
+
+static int jdf_sanity_check_remote_memory_references(void)
+{
+    int rc = 0;
+    jdf_function_entry_t *f;
+    jdf_call_t *c;
+    jdf_dataflow_list_t *dl;
+    jdf_dep_list_t *dep;
+    jdf_guarded_call_t *g;
+    jdf_expr_t not;
+
+    not.op = JDF_NOT;
+
+    for( f = current_jdf.functions; f != NULL; f = f->next) {
+        c = f->predicate;
+
+        /* Now, iterate on each of the dependencies of f,
+         * and each of the calls of these dependencies,
+         * and try to assert whether c is compatible...
+         */
+        for(dl = f->dataflow; dl != NULL; dl = dl->next) {
+            for(dep = dl->flow->deps; dep != NULL; dep = dep->next) {
+                g = dep->dep->guard;
+                switch( g->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                case JDF_GUARD_BINARY:
+                    if( jdf_sanity_check_call_compatible(c, dep->dep, g->calltrue, g->guard, f) ) 
+                        rc++;
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( jdf_sanity_check_call_compatible(c, dep->dep, g->calltrue, g->guard, f) )
+                        rc++;
+                    not.jdf_ua = g->guard;
+                    if( jdf_sanity_check_call_compatible(c, dep->dep, g->callfalse, &not, f) ) 
+                        rc++;
+                    break;
+                }
+            }
+        }
+    }
+    return rc;
+}
+
 int jdf_sanity_checks( jdf_warning_mask_t mask )
 {
     int rc = 0;
@@ -513,6 +636,9 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
 
     DO_CHECK( jdf_sanity_check_dataflow_naming_collisions() );
     DO_CHECK( jdf_sanity_check_dataflow_unexisting_data() );
+
+    if( mask & JDF_WARN_REMOTE_MEM_REFERENCE )
+        DO_CHECK( jdf_sanity_check_remote_memory_references() );
 
 #undef DO_CHECK
 
