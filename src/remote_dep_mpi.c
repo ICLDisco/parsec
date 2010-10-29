@@ -326,8 +326,8 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     int ctl = -1;
 
     ctl = dague_bindthread(context->nb_cores);
-    printf("MPI bound to core %d\n", ctl);
-    if(ctl != context->nb_cores) do_nano = 1; 
+    if(ctl != context->nb_cores) do_nano = 1;
+    else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
     np = remote_dep_mpi_init(context);
 
     do {
@@ -744,7 +744,7 @@ static void remote_dep_mpi_put_data(remote_dep_wire_get_t* task, int to, int i)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
     int tag = task->tag;
-	void* data;
+    void* data;
     MPI_Datatype dtt;
 #ifdef DAGUE_DEBUG
     char type_name[MPI_MAX_OBJECT_NAME];
@@ -868,26 +868,4 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
     deps->msg.deps = 0; /* now this is the mask of finished deps */
     INC_NEXT_TAG(MAX_PARAM_COUNT);
 }
-
-#if 0
-/* DEPRECATED, TODO: REMOVE */
-/* Exported default datatype */
-static MPI_Datatype MPI_DAGUE_DEFAULT_DATA_TYPE;
-dague_arena_t DAGUE_DEFAULT_DATA_TYPE;
-
-void remote_dep_mpi_create_default_datatype(int tile_size, MPI_Datatype base)
-{
-    char type_name[MPI_MAX_OBJECT_NAME];
-    MPI_Aint lb, ub;
-    
-    snprintf(type_name, MPI_MAX_OBJECT_NAME, "Default MPI_DOUBLE*%d*%d", tile_size, tile_size);
-    
-    MPI_Type_contiguous(tile_size * tile_size, base, &MPI_DAGUE_DEFAULT_DATA_TYPE);
-    MPI_Type_set_name(MPI_DAGUE_DEFAULT_DATA_TYPE, type_name);
-    MPI_Type_commit(&MPI_DAGUE_DEFAULT_DATA_TYPE);
-    MPI_Type_get_extent(MPI_DAGUE_DEFAULT_DATA_TYPE, &lb, &ub);
-    dague_arena_construct(&DAGUE_DEFAULT_DATA_TYPE, ub, 
-                          DAGUE_ARENA_ALIGNMENT_SSE, &MPI_DAGUE_DEFAULT_DATA_TYPE);
-}
-#endif 
 
