@@ -169,7 +169,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     
 #if defined(DAGUE_DEBUG)
     char tmp[128];
-    
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
 #endif
@@ -261,83 +260,4 @@ int remote_deps_allocation_init(int np, int max_output_deps)
 }
 
 #endif /* DISTRIBUTED */
-
-
-
-#define HEAVY_DEBUG
-#if defined(DAGUE_DEBUG) && defined(HEAVY_DEBUG)
-#define HDEBUG( args ) do { args ; } while(0)
-#else
-#define HDEBUG( args ) do {} while(0)
-#endif 
-
-
-#if 0
-/* THIS IS ALWAYS NEEDED: DPC is not distributed, hence doesn't define it, but
- * requires it to genrerate correct precompiled code */
-int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
-                                    const expr_t **predicates,
-                                    const expr_t **rowpred,
-                                    const expr_t **colpred, 
-                                    const symbol_t **rowsize,
-                                    const symbol_t **colsize)
-{
-    int pred_index;
-    symbol_t *rowSymbol, *colSymbol;
-    rowSymbol = dague_search_global_symbol( "rowRANK" );
-    colSymbol = dague_search_global_symbol( "colRANK" );
-    *rowpred = *colpred = NULL;
-    
-    if(NULL == rowSymbol) return -1;
-    if(NULL == colSymbol) return -2;
-
-    
-    /* compute matching colRank and rowRank from predicates */
-    for( pred_index = 0;
-         (pred_index < MAX_PRED_COUNT) && (NULL != predicates[pred_index]);
-         pred_index++ )
-    {
-        if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], rowSymbol) ) {
-            assert(EXPR_IS_BINARY(predicates[pred_index]->op));
-            assert(*rowpred == NULL);
-            
-            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, rowSymbol) )
-            {
-                *rowpred = predicates[pred_index]->bop2;
-            }
-            else
-            {
-                *rowpred = predicates[pred_index]->bop1;
-            }
-        } 
-        else if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index], colSymbol) ) 
-        {
-            assert(EXPR_IS_BINARY(predicates[pred_index]->op));
-            assert(*colpred == NULL);
-            if( EXPR_SUCCESS == expr_depend_on_symbol(predicates[pred_index]->bop1, colSymbol) )
-            {
-                *colpred = predicates[pred_index]->bop2;
-            }
-            else
-            {
-                *colpred = predicates[pred_index]->bop1;
-            }
-        } 
-        else 
-        {
-            HDEBUG(         DEBUG(("SKIP\t")); expr_dump(stdout, dague_object, predicates[pred_index]); DEBUG(("\n")));
-        }
-    }
-
-    if(NULL == *rowpred) return -1;
-    if(NULL == *colpred) return -2;
-
-    *rowsize = dague_search_global_symbol( "GRIDrows" );
-    *colsize = dague_search_global_symbol( "GRIDcols" );
-    if(NULL == *rowsize) return -3;
-    if(NULL == *colsize) return -4;
-    
-    return 0;
-}
-#endif
 
