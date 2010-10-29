@@ -239,7 +239,7 @@ int spotrf_cuda_fini(void)
         return 0;
 
     /* GPU counter for GEMM / each */
-    gpu_counter = (int*)calloc(ndevices, sizeof(int));
+    gpu_counter     = (int*)calloc(ndevices, sizeof(int));
     transferred_in  = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
     transferred_out = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
     required_in     = (uint64_t*)calloc(ndevices, sizeof(uint64_t));
@@ -327,10 +327,14 @@ int spotrf_cuda_fini(void)
     }
     if( 0 == total_data_in ) total_data_in = 1;
     if( 0 == total_data_out ) total_data_out = 1;
-    
+#if defined(USE_MPI)
+    int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    rank = 0;
+#endif
     gtotal = (float)total + (float)cpu_counter;
     printf("------------------------------------------------------------------------------\n");
-    printf("|PU       |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n");
+    printf("|PU % 5d |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n", rank);
     printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
     for( i = 0; i < ndevices; i++ ) {
         compute_best_unit( transferred_in[i],  &best_data_in, &data_in_unit );
