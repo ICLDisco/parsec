@@ -77,11 +77,6 @@ int dague_remote_dep_init(dague_context_t* context)
     if(np > 1)
     {
         context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
-/*        for(i = 0; i < context->nb_cores; i++)
-        {
-            dague_execution_unit_t *eu = context->execution_units[i];
-            eu->remote_dep_fw_mask = (uint32_t*) calloc(1, context->remote_dep_fw_mask_sizeof);
-        }*/
     }
     else 
     {
@@ -92,13 +87,6 @@ int dague_remote_dep_init(dague_context_t* context)
 
 int dague_remote_dep_fini(dague_context_t* context)
 {
-/*    if(context->nb_nodes > 1)
-    {
-        for(i = 0; i < context->nb_cores; i++)
-        {
-            free(context->execution_units[i]->remote_dep_fw_mask);
-        }
-    }*/
     return remote_dep_fini(context);
 }
 
@@ -118,10 +106,10 @@ int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 }
 
 #ifdef DAGUE_COLLECTIVE
-
 #define DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
 #undef  DAGUE_COLLECTIVE_TYPE_BINOMIAL
 
+# ifdef DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
@@ -129,7 +117,9 @@ static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
     if(him == me+1) return 1;
     return 0;
 }
+#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
 
+# elif defined(DAGUE_COLLECTIVE_TYPE_BINOMIAL)
 static inline int remote_dep_bcast_binonial_child(int me, int him)
 {
     int k, mask;
@@ -152,13 +142,12 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-# ifdef DAGUE_COLLECTIVE_TYPE_CHAINPIPELINE
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
-# elif defined(DAGUE_COLLECTIVE_TYPE_BINOMIAL)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
+
 # else
 #  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
 # endif
+
 #else
 static inline int remote_dep_bcast_star_child(int me, int him)
 {
