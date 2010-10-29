@@ -322,7 +322,6 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
 
 static void* remote_dep_dequeue_main(dague_context_t* context)
 {
-    
     int ctl = -1;
 
     ctl = dague_bindthread(context->nb_cores);
