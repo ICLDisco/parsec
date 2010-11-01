@@ -195,7 +195,7 @@ int dague_profiling_reset( void )
 }
 
 int dague_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
-                                              int* key_start, int* key_end )
+                                            int* key_start, int* key_end )
 {
     unsigned int i;
     int pos = -1;
@@ -335,11 +335,18 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             }
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
                 if( !displayed_error_message ) {
-                    fprintf(stderr, "Profiling error: end event of key %u id %lu was not found for ID %s\n"
-                            "\t-- start %u events_count %u events_limit %u\n"
-                            "\t-- some histories are truncated\n",
-                            key, profile->events[start_idx].id, profile->hr_id,
-                            start_idx, profile->events_count, profile->events_limit);
+                    if( profile->events_count == profile->events_limit ) {
+                        fprintf(stderr, "Profiling error: end event of key %u id %lu was not found for ID %s\n"
+                                "\t-- start %u events_count %u events_limit %u\n"
+                                "\t-- some histories are truncated\n",
+                                key, profile->events[start_idx].id, profile->hr_id,
+                                start_idx, profile->events_count, profile->events_limit);
+                    } else {
+                        fprintf(stderr, "Profiling error: end event of key %u id %lu was not found for ID %s\n"
+                                "\t-- start %u events_count %u events_limit %u\n",
+                                key, profile->events[start_idx].id, profile->hr_id,
+                                start_idx, profile->events_count, profile->events_limit);
+                    }
                     displayed_error_message = 1;
                 }
                 continue;
@@ -374,14 +381,14 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             }
 
             fprintf(out, "       <ID>%lu</ID>\n"
-                         "       <START>%"PRIu64"</START>\n"
-                         "       <END>%"PRIu64"</END>\n"
-                         "       <REF>%s%s</REF>\n",
+                    "       <START>%"PRIu64"</START>\n"
+                    "       <END>%"PRIu64"</END>\n"
+                    "       <REF>%s%s</REF>\n",
                     profile->events[start_idx].id,
                     start, end, refstrprefix, refstr);
 #ifdef HAVE_PAPI
             fprintf(out, "       <PAPI_START>%ld</PAPI_START>\n"
-                         "       <PAPI_END>%ld</PAPI_END>\n",
+                    "       <PAPI_END>%ld</PAPI_END>\n",
                     profile->events[start_idx].counter_value,
                     profile->events[end_idx].counter_value);
 #endif
