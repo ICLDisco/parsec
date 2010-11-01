@@ -555,9 +555,11 @@ static char *dump_profiling_init(void **elem, void *arg)
 
     string_arena_add_string(info->sa,
                             "dague_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                         &res->%s_start_key,\n"
-                            "                                         &res->%s_end_key);",
-                            fname, R, G, B, fname, fname);
+                            "                                         (int*)&res->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
+                            "                                         (int*)&res->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
+                            fname, R, G, B,
+                            jdf_basename, fname, fname,
+                            jdf_basename, fname, fname);
 
     return string_arena_get_string(info->sa);
 }
@@ -846,14 +848,16 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DAGUE_PROFILING)\n"
-            "#define TAKE_TIME(context, key, id, refdesc, refid) dague_profiling_trace_with_ref(context->eu_profile, __dague_object->key, id, refdesc, refid)\n"
+            "int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
+            "#define TAKE_TIME(context, key, id, refdesc, refid) dague_profiling_trace_with_ref(context->eu_profile, __dague_object->super.super.profiling_array[(key)], id, refdesc, refid)\n"
             "#else\n"
             "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
             "#endif\n"
             "#include <mempool.h>\n", 
             jdf_basename, 
             jdf_basename, nbfunctions, 
-            jdf_basename, nbdata);
+            jdf_basename, nbdata,
+            jdf_basename, jdf_basename);
     coutput("typedef struct __dague_%s_internal_object {\n", jdf_basename);
     coutput(" dague_%s_object_t super;\n",
             jdf_basename);
@@ -861,15 +865,6 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "%s",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  data_repo_t *", "_repository;\n", "_repository;\n"));
-    coutput("  /* If profiling is enabled, the keys for profiling */\n"
-            "#  if defined(DAGUE_PROFILING)\n"
-            "%s", 
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "  int ", "_start_key;\n", "_start_key;\n"));
-    coutput("%s", 
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "  int ", "_end_key;\n", "_end_key;\n"));
-    coutput("#  endif /* defined(DAGUE_PROFILING) */\n");
     coutput("} __dague_%s_internal_object_t;\n"
             "\n", jdf_basename);
 
@@ -1977,10 +1972,15 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
             "#  if defined(DAGUE_PROFILING)\n"
+            "  res->super.super.profiling_array = %s_profiling_array;\n"
+            "  if( -1 == %s_profiling_array[0] ) {\n"
             "%s"
+            "  }\n"
             "#  endif /* defined(DAGUE_PROFILING) */\n", 
+            jdf_basename,
+            jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_profiling_init, &pi, "", "  ", "\n", "\n"));
+                                  dump_profiling_init, &pi, "", "    ", "\n", "\n"));
 
     coutput("  /* Create the data repositories for this object */\n"
             "%s",
@@ -2408,8 +2408,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     sa3 = string_arena_new(64);
     linfo.prefix = "";
     linfo.sa = sa2;
-    coutput("  TAKE_TIME(context, %s_start_key, %s_hash( __dague_object, %s), __dague_object->super.%s, __dague_object->super.%s->data_key(__dague_object->super.%s, %s) );\n",
-            f->fname, f->fname,
+    coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, __dague_object->super.%s->data_key(__dague_object->super.%s, %s) );\n",
+            f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""),
             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
@@ -2441,8 +2441,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
-    coutput("  TAKE_TIME(context, %s_end_key, %s_hash( __dague_object, %s ), NULL, 0);\n",
-            f->fname, f->fname,
+    coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, %s ), NULL, 0);\n",
+            f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""));
 

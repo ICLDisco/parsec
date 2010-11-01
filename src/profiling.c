@@ -336,15 +336,15 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             if( end_idx == min(profile->events_count, profile->events_limit) ) {
                 if( !displayed_error_message ) {
                     if( profile->events_count == profile->events_limit ) {
-                        fprintf(stderr, "Profiling error: end event of key %u id %lu was not found for ID %s\n"
+                        fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
                                 "\t-- start %u events_count %u events_limit %u\n"
                                 "\t-- some histories are truncated\n",
-                                key, profile->events[start_idx].id, profile->hr_id,
+                                key, dague_prof_keys[key].name, profile->events[start_idx].id, profile->hr_id,
                                 start_idx, profile->events_count, profile->events_limit);
                     } else {
-                        fprintf(stderr, "Profiling error: end event of key %u id %lu was not found for ID %s\n"
+                        fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
                                 "\t-- start %u events_count %u events_limit %u\n",
-                                key, profile->events[start_idx].id, profile->hr_id,
+                                key, dague_prof_keys[key].name, profile->events[start_idx].id, profile->hr_id,
                                 start_idx, profile->events_count, profile->events_limit);
                     }
                     displayed_error_message = 1;

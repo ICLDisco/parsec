@@ -161,6 +161,9 @@ struct dague_object {
     uint32_t                   nb_functions;
     dague_startup_fn_t         startup_hook;
     const dague_t**            functions_array;
+#if defined(DAGUE_PROFILING)
+    const int*                 profiling_array;
+#endif  /* defined(DAGUE_PROFILING) */
     dague_dependencies_t**     dependencies_array;
     dague_arena_t**            arenas_array;
 };

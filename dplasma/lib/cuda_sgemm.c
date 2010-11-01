@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "cuda_sgemm.h"
 #include "dague_config.h"
+#include "cuda_sgemm.h"
 #include "gpu_data.h"
 #include "dague.h"
 #include "execution_unit.h"
@@ -19,8 +19,6 @@
 
 #include "data_distribution.h"
 
-/* TODO: Fix profiling of GPUs */
-#undef DAGUE_PROFILING
 #define DPLASMA_SCHEDULING 1
 #define DPLASMA_ONLY_GPU 0
 #define DAGUE_GPU_USE_PRIORITIES 1
@@ -33,8 +31,6 @@ int *gpu_load;
 int MAX_QUEUE = 55;
 #endif
 #include "data_dist/matrix/matrix.h"
-
-#undef DAGUE_PROFILING
 
 static int OHM_N = 2;
 static int OHM_M = 3;
@@ -424,7 +420,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 
     tile_size = ddescA(exec_context)->mb*ddescA(exec_context)->nb*sizeof(float);
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, movein_key_start, 0 );
+    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, 0 );
 #endif  /* defined(PROFILING) */
 
     DEBUG(("Request Data of A(%d, %d) on GPU\n", n, k));
@@ -476,7 +472,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     exec_context->data[2].gpu_data = (struct gpu_elem_t *)gpu_elem_C;
 
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, movein_key_end, 0 );
+    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, 0 );
 #endif  /* defined(PROFILING) */
 
  release_and_return_error:
@@ -505,7 +501,7 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", k, m, n));
 
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, compute_key_start, 1 );
+    dague_profiling_trace( gpu_device->profiling, exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id], 1 );
 #endif  /* defined(PROFILING) */
     offset = 0;
     CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
@@ -537,7 +533,7 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
                               {return -1;} );
 
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, compute_key_end, 1 );
+    dague_profiling_trace( gpu_device->profiling, exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id], 1 );
 #endif  /* defined(PROFILING) */
     return 0;
 }
@@ -578,7 +574,7 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
     if( (n == k+1) ) {
         DEBUG(("Request out of GPU for C(%d, %d)\n", m, n));
 #if defined(DAGUE_PROFILING)
-        dague_profiling_trace( gpu_device->profiling, moveout_key_start, 2 );
+        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, 2 );
 #endif  /* defined(PROFILING) */
         /* Pop C from the GPU */
         status = (cudaError_t)cuMemcpyDtoHAsync( C, d_C, tile_size, stream );
@@ -587,7 +583,7 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
         gpu_device->transferred_data_out += tile_size;
         how_many++;
 #if defined(DAGUE_PROFILING)
-        dague_profiling_trace( gpu_device->profiling, moveout_key_end, 2 );
+        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, 2 );
 #endif  /* defined(PROFILING) */
     }
  release_and_return_error:

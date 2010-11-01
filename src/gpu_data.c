@@ -84,12 +84,10 @@ int dague_using_gpu(void)
 }
 
 #if defined(DAGUE_PROFILING)
-static int movein_key_start;
-static int movein_key_end;
-static int compute_key_start;
-static int compute_key_end;
-static int moveout_key_start;
-static int moveout_key_end;
+int dague_cuda_movein_key_start;
+int dague_cuda_movein_key_end;
+int dague_cuda_moveout_key_start;
+int dague_cuda_moveout_key_end;
 #endif  /* defined(PROFILING) */
 
 /* We don't use gpu_devices, instead we use a subset of gpu-array
@@ -124,11 +122,9 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 
 #if defined(DAGUE_PROFILING)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                              &movein_key_start, &movein_key_end);
-    dague_profiling_add_dictionary_keyword( "compute", "fill:#ff33cc",
-                                              &compute_key_start, &compute_key_end);
+                                              &dague_cuda_movein_key_start, &dague_cuda_movein_key_end);
     dague_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                              &moveout_key_start, &moveout_key_end);
+                                              &dague_cuda_moveout_key_start, &dague_cuda_moveout_key_end);
 #endif  /* defined(PROFILING) */
 
     for( i = 0; i < ndevices; i++ ) {

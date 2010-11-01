@@ -21,6 +21,13 @@
 #define DAGUE_MAX_STREAMS 4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 
+#if defined(DAGUE_PROFILING)
+extern int dague_cuda_movein_key_start;
+extern int dague_cuda_movein_key_end;
+extern int dague_cuda_moveout_key_start;
+extern int dague_cuda_moveout_key_end;
+#endif  /* defined(PROFILING) */
+
 typedef struct _gpu_device {
     dague_list_item_t item;
     CUcontext ctx;
