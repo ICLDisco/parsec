@@ -32,6 +32,8 @@ int MAX_QUEUE = 80;
 #include "data_dist/matrix/matrix.h"
 #include "memory_pool.h"
 
+#undef DAGUE_PROFILING
+
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
 int stsmqr_cuda_init( tiled_matrix_desc_t *tileA,

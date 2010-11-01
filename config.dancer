@@ -2,7 +2,6 @@
 rm -rf CMakeCache.txt CMakeFiles
 
 LOCATION=`dirname $0`
-echo $LOCATION
 
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC="/opt/hwloc-1.0.2"

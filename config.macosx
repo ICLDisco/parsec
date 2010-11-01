@@ -1,6 +1,8 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
 
+LOCATION=`dirname $0`
+
 if [ "x$USER" == "xbouteill" ]; then 
 # the above line is necessary only when using gcc and gfortran 4.4
 # from fink. If using stock gcc and hpc gfortran, or port,
@@ -23,4 +25,4 @@ elif [ "x$USER" == "xbosilca" ]; then
 	MY_OPTS="$HWLOC_OPTS -DPLASMA_SRC=${PLASMA_SRC}"
 fi
 
-cmake -Wdev -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${MY_OPTS}
+cmake ${LOCATION} -Wdev -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${MY_OPTS}

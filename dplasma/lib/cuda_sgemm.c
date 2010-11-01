@@ -34,6 +34,8 @@ int MAX_QUEUE = 55;
 #endif
 #include "data_dist/matrix/matrix.h"
 
+#undef DAGUE_PROFILING
+
 static int OHM_N = 2;
 static int OHM_M = 3;
 
