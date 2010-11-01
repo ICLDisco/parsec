@@ -13,11 +13,9 @@ typedef unsigned long remote_dep_datakey_t;
 #include "debug.h"
 
 #if defined(USE_MPI)
-# define DISTRIBUTED
 #include <mpi.h>
 typedef MPI_Datatype dague_remote_dep_datatype_t;
 #else
-# undef DISTRIBUTED
 typedef void* dague_remote_dep_datatype_t;
 #endif
 
