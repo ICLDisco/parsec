@@ -41,7 +41,7 @@ static int OHM_M = 3;
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
-int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
+int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA )
 {
     CUdevice hcuDevice;
     int i, j;
@@ -90,8 +90,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
-        env=getenv("DAGUE_CUBIN_PATH");
-        assert(gpu_device->major < 10 && gpu_device->minor < 10);
+        env = getenv("DAGUE_CUBIN_PATH");
         snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", 
                  env?env:"../lib", gpu_device->major, gpu_device->minor);
         status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
@@ -120,7 +119,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
         /**
          * Prepare the reusable memory on the GPU.
          */
-        gpu_cholesky_data_map_init( gpu_device, tileA );
+        gpu_data_map_init( gpu_device, tileA );
         /**
          * It appears that CUDA allocate the memory in chunks of 1MB,
          * so we need to adapt to this.
@@ -137,7 +136,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
             if( nb_allocations > ((tileA->mt * tileA->nt) >> 1) )
                 break;
             gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
-            dplamsa_linked_list_item_construct( (dague_list_item_t*)gpu_elem );
+            dague_linked_list_item_construct( (dague_list_item_t*)gpu_elem );
             
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
@@ -158,7 +157,7 @@ int spotrf_cuda_init( tiled_matrix_desc_t *tileA )
             cuMemGetInfo( &free_mem, &total_mem );
         }
         if( 0 == nb_allocations ) {
-            printf("Cannot allocate memory on GPU %d. Skip it!\n", i);
+            printf("Rank %d Cannot allocate memory on GPU %d. Skip it!\n", dague_context->my_rank, i);
             cuCtxDestroy( gpu_device->ctx );
             free(gpu_device);
             gpu_devices[i] = NULL;
@@ -429,7 +428,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
 #endif  /* defined(PROFILING) */
 
     DEBUG(("Request Data of A(%d, %d) on GPU\n", n, k));
-    on_gpu = gpu_cholesky_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, n, k, &gpu_elem_A);
+    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, n, k, &gpu_elem_A);
     gpu_elem_A->memory_elem->memory = A;
     d_A = gpu_elem_A->gpu_mem;
     gpu_device->required_data_in += tile_size;
@@ -445,7 +444,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     exec_context->data[0].gpu_data = (struct gpu_elem_t *)gpu_elem_A;
 
     DEBUG(("Request Data of B(%d, %d) on GPU\n", m, k));
-    on_gpu = gpu_cholesky_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, m, k, &gpu_elem_B);
+    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, m, k, &gpu_elem_B);
     d_B = gpu_elem_B->gpu_mem;
     gpu_elem_B->memory_elem->memory = B;
     gpu_device->required_data_in += tile_size;
@@ -461,7 +460,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     exec_context->data[1].gpu_data = (struct gpu_elem_t *)gpu_elem_B;
 
     DEBUG(("Request Data of C(%d, %d) on GPU\n", m, n));
-    on_gpu = gpu_cholesky_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
+    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
     d_C = gpu_elem_C->gpu_mem;
     gpu_elem_C->memory_elem->memory = C;
     gpu_device->required_data_in += tile_size;
@@ -653,7 +652,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     (void)uplo;
     //DEBUG(("GEMM( k = %d, m = %d, n = %d )\n", k, m, n));
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = gpu_cholesky_data_tile_write_owner( ddescA(exec_context), m, n );
+    which_gpu = gpu_data_tile_write_owner( ddescA(exec_context), m, n );
     /*    printf("k=%d, m=%d, n=%d\n",k,m,n);*/
     if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
         which_gpu = 0; /* TODO */
@@ -964,7 +963,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
     //DEBUG(("GEMM( k = %d, m = %d, n = %d )\n", k, m, n));
     /* We always schedule the task on the GPU owning the C tile. */
-    which_gpu = gpu_cholesky_data_tile_write_owner( ddescA(exec_context), m, n );
+    which_gpu = gpu_data_tile_write_owner( ddescA(exec_context), m, n );
 /*    printf("k=%d, m=%d, n=%d\n",k,m,n);*/
     if( which_gpu < 0 ) {  /* this is the first time we see this tile. Let's decide which GPU will work on it. */
         which_gpu = 0; /* TODO */
@@ -1126,7 +1125,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 #endif
 
 /****************************************************
- ** GPU-DATA that is Cholesky Specific Starts Here **
+ ** GPU-DATA Specific Starts Here **
  ****************************************************/
 
 #include "gpu_data.h"
@@ -1136,7 +1135,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 static memory_elem_t** data_map = NULL;
 extern int ndevices;
 
-int gpu_cholesky_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row )
+int gpu_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row )
 {
     memory_elem_t* this_data;
 
@@ -1154,8 +1153,8 @@ int gpu_cholesky_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, 
     return 0;
 }
 
-int gpu_cholesky_data_map_init( gpu_device_t* gpu_device,
-                                tiled_matrix_desc_t* data )
+int gpu_data_map_init( gpu_device_t* gpu_device,
+                       tiled_matrix_desc_t* data )
 {
     if( NULL == data_map ) {
         data_map = (memory_elem_t**)calloc(data->lmt * data->lnt, sizeof(memory_elem_t*));
@@ -1165,8 +1164,8 @@ int gpu_cholesky_data_map_init( gpu_device_t* gpu_device,
     return 0;
 }
 
-int gpu_cholesky_data_tile_write_owner( tiled_matrix_desc_t* data,
-                                        int col, int row )
+int gpu_data_tile_write_owner( tiled_matrix_desc_t* data,
+                               int col, int row )
 {
     memory_elem_t* memory_elem;
     gpu_elem_t* gpu_elem;
@@ -1185,9 +1184,9 @@ int gpu_cholesky_data_tile_write_owner( tiled_matrix_desc_t* data,
     return -2;
 }
 
-int gpu_cholesky_data_get_tile( tiled_matrix_desc_t* data,
-                                int col, int row,
-                                memory_elem_t **pmem_elem )
+int gpu_data_get_tile( tiled_matrix_desc_t* data,
+                       int col, int row,
+                       memory_elem_t **pmem_elem )
 {
     memory_elem_t* memory_elem;
     int rc = 0;  /* the tile already existed */
@@ -1219,15 +1218,15 @@ int gpu_cholesky_data_get_tile( tiled_matrix_desc_t* data,
  * It return 1 if no transfer should be initiated, a 0 if a transfer is
  * necessary, and a negative value if no memory is currently available on the GPU.
  */
-int gpu_cholesky_data_is_on_gpu( gpu_device_t* gpu_device,
-                                 tiled_matrix_desc_t* data,
-                                 int type, int col, int row,
-                                 gpu_elem_t **pgpu_elem)
+int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
+                        tiled_matrix_desc_t* data,
+                        int type, int col, int row,
+                        gpu_elem_t **pgpu_elem)
 {
     memory_elem_t* memory_elem;
     gpu_elem_t* gpu_elem;
 
-    gpu_cholesky_data_get_tile( data, col, row, &memory_elem );
+    gpu_data_get_tile( data, col, row, &memory_elem );
 
     if( NULL == (gpu_elem = memory_elem->gpu_elems[gpu_device->id]) ) {
         /* Get the LRU element on the GPU and transfer it to this new data */

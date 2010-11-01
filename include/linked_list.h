@@ -22,7 +22,7 @@ static inline void dague_linked_list_construct( dague_linked_list_t* linked_list
     linked_list->atomic_lock = 0;
 }
 
-static inline void dplamsa_linked_list_item_construct( dague_list_item_t *item )
+static inline void dague_linked_list_item_construct( dague_list_item_t *item )
 {
     item->list_prev = item;
     item->list_next = item;

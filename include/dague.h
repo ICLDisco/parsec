@@ -43,7 +43,6 @@ extern dague_free_data_t     dague_data_free;
 #include "params.h"
 #include "dep.h"
 #include "execution_unit.h"
-#include "lifo.h"
 #include "mempool.h"
 #include "arena.h"
 #include "datarepo.h"
@@ -137,7 +136,7 @@ struct dague_data_pair_t {
 
 struct dague_execution_context_t {
     dague_list_item_t       list_item;
-    dague_thread_mempool_t *mempool_owner;
+    dague_thread_mempool_t *mempool_owner;  /* Why do we need this? */
     dague_object_t         *dague_object;
     const  dague_t         *function;
     int32_t                 priority;    
@@ -184,6 +183,7 @@ int dague_release_OUT_dependencies( const dague_object_t *dague_object,
                                     int forward_remote );
 
 const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
+dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
 char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                char* tmp,
@@ -202,7 +202,7 @@ typedef struct {
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
-    dague_remote_deps_t *remote_deps;
+    struct dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 

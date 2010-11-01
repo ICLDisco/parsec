@@ -35,26 +35,23 @@ int main(int argc, char ** argv)
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_IPARAM_LOCALS(iparam);
     PLASMA_enum uplo = PlasmaLower;
-    PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N))
+    PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
 
     /* initializing matrix structure */
     int info = 0;
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, N, N, 0, 0, 
-                                    LDA, N, P))
-#if defined(DAGUE_PROFILING)
-    ddescA.super.super.key = strdup("A");
-#endif
+                                   nodes, cores, rank, MB, NB, N, N, 0, 0, 
+                                   LDA, N, P));
 
     /* load the GPU kernel */
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
     {
         if(loud) printf("+++ Load GPU kernel ... ");
-        if(0 != spotrf_cuda_init((tiled_matrix_desc_t *)&ddescA))
+        if(0 != spotrf_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
         {
             fprintf(stderr, "XXX Unable to load GPU kernel.\n");
             exit(3);
@@ -73,14 +70,14 @@ int main(int argc, char ** argv)
         PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf_ll, 
                                            (uplo, 
                                             (tiled_matrix_desc_t*)&ddescA,
-                                            &info))
-        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_ll)
+                                            &info));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_ll);
 #else
         PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf, 
                                            (uplo, 
                                             (tiled_matrix_desc_t*)&ddescA,
-                                            &info))
-        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf)
+                                            &info));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
 #endif
     }
 
@@ -95,11 +92,9 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
 
-#if defined(DAGUE_PROFILING)
-    free(ddescA.super.super.key);
-#endif
-
     cleanup_dague(dague);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+
     return EXIT_SUCCESS;
 }
 
@@ -119,9 +114,6 @@ int main(int argc, char ** argv)
         sym_two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank,
                                       MB, NB, N, N, 0, 0, LDA, N, P);
         ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
-#if defined(DAGUE_PROFILING)
-        ddescB.super.super.key = strdup("B");
-#endif
 
         sprintf(fname , "zposv_r%d", rank );
         printf("reading matrix from file\n");
@@ -130,9 +122,7 @@ int main(int argc, char ** argv)
         matrix_zcompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
 
         dague_data_free(ddescB.mat);
-#if defined(DAGUE_PROFILING)
-        free(ddescB.super.super.key);
-#endif
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
 #endif
 
  

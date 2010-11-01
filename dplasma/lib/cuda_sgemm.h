@@ -12,7 +12,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                int uplo );
 
 /****************************************************
- ** GPU-DATA that is Cholesky Specific Starts Here **
+ ** GPU-DATA Specific Starts Here **
  ****************************************************/
 
 #include "data_distribution.h"
@@ -46,21 +46,21 @@ typedef enum {
 
 #include "data_dist/matrix/matrix.h"
 
-int gpu_cholesky_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row );
+int gpu_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row );
 
-int spotrf_cuda_init( tiled_matrix_desc_t *tileA );
+int spotrf_cuda_init( dague_context_t* context, tiled_matrix_desc_t *tileA );
 int spotrf_cuda_fini( void );
 
-int gpu_cholesky_data_map_init( gpu_device_t* gpu_device,
-                                tiled_matrix_desc_t* data );
-int gpu_cholesky_data_tile_write_owner( tiled_matrix_desc_t* data,
-                                        int col, int row );
-int gpu_cholesky_data_get_tile( tiled_matrix_desc_t* data,
-                                int col, int row,
-                                memory_elem_t **pmem_elem );
-int gpu_cholesky_data_is_on_gpu( gpu_device_t* gpu_device,
-                                 tiled_matrix_desc_t* data,
-                                 int type, int col, int row,
-                                 gpu_elem_t **pgpu_elem);
+int gpu_data_map_init( gpu_device_t* gpu_device,
+                       tiled_matrix_desc_t* data );
+int gpu_data_tile_write_owner( tiled_matrix_desc_t* data,
+                               int col, int row );
+int gpu_data_get_tile( tiled_matrix_desc_t* data,
+                       int col, int row,
+                       memory_elem_t **pmem_elem );
+int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
+                        tiled_matrix_desc_t* data,
+                        int type, int col, int row,
+                        gpu_elem_t **pgpu_elem);
 
 #endif
