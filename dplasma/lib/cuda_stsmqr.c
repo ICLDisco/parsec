@@ -18,6 +18,8 @@
 
 #include "data_distribution.h"
 
+/* TODO: Fix the GPU profiling */
+#undef DAGUE_PROFILING
 #define DPLASMA_SCHEDULING 1
 #define DPLASMA_ONLY_GPU 0
 static volatile uint32_t cpu_counter = 0;

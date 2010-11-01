@@ -8,6 +8,7 @@
 #define _TESTSCOMMON_H
 
 /* includes used by the testing_*.c */
+#include "dague_config.h"
 
 /* system and io */
 #include <stdlib.h>

@@ -19,6 +19,8 @@
 
 #include "data_distribution.h"
 
+/* TODO: Fix profiling of GPUs */
+#undef DAGUE_PROFILING
 #define DPLASMA_SCHEDULING 1
 #define DPLASMA_ONLY_GPU 0
 #define DAGUE_GPU_USE_PRIORITIES 1
