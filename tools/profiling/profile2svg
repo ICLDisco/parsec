@@ -215,7 +215,7 @@ foreach ($ALLXML as $xml) {
                 }
 
                 $eheight = $h/$nby; #$nby >= 1 because collide($event, $event)
-                $ey = $y + $eyid * $eyheight;
+                $ey = $y + $eyid * $eheight;
 
                 $duration = ($event->END - $event->START);
                 $x = $event->START * $scale;
