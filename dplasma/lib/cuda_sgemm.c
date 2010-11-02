@@ -429,7 +429,6 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     d_A = gpu_elem_A->gpu_mem;
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
-        DEBUG((" it is not there\n"));
         /* Push A into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_A, A, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_A) ", status, 
@@ -445,7 +444,6 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     gpu_elem_B->memory_elem->memory = B;
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
-        DEBUG((" it is not there\n"));
         /* Push B into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_B, B, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_B) ", status,
@@ -461,7 +459,6 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     gpu_elem_C->memory_elem->memory = C;
     gpu_device->required_data_in += tile_size;
     if( !on_gpu ) {
-        DEBUG((" it is not there\n"));
         /* Push C into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( d_C, C, tile_size, stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device (d_C) ", status,
