@@ -326,10 +326,10 @@ int spotrf_cuda_fini(void)
     }
     if( 0 == total_data_in ) total_data_in = 1;
     if( 0 == total_data_out ) total_data_out = 1;
-#if defined(USE_MPI)
+#if defined(DISTRIBUTED)
     int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
-    rank = 0;
+    int rank = 0;
 #endif
     gtotal = (float)total + (float)cpu_counter;
     printf("------------------------------------------------------------------------------\n");
