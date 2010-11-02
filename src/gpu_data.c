@@ -88,6 +88,8 @@ int dague_cuda_movein_key_start;
 int dague_cuda_movein_key_end;
 int dague_cuda_moveout_key_start;
 int dague_cuda_moveout_key_end;
+int dague_cuda_own_GPU_key_start;
+int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
 /* We don't use gpu_devices, instead we use a subset of gpu-array
@@ -125,6 +127,8 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
                                               &dague_cuda_movein_key_start, &dague_cuda_movein_key_end);
     dague_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
                                               &dague_cuda_moveout_key_start, &dague_cuda_moveout_key_end);
+    dague_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
+                                              &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
 
     for( i = 0; i < ndevices; i++ ) {

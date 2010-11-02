@@ -26,6 +26,8 @@ extern int dague_cuda_movein_key_start;
 extern int dague_cuda_movein_key_end;
 extern int dague_cuda_moveout_key_start;
 extern int dague_cuda_moveout_key_end;
+extern int dague_cuda_own_GPU_key_start;
+extern int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
 typedef struct _gpu_device {

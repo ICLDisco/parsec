@@ -120,7 +120,7 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
          * It appears that CUDA allocate the memory in chunks of 1MB,
          * so we need to adapt to this.
          */
-        tile_size = tileA->bsiz * sizeof(float);
+        tile_size = tileA->bsiz * tileA->mtype;
         cuMemGetInfo( &free_mem, &total_mem );
         /* We allocate 9/10 of the total memory */
         thread_gpu_mem = (total_mem - total_mem / 10);
@@ -387,6 +387,8 @@ int spotrf_cuda_fini(void)
 
 #include "generated/spotrf_rl.h"
 #define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
+#define ddescB(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
+#define ddescC(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
 
 /**
  *  This function schedule the move of all the data required for a
@@ -418,12 +420,12 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     B = ADATA(aB);
     C = ADATA(aC);
 
-    tile_size = ddescA(exec_context)->mb*ddescA(exec_context)->nb*sizeof(float);
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, 0 );
+    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, (unsigned long)exec_context );
 #endif  /* defined(PROFILING) */
 
     DEBUG(("Request Data of A(%d, %d) on GPU\n", n, k));
+    tile_size = ddescA(exec_context)->mb * ddescA(exec_context)->nb * ddescA(exec_context)->mtype;
     on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, n, k, &gpu_elem_A);
     gpu_elem_A->memory_elem->memory = A;
     d_A = gpu_elem_A->gpu_mem;
@@ -439,7 +441,8 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     exec_context->data[0].gpu_data = (struct gpu_elem_t *)gpu_elem_A;
 
     DEBUG(("Request Data of B(%d, %d) on GPU\n", m, k));
-    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ, m, k, &gpu_elem_B);
+    tile_size = ddescB(exec_context)->mb * ddescB(exec_context)->nb * ddescB(exec_context)->mtype;
+    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescB(exec_context), DAGUE_READ, m, k, &gpu_elem_B);
     d_B = gpu_elem_B->gpu_mem;
     gpu_elem_B->memory_elem->memory = B;
     gpu_device->required_data_in += tile_size;
@@ -454,7 +457,8 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     exec_context->data[1].gpu_data = (struct gpu_elem_t *)gpu_elem_B;
 
     DEBUG(("Request Data of C(%d, %d) on GPU\n", m, n));
-    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescA(exec_context), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
+    tile_size = ddescC(exec_context)->mb * ddescC(exec_context)->nb * ddescC(exec_context)->mtype;
+    on_gpu = gpu_data_is_on_gpu(gpu_device, ddescC(exec_context), DAGUE_READ | DAGUE_WRITE, m, n, &gpu_elem_C);
     d_C = gpu_elem_C->gpu_mem;
     gpu_elem_C->memory_elem->memory = C;
     gpu_device->required_data_in += tile_size;
@@ -467,10 +471,6 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
         how_many++;
     }
     exec_context->data[2].gpu_data = (struct gpu_elem_t *)gpu_elem_C;
-
-#if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, 0 );
-#endif  /* defined(PROFILING) */
 
  release_and_return_error:
     return (return_code < 0 ? return_code : how_many);
@@ -498,7 +498,9 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", k, m, n));
 
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id], 1 );
+    dague_profiling_trace( gpu_device->profiling,
+                           exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id],
+                           (unsigned long)exec_context );
 #endif  /* defined(PROFILING) */
     offset = 0;
     CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
@@ -529,9 +531,6 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     DAGUE_CUDA_CHECK_ERROR( "cuLaunchGridAsync ", status,
                               {return -1;} );
 
-#if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling, exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id], 1 );
-#endif  /* defined(PROFILING) */
     return 0;
 }
 
@@ -564,14 +563,14 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
     d_C = gpu_elem_C->gpu_mem;
     C = ADATA(aC);
 
-    tile_size = ddescA(exec_context)->mb*ddescA(exec_context)->nb*sizeof(float);
+    tile_size = ddescC(exec_context)->mb * ddescC(exec_context)->nb * ddescC(exec_context)->mtype;
 
     /* Pop C from the GPU */
     gpu_device->required_data_out += tile_size;
     if( (n == k+1) ) {
         DEBUG(("Request out of GPU for C(%d, %d)\n", m, n));
 #if defined(DAGUE_PROFILING)
-        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, 2 );
+        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_start, (unsigned long)exec_context );
 #endif  /* defined(PROFILING) */
         /* Pop C from the GPU */
         status = (cudaError_t)cuMemcpyDtoHAsync( C, d_C, tile_size, stream );
@@ -579,9 +578,6 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
                                   {printf("<<%p>> -> <<%p>>\n", (void*)(long)d_C, (void*)C); return_code = -2; goto release_and_return_error;} );
         gpu_device->transferred_data_out += tile_size;
         how_many++;
-#if defined(DAGUE_PROFILING)
-        dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, 2 );
-#endif  /* defined(PROFILING) */
     }
  release_and_return_error:
     return (return_code < 0 ? return_code : how_many);
@@ -713,6 +709,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)exec_context );
         return -1;
     }
+#if defined(DAGUE_PROFILING)
+    dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context );
+#endif  /* defined(PROFILING) */
 
     status = (cudaError_t)cuCtxPushCurrent(gpu_device->ctx);
     DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
@@ -759,6 +758,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             /* Save the task for the next step */
             DEBUG(("Completion of GPU Request number %d\n", gpu_device->in_array_events[gpu_device->in_waiting]));
             exec_context = gpu_device->in_array[gpu_device->in_waiting];
+#if defined(DAGUE_PROFILING)
+            dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_end, (unsigned long)exec_context );
+#endif  /* defined(PROFILING) */
             gpu_device->in_array[gpu_device->in_waiting] = NULL;
             gpu_device->in_waiting = (gpu_device->in_waiting + 1) % gpu_device->max_in_tasks;
             goto exec_task;
@@ -810,6 +812,11 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             /* Save the task for the next step */
             DEBUG(("Completion of GPU Request number %d\n", gpu_device->exec_array_events[gpu_device->exec_waiting]));
             exec_context = gpu_device->exec_array[gpu_device->exec_waiting];
+#if defined(DAGUE_PROFILING)
+            dague_profiling_trace( gpu_device->profiling,
+                                   exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id],
+                                   (unsigned long)exec_context );
+#endif  /* defined(PROFILING) */
             gpu_device->exec_array[gpu_device->exec_waiting] = NULL;
             gpu_device->exec_waiting = (gpu_device->exec_waiting + 1) % gpu_device->max_exec_tasks;
             goto out_task;
@@ -857,6 +864,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             /* Save the task for the next step */
             DEBUG(("Completion of GPU Request number %d\n", gpu_device->out_array_events[gpu_device->out_waiting]));
             exec_context = gpu_device->out_array[gpu_device->out_waiting];
+#if defined(DAGUE_PROFILING)
+            dague_profiling_trace( gpu_device->profiling, dague_cuda_moveout_key_end, (unsigned long)exec_context );
+#endif  /* defined(PROFILING) */
             gpu_device->out_array[gpu_device->out_waiting] = NULL;
             gpu_device->out_waiting = (gpu_device->out_waiting + 1) % gpu_device->max_out_tasks;
             goto complete_task;
@@ -883,10 +893,18 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     gpu_device->executed_tasks++;
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
-        status = (cudaError_t)cuCtxPopCurrent(NULL);
-        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                {return -1;} );
-        return -1;
+        if( (NULL == gpu_device->in_array[gpu_device->in_waiting]) &&
+            (NULL == gpu_device->exec_array[gpu_device->exec_waiting]) &&
+            (NULL == gpu_device->out_array[gpu_device->out_waiting]) )
+            {
+#if defined(DAGUE_PROFILING)
+                dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, (unsigned long)eu_context );
+#endif  /* defined(PROFILING) */
+                status = (cudaError_t)cuCtxPopCurrent(NULL);
+                DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                        {return -1;} );
+                return -1;
+            }
     }
     exec_context = NULL;
     goto fetch_task_from_shared_dequeue;
