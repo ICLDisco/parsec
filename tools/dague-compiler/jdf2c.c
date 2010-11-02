@@ -785,7 +785,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include <dague.h>\n\n");
+    houtput("#include <dague.h>\n"
+            "#include <assert.h>\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
         houtput("#define DAGUE_%s_%s_ARENA    %d\n",
@@ -2591,6 +2592,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n"
             "    if( NULL != arg.ready_list ) {\n"
             "      __dague_schedule(eu, arg.ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));\n"
+            "      arg.ready_list = NULL;\n"
             "    }\n"
             "  }\n",
             f->fname);
@@ -2603,7 +2605,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
-    coutput("\n"
+    coutput("  assert( NULL == arg.ready_list );\n"
             "  return arg.nb_released;\n"
             "}\n"
             "\n");
@@ -2740,7 +2742,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     linfo.prefix = NULL;
 
     if( NULL != t->priority ) {
-        string_arena_add_string(sa_open, "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
+        string_arena_add_string(sa_open,
+                                "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(exec_context->dague_object, nc.locals);\n",
                                 prefix, indent(nbopen), var, jdf_basename, t->fname);
     } else {
         string_arena_add_string(sa_open, "%s%s  %s.priority = 0;\n",
