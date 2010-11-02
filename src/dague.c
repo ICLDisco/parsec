@@ -803,7 +803,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 {
     const dague_t* function = exec_context->function;
     dague_dependencies_t *deps;
-    int i;
+    int position;
     dague_dependency_t dep_new_value, dep_cur_value;
 #if defined(DAGUE_DEBUG)
     char tmp[128];
@@ -815,18 +815,18 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
     deps = find_deps(dague_object, exec_context);
     
-    i = function->nb_locals - 1;
+    position = CURRENT_DEPS_INDEX(function->nb_locals - 1);
 
 #if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
 
-    if( 0 == deps->u.dependencies[CURRENT_DEPS_INDEX(i)] ) {
+    if( 0 == deps->u.dependencies[position] ) {
         dep_new_value = 1 + dague_check_IN_dependencies( dague_object, exec_context );
-        if( dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], 0, dep_new_value ) == 1 )
+        if( dague_atomic_cas( &deps->u.dependencies[position], 0, dep_new_value ) == 1 )
             dep_cur_value = dep_new_value;
         else
-            dep_cur_value = dague_atomic_inc_32b( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)] );
+            dep_cur_value = dague_atomic_inc_32b( &deps->u.dependencies[position] );
     } else {
-        dep_cur_value = dague_atomic_inc_32b( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)] );
+        dep_cur_value = dague_atomic_inc_32b( &deps->u.dependencies[position] );
     }
 
 #if defined(DAGUE_DEBUG)
@@ -842,19 +842,19 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #else  /* !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
 
 #   if defined(DAGUE_DEBUG)
-    if( deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask ) {
+    if( deps->u.dependencies[position] & dest_param->param_mask ) {
         char tmp2[128];
         DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
                dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
-               deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+               deps->u.dependencies[position],
                dague_service_to_string(exec_context, tmp2, 128),  dest_param->name ));
     }
-    assert( 0 == (deps->u.dependencies[CURRENT_DEPS_INDEX(i)] & dest_param->param_mask) );
+    assert( 0 == (deps->u.dependencies[position] & dest_param->param_mask) );
 #   endif 
 
     dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | dest_param->param_mask;
     /* Mark the dependencies and check if this particular instance can be executed */
-    if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[CURRENT_DEPS_INDEX(i)]) ) {
+    if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[position]) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
 #   ifdef DAGUE_DEBUG
         if( dep_new_value != 0 ) {
@@ -863,7 +863,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #   endif /* DAGUE_DEBUG */
     }
 
-    dep_cur_value = dague_atomic_bor( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)], dep_new_value );
+    dep_cur_value = dague_atomic_bor( &deps->u.dependencies[position], dep_new_value );
 
     if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
 
@@ -885,8 +885,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         {
             int success;
             dague_dependency_t tmp_mask;
-            tmp_mask = deps->u.dependencies[CURRENT_DEPS_INDEX(i)];
-            success = dague_atomic_cas( &deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+            tmp_mask = deps->u.dependencies[position];
+            success = dague_atomic_cas( &deps->u.dependencies[position],
                                         tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
             if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
                 char tmp2[128];
@@ -917,7 +917,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),
                    dague_service_to_string(origin, tmp2, 128),
-                   deps->u.dependencies[CURRENT_DEPS_INDEX(i)],
+                   deps->u.dependencies[position],
                    eu_context->eu_id));
 
 #if defined(DAGUE_CACHE_AWARE)
@@ -983,6 +983,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             }
             arg->deps->output[param_index].data = data; /* if still NULL allocate it */
             arg->deps->output[param_index].type = arena;
+            if(newcontext->priority > arg->max_priority) arg->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
             int _array_pos, _array_mask;
@@ -998,6 +999,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                 arg->remote_deps->output[param_index].count++;
                 arg->remote_deps_count++;
             }
+            if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
         }
 #else
         (void)src_rank;

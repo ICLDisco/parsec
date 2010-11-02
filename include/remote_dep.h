@@ -56,6 +56,7 @@ struct dague_remote_deps_t {
     struct dague_atomic_lifo_t*             origin;  /**< The memory arena where the data pointer is comming from */
     remote_dep_wire_activate_t              msg;     /**< A copy of the message control */
     int                                     root;
+    int                                     max_priority;
     uint32_t                                output_count;
     uint32_t                                output_sent_count;
     uint32_t*                               remote_dep_fw_mask;  /**< list of peers already notified abput
@@ -105,6 +106,7 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* 
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
         assert( (int)(ptr - (char*)remote_deps) <= (int)(elem_size - sizeof(uint32_t) * (max_nodes_number+31)/32) );
     }
+    remote_deps->max_priority = 0xffffffff;
     return remote_deps;
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \

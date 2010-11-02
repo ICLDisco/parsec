@@ -12,6 +12,7 @@
 #include "profiling.h"
 #include "freelist.h"
 #include "arena.h"
+#include "fifo.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 #define DEP_NB_CONCURENT 3
@@ -98,8 +99,9 @@ typedef union dep_cmd_t
 typedef struct dep_cmd_item_t
 {
     dague_list_item_t super;
-    dep_cmd_action_t action;
-    dep_cmd_t cmd;
+    dep_cmd_action_t  action;
+    int               priority;
+    dep_cmd_t         cmd;
 } dep_cmd_item_t;
 
 #ifdef DAGUE_DEBUG
@@ -125,7 +127,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 
 pthread_t dep_thread_id;
 dague_dequeue_t dep_cmd_queue;
-dague_dequeue_t dep_activate_queue;
+dague_fifo_t    dep_cmd_fifo;        /* ordered non threaded fifo */
 volatile int np;
 static int dep_enabled;
 
@@ -138,11 +140,10 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 
     dague_dequeue_construct(&dep_cmd_queue);
-    dague_dequeue_construct(&dep_activate_queue);
+    dague_fifo_construct(&dep_cmd_fifo);
 
     MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
-    if(1 < np)
-    {
+    if(1 < np) {
         np = 0;
         pthread_create(&dep_thread_id,
                        &thread_attr,
@@ -158,7 +159,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 static int remote_dep_dequeue_nothread_init(dague_context_t* context)
 {
     dague_dequeue_construct(&dep_cmd_queue);
-    dague_dequeue_construct(&dep_activate_queue);
+    dague_fifo_construct(&dep_cmd_fifo);
 
     MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
     remote_dep_mpi_init(context);
@@ -179,6 +180,7 @@ static int remote_dep_dequeue_on(dague_context_t* context)
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 1;
+        item->priority = 0;
         DAGUE_LIST_ITEM_SINGLETON(item);
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
         return 1;
@@ -193,6 +195,7 @@ static int remote_dep_dequeue_off(dague_context_t* context)
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         item->action = DEP_CTL;
         item->cmd.ctl.enable = 0;
+        item->priority = 0;
         DAGUE_LIST_ITEM_SINGLETON(item);
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     }
@@ -207,6 +210,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         dague_context_t *ret;
         item->action = DEP_CTL;
         item->cmd.ctl.enable = -1;
+        item->priority = 0;
         DAGUE_LIST_ITEM_SINGLETON(item);
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
         
@@ -224,27 +228,11 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     item->action = DEP_ACTIVATE;
     item->cmd.activate.rank = rank;
     item->cmd.activate.deps = deps;
+    item->priority = deps->max_priority;
     DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     return 1;
 }
-
-#if 0 /* This is probably useless, keep it for now until it is clear what needs to happen to this */
-static int remote_dep_dequeue_progress(dague_execution_unit_t* eu_context)
-{
-    dep_cmd_item_t* item;
-    
-    /* don't while, the thread is starving, let it go right away */
-    if(NULL != (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_activate_queue)))
-    {
-        assert(DEP_RELEASE == item->action);
-        remote_dep_nothread_release(eu_context, item->cmd.release.deps);
-        free(item);
-        return 1;
-    }
-    return 0;
-}
-#endif
 
 void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_dep_datatype_t datatype)
 {
@@ -254,6 +242,7 @@ void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_d
     item->cmd.memcpy.destination = dst;
     item->cmd.memcpy.datatype = datatype;
     AREF(src);
+    item->priority = 0;
     DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }
@@ -264,60 +253,85 @@ void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_d
 static int do_nano = 0;
 static int keep_probing = 1;
 
+static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
+                                                          dague_list_item_t* elem )
+{
+    dep_cmd_item_t* ec;
+    dep_cmd_item_t* input = (dep_cmd_item_t*)elem;
+    dague_list_item_t* current = (dague_list_item_t*)fifo->fifo_ghost.list_next;
+
+    while( current != &(fifo->fifo_ghost) ) {
+        ec = (dep_cmd_item_t*)current;
+        if( ec->priority < input->priority )
+            break;
+        current = (dague_list_item_t *)current->list_next;
+    }
+    /* Add the input element before the current one */
+    elem->list_prev = current->list_prev;
+    elem->list_next = current;
+    elem->list_prev->list_next = elem;
+    elem->list_next->list_prev = elem;
+    return elem;
+}
+#define DAGUE_FIFO_PUSH  dague_fifo_push_ordered
+
 static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_context)
 {
     dep_cmd_item_t* item;
     int ctl;
     int ret = 0;
-    
-    if(NULL == (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)))
-    {
-        if(dep_enabled)
-        {
+
+    /**
+     * Move as many elements as possible from the dequeue into our ordered lifo.
+     */
+    item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue);
+    if( NULL != item ) {
+        if( !dague_fifo_is_empty(&dep_cmd_fifo) ) {
+            DAGUE_FIFO_PUSH(&dep_cmd_fifo, (dague_list_item_t*)item);
+            item = (dep_cmd_item_t*)dague_fifo_pop(&dep_cmd_fifo);
+        }
+    } else {
+        item = (dep_cmd_item_t*)dague_fifo_pop(&dep_cmd_fifo);
+    }
+
+    if(NULL == item ) {
+        if(dep_enabled) {
             ret = remote_dep_mpi_progress(eu_context);
         }
-        if(do_nano && !ret) 
-        {
+        if(do_nano && !ret) {
             struct timespec ts;
             ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
             nanosleep(&ts, NULL);
         }
+        return ret;
     }
-    else
-    {
-        switch(item->action)
-        {
-            case DEP_ACTIVATE:
-                remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
-                break;
-            case DEP_CTL:
-                ctl = item->cmd.ctl.enable;
-                assert((ctl * ctl) <= 1);
-                if(-1 == ctl)
-                {
-                    keep_probing = 0;
-                }
-                if(0 == ctl)
-                {
-                    remote_dep_mpi_off(eu_context->master_context);
-                }
-                if(1 == ctl)
-                {
-                    remote_dep_mpi_on(eu_context->master_context);
-                }
-                break;
-            case DEP_MEMCPY:
-                remote_dep_nothread_memcpy(item->cmd.memcpy.destination, 
-                                           item->cmd.memcpy.source,
-                                           item->cmd.memcpy.datatype);
-                break;
-            default:
-                break;
+    switch(item->action) {
+    case DEP_ACTIVATE:
+        remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
+        break;
+    case DEP_CTL:
+        ctl = item->cmd.ctl.enable;
+        assert((ctl * ctl) <= 1);
+        if(-1 == ctl) {
+            keep_probing = 0;
         }
-        free(item);
-        ret += 1;
+        if(0 == ctl) {
+            remote_dep_mpi_off(eu_context->master_context);
+        }
+        if(1 == ctl) {
+            remote_dep_mpi_on(eu_context->master_context);
+        }
+        break;
+    case DEP_MEMCPY:
+        remote_dep_nothread_memcpy(item->cmd.memcpy.destination, 
+                                   item->cmd.memcpy.source,
+                                   item->cmd.memcpy.datatype);
+        break;
+    default:
+        break;
     }
-    return ret;
+    free(item);
+    return (ret + 1);
 }
 
 static void* remote_dep_dequeue_main(dague_context_t* context)
@@ -806,31 +820,27 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
     msg.tag = NEXT_TAG;
     
     assert(dep_enabled);
-    for(int k = 0; msg.which>>k; k++)
-    {        
-        if((1<<k) & msg.which)
-        {
-            dtt = deps->output[k].type->opaque_dtt;
-            data = deps->output[k].data;
-            assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
-            if(NULL == data)
-            { 
-                data = dague_arena_get(deps->output[k].type);
-                DEBUG(("Malloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
-                assert(data != NULL);
-                deps->output[k].data = data;
-            }
-#ifdef DAGUE_DEBUG
-            MPI_Type_get_name(dtt, type_name, &len);
-            DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith datakey %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
-#endif
-            /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
-            TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
-            MPI_Irecv(ADATA(data), 1, 
-                      dtt, from, NEXT_TAG + k, dep_comm, 
-                      &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
-            DEBUG_MARK_DTA_MSG_START_RECV(from, data, NEXT_TAG + k);
+    for(int k = 0; msg.which >> k; k++) {
+        if( !((1<<k) & msg.which) ) continue;
+        dtt = deps->output[k].type->opaque_dtt;
+        data = deps->output[k].data;
+        assert(NULL == data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+        if(NULL == data) {
+            data = dague_arena_get(deps->output[k].type);
+            DEBUG(("Malloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
+            assert(data != NULL);
+            deps->output[k].data = data;
         }
+#ifdef DAGUE_DEBUG
+        MPI_Type_get_name(dtt, type_name, &len);
+        DEBUG(("TO\t%d\tGet START\t%s\ti=%d,k=%d\twith datakey %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
+#endif
+        /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
+        TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
+        MPI_Irecv(ADATA(data), 1, 
+                  dtt, from, NEXT_TAG + k, dep_comm, 
+                  &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
+        DEBUG_MARK_DTA_MSG_START_RECV(from, data, NEXT_TAG + k);
     }
     TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
     MPI_Send(&msg, datakey_count, datakey_dtt, from, 
@@ -849,18 +859,16 @@ static void remote_dep_mpi_get_data(dague_execution_unit_t* eu_context, remote_d
 
 #ifdef DAGUE_DEBUG
     for(int k = 0; locals>>k; k++) 
-       if((1<<k) & locals)
-           DEBUG(("TO\t%d\tGet LOCAL\t%s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, NEXT_TAG+k));
+        if((1<<k) & locals)
+            DEBUG(("TO\t%d\tGet LOCAL\t%s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, data, NEXT_TAG+k));
 #endif
-    if(locals) 
-    {
+    if(locals) {
         deps->msg.which = locals;
         deps->msg.deps = locals;
         remote_dep_release(eu_context, deps);
         assert(0 == deps->msg.which);
         deps->msg.which = msg.which; /* restore context for real recv deps */
-        if(0 == msg.which)
-        {
+        if(0 == msg.which) {
             MPI_Start(&dep_activate_req[i]);
         }
     }
