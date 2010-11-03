@@ -224,7 +224,7 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
-GEMM_IN_A(m, k)
+GEMM_IN_A(k, m)
 k = 0..SIZE-1
 m = k+1..SIZE-1
 
@@ -237,7 +237,7 @@ BODY
   /* Nothing */
 END
 
-GEMM_IN_F(m, k)
+GEMM_IN_F(k, m)
 k = 0..SIZE-1
 m = k+1..SIZE-1
 
@@ -263,8 +263,8 @@ n = 0..k-1
 // Parameters
 READ  A <- C TRSM(n, k)
 READ  B <- C TRSM(n, m)
-READ  F <- (n == 0) ? F POTRF(k) : A GEMM_IN_F(m, k)
-RW    C <- (n == 0) ? A GEMM_IN_A(m, k) : C GEMM(k, m, n-1)
+READ  F <- (n == 0) ? F POTRF(k) : A GEMM_IN_F(k, m)   /* It's A(n,k) but we need to swap parameter for the parser */
+RW    C <- (n == 0) ? A GEMM_IN_A(k, m) : C GEMM(k, m, n-1)
         -> (n == k-1) ? C TRSM(k, m) : C GEMM(k, m, n+1)
 
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
