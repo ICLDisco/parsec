@@ -18,25 +18,27 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-Bmb  [int]
-Bnb  [int]
-Bmt  [int]
-Bnt  [int]
-Bm   [int]
-Bn   [int]
-     
-Amb  [int]
-Anb  [int]
-Amt  [int]
-Ant  [int]
-Am   [int]
-An   [int]
-
+side [int]
+uplo [int]
 trans[int]
 diag [int]
 
 alpha[Dague_Complex64_t]
 
+Am   [int]
+An   [int]
+Amb  [int]
+Anb  [int]
+Amt  [int]
+Ant  [int]
+
+Bm   [int]
+Bn   [int]
+Bmb  [int]
+Bnb  [int]
+Bmt  [int]
+Bnt  [int]
+     
 /**************************************************
  *                      TRSM                      *
  **************************************************/
@@ -73,19 +75,19 @@ BODY
       int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
       DRYRUN(
 	   CORE_ztrsm(
-			PlasmaLeft, PlasmaLower, trans, diag,
+			side, uplo, trans, diag,
 			tempkm, tempnn,
 			lalpha, A /*A(k, k)*/, Amb,
                                 B /*B(k, n)*/, Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_ztrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+      printlog("thread %d CORE_ztrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
 	       context->eu_id,
-               plasma_const( PlasmaLeft ), plasma_const( PlasmaLower ), plasma_const( trans ), plasma_const( diag ),
+               plasma_const( side ), plasma_const( uplo ), 
+               plasma_const( trans ), plasma_const( diag ),
                tempkm, tempnn,
 	       lalpha, k, k, A /*A(k, k)*/, Amb,
-	               k, n, B /*B(k, n)*/, Bmb)
-	      );
+                       k, n, B /*B(k, n)*/, Bmb);
 END
 
 /**************************************************
@@ -134,11 +136,10 @@ BODY
 			lalpha,       C /* B(m, n)*/ , Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_zgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+      printlog("thread %d CORE_zgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
 	       context->eu_id, plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
                Bmb, tempnn, tempkm,
 	       (Dague_Complex64_t)-1.0, k, m, A, Amb,
                              k, n, B, Bmb,
-	       lalpha,       m, n, C, Bmb)
-	      );
+	       lalpha,       m, n, C, Bmb);
 END
