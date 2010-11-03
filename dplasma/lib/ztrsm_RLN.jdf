@@ -68,20 +68,21 @@ RW    B <- (k == Bmt-1) ? B(m, k) : C GEMM(k+1, m, k)
         -> B(m, k)
 
 BODY
-      Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      Dague_Complex64_t lalpha = k == Bmt-1 ? alpha : (Dague_Complex64_t)1.0;    
+      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
+      int tempkn = k == Bnt-1 ? Bn - k * Bnb : Bnb;
       DRYRUN(
 	   CORE_ztrsm(
 			PlasmaRight, PlasmaLower, trans, diag,
-			m == Bmt-1 ? Bm - m * Bmb : Bmb,
-			k == Bnt-1 ? Bn - k * Bnb : Bnb,
+                        tempmm, tempkn,
 			lalpha, A /*A(k, k)*/, Amb,
                                 B /*B(m, k)*/, Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaRight", "PlasmaLower", "Trans/ConjTrans", "PlasmaNonUnit",
-	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
-	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
+      OUTPUT( ("thread %d CORE_ztrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, 
+               plasma_const( PlasmaRight ), plasma_const( PlasmaLower ), plasma_const( trans ), plasma_const( diag ),
+               tempmm, tempkn,
 	       lalpha, k, k, A /*A(k, k)*/, Amb,
                        m, k, B /*B(m, k)*/, Bmb)
 	      );
@@ -121,25 +122,23 @@ RW    C <- (k == Bmt-1) ? B(m, n) : C GEMM(k+1, m, n)
         -> (k-1 == n)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
 
 BODY
-      Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      Dague_Complex64_t lalpha = k == Bmt-1 ? alpha : (Dague_Complex64_t)1.0;    
+      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
+      int tempkn = k == Bnt-1 ? Bn - k * Bnb : Bnb;
       DRYRUN(
 	   CORE_zgemm(
 			PlasmaNoTrans, trans,
-			m == Bmt-1 ? Bm-m*Bmb : Bmb,
-			Bmb,
-			k == Bnt-1 ? Bn-k*Bnb : Bnb,
+                        tempmm, Bnb, tempkn,
 			(Dague_Complex64_t)-1.0, B /* B(m, k)*/ , Bmb,
-			              A /* A(k, n)*/ , Amb,
-			lalpha,       C /* B(m, n)*/ , Bmb)
+			                         A /* A(k, n)*/ , Amb,
+			lalpha,                  C /* B(m, n)*/ , Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaNoTrans", "PlasmaNoTrans", 
-	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
-	       Bmb,
-	       k == Bnt-1 ? Bn-k*Bnb : Bnb,
+      OUTPUT( ("thread %d CORE_zgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
+               tempmm, Bnb, tempkn,
 	       (Dague_Complex64_t)-1.0, m, k, B, Bmb,
-                             k, n, A, Amb,
-	       lalpha,       m, n, C, Bmb)
+                                        k, n, A, Amb,
+	       lalpha,                  m, n, C, Bmb)
 	      );
 END
