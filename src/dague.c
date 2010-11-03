@@ -1043,7 +1043,7 @@ void dague_dump_execution_context( dague_execution_context_t* exec_context )
 void dague_destruct_dependencies(dague_dependencies_t* d)
 {
     int i;
-    if( d->flags & DAGUE_DEPENDENCIES_FLAG_NEXT ) {
+    if( (d != NULL) && (d->flags & DAGUE_DEPENDENCIES_FLAG_NEXT) ) {
         for(i = d->min; i <= d->max; i++)
             if( NULL != d->u.next[i-d->min] )
                 dague_destruct_dependencies(d->u.next[i-d->min]);

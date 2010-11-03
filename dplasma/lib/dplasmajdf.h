@@ -7,6 +7,7 @@
 #ifdef DAGUE_CALL_TRACE
 #   include <stdlib.h>
 #   include <stdio.h>
+#   define plasma_const( x )  plasma_lapack_constants[x]
 #   define printlog(...) fprintf(stderr, __VA_ARGS__)
 #   define OUTPUT(ARG)  printf ARG
 #else

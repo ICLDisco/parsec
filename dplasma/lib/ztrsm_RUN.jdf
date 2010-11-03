@@ -40,6 +40,17 @@ alpha[Dague_Complex64_t]
 /**************************************************
  *                      TRSM                      *
  **************************************************/
+TRSM_IN(k)
+k = 0..Bnt-1
+
+:A(k, k)
+
+READ A <- A(k, k)
+  -> A TRSM(0..Bmt-1, k)
+BODY
+ /* Nothing */
+END
+
 TRSM(m, k)
 
 // Execution space
@@ -47,37 +58,49 @@ k = 0..Bnt-1
 m = 0..Bmt-1
 
 // Parallel partitioning
-: B(m,k)
+: B(m, k)
 
 // Parameters
-READ  A <- A(k,k)
-RW    B <- (k == 0) ? B(m, 0) : C GEMM(k-1, m, k)
+READ  A <- A TRSM_IN(k)
+RW    B <- (k == 0) ? B(m, k) : C GEMM(k-1, m, k)
         -> B GEMM(k, m, k+1..Bnt-1)
         -> B(m, k)
 
 BODY
       Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
+      int tempkn = k == Bnt-1 ? Bn - k * Bnb : Bnb;
       DRYRUN(
 	   CORE_ztrsm(
 			PlasmaRight, PlasmaUpper, trans, diag,
-			m == Bmt-1 ? Bm - m * Bmb : Bmb,
-			k == Bnt-1 ? Bn - k * Bnb : Bnb,
+			tempmm, tempkn,
 			lalpha, A /*A(k, k)*/, Amb,
-                               B /*B(m, k)*/, Bmb)
+                                B /*B(m, k)*/, Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_dtrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaRight", "PlasmaUpper", "PlasmaNoTrans", "PlasmaNonUnit",
-	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
-	       k == Bnt-1 ? Bn - k * Bnb : Bnb,
+      OUTPUT( ("thread %d CORE_ztrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, 
+               plasma_const( PlasmaRight ), plasma_const( PlasmaUpper ), plasma_const( trans ), plasma_const( diag ),
+               tempmm, tempkn,
 	       lalpha, k, k, A /*A(k, k)*/, Amb,
-                      m, k, B /*B(m. k)*/, Bmb)
+                       m, k, B /*B(m. k)*/, Bmb)
 	      );
 END
 
 /**************************************************
  *                      GEMM                      *
  **************************************************/
+GEMM_IN(k, n)
+k = 0..Bnt-1
+n = k+1..Bnt-1
+
+:A(k, n)
+READ A <- A(k, n)
+       -> A GEMM(k, 0..Bmt-1, n)
+BODY
+ /* Nothing */
+END
+
 // Name
 GEMM(k, m, n)
 
@@ -90,30 +113,28 @@ n = k+1..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A <- A(k, n)
+READ  A <- A GEMM_IN(k, n)
 READ  B <- B TRSM(m, k)
 RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
         -> (k+1 == n) ? B TRSM(m, n) : C GEMM(k+1, m, n)
 
 BODY
       Dague_Complex64_t lalpha = k == 0 ? alpha : (Dague_Complex64_t)1.0;    
+      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
+      int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
       DRYRUN(
 	   CORE_zgemm(
 			trans, PlasmaNoTrans,
-			m == Bmt-1 ? Bm-m*Bmb : Bmb,
-			n == Bnt-1 ? Bn-n*Bnb : Bnb,
-			Bmb,
-			(Dague_Complex64_t)1.0, B /* B(m, k)*/ , Bmb,
-			             A /* A(k, n)*/ , Amb,
-			lalpha,      C /* B(m, n)*/ , Bmb)
+                        tempmm, tempnn, Bmb,
+			(Dague_Complex64_t)-1.0, B /* B(m, k)*/ , Bmb,
+                                                 A /* A(k, n)*/ , Amb,
+			lalpha,                  C /* B(m, n)*/ , Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_dgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, "PlasmaNoTrans", "PlasmaNoTrans", 
-	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
-	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
-	       Bmb,
-	       (Dague_Complex64_t)1.0, m, k, B, Bmb,
+      OUTPUT( ("thread %d CORE_zgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
+               tempmm, tempnn, Bmb,
+	       (Dague_Complex64_t)-1.0, m, k, B, Bmb,
                             k, n, A, Amb,
 	       lalpha,      m, n, C, Bmb)
 	      );

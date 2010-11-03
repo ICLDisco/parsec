@@ -34,15 +34,17 @@ int main(int argc, char ** argv)
     int s = PlasmaLeft;
     PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M,(DagDouble_t)NRHS));
     /* initializing matrix structure */
-    LDA = max(M, NRHS);
+    int Am = max(M, NRHS);
+    LDA = max(LDA, Am);
+    LDB = max(LDB, M);
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
-                               LDA, LDA, SMB, SNB, P));
+                               Am, Am, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, M, NRHS, 0, 0, 
-                               LDB, NRHS, SMB, SNB, P));
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                               M, NRHS, SMB, SNB, P));
 
     if(!check) 
     {
@@ -66,12 +68,12 @@ int main(int argc, char ** argv)
     { 
         int u, t, d;
         int info_solution;
-        Dague_Complex64_t alpha = 1.0;
+        Dague_Complex64_t alpha = 3.5;
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
             two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, M, NRHS, 0, 0, 
-                                   LDB, NRHS, SMB, SNB, P));
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                                   M, NRHS, SMB, SNB, P));
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
@@ -83,7 +85,7 @@ int main(int argc, char ** argv)
                     for (d=0; d<2; d++) {
 
                         printf("***************************************************\n");
-                        printf(" ----- TESTING DTRSM (%s, %s, %s, %s) -------- \n",
+                        printf(" ----- TESTING ZTRSM (%s, %s, %s, %s) -------- \n",
                                    sidestr[s], uplostr[u], transstr[t], diagstr[d]);
 
                         /* matrix generation */
@@ -160,9 +162,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
         Am = N;
     }
 
-    A = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
-    B = (Dague_Complex64_t *)malloc((ddescB->super.mt)*(ddescB->super.nt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
-    C = (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
+    A = (Dague_Complex64_t *)malloc((ddescA->super.lmt)*(ddescA->super.lnt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
+    B = (Dague_Complex64_t *)malloc((ddescB->super.lmt)*(ddescB->super.lnt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
+    C = (Dague_Complex64_t *)malloc((ddescC->super.lmt)*(ddescC->super.lnt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
 
     twoDBC_to_lapack( ddescA, A, LDA );
     twoDBC_to_lapack( ddescB, B, LDB );
