@@ -80,13 +80,12 @@ BODY
                                B /*B(m, k)*/, Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_ztrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, 
+      printlog("thread %d CORE_ztrsm( %d, %d)\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, m, k,
                plasma_const( side ), plasma_const( uplo ), plasma_const( trans ), plasma_const( diag ),
                tempmm, tempkn,
 	       alpha, k, k, A /*A(k, k)*/, Amb,
-                      m, k, B /*B(m. k)*/, Bmb)
-	      );
+                      m, k, B /*B(m. k)*/, Bmb);
 END
 
 /**************************************************
@@ -136,11 +135,11 @@ BODY
 			(Dague_Complex64_t)1.0, C /* B(m, n)*/ , Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_zgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
+      printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, k, m, n,
+               plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
                tempmm, tempnn, Bmb,
 	       minvalpha,   m, k, B, Bmb,
                             n, k, A, Amb,
-	       (Dague_Complex64_t)1.0, m, n, C, Bmb)
-	      );
+	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
