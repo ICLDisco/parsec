@@ -65,12 +65,12 @@ k = 0..Bnt-1
 
 // Parameters
 READ  A <- A TRSM_IN(k)
-RW    B <- (k == Bmt-1) ? B(m, k) : C GEMM(k+1, m, k)
+RW    B <- (k == Bnt-1) ? B(m, k) : C GEMM(k+1, m, k)
         -> B GEMM(k, m, 0..k-1)
         -> B(m, k)
 
 BODY
-      Dague_Complex64_t lalpha = k == Bmt-1 ? alpha : (Dague_Complex64_t)1.0;    
+      Dague_Complex64_t lalpha = k == Bnt-1 ? alpha : (Dague_Complex64_t)1.0;    
       int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
       int tempkn = k == Bnt-1 ? Bn - k * Bnb : Bnb;
       DRYRUN(
@@ -124,7 +124,7 @@ RW    C <- (k == Bmt-1) ? B(m, n) : C GEMM(k+1, m, n)
         -> (k-1 == n)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
 
 BODY
-      Dague_Complex64_t lalpha = k == Bmt-1 ? alpha : (Dague_Complex64_t)1.0;    
+      Dague_Complex64_t lalpha = k == Bnt-1 ? alpha : (Dague_Complex64_t)1.0;    
       int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
       int tempkn = k == Bnt-1 ? Bn - k * Bnb : Bnb;
       DRYRUN(

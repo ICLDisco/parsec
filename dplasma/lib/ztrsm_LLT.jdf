@@ -65,7 +65,7 @@ n = 0..Bnt-1
 
 // Parameters
 READ  A <- A TRSM_IN(k)
-RW    B <- (k == Bmt-1) ? B(k, n) : C GEMM(k-1, k, n)
+RW    B <- (k == Bmt-1) ? B(k, n) : C GEMM(k+1, k, n)
         -> B GEMM(k, 0..k-1, n)
         -> B(k, n)
 
