@@ -31,13 +31,13 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_LLN_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_LLT_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
@@ -45,13 +45,13 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_LUN_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_LUT_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
@@ -61,13 +61,13 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_RLN_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_RLT_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
@@ -75,13 +75,13 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_RUN_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_RUT_new(
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B,
+                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     B->mb, B->nb, B->mt, B->nt, B->m, B->n,
                     A->mb, A->nb, A->mt, A->nt, A->m, A->n,
                     trans, diag, alpha);
@@ -98,6 +98,41 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
 }
 
 void
+dplasma_ztrsm_Destruct( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag, 
+                        dague_object_t *o )
+{
+    if ( side == PlasmaLeft ) {
+        if ( uplo == PlasmaLower ) {
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrsm_LLN_destroy((dague_ztrsm_LLN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrsm_LLT_destroy((dague_ztrsm_LLT_object_t *)o);
+            }
+        } else { /* uplo = PlasmaUpper */
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrsm_LUN_destroy((dague_ztrsm_LUN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrsm_LUT_destroy((dague_ztrsm_LUT_object_t *)o);
+            }
+        }
+    } else { /* side == PlasmaRight */
+        if ( uplo == PlasmaLower ) {
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrsm_RLN_destroy((dague_ztrsm_RLN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrsm_RLT_destroy((dague_ztrsm_RLT_object_t *)o);
+            }
+        } else { /* uplo = PlasmaUpper */
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrsm_RUN_destroy((dague_ztrsm_RUN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrsm_RUT_destroy((dague_ztrsm_RUT_object_t *)o);
+            }
+        }
+    }
+}
+
+void
 dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B)
 {
@@ -111,8 +146,9 @@ dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
     dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha,
 				    A, B); /*, (tiled_matrix_desc_t *)&work);*/
 
-    dague_enqueue( dague, (dague_object_t*)dague_ztrsm);
+    dague_enqueue( dague, dague_ztrsm );
     dague_progress(dague);
 
+    dplasma_ztrsm_Destruct(side, uplo, trans, diag, dague_ztrsm);
     /* dague_data_free(&work.mat); */
 }

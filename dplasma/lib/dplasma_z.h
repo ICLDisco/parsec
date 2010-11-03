@@ -52,5 +52,6 @@ dague_object_t* dplasma_zgetrf_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_
  * Destruct functions
  */
 void dplasma_zgemm_Destruct( const int transA, const int transB, dague_object_t *o );
+void dplasma_ztrsm_Destruct( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag, dague_object_t *o );
 
 #endif /* _DPLASMA_Z_H_ */
