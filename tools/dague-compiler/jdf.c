@@ -159,23 +159,35 @@ static int jdf_sanity_check_function_redefinitions(void)
     return rc;    
 }
 
-static int jdf_sanity_check_all_parameters_defined(void)
+static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
 {
     jdf_function_entry_t *f;
     jdf_name_list_t *p;
     jdf_def_list_t *d;
     int rc = 0;
+    int pi;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
-        for(p = f->parameters; p != NULL; p = p->next) {
-            for(d = f->definitions; d != NULL; d = d->next) {
-                if( !strcmp(d->name, p->name) ) {
-                    break;
-                }
+        pi = 1;
+        for(p = f->parameters, d = f->definitions;
+            p != NULL && d != NULL;
+            p = p->next, d = d->next, pi++) {
+            if( strcmp(d->name, p->name) ) {
+                jdf_fatal(f->lineno, "%s appears as the %dth parameter of function %s, but the associated definition is not for %s it is for %s\n",
+                          p->name, pi, f->fname, p->name, d->name);
+                rc = -1;
             }
-            if( d == NULL ) {
-                jdf_fatal(f->lineno, "Parameter %s of function %s is declared but no range is associated to it\n",
-                          p->name, f->fname);
+        }
+        if( p != NULL ) {
+            jdf_fatal(f->lineno, "Parameter %s of function %s is declared but no range is associated to it\n",
+                      p->name, f->fname);
+            rc = -1;
+        }
+        for(; d!= NULL; d = d->next, pi++) {
+            if( d->expr->op == JDF_RANGE ) {
+                jdf_fatal(f->lineno, "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
+                          "  That would make multiple functions %s with the same name, which is not acceptable.\n",
+                          pi, f->fname, d->name);
                 rc = -1;
             }
         }
@@ -628,7 +640,7 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
         DO_CHECK( jdf_sanity_check_global_masked() );
 
     DO_CHECK( jdf_sanity_check_function_redefinitions() );
-    DO_CHECK( jdf_sanity_check_all_parameters_defined() );
+    DO_CHECK( jdf_sanity_check_parameters_are_consistent_with_definitions() );
     DO_CHECK( jdf_sanity_check_definition_unbound() );
 
     DO_CHECK( jdf_sanity_check_predicates_unbound() );
