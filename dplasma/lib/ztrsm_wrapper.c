@@ -32,9 +32,9 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_LLN_new(
                     (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
-                    B->mb, B->nb, B->mt, B->nt, B->m, B->n,
-                    A->mb, A->nb, A->mt, A->nt, A->m, A->n,
-                    trans, diag, alpha);
+                    side, uplo, trans, diag, alpha,
+                    A->m, A->n, A->mb, A->nb, A->mt, A->nt,
+                    B->m, B->n, B->mb, B->nb, B->mt, B->nt);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_LLT_new(
                     (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
