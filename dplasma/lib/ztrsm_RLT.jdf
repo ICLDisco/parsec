@@ -57,8 +57,8 @@ END
 TRSM(m, k)
 
 // Execution space
-k = 0..Bnt-1
 m = 0..Bmt-1
+k = 0..Bnt-1
 
 // Parallel partitioning
 : B(m,k)
@@ -93,7 +93,7 @@ END
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM_IN(n, k)
+GEMM_IN(k, n)
 k = 0..Bnt-1
 n = k+1..Bnt-1
 
@@ -117,7 +117,7 @@ n = k+1..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A <- A GEMM_IN(n, k)
+READ  A <- A GEMM_IN(k, n)  /* It's A(n,k) but we need to swap parameter for the parser */
 READ  B <- B TRSM(m, k)
 RW    C <- (k == 0)   ? B(m, n)      : C GEMM(k-1, m, n)
         -> (k+1 == n) ? B TRSM(m, n) : C GEMM(k+1, m, n)

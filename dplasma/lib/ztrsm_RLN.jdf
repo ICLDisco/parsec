@@ -57,8 +57,8 @@ END
 TRSM(m, k)
 
 // Execution space
-k = 0..Bnt-1
 m = 0..Bmt-1
+k = 0..Bnt-1
 
 // Parallel partitioning
 : B(m, k)
@@ -94,8 +94,8 @@ END
  *                      GEMM                      *
  **************************************************/
 GEMM_IN(m, k)
-k = 0..Bnt-1
 m = 0..Bmt-1
+k = 0..Bnt-1
 
 :A(m, k)
 
