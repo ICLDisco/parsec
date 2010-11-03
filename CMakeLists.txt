@@ -5,47 +5,55 @@ set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
 
 # ccmake tunable parameters
-option(DAGUE_COLLECTIVE
+option(DAGUE_SCHED_HIERACHICAL_QUEUES
+    "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_CACHE_AWARE)" ON)
+option(DAGUE_SCHED_CACHE_AWARE "Activate the cache awareness support (requires HWLOC, conflicts DAGUE_HIERARCHICAL_QUEUES)" OFF)
+option(DAGUE_SCHED_DEPS_MASK "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" OFF)
+
+option(DAGUE_COMM_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
-option(DAGUE_MPI
+option(DAGUE_COMM_MPI
   "Build DAGuE for distributed memory with MPI backend" ON)
-option(DAGUE_CACHE_AWARE "Activate the cache awareness support (only if hardware
-  locality is enabled and discovered" OFF)
-option(DAGUE_USE_COUNTER_FOR_DEPENDENCIES "Use counters to track the
-  dependencies, instead of bitmasks -- reduces the debugging features,
-  but might be necessary if using more than 30 input dependencies" OFF)
-option(DAGUE_PROFILING
+
+option(DAGUE_GPU_CUDA "Enable CUDA support for NVidia GPUs" ON)
+
+option(DAGUE_PROF_TRACE
   "Enable the generation of the profiling information during
   execution" OFF)
-option(DAGUE_PAPI
+option(DAGUE_PROF_PAPI
   "Enable PAPI performance hardware counters" OFF)
-option(DAGUE_STATS
-  "Enable the generation of statistics informations during execution
+option(DAGUE_PROF_STATS
+  "Enable the generation of short statistics information during execution
   (microbenchmarking)" OFF)
-option(DAGUE_LIFO_USE_LOCKS
-  "Use a spinlock-based implementation of LIFOs (instead of an atomic
-  operations-based LIFO implementation)" OFF)
+option(DAGUE_PROF_GRAPHER
+  "Enable the generation of the dot graph representation during execution" OFF)
+
+option(DAGUE_DEBUG
+  "Enable the internal debugging verbose output of the DAGUE library" OFF)
+option(DAGUE_DEBUG_LIFO_USES_LOCKS
+  "Use a spinlock-based implementation of LIFOs (instead of an atomic operations-based LIFO implementation)" OFF)
 option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
-option(DAGUE_GRAPHER
-  "Enable the generation of the dot output during execution" OFF)
-option(DAGUE_CALL_TRACE
+option(DAGUE_DEBUG_DRY_RUN
+  "Disable calls to the actual bodies; unfold the dependencies only" OFF)
+option(DAGUE_DEBUG_UNIT_TESTS
+  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
+
+option(DPLASMA_CALL_TRACE
   "Enable the output of the BLAS kernels call trace during execution" OFF)
-option(DAGUE_DRY_RUN
-  "Disable call to actual BLAS kernels; unfold the dependencies only" OFF)
 option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
-option(DAGUE_CUDA
-  "Enable dupport for CUDA" ON)
-option(DAGUE_DEBUG
-  "Enable the internal debugging of the DAGUE library" OFF)
-option(DAGUE_DO_UNIT_TESTS
-  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
+
+
+
+
+
+
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
@@ -214,16 +222,18 @@ check_function_exists(getrusage HAVE_GETRUSAGE)
 #
 # Find optional packages
 #
-find_package(HWLOC)
-if( HAVE_HWLOC )
-  list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-  list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-  include_directories( ${HWLOC_INCLUDE_DIR} )
-else( HAVE_HWLOC )
-  if( DAGUE_CACHE_AWARE )
-    message( error "Cache awarness requires hwloc" )
-  endif( DAGUE_CACHE_AWARE )
-endif( HAVE_HWLOC )
+if (DAGUE_HWLOC)
+  find_package(HWLOC)
+  if( HAVE_HWLOC )
+    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
+    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+    include_directories( ${HWLOC_INCLUDE_DIR} )
+  else( HAVE_HWLOC )
+    if( DAGUE_CACHE_AWARE )
+      message( error "Cache awarness requires hwloc" )
+    endif( DAGUE_CACHE_AWARE )
+  endif (HAVE_HWLOC)
+endif (DAGUE_HWLOC)
 
 if (DAGUE_MPI)
   find_package(MPI)
@@ -307,17 +317,17 @@ set(SRCS
 # Setup targets
 #
 
-if (DAGUE_MPI AND MPI_FOUND)
+if (MPI_FOUND)
   add_library(dague-mpi STATIC ${SRCS})
   set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
   #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-else (DAGUE_MPI AND MPI_FOUND)
+else (MPI_FOUND)
   add_library(dague STATIC ${SRCS})
   set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   #  target_link_libraries(dague ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   install(TARGETS dague ARCHIVE DESTINATION lib)
-endif (DAGUE_MPI AND MPI_FOUND)
+endif (MPI_FOUND)
 
 #
 # Now continue with compiling the tests.
