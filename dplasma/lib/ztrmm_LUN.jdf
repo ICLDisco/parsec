@@ -139,6 +139,6 @@ RW    CTL1 <- (m == 0)   ? CTL(m, n)      : CTL1 GOK(m-1, n, k)    [CONTROL]
            -> (m+1 == k) ? CTL TRMM(k, n) : CTL1 GOK(m+1, n, k)    [CONTROL]
 READ  CTL2 <- CTL GEMM(m, n, k)                                    [CONTROL]
 BODY
-      /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
+      /* Fake task to guaranty the end of all gemm using B(k, n) before to start TRMM */
      printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, m, n, k);
 END
