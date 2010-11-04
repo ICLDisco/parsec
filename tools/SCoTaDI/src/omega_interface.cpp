@@ -1578,7 +1578,7 @@ void printConditions(Relation R, expr_t *exp){
         }
         printf("%s",expr_tree_to_str(cur_exp));
     }
-    printf(") ");
+    printf(")");
 
     return;
 }
@@ -1900,12 +1900,19 @@ static const char *econd_tree_to_ub(node_t *econd){
 
 static void print_execution_space(node_t *node){
     node_t *tmp;
+    list<node_t *> params;
 
-    printf("  // Execution space\n");
+    printf("  /* Execution space */\n");
     for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        params.push_front(tmp);
+    }
+
+    while( !params.empty() ) {
+        tmp = params.front();
         printf("  %s = ", DA_var_name(DA_loop_induction_variable(tmp)) );
         printf("%s..", tree_to_str(DA_loop_lb(tmp)));
         printf("%s\n", econd_tree_to_ub(DA_for_econd(tmp)));
+        params.pop_front();
     }
 }
 
@@ -2009,16 +2016,24 @@ static void groupExpressionBasedOnSign(expr_t *exp, set<expr_t *> &pos, set<expr
 
 const char *expr_tree_to_str(const expr_t *exp){
     stringstream ss, ssL, ssR;
-    int skipSymbol=0, first=1;
+    unsigned int j, skipSymbol=0, first=1;
+    unsigned int r_needs_paren = 0, l_needs_paren = 0;
     set<expr_t *> pos, neg;
     set<expr_t *>::iterator it;
+    string str;
 
     if( NULL == exp )
         return "";
 
     switch( exp->type ){
         case IDENTIFIER:
-            return exp->value.name;
+            // convert all structure members (A.m) into variables Am
+            str = string(exp->value.name);
+            while ( (j=str.find(".")) != std::string::npos) { 
+                str.replace( j, 1, "" ); 
+            } 
+            return strdup(str.c_str());
+
         case INTCONSTANT:
             if( exp->value.int_const < 0 )
                 ss << "(" << exp->value.int_const << ")";
@@ -2038,15 +2053,22 @@ const char *expr_tree_to_str(const expr_t *exp){
             first = 1;
             for(it=pos.begin(); it != pos.end(); it++){
                 expr_t *e = *it;
+
                 if( INTCONSTANT == e->type ){
                     // Only print the constant if it's non-zero, or if it's the only thing on this side
                     if( (0 != e->value.int_const) || (1 == pos.size()) ){
-                        if( !first ) ssL << "+";
+                        if( !first ){
+                            ssL << "+";
+                            l_needs_paren = 1;
+                        }
                         first = 0;
                         ssL << labs(e->value.int_const);
                     }
                 }else{
-                    if( !first ) ssL << "+";
+                    if( !first ){
+                        ssL << "+";
+                        l_needs_paren = 1;
+                    }
                     first = 0;
                     if( INTCONSTANT == e->l->type ){
                         // skip the "1*"
@@ -2069,7 +2091,6 @@ const char *expr_tree_to_str(const expr_t *exp){
                 ssL << "0";
             }
 
-
             // print all the negative members on the right
             first = 1;
             for(it=neg.begin(); it != neg.end(); it++){
@@ -2077,12 +2098,18 @@ const char *expr_tree_to_str(const expr_t *exp){
                 if( INTCONSTANT == e->type ){
                     // Only print the constant if it's non-zero, or if it's the only thing on this side
                     if( (0 != e->value.int_const) || (1 == neg.size()) ){
-                        if( !first ) ssR << "+";
+                        if( !first ){
+                            ssR << "+";
+                            r_needs_paren = 1;
+                        }
                         first = 0;
                         ssR << labs(e->value.int_const);
                     }
                 }else{
-                    if( !first ) ssR << "+";
+                    if( !first ){
+                        ssR << "+";
+                        r_needs_paren = 1;
+                    }
                     first = 0;
                     if( INTCONSTANT == e->l->type ){
                         if( MUL != e->type || labs(e->l->value.int_const) != 1 ){
@@ -2104,7 +2131,20 @@ const char *expr_tree_to_str(const expr_t *exp){
             }
 
             if( ssL.str().compare( ssR.str() ) ){
-                ss << ssL.str() << type_to_symbol(exp->type) << ssR.str();
+                // Add some parentheses to make it easier for parser that will read in the JDF.
+                ss << "(";
+                if( l_needs_paren )
+                    ss << "(" << ssL.str() << ")";
+                else
+                    ss << ssL.str();
+
+                ss << type_to_symbol(exp->type);
+
+                if( r_needs_paren )
+                    ss << "(" << ssR.str() << "))";
+                else
+                    ss << ssR.str() << ")";
+
                 // The following strdup() seems to be necessary. If ommited, some c++ compilers
                 // generate code that corrupts the returned string. However, it creates a memory leak.
                 return strdup(ss.str().c_str());
@@ -2138,6 +2178,7 @@ const char *expr_tree_to_str(const expr_t *exp){
 
             if( (NULL != exp->l) && (INTCONSTANT == exp->l->type) ){
                 if( exp->l->value.int_const != 0 ){
+                    ss << "(";
                     ss << expr_tree_to_str(exp->l);
                 }else{
                     skipSymbol = 1;
@@ -2148,7 +2189,11 @@ const char *expr_tree_to_str(const expr_t *exp){
 
             if( !skipSymbol )
                 ss << type_to_symbol(ADD);
+
             ss << expr_tree_to_str(exp->r);
+
+            if( !skipSymbol )
+                ss << ")";
 
             return ss.str().c_str();
 
@@ -2157,6 +2202,7 @@ const char *expr_tree_to_str(const expr_t *exp){
 
             if( INTCONSTANT == exp->l->type ){
                 if( exp->l->value.int_const != 1 ){
+                    ss << "(";
                     ss << expr_tree_to_str(exp->l);
                 }else{
                     skipSymbol = 1;
@@ -2167,7 +2213,11 @@ const char *expr_tree_to_str(const expr_t *exp){
 
             if( !skipSymbol )
                 ss << type_to_symbol(MUL);
+
             ss << expr_tree_to_str(exp->r);
+
+            if( !skipSymbol )
+                ss << ")";
 
             return ss.str().c_str();
 
@@ -2215,6 +2265,13 @@ void print_edges(set<dep_t *>deps, int edge_type){
 
     set<dep_t *>::iterator it;
 
+/*
+    // Group the edges
+    for (it=deps.begin(); it!=deps.end(); it++){
+           dep->src->var_symname;
+    }
+*/
+
     for (it=deps.begin(); it!=deps.end(); it++){
        dep_t *dep = *it;
        expr_t *rel_exp;
@@ -2233,10 +2290,12 @@ void print_edges(set<dep_t *>deps, int edge_type){
            printf("  %s -> ", dep->src->var_symname);
 
            printConditions(*dep->rel, copy_tree(rel_exp));
+           printf(" ? ");
 
            node_t *sink = dep->dst;
            if( NULL == sink ){
-               printf("EXIT  ");
+//               printf("EXIT  ");
+               printf("%s",tree_to_str(dep->src));
            }else{
                printf("%s %s(",sink->var_symname, sink->task->task_name);
                printActualParameters(dep, rel_exp, SINK);
@@ -2250,6 +2309,7 @@ void print_edges(set<dep_t *>deps, int edge_type){
 
 
            printConditions(*dep->rel, copy_tree(rel_exp));
+           printf(" ? ");
 
            if( NULL != src_task ){
 
@@ -2258,7 +2318,8 @@ void print_edges(set<dep_t *>deps, int edge_type){
                printActualParameters(dep, rel_exp, SOURCE);
                printf(") ");
            }else{
-               printf("ENTRY ");
+//               printf("ENTRY ");
+               printf("%s", tree_to_str(dep->dst));
            }
        }else{
            fprintf(stderr,"ERROR: print_edges() unknown edge type: %d\n",edge_type);
@@ -2269,9 +2330,8 @@ void print_edges(set<dep_t *>deps, int edge_type){
 //#ifdef DEBUG_2
 //       printf("       ");
 //       (*dep->rel).print_with_subs(stdout);
-       printf("       ");
-       (*dep->rel).print();
-       printf("\n");
+//       (*dep->rel).print();
+//       printf("\n");
 //#endif
     }
 }

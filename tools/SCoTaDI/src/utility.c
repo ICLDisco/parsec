@@ -1317,7 +1317,9 @@ char *tree_to_str(node_t *node){
 
             case S_U_MEMBER:
                 str = tree_to_str(node->u.kids.kids[0]);
-                str = append_to_string( str, ".", NULL, 0 );
+                // We ommit the "." to make the struct+member look like a single variable for
+                // the JDF->release_dep parser to be able to deal with it.
+                // str = append_to_string( str, ".", NULL, 0 );
                 str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
                 return str;
 
