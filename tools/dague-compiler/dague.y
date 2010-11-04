@@ -113,14 +113,13 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE 
 
-%left NOT
-%left AND OR XOR
 %nonassoc EQUAL NOTEQUAL RANGE QUESTION_MARK COLON
 %nonassoc LESS LEQ MORE MEQ
+%right NOT
+%left AND OR XOR
 %left MODULO SHL SHR
 %left PLUS MINUS
-%left DIV
-%left TIMES
+%left TIMES DIV
 %left COMMA
 
 %%
