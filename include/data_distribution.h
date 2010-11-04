@@ -31,9 +31,7 @@ typedef struct dague_ddesc {
     char      *key_dim;
     char      *key;
 #endif /* DAGUE_PROFILING */
-#ifdef USE_MPI
-    MPI_Comm comm;
-#endif /* USE_MPI */
+
 } dague_ddesc_t;
 
 static inline void dague_ddesc_destroy(dague_ddesc_t *d)

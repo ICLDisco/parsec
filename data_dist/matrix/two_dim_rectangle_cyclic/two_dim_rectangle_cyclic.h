@@ -10,6 +10,7 @@
 #include <mpi.h>
 #endif /* USE_MPI */
 
+#include "dague_config.h"
 #include "../matrix.h"
 
 /*
