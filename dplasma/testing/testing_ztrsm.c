@@ -163,9 +163,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
         Am = N;
     }
 
-    A = (Dague_Complex64_t *)malloc((ddescA->super.lmt)*(ddescA->super.lnt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
-    B = (Dague_Complex64_t *)malloc((ddescB->super.lmt)*(ddescB->super.lnt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
-    C = (Dague_Complex64_t *)malloc((ddescC->super.lmt)*(ddescC->super.lnt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
+    A = (Dague_Complex64_t *)malloc((ddescA->super.m)*(ddescA->super.n)*sizeof(Dague_Complex64_t));
+    B = (Dague_Complex64_t *)malloc((ddescB->super.m)*(ddescB->super.n)*sizeof(Dague_Complex64_t));
+    C = (Dague_Complex64_t *)malloc((ddescC->super.m)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
 
     twoDBC_ztolapack( ddescA, A, LDA );
     twoDBC_ztolapack( ddescB, B, LDB );
