@@ -31,4 +31,14 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
 # define dplasma_datatype_define_lower(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
 #endif
 
+int dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                                 dague_remote_dep_datatype_t oldtype, 
+                                 unsigned int tile_mb, unsigned int tile_nb, int resized );
+int dplasma_add2arena_tile( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                            dague_remote_dep_datatype_t oldtype, unsigned int tile_mb );
+int dplasma_add2arena_upper( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                             dague_remote_dep_datatype_t oldtype, unsigned int tile_mb, int diag );
+int dplasma_add2arena_lower( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                             dague_remote_dep_datatype_t oldtype, unsigned int tile_mb, int diag );
+
 #endif  /* DPLASMA_DATATYPE_H_HAS_BEEN_INCLUDED */

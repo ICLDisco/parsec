@@ -10,6 +10,68 @@
 #include "dplasmatypes.h"
 
 #if defined(USE_MPI)
+int dplasma_add2arena_rectangle( dague_arena_t *arena, 
+                                 size_t elem_size, 
+                                 size_t alignment,
+                                 dague_remote_dep_datatype_t oldtype,
+                                 unsigned int tile_mb,
+                                 unsigned int tile_nb,
+                                 int resized )
+{
+    dague_remote_dep_datatype_t newtype;
+    MPI_Aint lb = 0, extent = 0;
+
+    (void)elem_size;
+
+    dplasma_datatype_define_rectangle(oldtype, tile_mb, tile_nb, resized, &newtype);
+    MPI_Type_get_extent(newtype, &lb, &extent);
+    dague_arena_construct(arena, extent, alignment, newtype);
+
+    return 0;
+}
+
+int dplasma_add2arena_tile( dague_arena_t *arena, 
+                            size_t elem_size, 
+                            size_t alignment,
+                            dague_remote_dep_datatype_t oldtype,
+                            unsigned int tile_mb )
+{
+    return dplasma_add2arena_rectangle( arena, elem_size, alignment, 
+                                        oldtype, tile_mb, tile_mb, -1);
+}
+
+int dplasma_add2arena_upper( dague_arena_t *arena, 
+                             size_t elem_size, 
+                             size_t alignment,
+                             dague_remote_dep_datatype_t oldtype,
+                             unsigned int tile_mb,  int diag )
+{
+    dague_remote_dep_datatype_t newtype;
+    MPI_Aint lb = 0, extent = 0;
+    (void)elem_size;
+
+    dplasma_datatype_define_upper( oldtype, tile_mb, diag, &newtype);
+    MPI_Type_get_extent(newtype, &lb, &extent);
+    dague_arena_construct(arena, extent, alignment, newtype);
+    return 0;
+}
+
+int dplasma_add2arena_lower( dague_arena_t *arena, 
+                             size_t elem_size, 
+                             size_t alignment,
+                             dague_remote_dep_datatype_t oldtype,
+                             unsigned int tile_mb, int diag )
+{
+    dague_remote_dep_datatype_t newtype;
+    MPI_Aint lb = 0, extent = 0;
+    (void)elem_size;
+
+    dplasma_datatype_define_lower( oldtype, tile_mb, diag, &newtype);
+    MPI_Type_get_extent(newtype, &lb, &extent);
+    dague_arena_construct(arena, extent, alignment, newtype);
+    return 0;
+}
+
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
                                        unsigned int tile_mb,
                                        unsigned int tile_nb,
@@ -115,5 +177,66 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
     free(indices);
     return 0;
 }
+
+#else /* USE_MPI */
+
+int dplasma_add2arena_rectangle( dague_arena_t *arena, 
+                                 size_t elem_size, 
+                                 size_t alignment,
+                                 dague_remote_dep_datatype_t oldtype,
+                                 unsigned int tile_mb,
+                                 unsigned int tile_nb,
+                                 int resized )
+{
+    (void)oldtype;
+    (void)tile_mb;
+    (void)tile_nb;
+    (void)resized;
+
+    dague_arena_construct(arena, elem_size, alignment, NULL);
+    return 0;
+}
+
+int dplasma_add2arena_tile( dague_arena_t *arena, 
+                            size_t elem_size, 
+                            size_t alignment,
+                            dague_remote_dep_datatype_t oldtype,
+                            unsigned int tile_mb )
+{
+    (void)oldtype;
+    (void)tile_mb;
+
+    dague_arena_construct(arena, elem_size, alignment, NULL);
+    return 0;
+}
+
+int dplasma_add2arena_upper( dague_arena_t *arena, 
+                             size_t elem_size, 
+                             size_t alignment,
+                             dague_remote_dep_datatype_t oldtype,
+                             unsigned int tile_mb,  int diag )
+{
+    (void)oldtype;
+    (void)tile_mb;
+    (void)diag;
+
+    dague_arena_construct(arena, elem_size, alignment, NULL);
+    return 0;
+}
+
+int dplasma_add2arena_lower( dague_arena_t *arena, 
+                             size_t elem_size, 
+                             size_t alignment,
+                             dague_remote_dep_datatype_t oldtype,
+                             unsigned int tile_mb,  int diag )
+{
+    (void)oldtype;
+    (void)tile_mb;
+    (void)diag;
+
+    dague_arena_construct(arena, elem_size, alignment, NULL);
+    return 0;
+}
+
 #endif 
 
