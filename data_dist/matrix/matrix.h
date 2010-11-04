@@ -9,6 +9,7 @@
 #define _MATRIX_H_ 
 
 #include <stdarg.h>
+#include "dague_config.h"
 #include "precision.h"
 #include "data_distribution.h"
 

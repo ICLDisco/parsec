@@ -146,11 +146,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     unsigned int nbstile_r;
     unsigned int nbstile_c;
 
-#ifdef DAGUE_DEBUG
-    printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) mtype, nodes, cores, myrank,  mb,  nb,   lm,  ln,  i,  j,  m,  n,  nrst,  ncst,  process_GridRows);
-#endif
-
-
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
     Ddesc->super.super.cores = cores ;
@@ -254,6 +249,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.super.key = NULL;
     asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROFILING */
+#ifdef DAGUE_DEBUG
+     printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores, Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb, Ddesc->super.lm,  Ddesc->super.ln,  Ddesc->super.i, Ddesc->super.j, Ddesc->super.m, Ddesc->super.n, Ddesc->nrst, Ddesc->ncst, Ddesc->GRIDrows);
+
+#endif /* DAGUE_DEBUG*/
 }
 
 int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
