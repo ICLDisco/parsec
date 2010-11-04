@@ -309,16 +309,38 @@ static void dague_profiling_dump_data_dimensions( FILE *out )
     free(disp_vals);
 }
 
+static dague_profiling_output_t *find_matching_event_in_profile(const dague_thread_profiling_t *profile,
+                                                                const dague_profiling_output_t *start,
+                                                                unsigned int start_min,
+                                                                unsigned int key)
+{
+    unsigned int e;
+
+    for(e = start_min; e < min(profile->events_count, profile->events_limit); e++) {
+        if( ( time_less(start->timestamp, profile->events[e].timestamp) || 
+             (diff_time(start->timestamp, profile->events[e].timestamp) == 0) ) &&
+            profile->events[e].key == END_KEY(key) &&
+            profile->events[e].id == start->id) {
+            return &profile->events[e];
+        }
+    }
+    return NULL;
+}
+
 static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile, 
                                          FILE *out,
                                          dague_time_t relative )
 {
-    unsigned int key, start_idx, end_idx, displayed_key;
+    unsigned int key, start_idx, displayed_key;
     uint64_t start, end;
     static int displayed_error_message = 0;
     char *refstr = malloc(4);
     char *refstrprefix;
     int refstrsize = 4, refstrresize;
+    int event_not_found;
+    dague_list_item_t *it;
+    dague_thread_profiling_t *op;
+    const dague_profiling_output_t *start_event, *end_event;
 
     for( key = 0; key < dague_prof_keys_count; key++ ) {
         displayed_key = 0;
@@ -327,33 +349,54 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             if( profile->events[start_idx].key != START_KEY(key) )
                 continue;
             
-            /* find the end_idx event */
-            for( end_idx = start_idx+1; end_idx < min(profile->events_count, profile->events_limit); end_idx++) {
-                if( (profile->events[end_idx].key == END_KEY(key)) &&
-                    (profile->events[end_idx].id == profile->events[start_idx].id) )
-                    break;
-            }
-            if( end_idx == min(profile->events_count, profile->events_limit) ) {
-                if( !displayed_error_message ) {
-                    if( profile->events_count == profile->events_limit ) {
-                        fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
-                                "\t-- start %u events_count %u events_limit %u\n"
-                                "\t-- some histories are truncated\n",
-                                key, dague_prof_keys[key].name, profile->events[start_idx].id, profile->hr_id,
-                                start_idx, profile->events_count, profile->events_limit);
-                    } else {
-                        fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
-                                "\t-- start %u events_count %u events_limit %u\n",
-                                key, dague_prof_keys[key].name, profile->events[start_idx].id, profile->hr_id,
-                                start_idx, profile->events_count, profile->events_limit);
+            start_event = &(profile->events[start_idx]);
+
+            if( (end_event = find_matching_event_in_profile(profile, start_event, start_idx+1, key)) == NULL ) {
+                /* Argh, couldn't find the end in this profile */
+
+                event_not_found = 1;
+                if( start_event->id != 0 ) {
+                    /* It has an id, let's look somewhere in another profile, maybe it's end has been
+                     * logged by another thread
+                     */
+                    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
+                         it != &threads.ghost_element; 
+                         it = (dague_list_item_t*)it->list_next ) {
+
+                        op = (dague_thread_profiling_t*)it;   
+                        if( op == profile )
+                            continue;
+
+                        if( (end_event = find_matching_event_in_profile(op, start_event, 0, key)) != NULL ) {
+                            event_not_found = 0;
+                            break;
+                        }
                     }
-                    displayed_error_message = 1;
                 }
-                continue;
+
+                /* Couldn't find the end, or no id. Bad. */
+                if( event_not_found ) {
+                    if( !displayed_error_message ) {
+                        if( profile->events_count == profile->events_limit ) {
+                            fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
+                                    "\t-- start %u events_count %u events_limit %u\n"
+                                    "\t-- some histories are truncated\n",
+                                    key, dague_prof_keys[key].name, start_event->id, profile->hr_id,
+                                    start_idx, profile->events_count, profile->events_limit);
+                        } else {
+                            fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
+                                    "\t-- start %u events_count %u events_limit %u\n",
+                                    key, dague_prof_keys[key].name, start_event->id, profile->hr_id,
+                                    start_idx, profile->events_count, profile->events_limit);
+                        }
+                        displayed_error_message = 1;
+                    }
+                    continue;
+                }
             }
 
-            start = diff_time( relative, profile->events[start_idx].timestamp );
-            end = diff_time( relative, profile->events[end_idx].timestamp );
+            start = diff_time( relative, start_event->timestamp );
+            end = diff_time( relative, end_event->timestamp );
 
             if( displayed_key == 0 ) {
                 fprintf(out, "    <KEY ID=\"%u\">\n", key);
@@ -362,10 +405,10 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
             
             fprintf(out, "     <EVENT>\n");
 
-            if( NULL != profile->events[start_idx].ddesc_ref ) {
-                dague_ddesc_t *d = profile->events[start_idx].ddesc_ref;
+            if( NULL != start_event->ddesc_ref ) {
+                dague_ddesc_t *d = start_event->ddesc_ref;
                 do {
-                    refstrresize = d->key_to_string(d, profile->events[start_idx].ref_id, refstr, refstrsize);
+                    refstrresize = d->key_to_string(d, start_event->ref_id, refstr, refstrsize);
                     refstrprefix = (d->key == NULL) ? "" : d->key;
                     
                     if( refstrresize >= refstrsize ) {
@@ -384,13 +427,13 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                     "       <START>%"PRIu64"</START>\n"
                     "       <END>%"PRIu64"</END>\n"
                     "       <REF>%s%s</REF>\n",
-                    profile->events[start_idx].id,
+                    start_event->id,
                     start, end, refstrprefix, refstr);
 #ifdef HAVE_PAPI
             fprintf(out, "       <PAPI_START>%ld</PAPI_START>\n"
                     "       <PAPI_END>%ld</PAPI_END>\n",
-                    profile->events[start_idx].counter_value,
-                    profile->events[end_idx].counter_value);
+                    start_event->counter_value,
+                    end_event->counter_value);
 #endif
             fprintf(out, "     </EVENT>\n");
         }
