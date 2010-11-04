@@ -200,13 +200,12 @@ typedef struct {
     uint32_t output_usage;
     data_repo_entry_t *output_entry;
     int action_mask;
-    int max_priority;
     dague_remote_deps_t *deps;
     dague_arena_chunk_t **data;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
-    struct dague_remote_deps_t *remote_deps;
+    dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 
