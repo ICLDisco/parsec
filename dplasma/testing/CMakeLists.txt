@@ -1,4 +1,4 @@
-if(DAGUE_MPI AND MPI_FOUND)
+if(MPI_FOUND)
   add_library(common-mpi common.c common_timing.h)
   set_target_properties(common-mpi PROPERTIES COMPILE_FLAGS
       "${MPI_COMPILE_FLAGS}")
