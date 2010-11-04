@@ -382,6 +382,25 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
     } while (0)
 
 #include "generated/spotrf_rl.h"
+
+/**
+ * This function has benn copied by hand from the generated code. It should be
+ * kept in sync with the hash function from there.
+ */
+static inline int GEMM_hash(const dague_spotrf_rl_object_t* __dague_object, int k, int m, int n)
+{
+  int __h = 0;
+  int k_min = 0;
+  int k_range = (__dague_object->SIZE - 1) - k_min + 1;
+  int m_min = (k + 2);
+  int m_range = (__dague_object->SIZE - 1) - m_min + 1;
+  int n_min = (k + 1);
+  __h += (k - k_min);
+  __h += (m - m_min) * k_range;
+  __h += (n - n_min) * k_range * m_range;
+  return __h;
+}
+
 #define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
 #define ddescB(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
 #define ddescC(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
@@ -415,6 +434,7 @@ gpu_sgemm_internal_push( gpu_device_t* gpu_device,
     A = ADATA(aA);
     B = ADATA(aB);
     C = ADATA(aC);
+
 
 #if defined(DAGUE_PROFILING)
     dague_profiling_trace( gpu_device->profiling, dague_cuda_movein_key_start, (unsigned long)exec_context );
@@ -494,9 +514,14 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", exec_context->locals[0], exec_context->locals[1], exec_context->locals[2]));
 
 #if defined(DAGUE_PROFILING)
-    dague_profiling_trace( gpu_device->profiling,
-                           exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id],
-                           (unsigned long)exec_context );
+    {
+        dague_spotrf_rl_object_t* __dague_object = (dague_spotrf_rl_object_t*)exec_context->dague_object;
+        dague_profiling_trace_with_ref(gpu_device->profiling, 
+                                       exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id],
+                                       GEMM_hash( __dague_object, exec_context->locals[0].value, exec_context->locals[1].value, exec_context->locals[2].value),
+                                       __dague_object->A,
+                                       __dague_object->A->data_key(__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
+    }
 #endif  /* defined(PROFILING) */
     offset = 0;
     CU_PUSH_POINTER( gpu_device->hcuFunction, offset, d_B );
@@ -809,9 +834,14 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             DEBUG(("Completion of GPU Request number %d\n", gpu_device->exec_array_events[gpu_device->exec_waiting]));
             exec_context = gpu_device->exec_array[gpu_device->exec_waiting];
 #if defined(DAGUE_PROFILING)
-            dague_profiling_trace( gpu_device->profiling,
-                                   exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id],
-                                   (unsigned long)exec_context );
+            {
+                dague_spotrf_rl_object_t* __dague_object = (dague_spotrf_rl_object_t*)exec_context->dague_object;
+                dague_profiling_trace_with_ref(gpu_device->profiling, 
+                                               exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id],
+                                               GEMM_hash( __dague_object, exec_context->locals[0].value, exec_context->locals[1].value, exec_context->locals[2].value),
+                                               __dague_object->A,
+                                               __dague_object->A->data_key(__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
+            }
 #endif  /* defined(PROFILING) */
             gpu_device->exec_array[gpu_device->exec_waiting] = NULL;
             gpu_device->exec_waiting = (gpu_device->exec_waiting + 1) % gpu_device->max_exec_tasks;
