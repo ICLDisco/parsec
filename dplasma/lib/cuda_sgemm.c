@@ -223,7 +223,7 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
     return 0;
 }
 
-int spotrf_cuda_fini(void)
+int spotrf_cuda_fini(dague_context_t* dague_context)
 {
     cudaError_t status;
     gpu_elem_t* gpu_elem;
@@ -326,14 +326,10 @@ int spotrf_cuda_fini(void)
     }
     if( 0 == total_data_in ) total_data_in = 1;
     if( 0 == total_data_out ) total_data_out = 1;
-#if defined(DISTRIBUTED)
-    int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    int rank = 0;
-#endif
+
     gtotal = (float)total + (float)cpu_counter;
     printf("------------------------------------------------------------------------------\n");
-    printf("|PU % 5d |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n", rank);
+    printf("|PU % 5d |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n", dague_context->my_rank);
     printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
     for( i = 0; i < ndevices; i++ ) {
         compute_best_unit( transferred_in[i],  &best_data_in, &data_in_unit );
@@ -495,7 +491,7 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     d_B = gpu_elem_B->gpu_mem;
     d_C = gpu_elem_C->gpu_mem;
 
-    DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", k, m, n));
+    DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", exec_context->locals[0], exec_context->locals[1], exec_context->locals[2]));
 
 #if defined(DAGUE_PROFILING)
     dague_profiling_trace( gpu_device->profiling,

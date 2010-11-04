@@ -64,10 +64,12 @@ subs = {
     ('matrix_RealFloat',    'matrix_RealDouble',   'matrix_RealFloat',    'matrix_RealDouble'   ),
     ('MPI_FLOAT',           'MPI_DOUBLE',          'MPI_COMPLEX',         'MPI_DOUBLE_COMPLEX'  ),
     ('dplasma_s',           'dplasma_d',           'dplasma_c',           'dplasma_z'           ),
+    ('matrix_s',            'matrix_d',            'matrix_c',            'matrix_z'            ),
+    ('smatrix',             'dmatrix',             'cmatrix',             'zmatrix'             ),
+    ('twoDBC_s',            'twoDBC_d',            'twoDBC_c',            'twoDBC_z'            ),
+    ('stwoDBC',             'dtwoDBC',             'ctwoDBC',             'ztwoDBC'             ),
     ('Workspace_s','Workspace_d','Workspace_c','Workspace_z'),
     ('workspace_s','workspace_d','workspace_c','workspace_z'),
-    ('matrix_s','matrix_d','matrix_c','matrix_z'),  # Functions 
-    ('smatrix','dmatrix','cmatrix','zmatrix'),      # Filename
     ('cblas_sasum','cblas_dasum','cblas_scasum','cblas_dzasum'),
     ('CORE_sasum','CORE_dasum','CORE_scasum','CORE_dzasum'),
     ('core_sasum','core_dasum','core_scasum','core_dzasum'),

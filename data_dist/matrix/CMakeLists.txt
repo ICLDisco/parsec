@@ -5,7 +5,12 @@
 include(RulesPrecisions)
 set(generated_files "")
 include_directories(".")
-precisions_rules(generated_files "+;s;d" zmatrix.c)
+
+set( precision_files
+  zmatrix.c
+  two_dim_rectangle_cyclic/ztwoDBC.c
+)
+precisions_rules(generated_files "+;s;d" "${precision_files}")
 #message(STATUS "${generated_files}")
 
 if (DAGUE_MPI AND MPI_FOUND)

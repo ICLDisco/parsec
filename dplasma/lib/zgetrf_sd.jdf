@@ -59,8 +59,8 @@ k = 0..NT-1
 : A(k, k)
 
 //This SSSSM always run on the same node, so typing will have no effect.
-RW LU <- (k == 0)    ? A(0, 0)       : C2 SSSSM(k-1, k, k)
-      -> (k == NT-1) ? A(NT-1, NT-1) : U TSTRF(k, k+1)        [UPPER_TILE]
+RW LU <- (k == 0)    ? A(k, k) : C2 SSSSM(k-1, k, k)
+      -> (k == NT-1) ? A(k, k) : U TSTRF(k, k+1)              [UPPER_TILE]
       -> LU GETRF_HACK(k)
 RW IPIV <- dLIPIV(k, k)                                       [PIVOT_VECT]
         -> IPIV GESSM(k, k+1..NT-1)                           [PIVOT_VECT]
@@ -170,7 +170,7 @@ m = k+1..NT-1
 
 : A(m, k)
 
-RW C1 <- (k == 0) ? A(m, 0) : C2 SSSSM(k-1, k, m)
+RW C1 <- (k == 0) ? A(m, k) : C2 SSSSM(k-1, k, m)
       -> C3 SSSSM(k, k+1..NT-1, m)
       -> A(m, k)
 RW U  <- (m == k+1) ? LU GETRF(k) : U TSTRF(k, m-1)         [UPPER_TILE]

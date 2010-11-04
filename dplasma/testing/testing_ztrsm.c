@@ -31,8 +31,6 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    int s = PlasmaLeft;
-    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M,(DagDouble_t)NRHS));
     /* initializing matrix structure */
     int Am = max(M, NRHS);
     LDA = max(LDA, Am);
@@ -48,6 +46,9 @@ int main(int argc, char ** argv)
 
     if(!check) 
     {
+        int s = PlasmaLeft;
+        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
@@ -66,7 +67,7 @@ int main(int argc, char ** argv)
     }
     else
     { 
-        int u, t, d;
+        int s, u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 3.5;
 
@@ -166,9 +167,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     B = (Dague_Complex64_t *)malloc((ddescB->super.lmt)*(ddescB->super.lnt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
     C = (Dague_Complex64_t *)malloc((ddescC->super.lmt)*(ddescC->super.lnt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
 
-    twoDBC_to_lapack( ddescA, A, LDA );
-    twoDBC_to_lapack( ddescB, B, LDB );
-    twoDBC_to_lapack( ddescC, C, LDB );
+    twoDBC_ztolapack( ddescA, A, LDA );
+    twoDBC_ztolapack( ddescB, B, LDB );
+    twoDBC_ztolapack( ddescC, C, LDB );
     
     /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
     //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );

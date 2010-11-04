@@ -57,7 +57,7 @@ int main(int argc, char ** argv)
     if(iparam[IPARAM_NGPUS] > 0)
     {
         if(loud) printf("+++ Load GPU kernel ... ");
-        if(0 != stsmqr_cuda_init((tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT)) 
+        if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT)) 
         {
             fprintf(stderr, "XXX Unable to load GPU kernel.\n");
             exit(3);
@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
     {
-        stsmqr_cuda_fini();
+        stsmqr_cuda_fini(dague);
     }
 #endif
 
