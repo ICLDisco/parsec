@@ -7,17 +7,7 @@
  *
  */
 
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdarg.h>
 #include <stdint.h>
-
-/* #include "dague_config.h" */
-/* #include "dague.h" */
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda)
