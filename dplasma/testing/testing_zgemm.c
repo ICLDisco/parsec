@@ -76,7 +76,7 @@ int main(int argc, char ** argv)
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgemm)
 
-        dplasma_zgemm_Destruct(tA, tB, DAGUE_zgemm);
+        dplasma_zgemm_Destruct( DAGUE_zgemm );
     }
     else
     { 

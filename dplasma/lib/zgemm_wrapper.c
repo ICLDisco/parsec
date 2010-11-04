@@ -22,7 +22,6 @@ dplasma_zgemm_New( const int transA, const int transB,
                    const Dague_Complex64_t alpha, const tiled_matrix_desc_t* ddescA, const tiled_matrix_desc_t* ddescB,
                    const Dague_Complex64_t beta,  tiled_matrix_desc_t* ddescC)
 {
-    dague_remote_dep_datatype_t default_ddt;
     dague_object_t* zgemm_object;
     dague_arena_t* arena;
 
@@ -76,16 +75,19 @@ dplasma_zgemm_New( const int transA, const int transB,
         }
     }
 
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_ddt);
-    dague_arena_construct(arena,
-                          ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t),
-                          DAGUE_ARENA_ALIGNMENT_SSE, default_ddt);
+    dplasma_add2arena_tile(arena, 
+                           ddescA->nb*ddescA->nb*sizeof(Dague_Complex64_t),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE_COMPLEX, ddescA->mb);
+
     return zgemm_object;
 }
 
 void
-dplasma_zgemm_Destruct( const int transA, const int transB, dague_object_t *o )
+dplasma_zgemm_Destruct( dague_object_t *o )
 {
+    int transA = ((dague_zgemm_NN_object_t *)o)->TRANSA;
+    int transB = ((dague_zgemm_NN_object_t *)o)->TRANSB;
 
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
@@ -115,4 +117,5 @@ dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
 
     dague_enqueue( dague, (dague_object_t*)dague_zgemm);
     dague_progress(dague);
+    dplasma_zgemm_Destruct( dague_zgemm );
 }
