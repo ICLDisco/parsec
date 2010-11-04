@@ -2016,8 +2016,9 @@ static void groupExpressionBasedOnSign(expr_t *exp, set<expr_t *> &pos, set<expr
 
 const char *expr_tree_to_str(const expr_t *exp){
     stringstream ss, ssL, ssR;
-    unsigned int j, skipSymbol=0, first=1;
+    unsigned int skipSymbol=0, first=1;
     unsigned int r_needs_paren = 0, l_needs_paren = 0;
+    size_t j;
     set<expr_t *> pos, neg;
     set<expr_t *>::iterator it;
     string str;
@@ -2029,8 +2030,8 @@ const char *expr_tree_to_str(const expr_t *exp){
         case IDENTIFIER:
             // convert all structure members (A.m) into variables Am
             str = string(exp->value.name);
-            while ( (j=str.find(".")) != std::string::npos) { 
-                str.replace( j, 1, "" ); 
+            while ( (j=str.find('.',0)) != str.npos) { 
+                str.replace(j, 1, "" ); 
             } 
             return strdup(str.c_str());
 
