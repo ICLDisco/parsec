@@ -77,7 +77,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
-        if( (first_col + j) >= Ddesc->ln ) /* padding for columns  */
+        if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
             {
                 break;
             }
@@ -99,12 +99,13 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
 #endif
             x += 1;
         }
+        x += (nb - i);
     }
     /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
     if (row == col) {
         x = (Dague_Complex64_t*)position;
         for (i = 0; i < nb; ++i) {
-            if( ((first_row + i) >= Ddesc->lm) || ((first_col + i) >= Ddesc->ln) ) /* padding for diagonal */
+            if( ((first_row + i) >= Ddesc->m) || ((first_col + i) >= Ddesc->n) ) /* padding for diagonal */
             {
                 break;
             }
@@ -121,16 +122,17 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
                   unsigned int row, unsigned int col, unsigned long long int seed)
 {
     unsigned int i, j, first_row, first_col;
+    unsigned int mb = Ddesc->mb;
     unsigned int nb = Ddesc->nb;
     Dague_Complex64_t *x = (Dague_Complex64_t*)position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
-    first_row = row * nb;
+    first_row = row * mb;
     first_col = col * nb;
 
     for (j = 0; j < nb; ++j) {
-        if( (first_col + j) >= Ddesc->ln ) /* padding for columns  */
+        if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
             {
                 break;
             }
@@ -139,8 +141,8 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
 #else
         ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
 #endif
-        for (i = 0; i < nb; ++i) {
-            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
+        for (i = 0; i < mb; ++i) {
+            if( (first_row + i) >= Ddesc->m)/* padding for rows */
             {
                 break;
             }
@@ -152,6 +154,7 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
 #endif
             x += 1;
         }
+        x += (mb-i); /* padding */
     }
 }
 
