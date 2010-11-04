@@ -3,6 +3,8 @@
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 #include "node_struct.h"
 #include "q2j.tab.h"
@@ -1164,12 +1166,12 @@ char *tree_to_str(node_t *node){
 
             case INTCONSTANT:
                 tmp = (char *)calloc(24,sizeof(char));
-                snprintf(tmp, 24, "%llu",node->u.const_val.i64_value);
+                snprintf(tmp, 24, "%"PRIu64, node->u.const_val.i64_value);
                 return tmp;
 
             case FLOATCONSTANT: 
                 tmp = (char *)calloc(32,sizeof(char));
-                snprintf(tmp, 32, "%lf",node->u.const_val.f64_value);
+                snprintf(tmp, 32, "%lf", node->u.const_val.f64_value);
                 return tmp;
 
             case STRING_LITERAL:

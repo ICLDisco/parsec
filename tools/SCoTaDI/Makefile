@@ -7,7 +7,7 @@ export LINKER=g++
 
 all:
 	$(MAKE) -C src
-	$(MAKE) -C src clean
+#	$(MAKE) -C src clean
 
 clean:
 	$(MAKE) -C src clean
