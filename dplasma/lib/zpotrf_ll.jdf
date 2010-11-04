@@ -14,11 +14,11 @@ extern "C" %{
 
 #define PRECISION_z
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
 #include "cuda_sgemm.h"
 extern int *gpu_counter;
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
 /* Globals
@@ -49,9 +49,9 @@ WRITE   F -> F GEMM(k, k+1..SIZE-1, 0)
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     (void) F;
     DRYRUN(
@@ -93,10 +93,10 @@ RW      C <- (k == 0) ? A(m, k) : C GEMM(k, m, k-1)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - k - m - 1) * (m - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     if( uplo == PlasmaLower ) {
         DRYRUN(
@@ -179,10 +179,10 @@ RW    T <- (n == 0) ? A HERK_IN_F(k) : T HERK(k, n-1)
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
     (void) F;
     if( uplo == PlasmaLower ) {
         DRYRUN(
@@ -270,7 +270,7 @@ RW    C <- (n == 0) ? A GEMM_IN_A(m, k) : C GEMM(k, m, n-1)
 ; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
     if( dague_using_gpu() == 1 ) {
@@ -290,7 +290,7 @@ BODY
         /* Continue with the task on the cores */
     }
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     (void) F;
     if( uplo == PlasmaLower ) {
@@ -334,7 +334,7 @@ BODY
                  n, m, NB, /*A.nb,*/
                  1.0, k, m, NB /*A.nb*/ );
     }
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 FIN:
 #endif
 END

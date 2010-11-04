@@ -9,7 +9,7 @@
 
 #include "dague_config.h"
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(HAVE_CUDA)
 #include "linked_list.h"
 #include "dequeue.h"
 #include "profiling.h"
@@ -104,6 +104,6 @@ void* dague_allocate_data( size_t matrix_size );
  */
 void dague_free_data(void *address);
 
-#endif /* defined(DAGUE_CUDA_SUPPORT) */
+#endif /* defined(HAVE_CUDA) */
 
 #endif

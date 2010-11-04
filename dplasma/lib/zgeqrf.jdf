@@ -22,7 +22,7 @@ extern "C" %{
   CORE_zunmqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
 #endif
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
 #include "cuda_stsmqr.h"
 extern int *gpu_counter;
@@ -76,10 +76,10 @@ GEQRT(k)  (high_priority)
 ; (NT-k)*(NT-k)*(NT-k)
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT)  && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
     void* work = dague_private_memory_pop(work_pool);
     void* tau = dague_private_memory_pop(tau_pool); 
@@ -143,11 +143,11 @@ TSQRT(k,m)  (high_priority)
   ; (NT-k)*(NT-m)*(NT-m)
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
     gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT)  && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
     void* work = dague_private_memory_pop(work_pool);
     void* tau = dague_private_memory_pop(tau_pool);
@@ -192,11 +192,11 @@ UNMQR(k,n)  (high_priority)
   ; (NT-k)*(NT-n)*(NT-n)
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
     gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     void* work = dague_private_memory_pop(work_pool);
 
@@ -267,7 +267,7 @@ TSMQR(k,n,m)
 BODY
     void *work;
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
     gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, m, k );
     if( dague_using_gpu() > 0 ) {
@@ -288,7 +288,7 @@ BODY
     }    
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
     gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     work = dague_private_memory_pop(work_pool);
     DRYRUN(
@@ -321,8 +321,8 @@ BODY
               work, MB);
 
     dague_private_memory_push(work_pool, work);
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 FIN:
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 END
 

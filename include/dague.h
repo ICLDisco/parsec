@@ -129,9 +129,9 @@ struct dague_t {
 struct dague_data_pair_t {
     data_repo_entry_t   *data_repo;
     dague_arena_chunk_t *data;
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(HAVE_CUDA)
     struct gpu_elem_t   *gpu_data;
-#endif  /* defined(DAGUE_CUDA_SUPPORT) */
+#endif  /* defined(HAVE_CUDA) */
 };
 
 struct dague_execution_context_t {

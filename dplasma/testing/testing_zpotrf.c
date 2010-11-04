@@ -9,7 +9,7 @@
 
 #include "common.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "cuda_sgemm.h"
 #endif
 
@@ -29,7 +29,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
@@ -47,7 +47,7 @@ int main(int argc, char ** argv)
                                    LDA, N, P));
 
     /* load the GPU kernel */
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
     {
         if(loud) printf("+++ Load GPU kernel ... ");
@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
 
     /* OLD UGLY CHECK GOES HERE */
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
     {
         spotrf_cuda_fini();

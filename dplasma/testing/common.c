@@ -19,7 +19,7 @@
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(HAVE_CUDA)
 #include "gpu_data.h"
 #endif
 
@@ -357,7 +357,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     
     TIME_START();
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(HAVE_CUDA)
     if(iparam[IPARAM_NGPUS] > 0)
     {
         if(0 != dague_gpu_init(&iparam[IPARAM_NGPUS], 0))

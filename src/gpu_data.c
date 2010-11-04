@@ -2,7 +2,7 @@
 #include "include/gpu_data.h"
 #include "include/profiling.h"
 
-#if defined(DAGUE_CUDA_SUPPORT)
+#if defined(HAVE_CUDA)
 #include "dague.h"
 
 static int using_gpu = 0;
@@ -231,5 +231,5 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
     return 0;
 }
 
-#endif /* DAGUE_CUDA_SUPPORT */
+#endif /* HAVE_CUDA */
 

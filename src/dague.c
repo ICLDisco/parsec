@@ -36,7 +36,7 @@
 #include "dague_hwloc.h"
 #endif
 
-#ifdef DAGUE_CUDA_SUPPORT
+#ifdef HAVE_CUDA
 #include "cuda.h"
 #include "cublas.h"
 #include "cuda_runtime_api.h"

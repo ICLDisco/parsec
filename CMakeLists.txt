@@ -349,7 +349,7 @@ set(SRCS
 
 if (MPI_FOUND)
   add_library(dague-mpi STATIC ${SRCS})
-  set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -DUSE_MPI")
+  set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS} -D")
   #  target_link_libraries(dague-mpi ${CUDA_CUBLAS_LIBRARIES} ${CUDA_CUDA_LIBRARY})
   install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
 else (MPI_FOUND)
