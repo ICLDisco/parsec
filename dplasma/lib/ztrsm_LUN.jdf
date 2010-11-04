@@ -18,25 +18,27 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-Bmb  [int]
-Bnb  [int]
-Bmt  [int]
-Bnt  [int]
-Bm   [int]
-Bn   [int]
-     
-Amb  [int]
-Anb  [int]
-Amt  [int]
-Ant  [int]
-Am   [int]
-An   [int]
-
+side [int]
+uplo [int]
 trans[int]
 diag [int]
 
 alpha[Dague_Complex64_t]
 
+Am   [int]
+An   [int]
+Amb  [int]
+Anb  [int]
+Amt  [int]
+Ant  [int]
+
+Bm   [int]
+Bn   [int]
+Bmb  [int]
+Bnb  [int]
+Bmt  [int]
+Bnt  [int]
+     
 /**************************************************
  *                      TRSM                      *
  **************************************************/
@@ -63,8 +65,8 @@ n = 0..Bnt-1
 
 // Parameters
 READ  A <- A TRSM_IN(k)
-RW    B <- (k == Bmt-1) ? B(k, n) : C GEMM(k-1, k, n)
-        -> B GEMM(k, 0..k-1, n)
+RW    B <- (k == Bmt-1) ? B(k, n) : C GEMM(k+1, k, n)
+        -> (k > 0) ? B GEMM(k, 0..k-1, n)
         -> B(k, n)
 
 BODY
@@ -73,32 +75,32 @@ BODY
       int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
       DRYRUN(
 	   CORE_ztrsm(
-			PlasmaLeft, PlasmaUpper, trans, diag,
+			side, uplo, trans, diag,
 			tempkm, tempnn,
 			lalpha, A /*A(k, k)*/, Amb,
                                 B /*B(k, n)*/, Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_ztrsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, 
-               plasma_const( PlasmaLeft ), plasma_const( PlasmaUpper ), plasma_const( trans ), plasma_const( diag ),
-               tempkm, tempnn,
-	       lalpha, k, k, A /*A(k, k)*/, Amb,
-	               k, n, B /*B(k, n)*/, Bmb)
-	      );
+      printlog( "thread %d CORE_ztrsm( %d, %d)\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+                context->eu_id, k, n,
+                plasma_const( side ),  plasma_const( uplo ), 
+                plasma_const( trans ), plasma_const( diag ),
+                tempkm, tempnn,
+                lalpha, k, k, A /*A(k, k)*/, Amb,
+                        k, n, B /*B(k, n)*/, Bmb);
 END
 
 /**************************************************
  *                      GEMM                      *
  **************************************************/
-GEMM_IN(m, k)
-k = 0..Bmt-1
+GEMM_IN(k, m)
+k = 1..Bmt-1
 m = 0..k-1
 
 : A(m, k)
 
-RW A <- A(m, k)
-     -> A GEMM(m, k, 0..Bnt-1)
+READ A <- A(m, k)
+       -> A GEMM(k, m, 0..Bnt-1)
 
 BODY
  /* Nothing */
@@ -108,7 +110,7 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..Bmt-1
+k = 1..Bmt-1
 m = 0..k-1
 n = 0..Bnt-1
 
@@ -116,9 +118,9 @@ n = 0..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A <- A GEMM_IN(m, k)
+READ  A <- A GEMM_IN(k, m)  /* It's A(m,k) but we need to swap parameter for the parser */
 READ  B <- B TRSM(k, n)
-RW    C <- (k == Bmt-1) ? B(m, n) : C GEMM(k+1, m, n)
+RW    C <- (k == Bmt-1) ? B(m, n)      : C GEMM(k+1, m, n)
         -> (k-1 == m)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
 
 BODY
@@ -130,15 +132,16 @@ BODY
 			trans, PlasmaNoTrans,
 			Bmb, tempnn, tempkm,
 			(Dague_Complex64_t)-1.0, A /* A(m, k)*/ , Amb,
-			              B /* B(k, n)*/ , Bmb,
-			lalpha,       C /* B(m, n)*/ , Bmb)
+			                         B /* B(k, n)*/ , Bmb,
+			lalpha,                  C /* B(m, n)*/ , Bmb)
 	   );
 
-      OUTPUT( ("thread %d CORE_zgemm( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
+      printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id,  k, m, n,
+               plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
                Bmb, tempnn, tempkm,
 	       (Dague_Complex64_t)-1.0, k, m, A, Amb,
-                             k, n, B, Bmb,
-	       lalpha,       m, n, C, Bmb)
-	      );
+                                        k, n, B, Bmb,
+	       lalpha,                  m, n, C, Bmb);
+
 END

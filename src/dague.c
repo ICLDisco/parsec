@@ -983,7 +983,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             }
             arg->deps->output[param_index].data = data; /* if still NULL allocate it */
             arg->deps->output[param_index].type = arena;
-            if(newcontext->priority > arg->max_priority) arg->max_priority = newcontext->priority;
+            if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
             int _array_pos, _array_mask;

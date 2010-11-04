@@ -91,7 +91,7 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
-GEMM_IN_A(k, m)
+GEMM_IN_A(m, k)
 m = 0..Bmt-1
 k = 0..m-1
 
@@ -129,7 +129,7 @@ k = 0..m-1
 : B(m, n)
 
 // Parameters
-READ  A   <- A GEMM_IN_A(k, m)
+READ  A   <- A GEMM_IN_A(m, k)   /* It's A(k, m) but we need to swap parameter for the parser */
 READ  B   <- B GEMM_IN_B(m, n, k)
 RW    C   <- (k == m-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
           -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
