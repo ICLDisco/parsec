@@ -32,7 +32,8 @@ int MAX_QUEUE = 80;
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
-int stsmqr_cuda_init( tiled_matrix_desc_t *tileA,
+int stsmqr_cuda_init( dague_context_t* dague_context,
+                      tiled_matrix_desc_t *tileA,
                       tiled_matrix_desc_t *tileT )
 {
     CUdevice hcuDevice;
@@ -134,7 +135,7 @@ int stsmqr_cuda_init( tiled_matrix_desc_t *tileA,
             cuMemGetInfo( &free_mem, &total_mem );
         }
         if( 0 == nb_allocations ) {
-            printf("Cannot allocate memory on GPU %d. Skip it!\n", i);
+            printf("Rank %d Cannot allocate memory on GPU %d. Skip it!\n", dague_context->my_rank, i);
             cuCtxDestroy( gpu_device->ctx );
             free(gpu_device);
             gpu_devices[i] = NULL;
@@ -154,7 +155,7 @@ int stsmqr_cuda_init( tiled_matrix_desc_t *tileA,
     return 0;
 }
 
-int stsmqr_cuda_fini(void)
+int stsmqr_cuda_fini(dague_context_t* dague_context)
 {
     cudaError_t status;
     gpu_elem_t* gpu_elem;
@@ -231,7 +232,7 @@ int stsmqr_cuda_fini(void)
     
     gtotal = (float)total + (float)cpu_counter;
     printf("------------------------------------------------------------------------------\n");
-    printf("|PU       |  # STSMQR   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n");
+    printf("|PU %4d  |  # STSMQR   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n", dague_context->my_rank);
     printf("|---------|-----------|--------|-------------|--------|-------------|--------|\n");
     for( i = 0; i < ndevices; i++ ) {
         compute_best_unit( transferred_in[i],  &best_data_in, &data_in_unit );

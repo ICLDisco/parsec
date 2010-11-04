@@ -47,9 +47,10 @@ typedef enum {
 
 int gpu_qr_mark_data_usage( int matrixIsT, tiled_matrix_desc_t* data, int type, int col, int row );
 
-int stsmqr_cuda_init( tiled_matrix_desc_t *tileA,
+int stsmqr_cuda_init( dague_context_t* context,
+                      tiled_matrix_desc_t *tileA,
                       tiled_matrix_desc_t *tileT );
-int stsmqr_cuda_fini( void );
+int stsmqr_cuda_fini( dague_context_t* context );
 
 int gpu_qr_data_map_init( int matrixIsT, 
                           gpu_device_t* gpu_device,

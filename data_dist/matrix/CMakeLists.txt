@@ -18,6 +18,7 @@ if (MPI_FOUND)
         tabular_distribution/tabular_distribution.c
         two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
         sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
+	scalapack_convert.c
         ${generated_files})
     set_target_properties(dague_distribution_matrix-mpi PROPERTIES COMPILE_FLAGS
                             "${MPI_COMPILE_FLAGS} -DUSE_MPI")

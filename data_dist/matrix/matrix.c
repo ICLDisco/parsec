@@ -14,9 +14,9 @@
 #include <pthread.h>
 #include <string.h>
 
+#include "dague_config.h"
 
 #include "data_distribution.h"
-
 #include "matrix.h"
 #include "bindthread.h"
 
@@ -256,8 +256,8 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
             printf("opening file: %s", filename);
             return -1;
         }
-    for (i = 0 ; i < Ddesc->lmt ; i++)
-        for ( j = 0 ; j< Ddesc->lnt ; j++)
+    for (i = 0 ; i < Ddesc->mt ; i++)
+        for ( j = 0 ; j< Ddesc->nt ; j++)
             {
                 if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
                     {
@@ -279,8 +279,8 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
             printf("opening file: %s", filename);
             return -1;
         }
-    for (i = 0 ; i < Ddesc->lmt ; i++)
-        for ( j = 0 ; j< Ddesc->lnt ; j++)
+    for (i = 0 ; i < Ddesc->mt ; i++)
+        for ( j = 0 ; j< Ddesc->nt ; j++)
             {
                 if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
                     {

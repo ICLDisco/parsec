@@ -227,8 +227,6 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     return 0;
 }
 
-
-
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
@@ -287,6 +285,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
         exec_context.locals[i] = origin->msg.locals[i];
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
+        data[i] = NULL;
         if(origin->msg.deps & (1 << i)) {
             //DEBUG(("MPI:\tDATA %p released from %p[%d]\n", GC_DATA(origin->output[i].data), origin, i));
             data[i] = origin->output[i].data;
@@ -347,15 +346,11 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
     /**
      * Move as many elements as possible from the dequeue into our ordered lifo.
      */
-    item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue);
-    if( NULL != item ) {
-        if( !dague_fifo_is_empty(&dep_cmd_fifo) ) {
-            DAGUE_FIFO_PUSH(&dep_cmd_fifo, (dague_list_item_t*)item);
-            item = (dep_cmd_item_t*)dague_fifo_pop(&dep_cmd_fifo);
-        }
-    } else {
-        item = (dep_cmd_item_t*)dague_fifo_pop(&dep_cmd_fifo);
+    while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)) ) {
+        DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)item);
+        DAGUE_FIFO_PUSH(&dep_cmd_fifo, (dague_list_item_t*)item);
     }
+    item = (dep_cmd_item_t*)dague_fifo_pop(&dep_cmd_fifo);
 
     if(NULL == item ) {
         if(dep_enabled) {
@@ -677,7 +672,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     assert(dep_enabled);
     do {
         MPI_Testany(DEP_NB_REQ, dep_req, &i, &flag, &status);
-        if(!flag) goto dig_in_local_queues;
+        if(!flag) continue;
         if(i < dague_mpi_activations) {
             assert(REMOTE_DEP_ACTIVATE_TAG == status.MPI_TAG);
             DEBUG(("MPI:\tFROM\t%d\tActivate\t% -8s\ti=%d\twith datakey %lx\tparams %lx\n",
@@ -769,7 +764,6 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
                 ret++;
             }
         }
-    dig_in_local_queues:
     } while(flag);
     return ret;
 }

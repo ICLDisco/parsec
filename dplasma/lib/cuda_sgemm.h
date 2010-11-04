@@ -49,7 +49,7 @@ typedef enum {
 int gpu_mark_data_usage( tiled_matrix_desc_t* data, int type, int col, int row );
 
 int spotrf_cuda_init( dague_context_t* context, tiled_matrix_desc_t *tileA );
-int spotrf_cuda_fini( void );
+int spotrf_cuda_fini( dague_context_t* dague_context );
 
 int gpu_data_map_init( gpu_device_t* gpu_device,
                        tiled_matrix_desc_t* data );
