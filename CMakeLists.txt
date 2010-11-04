@@ -17,7 +17,7 @@ if(DAGUE_SCHED_CACHE_AWARE AND DAGUE_SCHED_HIERARCHICAL_QUEUES)
   message(FATAL_ERROR "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES are mutually exclusive options, please select only one")
 endif()
 option(DAGUE_SCHED_DEPS_MASK 
-  "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" OFF)
+  "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
 
 
 ### Distributed engine parameters
