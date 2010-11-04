@@ -31,7 +31,7 @@
 #include <papime.h>
 #endif
 
-#ifdef DAGUE_SCHED_HIERARCHICAL_QUEUES
+#ifdef HAVE_HWLOC
 #include "hbbuffer.h"
 #include "dague_hwloc.h"
 #endif
