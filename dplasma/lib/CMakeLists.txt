@@ -6,9 +6,7 @@ set(generated_jdf "")
 
 
 if(CUDA_FOUND AND "${DPLASMA_PRECISIONS}" MATCHES "s")
-#   set(CUDA_HOST_COMPILATION_CPP OFF)
-set(CUDA_BUILD_CUBIN ON)
-set(CUDA_BUILD_EMULATION OFF)
+    set(CUDA_BUILD_CUBIN ON)
     set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_11)
     cuda_add_library( sgemm-sm_11 cuda_sgemm_kernel.cu)
     set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_13)

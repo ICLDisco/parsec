@@ -78,7 +78,7 @@ int dague_schedule( dague_context_t* context, const dague_execution_context_t* e
     DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
     new_context->mempool_owner = mpool;
-#if defined(DAGUE_CACHE_AWARE)
+#if defined(DAGUE_SCHED_CACHE_AWARE)
     new_context->data[1] = NULL;
 #endif
     DAGUE_LIST_ITEM_SINGLETON( new_context );
@@ -182,7 +182,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 #if defined( HAVE_HWLOC )
-#  if defined(DAGUE_CACHE_AWARE)
+#  if defined(DAGUE_SCHED_CACHE_AWARE)
 static  unsigned int ranking_function_bycache(dague_list_item_t *elt, void *param)
 {
     unsigned int value;
@@ -208,7 +208,7 @@ static  unsigned int ranking_function_firstfound(dague_list_item_t *elt, void *_
 #  define DAGUE_POP(eu_context, queue_name) \
     (dague_execution_context_t*)dague_atomic_lifo_pop( (eu_context)->queue_name )
 #elif defined(HAVE_HWLOC) 
-#  if defined(DAGUE_CACHE_AWARE)
+#  if defined(DAGUE_SCHED_CACHE_AWARE)
 #    define DAGUE_POP(eu_context, queue_name) \
     (dague_execution_context_t*)dague_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_bycache, \
@@ -218,7 +218,7 @@ static  unsigned int ranking_function_firstfound(dague_list_item_t *elt, void *_
     (dague_execution_context_t*)dague_hbbuffer_pop_best((eu_context)->queue_name, \
                                                             ranking_function_firstfound, \
                                                             NULL)
-#  endif /* DAGUE_CACHE_AWARE */
+#  endif /* DAGUE_SCHED_CACHE_AWARE */
 #  define DAGUE_SYSTEM_POP(eu_context, queue_name) (dague_execution_context_t*)dague_dequeue_pop_front( (eu_context)->queue_name )
 #else /* Don't use LIFO, Global LIFO or HWLOC (hbbuffer): use dequeue */
 #  define DAGUE_POP(eu_context, queue_name) \
@@ -345,7 +345,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
                 unsigned int max = eu_context->eu_nb_hierarch_queues;
 
-#if !defined(USE_HIERARCHICAL_QUEUES)
+#if !defined(DAGUE_SCHED_WITH_HIERARCHICAL_QUEUES)
                 if( (unsigned int)master_context->taskstodo < 2 * (unsigned int)master_context->nb_cores ) {
                     unsigned int nbc = master_context->nb_cores /*dague_hwloc_nb_cores( 1, eu_context->eu_id )*/;
                     max = eu_context->eu_nb_hierarch_queues < nbc ? eu_context->eu_nb_hierarch_queues : nbc;

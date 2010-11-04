@@ -33,7 +33,7 @@
 #define END_C_DECLS            /* empty */
 #endif
 
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 # define DISTRIBUTED
 #else
 # undef DISTRIBUTED

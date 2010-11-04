@@ -4,30 +4,45 @@ project (DAGUE C Fortran)
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
 
+#####
 # ccmake tunable parameters
-option(DAGUE_SCHED_HIERACHICAL_QUEUES
-    "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_CACHE_AWARE)" ON)
-option(DAGUE_SCHED_CACHE_AWARE "Activate the cache awareness support (requires HWLOC, conflicts DAGUE_HIERARCHICAL_QUEUES)" OFF)
-option(DAGUE_SCHED_DEPS_MASK "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" OFF)
+#####
 
-option(DAGUE_COMM_COLLECTIVES
+### Multicore scheduler parameters
+option(DAGUE_SCHED_HIERARCHICAL_QUEUES
+  "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_CACHE_AWARE)" ON)
+option(DAGUE_SCHED_CACHE_AWARE 
+  "Activate the cache awareness support (requires HWLOC, conflicts DAGUE_HIERARCHICAL_QUEUES)" OFF)
+if(DAGUE_SCHED_CACHE_AWARE AND DAGUE_SCHED_HIERARCHICAL_QUEUES)
+  message(FATAL_ERROR "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES are mutually exclusive options, please select only one")
+endif()
+option(DAGUE_SCHED_DEPS_MASK 
+  "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" OFF)
+
+
+### Distributed engine parameters
+option(DAGUE_DIST_WITH_MPI
+  "Build DAGuE for distributed memory with MPI backend (conflicts all other backends)" ON)
+if(DAGUE_DIST_WITH_MPI AND 0)
+  message(FATAL_ERROR "DAGUE_DIST_WITH_MPI and DAGUE_DIST_WITH_OTHER are mutually exclusive, please select only one")
+endif()
+option(DAGUE_DIST_THREAD
+  "Use an extra thread to progress the data movements" ON)
+option(DAGUE_DIST_PRIORITIES
+  "Favor the communications that unlock the most prioritary tasks" ON)
+option(DAGUE_DIST_COLLECTIVES 
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
-option(DAGUE_COMM_MPI
-  "Build DAGuE for distributed memory with MPI backend" ON)
 
-option(DAGUE_GPU_CUDA "Enable CUDA support for NVidia GPUs" ON)
+### GPU engine parameters
+option(DAGUE_GPU_WITH_CUDA
+  "Enable GPU support using CUDA kernels" ON)
+option(DAGUE_GPU_WITH_OPENCL
+  "Enable GPU support using OpenCL kernels" OFF)
+if(DAGUE_GPU_WITH_OPENCL)
+  message(WARNING "Open CL is not supported yet, ignored.")
+endif()
 
-option(DAGUE_PROF_TRACE
-  "Enable the generation of the profiling information during
-  execution" OFF)
-option(DAGUE_PROF_PAPI
-  "Enable PAPI performance hardware counters" OFF)
-option(DAGUE_PROF_STATS
-  "Enable the generation of short statistics information during execution
-  (microbenchmarking)" OFF)
-option(DAGUE_PROF_GRAPHER
-  "Enable the generation of the dot graph representation during execution" OFF)
-
+### Debug options
 option(DAGUE_DEBUG
   "Enable the internal debugging verbose output of the DAGUE library" OFF)
 option(DAGUE_DEBUG_LIFO_USES_LOCKS
@@ -36,11 +51,20 @@ option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_DEBUG_DRY_RUN
   "Disable calls to the actual bodies; unfold the dependencies only" OFF)
-option(DAGUE_DEBUG_UNIT_TESTS
+option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 
-option(DPLASMA_CALL_TRACE
-  "Enable the output of the BLAS kernels call trace during execution" OFF)
+### Profiling options
+option(DAGUE_PROF_TRACE
+  "Enable the generation of the profiling information during execution" OFF)
+option(DAGUE_PROF_PAPI
+  "Enable PAPI performance hardware counters" OFF)
+option(DAGUE_PROF_STATS
+  "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
+option(DAGUE_PROF_GRAPHER
+  "Enable the generation of the dot graph representation during execution" OFF)
+
+### Misc options
 option(BUILD_SHARED_LIBS
   "Build shared libraries" OFF)
 option(BUILD_64bits
@@ -222,55 +246,61 @@ check_function_exists(getrusage HAVE_GETRUSAGE)
 #
 # Find optional packages
 #
-if (DAGUE_HWLOC)
-  find_package(HWLOC)
-  if( HAVE_HWLOC )
-    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-    include_directories( ${HWLOC_INCLUDE_DIR} )
-  else( HAVE_HWLOC )
-    if( DAGUE_CACHE_AWARE )
-      message( error "Cache awarness requires hwloc" )
-    endif( DAGUE_CACHE_AWARE )
-  endif (HAVE_HWLOC)
-endif (DAGUE_HWLOC)
+find_package(HWLOC QUIET)
+if( HAVE_HWLOC )
+  list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
+  list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+  include_directories( ${HWLOC_INCLUDE_DIR} )
+else( HAVE_HWLOC )
+  if( DAGUE_SCHED_CACHE_AWARE OR DAGUE_SCHED_HIERARCHICAL_QUEUES)
+    message( WARNING "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES require the HWLOC package, but it has not been found. Revert to flat queues." )
+    set(DAGUE_SCHED_CACHE_AWARE 0)
+    set(DAGUE_SCHED_HIERARCHICAL_QUEUES 0)
+  endif()
+endif (HAVE_HWLOC)
 
-if (DAGUE_MPI)
-  find_package(MPI)
+if (DAGUE_DIST_WITH_MPI)
+  find_package(MPI REQUIRED)
   if (MPI_FOUND)
+    set(HAVE_MPI 1)
     include_directories( ${MPI_INCLUDE_PATH} )
   else (MPI_FOUND)
-    message(error "MPI support is required in order to build the distributed version of DAGuE."
+    set(HAVE_MPI 0)
+    message(WARNING "MPI support is required in order to build the distributed version of DAGuE."
       "Unfortunately, MPI does not seem to be properly installed on this system, at least"
       "not on the default path.")
   endif (MPI_FOUND)
-endif (DAGUE_MPI)
+endif (DAGUE_DIST_WITH_MPI)
 
-if (DAGUE_PAPI)
+if( DAGUE_GPU_WITH_CUDA )
+  find_package(CUDA)
+  if (CUDA_FOUND)
+    set(CUDA_HOST_COMPILATION_CPP OFF)
+    set(CUDA_BUILD_EMULATION OFF)
+    include_directories(${CUDA_INCLUDE_DIRS})
+    list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
+    list(APPEND EXTRA_SOURCES src/gpu_data.c)
+    set(HAVE_CUDA 1)
+  else (CUDA_FOUND)
+    set(HAVE_CUDA 0)
+  endif (CUDA_FOUND)
+endif( DAGUE_GPU_WITH_CUDA )
+
+if (DAGUE_PROF_PAPI)
   find_package(PAPI REQUIRED)
   if (PAPI_FOUND)
     list(APPEND EXTRA_SOURCES src/papime.c)
     list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
     include_directories( ${PAPI_INCLUDE_DIR} )
+    set(HAVE_PAPI 1)
+  else (PAPI_FOUND)
+    set(HAVE_PAPI 0)
   endif (PAPI_FOUND)
-endif (DAGUE_PAPI)
+endif (DAGUE_PROF_PAPI)
 
-if( DAGUE_CUDA )
-  find_package(CUDA)
-  set(CUDA_HOST_COMPILATION_CPP OFF)
-  if (CUDA_FOUND)
-    include_directories(${CUDA_INCLUDE_DIRS})
-    set( DAGUE_CUDA_SUPPORT 1)
-    list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
-    list(APPEND EXTRA_SOURCES src/gpu_data.c)
-  else (CUDA_FOUND)
-    set( DAGUE_CUDA_SUPPORT 0)
-  endif (CUDA_FOUND)
-endif( DAGUE_CUDA )
-
-if( DAGUE_PROFILING )
+if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)
-endif( DAGUE_PROFILING )
+endif( DAGUE_PROF_TRACE )
 
 #
 ##
