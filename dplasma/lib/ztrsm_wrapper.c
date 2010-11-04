@@ -89,11 +89,6 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         }
     }
 
-    printf("TRSM A:%ux%u (%ux%u) and B:%ux%u (%ux%u) has %u tasks to run.\n",
-           A->m, A->n, A->mt, A->nt,
-           B->m, B->n, B->mt, B->nt,
-           dague_trsm->nb_local_tasks);
-
     return dague_trsm;
 }
 

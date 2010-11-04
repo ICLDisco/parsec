@@ -31,8 +31,6 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    int s = PlasmaLeft;
-    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M,(DagDouble_t)NRHS));
     /* initializing matrix structure */
     int Am = max(M, NRHS);
     LDA = max(LDA, Am);
@@ -48,6 +46,9 @@ int main(int argc, char ** argv)
 
     if(!check) 
     {
+        int s = PlasmaLeft;
+        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
@@ -66,7 +67,7 @@ int main(int argc, char ** argv)
     }
     else
     { 
-        int u, t, d;
+        int s, u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 3.5;
 
