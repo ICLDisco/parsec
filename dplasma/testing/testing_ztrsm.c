@@ -166,9 +166,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     B = (Dague_Complex64_t *)malloc((ddescB->super.lmt)*(ddescB->super.lnt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
     C = (Dague_Complex64_t *)malloc((ddescC->super.lmt)*(ddescC->super.lnt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
 
-    twoDBC_to_lapack( ddescA, A, LDA );
-    twoDBC_to_lapack( ddescB, B, LDB );
-    twoDBC_to_lapack( ddescC, C, LDB );
+    twoDBC_ztolapack( ddescA, A, LDA );
+    twoDBC_ztolapack( ddescB, B, LDB );
+    twoDBC_ztolapack( ddescC, C, LDB );
     
     /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
     //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );

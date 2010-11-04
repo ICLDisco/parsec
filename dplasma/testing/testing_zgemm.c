@@ -190,10 +190,10 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
     Cinit = (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
     Cfinal= (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
 
-    twoDBC_to_lapack( ddescA, A,     LDA );
-    twoDBC_to_lapack( ddescB, B,     LDB );
-    twoDBC_to_lapack( ddescC,      Cinit,  LDC );
-    twoDBC_to_lapack( ddescCfinal, Cfinal, LDC );
+    twoDBC_ztolapack( ddescA, A,     LDA );
+    twoDBC_ztolapack( ddescB, B,     LDB );
+    twoDBC_ztolapack( ddescC,      Cinit,  LDC );
+    twoDBC_ztolapack( ddescCfinal, Cfinal, LDC );
 
     Anorm        = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', Am, An, A,      LDA, work);
     Bnorm        = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', Bm, Bn, B,      LDB, work);

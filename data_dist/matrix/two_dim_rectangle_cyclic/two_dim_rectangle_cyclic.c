@@ -256,37 +256,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 #endif /* DAGUE_PROFILING */
 }
 
-int twoDBC_to_lapack_double(two_dim_block_cyclic_t *Mdesc, double* A, int lda)
-{
-    unsigned int i, j, il, jl, x, y;
-    unsigned int imax, jmax;
-    double *bdl, *f77;
-    int64_t dec;
-
-    /* check which tiles to generate */
-    for ( j = 0 ; j < Mdesc->super.nt ; j++)
-        for ( i = 0 ; i < Mdesc->super.mt ; i++)
-        {
-            if( Mdesc->super.super.myrank ==
-                Mdesc->super.super.rank_of((dague_ddesc_t *)Mdesc, i, j ) )
-            {
-                il = i / ( Mdesc->nrst * Mdesc->GRIDrows ) +  (i % ( Mdesc->nrst * Mdesc->GRIDrows )) - ( Mdesc->nrst * Mdesc->rowRANK );
-                jl = j / ( Mdesc->ncst * Mdesc->GRIDcols ) +  (j % ( Mdesc->ncst * Mdesc->GRIDcols )) - ( Mdesc->ncst * Mdesc->colRANK );
-                dec = ((int64_t)(Mdesc->super.nb)*(int64_t)lda*(int64_t)(jl)) + (int64_t)((Mdesc->super.mb)*(il));
-                bdl = Mdesc->super.super.data_of((dague_ddesc_t *)Mdesc, i, j );
-                f77 = &A[ dec ];
-
-                imax = ( i == Mdesc->super.mt-1 ) ? Mdesc->super.m - i * Mdesc->super.mb : Mdesc->super.mb ;
-                jmax = ( j == Mdesc->super.nt-1 ) ? Mdesc->super.n - j * Mdesc->super.nb : Mdesc->super.nb ;
-                for (y = 0; y < jmax; y++)
-                  for (x = 0; x < imax; x++)
-                    f77[lda*y+x] = bdl[(Mdesc->super.mb)*y + x];
-            }
-        }
-    return 0;
-}
-
-int twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
+int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
 {
     /* switch(Mdesc->super.mtype) { */
     /* case matrix_RealFloat: */
@@ -302,7 +272,7 @@ int twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
     /*     //twoDBC_ztolapack(Mdesc, (Dague_Complex64_t*)A, lda); */
     /*     break; */
     /* default: */
-        twoDBC_to_lapack_double(Mdesc, (double*)A, lda);
+           twoDBC_dtolapack(Mdesc, (double*)A, lda);
     /*     printf("The matrix type is not handle by this function\n"); */
     /*     return -1; */
     /* } */
