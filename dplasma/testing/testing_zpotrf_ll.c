@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
     {
-        spotrf_cuda_fini();
+        spotrf_cuda_fini(dague);
     }
 #endif
 
