@@ -495,7 +495,7 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     d_B = gpu_elem_B->gpu_mem;
     d_C = gpu_elem_C->gpu_mem;
 
-    DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", k, m, n));
+    DEBUG(("Request GPU runs GEMM(%d, %d, %d)\n", exec_context->locals[0], exec_context->locals[1], exec_context->locals[2]));
 
 #if defined(DAGUE_PROFILING)
     dague_profiling_trace( gpu_device->profiling,

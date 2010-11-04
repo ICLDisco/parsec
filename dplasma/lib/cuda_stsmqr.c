@@ -469,7 +469,7 @@ gpu_stsmqr_internal( gpu_device_t* gpu_device,
     (void)eu_context;
 
     DEBUG(("Execute STSMQR( k = %d, m = %d, n = %d ) [%d] on device %d stream %p\n",
-           k, m, n, exec_context->priority, gpu_device->id, (void*)stream));
+           exec_context->locals[0], exec_context->locals[1], exec_context->locals[2], exec_context->priority, gpu_device->id, (void*)stream));
 
     return_code = gpu_stsmqr_internal_push( gpu_device,
                                            exec_context,
@@ -508,7 +508,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     m = exec_context->locals[1].value;
     n = exec_context->locals[2].value;
 
-    DEBUG(("STSMQR( k = %d, m = %d, n = %d )\n", k, m, n));
+    DEBUG(("STSMQR( k = %d, m = %d, n = %d )\n", exec_context->locals[0], exec_context->locals[1], exec_context->locals[2]));
     /* We always schedule the task on the GPU owning the C tile. */
     which_gpu = gpu_qr_data_tile_write_owner( 0, ddescA(exec_context), m, n );
 /*    printf("k=%d, m=%d, n=%d\n",k,m,n);*/
