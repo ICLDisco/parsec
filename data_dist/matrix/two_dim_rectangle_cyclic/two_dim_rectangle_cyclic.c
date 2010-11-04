@@ -252,7 +252,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.super.data_key = twoDBC_data_key;
     Ddesc->super.super.key_to_string = twoDBC_key_to_string;
     Ddesc->super.super.key = NULL;
-    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
+    asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROFILING */
 }
 
