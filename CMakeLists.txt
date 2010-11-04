@@ -10,7 +10,7 @@ set (DAGUE_VERSION_MINOR 1)
 
 ### Multicore scheduler parameters
 option(DAGUE_SCHED_HIERARCHICAL_QUEUES
-  "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_CACHE_AWARE)" ON)
+  "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_SCHED_CACHE_AWARE)" OFF)
 option(DAGUE_SCHED_CACHE_AWARE 
   "Activate the cache awareness support (requires HWLOC, conflicts DAGUE_HIERARCHICAL_QUEUES)" OFF)
 if(DAGUE_SCHED_CACHE_AWARE AND DAGUE_SCHED_HIERARCHICAL_QUEUES)

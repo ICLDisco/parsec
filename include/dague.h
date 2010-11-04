@@ -93,7 +93,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          void *param);
 typedef void (dague_traverse_function_t)(struct dague_execution_unit *, dague_execution_context_t *, dague_ontask_function_t *, void *);
 
-#if defined(DAGUE_CACHE_AWARE)
+#if defined(DAGUE_SCHED_CACHE_AWARE)
 typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
 #endif
 
@@ -116,7 +116,7 @@ struct dague_t {
     const param_t*          out[MAX_PARAM_COUNT];
     const expr_t*           priority;
     int                     deps;                  /**< This is the index of the dependency array in the __DAGUE_object_t */
-#if defined(DAGUE_CACHE_AWARE)
+#if defined(DAGUE_SCHED_CACHE_AWARE)
     dague_cache_rank_function_t *cache_rank_function;
 #endif
     dague_hook_t*             hook;

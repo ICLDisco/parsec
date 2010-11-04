@@ -31,7 +31,7 @@
 #include <papime.h>
 #endif
 
-#ifdef HAVE_HWLOC
+#ifdef DAGUE_SCHED_HIERARCHICAL_QUEUES
 #include "hbbuffer.h"
 #include "dague_hwloc.h"
 #endif
@@ -142,7 +142,7 @@ typedef struct __dague_temporary_thread_initialization_t {
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
-#if defined(DAGUE_SCHED_WITH_HIERARCHICAL_QUEUES)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
 static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 { 
     /* Store is a hbbbuffer */
@@ -225,7 +225,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
             eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
         }
 
-#if defined(DAGUE_SCHED_WITH_HIERARCHICAL_QUEUES)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
         eu->eu_nb_hierarch_queues = dague_hwloc_nb_levels(startup->master_context);
         assert(eu->eu_nb_hierarch_queues > 0 /* Must have at least a system queue and a socket queue to work with hwloc */ );
 
@@ -262,7 +262,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
             }
         }
         eu->eu_task_queue = eu->eu_hierarch_queues[0];
-#else /* Don't DAGUE_SCHED_WITH_HIERARCHICAL_QUEUES: USE_FLAT_QUEUES */
+#else /* Don't DAGUE_SCHED_HIERARCHICAL_QUEUES: USE_FLAT_QUEUES */
         {
             int queue_size = startup->master_context->nb_cores * 4;
             int nq = 0;
@@ -631,7 +631,7 @@ int dague_fini( dague_context_t** pcontext )
         if( i == 0 )
             free(context->execution_units[i]->eu_system_queue);
         context->execution_units[i]->eu_system_queue = NULL;
-#if defined(DAGUE_SCHED_WITH_HIERARCHICAL_QUEUES)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
 #warning Memory Leak: if you want to re-eanble hierarchical queues, you need to compute the leader of the queue again, and free it here
 #else
         dague_hbbuffer_destroy(context->execution_units[i]->eu_task_queue);

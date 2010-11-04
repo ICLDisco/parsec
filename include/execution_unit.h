@@ -28,7 +28,7 @@ struct dague_execution_unit {
 #endif /* DAGUE_PROFILING */
 #if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_t* eu_task_queue;
-#elif defined(HAVE_HWLOC)
+#elif defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
     dague_hbbuffer_t   *eu_task_queue;
 #else
     dague_dequeue_t    *eu_task_queue;
@@ -43,14 +43,14 @@ struct dague_execution_unit {
     dague_thread_mempool_t* context_mempool;
     dague_thread_mempool_t* datarepo_mempools[MAX_PARAM_COUNT+1];
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
     dague_hbbuffer_t    **eu_hierarch_queues; 
     uint32_t              eu_nb_hierarch_queues;
     dague_dequeue_t      *eu_system_queue;
-#  if defined(DAGUE_CACHE_AWARE)
+#  if defined(DAGUE_SCHED_CACHE_AWARE)
     cache_t *closest_cache;
 #  endif
-#endif /* HAVE_HWLOC */
+#endif /* HAVE_HIERARCHICAL_QUEUES */
 
     uint32_t* remote_dep_fw_mask;
 };
