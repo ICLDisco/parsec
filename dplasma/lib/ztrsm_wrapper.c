@@ -11,6 +11,8 @@
 #include <dague.h>
 #include <scheduling.h>
 #include "dplasma.h"
+#include "dplasmaaux.h"
+#include "dplasmatypes.h"
 
 #include "generated/ztrsm_LLN.h"
 #include "generated/ztrsm_LLT.h"
@@ -25,7 +27,14 @@ dague_object_t *
 dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                   const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B)
 {
-    dague_object_t *dague_trsm = NULL;
+    dague_object_t *dague_trsm = NULL; 
+#if defined(USE_MPI)
+    MPI_Aint lb = 0, extent = 0;
+#else
+    int64_t extent = 0;
+#endif  /* defined(USE_MPI) */
+    dague_remote_dep_datatype_t default_dtt;
+
 
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
@@ -89,6 +98,14 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         }
     }
 
+    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, A->nb, &default_dtt);
+#if defined(USE_MPI)
+    MPI_Type_get_extent(default_dtt, &lb, &extent);
+#else
+    extent = A->mb * A->nb * sizeof(Dague_Complex64_t);
+#endif
+    dague_arena_construct(((dague_ztrsm_LLN_object_t*)dague_trsm)->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA],
+                          extent, DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
     return dague_trsm;
 }
 
