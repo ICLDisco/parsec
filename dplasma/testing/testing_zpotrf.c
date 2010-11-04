@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
 #include "cuda_sgemm.h"
 #endif
@@ -36,8 +37,6 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    PLASMA_enum uplo = PlasmaLower;
-    PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
 
     /* initializing matrix structure */
     int info = 0;
@@ -62,26 +61,31 @@ int main(int argc, char ** argv)
 
     if(!check) 
     {
+        PLASMA_enum uplo = PlasmaLower;
+        PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
         if(loud > 2) printf("Done\n");
+
 #if defined(LLT_LL)
         PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf_ll, 
-                                           (uplo, 
-                                            (tiled_matrix_desc_t*)&ddescA,
-                                            &info));
+                                  (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
         PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_ll);
 #else
         PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf, 
-                                           (uplo, 
-                                            (tiled_matrix_desc_t*)&ddescA,
-                                            &info));
+                                  (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
         PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
 #endif
     }
+    else 
+    {
 
-    /* OLD UGLY CHECK GOES HERE */
+
+
+    }
+
 
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
@@ -99,30 +103,50 @@ int main(int argc, char ** argv)
 }
 
 
-#if 0 /* OLD ULGLY CHECK */
-    /* Old checking by comparison: will be remove because doesn't check anything */
-    if(iparam[IPARAM_CHECK] == 1) {
-        char fname[20];
-        sprintf(fname , "zposv_r%d", rank );
-        printf("writing matrix to file\n");
-        data_write((tiled_matrix_desc_t *) &ddescA, fname);
-    } 
-    else if( iparam[IPARAM_CHECK] == 2 ){
-        char fname[20];
-        sym_two_dim_block_cyclic_t ddescB;
 
-        sym_two_dim_block_cyclic_init(&ddescB, matrix_ComplexDouble, nodes, cores, rank,
-                                      MB, NB, N, N, 0, 0, LDA, N, P);
-        ddescB.mat = dague_data_allocate((size_t)ddescB.super.nb_local_tiles * (size_t)ddescB.super.bsiz * (size_t)ddescB.super.mtype);
+static int check_solution( dague_context_t *dague, PLASMA_enum uplo, int N, int NRHS, 
+                           tiled_matrix_desc_t *ddescA, tiled_matrix_desc_t *ddescB, tiled_matrix_desc_t *ddescX )
+{
+    int info_solution;
+    double Rnorm, Anorm, Bnorm, Xnorm, result;
+    double *work = (double *)malloc(N*sizeof(double));
+    double eps = LAPACKE_dlamch_work('e');
+    Dague_Complex64_t *W;
 
-        sprintf(fname , "zposv_r%d", rank );
-        printf("reading matrix from file\n");
-        data_read((tiled_matrix_desc_t *) &ddescB, fname);
-        
-        matrix_zcompare_dist_data((tiled_matrix_desc_t *) &ddescA, (tiled_matrix_desc_t *) &ddescB);
+    W = (Dague_Complex64_t *)malloc( N*max(N,NRHS)*sizeof(Dague_Complex64_t));
 
-        dague_data_free(ddescB.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
-#endif
+    twoDBC_ztolapack( (two_dim_block_cyclic_t *)ddescA, W, N );
+    Anorm = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), N, W, N, work );
 
- 
+    twoDBC_ztolapack( (two_dim_block_cyclic_t *)ddescB, W, N );
+    Bnorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', N, NRHS, W, N, work );
+
+    twoDBC_ztolapack( (two_dim_block_cyclic_t *)ddescX, W, N );
+    Xnorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', N, NRHS, W, N, work );
+
+    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
+
+    twoDBC_ztolapack( (two_dim_block_cyclic_t *)ddescB, W, N );
+    Rnorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', N, NRHS, W, N, work );
+
+    if (getenv("DPLASMA_TESTING_VERBOSE"))
+        printf( "||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n", 
+                Anorm, Xnorm, Bnorm, Rnorm );
+
+    result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;
+    printf("============\n");
+    printf("Checking the Residual of the solution \n");
+    printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);
+
+    if (  isnan(Xnorm) || isinf(Xnorm) || isnan(result) || isinf(result) || (result > 60.0) ) {
+        printf("-- The solution is suspicious ! \n");
+        info_solution = 1;
+     }
+    else{
+        printf("-- The solution is CORRECT ! \n");
+        info_solution = 0;
+    }
+
+    free(work); free(W);
+    return info_solution;
+}
