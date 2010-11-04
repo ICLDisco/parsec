@@ -71,7 +71,6 @@ if(NOT HWLOC_FIND_QUIETLY)
     include(FindPackageMessage)
     find_package_message(HWLOC "Found HWLOC: ${HWLOC_LIBRARIES}"
       "[${HWLOC_INCLUDE_DIR}][${HWLOC_LIBRARIES}]")
-    set(HAVE_HWLOC 1)
 #    include_directories( ${HWLOC_INCLUDE_DIR} )
   else(HWLOC_FOUND)
     if(HWLOC_FIND_REQUIRED)
