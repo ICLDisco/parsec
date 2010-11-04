@@ -336,7 +336,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     return __dague_progress(eu);
 }
 
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
 extern int num_events;
 extern char* event_names[];
 #endif
@@ -383,7 +383,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     context->taskstodo = 0;
     context->my_rank   = 0;
 
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
     num_events = 0;
 #endif
     
