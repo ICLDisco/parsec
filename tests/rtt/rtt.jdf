@@ -2,7 +2,7 @@ extern "C" %{
 #include "dplasma.h"
 
 extern unsigned char *_A;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 #include "mpi.h"
 extern MPI_Datatype ATYPE;
 #endif

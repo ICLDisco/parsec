@@ -141,7 +141,7 @@ int dplasma_desc_init(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 
 int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     int tmp_ints[21];
 
     if (Ddesc->mpi_rank == 0) /* send data */
@@ -203,11 +203,11 @@ int dplasma_desc_bcast(const PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
     }
     
     return dplasma_desc_workspace_allocate(Ddesc);
-#else /* USE_MPI */
+#else /* HAVE_MPI */
     
     fprintf(stderr, "MPI disabled, you should not call this function (%s) in this mode\n", __FUNCTION__);
     return -1;
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
 }
 
 
@@ -375,7 +375,7 @@ int dplasma_set_local_tile(DPLASMA_desc * Ddesc, int m, int n, void * buff)
 
 int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     int i, j, k, nb, pos, rank;
     int tile_size, str, stc;
     double * target;
@@ -480,7 +480,7 @@ int distribute_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 
 int gather_data(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc) 
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     int i, j, k, rank;
     MPI_Request * reqs;
 
@@ -554,7 +554,7 @@ static void print_block(char * stri, int m, int n, double * block, int blength, 
 
 void data_dist_verif(PLASMA_desc * Pdesc, DPLASMA_desc * Ddesc)
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     int m, n, k, rank;
     double * buff;
     double * buff2;

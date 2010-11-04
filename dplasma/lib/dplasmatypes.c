@@ -9,7 +9,7 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
                                        unsigned int tile_mb,
                                        unsigned int tile_nb,

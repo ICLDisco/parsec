@@ -5,9 +5,9 @@
  */
 
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
 
 #include <getopt.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@ static inline double get_cur_time(){
   printf print; \
 } while(0)
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 # define SYNC_TIME_START() do { \
     MPI_Barrier(MPI_COMM_WORLD); \
     sync_time_elapsed = get_cur_time(); \
@@ -154,7 +154,7 @@ static void runtime_init(int argc, char **argv)
         {0, 0, 0, 0}
     };
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     /* mpi init */
     MPI_Init(&argc, &argv);
     
@@ -220,7 +220,7 @@ static void runtime_init(int argc, char **argv)
 
 static void runtime_fini(void)
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Finalize();
 #endif    
 }

@@ -13,9 +13,9 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
 
 #include "dague_config.h"
 #include "dague.h"
@@ -307,7 +307,7 @@ int twoDBC_to_lapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
   return 0;
 }
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
     return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
@@ -320,4 +320,4 @@ int close_matrix_file(MPI_File * handle){
 
 
 
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */

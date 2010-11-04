@@ -8,10 +8,10 @@
 #include "scheduling.h"
 #include "profiling.h"
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
 MPI_Datatype ATYPE;
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
 
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
@@ -53,7 +53,7 @@ static inline double get_cur_time(){
   printf print; \
 } while(0)
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 # define SYNC_TIME_START() do { \
     MPI_Barrier(MPI_COMM_WORLD); \
     sync_time_elapsed = get_cur_time(); \
@@ -168,7 +168,7 @@ static void runtime_init(int argc, char **argv)
     };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     /* mpi init */
     MPI_Init(&argc, &argv);
     
@@ -237,7 +237,7 @@ static void runtime_init(int argc, char **argv)
 
 static void runtime_fini(void)
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Finalize();
 #endif    
 }
@@ -291,7 +291,7 @@ static void create_data(void)
     for(i = 0; i < NB; i++) {
         _A[i] = (unsigned char)i;
     }
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     printf("NB = %d\n", NB);
     MPI_Type_contiguous(NB, MPI_BYTE, &ATYPE);
     MPI_Type_set_name(ATYPE, "ATYPE");

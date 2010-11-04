@@ -13,9 +13,9 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
 
 #include "dague.h"
 #include "data_dist/matrix/tabular_distribution/tabular_distribution.h"

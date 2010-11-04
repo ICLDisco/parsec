@@ -5,7 +5,7 @@
  */
 
 /* /!\  THIS FILE IS NOT INTENDED TO BE COMPILED ON ITS OWN
- *      It should be included from remote_dep.c if USE_MPI is defined
+ *      It should be included from remote_dep.c if HAVE_MPI is defined
  */
 
 #include <mpi.h>

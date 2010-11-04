@@ -8,9 +8,9 @@
 
 
 #include "plasma.h"
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 #include <mpi.h>
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */

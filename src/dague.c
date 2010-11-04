@@ -421,7 +421,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
                 if( NULL == __dague_graph_file ) {
                     int len = strlen(optarg) + 32;
                     char filename[len];
-#if defined(DISTRIBUTED) && defined(USE_MPI)
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
                     int rank;
                     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
                     snprintf(filename, len, "%s%d", optarg, rank);
@@ -668,7 +668,7 @@ int dague_fini( dague_context_t** pcontext )
     {
         char filename[64];
         char prefix[32];
-# if defined(DISTRIBUTED) && defined(USE_MPI)
+# if defined(DISTRIBUTED) && defined(HAVE_MPI)
         int rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);

@@ -16,7 +16,7 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
 #endif
 #if defined(DAGUE_CUDA_SUPPORT)
@@ -26,9 +26,9 @@
 /*******************************
  * globals and argv set values *
  *******************************/
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
-#endif  /* USE_MPI */
+#endif  /* HAVE_MPI */
 
 const int   side[2]  = { PlasmaLeft,    PlasmaRight };
 const int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
@@ -346,7 +346,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 #ifdef DAGUE_PROFILING
     argvzero = argv[0];
 #endif
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]); 
@@ -375,7 +375,7 @@ void cleanup_dague(dague_context_t* dague)
 {
 #ifdef DAGUE_PROFILING
     char* filename = NULL;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     asprintf(&filename, "%s.%d.profile", argvzero, rank);
@@ -387,7 +387,7 @@ void cleanup_dague(dague_context_t* dague)
 #endif  /* DAGUE_PROFILING */
 
     dague_fini(&dague);
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Finalize();
 #endif    
 }
