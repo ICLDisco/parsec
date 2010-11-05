@@ -226,7 +226,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         {
                             continue;
                         }
-#if DAGUE_DEBUG_DRY_DEP
+#if defined(DAGUE_DEBUG_DRY_DEP)
                         remote_deps->msg.which = 0;
 #else
                         remote_dep_inc_flying_messages(eu_context->master_context);
