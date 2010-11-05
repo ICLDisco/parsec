@@ -68,7 +68,6 @@ subs = {
     ('smatrix',             'dmatrix',             'cmatrix',             'zmatrix'             ),
     ('twoDBC_s',            'twoDBC_d',            'twoDBC_c',            'twoDBC_z'            ),
     ('stwoDBC',             'dtwoDBC',             'ctwoDBC',             'ztwoDBC'             ),
-    (None,                  None,                  'cimagf',              'cimag'               ),
     ('Workspace_s','Workspace_d','Workspace_c','Workspace_z'),
     ('workspace_s','workspace_d','workspace_c','workspace_z'),
     ('cblas_sasum','cblas_dasum','cblas_scasum','cblas_dzasum'),
