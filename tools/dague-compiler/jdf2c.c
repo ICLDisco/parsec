@@ -855,7 +855,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
             "#define TAKE_TIME(context, key, eid, refdesc, refid) do {   \\\n"
             "   dague_profile_ddesc_info_t info;                         \\\n"
-            "   info.desc = refdesc;                                     \\\n"
+            "   info.desc = (dague_ddesc_t*)refdesc;                     \\\n"
             "   info.id = refid;                                         \\\n"
             "   dague_profiling_trace(context->eu_profile,               \\\n"
             "                         __dague_object->super.super.profiling_array[(key)],\\\n"
@@ -2418,7 +2418,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     sa3 = string_arena_new(64);
     linfo.prefix = "";
     linfo.sa = sa2;
-    coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, (dague_ddesc_t*)(__dague_object->super.%s)->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
+    coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
             f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""),
