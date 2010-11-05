@@ -555,8 +555,9 @@ static char *dump_profiling_init(void **elem, void *arg)
 
     string_arena_add_string(info->sa,
                             "dague_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                         (int*)&res->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
-                            "                                         (int*)&res->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
+                            "                                       sizeof(dague_profile_ddesc_info_t), dague_profile_ddesc_key_to_string,\n"
+                            "                                       (int*)&res->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
+                            "                                       (int*)&res->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
                             fname, R, G, B,
                             jdf_basename, fname, fname,
                             jdf_basename, fname, fname);
@@ -848,9 +849,16 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
-            "#if defined(DAGUE_PROFILING)\n"
+            "#if defined(DAGUE_PROF_TRACE)\n"
             "int %s_profiling_array[2*DAGUE_%s_NB_FUNCTIONS] = {-1};\n"
-            "#define TAKE_TIME(context, key, id, refdesc, refid) dague_profiling_trace_with_ref(context->eu_profile, __dague_object->super.super.profiling_array[(key)], id, refdesc, refid)\n"
+            "#define TAKE_TIME(context, key, eid, refdesc, refid) do {   \\\n"
+            "   dague_profile_ddesc_info_t info;                         \\\n"
+            "   info.desc = refdesc;                                     \\\n"
+            "   info.id = refid;                                         \\\n"
+            "   dague_profiling_trace(context->eu_profile,               \\\n"
+            "                         __dague_object->super.super.profiling_array[(key)],\\\n"
+            "                         eid, (void*)&info);                \\\n"
+            "  } while(0);\n"
             "#else\n"
             "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
             "#endif\n"
@@ -1972,12 +1980,12 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     pi.idx = 0;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
-            "#  if defined(DAGUE_PROFILING)\n"
+            "#  if defined(DAGUE_PROF_TRACE)\n"
             "  res->super.super.profiling_array = %s_profiling_array;\n"
             "  if( -1 == %s_profiling_array[0] ) {\n"
             "%s"
             "  }\n"
-            "#  endif /* defined(DAGUE_PROFILING) */\n", 
+            "#  endif /* defined(DAGUE_PROF_TRACE) */\n", 
             jdf_basename,
             jdf_basename,
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,

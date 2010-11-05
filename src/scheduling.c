@@ -21,7 +21,7 @@
 #include <linux/unistd.h>
 #endif  /* HAVE_SCHED_SETAFFINITY */
 
-#if defined(DAGUE_PROFILING) && 0
+#if defined(DAGUE_PROF_TRACE) && 0
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -145,10 +145,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 
 void dague_register_nb_tasks(dague_context_t* context, int n)
 {
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     /* Reset the profiling information */
     dague_profiling_reset();
-#endif  /* defined(DAGUE_PROFILING) */
+#endif  /* defined(DAGUE_PROF_TRACE) */
         
     set_tasks_todo(context, (uint32_t)n);
 }

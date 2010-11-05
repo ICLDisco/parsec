@@ -38,10 +38,9 @@ int dague_profiling_init( const char *format, ...);
 
 /**
  * Add additional information about the current run, under the form key/value.
- * Keys are strings, values are ints.
  * Used to store the value of the globals names and values in the current run
  */
-void dague_profiling_add_information( const char *key, int value );
+void dague_profiling_add_information( const char *key, const char *value );
 
 /**
  * Initializes the buffer trace with the specified length.
@@ -49,13 +48,13 @@ void dague_profiling_add_information( const char *key, int value );
  * functions. This creates the profiling_thread_unit_t that must be passed to
  * the tracing function call. See note about thread safety.
  * 
- * @param [IN]  length: the length of the buffer queue to store events.
+ * @param [IN]  length: the length (in bytes) of the buffer queue to store events.
  * @param [IN]  format, ...: printf-like to associate a human-readable
  *                           definition of the calling thread
  * @return pointer to the new thread_profiling structure. NULL if an error.
  * thread safe
  */
-dague_thread_profiling_t *dague_profiling_thread_init( unsigned int length, const char *format, ...);
+dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char *format, ...);
 
 /**
  * Releases all resources for the tracing. 
@@ -87,6 +86,19 @@ int dague_profiling_reset( void );
 int dague_profiling_change_profile_attribute( const char *format, ... );
 
 /**
+ * The type of the convertion function to convert the info data as a
+ * printable character. The function doesn't need to be thread safe.
+ * Usage of snprintf in this function is encouraged.
+ * @param [IN]  info: the pointer to the information area
+ * @param [OUT] text: the string to print related to this information area
+ * @param [IN]  size: the number of characters that can be printed.
+ * @return the number of bytes needed to store the result in a character strings
+ *         if return value >= 0, a <INFO></INFO> entry will be added to the record
+ *         if return < 0, no <INFO></INFO> entry will be added to the record
+ */
+typedef int (*dague_profiling_info_convert_fct_t)(void *info, char *text, size_t size);
+
+/**
  * Inserts a new keyword in the dictionnary
  * The dictionnary is process-global, and operations on it are *not* thread
  * safe. All keywords should be inserted by one thread at most, and no thread
@@ -94,13 +106,16 @@ int dague_profiling_change_profile_attribute( const char *format, ... );
  *
  * @param [IN] name: the (human readable) name of the key
  * @param [IN] attributes: attributes that can be associated to the key (e.g. color)
+ * @param [IN] info_length: the number of bytes passed as additional info
+ * @param [IN] cnvt: the function to convert the info into a text (called at profiling dump time)
  * @param [OUT] key_start: the key to use to denote the start of an event of this type
  * @param [OUT] key_end: the key to use to denote the end of an event of this type.
  * @return 0    if success, -1 otherwie.
  * not thread safe
  */
-int dague_profiling_add_dictionary_keyword( const char*name, const char* attributes,
-                                              int* key_start, int* key_end );
+int dague_profiling_add_dictionary_keyword( const char*name, const char* attributes, 
+                                            size_t info_length, dague_profiling_info_convert_fct_t cnvt,
+                                            int* key_start, int* key_end );
 
 /**
  * Empties the global dictionnary (usefull in conjunction with reset, if 
@@ -128,31 +143,12 @@ int dague_profiling_dictionary_flush( void );
  *                        - end is the next "end" event with the same key and the same id as start in the
  *                          event buffer of the thread context
  *                        - if no matching end is found, this is an error
+ * @param [IN] info:    a pointer to an area of size info_length for this key (see
+ *                        dague_profiling_add_dictionary_keyword)
  * @return 0 if success, -1 otherwise.
  * not thread safe
  */
-int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id );
-
-/**
- * Traces one event, with a reference tile
- * Not thread safe (but it takes a thread_context parameter, and threads should not share 
- * the same thread_context parameter anyway).
- *
- * @param [IN] context: a thread profiling context (should be the thread profiling context of the
- *                      calling thread).
- * @param [IN] key:     the key (as returned by add_dictionary_keyword) of the event to log
- * @param [IN] id:      a (possibly unique) event identifier. Events are coupled together: start/end.
- *                      a couple (start, end) has
- *                        - the same key
- *                        - end is the next "end" event with the same key and the same id as start in the
- *                          event buffer of the thread context
- *                        - if no matching end is found, this is an error
- * @param [IN] ref_desc: the dague_ddesc_t of the reference tile
- * @param [IN] ref_id:   the unique id of the tile using the data_key function of ref_desc and the coordinates of the tile
- * @return 0 if success, -1 otherwise.
- * not thread safe
- */
-int dague_profiling_trace_with_ref( dague_thread_profiling_t* context, int key, unsigned long id, dague_ddesc_t *ref_desc, uint32_t ref_id );
+int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id, void *info );
 
 /**
  * Dump the current profile in the said filename.
@@ -172,5 +168,22 @@ int dague_profiling_dump_xml( const char* filename );
  * not thread safe
  */
 char *dague_profiling_strerror(void);
+
+
+/** 
+ * Here are some helper functions, to be used 
+ *  (appropriately) in dague_profiling_add_dictionary_keyword
+ */
+
+/**
+ * Take a couple dague-ddesc_t * and unique id returned by the
+ * dague_ddesc_t *->data_key, and return the corresponding string
+ * Use the dague_profile_ddesc_info_t datatype to store the elements.
+ */
+typedef struct {
+    dague_ddesc_t *desc;
+    uint32_t       id;
+} dague_profile_ddesc_info_t;
+int dague_profile_ddesc_key_to_string(void *info, char *text, size_t size);
 
 #endif  /* _DAGUE_profiling_h */

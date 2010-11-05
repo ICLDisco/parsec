@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
                                     nodes, cores, rank, MB, 1, M, NT, 0, 0, 
                                     M, NT, SMB, SNB, P))
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     ddescA.super.super.key = strdup("A");
     ddescL.super.super.key = strdup("L");
     ddescIPIV.super.super.key = strdup("IPIV");
@@ -74,7 +74,7 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague);
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     free(ddescA.super.super.key);
     free(ddescL.super.super.key);
     free(ddescIPIV.super.super.key);
