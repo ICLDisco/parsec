@@ -57,9 +57,10 @@ function ready() {
     svgdoc = document.sv.getSVGDocument();
     svgRoot = svgdoc.documentElement;
 }
-function mouseMove(t, d) {
+function mouseMove(t, d, i) {
     document.f.title.value = t;
     document.f.desc.value = d;
+    document.f.info.value = i;
 }
 function nosubmit() 
 {   
@@ -112,6 +113,8 @@ var SF=this.sf;
                 <td><input name=title size=24 DISABLED /></td>
                 <td>Stats</td>
                 <td><input name=desc size=48 DISABLED /></td>
+		<td>Reference/Info</td>
+		<td><input name=info size=48 DISABLED /></td>
               </tr>
             </table>
           </td>
