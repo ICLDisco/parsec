@@ -16,90 +16,108 @@ extern "C" %{
 /*
  * Globals
  */
-NB
-M
-N
-K
-TRANSA   [int]
-TRANSB   [int]
-alpha    [Dague_Complex64_t]
-beta     [Dague_Complex64_t]
+transA [int]
+transB [int]
+
+alpha  [Dague_Complex64_t]
+beta   [Dague_Complex64_t]
+
+Am   [int]
+An   [int]
+Amb  [int]
+Anb  [int]
+Amt  [int]
+Ant  [int]
+
+Bm   [int]
+Bn   [int]
+Bmb  [int]
+Bnb  [int]
+Bmt  [int]
+Bnt  [int]
+
+Cm   [int]
+Cn   [int]
+Cmb  [int]
+Cnb  [int]
+Cmt  [int]
+Cnt  [int]
 
 /* A(M, K) * B(K, N) = C(M, N) */
 /**************************************************
  *                       READ_A                   *
  **************************************************/
-READ_A(n, m)
+READ_A(k, m)
 
-n = 0 .. M-1
-m = 0 .. K-1
+k = 0 .. Ant-1
+m = 0 .. Amt-1
 
-: A(m, n)
+: A(k, m)
 
-A <- A(m, n)
-  -> A GEMM(n, 0, m)
+A <- A(k, m)
+  -> A GEMM(m, 0, k)
 BODY
-    printlog("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, n, m);
+    printlog("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, k, m);
 END
 
 /**************************************************
  *                       READ_B                   *
  **************************************************/
-READ_B(n, m)
+READ_B(n, k)
 
-n = 0 .. K-1
-m = 0 .. N-1
+n = 0 .. Bnt-1
+k = 0 .. Bmt-1
 
-: B(m, n)
+: B(n, k)
 
-B <- B(m, n)
-  -> B GEMM(0, m, n)
+B <- B(n, k)
+  -> B GEMM(0, n, k)
 BODY
-    printlog("rank %d <- B(%d,%d)\n", __dague_object->super.B->myrank, m, n);
+     printlog("rank %d <- B(%d,%d)\n", __dague_object->super.B->myrank, n, k);
 END
 
 /**************************************************
  *                       GEMM                     *
  **************************************************/
-GEMM(n, m, k)
+GEMM(m, n, k)
 
 // Execution space
-n = 0 .. M-1
-m = 0 .. N-1
-k = 0 .. K-1
+m = 0 .. Cmt-1
+n = 0 .. Cnt-1
+k = 0 .. Amt-1
 
 // Parallel partitioning
-: C(n, m)
+: C(m, n)
 
 // Parameters
-READ A <- (m == 0)     ? A READ_A(n,k) : A GEMM( n, (m+N-1) % N, k )
-       -> (m <= (N-2)) ? A GEMM( n, (m+1) % N, k )
-READ B <- (n == 0)     ? B READ_B(k,m) : B GEMM( (n+M-1) % M, m, k )
-       -> (n <= (M-2)) ? B GEMM( (n+1) % M, m, k )
-RW   C <- (k == 0)     ? C(n,m) : C GEMM( n, m, k-1 )
-       -> (k == (K-1)) ? C(n,m) : C GEMM( n, m, k+1 )
+READ A <- (n == 0)       ? A READ_A(k, m) : A GEMM( m, (n+Cnt-1) % Cnt, k )
+       -> (n <= (Cnt-2)) ? A GEMM( m, (n+1) % Cnt, k )
+READ B <- (m == 0)       ? B READ_B(n, k) : B GEMM( (m+Cmt-1) % Cmt, n, k )
+       -> (m <= (Cmt-2)) ? B GEMM( (m+1) % Cmt, n, k )
+RW   C <- (k == 0)       ? C(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (Ant-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
+        Dague_Complex64_t lbeta = (k == 0) ? beta : 1.0;
+        int tempmm = m == Cmt-1 ? Cm - m * Cmb : Cmb;
+        int tempnn = n == Cnt-1 ? Cn - n * Cnb : Cnb;
+        int tempkk = k == Amt-1 ? Am - k * Amb : Amb;
         DRYRUN(
             CORE_zgemm(
-                TRANSA, TRANSB,
-                NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                NB, /*A.nb,*/
-                NB, /*A.nb,*/
-                alpha, A /*A(n, k)*/, NB, /*A.nb,*/
-                       B /*B(k, m)*/, NB, /*A.nb,*/
-                beta,  C /*C(n, m)*/, NB /*A.nb*/ )
+                transA, transB,
+                tempmm, tempnn, tempkk,
+                alpha, A /*A(m, k)*/, Amb,
+                       B /*B(k, n)*/, Bmb,
+                lbeta, C /*C(m, n)*/, Cmb);
             );
 
         printlog("thread %d gemm( %d, %d, %d )\n"
                  "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
-                 context->eu_id, n, m, k,
-                 "Plasma[Conj]Trans", "Plasma[Conj]Trans",
-                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
-                 NB, /*A.nb,*/
-                 NB, /*A.nb,*/
-                 alpha, n, k, NB, /*A.nb,*/
-                        k, m, NB, /*A.nb,*/
-                 beta,  n, m, NB /*A.nb*/ );
+                 context->eu_id, m, n, k,
+                 plasma_const( transA ), plasma_const( transB ), 
+                 tempmm, tempnn, tempkk,
+                 alpha, m, k, Amb,
+                        k, n, Bmb,
+                 beta,  m, n, Cmb );
 END
 
 extern "C" %{

@@ -31,30 +31,34 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
+
     PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K))
 
-    int tA    = PlasmaNoTrans;
-    int tB    = PlasmaNoTrans;
+    int tA = PlasmaNoTrans;
+    int tB = PlasmaNoTrans;
     Dague_Complex64_t alpha =  0.51;
     Dague_Complex64_t beta  = -0.42;
 
+    LDA = max(LDA, max(M, K));
+    LDB = max(LDB, max(K, N));
+    LDC = max(LDC, M);
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, K, 0, 0, 
-                                    LDA, K, SMB, SNB, P))
+                                    nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+                                    LDA, LDA, SMB, SNB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, K, N, 0, 0, 
-                                    LDB, N, SMB, SNB, P))
+                                    nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
+                                    LDB, LDB, SMB, SNB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
-                                    LDC, N, SMB, SNB, P))
+                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
+                                    M, N, SMB, SNB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
         two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
-                                    LDC, N, SMB, SNB, P))
+                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
+                                    M, N, SMB, SNB, P))
     
     if(!check) 
     {
@@ -185,13 +189,13 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
     }
 
     work  = (double *)malloc(max(K,max(M, N))* sizeof(double));
-    A     = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
-    B     = (Dague_Complex64_t *)malloc((ddescB->super.mt)*(ddescB->super.nt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
-    Cinit = (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
-    Cfinal= (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
+    A     = (Dague_Complex64_t *)malloc((ddescA->super.lm)*(ddescA->super.n)*sizeof(Dague_Complex64_t));
+    B     = (Dague_Complex64_t *)malloc((ddescB->super.lm)*(ddescB->super.n)*sizeof(Dague_Complex64_t));
+    Cinit = (Dague_Complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
+    Cfinal= (Dague_Complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
 
-    twoDBC_ztolapack( ddescA, A,     LDA );
-    twoDBC_ztolapack( ddescB, B,     LDB );
+    twoDBC_ztolapack( ddescA,      A,      LDA );
+    twoDBC_ztolapack( ddescB,      B,      LDB );
     twoDBC_ztolapack( ddescC,      Cinit,  LDC );
     twoDBC_ztolapack( ddescCfinal, Cfinal, LDC );
 
@@ -202,7 +206,7 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
 
     cblas_zgemm(CblasColMajor,
                 (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
-                M, K, N, CBLAS_SADDR(alpha), A, LDA, B, LDB,
+                M, N, K, CBLAS_SADDR(alpha), A, LDA, B, LDB,
                 CBLAS_SADDR(beta), Cinit, LDC);
 
     Clapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, Cinit, LDC, work);
