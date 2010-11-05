@@ -518,7 +518,7 @@ int dague_profile_ddesc_key_to_string(void *info, char *text, size_t size)
     dague_profile_ddesc_info_t nfo = *(dague_profile_ddesc_info_t*)info;
     if( nfo.desc != NULL ) {
         res = snprintf(text, size, "%s", nfo.desc->key);
-        if( res >= size ) {
+        if( res >= (int)size ) {
             res += nfo.desc->key_to_string( nfo.desc, nfo.id, text, (uint32_t) size );
         } else {
             res += nfo.desc->key_to_string( nfo.desc, nfo.id, text + res, (uint32_t)(size-res) );

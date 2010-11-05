@@ -525,8 +525,8 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
         TRACE_WITH_REF(gpu_device->profiling, 
                        exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id],
                        GEMM_hash( __dague_object, exec_context->locals[0].value, exec_context->locals[1].value, exec_context->locals[2].value),
-                       __dague_object->A,
-                       __dague_object->A->data_key(__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
+                       ((dague_ddesc_t*)__dague_object->A),
+                       ((dague_ddesc_t*)__dague_object->A)->data_key((dague_ddesc_t*)__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
     }
 #endif  /* defined(PROFILING) */
     offset = 0;
@@ -845,8 +845,8 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                 TRACE_WITH_REF(gpu_device->profiling, 
                                exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id],
                                GEMM_hash( __dague_object, exec_context->locals[0].value, exec_context->locals[1].value, exec_context->locals[2].value),
-                               __dague_object->A,
-                               __dague_object->A->data_key(__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
+                               (dague_ddesc_t*)__dague_object->A,
+                               ((dague_ddesc_t*)__dague_object->A)->data_key((dague_ddesc_t*)__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
             }
 #endif  /* defined(PROFILING) */
             gpu_device->exec_array[gpu_device->exec_waiting] = NULL;
