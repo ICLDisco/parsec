@@ -144,7 +144,7 @@ struct dague_execution_context_t {
     assignment_t            locals[MAX_LOCAL_COUNT];
 };
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
@@ -161,9 +161,9 @@ struct dague_object {
     uint32_t                   nb_functions;
     dague_startup_fn_t         startup_hook;
     const dague_t**            functions_array;
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     const int*                 profiling_array;
-#endif  /* defined(DAGUE_PROFILING) */
+#endif  /* defined(DAGUE_PROF_TRACE) */
     dague_dependencies_t**     dependencies_array;
     dague_arena_t**            arenas_array;
 };

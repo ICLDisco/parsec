@@ -83,7 +83,7 @@ int dague_using_gpu(void)
     return using_gpu;
 }
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
 int dague_cuda_movein_key_start;
 int dague_cuda_movein_key_end;
 int dague_cuda_moveout_key_start;
@@ -122,13 +122,16 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 
     gpu_devices = (gpu_device_t**)calloc(ndevices, sizeof(gpu_device_t));
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                              &dague_cuda_movein_key_start, &dague_cuda_movein_key_end);
+                                            0, NULL,
+                                            &dague_cuda_movein_key_start, &dague_cuda_movein_key_end);
     dague_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                              &dague_cuda_moveout_key_start, &dague_cuda_moveout_key_end);
+                                            0, NULL,
+                                            &dague_cuda_moveout_key_start, &dague_cuda_moveout_key_end);
     dague_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
-                                              &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
+                                            0, NULL,
+                                            &dague_cuda_own_GPU_key_start, &dague_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
 
     for( i = 0; i < ndevices; i++ ) {
@@ -223,7 +226,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {free(gpu_device); return -1;} );
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
         gpu_device->profiling = dague_profiling_thread_init( 6*4096, "GPU %d.0", i );
 #endif  /* defined(PROFILING) */
     }

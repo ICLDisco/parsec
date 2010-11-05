@@ -109,7 +109,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
 static uint32_t twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 {
     unsigned int m, n;
@@ -138,7 +138,7 @@ static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, ch
         }
     return res;
 }
-#endif /* DAGUE_PROFILING */
+#endif /* DAGUE_PROF_TRACE */
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
 {
@@ -243,12 +243,12 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
             }*/
     Ddesc->super.super.rank_of =  twoDBC_get_rank_for_tile;
     Ddesc->super.super.data_of =  twoDBC_get_local_tile;
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     Ddesc->super.super.data_key = twoDBC_data_key;
     Ddesc->super.super.key_to_string = twoDBC_key_to_string;
     Ddesc->super.super.key = NULL;
     asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
-#endif /* DAGUE_PROFILING */
+#endif /* DAGUE_PROF_TRACE */
 #ifdef DAGUE_DEBUG
      printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores, Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb, Ddesc->super.lm,  Ddesc->super.ln,  Ddesc->super.i, Ddesc->super.j, Ddesc->super.m, Ddesc->super.n, Ddesc->nrst, Ddesc->ncst, Ddesc->GRIDrows);
 

@@ -44,7 +44,7 @@ int main(int argc, char ** argv)
                                     nodes, cores, rank, IB+1, NB, MT*(IB+1), N, 0, 0, 
                                     MT*(IB+1), N, SMB, SNB, P))
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     ddescA.super.super.key = strdup("A");
     ddescLIPIV.super.super.key = strdup("LIPIV");
 #endif
@@ -70,10 +70,9 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague);
 
-#if defined(DAGUE_PROFILING)
-    free(ddescA.super.super.key);
-    free(ddescLIPIV.super.super.key);
-#endif
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescLIPIV);
+
     return EXIT_SUCCESS;
 }
 

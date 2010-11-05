@@ -13,11 +13,6 @@
 
 #include "dague.y.h"
 
-/*
-static expr_t *global_expr_stack[MAX_EXPR_STACK_COUNT];
-static unsigned int global_expr_stack_size = 0;
-*/
-
 extern int yyparse(void);
 extern int yylex(void);
 
@@ -40,6 +35,7 @@ int yywrap(void)
 static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 {
     jdf_data_entry_t* data = jdf->data;
+    jdf_global_entry_t* global = jdf->globals;
 
     while( NULL != data ) {
         if( !strcmp(data->dname, dname) ) {
@@ -50,10 +46,31 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     /* not found, create */
     data = new(jdf_data_entry_t);
     data->dname    = strdup(dname);
-    data->lineno   = -1;
+    data->lineno   = current_lineno;
     data->nbparams = -1;
     data->next     = jdf->data;
     jdf->data = data;
+    /* Check if there is a global with the same name */
+    while( NULL != global ) {
+        if( !strcmp(global->name, data->dname) ) {
+            assert(NULL == global->data);
+            global->data = data;
+            data->global = global;
+            return data;
+        }
+        global = global->next;
+    }
+    assert(NULL == global);
+    global = new(jdf_global_entry_t);
+    global->name = strdup(data->dname);
+    global->type = strdup("dague_ddesc_t*");
+    global->data = data;
+    global->expression = NULL;
+    global->lineno = current_lineno;
+    /* Chain it with the other globals */
+    global->next = jdf->globals;
+    jdf->globals = global;
+    
     return data;
 }
 

@@ -8,7 +8,9 @@ set (DAGUE_VERSION_MINOR 1)
 # ccmake tunable parameters
 #####
 
-### Multicore scheduler parameters
+## Multicore scheduler parameters
+mark_as_advanced(DAGUE_SCHED_HIERARCHICAL_QUEUES DAGUE_SCHED_CACHE_AWARE
+    DAGUE_SCHED_DEPS_MASK)
 option(DAGUE_SCHED_HIERARCHICAL_QUEUES
   "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_SCHED_CACHE_AWARE)" OFF)
 option(DAGUE_SCHED_CACHE_AWARE 
@@ -21,6 +23,7 @@ option(DAGUE_SCHED_DEPS_MASK
 
 
 ### Distributed engine parameters
+mark_as_advanced(DAGUE_DIST_THREAD DAGUE_DIST_PRIORITIES)
 option(DAGUE_DIST_WITH_MPI
   "Build DAGuE for distributed memory with MPI backend (conflicts all other backends)" ON)
 if(DAGUE_DIST_WITH_MPI AND 0)
@@ -43,6 +46,7 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
+mark_as_advanced(DAGUE_DEBUG_LIFO_USES_LOCKS)
 option(DAGUE_DEBUG
   "Enable the internal debugging verbose output of the DAGUE library" OFF)
 option(DAGUE_DEBUG_LIFO_USES_LOCKS

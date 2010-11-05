@@ -51,6 +51,8 @@ set(SOURCES
   ztrmm_wrapper.c 
   # Lapack
   zpotrf_wrapper.c 
+  zpotrs_wrapper.c 
+  zposv_wrapper.c 
   zgetrf_wrapper.c 
   zgeqrf_wrapper.c
 )

@@ -23,6 +23,7 @@ extern int *gpu_counter;
 
 /* Globals
  */
+A            [struct tiled_matrix_desc_t*]
 NB           [int]
 SIZE         [int]
 PRI_CHANGE   [int]

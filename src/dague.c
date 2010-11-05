@@ -23,7 +23,7 @@
 #include "remote_dep.h"
 #include "bindthread.h"
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
 #endif
 
@@ -47,12 +47,12 @@ dague_free_data_t     dague_data_free = free;
 
 FILE *__dague_graph_file = NULL;
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
 int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
-#endif  /* DAGUE_PROFILING */
+#endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_PAPI
 int eventSet = PAPI_NULL;
@@ -181,7 +181,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
         eu->datarepo_mempools[pi] = &(eu->master_context->datarepo_mempools[pi].thread_mempools[eu->eu_id]);
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     eu->eu_profile = dague_profiling_thread_init( 65536, "DAGuE Thread %d", eu->eu_id );
 #endif
 #ifdef DAGUE_USE_LIFO
@@ -501,18 +501,22 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
         fprintf(__dague_graph_file, "digraph G {\n");
         fflush(__dague_graph_file);
     }
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     dague_profiling_init( "%s", (*pargv)[0] );
 
     dague_profiling_add_dictionary_keyword( "MEMALLOC", "fill:#FF00FF",
+                                            0, NULL,
                                             &MEMALLOC_start_key, &MEMALLOC_end_key);
     dague_profiling_add_dictionary_keyword( "Sched POLL", "fill:#8A0886",
+                                            0, NULL,
                                             &schedule_poll_begin, &schedule_poll_end);
     dague_profiling_add_dictionary_keyword( "Sched PUSH", "fill:#F781F3",
+                                            0, NULL,
                                             &schedule_push_begin, &schedule_push_end);
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
+                                            0, NULL,
                                             &schedule_sleep_begin, &schedule_sleep_end);
-#endif  /* DAGUE_PROFILING */
+#endif  /* DAGUE_PROF_TRACE */
 
 #if defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_construct(&ready_list);
@@ -643,9 +647,9 @@ int dague_fini( dague_context_t** pcontext )
         free(context->execution_units[i]);
     }
     
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     dague_profiling_fini( );
-#endif  /* DAGUE_PROFILING */
+#endif  /* DAGUE_PROF_TRACE */
 
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
