@@ -22,6 +22,8 @@ void dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA
 
 /* Lapack */
 int  dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA);
+int  dplasma_zpotrs( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescB);
+int  dplasma_zposv ( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescB);
 int  dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV ); 
 int  dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T) ;
 
