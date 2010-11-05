@@ -30,6 +30,7 @@ static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp)
 static inline set<expr_t *> findAllGEsWithVar(const char *var_name, expr_t *exp);
 static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp, int constr_type);
 static const char *expr_tree_to_str(const expr_t *exp);
+static string _expr_tree_to_str(const expr_t *exp);
 static int treeContainsVar(expr_t *root, const char *var_name);
 static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relation R);
 static void substituteExprForVar(expr_t *exp, const char *var_name, expr_t *root);
@@ -2014,7 +2015,14 @@ static void groupExpressionBasedOnSign(expr_t *exp, set<expr_t *> &pos, set<expr
     return;
 }
 
+
 const char *expr_tree_to_str(const expr_t *exp){
+    string str;
+    str = _expr_tree_to_str(exp);
+    return strdup(str.c_str());
+}
+
+static string _expr_tree_to_str(const expr_t *exp){
     stringstream ss, ssL, ssR;
     unsigned int skipSymbol=0, first=1;
     unsigned int r_needs_paren = 0, l_needs_paren = 0;
@@ -2033,14 +2041,14 @@ const char *expr_tree_to_str(const expr_t *exp){
             while ( (j=str.find('.',0)) != str.npos) { 
                 str.replace(j, 1, "" ); 
             } 
-            return strdup(str.c_str());
+            return str;
 
         case INTCONSTANT:
             if( exp->value.int_const < 0 )
                 ss << "(" << exp->value.int_const << ")";
             else
                 ss << exp->value.int_const;
-            return ss.str().c_str();
+            return ss.str();
 
         case EQ_OP:
         case GE:
@@ -2077,14 +2085,14 @@ const char *expr_tree_to_str(const expr_t *exp){
                             ssL << labs(e->l->value.int_const);
                             ssL << type_to_symbol(e->type);
                         }
-                        ssL << expr_tree_to_str(e->r);
+                        ssL << _expr_tree_to_str(e->r);
                     }else{
                         // in this case we can skip the "one" even for divisions
                         if( labs(e->r->value.int_const) != 1 ){
                             ssL << labs(e->r->value.int_const);
                             ssL << type_to_symbol(e->type);
                         }
-                        ssL << expr_tree_to_str(e->l);
+                        ssL << _expr_tree_to_str(e->l);
                     }
                 }
             }
@@ -2117,13 +2125,13 @@ const char *expr_tree_to_str(const expr_t *exp){
                             ssR << labs(e->l->value.int_const);
                             ssR << type_to_symbol(e->type);
                         }
-                        ssR << expr_tree_to_str(e->r);
+                        ssR << _expr_tree_to_str(e->r);
                     }else{
                         if( labs(e->r->value.int_const) != 1 ){
                             ssR << labs(e->r->value.int_const);
                             ssR << type_to_symbol(e->type);
                         }
-                        ssR << expr_tree_to_str(e->l);
+                        ssR << _expr_tree_to_str(e->l);
                     }
                 }
             }
@@ -2146,11 +2154,9 @@ const char *expr_tree_to_str(const expr_t *exp){
                 else
                     ss << ssR.str() << ")";
 
-                // The following strdup() seems to be necessary. If ommited, some c++ compilers
-                // generate code that corrupts the returned string. However, it creates a memory leak.
-                return strdup(ss.str().c_str());
+                return ss.str();
             }else{
-                return NULL;
+                return string();
             }
 
         case L_AND:
@@ -2160,19 +2166,19 @@ const char *expr_tree_to_str(const expr_t *exp){
 
             // If one of the two sides is a tautology, we will get a NULL string
             // and we have no reason to print the "&&" or "||" sign.
-            if( NULL == expr_tree_to_str(exp->l) )
-                return expr_tree_to_str(exp->r);
-            if( NULL == expr_tree_to_str(exp->r) )
-                return expr_tree_to_str(exp->l);
+            if( _expr_tree_to_str(exp->l).empty() )
+                return _expr_tree_to_str(exp->r);
+            if( _expr_tree_to_str(exp->r).empty() )
+                return _expr_tree_to_str(exp->l);
 
             if( L_OR == exp->type )
                 ss << "(";
-            ss << expr_tree_to_str(exp->l);
+            ss << _expr_tree_to_str(exp->l);
             ss << " " << type_to_symbol(exp->type) << " ";
-            ss << expr_tree_to_str(exp->r);
+            ss << _expr_tree_to_str(exp->r);
             if( L_OR == exp->type )
                 ss << ")";
-            return ss.str().c_str();
+            return ss.str();
 
         case ADD:
             assert( (NULL != exp->l) && (NULL != exp->r) );
@@ -2180,23 +2186,23 @@ const char *expr_tree_to_str(const expr_t *exp){
             if( (NULL != exp->l) && (INTCONSTANT == exp->l->type) ){
                 if( exp->l->value.int_const != 0 ){
                     ss << "(";
-                    ss << expr_tree_to_str(exp->l);
+                    ss << _expr_tree_to_str(exp->l);
                 }else{
                     skipSymbol = 1;
                 }
             }else{
-                ss << expr_tree_to_str(exp->l);
+                ss << _expr_tree_to_str(exp->l);
             }
 
             if( !skipSymbol )
                 ss << type_to_symbol(ADD);
 
-            ss << expr_tree_to_str(exp->r);
+            ss << _expr_tree_to_str(exp->r);
 
             if( !skipSymbol )
                 ss << ")";
 
-            return ss.str().c_str();
+            return ss.str();
 
         case MUL:
             assert( (NULL != exp->l) && (NULL != exp->r) );
@@ -2204,23 +2210,23 @@ const char *expr_tree_to_str(const expr_t *exp){
             if( INTCONSTANT == exp->l->type ){
                 if( exp->l->value.int_const != 1 ){
                     ss << "(";
-                    ss << expr_tree_to_str(exp->l);
+                    ss << _expr_tree_to_str(exp->l);
                 }else{
                     skipSymbol = 1;
                 }
             }else{
-                ss << expr_tree_to_str(exp->l);
+                ss << _expr_tree_to_str(exp->l);
             }
 
             if( !skipSymbol )
                 ss << type_to_symbol(MUL);
 
-            ss << expr_tree_to_str(exp->r);
+            ss << _expr_tree_to_str(exp->r);
 
             if( !skipSymbol )
                 ss << ")";
 
-            return ss.str().c_str();
+            return ss.str();
 
         case DIV:
             assert( (NULL != exp->l) && (NULL != exp->r) );
@@ -2228,29 +2234,29 @@ const char *expr_tree_to_str(const expr_t *exp){
             ss << "(";
             if( INTCONSTANT == exp->l->type ){
                 if( exp->l->value.int_const < 0 ){
-                    ss << "(" << expr_tree_to_str(exp->l) << ")";
+                    ss << "(" << _expr_tree_to_str(exp->l) << ")";
                 }else{
-                    ss << expr_tree_to_str(exp->l);
+                    ss << _expr_tree_to_str(exp->l);
                 }
             }else{
-                ss << expr_tree_to_str(exp->l);
+                ss << _expr_tree_to_str(exp->l);
             }
 
             ss << type_to_symbol(DIV);
 
             if( (INTCONSTANT == exp->r->type) && (exp->r->value.int_const > 0) )
-                ss << expr_tree_to_str(exp->r);
+                ss << _expr_tree_to_str(exp->r);
             else
-                ss << "(" << expr_tree_to_str(exp->r) << ")";
+                ss << "(" << _expr_tree_to_str(exp->r) << ")";
 
             ss << ")";
-            return ss.str().c_str();
+            return ss.str();
 
         default:
             ss << "{" << exp->type << "}";
-            return ss.str().c_str();
+            return ss.str();
     }
-    return NULL;
+    return string();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
