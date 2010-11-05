@@ -28,13 +28,6 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
                   const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_trsm = NULL; 
-#if defined(USE_MPI)
-    MPI_Aint lb = 0, extent = 0;
-#else
-    int64_t extent = 0;
-#endif  /* defined(USE_MPI) */
-    dague_remote_dep_datatype_t default_dtt;
-
 
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
@@ -98,14 +91,11 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_e
         }
     }
 
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, A->nb, &default_dtt);
-#if defined(USE_MPI)
-    MPI_Type_get_extent(default_dtt, &lb, &extent);
-#else
-    extent = A->mb * A->nb * sizeof(Dague_Complex64_t);
-#endif
-    dague_arena_construct(((dague_ztrsm_LLN_object_t*)dague_trsm)->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA],
-                          extent, DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
+    dplasma_add2arena_tile(((dague_ztrsm_LLN_object_t*)dague_trsm)->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA], 
+                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE_COMPLEX, A->mb);
+
     return dague_trsm;
 }
 
@@ -153,17 +143,10 @@ dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
 {
     dague_object_t *dague_ztrsm = NULL;
 
-    /* two_dim_block_cyclic_t work; */
-    /* /\* Create workspace for control *\/ */
-    /* two_dim_block_cyclic_init(&work, matrix_Integer, B->super.nodes, B->super.cores, B->super.myrank, */
-    /*                           1, 1, B->mt, B->nt, 0, 0, B->mt, B->nt, 1, 1, ((two_dim_block_cyclic_t*)B)->GRIDrows); */
-
-    dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha,
-				    A, B); /*, (tiled_matrix_desc_t *)&work);*/
+    dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
 
     dague_enqueue( dague, dague_ztrsm );
     dague_progress( dague );
 
     dplasma_ztrsm_Destruct( dague_ztrsm );
-    /* dague_data_free(&work.mat); */
 }
