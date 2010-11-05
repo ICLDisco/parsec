@@ -9,7 +9,7 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 int dplasma_add2arena_rectangle( dague_arena_t *arena, 
                                  size_t elem_size, 
                                  size_t alignment,
@@ -178,7 +178,7 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
     return 0;
 }
 
-#else /* USE_MPI */
+#else /* HAVE_MPI */
 
 int dplasma_add2arena_rectangle( dague_arena_t *arena, 
                                  size_t elem_size, 
@@ -238,5 +238,5 @@ int dplasma_add2arena_lower( dague_arena_t *arena,
     return 0;
 }
 
-#endif 
+#endif /* HAVE_MPI */
 

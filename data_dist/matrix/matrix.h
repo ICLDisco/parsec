@@ -89,7 +89,7 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
 
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
 void matrix_ccompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
 void matrix_dcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);

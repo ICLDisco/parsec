@@ -10,10 +10,9 @@ set( precision_files
   zmatrix.c
   two_dim_rectangle_cyclic/ztwoDBC.c
 )
-precisions_rules(generated_files "+;s;d" "${precision_files}")
-#message(STATUS "${generated_files}")
+precisions_rules(generated_files "+;s;d;c;z" "${precision_files}")
 
-if (DAGUE_MPI AND MPI_FOUND)
+if (MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC
         matrix.c
         tabular_distribution/tabular_distribution.c

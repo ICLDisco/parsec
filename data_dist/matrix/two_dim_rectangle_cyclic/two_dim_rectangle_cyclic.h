@@ -6,9 +6,9 @@
 #ifndef __TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __TWO_DIM_RECTANGLE_CYCLIC_H__
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
 
 #include "dague_config.h"
 #include "../matrix.h"
@@ -79,13 +79,13 @@ int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex32_t* A, int ld
 int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
 int twoDBC_stolapack(two_dim_block_cyclic_t *Mdesc, float* A, int lda);
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 
 int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm);
 
 int close_matrix_file(MPI_File * handle);
 
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

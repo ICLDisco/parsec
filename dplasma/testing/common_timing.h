@@ -26,7 +26,7 @@ static inline double get_cur_time(void)
 } while(0)
 
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 # define SYNC_TIME_START() do {                 \
         MPI_Barrier(MPI_COMM_WORLD);            \
         sync_time_elapsed = get_cur_time();     \

@@ -25,7 +25,7 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #include <stdlib.h>
 #include <stdio.h>
 
-#   ifdef USE_MPI
+#   ifdef HAVE_MPI
 /* only one printf to avoid line breaks in the middle */
 
 static inline char* arprintf(const char* fmt, ...)
@@ -50,11 +50,11 @@ static inline char* arprintf(const char* fmt, ...)
     free(__debug_str); \
 } while(0)
 
-#   else /* USE_MPI */
+#   else /* HAVE_MPI */
 
 #define DEBUG(ARG) printf ARG
 
-#   endif /* USE_MPI */
+#   endif /* HAVE_MPI */
 
 #else /* DAGUE_DEBUG */
 

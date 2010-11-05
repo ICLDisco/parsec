@@ -12,7 +12,7 @@ static void debug_warning(int core, const char *when, const char *function, int 
     double *a, *l;
     int *ipiv;
     char *line;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -34,7 +34,7 @@ static void debug_tile(tiled_matrix_desc_t* ddesc, int core, double *a, char *na
 {
     int m, n, len, pos;
     char *line;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -61,7 +61,7 @@ static void debug_lower(tiled_matrix_desc_t* ddesc, int core, double *a, char *n
 {
     int m, n, len, pos;
     char *line;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -91,7 +91,7 @@ static void debug_upper(tiled_matrix_desc_t* ddesc, int core, double *a, char *n
 {
     int m, n, len, pos;
     char *line;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -121,7 +121,7 @@ static void debug_l(tiled_matrix_desc_t* ddesc, int core, double* a, char* name,
 {
     int m, n, len, pos;
     char *line;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -150,7 +150,7 @@ static void debug_ipiv(tiled_matrix_desc_t* ddesc, int core, int *a, char *name,
 {
     int m, len, pos;
     char *line;
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else

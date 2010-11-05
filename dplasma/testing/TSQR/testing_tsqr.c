@@ -2,10 +2,10 @@
 #include "scheduling.h"
 #include "profiling.h"
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include "remote_dep.h"
 #include <mpi.h>
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
 
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
@@ -28,7 +28,7 @@ int rank = 0, count = 1;
 
 static dague_object_t         *dague_QR = NULL;
 static two_dim_block_cyclic_t  rtop;
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 MPI_Datatype RTILE_T;
 #endif
 
@@ -39,7 +39,7 @@ static dague_context_t *setup_tsqr( int* pargc
     int totalCore = 1;
     int treeHeight = 4;
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Init( NULL, NULL );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
     MPI_Comm_size( MPI_COMM_WORLD, &count );
@@ -49,7 +49,7 @@ static dague_context_t *setup_tsqr( int* pargc
                , rank, count );
         return NULL;
     }
-#endif  /* USE_MPI */
+#endif  /* HAVE_MPI */
     sscanf( (*pargv)[1], "%i", &totalCore);
     sscanf( (*pargv)[2], "%i", &treeHeight );
 
@@ -126,10 +126,10 @@ int main(int argc, char ** argv)
     /*** END OF DPLASMA COMPUTATION ***/
     dague_fini( &dague );
     PLASMA_Finalize();
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
-#endif  /* USE_MPI */
+#endif  /* HAVE_MPI */
 
     return 0;
 }

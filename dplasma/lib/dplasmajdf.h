@@ -73,12 +73,12 @@
 #endif
 
 
-#ifndef USE_MPI
+#ifndef HAVE_MPI
 #define TEMP_TYPE MPITYPE
 #undef MPITYPE
 #define MPITYPE ((dague_remote_dep_datatype_t)QUOTEME(TEMP_TYPE))
 #undef TEMP_TYPE
-#endif  /* USE_MPI */
+#endif  /* HAVE_MPI */
 
 
 #endif /* _DPLASMAJDF_H_ */

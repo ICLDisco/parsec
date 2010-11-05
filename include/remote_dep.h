@@ -12,7 +12,7 @@ typedef unsigned long remote_dep_datakey_t;
 
 #include "debug.h"
 
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
 #include <mpi.h>
 typedef MPI_Datatype dague_remote_dep_datatype_t;
 #else

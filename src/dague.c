@@ -36,7 +36,7 @@
 #include "dague_hwloc.h"
 #endif
 
-#ifdef DAGUE_CUDA_SUPPORT
+#ifdef HAVE_CUDA
 #include "cuda.h"
 #include "cublas.h"
 #include "cuda_runtime_api.h"
@@ -142,7 +142,7 @@ typedef struct __dague_temporary_thread_initialization_t {
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
-#if defined(USE_HIERARCHICAL_QUEUES)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
 static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 { 
     /* Store is a hbbbuffer */
@@ -209,7 +209,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif  /* PLACEHOLDER_SIZE */
 #endif  /* DAGUE_USE_LIFO */
 
-#if defined(DAGUE_CACHE_AWARE)
+#if defined(DAGUE_SCHED_CACHE_AWARE)
     eu->closest_cache = NULL;
 #endif
 
@@ -225,7 +225,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
             eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
         }
 
-#if defined(USE_HIERARCHICAL_QUEUES)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
         eu->eu_nb_hierarch_queues = dague_hwloc_nb_levels(startup->master_context);
         assert(eu->eu_nb_hierarch_queues > 0 /* Must have at least a system queue and a socket queue to work with hwloc */ );
 
@@ -262,7 +262,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
             }
         }
         eu->eu_task_queue = eu->eu_hierarch_queues[0];
-#else /* Don't USE_HIERARCHICAL_QUEUES: USE_FLAT_QUEUES */
+#else /* Don't DAGUE_SCHED_HIERARCHICAL_QUEUES: USE_FLAT_QUEUES */
         {
             int queue_size = startup->master_context->nb_cores * 4;
             int nq = 0;
@@ -297,8 +297,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         }
 #endif
 
-#if defined(DAGUE_CACHE_AWARE)
-#error "The DAGUE_CACHE_AWARE code depends on obsolete global TILE_SIZE. Please disable this option (in ccmake toggle DAGUE_CACHE_AWARE to off)."
+#if defined(DAGUE_SCHED_CACHE_AWARE)
+#error "The DAGUE_SCHED_CACHE_AWARE code depends on obsolete global TILE_SIZE. Please disable this option (in ccmake toggle DAGUE_SCHED_CACHE_AWARE to off)."
 #define TILE_SIZE (120*120*sizeof(double))
         for(level = 0; level < dague_hwloc_nb_levels(); level++) {
             master = dague_hwloc_master_id(level, eu->eu_id);
@@ -325,7 +325,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                        eu->eu_id, master, level,  eu->closest_cache));
             }
         }
-#endif /* DAGUE_CACHE_AWARE */
+#endif /* DAGUE_SCHED_CACHE_AWARE */
     }
 #endif  /* defined(HAVE_HWLOC)*/
 
@@ -336,7 +336,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     return __dague_progress(eu);
 }
 
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
 extern int num_events;
 extern char* event_names[];
 #endif
@@ -383,7 +383,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     context->taskstodo = 0;
     context->my_rank   = 0;
 
-#ifdef USE_PAPI
+#ifdef HAVE_PAPI
     num_events = 0;
 #endif
     
@@ -421,7 +421,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
                 if( NULL == __dague_graph_file ) {
                     int len = strlen(optarg) + 32;
                     char filename[len];
-#if defined(DISTRIBUTED) && defined(USE_MPI)
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
                     int rank;
                     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
                     snprintf(filename, len, "%s%d", optarg, rank);
@@ -631,7 +631,7 @@ int dague_fini( dague_context_t** pcontext )
         if( i == 0 )
             free(context->execution_units[i]->eu_system_queue);
         context->execution_units[i]->eu_system_queue = NULL;
-#if defined(USE_HIERARCHICAL_QUEUES)
+#if defined(DAGUE_SCHED_HIERARCHICAL_QUEUES)
 #warning Memory Leak: if you want to re-eanble hierarchical queues, you need to compute the leader of the queue again, and free it here
 #else
         dague_hbbuffer_destroy(context->execution_units[i]->eu_task_queue);
@@ -668,7 +668,7 @@ int dague_fini( dague_context_t** pcontext )
     {
         char filename[64];
         char prefix[32];
-# if defined(DISTRIBUTED) && defined(USE_MPI)
+# if defined(DISTRIBUTED) && defined(HAVE_MPI)
         int rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -757,10 +757,10 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
                 }
             }
             if( dep->dague->nb_locals == 0 ) {
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
-                ret += 1;
-#else
+#if defined(DAGUE_SCHED_DEPS_MASK)
                 ret |= param->param_mask;
+#else
+                ret += 1;
 #endif
             }
         }
@@ -817,7 +817,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     
     position = CURRENT_DEPS_INDEX(function->nb_locals - 1);
 
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+#if !defined(DAGUE_SCHED_DEPS_MASK)
 
     if( 0 == deps->u.dependencies[position] ) {
         dep_new_value = 1 + dague_check_IN_dependencies( dague_object, exec_context );
@@ -839,7 +839,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     if( dep_cur_value == function->dependencies_goal ) {
 
-#else  /* !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
+#else  /* defined(DAGUE_SCHED_DEPS_MASK) */
 
 #   if defined(DAGUE_DEBUG)
     if( deps->u.dependencies[position] & dest_param->param_mask ) {
@@ -867,7 +867,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
 
-#endif /* defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
+#endif /* defined(DAGUE_SCHED_DEPS_MASK) */
 
 
 #if defined(DAGUE_GRAPHER) || 1
@@ -881,7 +881,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         }
 #endif  /* defined(DAGUE_GRAPHER) */
 
-#if defined(DAGUE_DEBUG) && !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+#if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
             dague_dependency_t tmp_mask;
@@ -896,7 +896,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                 assert(0);
             }
         }
-#endif  /* defined(DAGUE_DEBUG) && !defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES) */
+#endif  /* defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK) */
 
         /* This service is ready to be executed as all dependencies
          * are solved.  Queue it into the ready_list passed as an
@@ -920,7 +920,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                    deps->u.dependencies[position],
                    eu_context->eu_id));
 
-#if defined(DAGUE_CACHE_AWARE)
+#if defined(DAGUE_SCHED_CACHE_AWARE)
             new_context->data[0].gc_data = NULL;
 #endif
 
@@ -942,15 +942,15 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         }
 #endif  /* defined(DAGUE_GRAPHER) */
 
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
-        DEBUG(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
-               dague_service_to_string( exec_context, tmp, 128 ), 
-               (int)function->dependencies_goal, dep_cur_value));
-#else
+#if defined(DAGUE_SCHED_DEPS_MASK)
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_goal,
                (int)(dep_cur_value & DAGUE_DEPENDENCIES_BITMASK),
                (int)(dep_cur_value)));
+#else
+        DEBUG(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
+               dague_service_to_string( exec_context, tmp, 128 ), 
+               (int)function->dependencies_goal, dep_cur_value));
 #endif
     }
 

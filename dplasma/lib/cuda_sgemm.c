@@ -326,7 +326,6 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
     }
     if( 0 == total_data_in ) total_data_in = 1;
     if( 0 == total_data_out ) total_data_out = 1;
-
     gtotal = (float)total + (float)cpu_counter;
     printf("------------------------------------------------------------------------------\n");
     printf("|PU % 5d |  # GEMM   |    %%   |   Data In   |    %%   |   Data Out  |    %%   |\n", dague_context->my_rank);

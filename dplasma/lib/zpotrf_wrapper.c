@@ -18,11 +18,11 @@
 
 dague_object_t* dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
 {
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     MPI_Aint lb = 0, extent = 0;
 #else
     int64_t extent = 0;
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
     dague_zpotrf_rl_object_t* object;
     dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
@@ -31,7 +31,7 @@ dague_object_t* dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* 
                                   ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
 
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     MPI_Type_get_extent(default_dtt, &lb, &extent);
 #else
     extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
@@ -56,11 +56,11 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
 
 dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
 {
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     MPI_Aint lb = 0, extent = 0;
 #else
     int64_t extent = 0;
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
     dague_zpotrf_rl_object_t* object;
     dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
@@ -69,7 +69,7 @@ dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_
                                   ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
    
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     MPI_Type_get_extent(default_dtt, &lb, &extent);
 #else
     extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
@@ -83,11 +83,11 @@ dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_
 
 dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
 {
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     MPI_Aint lb = 0, extent = 0;
 #else
     int64_t extent = 0;
-#endif  /* defined(USE_MPI) */
+#endif  /* defined(HAVE_MPI) */
     dague_zpotrf_ll_object_t* object;
     dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
@@ -96,7 +96,7 @@ dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_
                                   ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
    
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
-#if defined(USE_MPI)
+#if defined(HAVE_MPI)
     MPI_Type_get_extent(default_dtt, &lb, &extent);
 #else
     extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);

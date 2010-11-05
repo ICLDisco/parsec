@@ -6,9 +6,9 @@
 #ifndef __TABULAR_DISTRIBUTION_H__
 #define __TABULAR_DISTRIBUTION_H__
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include <mpi.h>
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
 
 #include "data_dist/matrix/matrix.h"
 

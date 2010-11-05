@@ -10,7 +10,7 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "cuda_stsmqr.h"
 #endif
 
@@ -29,7 +29,7 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 48, 144, 144);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
@@ -53,7 +53,7 @@ int main(int argc, char ** argv)
 #endif
 
     /* load the GPU kernel */
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0)
     {
         if(loud) printf("+++ Load GPU kernel ... ");
@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf)
     }
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
     {
         stsmqr_cuda_fini(dague);

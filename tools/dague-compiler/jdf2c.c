@@ -1799,9 +1799,9 @@ static char *dump_pseudodague(void **elem, void *arg)
                             "  .hook = NULL,\n"
                             "  .release_deps = NULL,\n"
                             "  .body = NULL,\n"
-                            "#if defined(DAGUE_CACHE_AWARENESS)\n"
+                            "#if defined(DAGUE_SCHED_CACHE_AWARE)\n"
                             "  .cache_rank_function = NULL,\n"
-                            "#endif /* defined(DAGUE_CACHE_AWARENESS) */\n"
+                            "#endif /* defined(DAGUE_SCHED_CACHE_AWARE) */\n"
                             "};\n",
                             jdf_basename, name, name);
     return string_arena_get_string(sa);

@@ -227,30 +227,36 @@ void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned in
     src = info->Ddesc->super.rank_of((dague_ddesc_t *)(info->Ddesc), row, col);
     dest = twoDBC_get_rank( info->Ddesc, info->process_grid_rows, row, col);
 
+    if (UINT_MAX == src)
+        return;
    
-    if((src == dest) && (src == info->Ddesc->super.myrank)) /* local operation */
+    if(src == dest) /* local operation */
         {
-            GRIDrows = info->process_grid_rows;
-            GRIDcols = info->Ddesc->super.nodes / GRIDrows;
-            //rr = info->Ddesc->super.myrank / GRIDcols;
-            //cr = info->Ddesc->super.myrank % GRIDcols;
-            
-            max_mb = ((info->Ddesc->mb * (row + 1)) <=  info->Ddesc->m) ? info->Ddesc->mb :  (info->Ddesc->m - ((info->Ddesc->mb * row)));
-            max_nb = ((info->Ddesc->nb * (col + 1)) <=  info->Ddesc->n) ? info->Ddesc->nb :  (info->Ddesc->n - ((info->Ddesc->nb * col)));
-            
-            il = row / GRIDrows;
-            jl = col / GRIDcols;
-            dec = (info->Ddesc->nb * (unsigned int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
-            
-            bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
-            lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
-            
-            for (y = 0; y < max_nb; y++)
-                for (x = 0; x < max_mb ; x++)
-                    lapack[info->sca_desc[8] * y + x] = bdl[(info->Ddesc->mb)*y + x];
+            if(src == info->Ddesc->super.myrank)
+                {
+                    GRIDrows = info->process_grid_rows;
+                    GRIDcols = info->Ddesc->super.nodes / GRIDrows;
+                    //rr = info->Ddesc->super.myrank / GRIDcols;
+                    //cr = info->Ddesc->super.myrank % GRIDcols;
+                    
+                    max_mb = ((info->Ddesc->mb * (row + 1)) <=  info->Ddesc->m) ? info->Ddesc->mb :  (info->Ddesc->m - ((info->Ddesc->mb * row)));
+                    max_nb = ((info->Ddesc->nb * (col + 1)) <=  info->Ddesc->n) ? info->Ddesc->nb :  (info->Ddesc->n - ((info->Ddesc->nb * col)));
+                    
+                    il = row / GRIDrows;
+                    jl = col / GRIDcols;
+                    dec = (info->Ddesc->nb * (unsigned int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
+                    
+                    bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
+                    lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
+                    
+                    for (y = 0; y < max_nb; y++)
+                        for (x = 0; x < max_mb ; x++)
+                            lapack[info->sca_desc[8] * y + x] = bdl[(info->Ddesc->mb)*y + x];
+                }
         }
     else if ( src == info->Ddesc->super.myrank ) /* process have the tile to send */
         {
+            printf("weird\n");
             bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
             if (row + 1 == info->Ddesc->mt)
                 {

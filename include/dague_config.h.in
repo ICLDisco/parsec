@@ -4,31 +4,33 @@
 #define DAGUE_VERSION_MAJOR @DAGUE_VERSION_MAJOR@
 #define DAGUE_VERSION_MINOR @DAGUE_VERSION_MINOR@
 
-/* Communication engine */
-#cmakedefine DAGUE_COLLECTIVE
-#cmakedefine DAGUE_MPI
 /* Scheduling engine */
-#cmakedefine HAVE_HWLOC
-#cmakedefine HAVE_HWLOC_BITMAP
-#cmakedefine HAVE_HWLOC_PARENT_MEMBER
-#cmakedefine HAVE_HWLOC_CACHE_ATTR
-#cmakedefine HAVE_HWLOC_OBJ_PU
-#cmakedefine DAGUE_CACHE_AWARE
-#cmakedefine DAGUE_USE_COUNTER_FOR_DEPENDENCIES
+#cmakedefine DAGUE_SCHED_HIERARCHICAL_QUEUES
+#cmakedefine DAGUE_SCHED_CACHE_AWARE
+#cmakedefine DAGUE_SCHED_DEPS_MASK
+
+/* Communication engine */
+#cmakedefine DAGUE_DIST_WITH_MPI
+#cmakedefine DAGUE_DIST_THREAD
+#cmakedefine DAGUE_DIST_PRIORITIES
+#cmakedefine DAGUE_DIST_COLLECTIVES
+
+/* GPU Support */
+#cmakedefine DAGUE_GPU_WITH_CUDA
+#cmakedefine DAGUE_GPU_WITH_OPENCL
+
 /* debug */
 #cmakedefine DAGUE_DEBUG
 #cmakedefine DAGUE_DEBUG_HISTORY
-#cmakedefine DAGUE_DO_UNIT_TESTS
-#cmakedefine DAGUE_LIFO_USE_LOCKS
-/* CUDA Support */
-#cmakedefine DAGUE_CUDA_SUPPORT
+#cmakedefine DAGUE_DEBUG_DRY_RUN
+#cmakedefine DAGUE_DEBUG_LIFO_USE_LOCKS
+
 /* profiling */
-#cmakedefine DAGUE_PROFILING
-#cmakedefine DAGUE_STATS
-#cmakedefine DAGUE_GRAPHER
-#cmakedefine DAGUE_CALL_TRACE
-#cmakedefine DAGUE_DRY_RUN
-#cmakedefine HAVE_PAPI
+#cmakedefine DAGUE_PROF_TRACE
+#cmakedefine DAGUE_PROF_STATS
+#cmakedefine DAGUE_PROF_PAPI
+#cmakedefine DAGUE_PROF_GRAPHER
+
 /* system */
 #cmakedefine HAVE_PTHREAD
 #cmakedefine HAVE_SCHED_SETAFFINITY
@@ -54,6 +56,19 @@
 #cmakedefine ARCH_X86_64
 #cmakedefine ARCH_PPC
 #cmakedefine MAC_OS_X
+
+/* Optional packages */
+#cmakedefine HAVE_HWLOC
+#cmakedefine HAVE_HWLOC_BITMAP
+#cmakedefine HAVE_HWLOC_PARENT_MEMBER
+#cmakedefine HAVE_HWLOC_CACHE_ATTR
+#cmakedefine HAVE_HWLOC_OBJ_PU
+
+#cmakedefine HAVE_PAPI
+#cmakedefine HAVE_CUDA
+#cmakedefine HAVE_OPENCL
+#cmakedefine HAVE_MPI
+
 
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
