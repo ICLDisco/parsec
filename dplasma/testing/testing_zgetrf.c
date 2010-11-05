@@ -74,10 +74,9 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague);
 
-#if defined(DAGUE_PROF_TRACE)
-    free(ddescA.super.super.key);
-    free(ddescL.super.super.key);
-    free(ddescIPIV.super.super.key);
-#endif
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescL);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
+
     return EXIT_SUCCESS;
 }
