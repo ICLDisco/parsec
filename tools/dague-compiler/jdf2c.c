@@ -123,9 +123,12 @@ static char *dump_string(void **elt, void *_)
 static char* dump_globals(void** elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
+    jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
 
     string_arena_init(sa);
-    string_arena_add_string(sa, "%s (__dague_object->super.%s)", (char*)*elem, (char*)*elem );
+    if( NULL != global->data )
+        return NULL;
+    string_arena_add_string(sa, "%s (__dague_object->super.%s)", global->name, global->name );
     return string_arena_get_string(sa);
 }
 
@@ -145,7 +148,7 @@ static char* dump_data(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (__dague_object->super.%s->data_of(__dague_object->super.%s", 
+    string_arena_add_string(sa, ")  (((dague_ddesc_t*)__dague_object->super.%s)->data_of((dague_ddesc_t*)__dague_object->super.%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -335,7 +338,7 @@ static char* dump_predicate(void** elem, void *arg)
                                                  "", "", ", ", ""));
     expr_info.sa = sa3;
     expr_info.prefix = "";
-    string_arena_add_string(sa, "(__dague_object->super.%s->myrank == __dague_object->super.%s->rank_of(__dague_object->super.%s, %s))", 
+    string_arena_add_string(sa, "(((dague_ddesc_t*)(__dague_object->super.%s))->myrank == ((dague_ddesc_t*)(__dague_object->super.%s))->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s))", 
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, f->predicate->parameters, next, expr,
                                                  dump_expr, &expr_info,
@@ -593,8 +596,13 @@ static char* dump_typed_globals(void **elem, void *arg)
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
 
     string_arena_init(sa);
-    string_arena_add_string(sa, "%s %s",
-                            (NULL == global->type ? "int" : global->type), global->name);
+    if( NULL == global->data ) {
+        string_arena_add_string(sa, "%s %s",
+                                (NULL == global->type ? "int" : global->type), global->name);
+    } else {
+        string_arena_add_string(sa, "%s %s /* data %s */",
+                                (NULL == global->type ? "int" : global->type), global->name, global->name);
+    }
     return string_arena_get_string(sa);
 }
 
@@ -800,10 +808,6 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "%s",
             UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, sa2,
                             "", "  ", ";\n", ";\n"));
-    houtput("  /* The list of data */\n"
-            "%s", 
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", "  dague_ddesc_t *", ";\n", ";\n"));
     houtput("  /* The array of datatypes %s */\n"
             "  dague_arena_t* arenas[%d];\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->datatypes, next, name,
@@ -812,9 +816,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
 
     houtput("} dague_%s_object_t;\n\n", jdf_basename);
     
-    houtput("extern dague_%s_object_t *dague_%s_new(%s, %s);\n", jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", " dague_ddesc_t *", ", ", ""),
+    houtput("extern dague_%s_object_t *dague_%s_new(%s);\n", jdf_basename, jdf_basename,
             UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, sa3,
                             "", "", ", ", ""));
 
@@ -877,9 +879,11 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("} __dague_%s_internal_object_t;\n"
             "\n", jdf_basename);
 
-    coutput("/* Globals */\n%s\n",
-            UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
-                                 dump_globals, sa2, "", "#define ", "\n", "\n"));
+    UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                   dump_globals, sa2, "", "#define ", "\n", "\n");
+    if( 1 < strlen(string_arena_get_string(sa1)) ) {
+        coutput("/* Globals */\n%s\n", string_arena_get_string(sa1));
+    }
 
     coutput("/* Data Access Macros */\n%s\n",
             UTIL_DUMP_LIST(sa1, jdf->data, next,
@@ -1928,20 +1932,18 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
 static void jdf_generate_constructor( const jdf_t* jdf )
 {
-    string_arena_t *sa1,*sa2,*sa3;
+    string_arena_t *sa1,*sa2;
     profiling_init_info_t pi;
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
-    sa3 = string_arena_new(64);
 
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
                                   dump_string, NULL, "", "#undef ", "\n", "\n"));
 
-    coutput("dague_%s_object_t *dague_%s_new(%s, %s)\n{\n", jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->data, next, dname,
-                                  dump_string, NULL, "", " dague_ddesc_t *", ", ", ""),
-            UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, sa3,
+    coutput("dague_%s_object_t *dague_%s_new(%s)\n{\n",
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, sa2,
                             "", "", ", ", ""));
 
     coutput("  __dague_%s_internal_object_t *res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
@@ -2007,7 +2009,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     string_arena_free(sa1);
     string_arena_free(sa2);
-    string_arena_free(sa3);
 }
 
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -2417,7 +2418,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     sa3 = string_arena_new(64);
     linfo.prefix = "";
     linfo.sa = sa2;
-    coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, __dague_object->super.%s->data_key(__dague_object->super.%s, %s) );\n",
+    coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, (dague_ddesc_t*)(__dague_object->super.%s)->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
             f->fname,
             UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
                                  dump_string, NULL, "", "", ", ", ""),
@@ -2731,7 +2732,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     
     string_arena_add_string(sa_open, 
                             "#if defined(DISTRIBUTED)\n"
-                            "%s%s  rank_dst =__dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
+                            "%s%s  rank_dst = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
                             "#endif\n",
                             prefix, indent(nbopen), t->predicate->func_or_mem, t->predicate->func_or_mem,
                             UTIL_DUMP_LIST_FIELD(sa2, t->predicate->parameters, next, expr,
@@ -2820,7 +2821,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
     coutput("  nc.dague_object = exec_context->dague_object;\n");
     coutput("#if defined(DISTRIBUTED)\n"
-            "  rank_src = __dague_object->super.%s->rank_of(__dague_object->super.%s, %s);\n"
+            "  rank_src = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
             "#endif\n",
             f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST_FIELD(sa, f->predicate->parameters, next, expr,

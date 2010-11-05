@@ -73,6 +73,7 @@ typedef struct jdf_global_entry {
     char                    *name;
     char                    *type;
     struct jdf_expr         *expression;
+    struct jdf_data_entry   *data;
     int                      lineno;
 } jdf_global_entry_t;
 
@@ -99,10 +100,11 @@ typedef struct jdf_function_entry {
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {
-    struct jdf_data_entry *next;
-    char                  *dname;
-    int                   nbparams;
-    int                   lineno;
+    struct jdf_data_entry   *next;
+    char                    *dname;
+    struct jdf_global_entry *global;
+    int                      nbparams;
+    int                      lineno;
 } jdf_data_entry_t;
 
 /*******************************************************************/
