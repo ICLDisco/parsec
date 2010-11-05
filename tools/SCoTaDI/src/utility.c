@@ -14,6 +14,10 @@
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
+// For the JDF generation we need to emmit the arrays in FORTRAN notation
+// and this "variable" will never need to be changed.  However if we need
+// to use the code to generate "C" we might want to set it to false.
+int FORTRAN_ARRAY_NOTATION = 1;
 
 static void do_parentize(node_t *node);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
@@ -1437,10 +1441,21 @@ char *tree_to_str(node_t *node){
 
             case ARRAY:
                 str = tree_to_str(node->u.kids.kids[0]);
-                for(i=1; i<node->u.kids.kid_count; ++i){
-                    str = append_to_string( str, "[", NULL, 0);
-                    str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
-                    str = append_to_string( str, "]", NULL, 0);
+                if( FORTRAN_ARRAY_NOTATION ){
+                    str = append_to_string( str, "(", NULL, 0);
+                    for(i=1; i<node->u.kids.kid_count; ++i){
+                        if( i > 1 ) 
+                            str = append_to_string( str, ",", NULL, 0);
+                        str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
+                    }
+                    str = append_to_string( str, ")", NULL, 0);
+                }else{
+                    for(i=1; i<node->u.kids.kid_count; ++i){
+                        str = append_to_string( str, "[", NULL, 0);
+                        str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
+                        str = append_to_string( str, "]", NULL, 0);
+                    }
+
                 }
                 return str;
 
