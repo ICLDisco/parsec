@@ -25,6 +25,11 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
 #else
+# define MPI_DOUBLE_COMPLEX NULL
+# define MPI_COMPLEX        NULL
+# define MPI_DOUBLE         NULL
+# define MPI_FLOAT          NULL
+
 # define dplasma_datatype_define_rectangle( oldtype, tile_mb, tile_nb, resized, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
 # define dplasma_datatype_define_upper(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
