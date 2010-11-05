@@ -8,15 +8,18 @@
 # This module sets the following variables:
 #  PLASMA_FOUND - set to true if a library implementing the PLASMA interface
 #    is found
-#  PLASMA_LINKER_FLAGS - uncached list of required linker flags (excluding -l
-#    and -L).
 #  PLASMA_PKG_DIR - Directory where the PLASMA pkg file is stored
 #  PLASMA_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use PLASMA
+#  PLASMA_INCLUDE_DIRS - Directory where the PLASMA include files are located
+#  PLASMA_LINKER_FLAGS - uncached list of required linker flags (excluding -l
+#    and -L).
 #  PLASMA_STATIC  if set on this determines what kind of linkage we do (static)
 #  PLASMA_VENDOR  if set checks only the specified vendor, if not set checks
 #     all the possibilities
 ##########
+
+
 
 get_property(_LANGUAGES_ GLOBAL PROPERTY ENABLED_LANGUAGES)
 if(NOT _LANGUAGES_ MATCHES Fortran)
@@ -78,16 +81,17 @@ if(NOT PLASMA_FOUND)
 endif(NOT PLASMA_FOUND)
 
 if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
+  set(PLASMA_SINCLUDE_DIRS ${PLASMA_INCLUDE_DIRS})
   # Validate the include file <plasma.h>
-  find_path(PLASMA_INCLUDE_FOUND
+  find_path(PLASMA_INCLUDE_DIRS
     plasma.h
-    PATHS ${PLASMA_INCLUDE_DIRS}
+    PATHS ${PLASMA_SINCLUDE_DIRS}
     )
-  if(NOT PLASMA_INCLUDE_FOUND)
+  if(NOT PLASMA_INCLUDE_DIRS)
     if(PLASMA_FIND_REQUIRED)
-      message(FATAL_ERROR "Couln't find the plasma.h header in ${PLASMA_INCLUDE_DIRS}")
+      message(FATAL_ERROR "Couln't find the plasma.h header in ${PLASMA_SINCLUDE_DIRS}")
     endif(PLASMA_FIND_REQUIRED)
-  endif(NOT PLASMA_INCLUDE_FOUND)
+  endif(NOT PLASMA_INCLUDE_DIRS)
 
   # Validate the library
   include(CheckCSourceCompiles)
@@ -158,6 +162,13 @@ if(NOT PLASMA_FIND_QUIETLY)
     endif(PLASMA_FIND_REQUIRED)
   endif(PLASMA_C_COMPILE_SUCCESS OR PLASMA_F_COMPILE_SUCCESS)
 endif(NOT PLASMA_FIND_QUIETLY)
+
+mark_as_advanced(PLASMA_PKG_DIR PLASMA_LIBRARIES PLASMA_INCLUDE_DIRS PLASMA_LINKER_FLAGS)
+set(PLASMA_DIR "${PLASMA_DIR}" CACHE PATH "Location of the PLASMA library" FORCE)
+set(PLASMA_PKG_DIR "${PLASMA_PKG_DIR}" CACHE PATH "Location of the PLASMA pkg-config decription file" FORCE)
+set(PLASMA_LINKER_FLAGS "${PLASMA_LINKER_FLAGS}" CACHE STRING "Linker flags to build with PLASMA" FORCE)
+set(PLASMA_INCLUDE_DIRS "${PLASMA_INCLUDE_DIRS}" CACHE PATH "PLASMA include directories" FORCE)
+set(PLASMA_LIBRARIES "${PLASMA_LIBRARIES}" CACHE STRING "libraries to link with PLASMA" FORCE)
 
 unset(PLASMA_C_COMPILE_SUCCESS)
 unset(PLASMA_F_COMPILE_SUCCESS)
