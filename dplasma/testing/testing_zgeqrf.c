@@ -37,12 +37,13 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
     PASTE_CODE_FLOPS_COUNT(FADDS_GEQRF, FMULS_GEQRF, ((DagDouble_t)M,(DagDouble_t)N))
-
+      
+    LDA = max(M, LDA);
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
-                                    LDA, N, SMB, SNB, P))
+                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                    M, N, SMB, SNB, P))
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
                                     nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
