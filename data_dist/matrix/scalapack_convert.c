@@ -130,27 +130,27 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
 #ifdef HAVE_MPI
     /* mpi type creation*/
     /* type for full blocks */
-    MPI_Type_vector(info->Ddesc->nb, info->Ddesc->mb, sca_desc[8] - info->Ddesc->mb,
+    MPI_Type_vector(info->Ddesc->nb, info->Ddesc->mb, sca_desc[8],
                     MPI_DOUBLE, &(info->MPI_Sca_full_block));
     MPI_Type_commit (&(info->MPI_Sca_full_block));
 
     /* type for last row of tiles */
     length = info->Ddesc->mt*info->Ddesc->mb != info->Ddesc->m ? info->Ddesc->m - ((info->Ddesc->mt - 1)*info->Ddesc->mb ) : info->Ddesc->mb;
-    MPI_Type_vector(info->Ddesc->nb, length, sca_desc[8] - length,
+    MPI_Type_vector(info->Ddesc->nb, length, sca_desc[8],
                     MPI_DOUBLE, &(info->MPI_Sca_last_row));
     MPI_Type_commit (&(info->MPI_Sca_last_row));
 
 
     /* type for last column of tiles */
     length = info->Ddesc->nt*info->Ddesc->nb != info->Ddesc->n ? info->Ddesc->n - ((info->Ddesc->nt - 1)*info->Ddesc->nb) : info->Ddesc->nb;
-    MPI_Type_vector(length, info->Ddesc->mb, sca_desc[8] - info->Ddesc->mb,
+    MPI_Type_vector(length, info->Ddesc->mb, sca_desc[8],
                     MPI_DOUBLE, &(info->MPI_Sca_last_col));
     MPI_Type_commit (&(info->MPI_Sca_last_col));
 
     /* type for last tile */
     length = info->Ddesc->mt*info->Ddesc->mb != info->Ddesc->m ? info->Ddesc->m - ((info->Ddesc->mt - 1)*info->Ddesc->mb ) : info->Ddesc->mb;
     size = info->Ddesc->nt*info->Ddesc->nb != info->Ddesc->n ? info->Ddesc->n - ((info->Ddesc->nt - 1)*info->Ddesc->nb) : info->Ddesc->nb;
-    MPI_Type_vector(size, length, sca_desc[8] - length, MPI_DOUBLE, &(info->MPI_Sca_last_block));
+    MPI_Type_vector(size, length, sca_desc[8], MPI_DOUBLE, &(info->MPI_Sca_last_block));
     MPI_Type_commit (&(info->MPI_Sca_last_block));
 
 
@@ -161,7 +161,7 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     /* type for last row of tiles */
     length = info->Ddesc->mt*info->Ddesc->mb != info->Ddesc->m ? info->Ddesc->m - ((info->Ddesc->mt - 1)*info->Ddesc->mb ) : info->Ddesc->mb;
 
-    MPI_Type_vector(info->Ddesc->nb, length, info->Ddesc->mb - length,
+    MPI_Type_vector(info->Ddesc->nb, length, info->Ddesc->mb,
                     MPI_DOUBLE, &(info->MPI_Dague_last_row));
     MPI_Type_commit (&(info->MPI_Dague_last_row));
 
@@ -174,7 +174,7 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     /* type for last tile */
     length = info->Ddesc->mt*info->Ddesc->mb != info->Ddesc->m ? info->Ddesc->m - ((info->Ddesc->mt - 1)*info->Ddesc->mb ) : info->Ddesc->mb;
     size = info->Ddesc->nt*info->Ddesc->nb != info->Ddesc->n ? info->Ddesc->n - ((info->Ddesc->nt - 1)*info->Ddesc->nb) : info->Ddesc->nb;
-    MPI_Type_vector(size, length, info->Ddesc->mb - length, MPI_DOUBLE, &(info->MPI_Dague_last_block));
+    MPI_Type_vector(size, length, info->Ddesc->mb, MPI_DOUBLE, &(info->MPI_Dague_last_block));
     MPI_Type_commit (&(info->MPI_Dague_last_block));
 
     /* MPI_Type_vector(count, blocklength, stride, MPI_DOUBLE, &(info->MPI_Sca_last_block)); */
