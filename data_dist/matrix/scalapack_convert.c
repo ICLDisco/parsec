@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 #include "mpi.h"
 #endif
 
@@ -127,7 +127,7 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     info->sca_mat = sca_mat;
     info->process_grid_rows = process_grid_rows;
     
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     /* mpi type creation*/
     /* type for full blocks */
     MPI_Type_vector(info->Ddesc->nb, info->Ddesc->mb, sca_desc[8] - info->Ddesc->mb,
@@ -178,13 +178,13 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     MPI_Type_commit (&(info->MPI_Dague_last_block));
 
     /* MPI_Type_vector(count, blocklength, stride, MPI_DOUBLE, &(info->MPI_Sca_last_block)); */
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
     return 0;
 }
 
 void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
 {
-#ifdef USE_MPI
+#ifdef HAVE_MPI
     MPI_Type_free(&(info->MPI_Sca_full_block));
     MPI_Type_free(&(info->MPI_Sca_last_row));
     MPI_Type_free(&(info->MPI_Sca_last_col));
@@ -193,12 +193,12 @@ void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
     MPI_Type_free(&(info->MPI_Dague_last_row));
     MPI_Type_free(&(info->MPI_Dague_last_col));
     MPI_Type_free(&(info->MPI_Dague_last_block));
-#endif /* USE_MPI */
+#endif /* HAVE_MPI */
     return;
 }
 
 
-#ifdef USE_MPI
+#ifdef HAVE_MPI
 /* to compute which process will get this tile as a scalapack block */
 static unsigned int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, unsigned int process_grid_rows, unsigned int row, unsigned int col)
 {
@@ -313,7 +313,7 @@ int tiles_to_scalapack(scalapack_info_t * info)
     return 0;
 }
 
-#else /* ! USE_MPI */
+#else /* ! HAVE_MPI */
 
 void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned int col)
 {

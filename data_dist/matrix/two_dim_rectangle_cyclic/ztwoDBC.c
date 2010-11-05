@@ -14,7 +14,7 @@ int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int ld
 {
     unsigned int i, j, il, jl, x, y;
     unsigned int imax, jmax;
-    double *bdl, *f77;
+    Dague_Complex64_t *bdl, *f77;
     int64_t dec;
 
     /* check which tiles to generate */
