@@ -226,7 +226,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         {
                             continue;
                         }
+#if DAGUE_DEBUG_DRY_DEP
+                        remote_deps->msg.which = 0;
+#else
                         remote_dep_inc_flying_messages(eu_context->master_context);
+#endif
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     }
