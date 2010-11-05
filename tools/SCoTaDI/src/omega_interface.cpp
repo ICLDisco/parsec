@@ -23,7 +23,8 @@ extern void dump_und(und_t *und);
 static void dump_full_und(und_t *und);
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, map<string, Free_Var_Decl *> globals, Relation &R);
-static void print_edges(set<dep_t *>deps, int edge_type);
+//static void print_edges(set<dep_t *>deps, int edge_type);
+static void print_edges(set<dep_t *>deps, set<dep_t *>in_edges);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
 static void print_execution_space(node_t *node);
 static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp);
@@ -837,7 +838,7 @@ expr_t *solveConstraintForVar(expr_t *constr_exp, const char *var_name){
 
     c = labs(c);
     if( c != 1 ){
-fprintf(stderr,"WARNING: solveConstraintForVar() resulted in the generation of a DIV. This has not been tested thoroughly\n");
+        fprintf(stderr,"WARNING: solveConstraintForVar() resulted in the generation of a DIV. This has not been tested thoroughly\n");
         expr_t *e_cns = (expr_t *)calloc( 1, sizeof(expr_t) );
         e_cns->type = INTCONSTANT;
         e_cns->value.int_const = c;
@@ -905,8 +906,9 @@ const char *findBoundsOfVar(expr_t *exp, const char *var_name, Relation R){
         }
 
     }
+
     if( NULL != lb ){
-        ss << lb;
+        ss << "(" << lb << ")";
         free(lb);
     }else{
         ss << "??";
@@ -915,13 +917,13 @@ const char *findBoundsOfVar(expr_t *exp, const char *var_name, Relation R){
     ss << "..";
 
     if( NULL != ub ){
-        ss << ub;
+        ss << "(" << ub << ")";
         free(ub);
     }else{
         ss << "??";
     }
 
-    return ss.str().c_str();
+    return strdup(ss.str().c_str());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1584,6 +1586,9 @@ void printConditions(Relation R, expr_t *exp){
     return;
 }
 
+void print_body(void){
+    printf("  BODY\n    /* comment */\n  END\n");
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1863,9 +1868,14 @@ printf("========================================================================
             printf("\n");
             print_pseudo_variables(deps, incoming_edges[task_name]);
             printf("\n");
+            print_edges(deps, incoming_edges[task_name]);
+/*
             print_edges(deps, EDGE_OUTGOING);
             deps = incoming_edges[task_name];
             print_edges(deps, EDGE_INCOMING);
+*/
+            printf("\n");
+            print_body();
         }
     }
 }
@@ -1882,16 +1892,16 @@ static const char *econd_tree_to_ub(node_t *econd){
             ss << "( (" << a << " < " << b << ")? " << a << " : " << b << " )";
             free(a);
             free(b);
-            return ss.str().c_str();
+            return strdup(ss.str().c_str());
 // TODO: handle logical or (L_OR) as well.
 
         case LE:
             ss << tree_to_str(DA_rel_rhs(econd));
-            return ss.str().c_str();
+            return strdup(ss.str().c_str());
 
         case LT:
             ss << tree_to_str(DA_rel_rhs(econd)) << "-1";
-            return ss.str().c_str();
+            return strdup(ss.str().c_str());
 
         default:
             fprintf(stderr,"ERROR: econd_tree_to_ub() cannot deal with node of type: %d\n",econd->type);
@@ -2185,7 +2195,6 @@ static string _expr_tree_to_str(const expr_t *exp){
 
             if( (NULL != exp->l) && (INTCONSTANT == exp->l->type) ){
                 if( exp->l->value.int_const != 0 ){
-                    ss << "(";
                     ss << _expr_tree_to_str(exp->l);
                 }else{
                     skipSymbol = 1;
@@ -2194,13 +2203,18 @@ static string _expr_tree_to_str(const expr_t *exp){
                 ss << _expr_tree_to_str(exp->l);
             }
 
+
+            // If the thing we add is a "-c" (where c is a constant)
+            // detect it so we print "-c" instead of "+(-c)"
+            if( (NULL != exp->r) && (INTCONSTANT == exp->r->type) && (exp->r->value.int_const < 0) ){
+                ss << "-" << labs(exp->r->value.int_const);
+                return ss.str();
+            }
+
             if( !skipSymbol )
                 ss << type_to_symbol(ADD);
 
             ss << _expr_tree_to_str(exp->r);
-
-            if( !skipSymbol )
-                ss << ")";
 
             return ss.str();
 
@@ -2261,85 +2275,130 @@ static string _expr_tree_to_str(const expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void print_edges(set<dep_t *>deps, int edge_type){
+//void print_edges(set<dep_t *>deps, int edge_type){
+void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps){
     task_t *src_task;
+    set<dep_t *>::iterator dep_it;
+    set<char *> vars;
+    map<char *, set<dep_t *> > incm_map, outg_map;
 
-    if( deps.empty() ){
+    if( outg_deps.empty() && incm_deps.empty() ){
         return;
     }
 
-    src_task = (*deps.begin())->src->task;
+    src_task = (*outg_deps.begin())->src->task;
 
-    set<dep_t *>::iterator it;
 
-/*
-    // Group the edges
-    for (it=deps.begin(); it!=deps.end(); it++){
-           dep->src->var_symname;
+    // Group the edges based on the variable they flow into or from
+    for (dep_it=incm_deps.begin(); dep_it!=incm_deps.end(); dep_it++){
+           char *symname = (*dep_it)->dst->var_symname;
+           incm_map[symname].insert(*dep_it);
+           vars.insert(symname);
     }
-*/
+    for (dep_it=outg_deps.begin(); dep_it!=outg_deps.end(); dep_it++){
+           char *symname = (*dep_it)->src->var_symname;
+           outg_map[symname].insert(*dep_it);
+           vars.insert(symname);
+    }
 
-    for (it=deps.begin(); it!=deps.end(); it++){
-       dep_t *dep = *it;
-       expr_t *rel_exp;
+    if( vars.size() > 6 ){
+        fprintf(stderr,"WARNING: Number of variables (%lu) exceeds 6",vars.size());
+    }
 
-       // WARNING: The following call to print_with_subs_to_string(false) is
-       // necessary for Omega to build its internal structures and name arrays
-       // and whatnot.  If you remove it you get strange assert() calls being
-       // triggered.
-       (void)(*dep->rel).print_with_subs_to_string(false);
+    // For each variable print all the incoming and the outgoing edges
+    set<char *>::iterator var_it;
+    for (var_it=vars.begin(); var_it!=vars.end(); var_it++){
+        set<dep_t *>ideps = incm_map[*var_it];
+        set<dep_t *>odeps = outg_map[*var_it];
 
-       rel_exp = relation_to_tree( *dep->rel );
-//       printf("  ## %s\n",expr_tree_to_str(rel_exp));
+        if( !ideps.empty() && !odeps.empty() ){
+            printf("RW    ");
+        }else if( !ideps.empty() ){
+            printf("READ  ");
+        }else if( !odeps.empty() ){
+            printf("WRITE ");
+        }else{
+            assert(0);
+        }
 
-       if( EDGE_OUTGOING == edge_type ){
-           assert( NULL != dep->src->task );
-           printf("  %s -> ", dep->src->var_symname);
+        if( ideps.size() > 6 )
+            fprintf(stderr,"WARNING: Number of incoming edges (%lu) for variable \"%s\" exceeds 6",ideps.size(), *var_it);
+        if( odeps.size() > 6 )
+            fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds 6",odeps.size(), *var_it);
 
-           printConditions(*dep->rel, copy_tree(rel_exp));
-           printf(" ? ");
+        // Print the pseudoname
+        printf("%s",*var_it);
 
-           node_t *sink = dep->dst;
-           if( NULL == sink ){
-//               printf("EXIT  ");
-               printf("%s",tree_to_str(dep->src));
-           }else{
-               printf("%s %s(",sink->var_symname, sink->task->task_name);
-               printActualParameters(dep, rel_exp, SINK);
-               printf(") ");
-           }
-       }else if( EDGE_INCOMING == edge_type ){
-           assert( NULL != dep->dst);
-           printf("  %s <- ",dep->dst->var_symname);
+        for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
+             dep_t *dep = *dep_it;
+             expr_t *rel_exp;
 
-           task_t *src_task = dep->src->task;
+             // Needed by Omega
+             (void)(*dep->rel).print_with_subs_to_string(false);
 
+             rel_exp = relation_to_tree( *dep->rel );
+             assert( NULL != dep->dst);
+//             printf("  %s <- ",dep->dst->var_symname);
+             if ( dep_it!=ideps.begin() )
+                 printf("       ");
+             printf(" <- ");
 
-           printConditions(*dep->rel, copy_tree(rel_exp));
-           printf(" ? ");
+             task_t *src_task = dep->src->task;
 
-           if( NULL != src_task ){
+             printConditions(*dep->rel, copy_tree(rel_exp));
+             printf(" ? ");
 
-               printf("%s ", dep->src->var_symname);
-               printf("%s(",src_task->task_name);
-               printActualParameters(dep, rel_exp, SOURCE);
-               printf(") ");
-           }else{
-//               printf("ENTRY ");
-               printf("%s", tree_to_str(dep->dst));
-           }
-       }else{
-           fprintf(stderr,"ERROR: print_edges() unknown edge type: %d\n",edge_type);
-           exit(-1);
-       }
-       printf("\n");
+             if( NULL != src_task ){
 
+                 printf("%s ", dep->src->var_symname);
+                 printf("%s(",src_task->task_name);
+                 printActualParameters(dep, rel_exp, SOURCE);
+                 printf(") ");
+             }else{
+                 // ENTRY
+                 printf("%s", tree_to_str(dep->dst));
+             }
+             printf("\n");
 //#ifdef DEBUG_2
-//       printf("       ");
-//       (*dep->rel).print_with_subs(stdout);
-//       (*dep->rel).print();
-//       printf("\n");
+             printf("       ");
+             (*dep->rel).print_with_subs(stdout);
 //#endif
+        }
+
+        for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
+             dep_t *dep = *dep_it;
+             expr_t *rel_exp;
+
+             // Needed by Omega
+             (void)(*dep->rel).print_with_subs_to_string(false);
+
+             rel_exp = relation_to_tree( *dep->rel );
+             assert( NULL != dep->src->task );
+//             printf("  %s -> ", dep->src->var_symname);
+             if ( dep_it!=odeps.begin() || !ideps.empty())
+                 printf("       ");
+             printf(" -> ");
+
+             printConditions(*dep->rel, copy_tree(rel_exp));
+             printf(" ? ");
+
+             node_t *sink = dep->dst;
+             if( NULL == sink ){
+                 // EXIT
+                 printf("%s",tree_to_str(dep->src));
+             }else{
+                 printf("%s %s(",sink->var_symname, sink->task->task_name);
+                 printActualParameters(dep, rel_exp, SINK);
+                 printf(") ");
+             }
+             printf("\n");
+//#ifdef DEBUG_2
+             printf("       ");
+             (*dep->rel).print_with_subs(stdout);
+//#endif
+        }
+
     }
+
 }
 
