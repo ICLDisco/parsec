@@ -47,7 +47,8 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-mark_as_advanced(DAGUE_DEBUG_LIFO_USES_LOCKS)
+mark_as_advanced(DAGUE_DEBUG_LIFO_USES_LOCKS DAGUE_DEBUG_DRY_RUN
+    DAGUE_DEBUG_DRY_BODY DAGUE_DEBUG_DRY_DEP)
 option(DAGUE_DEBUG
   "Enable the internal debugging verbose output of the DAGUE library" OFF)
 option(DAGUE_DEBUG_LIFO_USES_LOCKS
@@ -55,7 +56,11 @@ option(DAGUE_DEBUG_LIFO_USES_LOCKS
 option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_DEBUG_DRY_RUN
-  "Disable calls to the actual bodies; unfold the dependencies only" OFF)
+  "Disable calls to the actual bodies and do not move the data between nodes; unfold the dependencies only" OFF)
+option(DAGUE_DEBUG_DRY_BODY
+  "Disable calls to the actual bodies; no computation is performed" OFF)
+option(DAGUE_DEBUG_DRY_DEP
+  "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
 option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 

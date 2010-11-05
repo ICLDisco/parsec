@@ -2270,6 +2270,23 @@ static void jdf_generate_code_flow_final_writes(const jdf_t *jdf, const jdf_data
     string_arena_free(sa);
 }
 
+static void jdf_generate_code_dry_run_before(const jdf_t *jdf, const jdf_function_entry_t *f)
+{
+    (void)jdf;
+    (void)f;
+
+    coutput("\n\n#if !defined(DAGUE_DEBUG_DRY_BODY)\n\n");
+}
+
+static void jdf_generate_code_dry_run_after(const jdf_t *jdf, const jdf_function_entry_t *f)
+{
+    (void)jdf;
+    (void)f;
+
+    coutput("\n\n#endif /*!defined(DAGUE_DEBUG_DRY_BODY)*/\n\n");
+}
+
+
 static void jdf_generate_code_papi_events_before(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
     (void)jdf;
@@ -2401,6 +2418,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
+
     coutput("  /** Lookup the input data, and store them in the context */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         jdf_generate_code_flow_initialization(jdf, f->fname, fl->flow);
@@ -2411,9 +2429,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     }
 
     jdf_generate_code_papi_events_before(jdf, f);
-
     jdf_generate_code_cache_awareness_update(jdf, f);
 
+    jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
     sa3 = string_arena_new(64);
     linfo.prefix = "";
@@ -2433,6 +2451,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
     }
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
+    jdf_generate_code_dry_run_after(jdf, f);
 
     ai.idx = 0;
     coutput("  return 0;\n"

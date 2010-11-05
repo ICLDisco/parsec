@@ -39,3 +39,8 @@
 # undef DISTRIBUTED
 #endif
 
+#if defined(DAGUE_DEBUG_DRY_RUN)
+# define DAGUE_DEBUG_DRY_BODY
+# define DAGUE_DEBUG_DRY_DEP
+#endif
+
