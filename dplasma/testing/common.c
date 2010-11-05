@@ -337,13 +337,13 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDC] = -'m';
 }
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
 static char* argvzero;
 #endif
 
 dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 {
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     argvzero = argv[0];
 #endif
 #ifdef HAVE_MPI
@@ -373,7 +373,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 
 void cleanup_dague(dague_context_t* dague)
 {
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     char* filename = NULL;
 #if defined(HAVE_MPI)
     int rank;
@@ -384,7 +384,7 @@ void cleanup_dague(dague_context_t* dague)
 #endif
     dague_profiling_dump_xml(filename);
     free(filename);
-#endif  /* DAGUE_PROFILING */
+#endif  /* DAGUE_PROF_TRACE */
 
     dague_fini(&dague);
 #ifdef HAVE_MPI

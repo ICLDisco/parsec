@@ -23,9 +23,9 @@ typedef struct dague_execution_unit dague_execution_unit_t;
 struct dague_execution_unit {
     int32_t eu_id;
     pthread_t pthread_id;
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t* eu_profile;
-#endif /* DAGUE_PROFILING */
+#endif /* DAGUE_PROF_TRACE */
 #if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
     dague_atomic_lifo_t* eu_task_queue;
 #elif defined(HAVE_HWLOC)

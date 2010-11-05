@@ -21,7 +21,7 @@
 #define DAGUE_MAX_STREAMS 4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
 extern int dague_cuda_movein_key_start;
 extern int dague_cuda_movein_key_end;
 extern int dague_cuda_moveout_key_start;
@@ -66,7 +66,7 @@ typedef struct _gpu_device {
     uint64_t required_data_in;
     uint64_t required_data_out;
     dague_linked_list_t* gpu_mem_lru;
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
 } gpu_device_t;

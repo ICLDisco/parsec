@@ -456,7 +456,7 @@ enum {
     REMOTE_DEP_MAX_CTRL_TAG
 } dague_remote_dep_tag_t;
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
 static dague_thread_profiling_t* MPIctl_prof;
 static dague_thread_profiling_t* MPIsnd_prof[DEP_NB_CONCURENT];
 static dague_thread_profiling_t* MPIrcv_prof[DEP_NB_CONCURENT];
@@ -474,13 +474,17 @@ static void remote_dep_mpi_profiling_init(void)
     int i;
     
     dague_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
-                                             &MPI_Activate_sk, &MPI_Activate_ek);
+                                            0, NULL,
+                                            &MPI_Activate_sk, &MPI_Activate_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
-                                             &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
+                                            0, NULL,
+                                            &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
-                                             &MPI_Data_plds_sk, &MPI_Data_plds_ek);
+                                            0, NULL,
+                                            &MPI_Data_plds_sk, &MPI_Data_plds_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
-                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
+                                            0, NULL,
+                                            &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
     MPIctl_prof = dague_profiling_thread_init( MPI_PROFILING_SIZE, "MPI ctl");
     for(i = 0; i < DEP_NB_CONCURENT; i++)
@@ -490,11 +494,11 @@ static void remote_dep_mpi_profiling_init(void)
     }    
 }
 
-#define TAKE_TIME(PROF, KEY, I)  dague_profiling_trace((PROF), (KEY), (I))
+#define TAKE_TIME(PROF, KEY, I)  dague_profiling_trace((PROF), (KEY), (I), NULL)
 #else
 #define TAKE_TIME(PROF, KEY, I)
 #define remote_dep_mpi_profiling_init() do {} while(0)
-#endif  /* DAGUE_PROFILING */
+#endif  /* DAGUE_PROF_TRACE */
 
 /* TODO: smart use of dague context instead of ugly globals */
 static MPI_Comm dep_comm;
@@ -573,7 +577,7 @@ static int remote_dep_mpi_on(dague_context_t* context)
         dep_activate_buff[i] = remote_deps_allocation(&remote_deps_freelist);
     }
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     /* put a start marker on each line */
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
     for(i = 0; i < DEP_NB_CONCURENT; i++)

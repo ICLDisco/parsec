@@ -68,7 +68,7 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
 }
 
 
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
 static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 {
     unsigned int m, n;
@@ -97,7 +97,7 @@ static int  td_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char *
         }
     return res;
 }
-#endif /* DAGUE_PROFILING */
+#endif /* DAGUE_PROF_TRACE */
 
 void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table )
 {
@@ -162,12 +162,12 @@ void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type 
     Ddesc->super.nb_local_tiles = total;
     Ddesc->super.super.rank_of =  td_get_rank_for_tile;
     Ddesc->super.super.data_of =  td_get_local_tile;
-#ifdef DAGUE_PROFILING
+#ifdef DAGUE_PROF_TRACE
     Ddesc->super.super.data_key = td_data_key;
     Ddesc->super.super.key_to_string = td_key_to_string;
     Ddesc->super.super.key = NULL;
     asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
-#endif /* DAGUE_PROFILING */
+#endif /* DAGUE_PROF_TRACE */
 
 }
 

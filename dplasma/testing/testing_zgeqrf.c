@@ -47,7 +47,7 @@ int main(int argc, char ** argv)
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
                                     nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
                                     MT*IB, N, SMB, SNB, P))
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     ddescA.super.super.key = strdup("A");
     ddescT.super.super.key = strdup("T");
 #endif
@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
 
-#if defined(DAGUE_PROFILING)
+#if defined(DAGUE_PROF_TRACE)
     free(ddescA.super.super.key);
     free(ddescT.super.super.key);
 #endif
