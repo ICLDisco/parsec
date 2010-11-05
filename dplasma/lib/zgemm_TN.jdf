@@ -49,14 +49,15 @@ Cnt  [int]
  **************************************************/
 READ_A(k, m)
 
-k = 0 .. Ant-1
-m = 0 .. Amt-1
+k = 0 .. Amt-1
+m = 0 .. Ant-1
 
 : A(k, m)
 
 A <- A(k, m)
   -> A GEMM(m, 0, k)
 BODY
+    printlog("A( %d, %d) / B (%d, %d) / C( %d, %d)\n", Amt, Ant, Bmt, Bnt, Cmt, Cnt);
     printlog("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, k, m);
 END
 
@@ -95,7 +96,7 @@ READ A <- (n == 0)       ? A READ_A(k, m) : A GEMM( m, (n+Cnt-1) % Cnt, k )
 READ B <- (m == 0)       ? B READ_B(k, n) : B GEMM( (m+Cmt-1) % Cmt, n, k )
        -> (m <= (Cmt-2)) ? B GEMM( (m+1) % Cmt, n, k )
 RW   C <- (k == 0)       ? C(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (Ant-1)) ? C(m, n) : C GEMM( m, n, k+1 )
+       -> (k == (Amt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
         Dague_Complex64_t lbeta = (k == 0) ? beta : 1.0;
         int tempmm = m == Cmt-1 ? Cm - m * Cmb : Cmb;

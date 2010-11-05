@@ -49,8 +49,8 @@ Cnt  [int]
  **************************************************/
 READ_A(k, m)
 
-k = 0 .. Ant-1
-m = 0 .. Amt-1
+k = 0 .. Amt-1
+m = 0 .. Ant-1
 
 : A(k, m)
 
@@ -65,8 +65,8 @@ END
  **************************************************/
 READ_B(n, k)
 
-n = 0 .. Bnt-1
-k = 0 .. Bmt-1
+n = 0 .. Bmt-1
+k = 0 .. Bnt-1
 
 : B(n, k)
 
@@ -95,7 +95,7 @@ READ A <- (n == 0)       ? A READ_A(k, m) : A GEMM( m, (n+Cnt-1) % Cnt, k )
 READ B <- (m == 0)       ? B READ_B(n, k) : B GEMM( (m+Cmt-1) % Cmt, n, k )
        -> (m <= (Cmt-2)) ? B GEMM( (m+1) % Cmt, n, k )
 RW   C <- (k == 0)       ? C(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (Ant-1)) ? C(m, n) : C GEMM( m, n, k+1 )
+       -> (k == (Amt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
         Dague_Complex64_t lbeta = (k == 0) ? beta : 1.0;
         int tempmm = m == Cmt-1 ? Cm - m * Cmb : Cmb;

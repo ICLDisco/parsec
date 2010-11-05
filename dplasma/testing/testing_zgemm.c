@@ -42,26 +42,24 @@ int main(int argc, char ** argv)
     LDA = max(LDA, max(M, K));
     LDB = max(LDB, max(K, N));
     LDC = max(LDC, M);
-    /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
-                                    LDA, LDA, SMB, SNB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
-                                    LDB, LDB, SMB, SNB, P))
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
-                                    M, N, SMB, SNB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
-        two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
-                                    M, N, SMB, SNB, P))
-    
+                               nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
+                               M, N, SMB, SNB, P))
+
+    /* initializing matrix structure */
     if(!check) 
     {
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+                                   M, K, SMB, SNB, P))
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
+                                   K, N, SMB, SNB, P))
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
@@ -81,9 +79,20 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(dague, zgemm)
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
+
+        dague_data_free(ddescA.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+        dague_data_free(ddescB.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
     }
     else
     { 
+        int Am, An, Bm, Bn;
+        PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
+            two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
+                                   M, N, SMB, SNB, P))
+                
 /* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
         for(tA=0; tA<3; tA++) {
@@ -92,6 +101,25 @@ int main(int argc, char ** argv)
         for(tA=0; tA<2; tA++) {
             for(tB=0; tB<2; tB++) {
 #endif
+                if ( trans[tA] == PlasmaNoTrans ) {
+                    Am = M; An = K;
+                } else {
+                    Am = K; An = M;
+                }
+                if ( trans[tB] == PlasmaNoTrans ) {
+                    Bm = K; Bn = N;
+                } else {
+                    Bm = N; Bn = K;
+                }
+                PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                           nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+                                           Am, An, SMB, SNB, P))
+                PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
+                    two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
+                                           nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
+                                           Bm, Bn, SMB, SNB, P))
+
                 printf("***************************************************\n");
                 printf(" ----- TESTING DGEMM (%s, %s) -------- \n",
                        transstr[tA], transstr[tB]);
@@ -127,6 +155,11 @@ int main(int argc, char ** argv)
                            transstr[tA], transstr[tB]);
                 }
                 printf("***************************************************\n");
+
+                dague_data_free(ddescA.mat);
+                dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+                dague_data_free(ddescB.mat);
+                dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
             }
         }
 
@@ -134,11 +167,6 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescC2);
     }
 
-
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_data_free(ddescB.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
     dague_data_free(ddescC.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
 

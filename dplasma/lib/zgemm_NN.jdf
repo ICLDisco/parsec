@@ -57,6 +57,7 @@ k = 0 .. Ant-1
 A <- A(m, k)
   -> A GEMM(m, 0, k)
 BODY
+    printlog("A( %d, %d) / B (%d, %d) / C( %d, %d)\n", Amt, Ant, Bmt, Bnt, Cmt, Cnt);
     printlog("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, m, k);
 END
 
