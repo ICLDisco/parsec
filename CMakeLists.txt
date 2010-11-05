@@ -37,6 +37,7 @@ option(DAGUE_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" OFF)
 
 ### GPU engine parameters
+mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
 option(DAGUE_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
 option(DAGUE_GPU_WITH_OPENCL
