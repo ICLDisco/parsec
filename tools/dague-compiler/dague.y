@@ -13,11 +13,6 @@
 
 #include "dague.y.h"
 
-/*
-static expr_t *global_expr_stack[MAX_EXPR_STACK_COUNT];
-static unsigned int global_expr_stack_size = 0;
-*/
-
 extern int yyparse(void);
 extern int yylex(void);
 
