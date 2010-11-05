@@ -98,7 +98,7 @@ READ B <- (m == 0)       ? B READ_B(k, n) : B GEMM( (m+Cmt-1) % Cmt, n, k )
 RW   C <- (k == 0)       ? C(m, n) : C GEMM( m, n, k-1 )
        -> (k == (Ant-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
-        Dague_Complex64_t lbeta = (k == 0) ? beta : 1.0;
+        Dague_Complex64_t lbeta = (k == 0) ? beta : (Dague_Complex64_t)1.0;
         int tempmm = m == Cmt-1 ? Cm - m * Cmb : Cmb;
         int tempnn = n == Cnt-1 ? Cn - n * Cnb : Cnb;
         int tempkk = k == Ant-1 ? An - k * Anb : Anb;
