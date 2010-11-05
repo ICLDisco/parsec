@@ -2001,7 +2001,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  res->super.super.startup_hook = %s_startup;\n", jdf_basename);
 
     coutput("#if defined(DISTRIBUTED)\n"
-            "  remote_deps_allocation_init(%s->nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
+            "  remote_deps_allocation_init(((dague_ddesc_t*)%s)->nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
             "  (void)dague_object_register((dague_object_t*)res);\n"
             "  return (dague_%s_object_t*)res;\n"
