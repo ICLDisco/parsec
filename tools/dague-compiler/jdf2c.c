@@ -41,6 +41,13 @@ static int nblines(const char *p)
     return r;
 }
 
+/**
+ * This function is not thread-safe, not reentrant, and not pure. As such it
+ * cannot be used twice on the same call to any oter function (including
+ * printf's and friends). However, as a side effect, when it is called with
+ * the same value for n, it is safe to be used in any of the previously
+ * mentioned scenarios.
+ */
 static char *indent(int n)
 {
     static char *istr    = NULL;
@@ -761,11 +768,9 @@ static int jdf_data_input_index(const jdf_function_entry_t *f, const char *varna
 
 static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 {
-    int ls, rs, i;
+    int ls, rs, i, length, vs;
     va_list ap, ap2;
-    int length;
     char *v;
-    int vs;
 
     vs = 80;
     v = (char *)malloc(vs);
@@ -783,8 +788,7 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 #endif
 
     length = vsnprintf(v, vs, format, ap);
-    if( length >= vs ) {
-        /* realloc */
+    if( length >= vs ) {  /* realloc */
         vs = length + 1;
         v = (char*)realloc( v, vs );
         length = vsnprintf(v, vs, format, ap2);
@@ -796,19 +800,21 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
     va_end(ap);
 
     /* Pretty printing */
-    ls = strlen(v)/2;
-    rs = strlen(v)-ls;
-    if( ls > 40 ) ls = 40;
-    if( rs > 40 ) rs = 40;
+    if( length > 80 ) {
+        ls = rs = 1;
+    } else {
+        ls = (80 - length) / 2;
+        rs = 80 - length - ls;
+    }
     coutput("/*");
     for(i = 0; i < 80; i++)
         coutput("%c", marker);
-    coutput("*\n");
-    coutput(" *%s%s%s*\n", indent(40-ls), v, indent(40-rs));
-    coutput(" *");
+    coutput("*\n *%s%s", indent(ls/2), v);  /* indent drop two spaces */
+    coutput("%s*\n *", indent(rs/2));       /* dont merge these two calls. Read the comment on the indent function */
     for(i = 0; i < 80; i++)
         coutput("%c", marker);
-    coutput("*/\n\n");            
+    coutput("*/\n\n");
+    free(v);
 }
 
 /** Structure Generators **/
