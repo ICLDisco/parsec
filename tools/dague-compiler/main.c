@@ -10,6 +10,7 @@
 extern int yyparse();
 extern int current_lineno;
 extern FILE *yyin;
+extern int yydebug;
 char *yyfilename;
 
 static jdf_compiler_global_args_t DEFAULTS = {
@@ -26,6 +27,7 @@ static void usage(void)
     fprintf(stderr, 
             "Usage:\n"
             "  Compile a JDF into a DAGuE representation (.h and .c files)\n"
+            "  --debug|-d         Enable bison debug output\n"
             "  --input|-i         Input File (JDF) (default '%s')\n"
             "  --output|-o        Set the BASE name for .c, .h and function name (no default).\n"
             "                     Changing this value has precendence over the defaults of\n"
@@ -62,6 +64,7 @@ static void parse_args(int argc, char *argv[])
     char *f = NULL;
 
     struct option longopts[] = {
+        { "debug",         no_argument,         &yydebug,   0  },
         { "input",         required_argument,       NULL,  'i' },
         { "output-c",      required_argument,       NULL,  'C' },
         { "output-h",      required_argument,       NULL,  'H' },
@@ -77,8 +80,11 @@ static void parse_args(int argc, char *argv[])
 
     JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
 
-    while( (ch = getopt_long(argc, argv, "i:C:H:o:f:h", longopts, NULL)) != -1) {
+    while( (ch = getopt_long(argc, argv, "d:i:C:H:o:f:h", longopts, NULL)) != -1) {
         switch(ch) {
+        case 'd':
+            yydebug = 1;
+            break;
         case 'i':
             if( NULL != JDF_COMPILER_GLOBAL_ARGS.input )
                 free(JDF_COMPILER_GLOBAL_ARGS.input);

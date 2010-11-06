@@ -16,38 +16,38 @@ extern "C" %{
 /*
  * Globals
  */
-transA [int]
-transB [int]
+transA [type = int]
+transB [type = int]
 
-alpha  [Dague_Complex64_t]
-beta   [Dague_Complex64_t]
+alpha  [type = Dague_Complex64_t]
+beta   [type = Dague_Complex64_t]
 
-Am   [int]
-An   [int]
-Amb  [int]
-Anb  [int]
-Amt  [int]
-Ant  [int]
+Am   [type = int]
+An   [type = int]
+Amb  [type = int]
+Anb  [type = int]
+Amt  [type = int]
+Ant  [type = int]
 
-Bm   [int]
-Bn   [int]
-Bmb  [int]
-Bnb  [int]
-Bmt  [int]
-Bnt  [int]
+Bm   [type = int]
+Bn   [type = int]
+Bmb  [type = int]
+Bnb  [type = int]
+Bmt  [type = int]
+Bnt  [type = int]
 
-Cm   [int]
-Cn   [int]
-Cmb  [int]
-Cnb  [int]
-Cmt  [int]
-Cnt  [int]
+Cm   [type = int]
+Cn   [type = int]
+Cmb  [type = int]
+Cnb  [type = int]
+Cmt  [type = int]
+Cnt  [type = int]
 
 /* A(M, K) * B(K, N) = C(M, N) */
 /**************************************************
  *                       READ_A                   *
  **************************************************/
-READ_A(k, m)
+READ_A(k, m)  [profile = off]
 
 k = 0 .. Amt-1
 m = 0 .. Ant-1
@@ -63,7 +63,7 @@ END
 /**************************************************
  *                       READ_B                   *
  **************************************************/
-READ_B(n, k)
+READ_B(n, k)  [profile = off]
 
 n = 0 .. Bmt-1
 k = 0 .. Bnt-1

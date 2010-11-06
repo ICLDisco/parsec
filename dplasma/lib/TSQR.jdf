@@ -13,17 +13,18 @@ extern int rank;
  *   - http://www.netlib.org/lapack/double/dgeqrf.f
  *
  **************************************************/
-treeHeight [int] // height of the reduction tree
+treeHeight [type = int   /* by default its an int */
+            hidden = on] // height of the reduction tree
 
-LOCALQR( index )
+LOCALQR( index )  [profile = off]
     index = 0 .. (1 << treeHeight) - 1
 
     : A( index, 0 )
 
-    READ  Rtop <- A(index, 0)                      [RTILE_T]
+    READ  Rtop <- A(index, 0)                      [type = RTILE_T]
                -> ((index % 2) == 0)
                     ? Rtop    TSQR( 1, index / 2 )
-                    : Rbottom TSQR( 1, index / 2 ) [RTILE_T]
+                    : Rbottom TSQR( 1, index / 2 ) [type = RTILE_T]
 BODY
     printf( "LOCALQR index: %i\n", index );
 END
@@ -40,20 +41,20 @@ TSQR( level, index )
 
     READ     Rbottom <- (level == 1)
                         ? Rtop    LOCALQR( (2 * index) + 1 )
-                        : Rtop    TSQR(level - 1, (2 * index) + 1) [RTILE_T]
+                        : Rtop    TSQR(level - 1, (2 * index) + 1) [type = RTILE_T]
 
     RW       Rtop    <- (level == 1)
                         ? Rtop    LOCALQR( 2 * index )
-                        : Rtop    TSQR( level - 1, 2 * index )   [RTILE_T]
+                        : Rtop    TSQR( level - 1, 2 * index )   [type = RTILE_T]
 
                      -> (((index % 2) == 0) & (level < treeHeight))
-                        ? Rtop    TSQR( level + 1, index / 2 )   [RTILE_T]
+                        ? Rtop    TSQR( level + 1, index / 2 )   [type = RTILE_T]
 
                      -> (((index % 2) == 1) & (level < treeHeight))
-                        ? Rbottom TSQR( level + 1, index / 2 )   [RTILE_T]
+                        ? Rbottom TSQR( level + 1, index / 2 )   [type = RTILE_T]
 
                      -> (level == treeHeight)
-                        ? A( 2*index, 0 )                              [RTILE_T]
+                        ? A( 2*index, 0 )                        [type = RTILE_T]
 BODY
     printf( "TSQR level: %i index: %i\n", level, index );
 END

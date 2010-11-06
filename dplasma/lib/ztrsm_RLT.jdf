@@ -18,31 +18,31 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-side [int]
-uplo [int]
-trans[int]
-diag [int]
+side [type = int]
+uplo [type = int]
+trans[type = int]
+diag [type = int]
 
-alpha[Dague_Complex64_t]
+alpha[type = Dague_Complex64_t]
 
-Am   [int]
-An   [int]
-Amb  [int]
-Anb  [int]
-Amt  [int]
-Ant  [int]
+Am   [type = int]
+An   [type = int]
+Amb  [type = int]
+Anb  [type = int]
+Amt  [type = int]
+Ant  [type = int]
 
-Bm   [int]
-Bn   [int]
-Bmb  [int]
-Bnb  [int]
-Bmt  [int]
-Bnt  [int]
+Bm   [type = int]
+Bn   [type = int]
+Bmb  [type = int]
+Bnb  [type = int]
+Bmt  [type = int]
+Bnt  [type = int]
      
 /**************************************************
  *                      TRSM                      *
  **************************************************/
-TRSM_IN(k)
+TRSM_IN(k)  [profile = off]
 k = 0..Bnt-1
 
 : A(k, k)
@@ -92,7 +92,7 @@ END
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM_IN(k, n)
+GEMM_IN(k, n)  [profile = off]
 k = 0..Bnt-1
 n = k+1..Bnt-1
 
