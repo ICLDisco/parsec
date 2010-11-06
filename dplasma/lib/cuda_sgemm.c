@@ -389,6 +389,7 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
 
 #include "generated/spotrf_rl.h"
 
+#if defined(DAGUE_PROF_TRACE)
 /**
  * This function has benn copied by hand from the generated code. It should be
  * kept in sync with the hash function from there.
@@ -406,6 +407,7 @@ static inline int GEMM_hash(const dague_spotrf_rl_object_t* __dague_object, int 
   __h += (n - n_min) * k_range * m_range;
   return __h;
 }
+#endif  /* defined(DAGUE_PROF_TRACE) */
 
 #define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
 #define ddescB(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
