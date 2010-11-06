@@ -42,13 +42,14 @@ typedef struct dague_profiling_info {
 } dague_profiling_info_t;
 
 struct dague_thread_profiling_t {
-    dague_list_item_t list;
-    char *next_event;
-    char *last_event;
-    char *events_top;
-    char *hr_id;
+    dague_list_item_t        list;
+    char                    *next_event;
+    char                    *last_event;
+    char                    *events_top;
+    char                    *hr_id;
+    uint64_t                 nb_events;
     dague_profiling_info_t  *infos;
-    char  events[1];
+    char                     events[1];
 };
 
 typedef struct dague_profiling_key_t {
@@ -157,9 +158,9 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
      *  if we consider that we don't care about the _init phase, but only
      *  about the measurement phase that happens later.
      */
-    res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + (length-1) * sizeof(dague_profiling_output_t) );
+    res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + length );
     if( NULL == res ) {
-        ERROR("dague_profiling_thread_init: unable to allocate %u output elements", length);
+        ERROR("dague_profiling_thread_init: unable to allocate %u bytes", length);
         return NULL;
     }
 
@@ -170,6 +171,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->next_event = res->events;
     res->last_event = NULL;
     res->events_top = res->events + length;
+    res->nb_events = 0;
 
     dplamsa_dequeue_item_construct( (dague_list_item_t*)res );
     dague_dequeue_push_back( &threads, (dague_list_item_t*)res );
@@ -243,7 +245,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
         }
         pos = dague_prof_keys_count;
     }
-
+    assert( 0 == (info_length % sizeof(void*)) );
     dague_prof_keys[pos].name = strdup(key_name);
     dague_prof_keys[pos].attributes = strdup(attributes);
     dague_prof_keys[pos].info_length = info_length;
@@ -272,25 +274,30 @@ int dague_profiling_dictionary_flush( void )
 
 int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id, void *info )
 {
-    size_t this_event_length, info_length;
     dague_profiling_output_t *this_event;
+    size_t this_event_length;
 
     this_event_length = EVENT_LENGTH( key, (NULL != info) );
     if( (context->next_event + this_event_length) > context->events_top ) {
+        if( context->next_event <= context->events_top ) {
+            fprintf(stderr, "Profiling warning: profiling for ID %s will be truncated after %lu events\n",
+                    context->hr_id, context->nb_events);
+            context->next_event = context->events_top + 1;
+        }
         return -1;
     }
-    info_length = dague_prof_keys[ BASE_KEY(key) ].info_length;
     this_event = (dague_profiling_output_t *)context->next_event;
 
     context->last_event = context->next_event;
     context->next_event += this_event_length;
+    context->nb_events++;
 
     this_event->event.key   = (uint16_t)key;
     this_event->event.id    = id;
     this_event->event.flags = 0;
 
     if( NULL != info ) {
-        memcpy(this_event->info, info, info_length);
+        memcpy(this_event->info, info, dague_prof_keys[ BASE_KEY(key) ].info_length);
         this_event->event.flags = DAGUE_PROFILING_EVENT_HAS_INFO;
     }
     this_event->event.timestamp = take_time();    
@@ -361,7 +368,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 /* Couldn't find the end, or no id. Bad. */
                 if( event_not_found ) {
                     if( !displayed_error_message ) {
-                        if( profile->next_event == profile->events_top ) {
+                        if( profile->next_event >= profile->events_top ) {
                             fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
                                     "\t-- some histories are truncated\n",
                                     pos, dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
