@@ -695,7 +695,9 @@ static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
 #endif
     
     assert(dep_enabled);
+#ifdef DAGUE_PROF_TRACE
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
+#endif
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tparams %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which));
     
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
