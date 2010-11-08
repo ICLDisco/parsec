@@ -91,6 +91,12 @@ dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_
         }
     }
 
+    dplasma_add2arena_tile(((dague_ztrmm_LLN_object_t*)dague_trmm)->arenas[DAGUE_ztrmm_LLN_DEFAULT_ARENA], 
+                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE_COMPLEX, A->mb);
+
+
     return dague_trmm;
 }
 
