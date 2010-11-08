@@ -498,6 +498,63 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
     return rc;
 }
 
+static int compute_canonical_data_location(const char *name, const jdf_expr_list_t *p, char **_str, char **_canon)
+{
+    jdf_global_entry_t *g;
+    char *str;
+    char *canon;
+    char *params;
+    char *canon_base;
+    jdf_expr_t *align;
+    int ret;
+    jdf_expr_list_t pseudo;
+
+    params = malloc_and_dump_jdf_expr_list(p);
+
+    str = (char*)malloc(strlen(name) + strlen(params) + 4);
+    sprintf(str, "%s(%s)", name, params);
+
+    /* Find if this variable is in the globals list */
+    for( g = current_jdf.globals; g != NULL; g = g->next ) {
+        if( !strcmp( g->name, name ) ) 
+            break;
+    }
+    
+    ret = 1;
+    if( NULL != g ) {
+        /* Find if it has a "aligned" property */
+        align = jdf_find_property( g->properties, "aligned", NULL );
+        if( align != NULL ) {
+            /* Canonical representation exists */
+            /* Check it is well formed */
+            if ( align->op != JDF_VAR ) {
+                jdf_warn(g->lineno, "Attribute Aligned on variable %s is malformed: expected an identifier, got something else. Attribute ignored.\n",
+                         name);
+            } else {
+                ret = 0;
+                pseudo.expr = align;
+                pseudo.next = NULL;
+                canon_base = malloc_and_dump_jdf_expr_list( &pseudo );
+                canon = (char*)malloc(strlen(canon_base) + strlen(params) + 4);
+                sprintf(canon, "%s(%s)", canon_base, params );
+                free(canon_base);
+            }
+        }
+    }
+
+    if( ret == 1 ) {
+        /* There is no canonical representation for this data */
+        /* Use the data itself */
+        canon = strdup( str );
+    }
+
+    free( params );
+    *_str = str;
+    *_canon = canon;
+
+    return ret;
+}
+
 static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                                             const jdf_dep_t *dep,
                                             const jdf_call_t *d,
@@ -505,75 +562,63 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                                             const jdf_function_entry_t *f)
 {
     int ret;
-    char *cparams;
-    char *dparams;
-    char *condstr;
+    char *cstr, *dstr;
+    char *ccanon, *dcanon;
     jdf_expr_list_t plist;
+    int ciscanon, discanon;
+    char *condstr;
 
     /* Simple case: d is a call to another kernel, not a memory reference */
     if( NULL != d->var )
         return 1;
 
-    cparams = malloc_and_dump_jdf_expr_list(c->parameters);
-    dparams = malloc_and_dump_jdf_expr_list(d->parameters);
+    ciscanon = compute_canonical_data_location( c->func_or_mem, c->parameters, &cstr, &ccanon );
+    discanon = compute_canonical_data_location( d->func_or_mem, d->parameters, &dstr, &dcanon );
 
-    if( strcmp(d->func_or_mem, c->func_or_mem) ) {
-        /* Another simple case: d is not refering to the same matrix as c.
-         * There is a risk: depends on the data distribution...
+    if( strcmp(ccanon, dcanon) ) {
+        /* d does not have the same representation as c..
+         * There is a risk: depends on the data distribution..., 
+         *  on expression evaluations, etc...
          */
-        jdf_warn(dep->lineno, 
-                 "Function %s runs on a node depending on data %s(%s), but refers directly (as %s) to data %s(%s).\n"
-                 "  This is a potential direct remote memory reference.\n"
-                 "  If both data are located on different nodes at runtime, this will result in a fault.\n",
-                 f->fname, c->func_or_mem, cparams,
-                 (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
-                 d->func_or_mem, dparams);
+        if( cond ) {
+            plist.expr = (jdf_expr_t *)cond;
+            plist.next = NULL;
+            condstr = malloc_and_dump_jdf_expr_list(&plist);
+
+            jdf_warn(dep->lineno,
+                     "Function %s runs on a node depending on data %s%s%s%s, but refers directly (as %s) to data %s%s%s%s, if %s is true.\n"
+                     "  This is a potential direct remote memory reference.\n"
+                     "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
+                     "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
+                     f->fname, 
+                     cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
+                     (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                     dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
+                     condstr,
+                     dstr, cstr, ccanon);
+
+            free(condstr);
+        } else {
+            jdf_warn(dep->lineno,
+                     "Function %s runs on a node depending on data %s%s%s%s, but refers directly (as %s) to data %s%s%s%s.\n"
+                     "  This is a potential direct remote memory reference.\n"
+                     "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
+                     "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
+                     f->fname, 
+                     cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
+                     (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
+                     dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
+                     dstr, cstr, ccanon);
+        }
         ret = 0;
     } else {
-        /* Hard case: c and d are referring to the same matrix.
-         * Let's try to assess whether they are referring to the same tile
-         */
-        if( strcmp(dparams, cparams) ) {
-            /* Very hard case: c and d do not have the same textual representation...
-             * Depends on the condition, depends on the expression evaluation...
-             */
-
-            if( cond ) {
-                plist.expr = (jdf_expr_t *)cond;
-                plist.next = NULL;
-                condstr = malloc_and_dump_jdf_expr_list(&plist);
-
-                jdf_warn(dep->lineno,
-                         "Function %s runs on a node depending on %s(%s), but refers directly (as %s) to data %s(%s), if %s is true.\n"
-                         "  This is a potential direct remote memory reference.\n"
-                         "  To remove this warning, %s(%s) should be syntaxically equal to %s(%s).\n"
-                         "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
-                         f->fname, c->func_or_mem, cparams,
-                         (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
-                         d->func_or_mem, dparams, condstr,
-                         d->func_or_mem, dparams, c->func_or_mem, cparams);
-                free(condstr);
-            } else {
-                jdf_warn(dep->lineno,
-                         "Function %s runs on a node depending on %s(%s), but refers directly (as %s) to data %s(%s).\n"
-                         "  This is a potential direct remote memory reference.\n"
-                         "  To remove this warning, %s(%s) should be syntaxically equal to %s(%s).\n"
-                         "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
-                         f->fname, c->func_or_mem, cparams,
-                         (dep->type & JDF_DEP_TYPE_IN & JDF_DEP_TYPE_OUT) ? "INOUT" : ( (dep->type & JDF_DEP_TYPE_IN) ? "IN" : "OUT" ),
-                         d->func_or_mem, dparams, 
-                         d->func_or_mem, dparams, c->func_or_mem, cparams);
-            }
-
-            ret = 0;
-        } else {
-            /* Clear match between the reference and the other */
-            ret = 1;
-        }
+        ret = 1;
     }
-
-    free(cparams);
-    free(dparams);
+    
+    free(cstr);
+    free(ccanon);
+    free(dstr);
+    free(dcanon);
 
     return ret;
 }
