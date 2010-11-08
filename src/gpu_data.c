@@ -84,6 +84,10 @@ int dague_using_gpu(void)
 }
 
 #if defined(DAGUE_PROF_TRACE)
+/* Accepted values are: DAGUE_PROFILE_CUDA_TRACK_DATA_IN | DAGUE_PROFILE_CUDA_TRACK_DATA_OUT |
+ *                      DAGUE_PROFILE_CUDA_TRACK_OWN | DAGUE_PROFILE_CUDA_TRACK_EXEC
+ */
+int dague_cuda_trackable_events = DAGUE_PROFILE_CUDA_TRACK_EXEC | DAGUE_PROFILE_CUDA_TRACK_OWN;
 int dague_cuda_movein_key_start;
 int dague_cuda_movein_key_end;
 int dague_cuda_moveout_key_start;
@@ -227,7 +231,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
                                 {free(gpu_device); return -1;} );
 
 #if defined(DAGUE_PROF_TRACE)
-        gpu_device->profiling = dague_profiling_thread_init( 6*4096, "GPU %d.0", i );
+        gpu_device->profiling = dague_profiling_thread_init( 2*1024*1024, "GPU %d.0", i );
 #endif  /* defined(PROFILING) */
     }
 

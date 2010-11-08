@@ -494,8 +494,6 @@ static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 
-#define MPI_PROFILING_SIZE (64*1024)
-
 static void remote_dep_mpi_profiling_init(void)
 {
     int i;
@@ -513,11 +511,11 @@ static void remote_dep_mpi_profiling_init(void)
                                             0, NULL,
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
-    MPIctl_prof = dague_profiling_thread_init( MPI_PROFILING_SIZE, "MPI ctl");
+    MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
-        MPIsnd_prof[i] = dague_profiling_thread_init( MPI_PROFILING_SIZE / DEP_NB_CONCURENT, "MPI isend(req=%d)", i);
-        MPIrcv_prof[i] = dague_profiling_thread_init( MPI_PROFILING_SIZE / DEP_NB_CONCURENT, "MPI irecv(req=%d)", i);
+        MPIsnd_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI isend(req=%d)", i);
+        MPIrcv_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI irecv(req=%d)", i);
     }    
 }
 
@@ -856,7 +854,8 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
 #ifdef DAGUE_DEBUG
         for(int k = 0; saved_deps->msg.which>>k; k++) 
             if((1<<k) & saved_deps->msg.which)
-                DEBUG(("MPI:\tTO\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=%d)\n", saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data), NEXT_TAG+k));
+                DEBUG(("MPI:\tTO\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=%d)\n",
+                       saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data), NEXT_TAG+k));
 #endif
         remote_dep_release(eu_context, saved_deps);
         if( saved_deps->msg.which == deps->msg.which ) {  /* all deps satisfied */

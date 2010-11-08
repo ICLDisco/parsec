@@ -18,8 +18,7 @@
 extern char *yyfilename;
 extern int current_lineno;
 
-char *extern_code(char *base, int len);
-char *extern_code(char *base, int len)
+static char *extern_code(char *base, int len)
 {
    char *res;
    int rp, rlen;
@@ -45,12 +44,19 @@ char *extern_code(char *base, int len)
    return res;
 }
 
+#define MAX_STR_CONST  1024
+
+char string_buf[MAX_STR_CONST];
+char *string_buf_ptr;
 %}
+
+%option stack
 
 WHITE         [\f\t\v ]
 
 %x comment
-%x body
+%x properties
+%x str
 
 %%
 
@@ -83,18 +89,14 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}          
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
                           yylval.string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
-                          current_lineno++;
                           return EXTERN_DECL;
                       }
-{WHITE}*\n            { current_lineno++;                                  }
-"//".*\n              { current_lineno++;                                  }
-"/*"                  { BEGIN(comment);                                    }
+<*>"/*"               { yy_push_state(comment);                            }
 <comment>[^*\n]*      {  /* Eat up non '*'s */                             } 
 <comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
-<comment>\n           { current_lineno++;                                  }
-<comment>"*"+"/"      { BEGIN(INITIAL);  /* Done with the BLOCK comment */ }
-{WHITE}+              {  /* Eat multiple white-spaces */                   }
-[0-9]+                { yylval.number = atol(yytext);
+<comment>"*"+"/"      { yy_pop_state();  /* Done with the comment BLOCK */ }
+<*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
+<*>[0-9]+             { yylval.number = atol(yytext);
                         return INT;                                        }
 RW                    { yylval.number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
@@ -106,37 +108,91 @@ WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
                         return ARROW;                                      }
 "<-"                  { yylval.dep_type = JDF_DEP_TYPE_IN;
                         return ARROW;                                      }
-[a-zA-Z_]+[a-zA-Z0-9_]*                                                                         {
+"\["                  { yylval.property = NULL;
+                        yy_push_state(properties);
+                        return PROPERTIES_ON;                              }
+<properties>"\]"      { yy_pop_state();
+                        return PROPERTIES_OFF;                             }
+<properties>[oO][nN]  { yylval.number = 1;
+                        return INT;                                        }
+<properties>[oO][fF][fF] { yylval.number = 0;
+                        return INT;                                        }
+<*>"("                { return OPEN_PAR;                                   }
+<*>")"                { return CLOSE_PAR;                                  }
+<*>"=="               { return EQUAL;                                      }
+<*>"\!="              { return NOTEQUAL;                                   }
+<*>"&"                { return AND;                                        }
+<*>"|"                { return OR;                                         }
+<*>"^"                { return XOR;                                        }
+<*>"<"                { return LESS;                                       }
+<*>"<="               { return LEQ;                                        }
+<*>">"                { return MORE;                                       }
+<*>">="               { return MEQ;                                        }
+<*>"\!"               { return NOT;                                        }
+<*>"\+"               { return PLUS;                                       }
+<*>"-"                { return MINUS;                                      }
+<*>"\*"               { return TIMES;                                      }
+<*>"/"                { return DIV;                                        }
+<*>"%"                { return MODULO;                                     }
+<*>"<<"               { return SHL;                                        }
+<*>">>"               { return SHR;                                        }
+<*>".."               { return RANGE;                                      }
+<*>"="                { return ASSIGNMENT;                                 }
+<*>"?"                { return QUESTION_MARK;                              }
+<*>":"                { return COLON;                                      }
+<*>";"                { return SEMICOLON;                                  }
+<*>","                { return COMMA;                                      }
+
+<str>\"               { /* saw closing quote - all done */
+                        yy_pop_state();
+                        *string_buf_ptr = '\0';
+                        /* return string constant token type and
+                        * value to parser
+                        */
+                        yylval.string = string_buf;
+                        return STRING;                                     }
+<*>\"                 { string_buf_ptr = string_buf;
+                        yy_push_state(str);                                }
+
+<str>\n               {
+                        /* error - unterminated string constant */
+                        printf("Unterminated string constant at line %d\n", current_lineno);
+                        exit(-1);                                          }
+
+<str>\\[0-7]{1,3}     { /* octal escape sequence */
+                        int result;
+
+                        (void) sscanf( yytext + 1, "%o", &result );
+
+                        if ( result > 0xff ) {
+                            /* error, constant is out-of-bounds */
+                            printf("Constant out-of-bound in octal escape sequence at line %d\n", current_lineno);
+                            exit(-1);
+                        }
+                        *string_buf_ptr++ = (char)result;                  }
+
+<str>\\[0-9]+         { /* generate error - bad escape sequence; something
+                         * like '\48' or '\0777777'
+                         */
+                         printf("Bad escape sequence at line %d\n", current_lineno);
+                         exit(-1);                                         }
+
+<str>\\n              { *string_buf_ptr++ = '\n'; current_lineno++;        }
+<str>\\t              { *string_buf_ptr++ = '\t';                          }
+<str>\\r              { *string_buf_ptr++ = '\r';                          }
+<str>\\b              { *string_buf_ptr++ = '\b';                          }
+<str>\\f              { *string_buf_ptr++ = '\f';                          }
+
+<str>\\(.|\n)         { *string_buf_ptr++ = yytext[1];                     }
+
+<str>[^\\\n\"]+       {
+                        char *yptr = yytext;
+                        while ( *yptr )
+                            *string_buf_ptr++ = *yptr++;                   }
+
+<*>{WHITE}*\n         { current_lineno++;                                  }
+<*>"//".*\n           { current_lineno++;                                  }
+<*>[a-zA-Z_]+[a-zA-Z0-9_]* {
                         yylval.string = strdup(yytext);
                         return VAR;                                        }
-"("                   { return OPEN_PAR;                                   }
-")"                   { return CLOSE_PAR;                                  }
-\[.*\]                { 
-                        yylval.string = strdup(yytext + 1);
-                        yylval.string[ strlen(yylval.string) - 1 ] = '\0';
-                        return OPTIONAL_INFO;                              }
-"=="                  { return EQUAL;                                      }
-"\!="                 { return NOTEQUAL;                                   }
-"&"                   { return AND;                                        }
-"|"                   { return OR;                                         }
-"^"                   { return XOR;                                        }
-"<"                   { return LESS;                                       }
-"<="                  { return LEQ;                                        }
-">"                   { return MORE;                                       }
-">="                  { return MEQ;                                        }
-"\!"                  { return NOT;                                        }
-"\+"                  { return PLUS;                                       }
-"-"                   { return MINUS;                                      }
-"\*"                  { return TIMES;                                      }
-"/"                   { return DIV;                                        }
-"%"                   { return MODULO;                                     }
-"<<"                  { return SHL;                                        }
-">>"                  { return SHR;                                        }
-".."                  { return RANGE;                                      }
-"="                   { return ASSIGNMENT;                                 }
-"?"                   { return QUESTION_MARK;                              }
-":"                   { return COLON;                                      }
-";"                   { return SEMICOLON;                                  }
-","                   { return COMMA;                                      }
-
 %%

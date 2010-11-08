@@ -71,7 +71,7 @@ typedef struct jdf_external_entry {
 typedef struct jdf_global_entry {
     struct jdf_global_entry *next;
     char                    *name;
-    char                    *type;
+    struct jdf_def_list     *properties;
     struct jdf_expr         *expression;
     struct jdf_data_entry   *data;
     int                      lineno;
@@ -95,6 +95,7 @@ typedef struct jdf_function_entry {
     struct jdf_call           *predicate;
     struct jdf_dataflow_list  *dataflow;
     struct jdf_expr           *priority;
+    struct jdf_def_list       *properties;
     char                      *body;
     int                        lineno;
 } jdf_function_entry_t;
@@ -161,6 +162,7 @@ typedef enum { JDF_GUARD_UNCONDITIONAL,
 typedef struct jdf_guarded_call {
     jdf_guard_type_t         guard_type;
     struct jdf_expr          *guard;
+    struct jdf_def_list      *properties;
     struct jdf_call          *calltrue;
     struct jdf_call          *callfalse;
 } jdf_guarded_call_t;
@@ -200,6 +202,7 @@ typedef enum { JDF_EQUAL,
                JDF_RANGE,
                JDF_TERNARY,
                JDF_VAR,
+               JDF_STRING,
                JDF_CST
 } jdf_expr_operand_t;
 
@@ -252,5 +255,19 @@ char *malloc_and_dump_jdf_expr_list( const jdf_expr_list_t *e );
             _item = _item->NEXT;                             \
         }                                                    \
     } while (0)
+
+/**
+ * Parse a list of properties in search for a specific name. The list of expressions is
+ * supposed to be of the form VAR = expr. If the returned value is not NULL the property
+ * parameter is updated to point to the matched property (if not NULL).
+ *
+ * @param [IN] the properties list
+ * @param [IN] the name of the property to search
+ * @param [OUT] if not NULL upon return it will contain the pointer to the matched property
+ *
+ * @return NULL if the requested property has not been found.
+ * @return the expr on the left side of the = otherwise.
+ */
+jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property );
 
 #endif

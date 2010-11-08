@@ -18,26 +18,26 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-Amb  [int]
-Anb  [int]
-Amt  [int]
-Ant  [int]
-Am   [int]
-An   [int]
+Amb  [type = int]
+Anb  [type = int]
+Amt  [type = int]
+Ant  [type = int]
+Am   [type = int]
+An   [type = int]
 
-Bmb  [int]
-Bnb  [int]
-Bmt  [int]
-Bnt  [int]
-Bm   [int]
-Bn   [int]
+Bmb  [type = int]
+Bnb  [type = int]
+Bmt  [type = int]
+Bnt  [type = int]
+Bm   [type = int]
+Bn   [type = int]
      
-side [int]
-uplo [int]
-trans[int]
-diag [int]
+side [type = int]
+uplo [type = int]
+trans[type = int]
+diag [type = int]
 
-alpha[Dague_Complex64_t]
+alpha[type = Dague_Complex64_t]
 
 /**************************************************
  *                      TRMM                      *
@@ -55,7 +55,7 @@ n = 0..Bnt-1
 READ  A   <- A(m, m)
 RW    B   <- B(m, n)
           -> (m == Bmt-1) ? B(m, n) : C GEMM(m, n, m+1)
-READ  CTL <- (m == 0) ? CTL(m, n) : CTL1 GOK(m-1, n, m)              [CONTROL]
+READ  CTL <- (m == 0) ? CTL(m, n) : CTL1 GOK(m-1, n, m)              [type = CONTROL]
 
 BODY
       DRYRUN(
@@ -95,8 +95,8 @@ READ  A   <- A(k, m)
 READ  B   <- B(k, n) 
 RW    C   <- (k == m+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
           -> (k == Bmt-1) ? B(m, n)      : C GEMM(m, n, k+1)
-RW    CTL <- CTL(k, n)                                          [CONTROL]
-          -> CTL2 GOK(m, n, k)                                  [CONTROL]
+RW    CTL <- CTL(k, n)                                          [type = CONTROL]
+          -> CTL2 GOK(m, n, k)                                  [type = CONTROL]
 
 BODY
       DRYRUN(
@@ -124,7 +124,7 @@ END
  *                      GOK                       *
  **************************************************/
 // Name
-GOK(m, n, k)
+GOK(m, n, k)  [profile = off]
 
 // Execution space
 m = 0..Bmt-1
@@ -135,9 +135,9 @@ k = (m+1)..Bmt-1
 : B(m, n)
 
 // Parameters
-RW    CTL1 <- (m == 0)   ? CTL(m, n)      : CTL1 GOK(m-1, n, k)    [CONTROL]
-           -> (m+1 == k) ? CTL TRMM(k, n) : CTL1 GOK(m+1, n, k)    [CONTROL]
-READ  CTL2 <- CTL GEMM(m, n, k)                                    [CONTROL]
+RW    CTL1 <- (m == 0)   ? CTL(m, n)      : CTL1 GOK(m-1, n, k)    [type = CONTROL]
+           -> (m+1 == k) ? CTL TRMM(k, n) : CTL1 GOK(m+1, n, k)    [type = CONTROL]
+READ  CTL2 <- CTL GEMM(m, n, k)                                    [type = CONTROL]
 BODY
       /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
      printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, m, n, k);

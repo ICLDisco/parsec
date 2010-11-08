@@ -21,12 +21,18 @@
 #include "os-spec-timing.h"
 #include "dequeue.h"
 
+#define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
+
+typedef struct dague_profiling_output_base_event_t {
+    uint16_t        key;
+    uint16_t        flags;
+    unsigned long   id;
+    dague_time_t    timestamp;
+} dague_profiling_output_base_event_t;
+
 typedef struct dague_profiling_output_t {
-    unsigned int   key;
-    unsigned long  id;
-    dague_time_t   timestamp;
-    unsigned char  has_info;
-    char           info[1];
+    dague_profiling_output_base_event_t event;
+    uint64_t                            info[1];
 } dague_profiling_output_t;
 
 typedef struct dague_profiling_info {
@@ -36,13 +42,14 @@ typedef struct dague_profiling_info {
 } dague_profiling_info_t;
 
 struct dague_thread_profiling_t {
-    dague_list_item_t list;
-    char *next_event;
-    char *last_event;
-    char *events_top;
-    char *hr_id;
+    dague_list_item_t        list;
+    char                    *next_event;
+    char                    *last_event;
+    char                    *events_top;
+    char                    *hr_id;
+    uint64_t                 nb_events;
     dague_profiling_info_t  *infos;
-    char  events[1];
+    char                     events[1];
 };
 
 typedef struct dague_profiling_key_t {
@@ -53,17 +60,20 @@ typedef struct dague_profiling_key_t {
 } dague_profiling_key_t;
 
 /** here key is the key given to the USER */
-#define BASE_KEY(key)     ( (key) / 2 )
-#define EVENT_LENGTH(key) ( sizeof(dague_profiling_output_t) - 1 + dague_prof_keys[BASE_KEY(key)].info_length )
+#define BASE_KEY(key)     ((key) >> 1)
+#define EVENT_LENGTH(key, has_info) (sizeof(dague_profiling_output_base_event_t) + \
+                                     ((has_info) ? dague_prof_keys[BASE_KEY(key)].info_length : 0))
+#define EVENT_HAS_INFO(EV)  ((EV)->event.flags & DAGUE_PROFILING_EVENT_HAS_INFO)
 
 /** here keys are the internal key */
-#define START_KEY(key)    ( (key) * 2 )
-#define END_KEY(key)      ( (key) * 2 + 1 )
+#define START_KEY(key)    (((key) << 1) + 0)
+#define END_KEY(key)      (((key) << 1) + 1)
 
 #define FORALL_EVENTS(iterator, start)                                  \
     for(iterator = (dague_profiling_output_t *)(start);                 \
-        (char *)iterator != profile->next_event;                        \
-        iterator = (dague_profiling_output_t *)(((char*)iterator) + EVENT_LENGTH( iterator->key ) ) )
+        (char *)iterator < profile->next_event;                         \
+        iterator = (dague_profiling_output_t *)(((char*)iterator) +     \
+                                                EVENT_LENGTH(iterator->event.key, EVENT_HAS_INFO(iterator))) )
 
 /* Process-global dictionnary */
 static unsigned int dague_prof_keys_count, dague_prof_keys_number;
@@ -148,9 +158,9 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
      *  if we consider that we don't care about the _init phase, but only
      *  about the measurement phase that happens later.
      */
-    res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + (length-1) * sizeof(dague_profiling_output_t) );
+    res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + length );
     if( NULL == res ) {
-        ERROR("dague_profiling_thread_init: unable to allocate %u output elements", length);
+        ERROR("dague_profiling_thread_init: unable to allocate %u bytes", length);
         return NULL;
     }
 
@@ -161,6 +171,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->next_event = res->events;
     res->last_event = NULL;
     res->events_top = res->events + length;
+    res->nb_events = 0;
 
     dplamsa_dequeue_item_construct( (dague_list_item_t*)res );
     dague_dequeue_push_back( &threads, (dague_list_item_t*)res );
@@ -234,7 +245,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
         }
         pos = dague_prof_keys_count;
     }
-
+    assert( 0 == (info_length % sizeof(void*)) );
     dague_prof_keys[pos].name = strdup(key_name);
     dague_prof_keys[pos].attributes = strdup(attributes);
     dague_prof_keys[pos].info_length = info_length;
@@ -263,29 +274,33 @@ int dague_profiling_dictionary_flush( void )
 
 int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned long id, void *info )
 {
-    size_t my_event_length, info_length;
-    dague_profiling_output_t *my_event;
+    dague_profiling_output_t *this_event;
+    size_t this_event_length;
 
-    info_length = dague_prof_keys[ BASE_KEY(key) ].info_length;
-    my_event_length = EVENT_LENGTH( key );
-    my_event = (dague_profiling_output_t *)context->next_event;
-
-    if( context->next_event == context->events_top ) {
+    this_event_length = EVENT_LENGTH( key, (NULL != info) );
+    if( (context->next_event + this_event_length) > context->events_top ) {
+        if( context->next_event <= context->events_top ) {
+            fprintf(stderr, "Profiling warning: profiling for ID %s will be truncated after %lu events\n",
+                    context->hr_id, context->nb_events);
+            context->next_event = context->events_top + 1;
+        }
         return -1;
     }
-    context->last_event = context->next_event;
-    context->next_event += my_event_length;
+    this_event = (dague_profiling_output_t *)context->next_event;
 
-    my_event->key = key;
-    my_event->id  = id;
+    context->last_event = context->next_event;
+    context->next_event += this_event_length;
+    context->nb_events++;
+
+    this_event->event.key   = (uint16_t)key;
+    this_event->event.id    = id;
+    this_event->event.flags = 0;
 
     if( NULL != info ) {
-        memcpy(my_event->info, info, info_length);
-        my_event->has_info = 1;
-    } else {
-        my_event->has_info = 0;
+        memcpy(this_event->info, info, dague_prof_keys[ BASE_KEY(key) ].info_length);
+        this_event->event.flags = DAGUE_PROFILING_EVENT_HAS_INFO;
     }
-    my_event->timestamp = take_time();    
+    this_event->event.timestamp = take_time();    
     
     return 0;
 }
@@ -296,10 +311,10 @@ static dague_profiling_output_t *find_matching_event_in_profile(const dague_thre
 {
     dague_profiling_output_t *e;
     FORALL_EVENTS(e, start) {
-        if( ( time_less(start->timestamp, e->timestamp) || 
-             (diff_time(start->timestamp, e->timestamp) == 0) ) &&
-            e->key == END_KEY(pos) &&
-            e->id == start->id) {
+        if( (e->event.id == start->event.id) &&
+            (e->event.key == END_KEY(pos)) &&
+            (time_less(start->event.timestamp, e->event.timestamp) ||
+             (diff_time(start->event.timestamp, e->event.timestamp) == 0)) ) {
             return e;
         }
     }
@@ -324,14 +339,14 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
         displayed_key = 0;
         FORALL_EVENTS( start_event, profile->events ) {
             /* if not my current start_idx key, ignore */
-            if( start_event->key != START_KEY(pos) )
+            if( start_event->event.key != START_KEY(pos) )
                 continue;
             
             if( (end_event = find_matching_event_in_profile(profile, start_event, pos)) == NULL ) {
                 /* Argh, couldn't find the end in this profile */
 
                 event_not_found = 1;
-                if( start_event->id != 0 ) {
+                if( start_event->event.id != 0 ) {
                     /* It has an id, let's look somewhere in another profile, maybe it's end has been
                      * logged by another thread
                      */
@@ -353,13 +368,13 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 /* Couldn't find the end, or no id. Bad. */
                 if( event_not_found ) {
                     if( !displayed_error_message ) {
-                        if( profile->next_event == profile->events_top ) {
+                        if( profile->next_event >= profile->events_top ) {
                             fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
                                     "\t-- some histories are truncated\n",
-                                    pos, dague_prof_keys[pos].name, start_event->id, profile->hr_id);
+                                    pos, dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
                         } else {
                             fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n",
-                                    pos, dague_prof_keys[pos].name, start_event->id, profile->hr_id);
+                                    pos, dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
                         }
                         displayed_error_message = 1;
                     }
@@ -367,8 +382,8 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 }
             }
 
-            start = diff_time( relative, start_event->timestamp );
-            end = diff_time( relative, end_event->timestamp );
+            start = diff_time( relative, start_event->event.timestamp );
+            end = diff_time( relative, end_event->event.timestamp );
 
             if( displayed_key == 0 ) {
                 fprintf(out, "    <KEY ID=\"%u\">\n", pos);
@@ -380,10 +395,10 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                     "       <ID>%lu</ID>\n"
                     "       <START>%"PRIu64"</START>\n"
                     "       <END>%"PRIu64"</END>\n",
-                    start_event->id,
+                    start_event->event.id,
                     start, end);
 
-            if( start_event->has_info && (NULL != dague_prof_keys[pos].cnvt) ) {
+            if( EVENT_HAS_INFO(start_event) && (NULL != dague_prof_keys[pos].cnvt) ) {
                 do {
                     infostrresize = dague_prof_keys[pos].cnvt( (void*)start_event->info, infostr, infostrsize );
                     
@@ -397,7 +412,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 if( infostrresize >= 0 )
                     fprintf(out, "       <INFO>%s</INFO>\n", infostr);
             } 
-            if( end_event->has_info && (NULL != dague_prof_keys[pos].cnvt) ) {
+            if( EVENT_HAS_INFO(end_event) && (NULL != dague_prof_keys[pos].cnvt) ) {
                 do {
                     infostrresize = dague_prof_keys[pos].cnvt( (void*)end_event->info, infostr, infostrsize );
                     
@@ -473,15 +488,15 @@ int dague_profiling_dump_xml( const char* filename )
         }
 
         if( !foundone ) {
-            relative = ((dague_profiling_output_t *)(profile->events))->timestamp;
-            latest   = ((dague_profiling_output_t*)(profile->last_event))->timestamp;
+            relative = ((dague_profiling_output_t *)(profile->events))->event.timestamp;
+            latest   = ((dague_profiling_output_t*)(profile->last_event))->event.timestamp;
             foundone = 1;
         } else {
-            if( time_less(((dague_profiling_output_t *)(profile->events))->timestamp, relative) ) {
-                relative = ((dague_profiling_output_t *)(profile->events))->timestamp;
+            if( time_less(((dague_profiling_output_t *)(profile->events))->event.timestamp, relative) ) {
+                relative = ((dague_profiling_output_t *)(profile->events))->event.timestamp;
             }
-            if( time_less( latest, ((dague_profiling_output_t*)(profile->last_event))->timestamp) ) {
-                latest = ((dague_profiling_output_t*)(profile->last_event))->timestamp;
+            if( time_less( latest, ((dague_profiling_output_t*)(profile->last_event))->event.timestamp) ) {
+                latest = ((dague_profiling_output_t*)(profile->last_event))->event.timestamp;
             }
         }
 

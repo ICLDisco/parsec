@@ -32,6 +32,29 @@ int yywrap(void)
 
 #define new(type)  (type*)calloc(1, sizeof(type))
 
+static jdf_def_list_t* jdf_create_properties_list( const char* name, int default_int, const char* default_char, jdf_def_list_t* next )
+{
+    jdf_def_list_t* property;
+    jdf_expr_t *e;
+
+    property         = new(jdf_def_list_t);
+    property->next   = next;
+    property->name   = strdup(name);
+    property->lineno = current_lineno;
+
+    if( NULL != default_char ) {
+        e = new(jdf_expr_t);
+        e->op = JDF_STRING;
+        e->jdf_var = strdup(default_char);
+    } else {
+        e = new(jdf_expr_t);
+        e->op = JDF_CST;
+        e->jdf_cst = default_int;
+    }
+    property->expr = e;
+    return property;
+}
+
 static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 {
     jdf_data_entry_t* data = jdf->data;
@@ -61,12 +84,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
         global = global->next;
     }
     assert(NULL == global);
-    global = new(jdf_global_entry_t);
-    global->name = strdup(data->dname);
-    global->type = strdup("dague_ddesc_t*");
-    global->data = data;
+    global             = new(jdf_global_entry_t);
+    global->name       = strdup(data->dname);
+    global->properties = jdf_create_properties_list( "type", 0, "dague_ddesc_t*", NULL );
+    global->data       = data;
     global->expression = NULL;
-    global->lineno = current_lineno;
+    global->lineno     = current_lineno;
     /* Chain it with the other globals */
     global->next = jdf->globals;
     jdf->globals = global;
@@ -77,28 +100,26 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %}
 
 %union {
-  int                   number;
-  char*                 string;
-  jdf_expr_operand_t    expr_op;
-  jdf_external_entry_t *external_code;
-  jdf_global_entry_t   *global;
-  jdf_function_entry_t *function;
-  jdf_name_list_t      *name_list;
-  jdf_flags_t           flags;
-  jdf_def_list_t       *def_list;
-  jdf_dataflow_list_t  *dataflow_list;
-  jdf_dataflow_t       *dataflow;
-  jdf_dep_list_t       *dep_list;
-  jdf_dep_t            *dep;
-  jdf_dep_type_t        dep_type;
-  jdf_guarded_call_t   *guarded_call;
-  jdf_call_t           *call;
-  jdf_expr_list_t      *expr_list;
-  jdf_expr_t           *expr;
+    int                   number;
+    char*                 string;
+    jdf_expr_operand_t    expr_op;
+    jdf_external_entry_t *external_code;
+    jdf_global_entry_t   *global;
+    jdf_function_entry_t *function;
+    jdf_def_list_t       *property;
+    jdf_name_list_t      *name_list;
+    jdf_def_list_t       *def_list;
+    jdf_dataflow_list_t  *dataflow_list;
+    jdf_dataflow_t       *dataflow;
+    jdf_dep_list_t       *dep_list;
+    jdf_dep_t            *dep;
+    jdf_dep_type_t        dep_type;
+    jdf_guarded_call_t   *guarded_call;
+    jdf_call_t           *call;
+    jdf_expr_list_t      *expr_list;
+    jdf_expr_t           *expr;
 };
 
-%type <flags>flags_list
-%type <flags>flags
 %type <function>function
 %type <name_list>varlist
 %type <def_list>execution_space
@@ -108,7 +129,8 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <dep_list>dependencies
 %type <dep>dependency
 %type <guarded_call>guarded_call
-%type <string>optional_type
+%type <property>properties
+%type <property>properties_list
 %type <call>call
 %type <expr_list>expr_list
 %type <expr>expr
@@ -121,12 +143,14 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <string>EXTERN_DECL
 %type <string>BODY
 %type <dep_type>ARROW
-%type <string>OPTIONAL_INFO
+%type <number>PROPERTIES_ON
+%type <number>PROPERTIES_OFF
+%type <string>STRING
 %type <number>INT
 %type <number>DEPENDENCY_TYPE
 
-%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY
-%token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK OPTIONAL_INFO 
+%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY STRING
+%token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF 
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE 
 
@@ -138,6 +162,8 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %left PLUS MINUS
 %left TIMES DIV
 %left COMMA
+
+%debug
 
 %%
 jdf_file:       prologue jdf epilogue
@@ -171,14 +197,14 @@ jdf:            jdf function
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
                 }
-        |       jdf VAR optional_type ASSIGNMENT expr 
+        |       jdf VAR properties ASSIGNMENT expr 
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    e->next = NULL;
-                    e->name = $2;
-                    e->type = $3;
+                    e->next       = NULL;
+                    e->name       = $2;
+                    e->properties = $3;
                     e->expression = $5;
-                    e->lineno = current_lineno;
+                    e->lineno     = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
                     } else {
@@ -187,14 +213,14 @@ jdf:            jdf function
                         g->next = e;
                     }
                 } 
-        |       jdf VAR optional_type
+        |       jdf VAR properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    e->next = NULL;
-                    e->name = $2;
-                    e->type = $3;
+                    e->next       = NULL;
+                    e->name       = $2;
+                    e->properties = $3;
                     e->expression = NULL;
-                    e->lineno = current_lineno;
+                    e->lineno     = current_lineno;
                     if( current_jdf.globals == NULL ) {
                         current_jdf.globals = e;
                     } else {
@@ -206,10 +232,9 @@ jdf:            jdf function
         |
         ;
 
-optional_type: 
-              OPTIONAL_INFO 
+properties:   PROPERTIES_ON properties_list PROPERTIES_OFF
               {
-                  $$ = $1;
+                  $$ = $2;
               }
        |
               {
@@ -217,42 +242,32 @@ optional_type:
               }
        ;
 
-flags_list:     VAR COMMA flags_list
-                {
-                    if( 0 == strcasecmp("high_priority", $1) ) {
-                        $$ = ($3 | JDF_FUNCTION_FLAG_HIGH_PRIORITY);
-                    } else {
-                        printf( "Ignore unknown DAGuE flag %s.\n", $1 );
-                        $$ = $3;
-                    }
-                }
-        |       VAR
-                {
-                    if( 0 == strcasecmp("high_priority", $1) ) {
-                        $$ = JDF_FUNCTION_FLAG_HIGH_PRIORITY;
-                    } else {
-                        printf( "Ignore unknown DAGuE flag %s.\n", $1 );
-                        $$ = 0;
-                    }
-                }
-        ;
+properties_list: VAR ASSIGNMENT expr properties_list
+              {
+                 jdf_def_list_t* assign = new(jdf_def_list_t);
+                 assign->next = $4;
+                 assign->name = strdup($1);
+                 assign->expr = $3;
+                 assign->lineno = current_lineno;
+                 $$ = assign;
+              }
+       | VAR ASSIGNMENT expr
+             {
+                 jdf_def_list_t* assign = new(jdf_def_list_t);
+                 assign->next = NULL;
+                 assign->name = strdup($1);
+                 assign->expr = $3;
+                 assign->lineno = current_lineno;
+                 $$ = assign;
+             }
+       ;
 
-flags:          OPEN_PAR flags_list CLOSE_PAR
-                {
-                    $$ = $2;
-                }
-        |
-                {
-                    $$ = 0;
-                }
-        ;
-
-function:       VAR OPEN_PAR varlist CLOSE_PAR flags execution_space partitioning dataflow_list priority BODY
+function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space partitioning dataflow_list priority BODY
                 {
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
                     e->fname = $1;
                     e->parameters = $3;
-                    e->flags = $5;
+                    e->properties = $5;
                     e->definitions = $6;
                     e->predicate = $7;
                     e->dataflow = $8;
@@ -381,27 +396,35 @@ dependencies:  dependency dependencies
                }
        ;
 
-dependency:   ARROW guarded_call optional_type 
+dependency:   ARROW guarded_call properties 
               {
                   struct jdf_name_list *g, *e, *prec;
-                  int datatype_index = 0;
                   jdf_dep_t *d = new(jdf_dep_t);
+                  jdf_expr_t* expr;
+                  jdf_def_list_t* property;
+
                   d->type = $1;
                   d->guard = $2;
                   if( NULL == $3 ) {
-                      $3 = "DEFAULT";
+                      $3 = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );
                   }
+                  $2->properties = $3;
 
-                  for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
-                      if( 0 == strcmp($3, g->name) ) {
-                          break;
+                  expr = jdf_find_property( $3, "type", &property );
+                  assert( NULL != expr );
+                  if( (JDF_VAR != expr->op) && (JDF_STRING != expr->op) ) {
+                      printf("Warning: Incorrect value for the \"type\" property defined at line %d\n", property->lineno );
+                  } else {
+                      for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+                          if( 0 == strcmp(expr->jdf_var, g->name) ) {
+                              break;
+                          }
+                          prec = g;
                       }
-                      datatype_index++;
-                      prec = g;
                   }
                   if( NULL == g ) {
                       e = new(struct jdf_name_list);
-                      e->name = strdup($3);
+                      e->name = strdup(expr->jdf_var);
                       e->next = NULL;
                       if( NULL != prec ) {
                           prec->next = e;
@@ -409,7 +432,7 @@ dependency:   ARROW guarded_call optional_type
                           current_jdf.datatypes = e;
                       }
                   }
-                  d->datatype_name = strdup($3);
+                  d->datatype_name = strdup(expr->jdf_var);
                   d->lineno = current_lineno;
                   $$ = d;
               }
@@ -662,7 +685,7 @@ expr:         expr EQUAL expr
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_VAR;
-                  e->jdf_var = $1;
+                  e->jdf_var = strdup($1);
                   $$ = e;
               }
        |      INT
@@ -670,6 +693,13 @@ expr:         expr EQUAL expr
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;
                   e->jdf_cst = $1;
+                  $$ = e;
+              }
+       |      STRING
+              {
+                  jdf_expr_t *e = new(jdf_expr_t);
+                  e->op = JDF_STRING;
+                  e->jdf_var = strdup($1);
                   $$ = e;
               }
        ;

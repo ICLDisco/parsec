@@ -23,17 +23,17 @@ extern int *gpu_counter;
 
 /* Globals
  */
-A            [struct tiled_matrix_desc_t*]
-NB           [int]
-SIZE         [int]
-PRI_CHANGE   [int]
-uplo         [PLASMA_enum]
-INFO         [int*]
+A            [type = "struct tiled_matrix_desc_t*"]
+NB           [type = int]
+SIZE         [type = int]
+PRI_CHANGE   [type = int]
+uplo         [type = PLASMA_enum]
+INFO         [type = "int*"]
 
 /**************************************************
  *                      POTRF                     *
  **************************************************/
-POTRF(k) (high_priority)
+POTRF(k) [high_priority = on]
 
 // Execution space
 k = 0..SIZE-1
@@ -46,8 +46,8 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
      -> T TRSM(k, k+1..SIZE-1)
      -> A(k, k)
 
-//; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
-; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k + 7) * (SIZE - k + 2) * (SIZE - k) / 6 : 0
+; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
+//; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k + 7) * (SIZE - k + 2) * (SIZE - k) / 6 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -71,7 +71,7 @@ END
 /**************************************************
  *                      TRSM                      *
  **************************************************/
-TRSM(k, n) (high_priority)
+TRSM(k, n) [high_priority = on]
 
 // Execution space
 k = 0..SIZE-1
@@ -88,8 +88,8 @@ RW    C <- (k == 0) ? A(n, k) : C GEMM(k-1, n, k)
         -> B GEMM(k, n, k+1..n-1)
         -> A(n, k)
 
-//; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
-;  (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n - k) * ((SIZE - n - k + 1) / 2 + 2) - 1 + (SIZE - n + 2) * (SIZE - n + 1) * (SIZE - n) / 6 : 0
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (2 * SIZE - k - n - 1) * (n - k) : 1000000000
+//;  (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n - k) * ((SIZE - n - k + 1) / 2 + 2) - 1 + (SIZE - n + 2) * (SIZE - n + 1) * (SIZE - n) / 6 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -137,7 +137,7 @@ END
 /**************************************************
  *                      HERK                      *
  **************************************************/
-HERK(k, n) (high_priority)
+HERK(k, n) [high_priority = on]
 
 // Execution space
 k = 0..SIZE-1
@@ -151,8 +151,8 @@ READ  A <- C TRSM(k, n)
 RW    T <- (k == 0) ? A(n,n) : T HERK(k-1, n)
         -> (n == k+1) ? T POTRF(k+1) : T HERK(k+1,n)
 
-//; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
-; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n + 2) * (SIZE - n + 1) * (SIZE - n) / 6 + SIZE - n + k + 1 : 0
+; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
+//; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n + 2) * (SIZE - n + 1) * (SIZE - n) / 6 + SIZE - n + k + 1 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -215,8 +215,8 @@ READ  B <- C TRSM(k, m)
 RW    C <- (k == 0) ? A(m, n) : C GEMM(k-1, m, n)
         -> (n == k+1) ? C TRSM(k+1, m) : C GEMM(k+1, m, n)
 
-//; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
-;  (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m - n) * ((SIZE - n - k + 1) / 2 + 2) - 1 + (SIZE - m + 2) * (SIZE - m + 1) * (SIZE - m) / 6 + SIZE - n + k + 1 : 0
+; (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m) * (SIZE - m) * (SIZE - m) + 3 * (2 * SIZE - m - n - 3) * (m - n) + 6 * (m - k) : 1000000000
+//;  (m >= (SIZE - PRI_CHANGE)) ? (SIZE - m - n) * ((SIZE - n - k + 1) / 2 + 2) - 1 + (SIZE - m + 2) * (SIZE - m + 1) * (SIZE - m) / 6 + SIZE - n + k + 1 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)

@@ -31,21 +31,21 @@ N       /* Matrix Size (columns = rows) */
 NB      /* Tile Size */
 NT      /* Number of tiled columns */
 IB
-work_pool [dague_memory_pool_t*]
-INFO [int*]
+work_pool [type = "dague_memory_pool_t*"]
+INFO      [type = "int*"]
 
 /************************************************************************************
  *                                    GETRF                                         *
  ************************************************************************************/
 
-GETRF_HACK(k)
+GETRF_HACK(k)  [profile = off]
 k = 0..NT-1
 
 : A(k, k)
 
 RW LU <- LU GETRF(k)
-      -> (k != NT-1) ?                 L GESSM(k, k+1..NT-1)  [LOWER_TILE]
-      -> A(k,k)                                               [LOWER_TILE]
+      -> (k != NT-1) ?                 L GESSM(k, k+1..NT-1)  [type = LOWER_TILE]
+      -> A(k,k)                                               [type = LOWER_TILE]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -60,11 +60,11 @@ k = 0..NT-1
 
 //This SSSSM always run on the same node, so typing will have no effect.
 RW LU <- (k == 0)    ? A(k, k) : C2 SSSSM(k-1, k, k)
-      -> (k == NT-1) ? A(k, k) : U TSTRF(k, k+1)              [UPPER_TILE]
+      -> (k == NT-1) ? A(k, k) : U TSTRF(k, k+1)              [type = UPPER_TILE]
       -> LU GETRF_HACK(k)
-RW IPIV <- dLIPIV(k, k)                                       [PIVOT_VECT]
-        -> IPIV GESSM(k, k+1..NT-1)                           [PIVOT_VECT]
-        -> dLIPIV(k, k)                                       [PIVOT_VECT]
+RW IPIV <- dLIPIV(k, k)                                       [type = PIVOT_VECT]
+        -> IPIV GESSM(k, k+1..NT-1)                           [type = PIVOT_VECT]
+        -> dLIPIV(k, k)                                       [type = PIVOT_VECT]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -106,8 +106,8 @@ n = k+1 .. NT-1
 
 : A(k, n)
 
-READ L    <- LU GETRF_HACK(k)                                  [LOWER_TILE]
-READ IPIV <- IPIV GETRF(k)                                     [PIVOT_VECT]
+READ L    <- LU GETRF_HACK(k)                                  [type = LOWER_TILE]
+READ IPIV <- IPIV GETRF(k)                                     [type = PIVOT_VECT]
 RW   C1   <- (k == 0) ? A(k, n) : C2 SSSSM(k-1, n, k)
           -> C1 SSSSM(k, n, k+1)
 
@@ -149,13 +149,13 @@ END
  *                                    TSTRF                                         *
  ************************************************************************************/
 
-TSTRF_OUT(k)
+TSTRF_OUT(k)  [profile = off]
 k = 0 .. NT-2
   
 : A(k, k)  
 
-RW A <- U TSTRF(k, NT-1) [UPPER_TILE]
-     -> A(k, k)          [UPPER_TILE]
+RW A <- U TSTRF(k, NT-1) [type = UPPER_TILE]
+     -> A(k, k)          [type = UPPER_TILE]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -173,11 +173,11 @@ m = k+1..NT-1
 RW C1 <- (k == 0) ? A(m, k) : C2 SSSSM(k-1, k, m)
       -> C3 SSSSM(k, k+1..NT-1, m)
       -> A(m, k)
-RW U  <- (m == k+1) ? LU GETRF(k) : U TSTRF(k, m-1)         [UPPER_TILE]
-      -> (m == NT-1) ? A TSTRF_OUT(k) : U TSTRF(k, m+1)     [UPPER_TILE]
-RW dLIPIV <- dLIPIV(m, k)                                   [LITTLE_L_PIVOT_VECT]
-          -> dLIPIV SSSSM(k, k+1..NT-1, m)                  [LITTLE_L_PIVOT_VECT]
-          -> dLIPIV(m, k)                                   [LITTLE_L_PIVOT_VECT]
+RW U  <- (m == k+1) ? LU GETRF(k) : U TSTRF(k, m-1)         [type = UPPER_TILE]
+      -> (m == NT-1) ? A TSTRF_OUT(k) : U TSTRF(k, m+1)     [type = UPPER_TILE]
+RW dLIPIV <- dLIPIV(m, k)                                   [type = LITTLE_L_PIVOT_VECT]
+          -> dLIPIV SSSSM(k, k+1..NT-1, m)                  [type = LITTLE_L_PIVOT_VECT]
+          -> dLIPIV(m, k)                                   [type = LITTLE_L_PIVOT_VECT]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -225,7 +225,7 @@ END
  *                                    SSSSM                                         *
  ************************************************************************************/
 
-SSSSM_OUT(k, n)
+SSSSM_OUT(k, n)  [profile = off]
 k = 0 .. NT-2
 n = k+1 .. NT - 1
   
@@ -248,7 +248,7 @@ m = k+1 .. NT-1
 : A(m, n)
 
 READ C3   <- C1 TSTRF(k, m)
-READ dLIPIV <- dLIPIV TSTRF(k, m)                                 [LITTLE_L_PIVOT_VECT]
+READ dLIPIV <- dLIPIV TSTRF(k, m)                                 [type = LITTLE_L_PIVOT_VECT]
 
 RW   C2 <- (k == 0)   ? A(m, n)      : C2 SSSSM(k-1, n, m)
         -> ((n == k+1) & (m == k+1)) ? LU GETRF(k+1)

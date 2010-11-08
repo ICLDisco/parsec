@@ -182,7 +182,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->datarepo_mempools[pi] = &(eu->master_context->datarepo_mempools[pi].thread_mempools[eu->eu_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 65536, "DAGuE Thread %d", eu->eu_id );
+    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d", eu->eu_id );
 #endif
 #ifdef DAGUE_USE_LIFO
     eu->eu_task_queue = (dague_atomic_lifo_t*)malloc( sizeof(dague_atomic_lifo_t) );

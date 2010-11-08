@@ -23,16 +23,16 @@ extern int *gpu_counter;
 
 /* Globals
  */
-NB           [int]
-SIZE         [int]
-PRI_CHANGE   [int]
-uplo         [PLASMA_enum]
-INFO         [int*]
+NB           [type = int]
+SIZE         [type = int]
+PRI_CHANGE   [type = int]
+uplo         [type = PLASMA_enum]
+INFO         [type = "int*"]
 
 /**************************************************
  *                      POTRF                     *
  **************************************************/
-POTRF(k) (high_priority)
+POTRF(k) [high_priority = on]
 
 // Execution space
 k = 0..SIZE-1
@@ -42,8 +42,8 @@ k = 0..SIZE-1
 
 // Parameters
 RW T <- (k == 0) ? A(k, k) : T HERK(k, k-1)
-        -> T TRSM(k, k+1..SIZE-1)
-        -> A(k, k)
+     -> T TRSM(k, k+1..SIZE-1)
+     -> A(k, k)
 WRITE   F -> F GEMM(k, k+1..SIZE-1, 0)
 
 ; (k >= (SIZE - PRI_CHANGE)) ? (SIZE - k) * (SIZE - k) * (SIZE - k) : 1000000000
@@ -72,7 +72,7 @@ END
 /**************************************************
  *                      TRSM                      *
  **************************************************/
-TRSM(k, m) (high_priority)
+TRSM(k, m) [high_priority = on]
 
 // Execution space
 k = 0..SIZE-1
@@ -137,7 +137,7 @@ END
 /**************************************************
  *                      HERK                      *
  **************************************************/
-HERK_IN_A(k)
+HERK_IN_A(k)  [profile = off]
 k = 1..SIZE-1
 
 :A(k, k)
@@ -149,7 +149,7 @@ BODY
  /* Nothing */
 END
 
-HERK_IN_F(k)
+HERK_IN_F(k)  [profile = off]
 k = 1..SIZE-1
 
 :A(k, k)
@@ -161,7 +161,7 @@ BODY
  /* Nothing */
 END
 
-HERK(k, n) (high_priority)
+HERK(k, n) [high_priority = on]
 
 // Execution space
 k = 1..SIZE-1
@@ -224,7 +224,7 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
-GEMM_IN_A(k, m)
+GEMM_IN_A(k, m)  [profile = off]
 k = 0..SIZE-1
 m = k+1..SIZE-1
 
@@ -237,7 +237,7 @@ BODY
   /* Nothing */
 END
 
-GEMM_IN_F(k, m)
+GEMM_IN_F(k, m)  [profile = off]
 k = 0..SIZE-1
 m = k+1..SIZE-1
 

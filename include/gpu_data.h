@@ -22,6 +22,12 @@
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 
 #if defined(DAGUE_PROF_TRACE)
+#define DAGUE_PROFILE_CUDA_TRACK_DATA_IN  0x0001
+#define DAGUE_PROFILE_CUDA_TRACK_DATA_OUT 0x0002
+#define DAGUE_PROFILE_CUDA_TRACK_OWN      0x0004
+#define DAGUE_PROFILE_CUDA_TRACK_EXEC     0x0008
+
+extern int dague_cuda_trackable_events;
 extern int dague_cuda_movein_key_start;
 extern int dague_cuda_movein_key_end;
 extern int dague_cuda_moveout_key_start;

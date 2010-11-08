@@ -36,28 +36,29 @@ MB  /* Number of lines in a block for T and dL should be equal to NB */
 NB  /* Tile Size */
 M   /* Matrix Height (in lines) */
 N   /* Matrix Width (in columns) */
-work_pool  [dague_memory_pool_t*]
-tau_pool   [dague_memory_pool_t*]
+work_pool  [type = "dague_memory_pool_t*"]
+tau_pool   [type = "dague_memory_pool_t*"]
 
 MT = (M + (NB - 1)) / NB        /* Number of tiled lines */
 NT = (N + (NB - 1)) / NB        /* Number of tiled columns */
 MINMTNT = ((MT < NT) ? MT : NT)
 
-GEQRT_HACK(k)  (high_priority)
+GEQRT_HACK(k)  [high_priority = on
+                profile=off]
 k = 0..MINMTNT-1
 
 : A(k, k)
 
 RW RV1 <- RV1 GEQRT(k)
-       -> (k != NT-1) ? V1 UNMQR(k, k+1..NT-1) [LOWER_TILE]
-       -> A(k,k)                                [LOWER_TILE]
+       -> (k != NT-1) ? V1 UNMQR(k, k+1..NT-1) [type = LOWER_TILE]
+       -> A(k,k)                               [type = LOWER_TILE]
 ; (NT-k)*(NT-k)*(NT-k)
 
 BODY
  /* nothing */
 END
 
-GEQRT(k)  (high_priority)
+GEQRT(k)  [high_priority = on]
 
   // Execution space
   k = 0..MINMTNT-1
@@ -67,11 +68,11 @@ GEQRT(k)  (high_priority)
 
   RW RV1 <- (k == 0)    ? A(k,k) : C2 TSMQR(k-1,k,k)
          -> RV1 GEQRT_HACK(k)
-         -> (k == MT-1) ? A(k,k) : R TSQRT(k,k+1)          [UPPER_TILE]
+         -> (k == MT-1) ? A(k,k) : R TSQRT(k,k+1)          [type = UPPER_TILE]
   // Only output
-  RW T   <- T(k,k)                                         [LITTLE_T]
-         -> T UNMQR(k, k+1..NT-1)                          [LITTLE_T]
-         -> T(k,k)                                         [LITTLE_T]
+  RW T   <- T(k,k)                                         [type = LITTLE_T]
+         -> T UNMQR(k, k+1..NT-1)                          [type = LITTLE_T]
+         -> T(k,k)                                         [type = LITTLE_T]
 
 ; (NT-k)*(NT-k)*(NT-k)
 
@@ -106,13 +107,14 @@ BODY
 
 END
 
-TSQRT_OUT(k)  (high_priority)
+TSQRT_OUT(k)  [high_priority = on
+               profile = off]
   k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
 
  : A(k, k)
 
-  RW R <- R TSQRT(k, MT-1)      [UPPER_TILE]
-       -> A(k, k)               [UPPER_TILE]
+  RW R <- R TSQRT(k, MT-1)      [type = UPPER_TILE]
+       -> A(k, k)               [type = UPPER_TILE]
           
   ; (NT-k)*(NT-k)*(NT-k)
 
@@ -121,7 +123,7 @@ BODY
 END
 
 
-TSQRT(k,m)  (high_priority)
+TSQRT(k,m)  [high_priority = on]
 
   // Execution space
   k = 0..MINMTNT-1
@@ -133,12 +135,12 @@ TSQRT(k,m)  (high_priority)
   RW V2 <- (k == 0) ? A(m,k) : C2 TSMQR(k-1,k,m)
         -> V2 TSMQR(k,k+1..NT-1,m)
         -> A(m,k)
-  RW R  <- (m == k+1) ? RV1 GEQRT(k) : R TSQRT(k,m-1)        [UPPER_TILE]           
-        -> (m == MT-1) ? R TSQRT_OUT(k) : R TSQRT(k,m+1)     [UPPER_TILE]
+  RW R  <- (m == k+1) ? RV1 GEQRT(k) : R TSQRT(k,m-1)        [type = UPPER_TILE]           
+        -> (m == MT-1) ? R TSQRT_OUT(k) : R TSQRT(k,m+1)     [type = UPPER_TILE]
   // Output only
-  RW T  <- T(m,k)                                            [LITTLE_T]
-        -> T TSMQR(k,k+1..NT-1,m)                            [LITTLE_T]
-        -> T(m,k)                                            [LITTLE_T]
+  RW T  <- T(m,k)                                            [type = LITTLE_T]
+        -> T TSMQR(k,k+1..NT-1,m)                            [type = LITTLE_T]
+        -> T(m,k)                                            [type = LITTLE_T]
 
   ; (NT-k)*(NT-m)*(NT-m)
 
@@ -175,7 +177,7 @@ BODY
 
 END
 
-UNMQR(k,n)  (high_priority)
+UNMQR(k,n)  [high_priority = on]
 
   // Execution space
   k = 0..MINMTNT-1
@@ -184,8 +186,8 @@ UNMQR(k,n)  (high_priority)
   // Parallel partitioning
   : A(k, n)
 
-  READ T  <- T GEQRT(k)                               [LITTLE_T]
-  READ V1 <- RV1 GEQRT_HACK(k)                        [LOWER_TILE] 
+  READ T  <- T GEQRT(k)                               [type = LITTLE_T]
+  READ V1 <- RV1 GEQRT_HACK(k)                        [type = LOWER_TILE] 
   RW   C1 <- (k == 0) ? A(k, n) : C2 TSMQR(k-1, n, k)
           -> C1 TSMQR(k, n, k+1)
 
@@ -226,7 +228,7 @@ BODY
     dague_private_memory_push(work_pool, work);
 END
 
-TSMQR_OUT(k, n)
+TSMQR_OUT(k, n) [profile = off]
   k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
   n = k+1 .. NT-1
 
@@ -252,7 +254,7 @@ TSMQR(k,n,m)
   : A(m, n)
 
   READ V2 <- V2 TSQRT(k,m)
-  READ T  <- T TSQRT(k,m)                                           [LITTLE_T]
+  READ T  <- T TSQRT(k,m)                                           [type = LITTLE_T]
 
   RW C2   <- (k == 0) ? A(m,n) : C2 TSMQR(k-1,n,m)
           -> ((n == k+1) & (m == k+1)) ? RV1 GEQRT(k+1)

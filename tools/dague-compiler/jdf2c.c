@@ -28,6 +28,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
 
+static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found );
+
 /** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
 static int nblines(const char *p)
@@ -39,6 +41,13 @@ static int nblines(const char *p)
     return r;
 }
 
+/**
+ * This function is not thread-safe, not reentrant, and not pure. As such it
+ * cannot be used twice on the same call to any oter function (including
+ * printf's and friends). However, as a side effect, when it is called with
+ * the same value for n, it is safe to be used in any of the previously
+ * mentioned scenarios.
+ */
 static char *indent(int n)
 {
     static char *istr    = NULL;
@@ -308,6 +317,9 @@ static char * dump_expr(void **elem, void *arg)
     case JDF_CST:
         string_arena_add_string(sa, "%d", e->jdf_cst);
         break;
+    case JDF_STRING:
+        string_arena_add_string(sa, "%s", e->jdf_var);
+        break;
     default:
         string_arena_add_string(sa, "DonKnow");
         break;
@@ -547,10 +559,15 @@ typedef struct profiling_init_info {
  */
 static char *dump_profiling_init(void **elem, void *arg)
 {
-    unsigned char R, G, B;
-    char *fname = *(char**)elem;
     profiling_init_info_t *info = (profiling_init_info_t*)arg;
-    
+    jdf_function_entry_t* f = (jdf_function_entry_t*)elem;
+    char *fname = f->fname;
+    unsigned char R, G, B;
+
+    if( !jdf_property_get_int(f->properties, "profile", 1) ) {
+        return NULL;
+    }
+
     string_arena_init(info->sa);
 
     get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
@@ -594,15 +611,23 @@ static char* dump_typed_globals(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+    jdf_expr_t* expr = jdf_find_property( global->properties, "type", NULL );
+    expr_info_t info;
 
     string_arena_init(sa);
+
+    info.sa = string_arena_new(8);
+    info.prefix = "";
+
     if( NULL == global->data ) {
         string_arena_add_string(sa, "%s %s",
-                                (NULL == global->type ? "int" : global->type), global->name);
+                                (NULL == expr ? "int" : dump_expr((void**)&expr, &info)), global->name);
     } else {
         string_arena_add_string(sa, "%s %s /* data %s */",
-                                (NULL == global->type ? "int" : global->type), global->name, global->name);
+                                (NULL == expr ? "int" : dump_expr((void**)&expr, &info)), global->name, global->name);
     }
+    string_arena_free(info.sa);
+
     return string_arena_get_string(sa);
 }
 
@@ -677,6 +702,20 @@ static int jdf_expr_depends_on_symbol(const char *name, const jdf_expr_t *e)
             jdf_expr_depends_on_symbol(name, e->jdf_ba2);
 }
 
+jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property )
+{
+    const jdf_def_list_t* current = properties;
+
+    while( NULL != current ) {
+        if( !strcmp(current->name, property_name) ) {
+            if( NULL != property ) *property = (jdf_def_list_t*)current;
+            return current->expr;
+        }
+        current = current->next;
+    }
+    return NULL;
+}
+
 static int jdf_dataflow_type(const jdf_dataflow_t *flow)
 {
     jdf_dep_list_t *dl;
@@ -729,11 +768,9 @@ static int jdf_data_input_index(const jdf_function_entry_t *f, const char *varna
 
 static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 {
-    int ls, rs, i;
+    int ls, rs, i, length, vs;
     va_list ap, ap2;
-    int length;
     char *v;
-    int vs;
 
     vs = 80;
     v = (char *)malloc(vs);
@@ -751,8 +788,7 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 #endif
 
     length = vsnprintf(v, vs, format, ap);
-    if( length >= vs ) {
-        /* realloc */
+    if( length >= vs ) {  /* realloc */
         vs = length + 1;
         v = (char*)realloc( v, vs );
         length = vsnprintf(v, vs, format, ap2);
@@ -764,19 +800,21 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
     va_end(ap);
 
     /* Pretty printing */
-    ls = strlen(v)/2;
-    rs = strlen(v)-ls;
-    if( ls > 40 ) ls = 40;
-    if( rs > 40 ) rs = 40;
+    if( length > 80 ) {
+        ls = rs = 1;
+    } else {
+        ls = (80 - length) / 2;
+        rs = 80 - length - ls;
+    }
     coutput("/*");
     for(i = 0; i < 80; i++)
         coutput("%c", marker);
-    coutput("*\n");
-    coutput(" *%s%s%s*\n", indent(40-ls), v, indent(40-rs));
-    coutput(" *");
+    coutput("*\n *%s%s", indent(ls/2), v);  /* indent drop two spaces */
+    coutput("%s*\n *", indent(rs/2));       /* dont merge these two calls. Read the comment on the indent function */
     for(i = 0; i < 80; i++)
         coutput("%c", marker);
-    coutput("*/\n\n");            
+    coutput("*/\n\n");
+    free(v);
 }
 
 /** Structure Generators **/
@@ -1990,8 +2028,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "#  endif /* defined(DAGUE_PROF_TRACE) */\n", 
             jdf_basename,
             jdf_basename,
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_profiling_init, &pi, "", "    ", "\n", "\n"));
+            UTIL_DUMP_LIST( sa1, jdf->functions, next,
+                            dump_profiling_init, &pi, "", "    ", "\n", "\n"));
 
     coutput("  /* Create the data repositories for this object */\n"
             "%s",
@@ -2382,13 +2420,30 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
     string_arena_free(sa);
 }
 
+static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found )
+{
+    jdf_def_list_t* property;
+    jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
+
+    if( NULL != expr ) {
+        if( JDF_CST == expr->op )
+            return expr->jdf_cst;
+        printf("Warning: property %s defined at line %d only support ON/OFF\n",
+               prop_name, property->lineno);
+    }
+    return ret_if_not_found;  /* ON by default */
+}
+
 static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
     string_arena_t *sa, *sa2, *sa3;
     expr_info_t linfo;
     assignment_info_t ai;
     jdf_dataflow_list_t *fl;
-    int di;
+    int di, profile_on;
+
+    /* If the function has the property profile turned off do not generate the profiling code */
+    profile_on = jdf_property_get_int(f->properties, "profile", 1);
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -2433,19 +2488,20 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
-    sa3 = string_arena_new(64);
-    linfo.prefix = "";
-    linfo.sa = sa2;
-    coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
-            f->fname,
-            UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                 dump_string, NULL, "", "", ", ", ""),
-            f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
-            UTIL_DUMP_LIST_FIELD(sa3, f->predicate->parameters, next, expr,
-                                 dump_expr, &linfo,
-                                 "", "", ", ", "") );
-    string_arena_free(sa3);
-
+    if( profile_on ) {
+        sa3 = string_arena_new(64);
+        linfo.prefix = "";
+        linfo.sa = sa2;
+        coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
+                f->fname,
+                UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                     dump_string, NULL, "", "", ", ", ""),
+                f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+                UTIL_DUMP_LIST_FIELD(sa3, f->predicate->parameters, next, expr,
+                                     dump_expr, &linfo,
+                                     "", "", ", ", "") );
+        string_arena_free(sa3);
+    }
     coutput("%s\n", f->body);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
@@ -2470,11 +2526,12 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
-    coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, %s ), NULL, 0);\n",
-            f->fname,
-            UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                 dump_string, NULL, "", "", ", ", ""));
-
+    if( profile_on ) {
+        coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, %s ), NULL, 0);\n",
+                f->fname,
+                UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                     dump_string, NULL, "", "", ", ", ""));
+    }
     jdf_generate_code_papi_events_after(jdf, f);
 
     coutput("#if defined(DISTRIBUTED)\n"
@@ -2963,10 +3020,16 @@ int jdf_optimize( jdf_t* jdf )
 {
     jdf_function_entry_t *f;
     string_arena_t *sa;
-    int i, can_be_startup;
+    int i, can_be_startup, high_priority;
     
     sa = string_arena_new(64);
     for(i = 0, f = jdf->functions; NULL != f; f = f->next, i++) {
+        /* Check if the function has the HIGH_PRIORITY property on */
+        high_priority = jdf_property_get_int(f->properties, "high_priority", 0);
+        if( high_priority ) {
+            f->flags |= JDF_FUNCTION_FLAG_HIGH_PRIORITY;
+        }
+
         can_be_startup = 1;
         UTIL_DUMP_LIST(sa, f->dataflow, next, has_ready_input_dependency, &can_be_startup, NULL, NULL, NULL, NULL);
         if( can_be_startup )
