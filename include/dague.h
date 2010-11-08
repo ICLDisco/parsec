@@ -168,6 +168,13 @@ struct dague_object {
     dague_arena_t**            arenas_array;
 };
 
+#if defined(DAGUE_PROF_TRACE)
+#define DAGUE_PROF_FUNC_KEY_START(dague_object, function_index) \
+    (dague_object)->profiling_array[2 * (function_index)]
+#define DAGUE_PROF_FUNC_KEY_END(dague_object, function_index) \
+    (dague_object)->profiling_array[1 + 2 * (function_index)]
+#endif
+
 void dague_destruct_dependencies(dague_dependencies_t* d);
 
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,

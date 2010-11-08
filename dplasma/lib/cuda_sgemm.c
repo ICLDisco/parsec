@@ -525,7 +525,7 @@ gpu_sgemm_internal_submit( gpu_device_t* gpu_device,
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC ) {
         dague_spotrf_rl_object_t* __dague_object = (dague_spotrf_rl_object_t*)exec_context->dague_object;
         TRACE_WITH_REF(gpu_device->profiling, 
-                       exec_context->dague_object->profiling_array[0 + 2 * exec_context->function->function_id],
+                       DAGUE_PROF_FUNC_KEY_START(exec_context->dague_object,exec_context->function->function_id),
                        GEMM_hash( __dague_object, exec_context->locals[0].value, exec_context->locals[1].value, exec_context->locals[2].value),
                        ((dague_ddesc_t*)__dague_object->A),
                        ((dague_ddesc_t*)__dague_object->A)->data_key((dague_ddesc_t*)__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
@@ -848,7 +848,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC ) {
                 dague_spotrf_rl_object_t* __dague_object = (dague_spotrf_rl_object_t*)exec_context->dague_object;
                 TRACE_WITH_REF(gpu_device->profiling, 
-                               exec_context->dague_object->profiling_array[1 + 2 * exec_context->function->function_id],
+                               DAGUE_PROF_FUNC_KEY_END(exec_context->dague_object, exec_context->function->function_id),
                                GEMM_hash( __dague_object, exec_context->locals[0].value, exec_context->locals[1].value, exec_context->locals[2].value),
                                (dague_ddesc_t*)__dague_object->A,
                                ((dague_ddesc_t*)__dague_object->A)->data_key((dague_ddesc_t*)__dague_object->A, exec_context->locals[1].value, exec_context->locals[2].value));
