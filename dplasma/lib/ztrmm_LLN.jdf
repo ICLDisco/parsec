@@ -17,6 +17,9 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
+B[aligned = A]
+CTL[aligned = A]
+
 Amb  [type = int]
 Anb  [type = int]
 Amt  [type = int]
@@ -78,6 +81,20 @@ END
 /**************************************************
  *                      GEMM                      *
  **************************************************/
+GEMM_B(m, n, k) [profile = off]
+m = 0..Bmt-1
+n = 0..Bnt-1
+k = 0..m-1
+
+:B(k, n)
+
+READ B <- B(k, n)
+       -> B GEMM(m, n, k)
+
+BODY
+ /* Nothing */
+END
+
 // Name
 GEMM(m, n, k)
 
@@ -91,7 +108,7 @@ k = 0..m-1
 
 // Parameters
 READ  A   <- A(m, k)
-READ  B   <- B(k, n) 
+READ  B   <- B GEMM_B(m, n, k) 
 RW    C   <- (k == m-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
           -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
 RW    CTL <- CTL(k, n)                                          [type = CONTROL]
