@@ -468,6 +468,20 @@ static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 
+typedef struct {
+    int rank_src;
+    int rank_dst;
+    char func[16];
+} dague_profile_remote_dep_mpi_info_t;
+
+static int  dague_profile_remote_dep_mpi_info_to_string(void *info, char *text, size_t size)
+{
+    int res;
+    dague_profile_remote_dep_mpi_info_t nfo = *(dague_profile_remote_dep_mpi_info_t*)info;
+    res = snprintf(text, size, "%d -> %d: %s", nfo.rank_src, nfo.rank_dst, nfo.func);
+    return res;
+}
+
 static void remote_dep_mpi_profiling_init(void)
 {
     int i;
@@ -479,10 +493,12 @@ static void remote_dep_mpi_profiling_init(void)
                                             0, NULL,
                                             &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
-                                            0, NULL,
+                                            sizeof(dague_profile_remote_dep_mpi_info_t), 
+                                            dague_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Data_plds_sk, &MPI_Data_plds_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
-                                            0, NULL,
+                                            sizeof(dague_profile_remote_dep_mpi_info_t), 
+                                            dague_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
     MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
@@ -493,9 +509,22 @@ static void remote_dep_mpi_profiling_init(void)
     }    
 }
 
-#define TAKE_TIME(PROF, KEY, I)  dague_profiling_trace((PROF), (KEY), (I), NULL)
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, ctx) do {           \
+        dague_profile_remote_dep_mpi_info_t __info;                     \
+        dague_execution_context_t __exec_context;                       \
+        dague_object_t *__object = dague_object_lookup( ctx.object_id ); \
+        __exec_context.function = __object->functions_array[ ctx.function_id ]; \
+        memcpy(&__exec_context.locals, ctx.locals, MAX_LOCAL_COUNT * sizeof(assignment_t)); \
+        dague_service_to_string( &__exec_context, __info.func, 16 );    \
+        __info.rank_src = src;                                          \
+        __info.rank_dst = dst;                                          \
+        dague_profiling_trace((PROF), (KEY), (I), &__info);             \
+    } while(0)
+
+#define TAKE_TIME(PROF, KEY, I) dague_profiling_trace((PROF), (KEY), (I), NULL);
 #else
-#define TAKE_TIME(PROF, KEY, I)
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, ctx) do {} while(0)
+#define TAKE_TIME(PROF, KEY, I, src, dst, ctx) do {} while(0)
 #define remote_dep_mpi_profiling_init() do {} while(0)
 #endif  /* DAGUE_PROF_TRACE */
 
@@ -791,7 +820,13 @@ static void remote_dep_mpi_put_start(remote_dep_wire_get_t* task, int to, int i)
         }
 #endif
 
-        TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_sk, i);
+#if defined(DAGUE_PROF_TRACE)
+        {
+            int myrank;
+            myrank = MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+            TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i, myrank, to, deps->msg);
+        }
+#endif /* DAGUE_PROF_TRACE */
         MPI_Isend(data, 1, dtt, to, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
         //DEBUG(("MPI:\tsend %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n", data, ((double*)data)[0], ((double*)data)[1], ((double*)data)[2]));
         DEBUG_MARK_DTA_MSG_START_SEND(to, data, tag+k);
@@ -914,7 +949,13 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         DEBUG(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
 #endif
         /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
-        TAKE_TIME(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k);
+#if defined(DAGUE_PROF_TRACE)
+        {
+            int myrank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+            TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from, myrank, deps->msg);
+        }
+#endif /* defined(DAGUE_PROF_TRACE) */
         MPI_Irecv(ADATA(data), 1, 
                   dtt, from, NEXT_TAG + k, dep_comm, 
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
