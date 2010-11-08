@@ -6,7 +6,9 @@
 #ifndef __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 
-#include "data_dist/matrix/matrix.h"
+#include "dague_config.h"
+#include "../matrix.h"
+
 
 /*
  * Symmetrical matrix. 2D block cyclic distribution, lower tiles dsitributed only
@@ -65,7 +67,7 @@ typedef struct sym_two_dim_block_cyclic {
  * @param n numbr of column of the entire submatrix
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows );
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows );
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/
