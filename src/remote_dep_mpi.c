@@ -431,7 +431,7 @@ static int remote_dep_nothread_send(int rank, dague_remote_deps_t* deps)
 
 
     msg.which = 0;
-#if !defined(DAGUE_DEBUG_DRY_DEP)
+#if !defined(DAGUE_PROF_DRY_DEP)
     for(k = 0; output_count; k++)
     {
         output_count -= deps->output[k].count;
@@ -969,7 +969,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
             assert(data != NULL);
             deps->output[k].data = data;
         }
-#ifdef DAGUE_DEBUG_DRY_DEP
+#ifdef DAGUE_PROF_DRY_DEP
         msg.which &= ~(1<<k);
 #else
 #ifdef DAGUE_DEBUG
