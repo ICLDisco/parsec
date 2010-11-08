@@ -54,7 +54,6 @@ typedef struct remote_dep_wire_get_t
 struct dague_remote_deps_t {
     dague_list_item_t                       item;
     struct dague_atomic_lifo_t*             origin;  /**< The memory arena where the data pointer is comming from */
-    dague_execution_unit_t*                 eu_context; /**< in which scope we are working */
     remote_dep_wire_activate_t              msg;     /**< A copy of the message control */
     int                                     root;    /**< The root of the control message */
     int                                     from;    /**< From whom we received the control */

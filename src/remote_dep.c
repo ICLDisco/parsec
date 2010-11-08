@@ -17,7 +17,6 @@ static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_contex
 {
     /*DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));*/
     memset(rdeps->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
-    rdeps->eu_context = eu_context;
 }
 
 /* Mark a rank as already forwarded the termination of the current task */
