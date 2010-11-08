@@ -14,6 +14,7 @@
 #include <inttypes.h>
 #include "profiling.h"
 #include "data_distribution.h"
+#include "debug.h"
 
 #include "atomic.h"
 #define min(a, b) ((a)<(b)?(a):(b))
@@ -245,7 +246,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
         }
         pos = dague_prof_keys_count;
     }
-    assert( 0 == (info_length % sizeof(void*)) );
+
     dague_prof_keys[pos].name = strdup(key_name);
     dague_prof_keys[pos].attributes = strdup(attributes);
     dague_prof_keys[pos].info_length = info_length;
@@ -321,6 +322,24 @@ static dague_profiling_output_t *find_matching_event_in_profile(const dague_thre
     return NULL;
 }
 
+#if defined(DAGUE_DEBUG)
+static void dump_whole_trace(void)
+{
+    const dague_profiling_output_t *event;
+    const dague_thread_profiling_t *profile;
+    dague_list_item_t *it;
+
+    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
+         it != &threads.ghost_element; 
+         it = (dague_list_item_t*)it->list_next ) {
+        profile = (dague_thread_profiling_t*)it;
+        FORALL_EVENTS( event, profile->events ) {
+            DEBUG(("TRACE %d/%lu on %p\n", event->event.key, event->event.id, profile));
+        }
+    }
+}
+#endif
+
 static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile, 
                                          FILE *out,
                                          dague_time_t relative )
@@ -367,6 +386,11 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
 
                 /* Couldn't find the end, or no id. Bad. */
                 if( event_not_found ) {
+
+#if defined(DAGUE_DEBUG)
+                    dump_whole_trace();
+#endif
+
                     if( !displayed_error_message ) {
                         if( profile->next_event >= profile->events_top ) {
                             fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
