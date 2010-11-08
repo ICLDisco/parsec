@@ -25,7 +25,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context);
 static int remote_dep_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
 
-static int remote_dep_nothread_send(int rank, dague_remote_deps_t* deps);
+static int remote_dep_nothread_send(dague_execution_unit_t* eu_context, int rank, dague_remote_deps_t* deps);
 static int remote_dep_nothread_memcpy(void *dst, void *src, const dague_remote_dep_datatype_t datatype);
 
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
@@ -54,7 +54,7 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
 #   define remote_dep_progress(ctx) remote_dep_dequeue_nothread_progress_one(ctx)
 #endif 
 
-static void remote_dep_mpi_put_start(remote_dep_wire_get_t* task, int to, int i);
+static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, remote_dep_wire_get_t* task, int to, int i);
 static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
 static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k);
@@ -376,7 +376,7 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
     }
     switch(item->action) {
     case DEP_ACTIVATE:
-        remote_dep_nothread_send(item->cmd.activate.rank, item->cmd.activate.deps);
+        remote_dep_nothread_send(eu_context, item->cmd.activate.rank, item->cmd.activate.deps);
         break;
     case DEP_CTL:
         ctl = item->cmd.ctl.enable;
@@ -421,7 +421,9 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
 }
 
 
-static int remote_dep_nothread_send(int rank, dague_remote_deps_t* deps)
+static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
+                                     int rank,
+                                     dague_remote_deps_t* deps)
 {
     int k;
     int rank_bank = rank / (sizeof(uint32_t) * 8);
@@ -445,7 +447,7 @@ static int remote_dep_nothread_send(int rank, dague_remote_deps_t* deps)
                 assert(0 == k); /* only the first parameter can be a control */
                 DEBUG((" CTL\t%s\tparam%d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
 #endif
-                remote_dep_dec_flying_messages(deps->eu_context->master_context);
+                remote_dep_dec_flying_messages(eu_context->master_context);
             }
             else
             {
@@ -744,7 +746,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
         } else if(i < dague_mpi_transferts) {
             i -= dague_mpi_activations; /* shift i */
             assert(REMOTE_DEP_GET_DATA_TAG == status.MPI_TAG);
-            remote_dep_mpi_put_start(&dep_get_buff[i], status.MPI_SOURCE, i);
+            remote_dep_mpi_put_start(eu_context, &dep_get_buff[i], status.MPI_SOURCE, i);
         } else {
             i -= dague_mpi_transferts;  /* shift i */
             assert(i >= 0);
@@ -815,7 +817,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     return ret;
 }
 
-static void remote_dep_mpi_put_start(remote_dep_wire_get_t* task, int to, int i)
+static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, remote_dep_wire_get_t* task, int to, int i)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
     int tag = task->tag;
@@ -853,11 +855,8 @@ static void remote_dep_mpi_put_start(remote_dep_wire_get_t* task, int to, int i)
 #endif
 
 #if defined(DAGUE_PROF_TRACE)
-        {
-            int myrank;
-            myrank = MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-            TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i, myrank, to, deps->msg);
-        }
+        TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
+                            eu_context->master_context->my_rank, to, deps->msg);
 #endif /* DAGUE_PROF_TRACE */
         MPI_Isend(data, 1, dtt, to, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
         //DEBUG(("MPI:\tsend %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n", data, ((double*)data)[0], ((double*)data)[1], ((double*)data)[2]));
@@ -980,11 +979,8 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #endif
         /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
 #if defined(DAGUE_PROF_TRACE)
-        {
-            int myrank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-            TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from, myrank, deps->msg);
-        }
+        TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
+                            eu_context->master_context->my_rank, deps->msg);
 #endif /* defined(DAGUE_PROF_TRACE) */
         MPI_Irecv(ADATA(data), 1, 
                   dtt, from, NEXT_TAG + k, dep_comm, 
