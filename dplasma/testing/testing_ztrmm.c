@@ -30,31 +30,38 @@ int main(int argc, char ** argv)
 #endif
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
-    int s = PlasmaLeft;
-    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M,(DagDouble_t)N))
+    PASTE_CODE_IPARAM_LOCALS(iparam);
     /* initializing matrix structure */
-    /* TODO: Shouldn't A be declared Symetric for a TR op ? */
+    int Am = max(M, NRHS);
+    LDA = max(LDA, Am);
+    LDB = max(LDB, M);
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
-                                    LDA, N, SMB, SNB, P))
+                               nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+                               Am, Am, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, NRHS, 0, 0, 
-                                    LDB, NRHS, SMB, SNB, P))
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                               M, NRHS, SMB, SNB, P));
+
+    MT = ddescB.super.mt;
+    NT = ddescB.super.nt;
     PASTE_CODE_ALLOCATE_MATRIX(work, 1, 
         two_dim_block_cyclic, (&work, matrix_Integer, 
-                                    nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
-                                    MT, NT, 1, 1, P))
-    
+                               nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
+                               MT, NT, 1, 1, P))
+
     if(!check) 
     {
+        int s = PlasmaLeft;
+        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
+
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
         if(loud > 2) printf("Done\n");
+
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrmm,
                                            (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
@@ -67,13 +74,14 @@ int main(int argc, char ** argv)
     }
     else
     { 
-        int u, t, d;
+        int s, u, t, d;
         int info_solution;
-        Dague_Complex64_t alpha = 1.0;
-        two_dim_block_cyclic_t ddescC;
+        Dague_Complex64_t alpha = 3.5;
 
-        two_dim_block_cyclic_init(&ddescC, matrix_ComplexDouble, nodes, cores, rank, MB, NB, M, NRHS, 0, 0, LDB, NRHS, SMB, SNB, P);
-        ddescC.mat = dague_data_allocate((size_t)ddescC.super.nb_local_tiles * (size_t)ddescC.super.bsiz * (size_t)ddescC.super.mtype);
+        PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
+            two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                                   M, NRHS, SMB, SNB, P));
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
@@ -85,7 +93,7 @@ int main(int argc, char ** argv)
                     for (d=0; d<2; d++) {
 
                         printf("***************************************************\n");
-                        printf(" ----- TESTING DTRMM (%s, %s, %s, %s) -------- \n",
+                        printf(" ----- TESTING ZTRMM (%s, %s, %s, %s) -------- \n",
                                    sidestr[s], uplostr[u], transstr[t], diagstr[d]);
 
                         /* matrix generation */
@@ -105,11 +113,11 @@ int main(int argc, char ** argv)
                         info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
                                                        alpha, &ddescA, &ddescB, &ddescC);
                        if (info_solution == 0) {
-                            printf(" ---- TESTING DTRMM (%s, %s, %s, %s) ...... PASSED !\n",
+                            printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ...... PASSED !\n",
                                    sidestr[s], uplostr[u], transstr[t], diagstr[d]);
                         }
                         else {
-                            printf(" ---- TESTING DTRMM (%s, %s, %s, %s) ... FAILED !\n",
+                            printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
                                    sidestr[s], uplostr[u], transstr[t], diagstr[d]);
                         }
                         printf("***************************************************\n");
@@ -165,9 +173,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
         Am = N;
     }
 
-    A = (Dague_Complex64_t *)malloc((ddescA->super.mt)*(ddescA->super.nt)*(ddescA->super.bsiz)*sizeof(Dague_Complex64_t));
-    B = (Dague_Complex64_t *)malloc((ddescB->super.mt)*(ddescB->super.nt)*(ddescB->super.bsiz)*sizeof(Dague_Complex64_t));
-    C = (Dague_Complex64_t *)malloc((ddescC->super.mt)*(ddescC->super.nt)*(ddescC->super.bsiz)*sizeof(Dague_Complex64_t));
+    A = (Dague_Complex64_t *)malloc((ddescA->super.lm)*(ddescA->super.n)*sizeof(Dague_Complex64_t));
+    B = (Dague_Complex64_t *)malloc((ddescB->super.lm)*(ddescB->super.n)*sizeof(Dague_Complex64_t));
+    C = (Dague_Complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
 
     twoDBC_ztolapack( ddescA, A, LDA );
     twoDBC_ztolapack( ddescB, B, LDB );
