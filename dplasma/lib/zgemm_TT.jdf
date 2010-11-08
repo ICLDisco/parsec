@@ -117,7 +117,7 @@ BODY
                  tempmm, tempnn, tempkk,
                  alpha, m, k, Amb,
                         k, n, Bmb,
-                 beta,  m, n, Cmb );
+                 lbeta, m, n, Cmb );
 END
 
 extern "C" %{
