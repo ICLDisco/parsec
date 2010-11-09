@@ -115,7 +115,7 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  u
            sca_desc[0], sca_desc[1], sca_desc[2], sca_desc[3], sca_desc[4], sca_desc[5], sca_desc[6], sca_desc[7], sca_desc[8]);
 #endif /* DAGUE_DEBUG */
 
-    
+    memset(smat, 0 , rlength * clength * Ddesc->mtype);
     return smat;    
 }
 

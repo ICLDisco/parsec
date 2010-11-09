@@ -203,7 +203,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
+                    //DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
                     
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
@@ -225,11 +225,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         {
                             continue;
                         }
-#if defined(DAGUE_DEBUG_DRY_DEP)
-                        remote_deps->msg.which = 0;
-#else
                         remote_dep_inc_flying_messages(eu_context->master_context);
-#endif
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     }

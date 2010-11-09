@@ -2313,7 +2313,7 @@ static void jdf_generate_code_dry_run_before(const jdf_t *jdf, const jdf_functio
     (void)jdf;
     (void)f;
 
-    coutput("\n\n#if !defined(DAGUE_DEBUG_DRY_BODY)\n\n");
+    coutput("\n\n#if !defined(DAGUE_PROF_DRY_BODY)\n\n");
 }
 
 static void jdf_generate_code_dry_run_after(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -2321,7 +2321,7 @@ static void jdf_generate_code_dry_run_after(const jdf_t *jdf, const jdf_function
     (void)jdf;
     (void)f;
 
-    coutput("\n\n#endif /*!defined(DAGUE_DEBUG_DRY_BODY)*/\n\n");
+    coutput("\n\n#endif /*!defined(DAGUE_PROF_DRY_BODY)*/\n\n");
 }
 
 

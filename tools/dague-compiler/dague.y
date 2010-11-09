@@ -79,6 +79,11 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
             assert(NULL == global->data);
             global->data = data;
             data->global = global;
+
+            if( jdf_find_property( global->properties, "type", NULL ) == NULL ) {
+                global->properties = jdf_create_properties_list( "type", 0, "dague_ddesc_t*", global->properties);
+            }
+
             return data;
         }
         global = global->next;
