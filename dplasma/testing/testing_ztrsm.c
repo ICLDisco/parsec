@@ -63,7 +63,9 @@ int main(int argc, char ** argv)
                                    (tiled_matrix_desc_t *)&ddescB));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, ztrsm)
+        PASTE_CODE_PROGRESS_KERNEL(dague, ztrsm);
+
+        dplasma_ztrsm_Destruct( DAGUE_ztrsm );
     }
     else
     { 
