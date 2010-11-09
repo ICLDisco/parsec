@@ -16,9 +16,9 @@ extern "C" %{
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "cuda_sgemm.h"
+#include "cuda_zgemm.h"
 extern int *gpu_counter;
-#endif
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
 /* Globals

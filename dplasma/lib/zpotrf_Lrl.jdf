@@ -14,11 +14,11 @@ extern "C" %{
 
 #define PRECISION_z
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "cuda_sgemm.h"
+#include "cuda_zgemm.h"
 extern int *gpu_counter;
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}
 
 /* Globals
@@ -54,9 +54,9 @@ RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
 //; (k >= (Amt - PRI_CHANGE)) ? (Amt - k + 7) * (Amt - k + 2) * (Amt - k) / 6 : 0
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempkm = k == Amt-1 ? Am - k*Amb : Amb;
     int iinfo = 0;
@@ -99,10 +99,10 @@ RW    C <- (k == 0) ? A(m, k) : C GEMM(k-1, m, k)
 //;  (m >= (Amt - PRI_CHANGE)) ? (Amt - m - k) * ((Amt - m - k + 1) / 2 + 2) - 1 + (Amt - m + 2) * (Amt - m + 1) * (Amt - m) / 6 : 0
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == Amt-1 ? Am - m * Amb : Amb;
     DRYRUN(
@@ -145,10 +145,10 @@ RW    T <- (k == 0)   ? A(m, m)    : T HERK(k-1, m)
 //; (m >= (Amt - PRI_CHANGE)) ? (Amt - m + 2) * (Amt - m + 1) * (Amt - m) / 6 + Amt - m + k + 1 : 0
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, m );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == Amt-1 ? Am - m*Amb : Amb;
     DRYRUN(
@@ -191,7 +191,7 @@ RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
 //;  (m >= (Amt - PRI_CHANGE)) ? (Amt - m - n) * ((Amt - n - k + 1) / 2 + 2) - 1 + (Amt - m + 2) * (Amt - m + 1) * (Amt - m) / 6 + Amt - n + k + 1 : 0
 
 BODY
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, n, k );
     if( dague_using_gpu() > 0 ) {
@@ -211,7 +211,7 @@ BODY
         /* Continue with the task on the cores */
     }
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
-#endif  /* defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s) */
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempmm = m == Amt-1 ? Am - m * Amb : Amb;
     DRYRUN(
@@ -230,7 +230,7 @@ BODY
                    n, k, B, Amb,
               1.0, m, n, C, Amb);
 
-#if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
 FIN:
 #endif
 END
