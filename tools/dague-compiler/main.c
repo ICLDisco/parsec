@@ -40,6 +40,7 @@ static void usage(void)
             "  --noline           Do not dump the JDF line number in the .c output file\n"
             "\n"
             " Warning Options: Default is to print ALL warnings. You can disable the following:\n"
+            "  --Werror           Exit with non zero value if at least one warning is encountered\n"
             "  --Wmasked          Do NOT print warnings for masked variables\n"
             "  --Wmutexin         Do NOT print warnings for non-obvious mutual exclusion of\n"
             "                     input flows\n"
@@ -58,6 +59,7 @@ static void parse_args(int argc, char *argv[])
     int wmutexinput = 0;
     int wremoteref = 0;
     int print_jdf_line = 0;
+    int werror = 0;
     char *c = NULL;
     char *h = NULL;
     char *o = NULL;
@@ -73,6 +75,7 @@ static void parse_args(int argc, char *argv[])
         { "Wmasked",       no_argument,         &wmasked,   1  },
         { "Wmutexin",      no_argument,     &wmutexinput,   1  },
         { "Wremoteref",    no_argument,      &wremoteref,   1  },
+        { "Werror",        no_argument,          &werror,   1  },
         { "noline",        no_argument,  &print_jdf_line,   1  },
         { "help",          no_argument,             NULL,  'h' },
         { NULL,            0,                       NULL,   0  }
@@ -123,11 +126,14 @@ static void parse_args(int argc, char *argv[])
             if( print_jdf_line ) {
                 JDF_COMPILER_GLOBAL_ARGS.noline = 1;
             }
+            if( werror ) {
+                JDF_COMPILER_GLOBAL_ARGS.wmask |= JDF_WARNINGS_ARE_ERROR;
+            }
             break;
         case 'h':
         default:
             usage();
-            exit( (ch == 'h') );
+            exit( (ch != 'h') );
         }
     }
 
@@ -203,7 +209,12 @@ int main(int argc, char *argv[])
 
     rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
     if(rc < 0)
-        return -1;
+        return 1;
+
+    if( (JDF_COMPILER_GLOBAL_ARGS.wmask & JDF_WARNINGS_ARE_ERROR) &&
+        (rc != 0) ) {
+        return 1;
+    }
     
     /* Lets try to optimize the jdf */
     jdf_optimize( &current_jdf );
@@ -212,7 +223,7 @@ int main(int argc, char *argv[])
               JDF_COMPILER_GLOBAL_ARGS.output_h, 
               JDF_COMPILER_GLOBAL_ARGS.funcid, 
               &current_jdf) < 0 ) {
-        return -1;
+        return 1;
     }
 
 	return 0;

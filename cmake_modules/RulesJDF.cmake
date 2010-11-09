@@ -21,7 +21,7 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
     set(jdf_rules_OSRC "generated/${jdf_rules_BSRC}")
     add_custom_command(
       OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-      COMMAND ${DAGUEPP} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+      COMMAND ${DAGUEPP} ${DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
       MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
       DEPENDS ${DAGUEPP})
 #   add_custom_target(${jdf_rules_BSRC} DEPENDS ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c)

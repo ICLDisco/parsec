@@ -12,26 +12,13 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "dplasmajdf.h"
-
 %}
 
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-Amb  [type = int]
-Anb  [type = int]
-Amt  [type = int]
-Ant  [type = int]
-Am   [type = int]
-An   [type = int]
+CTL[aligned = B]
 
-Bmb  [type = int]
-Bnb  [type = int]
-Bmt  [type = int]
-Bnt  [type = int]
-Bm   [type = int]
-Bn   [type = int]
-     
 side [type = int]
 uplo [type = int]
 trans[type = int]
@@ -39,9 +26,36 @@ diag [type = int]
 
 alpha[type = Dague_Complex64_t]
 
+Am   [type = int]
+An   [type = int]
+Amb  [type = int]
+Anb  [type = int]
+Amt  [type = int]
+Ant  [type = int]
+
+Bm   [type = int]
+Bn   [type = int]
+Bmb  [type = int]
+Bnb  [type = int]
+Bmt  [type = int]
+Bnt  [type = int]
+     
 /**************************************************
  *                      TRMM                      *
  **************************************************/
+TRMM_IN(n)  [profile = off]
+n = 0..Bnt-1
+
+: A(n, n)
+
+READ A <- A(n, n)
+  -> A TRMM(0..Bmt-1, n)
+
+BODY
+  /* Nothing */
+  printlog("thread %d trmm_in( %d )\n", context->eu_id, n);
+END
+
 TRMM(m, n)
 
 // Execution space
@@ -52,33 +66,63 @@ n = 0..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A   <- A(n, n)
+READ  A   <- A TRMM_IN(n)
 RW    B   <- B(m, n)
           -> (n == 0)     ? B(m, n)   : C GEMM(m, n, n-1)
 READ  CTL <- (n == Bnt-1) ? CTL(m, n) : CTL1 GOK(m, n+1, n)              [type = CONTROL]
 
 BODY
-      DRYRUN(
-	   CORE_ztrmm(
-		  side, uplo, trans, diag,
-		  m == Bmt-1 ? Bm - m * Bmb : Bmb,
-		  n == Bnt-1 ? Bn - n * Bnb : Bnb,
-		  alpha, A /*A(k, k)*/, Amb,
-		         B /*B(k, n)*/, Bmb)
-	   );
+     int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
+     int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
+     DRYRUN(
+	  CORE_ztrmm(
+              side, uplo, trans, diag,
+              tempmm, tempnn,
+              alpha, A /*A(n, n)*/, Amb,
+                     B /*B(m, n)*/, Bmb)
+          );
 
-      printlog("thread %d trmm( %d, %d )\n"
-	       "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, m, n, "Right", "Upper", "NoTrans", "[Non]Unit",
-	       m == Bmt-1 ? Bm - m * Bmb : Bmb,
-	       n == Bnt-1 ? Bn - n * Bnb : Bnb,
-	       alpha, n, n, A /*A(k, k)*/, Amb,
-	              m, n, B /*B(k, n)*/, Bmb);
+     printlog("thread %d CORE_ztrmm( %d, %d )\n"
+              "    ( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+              context->eu_id, m, n, 
+              plasma_const(side), plasma_const(uplo), plasma_const(trans), plasma_const(diag), 
+              tempmm, tempnn,
+              alpha, m, m, A, Amb,
+                     m, n, B, Bmb);
 END
 
 /**************************************************
  *                      GEMM                      *
  **************************************************/
+GEMM_INA(n, k)  [profile = off]
+n = 0..Bnt-1
+k = 0..n-1
+
+:A(n, k)
+
+READ A <- A(n, k)
+       -> A GEMM(0..Bmt-1, n, k)
+
+BODY
+  /* Nothing */
+  printlog("thread %d gemm_inA( %d, %d )\n", context->eu_id, n, k);
+END
+
+
+GEMM_INB(m, k)  [profile = off]
+m = 0..Bmt-1
+k = 0..Bnt-2
+
+:B(m, k)
+
+READ B <- B(m, k)
+       -> B GEMM(m, k+1..Bnt-1, k)
+
+BODY
+  /* Nothing */
+  printlog("thread %d gemm_inB( %d, %d )\n", context->eu_id, m, k);
+END
+
 // Name
 GEMM(m, n, k)
 
@@ -91,33 +135,31 @@ k = 0..n-1
 : B(m, n)
 
 // Parameters
-READ  A   <- B(m, k)
-READ  B   <- A(n, k) 
+READ  A   <- B GEMM_INB(m, k)
+READ  B   <- A GEMM_INA(n, k) 
 RW    C   <- (k == n-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
           -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
-RW    CTL <- CTL(k, n)                                          [type = CONTROL]
+RW    CTL <- CTL(m, n)                                          [type = CONTROL]
           -> CTL2 GOK(m, n, k)                                  [type = CONTROL]
 BODY
-      DRYRUN(
-	   CORE_zgemm(
+     int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
+     int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
+     DRYRUN(
+            CORE_zgemm(
 		  PlasmaNoTrans, trans,
-		  m == Bmt-1 ? Bm-m*Bmb : Bmb,
-		  n == Bnt-1 ? Bn-n*Bnb : Bnb,
-		  Bmb,
+                  tempmm, tempnn, Bmb,
 		  alpha, A, Bmb,
 		         B, Amb,
-		  (Dague_Complex64_t)1.0,  C, Bmb)
+		  (Dague_Complex64_t)1.0, C, Bmb)
 	   );
-				       
+
       printlog("thread %d gemm( %d, %d, %d )\n"
-	       "    ( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, m, n, k, "NoTrans", "[Conj]Trans", 
-	       m == Bmt-1 ? Bm-m*Bmb : Bmb,
-	       n == Bnt-1 ? Bn-n*Bnb : Bnb,
-	       Bmb,
-	       alpha, m, k, A, Bmb,
-	              n, k, B, Bmb,
-	       (Dague_Complex64_t)1.0, C, Bmb);
+	       "    ( %s, %s, %d, %d, %d, %f, B(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->eu_id, m, n, k, 
+               plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
+               tempmm, tempnn, tempkn,
+	       alpha, m, k, A, Bmb, n, k, B, Amb,
+	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
 
 /**************************************************

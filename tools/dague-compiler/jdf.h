@@ -30,7 +30,11 @@ typedef uint64_t jdf_warning_mask_t;
 #define JDF_WARN_MASKED_GLOBALS          ((jdf_warning_mask_t)(1 <<  0))
 #define JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS ((jdf_warning_mask_t)(1 <<  1))
 #define JDF_WARN_REMOTE_MEM_REFERENCE    ((jdf_warning_mask_t)(1 <<  2))
-#define JDF_ALL_WARNINGS                 ((jdf_warning_mask_t)(0xffffffffffffffff))
+
+#define JDF_WARNINGS_ARE_ERROR           ((jdf_warning_mask_t)(1 <<  3))
+
+#define JDF_WARNINGS_DISABLED_BY_DEFAULT (JDF_WARNINGS_ARE_ERROR)
+#define JDF_ALL_WARNINGS                 ((jdf_warning_mask_t)~JDF_WARNINGS_DISABLED_BY_DEFAULT)
 int jdf_sanity_checks( jdf_warning_mask_t mask );
 
 typedef struct jdf_compiler_global_args {

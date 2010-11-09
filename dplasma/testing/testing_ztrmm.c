@@ -44,18 +44,18 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                M, NRHS, SMB, SNB, P));
 
-    MT = ddescB.super.mt;
-    NT = ddescB.super.nt;
-    PASTE_CODE_ALLOCATE_MATRIX(work, 1, 
-        two_dim_block_cyclic, (&work, matrix_Integer, 
-                               nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
-                               MT, NT, 1, 1, P))
-
     if(!check) 
     {
         int s = PlasmaLeft;
         PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
 
+        MT = ddescB.super.mt;
+        NT = ddescB.super.nt;
+        PASTE_CODE_ALLOCATE_MATRIX(work, 1, 
+            two_dim_block_cyclic, (&work, matrix_Integer, 
+                                   nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
+                                   MT, NT, 1, 1, P));
+          
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
@@ -64,13 +64,17 @@ int main(int argc, char ** argv)
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrmm,
-                                           (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-                                            (Dague_Complex64_t)1.0, 
-                                            (tiled_matrix_desc_t *)&ddescA, 
-                                            (tiled_matrix_desc_t *)&ddescB, 
-                                            (tiled_matrix_desc_t *)&work)) 
+                                  (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                                   (Dague_Complex64_t)1.0, 
+                                   (tiled_matrix_desc_t *)&ddescA, 
+                                   (tiled_matrix_desc_t *)&ddescB, 
+                                   (tiled_matrix_desc_t *)&work));
+ 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm)
+        PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
+            
+        dague_data_free(work.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&work);
     }
     else
     { 
@@ -92,9 +96,11 @@ int main(int argc, char ** argv)
 #endif
                     for (d=0; d<2; d++) {
 
-                        printf("***************************************************\n");
-                        printf(" ----- TESTING ZTRMM (%s, %s, %s, %s) -------- \n",
+                        if ( rank == 0 ) {
+                            printf("***************************************************\n");
+                            printf(" ----- TESTING ZTRMM (%s, %s, %s, %s) -------- \n",
                                    sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                        }
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
@@ -105,22 +111,24 @@ int main(int argc, char ** argv)
 
                         /* Create TRMM DAGuE */
                         printf("Compute ... ... ");
-                        dplasma_dtrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
+                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
                         printf("Done\n");
 
                         /* Check the solution */
                         info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
                                                        alpha, &ddescA, &ddescB, &ddescC);
-                       if (info_solution == 0) {
-                            printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ...... PASSED !\n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                        if ( rank == 0 ) {
+                            if (info_solution == 0) {
+                                printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ...... PASSED !\n",
+                                       sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                            }
+                            else {
+                                printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
+                                       sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                            }
+                            printf("***************************************************\n");
                         }
-                        else {
-                            printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
-                        }
-                        printf("***************************************************\n");
                     }
                 }
 #ifdef __UNUSED__
@@ -138,8 +146,6 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescB.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
-    dague_data_free(work.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&work);
 
     return 0;
 }
@@ -202,11 +208,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
 
     result = Rnorm / ((Anorm + Blapacknorm) * max(M,N) * eps);
     if (  isinf(Blapacknorm) || isinf(Bdaguenorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
-        printf("-- The solution is suspicious ! \n");
         info_solution = 1;
     }
     else{
-        printf("-- The solution is CORRECT ! \n");
         info_solution = 0;
     }
 
