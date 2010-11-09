@@ -558,7 +558,7 @@ static void remote_dep_mpi_profiling_init(void)
 #define TAKE_TIME(PROF, KEY, I) dague_profiling_trace((PROF), (KEY), (I), NULL);
 #else
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, ctx) do {} while(0)
-#define TAKE_TIME(PROF, KEY, I, src, dst, ctx) do {} while(0)
+#define TAKE_TIME(PROF, KEY, I) do {} while(0)
 #define remote_dep_mpi_profiling_init() do {} while(0)
 #endif  /* DAGUE_PROF_TRACE */
 
