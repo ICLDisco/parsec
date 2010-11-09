@@ -82,8 +82,9 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-
-
+### Dague PP options
+set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
+mark_as_advanced(DAGUEPP_CFLAGS)
 
 
 
