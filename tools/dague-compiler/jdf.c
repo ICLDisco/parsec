@@ -124,7 +124,7 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
         if( jdf_sanity_check_expr_bound_before_global(e->jdf_ba1, g1) < 0 )
             rc = -1;
         if( jdf_sanity_check_expr_bound_before_global(e->jdf_ba2, g1) < 0 )
-            rc = 1;
+            rc = -1;
         return rc;
     }
 }
@@ -238,7 +238,7 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
         if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba1, f, d) < 0 )
             rc = -1;
         if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba2, f, d) < 0 )
-            rc = 1;
+            rc = -1;
         return rc;
     }
 }
@@ -301,7 +301,7 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
         if( jdf_sanity_check_expr_bound(e->jdf_ba1, kind, f) < 0 )
             rc = -1;
         if( jdf_sanity_check_expr_bound(e->jdf_ba2, kind, f) < 0 )
-            rc = 1;
+            rc = -1;
         return rc;
     }
 }
@@ -570,7 +570,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
 
     /* Simple case: d is a call to another kernel, not a memory reference */
     if( NULL != d->var )
-        return 1;
+        return 0;
 
     ciscanon = compute_canonical_data_location( c->func_or_mem, c->parameters, &cstr, &ccanon );
     discanon = compute_canonical_data_location( d->func_or_mem, d->parameters, &dstr, &dcanon );
@@ -610,9 +610,9 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
                      dstr, discanon ? "" : " (aligned with ", discanon ? "" : dcanon, discanon ? "" : ")",
                      dstr, cstr, ccanon);
         }
-        ret = 0;
-    } else {
         ret = 1;
+    } else {
+        ret = 0;
     }
     
     free(cstr);

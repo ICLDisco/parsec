@@ -9,10 +9,25 @@ if(CUDA_FOUND AND "${DPLASMA_PRECISIONS}" MATCHES "s")
     set(CUDA_BUILD_CUBIN ON)
     set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_11)
     cuda_add_library( sgemm-sm_11 cuda_sgemm_kernel.cu)
+    install(TARGETS sgemm-sm_11 ARCHIVE DESTINATION lib)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sgemm-sm_11_generated_cuda_sgemm_kernel.cu.o.cubin.txt
+      DESTINATION lib
+      RENAME sgemm-sm_11.cubin)
+
     set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_13)
     cuda_add_library( sgemm-sm_13 cuda_sgemm_kernel.cu)
+    install(TARGETS sgemm-sm_13 ARCHIVE DESTINATION lib)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sgemm-sm_13_generated_cuda_sgemm_kernel.cu.o.cubin.txt
+      DESTINATION lib
+      RENAME sgemm-sm_13.cubin)
+
     set(CUDA_NVCC_FLAGS -arch sm_20)
     cuda_add_library( sgemm-sm_20 cuda_sgemm_kernelf.cu)
+    install(TARGETS sgemm-sm_20 ARCHIVE DESTINATION lib)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sgemm-sm_20_generated_cuda_sgemm_kernelf.cu.o.cubin.txt
+      DESTINATION lib
+      RENAME sgemm-sm_20.cubin)
+
     set(GPU_KERNEL_SOURCES cuda_sgemm.c cuda_stsmqr.c)
 else()
   set(GPU_KERNEL_SOURCES "")
@@ -74,5 +89,7 @@ else (MPI_FOUND)
 # set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
 endif (MPI_FOUND)
-install(FILES dplasma.h ${generated_headers} DESTINATION include)
-
+install(FILES dplasma.h DESTINATION include)
+foreach(generated_header ${generated_headers})
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include)
+endforeach()
