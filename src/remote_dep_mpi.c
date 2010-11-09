@@ -20,7 +20,7 @@ static int remote_dep_mpi_init(dague_context_t* context);
 static int remote_dep_mpi_fini(dague_context_t* context);
 static int remote_dep_mpi_on(dague_context_t* context);
 static int remote_dep_mpi_off(dague_context_t* context);
-static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg);
+static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg);
 static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context);
 static int remote_dep_get_datatypes(dague_remote_deps_t* origin);
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin);
@@ -463,7 +463,7 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
         }
     }
 #endif
-    remote_dep_mpi_send_dep(rank, &msg);
+    remote_dep_mpi_send_dep(eu_context, rank, &msg);
     return 0;
 }
 
@@ -522,10 +522,12 @@ static void remote_dep_mpi_profiling_init(void)
     int i;
     
     dague_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
-                                            0, NULL,
+                                            sizeof(dague_profile_remote_dep_mpi_info_t),
+                                            dague_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Activate_sk, &MPI_Activate_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
-                                            0, NULL,
+                                            sizeof(dague_profile_remote_dep_mpi_info_t),
+                                            dague_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
     dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
                                             sizeof(dague_profile_remote_dep_mpi_info_t), 
@@ -696,21 +698,23 @@ static int remote_dep_mpi_fini(dague_context_t* context)
 }
 
 /* Send the activate tag */
-static int remote_dep_mpi_send_dep(int rank, remote_dep_wire_activate_t* msg)
+static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg)
 {
 #ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
+
+#if !defined(DAGUE_PROF_TRACE)
+    (void)eu_context;
+#endif
     
     assert(dep_enabled);
-#ifdef DAGUE_PROF_TRACE
-    TAKE_TIME(MPIctl_prof, MPI_Activate_sk, act);
-#endif
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tparams %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which));
     
+    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
-
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
+
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(rank, (void*)msg, msg);
 
 #if defined(DAGUE_STATS)
@@ -1049,7 +1053,8 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
     }
     if(msg.which)
     {
-        TAKE_TIME(MPIctl_prof, MPI_Data_ctl_sk, get);
+        TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get, 
+                            from, eu_context->master_context->my_rank, (*task));
         MPI_Send(&msg, datakey_count, datakey_dtt, from, 
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         dep_pending_recv_array[i] = deps;
