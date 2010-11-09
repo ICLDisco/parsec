@@ -60,7 +60,7 @@ struct dague_remote_deps_t {
     int                                     max_priority;
     uint32_t                                output_count;
     uint32_t                                output_sent_count;
-    uint32_t*                               remote_dep_fw_mask;  /**< list of peers already notified abput
+    uint32_t*                               remote_dep_fw_mask;  /**< list of peers already notified about
                                                                   * the control sequence (only used for control messages) */
     struct { /** Never change this structure without understanding the 
               *   "subtle" relation with  remote_deps_allocation_init in remote_dep.c
