@@ -73,6 +73,8 @@ int main(int argc, char ** argv)
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
             
+        dplasma_ztrmm_Destruct( DAGUE_ztrmm );
+
         dague_data_free(work.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&work);
     }

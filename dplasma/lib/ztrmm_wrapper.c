@@ -105,6 +105,44 @@ dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_
 }
 
 void
+dplasma_ztrmm_Destruct( dague_object_t *o )
+{
+    int side  = ((dague_ztrmm_LLN_object_t *)o)->side;
+    int uplo  = ((dague_ztrmm_LLN_object_t *)o)->uplo;
+    int trans = ((dague_ztrmm_LLN_object_t *)o)->trans;
+
+    if ( side == PlasmaLeft ) {
+        if ( uplo == PlasmaLower ) {
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrmm_LLN_destroy((dague_ztrmm_LLN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrmm_LLT_destroy((dague_ztrmm_LLT_object_t *)o);
+            }
+        } else { /* uplo = PlasmaUpper */
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrmm_LUN_destroy((dague_ztrmm_LUN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrmm_LUT_destroy((dague_ztrmm_LUT_object_t *)o);
+            }
+        }
+    } else { /* side == PlasmaRight */
+        if ( uplo == PlasmaLower ) {
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrmm_RLN_destroy((dague_ztrmm_RLN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrmm_RLT_destroy((dague_ztrmm_RLT_object_t *)o);
+            }
+        } else { /* uplo = PlasmaUpper */
+            if ( trans == PlasmaNoTrans ) {
+                dague_ztrmm_RUN_destroy((dague_ztrmm_RUN_object_t *)o);
+            } else { /* trans =! PlasmaNoTrans */
+                dague_ztrmm_RUT_destroy((dague_ztrmm_RUT_object_t *)o);
+            }
+        }
+    }
+}
+
+void
 dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
                const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B)
 {
@@ -121,6 +159,8 @@ dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
 
     dague_enqueue( dague, (dague_object_t*)dague_ztrmm);
     dague_progress(dague);
+
+    dplasma_ztrmm_Destruct( dague_ztrmm );
 
     dague_data_free(work.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&work);
