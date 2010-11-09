@@ -44,18 +44,18 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                M, NRHS, SMB, SNB, P));
 
-    MT = ddescB.super.mt;
-    NT = ddescB.super.nt;
-    PASTE_CODE_ALLOCATE_MATRIX(work, 1, 
-        two_dim_block_cyclic, (&work, matrix_Integer, 
-                               nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
-                               MT, NT, 1, 1, P))
-
     if(!check) 
     {
         int s = PlasmaLeft;
         PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
 
+        MT = ddescB.super.mt;
+        NT = ddescB.super.nt;
+        PASTE_CODE_ALLOCATE_MATRIX(work, 1, 
+            two_dim_block_cyclic, (&work, matrix_Integer, 
+                                   nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
+                                   MT, NT, 1, 1, P));
+          
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
@@ -64,13 +64,17 @@ int main(int argc, char ** argv)
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrmm,
-                                           (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
-                                            (Dague_Complex64_t)1.0, 
-                                            (tiled_matrix_desc_t *)&ddescA, 
-                                            (tiled_matrix_desc_t *)&ddescB, 
-                                            (tiled_matrix_desc_t *)&work)) 
+                                  (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                                   (Dague_Complex64_t)1.0, 
+                                   (tiled_matrix_desc_t *)&ddescA, 
+                                   (tiled_matrix_desc_t *)&ddescB, 
+                                   (tiled_matrix_desc_t *)&work));
+ 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm)
+        PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
+            
+        dague_data_free(work.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&work);
     }
     else
     { 
@@ -105,7 +109,7 @@ int main(int argc, char ** argv)
 
                         /* Create TRMM DAGuE */
                         printf("Compute ... ... ");
-                        dplasma_dtrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
+                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
                         printf("Done\n");
 
@@ -138,8 +142,6 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescB.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
-    dague_data_free(work.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&work);
 
     return 0;
 }
