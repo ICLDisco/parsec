@@ -22,9 +22,6 @@
 /* debug */
 #cmakedefine DAGUE_DEBUG
 #cmakedefine DAGUE_DEBUG_HISTORY
-#cmakedefine DAGUE_DEBUG_DRY_RUN
-#cmakedefine DAGUE_DEBUG_DRY_BODY
-#cmakedefine DAGUE_DEBUG_DRY_DEP
 #cmakedefine DAGUE_DEBUG_LIFO_USE_LOCKS
 
 /* profiling */
@@ -32,6 +29,9 @@
 #cmakedefine DAGUE_PROF_STATS
 #cmakedefine DAGUE_PROF_PAPI
 #cmakedefine DAGUE_PROF_GRAPHER
+#cmakedefine DAGUE_PROF_DRY_RUN
+#cmakedefine DAGUE_PROF_DRY_BODY
+#cmakedefine DAGUE_PROF_DRY_DEP
 
 /* system */
 #cmakedefine HAVE_PTHREAD
