@@ -120,9 +120,6 @@ dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
 				    A, B, (tiled_matrix_desc_t *)&work);
 
     dague_enqueue( dague, (dague_object_t*)dague_ztrmm);
-
-    fprintf(stderr, "Nb tasks to do : %d\n", dague->taskstodo);
-
     dague_progress(dague);
 
     dague_data_free(work.mat);

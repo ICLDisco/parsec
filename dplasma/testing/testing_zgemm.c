@@ -30,9 +30,9 @@ int main(int argc, char ** argv)
 #endif
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_IPARAM_LOCALS(iparam);
 
-    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K))
+    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
 
     int tA = PlasmaNoTrans;
     int tB = PlasmaNoTrans;
@@ -46,7 +46,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
         two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
                                nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
-                               M, N, SMB, SNB, P))
+                               M, N, SMB, SNB, P));
 
     /* initializing matrix structure */
     if(!check) 
@@ -54,11 +54,11 @@ int main(int argc, char ** argv)
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
             two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
-                                   M, K, SMB, SNB, P))
+                                   M, K, SMB, SNB, P));
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
-                                   K, N, SMB, SNB, P))
+                                   K, N, SMB, SNB, P));
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
@@ -73,10 +73,10 @@ int main(int argc, char ** argv)
                                             (tiled_matrix_desc_t *)&ddescA, 
                                             (tiled_matrix_desc_t *)&ddescB,
                                             beta,
-                                            (tiled_matrix_desc_t *)&ddescC))
+                                            (tiled_matrix_desc_t *)&ddescC));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgemm)
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgemm);
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
 
@@ -114,15 +114,17 @@ int main(int argc, char ** argv)
                 PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
                     two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                            nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
-                                           Am, An, SMB, SNB, P))
+                                           Am, An, SMB, SNB, P));
                 PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
                     two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
                                            nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
-                                           Bm, Bn, SMB, SNB, P))
+                                           Bm, Bn, SMB, SNB, P));
 
-                printf("***************************************************\n");
-                printf(" ----- TESTING DGEMM (%s, %s) -------- \n",
-                       transstr[tA], transstr[tB]);
+                if ( rank == 0 ) {
+                    printf("***************************************************\n");
+                    printf(" ----- TESTING DGEMM (%s, %s) -------- \n",
+                           transstr[tA], transstr[tB]);
+                }
                 
                 /* matrix generation */
                 if(loud) printf("Generate matrices ... ");
@@ -146,15 +148,17 @@ int main(int argc, char ** argv)
                 int info_solution = check_solution( trans[tA], trans[tB], 
                                                     alpha, &ddescA,  &ddescB, 
                                                     beta,  &ddescC2, &ddescC);
-                if (info_solution == 0) {
-                    printf(" ---- TESTING DGEMM (%s, %s) ...... PASSED !\n",
-                           transstr[tA], transstr[tB]);
+                if ( rank == 0 ) {
+                    if (info_solution == 0) {
+                        printf(" ---- TESTING DGEMM (%s, %s) ...... PASSED !\n",
+                               transstr[tA], transstr[tB]);
+                    }
+                    else {
+                        printf(" ---- TESTING DGEMM (%s, %s) ... FAILED !\n",
+                               transstr[tA], transstr[tB]);
+                    }
+                    printf("***************************************************\n");
                 }
-                else {
-                    printf(" ---- TESTING DGEMM (%s, %s) ... FAILED !\n",
-                           transstr[tA], transstr[tB]);
-                }
-                printf("***************************************************\n");
 
                 dague_data_free(ddescA.mat);
                 dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
@@ -250,11 +254,9 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
     
     result = Rnorm / ((Anorm + Bnorm + Cinitnorm) * max(M,N) * eps);
     if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
-        printf("-- The solution is suspicious ! \n");
         info_solution = 1;
     }
     else{
-        printf("-- The solution is CORRECT ! \n");
         info_solution = 0;
     }
 

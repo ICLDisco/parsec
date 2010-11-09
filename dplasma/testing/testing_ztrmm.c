@@ -96,9 +96,11 @@ int main(int argc, char ** argv)
 #endif
                     for (d=0; d<2; d++) {
 
-                        printf("***************************************************\n");
-                        printf(" ----- TESTING ZTRMM (%s, %s, %s, %s) -------- \n",
+                        if ( rank == 0 ) {
+                            printf("***************************************************\n");
+                            printf(" ----- TESTING ZTRMM (%s, %s, %s, %s) -------- \n",
                                    sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                        }
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
@@ -116,15 +118,17 @@ int main(int argc, char ** argv)
                         /* Check the solution */
                         info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
                                                        alpha, &ddescA, &ddescB, &ddescC);
-                       if (info_solution == 0) {
-                            printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ...... PASSED !\n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                        if ( rank == 0 ) {
+                            if (info_solution == 0) {
+                                printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ...... PASSED !\n",
+                                       sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                            }
+                            else {
+                                printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
+                                       sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                            }
+                            printf("***************************************************\n");
                         }
-                        else {
-                            printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
-                                   sidestr[s], uplostr[u], transstr[t], diagstr[d]);
-                        }
-                        printf("***************************************************\n");
                     }
                 }
 #ifdef __UNUSED__
@@ -204,11 +208,9 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
 
     result = Rnorm / ((Anorm + Blapacknorm) * max(M,N) * eps);
     if (  isinf(Blapacknorm) || isinf(Bdaguenorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
-        printf("-- The solution is suspicious ! \n");
         info_solution = 1;
     }
     else{
-        printf("-- The solution is CORRECT ! \n");
         info_solution = 0;
     }
 
