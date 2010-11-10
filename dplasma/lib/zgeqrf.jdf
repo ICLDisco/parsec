@@ -32,6 +32,8 @@ extern int *gpu_counter;
 #include "memory_pool.h"
 %}
 
+A
+T          [aligned = A]
 MB  /* Number of lines in a block for T and dL should be equal to NB */
 NB  /* Tile Size */
 M   /* Matrix Height (in lines) */
