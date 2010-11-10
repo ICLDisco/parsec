@@ -1029,6 +1029,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         }
 #ifdef DAGUE_PROF_DRY_DEP
         msg.which &= ~(1<<k);
+        remote_dep_mpi_get_end(eu_context, deps, i, k);
 #else
 #ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
