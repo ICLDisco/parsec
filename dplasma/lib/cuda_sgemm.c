@@ -663,6 +663,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 {
     int which_gpu, rc, exec_stream = 0;
     gpu_device_t* gpu_device;
+    CUcontext saved_ctx;
     cudaError_t status;
     int n, m;
 
@@ -744,7 +745,16 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-    status = (cudaError_t)cuCtxPushCurrent(gpu_device->ctx);
+    /**
+     * There might be a small race condition here, between the moment when the previous
+     * owner of the GPU context release it, and the moment where I can get it.
+     */
+    do {
+        saved_ctx = gpu_device->ctx;
+        dague_atomic_cas( &(gpu_device->ctx), saved_ctx, NULL );
+    } while( NULL == saved_ctx );
+        
+    status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
     DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                             {return -2;} );
 
@@ -931,18 +941,20 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     gpu_device->executed_tasks++;
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
-        if( (NULL == gpu_device->in_array[gpu_device->in_waiting]) &&
-            (NULL == gpu_device->exec_array[gpu_device->exec_waiting]) &&
-            (NULL == gpu_device->out_array[gpu_device->out_waiting]) ) {
+        assert( (NULL == gpu_device->in_array[gpu_device->in_waiting]) &&
+                (NULL == gpu_device->exec_array[gpu_device->exec_waiting]) &&
+                (NULL == gpu_device->out_array[gpu_device->out_waiting]) );
 #if defined(DAGUE_PROF_TRACE)
-                if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-                    dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, (unsigned long)eu_context, NULL );
+        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
+            dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, (unsigned long)eu_context, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-                status = (cudaError_t)cuCtxPopCurrent(NULL);
-                DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                        {return -1;} );
-                return -1;
-            }
+        status = (cudaError_t)cuCtxPopCurrent(NULL);
+        /* Restore the context so the others can steal it */
+        dague_atomic_cas( &(gpu_device->ctx), NULL, saved_ctx );
+
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                {return -1;} );
+        return -1;
     }
     exec_context = NULL;
     goto fetch_task_from_shared_dequeue;
