@@ -114,7 +114,7 @@ BODY
         );
 
     printlog("thread %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, m,
+             context->eu_id, k, n,
              plasma_const( PlasmaLeft ), plasma_const( PlasmaUpper ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
              Amb, tempnn,
@@ -160,7 +160,7 @@ BODY
         );
     printlog(
              "thread %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, m, 
+             context->eu_id, k, n, 
              plasma_const( PlasmaUpper ), plasma_const( PlasmaConjTrans ),
              tempnn, Amb,
              -1.0, k, n, A, Amb,
@@ -221,10 +221,10 @@ BODY
                                      B /*A(k, n)*/, Amb,
             (Dague_Complex64_t) 1.0, C /*A(m, n)*/, Amb );
         );
-    printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+    printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
              context->eu_id, k, m, n, 
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
-             Amb, tempnn, Anb
+             Amb, tempnn, Anb,
              -1.0, k, m, A, Amb,
                    k, n, B, Amb,
               1.0, m, n, C, Amb);
