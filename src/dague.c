@@ -983,6 +983,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             if(NULL != data) {
                 arg->deps->msg.which &= ~(1 << param_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
+                arg->deps->msg.which |= (1 << param_index); /* mark all data that are not RO */
                 data = is_inplace(oldcontext, param_index, outdep_index);  /* Can we do it inplace */
             }
             arg->deps->output[param_index].data = data; /* if still NULL allocate it */

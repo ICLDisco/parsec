@@ -20,7 +20,12 @@ typedef struct data_repo       data_repo_t;
 #include "execution_unit.h"
 #include "arena.h"
 
-#define DEBUG_HEAVY(p)
+#if 0
+#define DAGUE_DEBUG_HEAVY
+#define DEBUG_HEAVY(p) DEBUG( p )
+#else
+#define DEBUG_HEAVY(p) 
+#endif
 
 #define MAX_DATAREPO_HASH 4096
 
