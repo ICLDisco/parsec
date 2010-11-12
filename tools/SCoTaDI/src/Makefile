@@ -17,7 +17,7 @@ parseQuark: lex.yy.o q2j.tab.o $(OBJECTS)
 	$(CC) $(CCFLAGS) -o $@ $(CFLAGS) $(INCL) -c $<
 
 lex.yy.o: lex.yy.c q2j.tab.h $(wildcard *.h)
-	$(CC) $(CCFLAGS) -o lex.yy.o $(CFLAGS) -c lex.yy.c
+	$(CC) -o lex.yy.o -O2 -c lex.yy.c
 
 lex.yy.c: q2j.l
 	$(LEX) q2j.l

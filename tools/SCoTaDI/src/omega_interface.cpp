@@ -22,11 +22,10 @@
 extern void dump_und(und_t *und);
 static void dump_full_und(und_t *und);
 
-static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, map<string, Free_Var_Decl *> globals, Relation &R);
-//static void print_edges(set<dep_t *>deps, int edge_type);
-static void print_edges(set<dep_t *>deps, set<dep_t *>in_edges);
+static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R);
+static void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
-static void print_execution_space(node_t *node);
+static Relation process_and_print_execution_space(node_t *node);
 static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp);
 static inline set<expr_t *> findAllGEsWithVar(const char *var_name, expr_t *exp);
 static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp, int constr_type);
@@ -35,6 +34,7 @@ static string _expr_tree_to_str(const expr_t *exp);
 static int treeContainsVar(expr_t *root, const char *var_name);
 static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relation R);
 static void substituteExprForVar(expr_t *exp, const char *var_name, expr_t *root);
+static map<string, Free_Var_Decl *> global_vars;
 
 void dump_all_uses(und_t *def, var_t *head){
     int after_def = 0;
@@ -94,7 +94,7 @@ void dump_UorD(node_t *node){
     printf("}");
 }
 
-void declare_globals_in_tree(node_t *node, set <char *> ind_names, map<string, Free_Var_Decl *> &globals){
+void declare_globals_in_tree(node_t *node, set <char *> ind_names){
     char *var_name = NULL;
 
     switch( node->type ){
@@ -115,9 +115,9 @@ void declare_globals_in_tree(node_t *node, set <char *> ind_names, map<string, F
        
             // If the var is not already declared as a global symbol, declare it
             map<string, Free_Var_Decl *>::iterator it;
-            it = globals.find(var_name);
-            if( it == globals.end() ){
-                globals[var_name] = new Free_Var_Decl(var_name);
+            it = global_vars.find(var_name);
+            if( it == global_vars.end() ){
+                global_vars[var_name] = new Free_Var_Decl(var_name);
             }
 
             return;
@@ -126,12 +126,12 @@ void declare_globals_in_tree(node_t *node, set <char *> ind_names, map<string, F
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            declare_globals_in_tree(tmp, ind_names, globals);
+            declare_globals_in_tree(tmp, ind_names);
         }
     }else{
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
-            declare_globals_in_tree(node->u.kids.kids[i], ind_names, globals);
+            declare_globals_in_tree(node->u.kids.kids[i], ind_names);
         }
     }
 
@@ -140,7 +140,9 @@ void declare_globals_in_tree(node_t *node, set <char *> ind_names, map<string, F
 
 
 
-void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<string, Variable_ID> vars, map<string, Free_Var_Decl *> globals, Relation &R){
+// the parameter "R" (of type "Relation") needs to be passed by reference, otherwise a copy
+// is passed every time the recursion goes deeper and the "handle" does not correspond to R.
+void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<string, Variable_ID> vars, Relation &R){
     map<string, Variable_ID>::iterator v_it;
     map<string, Free_Var_Decl *>::iterator g_it;
     char *var_name=NULL;
@@ -163,8 +165,8 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
                 break;
             }
             // If not found yet, look for the ID in the global variables
-            g_it = globals.find(var_name);
-            if( g_it != globals.end() ){
+            g_it = global_vars.find(var_name);
+            if( g_it != global_vars.end() ){
                 Variable_ID v = R.get_local(g_it->second);
                 handle.update_coef(v,sign);
                 break;
@@ -172,12 +174,12 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
             fprintf(stderr,"expr_to_Omega_coef(): Can't find \"%s\" in either induction, or global variables.\n", DA_var_name(node) );
             exit(-1);
         case ADD:
-            expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, globals, R);
-            expr_to_Omega_coef(node->u.kids.kids[1], handle, sign, vars, globals, R);
+            expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, R);
+            expr_to_Omega_coef(node->u.kids.kids[1], handle, sign, vars, R);
             break;
         case SUB:
-            expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, globals, R);
-            expr_to_Omega_coef(node->u.kids.kids[1], handle, -sign, vars, globals, R);
+            expr_to_Omega_coef(node->u.kids.kids[0], handle, sign, vars, R);
+            expr_to_Omega_coef(node->u.kids.kids[1], handle, -sign, vars, R);
             break;
         default:
             fprintf(stderr,"expr_to_Omega_coef(): Can't turn type \"%d (%x)\" into Omega expression.\n",node->type, node->type);
@@ -202,7 +204,7 @@ node_t *find_closest_enclosing_loop(node_t *n1, node_t *n2){
     return NULL;
 }
 
-void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Variable_ID> ivars, map<string, Variable_ID> ovars, map<string, Free_Var_Decl *> globals, node_t *def, node_t *use){
+void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Variable_ID> ivars, map<string, Variable_ID> ovars, node_t *def, node_t *use){
     int i,count;
 
     count = DA_array_dim_count(def);
@@ -214,8 +216,8 @@ void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Vari
         node_t *iv = DA_array_index(def, i);
         node_t *ov = DA_array_index(use, i);
         EQ_Handle hndl = R_root->add_EQ();
-        expr_to_Omega_coef(iv, hndl, 1, ivars, globals, R);
-        expr_to_Omega_coef(ov, hndl, -1, ovars, globals, R);
+        expr_to_Omega_coef(iv, hndl, 1, ivars, R);
+        expr_to_Omega_coef(ov, hndl, -1, ovars, R);
     }
 
     return;
@@ -228,7 +230,7 @@ void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Vari
 // where "k" is the induction variable and "Ei" are expressions of induction
 // variables, global variables and constants.
 //
-void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, map<string, Free_Var_Decl *> globals, Relation &R){
+void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R){
     Variable_ID ivar;
     GEQ_Handle imax;
     F_And *new_and;
@@ -236,8 +238,8 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
     switch( node->type ){
         case L_AND:
             new_and = R_root->add_and();
-            process_end_condition(node->u.kids.kids[0], new_and, ivars, globals, R);
-            process_end_condition(node->u.kids.kids[1], new_and, ivars, globals, R);
+            process_end_condition(node->u.kids.kids[0], new_and, ivars, R);
+            process_end_condition(node->u.kids.kids[1], new_and, ivars, R);
             break;
 // TODO: handle logical or (L_OR) as well.
 //F_Or *or1 = R_root->add_or();
@@ -245,14 +247,14 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
         case LT:
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, globals, R);
+            expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
             imax.update_coef(ivar,-1);
             imax.update_const(-1);
             break;
         case LE:
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
-            expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, globals, R);
+            expr_to_Omega_coef(DA_rel_rhs(node), imax, 1, ivars, R);
             imax.update_coef(ivar,-1);
             break;
         default:
@@ -262,7 +264,7 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
 
 }
 
-Relation create_exit_relation(node_t *exit, node_t *def, map<string, Free_Var_Decl *> globals){
+Relation create_exit_relation(node_t *exit, node_t *def){
     int i, src_var_count, dst_var_count;
     node_t *tmp, *use;
     char **def_ind_names;
@@ -309,10 +311,10 @@ Relation create_exit_relation(node_t *exit, node_t *def, map<string, Free_Var_De
 
         GEQ_Handle imin = R_root->add_GEQ();
         imin.update_coef(ivar,1);
-        expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, globals, R);
+        expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, R);
 
         // Form the Omega expression for the upper bound
-        process_end_condition(DA_for_econd(tmp), R_root, ivars, globals, R);
+        process_end_condition(DA_for_econd(tmp), R_root, ivars, R);
     }
 
     // Add equalities between corresponding input and output array indexes
@@ -322,14 +324,14 @@ Relation create_exit_relation(node_t *exit, node_t *def, map<string, Free_Var_De
         EQ_Handle hndl = R_root->add_EQ();
 
         hndl.update_coef(R.output_var(i+1), 1);
-        expr_to_Omega_coef(iv, hndl, -1, ivars, globals, R);
+        expr_to_Omega_coef(iv, hndl, -1, ivars, R);
     }
 
     R.simplify();
     return R;
 }
 
-map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type, map<string, Free_Var_Decl *> globals){
+map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type){
     int i, src_var_count, dst_var_count;
     und_t *und;
     node_t *tmp, *def, *use;
@@ -388,10 +390,11 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
             GEQ_Handle imin = R_root->add_GEQ();
             imin.update_coef(ovar,1);
-            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, globals, R);
+            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
 
             // Form the Omega expression for the upper bound
-            process_end_condition(DA_for_econd(tmp), R_root, ovars, globals, R);
+//printf("Form UB: %s\n",tree_to_str(DA_for_econd(tmp)) );
+            process_end_condition(DA_for_econd(tmp), R_root, ovars, R);
         }
 
         // Add equalities between corresponding input and output array indexes
@@ -401,7 +404,7 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
             EQ_Handle hndl = R_root->add_EQ();
 
             hndl.update_coef(R.input_var(i+1), 1);
-            expr_to_Omega_coef(ov, hndl, -1, ovars, globals, R);
+            expr_to_Omega_coef(ov, hndl, -1, ovars, R);
         }
 
         R.simplify();
@@ -419,7 +422,7 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, map<string, Free_Var_Decl *> globals, node_t *exit_node){
+map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node){
     int i, after_def = 0;
     int src_var_count, dst_var_count;
     und_t *und;
@@ -497,10 +500,10 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
             GEQ_Handle imin = R_root->add_GEQ();
             imin.update_coef(ivar,1);
-            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, globals, R);
+            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ivars, R);
 
             // Form the Omega expression for the upper bound
-            process_end_condition(DA_for_econd(tmp), R_root, ivars, globals, R);
+            process_end_condition(DA_for_econd(tmp), R_root, ivars, R);
         }
 
         // Bound all induction variables of the loops enclosing the USE
@@ -511,10 +514,10 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
             GEQ_Handle imin = R_root->add_GEQ();
             imin.update_coef(ovar,1);
-            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, globals, R);
+            expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
 
             // Form the Omega expression for the upper bound
-            process_end_condition(DA_for_econd(tmp), R_root, ovars, globals, R);
+            process_end_condition(DA_for_econd(tmp), R_root, ovars, R);
         }
 
 
@@ -598,7 +601,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
 
         // Add equalities demanded by the array subscripts. For example is the DEF is A[k][k] and the
         // USE is A[m][n] then add (k=m && k=n).
-        add_array_subscript_equalities(R, R_root, ivars, ovars, globals, def, use);
+        add_array_subscript_equalities(R, R_root, ivars, ovars, def, use);
 
         R.simplify();
         if( R.is_upper_bound_satisfiable() || R.is_lower_bound_satisfiable() ){
@@ -612,15 +615,15 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
     }
 
     if( DEP_FLOW==dep_type ){
-        dep_edges[exit_node] = create_exit_relation(exit_node, def, globals);
+        dep_edges[exit_node] = create_exit_relation(exit_node, def);
     }
 
     return dep_edges;
 }
 
 
-map<string, Free_Var_Decl *> declare_globals(node_t *node){
-    map<string, Free_Var_Decl *> globals, tmp_map;
+void declare_global_vars(node_t *node){
+    map<string, Free_Var_Decl *> tmp_map;
     node_t *tmp;
 
 
@@ -634,28 +637,26 @@ map<string, Free_Var_Decl *> declare_globals(node_t *node){
 
         // Find all the variables in the lower bound that are not induction variables and
         // declare them as global variables (symbolic)
-        declare_globals_in_tree(DA_loop_lb(node), ind_names, globals);
+        declare_globals_in_tree(DA_loop_lb(node), ind_names);
 
         // Find all the variables in the upper bound that are not induction variables and
         // declare them as global variables (symbolic)
-        declare_globals_in_tree(DA_for_econd(node), ind_names, globals);
+        declare_globals_in_tree(DA_for_econd(node), ind_names);
     }
 
 
     if( BLOCK == node->type ){
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            tmp_map = declare_globals(tmp);
-            globals.insert(tmp_map.begin(), tmp_map.end());
+            declare_global_vars(tmp);
         }
     }else{
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
-            tmp_map = declare_globals(node->u.kids.kids[i]);
-            globals.insert(tmp_map.begin(), tmp_map.end());
+            declare_global_vars(node->u.kids.kids[i]);
         }
     }
 
-    return globals;
+    return;
 }
 
 long int getVarCoeff(expr_t *root, const char * var_name){
@@ -1484,6 +1485,9 @@ expr_t *conj_to_tree( Conjunct *conj ){
 expr_t *relation_to_tree( Relation R ){
     expr_t *root = NULL;
 
+    if( R.is_null() )
+        return NULL;
+
     for(DNF_Iterator di(R.query_DNF()); di; di++) {
         expr_t *conj_root = conj_to_tree( *di );
 
@@ -1539,31 +1543,200 @@ static set<expr_t *> findAllConjunctions(expr_t *exp){
 
 }
 
+
+void findAllConstraints(expr_t *tree, set<expr_t *> &eq_set){
+
+    if( NULL == tree )
+        return;
+
+    switch( tree->type ){
+        case EQ_OP:
+        case GE:
+            eq_set.insert(tree);
+            break;
+
+        default:
+            findAllConstraints(tree->l, eq_set);
+            findAllConstraints(tree->r, eq_set);
+            break;
+    }
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void findAllVars(expr_t *e, set<string> &var_set){
+
+    if( NULL == e )
+        return;
+
+    switch( e->type ){
+        case IDENTIFIER:
+            var_set.insert(e->value.name);
+            break;
+
+        default:
+            findAllVars(e->l, var_set);
+            findAllVars(e->r, var_set);
+            break;
+    }
+    return ;
+}
+
+
+        
+    
+void tree_to_omega_set(expr_t *tree, Constraint_Handle &handle, map<string, Variable_ID> all_vars, int sign){
+    int coef;
+    Variable_ID v = NULL;
+    string var_name;
+    map<string, Variable_ID>::iterator v_it;
+
+    if( NULL == tree ){
+        return;
+    }
+
+    switch( tree->type ){
+        case INTCONSTANT:
+            coef = tree->value.int_const;
+            handle.update_const(sign*coef);
+            break;
+
+        case MUL:
+            assert( (tree->l->type == INTCONSTANT && tree->r->type == IDENTIFIER) || (tree->r->type == INTCONSTANT && tree->l->type == IDENTIFIER) );
+            if( tree->l->type == INTCONSTANT ){
+                coef = tree->l->value.int_const;
+                var_name = tree->r->value.name;
+                for(v_it=all_vars.begin(); v_it!=all_vars.end(); v_it++){
+                    if( !v_it->first.compare(var_name) ){
+                        v = v_it->second;
+                        break;
+                    }
+                }
+            }else{
+                coef = tree->r->value.int_const;
+                var_name = tree->l->value.name;
+                for(v_it=all_vars.begin(); v_it!=all_vars.end(); v_it++){
+                    if( !v_it->first.compare(var_name) ){
+                        v = v_it->second;
+                        break;
+                    }
+                }
+            }
+            assert( NULL != v );
+            handle.update_coef(v,sign*coef);
+            break;
+
+        default:
+            tree_to_omega_set(tree->r, handle, all_vars, sign);
+            tree_to_omega_set(tree->l, handle, all_vars, sign);
+            break;
+    }
+    return;
+
+}
+
+expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es, Relation R){
+    Relation S_rslt;
+    set<expr_t *> e_set;
+    set<expr_t *>::iterator e_it;
+
+    findAllConstraints(tree, e_set);
+
+    // For every constraint in the tree
+    for(e_it=e_set.begin(); e_it!=e_set.end(); e_it++){
+        map<string, Variable_ID> all_vars;
+        Relation S_tmp;
+        expr_t *e = *e_it;
+
+        // Create a new Set
+        set<string>vars;
+        findAllVars(e, vars);
+        S_tmp = Relation(S_es.n_set());
+
+        for(int i=1; i<=S_es.n_set(); i++){
+            string var_name = S_es.set_var(i)->char_name();
+            S_tmp.name_set_var( i, strdup(var_name.c_str()) );
+            all_vars[var_name] = S_tmp.set_var( i );
+        }
+
+        // Deal with the remaining variables in the expression tree,
+        // which should all be global.
+        set<string>::iterator v_it;
+        for(v_it=vars.begin(); v_it!=vars.end(); v_it++){
+            string var_name = *v_it;
+
+            // If it's not one of the vars we've already dealt with
+            if( all_vars.find(var_name) == all_vars.end() ){
+                // Make sure this variable is global
+                map<string, Free_Var_Decl *>::iterator g_it;
+                g_it = global_vars.find(var_name);
+                assert( g_it != global_vars.end() );
+                // And get a reference to the local version of the variable in S_tmp.
+                all_vars[var_name] = S_tmp.get_local(g_it->second);
+            }
+        }
+
+        F_And *S_root = S_tmp.add_and();
+        Constraint_Handle handle;
+        if( EQ_OP == e->type ){
+            handle = S_root->add_EQ();
+        }else if( GE == e->type ){
+            handle = S_root->add_GEQ();
+        }else{
+            assert(0);
+        }
+
+        // Add the two sides of the constraint to the Omega set
+        tree_to_omega_set(e->l, handle, all_vars, 1);
+        tree_to_omega_set(e->r, handle, all_vars, -1);
+        S_tmp.simplify();
+
+        // Calculate S_exec_space - ( S_exec_space ^ S_tmp )
+        Relation S_intrs = Intersection(copy(S_es), copy(S_tmp));
+        Relation S_diff = Difference(copy(S_es), S_intrs);
+        S_diff.simplify();
+
+        // If it's not FALSE, then throw S_tmp in S_rslt
+        if( S_diff.is_upper_bound_satisfiable() || S_diff.is_lower_bound_satisfiable() ){
+            if( S_rslt.is_null() ){
+                S_rslt = copy(S_tmp);
+            }else{
+                S_rslt = Intersection(S_rslt, S_tmp);
+            }
+        }
+
+        S_tmp.Null();
+        S_diff.Null();
+    }
+
+    return relation_to_tree( S_rslt );
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING: this function it destructive.  It actually removes nodes from the tree
 // and deletes them altogether. In many cases you will need to pass a copy of the
 // tree to this function.
-void printConditions(Relation R, expr_t *exp){
-    set<expr_t *> conj;
+string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
+    stringstream ss;
+    set<expr_t *> conj, simpl_conj;
+    set<expr_t *>::iterator cj_it;
 
     conj = findAllConjunctions(exp);
 
     // If we didn't find any it's because there are no unions, so the whole
     // expression "exp" is one conjunction
-    if( conj.empty() )
+    if( conj.empty() ){
         conj.insert(exp);
+    }
 
-    printf("(");
-    if( conj.size() > 1 )
-        printf(" (");
-    set<expr_t *>::iterator cj_it;
+    // Eliminate the conjunctions that are covered by the execution space
+    // and simplify the remaining ones
     for(cj_it = conj.begin(); cj_it != conj.end(); cj_it++){
         expr_t *cur_exp = *cj_it;
 
-        if( cj_it != conj.begin() )
-            printf(") || (");
-    
         int dst_count = R.n_out();
         for(int i=0; i<dst_count; i++){
             const char *ovar = strdup(R.output_var(i+1)->char_name());
@@ -1579,11 +1752,24 @@ void printConditions(Relation R, expr_t *exp){
             }
             free((void *)ovar);
         }
-        printf("%s",expr_tree_to_str(cur_exp));
+        cur_exp = simplify_constraint_based_on_execution_space(cur_exp, S_es, R);
+        if(cur_exp){
+            simpl_conj.insert(cur_exp);
+        }
     }
-    printf(")");
 
-    return;
+    if( simpl_conj.size() > 1 )
+        ss << "(";
+    for(cj_it = simpl_conj.begin(); cj_it != simpl_conj.end(); cj_it++){
+        expr_t *cur_exp = *cj_it;
+        if( cj_it != simpl_conj.begin()  )
+            printf(") || (");
+        ss << expr_tree_to_str(cur_exp);
+    }
+    if( simpl_conj.size() > 1 )
+        ss << ")";
+
+    return ss.str();
 }
 
 void print_body(void){
@@ -1596,11 +1782,10 @@ void interrogate_omega(node_t *root, var_t *head){
     var_t *var;
     und_t *und;
     map<node_t *, map<node_t *, Relation> > flow_sources, output_sources;
-    map<string, Free_Var_Decl *> globals;
     map<char *, set<dep_t *> > outgoing_edges;
     map<char *, set<dep_t *> > incoming_edges;
 
-    globals = declare_globals(root);
+    declare_global_vars(root);
 
     node_t *entry = DA_create_Entry();
     node_t *exit_node = DA_create_Exit();
@@ -1616,15 +1801,15 @@ void interrogate_omega(node_t *root, var_t *head){
         flow_sources.clear();
         output_sources.clear();
         // Create flow edges starting from the ENTRY
-        flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW, globals);
-        output_sources[entry] = create_entry_relations(entry, var, DEP_OUT, globals);
+        flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW);
+        output_sources[entry] = create_entry_relations(entry, var, DEP_OUT);
 
         // For each DEF create all flow and output edges
         for(und=var->und; NULL != und ; und=und->next){
             if(is_und_write(und)){
                 node_t *def = und->node;
-                flow_sources[def] = create_dep_relations(und, var, DEP_FLOW, globals, exit_node);
-                output_sources[def] = create_dep_relations(und, var, DEP_OUT, globals, exit_node);
+                flow_sources[def] = create_dep_relations(und, var, DEP_FLOW, exit_node);
+                output_sources[def] = create_dep_relations(und, var, DEP_OUT, exit_node);
             }
         }
 
@@ -1864,16 +2049,12 @@ printf("========================================================================
             }
             printf(")\n");
 
-            print_execution_space(src_task->task_node);
+            Relation S = process_and_print_execution_space(src_task->task_node);
             printf("\n");
             print_pseudo_variables(deps, incoming_edges[task_name]);
             printf("\n");
-            print_edges(deps, incoming_edges[task_name]);
-/*
-            print_edges(deps, EDGE_OUTGOING);
-            deps = incoming_edges[task_name];
-            print_edges(deps, EDGE_INCOMING);
-*/
+            print_edges(deps, incoming_edges[task_name], S);
+            S.Null();
             printf("\n");
             print_body();
         }
@@ -1909,22 +2090,56 @@ static const char *econd_tree_to_ub(node_t *econd){
     }
 }
 
-static void print_execution_space(node_t *node){
+static Relation process_and_print_execution_space(node_t *node){
+    int i;
     node_t *tmp;
     list<node_t *> params;
+    map<string, Variable_ID> vars;
+    Relation S;
 
     printf("  /* Execution space */\n");
     for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
         params.push_front(tmp);
     }
+    assert( !params.empty() );
 
-    while( !params.empty() ) {
+    S = Relation(params.size());
+    F_And *S_root = S.add_and();
+
+    for(i=1; !params.empty(); i++ ) {
+        char *var_name;
         tmp = params.front();
-        printf("  %s = ", DA_var_name(DA_loop_induction_variable(tmp)) );
+
+        var_name = DA_var_name(DA_loop_induction_variable(tmp));
+        S.name_set_var( i, var_name );
+        vars[var_name] = S.set_var( i );
+
+        printf("  %s = ", var_name);
         printf("%s..", tree_to_str(DA_loop_lb(tmp)));
         printf("%s\n", econd_tree_to_ub(DA_for_econd(tmp)));
         params.pop_front();
     }
+
+
+    // Bound all induction variables of the loops enclosing the USE
+    // using the loop bounds
+    i=1;
+    for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
+
+        // Form the Omega expression for the lower bound
+        Variable_ID var = vars[var_name];
+
+        GEQ_Handle imin = S_root->add_GEQ();
+        imin.update_coef(var,1);
+        expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, vars, S);
+
+        // Form the Omega expression for the upper bound
+        process_end_condition(DA_for_econd(tmp), S_root, vars, S);
+    }
+
+    S.simplify();
+    return S;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2023,6 +2238,47 @@ static void groupExpressionBasedOnSign(expr_t *exp, set<expr_t *> &pos, set<expr
             break;
     }
     return;
+}
+
+const char *type_to_str(int type){
+
+    switch(type){
+        case EMPTY: return "EMPTY";
+        case INTCONSTANT: return "INTCONSTANT";
+        case IDENTIFIER: return "IDENTIFIER";
+        case ADDR_OF: return "ADDR_OF";
+        case STAR: return "STAR";
+        case PLUS: return "PLUS";
+        case MINUS: return "MINUS";
+        case TILDA: return "TILDA";
+        case BANG: return "BANG";
+        case ASSIGN: return "ASSIGN";
+        case COND: return "COND";
+        case ARRAY: return "ARRAY";
+        case FCALL: return "FCALL";
+        case ENTRY: return "ENTRY";
+        case EXIT: return "EXIT";
+        case EXPR: return "EXPR";
+        case ADD: return "ADD";
+        case SUB: return "SUB";
+        case MUL: return "MUL";
+        case DIV: return "DIV";
+        case MOD: return "MOD";
+        case B_AND: return "B_AND";
+        case B_XOR: return "B_XOR";
+        case B_OR: return "B_OR";
+        case LSHIFT: return "LSHIFT";
+        case RSHIFT: return "RSHIFT";
+        case LT: return "LT";
+        case GT: return "GT";
+        case LE: return "LE";
+        case GE: return "GE";
+        case DEREF: return "DEREF";
+        case S_U_MEMBER: return "S_U_MEMBER";
+        case COMMA_EXPR: return "COMMA_EXPR";
+        case BLOCK: return "BLOCK";
+        default: return "???";
+    }
 }
 
 
@@ -2149,25 +2405,21 @@ static string _expr_tree_to_str(const expr_t *exp){
                 ssR << "0";
             }
 
-            if( ssL.str().compare( ssR.str() ) ){
-                // Add some parentheses to make it easier for parser that will read in the JDF.
-                ss << "(";
-                if( l_needs_paren )
-                    ss << "(" << ssL.str() << ")";
-                else
-                    ss << ssL.str();
+            // Add some parentheses to make it easier for parser that will read in the JDF.
+            ss << "(";
+            if( l_needs_paren )
+                ss << "(" << ssL.str() << ")";
+            else
+                ss << ssL.str();
 
-                ss << type_to_symbol(exp->type);
+            ss << type_to_symbol(exp->type);
 
-                if( r_needs_paren )
-                    ss << "(" << ssR.str() << "))";
-                else
-                    ss << ssR.str() << ")";
+            if( r_needs_paren )
+                ss << "(" << ssR.str() << "))";
+            else
+                ss << ssR.str() << ")";
 
-                return ss.str();
-            }else{
-                return string();
-            }
+            return ss.str();
 
         case L_AND:
         case L_OR:
@@ -2275,8 +2527,7 @@ static string _expr_tree_to_str(const expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//void print_edges(set<dep_t *>deps, int edge_type){
-void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps){
+void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
     task_t *src_task;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
@@ -2332,21 +2583,22 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps){
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
              dep_t *dep = *dep_it;
              expr_t *rel_exp;
+             string cond;
 
              // Needed by Omega
              (void)(*dep->rel).print_with_subs_to_string(false);
 
              rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->dst);
-//             printf("  %s <- ",dep->dst->var_symname);
              if ( dep_it!=ideps.begin() )
                  printf("       ");
              printf(" <- ");
 
              task_t *src_task = dep->src->task;
 
-             printConditions(*dep->rel, copy_tree(rel_exp));
-             printf(" ? ");
+             cond = simplifyConditions(*dep->rel, copy_tree(rel_exp), S_es);
+             if( !cond.empty() )
+                 printf("%s ? ",cond.c_str());
 
              if( NULL != src_task ){
 
@@ -2359,28 +2611,29 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps){
                  printf("%s", tree_to_str(dep->dst));
              }
              printf("\n");
-//#ifdef DEBUG_2
-             printf("       ");
+#ifdef DEBUG_2
+             printf("       // ");
              (*dep->rel).print_with_subs(stdout);
-//#endif
+#endif
         }
 
         for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
              dep_t *dep = *dep_it;
              expr_t *rel_exp;
+             string cond;
 
              // Needed by Omega
              (void)(*dep->rel).print_with_subs_to_string(false);
 
              rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->src->task );
-//             printf("  %s -> ", dep->src->var_symname);
              if ( dep_it!=odeps.begin() || !ideps.empty())
                  printf("       ");
              printf(" -> ");
 
-             printConditions(*dep->rel, copy_tree(rel_exp));
-             printf(" ? ");
+             cond = simplifyConditions(*dep->rel, copy_tree(rel_exp), S_es);
+             if( !cond.empty() )
+                 printf("%s ? ", cond.c_str());
 
              node_t *sink = dep->dst;
              if( NULL == sink ){
@@ -2392,10 +2645,10 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps){
                  printf(") ");
              }
              printf("\n");
-//#ifdef DEBUG_2
-             printf("       ");
+#ifdef DEBUG_2
+             printf("       // ");
              (*dep->rel).print_with_subs(stdout);
-//#endif
+#endif
         }
 
     }
