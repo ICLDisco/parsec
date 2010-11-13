@@ -60,6 +60,7 @@ BODY
             T /* A(k, k) */, NB, /*A.nb,*/
             INFO )
         );
+    assert( 0 == (*INFO) );
     printlog(
              "thread %d CORE_potrf( %s, %d, A(%d,%d), %d)\n",
              context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
