@@ -221,7 +221,7 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
         }
-#endif  /* defined(DAGUE_GPU_STREAM_PER_TASK) */
+#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {free(gpu_device); return -1;} );
@@ -312,7 +312,7 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
         free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
         free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
         free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
-#endif  /* defined(DAGUE_GPU_STREAM_PER_TASK) */
+#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
                                 {continue;} );
@@ -631,11 +631,15 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
     dague_execution_context_t* input = (dague_execution_context_t*)elem;
     dague_list_item_t* current = (dague_list_item_t*)fifo->fifo_ghost.list_next;
 
-    while( current != &(fifo->fifo_ghost) ) {
-        ec = (dague_execution_context_t*)current;
-        if( ec->priority < input->priority )
-            break;
-        current = (dague_list_item_t *)current->list_next;
+    if( 0 == input->priority ) {
+        while( current != &(fifo->fifo_ghost) ) {
+            ec = (dague_execution_context_t*)current;
+            if( ec->priority < input->priority )
+                break;
+            current = (dague_list_item_t *)current->list_next;
+        }
+    } else {
+        current = &(fifo->fifo_ghost);
     }
     /* Add the input element before the current one */
     elem->list_prev = current->list_prev;
@@ -782,9 +786,15 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->in_array[gpu_device->in_submit] );
         rc = gpu_sgemm_internal_push( gpu_device, exec_context, gpu_device->streams[0] );
-        DEBUG(("GPU Request number %d/%d\n", gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0]));
-        //        if( 0 == rc ) goto exec_task;  /* No data to be moved for this task */
+        /**
+         * Do not skip the cuda event generation. The problem is that some of the inputs
+         * might be in the pipe of being transferred to the GPU. If we activate this task
+         * too early, it might get executed before the data is available on the GPU.
+         * Obviously, this lead to bad results.
+         */
+        /*if( 0 == rc ) goto exec_task;*/  /* No data to be moved for this task */
         gpu_device->in_array[gpu_device->in_submit] = exec_context;
+        DEBUG(("GPU Request number %d/%d\n", gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0]));
         exec_context = NULL;
         if( 0 > rc ) goto disable_gpu;
         rc = cuEventRecord( gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0] );
@@ -1183,7 +1193,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                               {} );
     return -2;
 }
-#endif
+#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **
