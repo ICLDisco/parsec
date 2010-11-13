@@ -76,7 +76,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     first_row = row * nb;
     first_col = col * nb;
 
-    memset( position, 0, mb*nb*sizeof(Dague_Complex64_t) );
+    memset( position, 0, nb*nb*sizeof(Dague_Complex64_t) );
 
     for (j = 0; j < nb; ++j) {
         if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
