@@ -27,6 +27,7 @@ dague_object_t* dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* 
     dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
+    *INFO = 0;
     object = dague_zpotrf_rl_new( ddescA, ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
 
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
@@ -44,7 +45,7 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
 {
     dague_object_t *dague_zpotrf = NULL;
 
-    int info;
+    int info = 0;
     dague_zpotrf = dplasma_zpotrf_New(uplo, ddescA, &info);
 
     dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
@@ -64,6 +65,7 @@ dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_
     dague_remote_dep_datatype_t default_dtt;
     int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
 
+    *INFO = 0;
     object = dague_zpotrf_rl_new( ddescA, ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
    
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
