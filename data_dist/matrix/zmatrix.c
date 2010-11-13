@@ -76,6 +76,8 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     first_row = row * nb;
     first_col = col * nb;
 
+    memset( position, 0, mb*nb*sizeof(Dague_Complex64_t) );
+
     for (j = 0; j < nb; ++j) {
         if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
             {
@@ -130,6 +132,8 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
     /* These are global values of first row and column of the tile counting from 0 */
     first_row = row * mb;
     first_col = col * nb;
+
+    memset( position, 0, mb*nb*sizeof(Dague_Complex64_t) );
 
     for (j = 0; j < nb; ++j) {
         if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
