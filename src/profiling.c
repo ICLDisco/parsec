@@ -70,9 +70,9 @@ typedef struct dague_profiling_key_t {
 #define START_KEY(key)    (((key) << 1) + 0)
 #define END_KEY(key)      (((key) << 1) + 1)
 
-#define FORALL_EVENTS(iterator, start)                                  \
+#define FORALL_EVENTS(iterator, start, profile)                         \
     for(iterator = (dague_profiling_output_t *)(start);                 \
-        (char *)iterator < profile->next_event;                         \
+        (char *)iterator < (profile)->next_event;                       \
         iterator = (dague_profiling_output_t *)(((char*)iterator) +     \
                                                 EVENT_LENGTH(iterator->event.key, EVENT_HAS_INFO(iterator))) )
 
@@ -308,14 +308,14 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
 
 static dague_profiling_output_t *find_matching_event_in_profile(const dague_thread_profiling_t *profile,
                                                                 const dague_profiling_output_t *start,
-                                                                unsigned int pos)
+                                                                const dague_profiling_output_t *ref)
 {
     dague_profiling_output_t *e;
-    FORALL_EVENTS(e, start) {
-        if( (e->event.id == start->event.id) &&
-            (e->event.key == END_KEY(pos)) &&
-            (time_less(start->event.timestamp, e->event.timestamp) ||
-             (diff_time(start->event.timestamp, e->event.timestamp) == 0)) ) {
+    FORALL_EVENTS(e, start, profile) {
+        if( (e->event.id == ref->event.id) &&
+            (e->event.key == END_KEY(BASE_KEY(ref->event.key))) &&
+            (time_less(ref->event.timestamp, e->event.timestamp) ||
+             (diff_time(ref->event.timestamp, e->event.timestamp) == 0)) ) {
             return e;
         }
     }
@@ -328,13 +328,24 @@ static void dump_whole_trace(void)
     const dague_profiling_output_t *event;
     const dague_thread_profiling_t *profile;
     dague_list_item_t *it;
+    dague_time_t zero = ZERO_TIME;
+    int i;
+
+    for( i = 0; i < dague_prof_keys_count; i++ ) {
+        if( NULL == dague_prof_keys[i].name ) {
+            break;
+        }
+        DEBUG(("TRACE event [%d:%d] name <%s> attributes <%s> info_length %d\n",
+               START_KEY(i), END_KEY(i), dague_prof_keys[i].name, dague_prof_keys[i].attributes, dague_prof_keys[i].info_length ));
+    }
 
     for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
          it != &threads.ghost_element; 
          it = (dague_list_item_t*)it->list_next ) {
         profile = (dague_thread_profiling_t*)it;
-        FORALL_EVENTS( event, profile->events ) {
-            DEBUG(("TRACE %d/%lu on %p\n", event->event.key, event->event.id, profile));
+        FORALL_EVENTS( event, profile->events, profile ) {
+            DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
+                   diff_time(zero, event->event.timestamp)));
         }
     }
 }
@@ -356,31 +367,29 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
 
     for( pos = 0; pos < dague_prof_keys_count; pos++ ) {
         displayed_key = 0;
-        FORALL_EVENTS( start_event, profile->events ) {
+        FORALL_EVENTS( start_event, profile->events, profile ) {
             /* if not my current start_idx key, ignore */
             if( start_event->event.key != START_KEY(pos) )
                 continue;
             
-            if( (end_event = find_matching_event_in_profile(profile, start_event, pos)) == NULL ) {
+            if( (end_event = find_matching_event_in_profile(profile, start_event, start_event)) == NULL ) {
                 /* Argh, couldn't find the end in this profile */
 
                 event_not_found = 1;
-                if( start_event->event.id != 0 ) {
-                    /* It has an id, let's look somewhere in another profile, maybe it's end has been
-                     * logged by another thread
-                     */
-                    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-                         it != &threads.ghost_element; 
-                         it = (dague_list_item_t*)it->list_next ) {
+                /* It has an id, let's look somewhere in another profile, maybe it's end has been
+                 * logged by another thread
+                 */
+                for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
+                     it != &threads.ghost_element; 
+                     it = (dague_list_item_t*)it->list_next ) {
 
-                        op = (dague_thread_profiling_t*)it;   
-                        if( op == profile )
-                            continue;
+                    op = (dague_thread_profiling_t*)it;   
+                    if( op == profile )
+                        continue;
 
-                        if( (end_event = find_matching_event_in_profile(op, (dague_profiling_output_t*)op->events, pos)) != NULL ) {
-                            event_not_found = 0;
-                            break;
-                        }
+                    if( (end_event = find_matching_event_in_profile(op, (dague_profiling_output_t*)op->events, start_event)) != NULL ) {
+                        event_not_found = 0;
+                        break;
                     }
                 }
 
@@ -395,10 +404,10 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                         if( profile->next_event >= profile->events_top ) {
                             fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
                                     "\t-- some histories are truncated\n",
-                                    pos, dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
+                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
                         } else {
                             fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n",
-                                    pos, dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
+                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
                         }
                         displayed_error_message = 1;
                     }
