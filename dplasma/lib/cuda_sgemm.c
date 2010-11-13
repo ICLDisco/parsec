@@ -396,16 +396,17 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
  */
 static inline int GEMM_hash(const dague_spotrf_rl_object_t* __dague_object, int k, int m, int n)
 {
-  int __h = 0;
-  int k_min = 0;
-  int k_range = (__dague_object->SIZE - 1) - k_min + 1;
-  int m_min = (k + 2);
-  int m_range = (__dague_object->SIZE - 1) - m_min + 1;
-  int n_min = (k + 1);
-  __h += (k - k_min);
-  __h += (m - m_min) * k_range;
-  __h += (n - n_min) * k_range * m_range;
-  return __h;
+    int __h = 0;
+    int k_min = 0;
+    int k_range = (__dague_object->SIZE - 1) - k_min + 1;
+    int m_min = (k + 2);
+    int m_range = (__dague_object->SIZE - 1) - m_min + 1;
+    int n_min = (k + 1);
+    __h += (k - k_min);
+    __h += (m - m_min) * k_range;
+    __h += (n - n_min) * k_range * m_range;
+    /* Ensure we avoid collisions with the GEMM ID on the CPU */
+    return __h + (__dague_object->SIZE * __dague_object->SIZE * __dague_object->SIZE);
 }
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
@@ -744,10 +745,6 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)exec_context );
         return -1;
     }
-#if defined(DAGUE_PROF_TRACE)
-    if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, NULL );
-#endif  /* defined(DAGUE_PROF_TRACE) */
 
     /**
      * There might be a small race condition here, between the moment when the previous
@@ -758,6 +755,11 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         dague_atomic_cas( &(gpu_device->ctx), saved_ctx, NULL );
     } while( NULL == saved_ctx );
         
+#if defined(DAGUE_PROF_TRACE)
+    if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
+        dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, NULL );
+#endif  /* defined(DAGUE_PROF_TRACE) */
+
     status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
     DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                             {return -2;} );
