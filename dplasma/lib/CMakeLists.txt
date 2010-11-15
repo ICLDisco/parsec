@@ -52,6 +52,7 @@ set(JDF
   ztrsm_LLN.jdf ztrsm_LLT.jdf ztrsm_LUN.jdf ztrsm_LUT.jdf ztrsm_RLN.jdf ztrsm_RLT.jdf ztrsm_RUN.jdf ztrsm_RUT.jdf
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
   zpotrf_rl.jdf zpotrf_ll.jdf 
+  zpotrf_Url.jdf zpotrf_Lrl.jdf 
   zgetrf.jdf zgetrf_sd.jdf 
   zgeqrf.jdf
 )
