@@ -13,98 +13,113 @@
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
 
-#include "generated/zpotrf_rl.h"
+#include "generated/zpotrf_Url.h"
+#include "generated/zpotrf_Lrl.h"
 #include "generated/zpotrf_ll.h"
 
-dague_object_t* dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
+dague_object_t* 
+dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
 {
-#if defined(HAVE_MPI)
-    MPI_Aint lb = 0, extent = 0;
-#else
-    int64_t extent = 0;
-#endif  /* defined(HAVE_MPI) */
-    dague_zpotrf_rl_object_t* object;
-    dague_remote_dep_datatype_t default_dtt;
-    int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
-
-    *INFO = 0;
-    object = dague_zpotrf_rl_new( ddescA, ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
-#if defined(HAVE_MPI)
-    MPI_Type_get_extent(default_dtt, &lb, &extent);
-#else
-    extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
-#endif
-    dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
-                          extent, DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
-    return (dague_object_t*)object;
+    dague_object_t *dague_zpotrf = NULL;
+    int pri_change = dplasma_aux_get_priority( "POTRF", A );
+ 
+    *info = 0;
+    if ( uplo == PlasmaUpper ) {
+        dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new(
+            (dague_ddesc_t*)A, 
+            pri_change, uplo, info, 
+            A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+    } else {
+        dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new(
+            (dague_ddesc_t*)A, 
+            pri_change, uplo, info, 
+            A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+    }
+    
+    dplasma_add2arena_tile(((dague_zpotrf_Url_object_t*)dague_zpotrf)->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA], 
+                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE_COMPLEX, A->mb);
+    
+    return dague_zpotrf;
+}
+ 
+void
+dplasma_zpotrf_Destruct( dague_object_t *o )
+{
+    int uplo    = ((dague_zpotrf_Url_object_t *)o)->uplo;
+    int looking = PlasmaRight; /*((dague_zpotrf_Url_object_t *)o)->uplo;*/
+    
+    if (looking == PlasmaRight ) {
+        if ( uplo == PlasmaUpper ) {
+            dague_zpotrf_Url_destroy((dague_zpotrf_Url_object_t *)o);
+        } else {
+            dague_zpotrf_Lrl_destroy((dague_zpotrf_Lrl_object_t *)o);
+        }
+    } /* else { */
+    /*     if ( uplo == PlasmaUpper ) { */
+    /*         dague_zpotrf_Ull_destroy((dague_zpotrf_Ull_object_t *)o); */
+    /*     } else { */
+    /*         dague_zpotrf_Lll_destroy((dague_zpotrf_Lll_object_t *)o); */
+    /*     } */
+    /* } */
 }
 
 int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA) 
 {
     dague_object_t *dague_zpotrf = NULL;
-
     int info = 0;
-    dague_zpotrf = dplasma_zpotrf_New(uplo, ddescA, &info);
 
+    dague_zpotrf = dplasma_zpotrf_New(uplo, ddescA, &info);
     dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
     dague_progress(dague);
+    dplasma_zpotrf_Destruct( dague_zpotrf );
 
     return info;
 }
 
-dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
+/*
++ * Functions for advanced user allowing to choose right or left-looking variant 
++ */
+dague_object_t* 
+dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum uplo, 
+                    tiled_matrix_desc_t *A, int *info)
 {
-#if defined(HAVE_MPI)
-    MPI_Aint lb = 0, extent = 0;
-#else
-    int64_t extent = 0;
-#endif  /* defined(HAVE_MPI) */
-    dague_zpotrf_rl_object_t* object;
-    dague_remote_dep_datatype_t default_dtt;
-    int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
-
-    *INFO = 0;
-    object = dague_zpotrf_rl_new( ddescA, ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
+    dague_object_t *dague_zpotrf = NULL;
+    int pri_change = dplasma_aux_get_priority( "POTRF", A );
+ 
+    *info = 0;
    
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
-#if defined(HAVE_MPI)
-    MPI_Type_get_extent(default_dtt, &lb, &extent);
-#else
-    extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
-#endif
-    dague_arena_construct(object->arenas[DAGUE_zpotrf_rl_DEFAULT_ARENA], 
-                          ddescA->mb*ddescA->nb*sizeof(Dague_Complex64_t), 
-                          DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
+    if ( looking == PlasmaRight ) {
+        if ( uplo == PlasmaUpper ) {
+            dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new(
+                (dague_ddesc_t*)A, 
+                pri_change, uplo, info, 
+                A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+        } else {
+            dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new(
+                (dague_ddesc_t*)A, 
+                pri_change, uplo, info, 
+                A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+        }
+    } /* else { */
+    /*     if ( uplo == PlasmaUpper ) { */
+    /*         dague_zpotrf = (dague_object_t*)dague_zpotrf_Ull_new( */
+    /*             (dague_ddesc_t*)A,  */
+    /*             pri_change, uplo, info,  */
+    /*             A->m, A->n, A->mb, A->nb, A->mt, A->nt); */
+    /*     } else { */
+    /*         dague_zpotrf = (dague_object_t*)dague_zpotrf_Lll_new( */
+    /*             (dague_ddesc_t*)A,  */
+    /*             pri_change, uplo, info,  */
+    /*             A->m, A->n, A->mb, A->nb, A->mt, A->nt); */
+    /*     } */
+    /* } */
     
-    return (dague_object_t*)object;
-}
-
-dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO)
-{
-#if defined(HAVE_MPI)
-    MPI_Aint lb = 0, extent = 0;
-#else
-    int64_t extent = 0;
-#endif  /* defined(HAVE_MPI) */
-    dague_zpotrf_ll_object_t* object;
-    dague_remote_dep_datatype_t default_dtt;
-    int pri_change = dplasma_aux_get_priority( "POTRF", ddescA );
-
-    object = dague_zpotrf_ll_new( (dague_ddesc_t*)ddescA, 
-                                  ddescA->nb, ddescA->nt, pri_change, uplo, INFO );
-   
-    dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &default_dtt);
-#if defined(HAVE_MPI)
-    MPI_Type_get_extent(default_dtt, &lb, &extent);
-#else
-    extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
-#endif
-    dague_arena_construct(object->arenas[DAGUE_zpotrf_ll_DEFAULT_ARENA], 
-                          ddescA->mb*ddescA->nb*sizeof(Dague_Complex64_t), 
-                          DAGUE_ARENA_ALIGNMENT_SSE, default_dtt);
+    dplasma_add2arena_tile(((dague_zpotrf_Url_object_t*)dague_zpotrf)->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA], 
+                           A->mb*A->nb*sizeof(Dague_Complex64_t),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           MPI_DOUBLE_COMPLEX, A->mb);
     
-    return (dague_object_t*)object;
+    return dague_zpotrf;
 }
-
