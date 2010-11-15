@@ -285,14 +285,6 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
     return exec_context.function->release_deps(NULL, &exec_context,
                                                DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | origin->msg.which,
                                                origin, NULL);
-#if 0
-    /* Remove CONTROLS from the list of things to receive, make them locals */
-    for(int k = 0; origin->msg.which>>k; k++) {
-        if(NULL == origin->output[k].datatype) {
-            origin->msg.which &= ~(1<<k);
-        }
-    }
-#endif
 }
 
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin)
@@ -377,7 +369,9 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
 
     if(NULL == item ) {
         if(dep_enabled) {
-            ret = remote_dep_mpi_progress(eu_context);
+            do { 
+                ret = remote_dep_mpi_progress(eu_context);
+            } while(ret);
         }
         if(do_nano && !ret) {
             struct timespec ts;
@@ -445,24 +439,23 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
 
 
     msg.which = 0;
-#if !defined(DAGUE_PROF_DRY_DEP)
     for( k = 0; output_count; k++ ) {
         output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
+#if defined(DAGUE_PROF_DRY_DEP)
+            deps->output[k].type = NULL; /* make all data a control */
+#endif
             if(NULL == deps->output[k].type) {
 #ifdef DAGUE_DEBUG
                 char tmp[128];
 
-                assert(0 == k); /* only the first parameter can be a control */
                 DEBUG((" CTL\t%s\tparam%d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
 #endif
                 remote_dep_dec_flying_messages(eu_context->master_context);
-            } else {
-                msg.which |= (1<<k);
             }
+            msg.which |= (1<<k);
         }
     }
-#endif
     remote_dep_mpi_send_dep(eu_context, rank, &msg);
     return 0;
 }
@@ -1020,6 +1013,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         if( !((1<<k) & msg.which) ) continue;
         if( NULL == deps->output[k].type ) {
             DEBUG(("MPI:\tTO\t%d\tGet NONE\t% -8s\ti=%d,k=%d\twith datakey %lx at <NA> type CONTROL extent 0\t(tag=%d)\n", from, remote_dep_cmd_to_string(task,tmp,128), i, k, task->deps, NEXT_TAG+k));
+            deps->output[k].data = (void*)2; /* the first non zero even value */
             remote_dep_mpi_get_end(eu_context, deps, i, k);
             msg.which &= ~(1<<k);
             continue;
@@ -1035,6 +1029,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         }
 #ifdef DAGUE_PROF_DRY_DEP
         msg.which &= ~(1<<k);
+        remote_dep_mpi_get_end(eu_context, deps, i, k);
 #else
 #ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
@@ -1077,7 +1072,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 
 static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k)
 {
-    deps->msg.deps |= 1<<k;
+    deps->msg.deps = 1<<k;
     remote_dep_release(eu_context, deps);
     if(deps->msg.which == deps->msg.deps) {
         DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)deps);

@@ -12,20 +12,45 @@
 
 #include "atomic.h"
 
-#if defined(DAGUE_LIFO_USE_LOCKS)
-
 typedef struct dague_list_item_t {
     volatile struct dague_list_item_t* list_next;
     void* cache_friendly_emptiness;
     volatile struct dague_list_item_t* list_prev;
-#ifdef DAGUE_DEBUG
+#if defined(DAGUE_DEBUG)
     volatile int32_t refcount;
     volatile struct dague_list_t* belong_to_list;
-#endif  /* DAGUE_DEBUG */
+#endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
-#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) elt = (__typeof__(elt))malloc( truesize )
-#define DAGUE_LIFO_ELT_FREE( elt ) free(elt)
+#if defined(DAGUE_DEBUG)
+#define DAGUE_ATTACH_ELEM(LIST, ITEM)                                   \
+    do {                                                                \
+        dague_list_item_t *_item_ = (ITEM);                             \
+        _item_->refcount++;                                             \
+        _item_->belong_to_list = (struct dague_list_t*)(LIST);          \
+    } while(0)
+
+#define DAGUE_ATTACH_ELEMS(LIST, ITEMS)                                 \
+    do {                                                                \
+        dague_list_item_t *_item = (ITEMS);                             \
+        dague_list_item_t *_end = (dague_list_item_t *)_item->list_prev; \
+        do {                                                            \
+            DAGUE_ATTACH_ELEM(LIST, _item);                             \
+            _item = (dague_list_item_t*)_item->list_next;               \
+        } while (_item != _end);                                        \
+    } while(0)
+
+#define DAGUE_DETACH_ELEM(ITEM)                  \
+    do {                                         \
+        dague_list_item_t *_item = (ITEM);       \
+        _item->refcount--;                       \
+        _item->belong_to_list = NULL;            \
+    } while (0)
+#else
+#define DAGUE_ATTACH_ELEM(LIST, ITEMS)
+#define DAGUE_ATTACH_ELEMS(LIST, ITEMS)
+#define DAGUE_DETACH_ELEM(ITEM)
+#endif  /* DAGUE_DEBUG */
 
 /* Make a well formed singleton list with a list item so that it can be 
  * puhsed. 
@@ -37,6 +62,12 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
     item->list_prev = item;
     return item;
 }
+
+
+#if defined(DAGUE_LIFO_USE_LOCKS)
+
+#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) elt = (__typeof__(elt))malloc( truesize )
+#define DAGUE_LIFO_ELT_FREE( elt ) free(elt)
 
 typedef struct dague_atomic_lifo_t {
     volatile dague_list_item_t* lifo_head;
@@ -64,16 +95,7 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     dague_list_item_t* ret;
 
-#ifdef DAGUE_DEBUG
-    {
-        dague_list_item_t* item = items;
-        do {
-            item->refcount++;
-            item->belong_to_list = (struct dague_list_t*)lifo;
-            item = (dague_list_item_t*)item->list_next;
-        } while (item != tail);
-    }
-#endif  /* DAGUE_DEBUG */
+    DAGUE_ATTACH_ELEMS(lifo, items);
 
     dague_atomic_lock( &lifo->lifo_lock );
     ret = (dague_list_item_t*)lifo->lifo_head;
@@ -98,11 +120,7 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
     if( item == &(lifo->lifo_ghost) ) 
         return NULL;
 
-#if defined(DAGUE_DEBUG)
-    item->refcount--;
-    item->belong_to_list = NULL;
-#endif /* DAGUE_DEBUG */
-
+    DAGUE_DETACH_ELEM(item);
     return item;
 }
 
@@ -113,29 +131,13 @@ static inline void dague_atomic_lifo_construct( dague_atomic_lifo_t* lifo )
     lifo->lifo_lock = 0;
 }
 
+static inline void dague_atomic_lifo_destruct( dague_atomic_lifo_t *lifo )
+{
+    (void)lifo;
+}
 
 #else
 
-typedef struct dague_list_item_t {
-    volatile struct dague_list_item_t* list_next;
-    void* cache_friendly_emptiness;
-    volatile struct dague_list_item_t* list_prev;
-#ifdef DAGUE_DEBUG
-    volatile int32_t refcount;
-    volatile struct dague_list_t* belong_to_list;
-#endif  /* DAGUE_DEBUG */
-} dague_list_item_t;
-
-/* Make a well formed singleton list with a list item so that it can be 
- * puhsed. 
- */
-#define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
-static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
-{
-    item->list_next = item;
-    item->list_prev = item;
-    return item;
-}
 
 #define DAGUE_LIFO_ALIGNMENT_BITS  3
 #define DAGUE_LIFO_ALIGNMENT      (1 << DAGUE_LIFO_ALIGNMENT_BITS )
@@ -176,6 +178,8 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
     assert(  (uintptr_t)items % DAGUE_LIFO_ALIGNMENT == 0 );
 #endif
 
+    DAGUE_ATTACH_ELEMS(lifo, items);
+
     do {
         tail->list_next = lifo->lifo_head;
         tp = DAGUE_LIFO_VAL( items, DAGUE_LIFO_CNT(lifo->lifo_head) );
@@ -207,8 +211,9 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
     }
 
     item = DAGUE_LIFO_PTR(item);
-
     if( item == lifo->lifo_ghost ) return NULL;
+
+    DAGUE_DETACH_ELEM(item);
     return item;
 }
 

@@ -44,7 +44,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, N, N, 0, 0, 
-                                   LDA, N, P));
+                                   LDA, N, P, MatrixLower ));
 
     /* load the GPU kernel */
 #if defined(DAGUE_CUDA_SUPPORT) && defined(PRECISION_s)

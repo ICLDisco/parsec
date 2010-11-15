@@ -1,11 +1,14 @@
 #ifndef TIMING_H
 #define TIMING_H
 
+#include "dague_config.h"
 #include <stdio.h>
 #include <sys/time.h>
 
 static double time_elapsed;
+#ifdef HAVE_MPI
 static double sync_time_elapsed;
+#endif
 
 static inline double get_cur_time(void)
 {

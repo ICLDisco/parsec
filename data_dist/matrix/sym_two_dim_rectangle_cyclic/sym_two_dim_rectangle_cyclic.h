@@ -32,6 +32,11 @@
 
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
+
+/* to not rely on Plasma there, put our definition of upper/lower values (same as Plasma for compatibility) */
+#define MatrixUpper         121
+#define MatrixLower         122
+
 typedef struct sym_two_dim_block_cyclic {
     tiled_matrix_desc_t super;
     void *mat;              /**< pointer to the beginning of the matrix */
@@ -39,6 +44,7 @@ typedef struct sym_two_dim_block_cyclic {
     unsigned int GRIDcols;  /**< number of processes cols in the process grid - derived parameter */
     unsigned int colRANK;   /**< process column rank in the process grid - derived parameter */
     unsigned int rowRANK;   /**< process row rank in the process grid - derived parameter */
+    int uplo;
 } sym_two_dim_block_cyclic_t;
 
 /************************************************
@@ -66,8 +72,9 @@ typedef struct sym_two_dim_block_cyclic {
  * @param m number of rows of the entire submatrix
  * @param n numbr of column of the entire submatrix
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
+ * @param uplo upper or lower triangular part of the matrix is kept
  */
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows );
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows, int uplo );
 
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

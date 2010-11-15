@@ -221,7 +221,7 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
             DAGUE_CUDA_CHECK_ERROR( "(INIT) cuEventCreate ", (cudaError_t)status,
                                     {continue;} );
         }
-#endif  /* defined(DAGUE_GPU_STREAM_PER_TASK) */
+#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = cuCtxPopCurrent(NULL);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPopCurrent ", status,
                                 {free(gpu_device); return -1;} );
@@ -312,7 +312,7 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
         free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
         free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
         free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
-#endif  /* defined(DAGUE_GPU_STREAM_PER_TASK) */
+#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
                                 {continue;} );
@@ -396,16 +396,17 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
  */
 static inline int GEMM_hash(const dague_spotrf_rl_object_t* __dague_object, int k, int m, int n)
 {
-  int __h = 0;
-  int k_min = 0;
-  int k_range = (__dague_object->SIZE - 1) - k_min + 1;
-  int m_min = (k + 2);
-  int m_range = (__dague_object->SIZE - 1) - m_min + 1;
-  int n_min = (k + 1);
-  __h += (k - k_min);
-  __h += (m - m_min) * k_range;
-  __h += (n - n_min) * k_range * m_range;
-  return __h;
+    int __h = 0;
+    int k_min = 0;
+    int k_range = (__dague_object->SIZE - 1) - k_min + 1;
+    int m_min = (k + 2);
+    int m_range = (__dague_object->SIZE - 1) - m_min + 1;
+    int n_min = (k + 1);
+    __h += (k - k_min);
+    __h += (m - m_min) * k_range;
+    __h += (n - n_min) * k_range * m_range;
+    /* Ensure we avoid collisions with the GEMM ID on the CPU */
+    return __h + (__dague_object->SIZE * __dague_object->SIZE * __dague_object->SIZE);
 }
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
@@ -631,11 +632,15 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
     dague_execution_context_t* input = (dague_execution_context_t*)elem;
     dague_list_item_t* current = (dague_list_item_t*)fifo->fifo_ghost.list_next;
 
-    while( current != &(fifo->fifo_ghost) ) {
-        ec = (dague_execution_context_t*)current;
-        if( ec->priority < input->priority )
-            break;
-        current = (dague_list_item_t *)current->list_next;
+    if( 0 == input->priority ) {
+        while( current != &(fifo->fifo_ghost) ) {
+            ec = (dague_execution_context_t*)current;
+            if( ec->priority < input->priority )
+                break;
+            current = (dague_list_item_t *)current->list_next;
+        }
+    } else {
+        current = &(fifo->fifo_ghost);
     }
     /* Add the input element before the current one */
     elem->list_prev = current->list_prev;
@@ -663,6 +668,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 {
     int which_gpu, rc, exec_stream = 0;
     gpu_device_t* gpu_device;
+    CUcontext saved_ctx;
     cudaError_t status;
     int n, m;
 
@@ -739,12 +745,22 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)exec_context );
         return -1;
     }
+
+    /**
+     * There might be a small race condition here, between the moment when the previous
+     * owner of the GPU context release it, and the moment where I can get it.
+     */
+    do {
+        saved_ctx = gpu_device->ctx;
+        dague_atomic_cas( &(gpu_device->ctx), saved_ctx, NULL );
+    } while( NULL == saved_ctx );
+        
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
         dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_start, (unsigned long)eu_context, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-    status = (cudaError_t)cuCtxPushCurrent(gpu_device->ctx);
+    status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
     DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
                             {return -2;} );
 
@@ -772,9 +788,15 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != exec_context ) {
         assert( NULL == gpu_device->in_array[gpu_device->in_submit] );
         rc = gpu_sgemm_internal_push( gpu_device, exec_context, gpu_device->streams[0] );
-        DEBUG(("GPU Request number %d/%d\n", gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0]));
-        //        if( 0 == rc ) goto exec_task;  /* No data to be moved for this task */
+        /**
+         * Do not skip the cuda event generation. The problem is that some of the inputs
+         * might be in the pipe of being transferred to the GPU. If we activate this task
+         * too early, it might get executed before the data is available on the GPU.
+         * Obviously, this lead to bad results.
+         */
+        /*if( 0 == rc ) goto exec_task;*/  /* No data to be moved for this task */
         gpu_device->in_array[gpu_device->in_submit] = exec_context;
+        DEBUG(("GPU Request number %d/%d\n", gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0]));
         exec_context = NULL;
         if( 0 > rc ) goto disable_gpu;
         rc = cuEventRecord( gpu_device->in_array_events[gpu_device->in_submit], gpu_device->streams[0] );
@@ -931,18 +953,20 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     gpu_device->executed_tasks++;
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
-        if( (NULL == gpu_device->in_array[gpu_device->in_waiting]) &&
-            (NULL == gpu_device->exec_array[gpu_device->exec_waiting]) &&
-            (NULL == gpu_device->out_array[gpu_device->out_waiting]) ) {
+        assert( (NULL == gpu_device->in_array[gpu_device->in_waiting]) &&
+                (NULL == gpu_device->exec_array[gpu_device->exec_waiting]) &&
+                (NULL == gpu_device->out_array[gpu_device->out_waiting]) );
 #if defined(DAGUE_PROF_TRACE)
-                if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
-                    dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, (unsigned long)eu_context, NULL );
+        if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
+            dague_profiling_trace( eu_context->eu_profile, dague_cuda_own_GPU_key_end, (unsigned long)eu_context, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-                status = (cudaError_t)cuCtxPopCurrent(NULL);
-                DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                        {return -1;} );
-                return -1;
-            }
+        status = (cudaError_t)cuCtxPopCurrent(NULL);
+        /* Restore the context so the others can steal it */
+        dague_atomic_cas( &(gpu_device->ctx), NULL, saved_ctx );
+
+        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+                                {return -1;} );
+        return -1;
     }
     exec_context = NULL;
     goto fetch_task_from_shared_dequeue;
@@ -1171,7 +1195,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
                               {} );
     return -2;
 }
-#endif
+#endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **

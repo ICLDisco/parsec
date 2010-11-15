@@ -32,9 +32,9 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     m += ((tiled_matrix_desc_t *)desc)->i;
     n += ((tiled_matrix_desc_t *)desc)->j;
     
-    if ( m < n )
+    if ( ((Ddesc->uplo == MatrixLower) && (m < n)) ||  ((Ddesc->uplo == MatrixUpper) && (m > n)) )
         {
-    //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
+            //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
             return UINT_MAX;
         }
     /* for tile (m,n), first find coordinate of process in
@@ -68,30 +68,51 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     /*if ( desc->myrank != sym_twoDBC_get_rank_for_tile(desc, m, n) )
         {
             printf("Tile (%d, %d) is looked for on process %u but is not local\n", m, n, desc->myrank);*/
-            assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
+    assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
        /* }*/
     
 
     /**********************************/
-    pos = 0; /* current position (as number of tile) in the buffer */
-    column = Ddesc->colRANK; /* tile column considered */
-    nb_elem_col = (Ddesc->super.lmt) / (Ddesc->GRIDrows); //nb of tile associated to that proc in a full column
-    if( (Ddesc->super.lmt) % (Ddesc->GRIDrows) > Ddesc->rowRANK )
-        nb_elem_col++;
-    
-    while(column != n) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+    if(Ddesc->uplo == MatrixLower )
         {
-            nb_elem = column / (Ddesc->GRIDrows);
-            if ( (column % (Ddesc->GRIDrows)) > Ddesc->rowRANK)
-                nb_elem++;
-
-            pos += (nb_elem_col - nb_elem);
-            column += Ddesc->GRIDcols;
+            pos = 0; /* current position (as number of tile) in the buffer */
+            column = Ddesc->colRANK; /* tile column considered */
+            nb_elem_col = (Ddesc->super.lmt) / (Ddesc->GRIDrows); //nb of tile associated to that proc in a full column
+            if( (Ddesc->super.lmt) % (Ddesc->GRIDrows) > Ddesc->rowRANK )
+                nb_elem_col++;
+            
+            while(column != n) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+                {
+                    nb_elem = column / (Ddesc->GRIDrows);
+                    if ( (column % (Ddesc->GRIDrows)) > Ddesc->rowRANK)
+                        nb_elem++;
+                    
+                    pos += (nb_elem_col - nb_elem);
+                    column += Ddesc->GRIDcols;
+                    
+                }
+            
+            pos += ((m - n) / (Ddesc->GRIDrows));
+        }
+    else /* Ddesc->uplo == MatrixUpper */
+        {
+            pos = 0; /* current position (as number of tile) in the buffer */
+            column = Ddesc->colRANK; /* tile column considered */
+                        
+            while(column != n) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+                {
+                    nb_elem = (column + 1) / (Ddesc->GRIDrows);
+                    if ( ( (column + 1) % (Ddesc->GRIDrows)) > Ddesc->rowRANK)
+                        nb_elem++;
+                    
+                    pos += nb_elem;
+                    column += Ddesc->GRIDcols;
+                    
+                }
+            
+            pos += (m / (Ddesc->GRIDrows));
             
         }
-
-    pos += ((m - n) / (Ddesc->GRIDrows));
-
     /**********************************/
     //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
     /************************************/
@@ -132,7 +153,7 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
 #endif /* DAGUE_PROF_TRACE */
 
 
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows )
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows, int uplo )
 {
     unsigned int nb_elem, nb_elem_col, column, total;
 
@@ -168,7 +189,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     Ddesc->rowRANK = (Ddesc->super.super.myrank)/(Ddesc->GRIDcols);
     Ddesc->colRANK = (Ddesc->super.super.myrank)%(Ddesc->GRIDcols);
 
-
+    Ddesc->uplo = uplo;
     /* find the number of tiles this process will handle */
 
     total = 0; /* number of tiles handled by the process */
@@ -194,12 +215,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     /* Allocate memory for matrices in block layout */
     printf("Process %u allocates %u tiles\n", myrank, total);
     Ddesc->super.nb_local_tiles = total;
-    /*    Ddesc->mat = dague_data_allocate((size_t) total * (size_t) Ddesc->super.bsiz * (size_t) Ddesc->super.mtype);
-    if (Ddesc->mat == NULL)
-        {
-            perror("matrix memory allocation failed\n");
-            exit(-1);
-            } */
+
     Ddesc->super.super.rank_of =  sym_twoDBC_get_rank_for_tile;
     Ddesc->super.super.data_of =  sym_twoDBC_get_local_tile;
 #if defined(DAGUE_PROF_TRACE)

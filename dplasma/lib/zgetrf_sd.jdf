@@ -27,6 +27,8 @@ extern "C" %{
 %}
 
 /** Globals */
+A
+dLIPIV    [aligned = A]
 N       /* Matrix Size (columns = rows) */
 NB      /* Tile Size */
 NT      /* Number of tiled columns */

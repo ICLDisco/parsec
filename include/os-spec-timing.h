@@ -27,9 +27,9 @@ static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 
 static inline int time_less( dague_time_t start, dague_time_t end )
 {
-    return start.tv_sec < end.tv_sec ||
-        (start.tv_sec == end.tv_sec &&
-         start.tv_nsec < end.tv_nsec);
+    return (start.tv_sec < end.tv_sec) ||
+        ((start.tv_sec == end.tv_sec) &&
+         (start.tv_nsec < end.tv_nsec));
 }
 #define ZERO_TIME {0,0}
 #elif defined(__IA64)
@@ -88,9 +88,9 @@ static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
 }
 static inline int time_less( dague_time_t start, dague_time_t end )
 {
-    return start.tv_sec < end.tv_sec ||
-        (start.tv_sec == end.tv_sec &&
-         start.tv_usec < end.tv_usec);
+    return (start.tv_sec < end.tv_sec) ||
+        ((start.tv_sec == end.tv_sec) &&
+         (start.tv_usec < end.tv_usec));
 }
 #define ZERO_TIME {0,0}
 #endif

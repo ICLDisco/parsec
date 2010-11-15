@@ -25,6 +25,7 @@ static inline dague_list_item_t* dague_fifo_push( dague_fifo_t* fifo,
     elem->list_next = &(fifo->fifo_ghost);
     elem->list_prev->list_next = elem;
     elem->list_next->list_prev = elem;
+    DAGUE_ATTACH_ELEM(fifo, elem);
     return elem;
 }
 
@@ -33,7 +34,11 @@ static inline dague_list_item_t* dague_fifo_pop( dague_fifo_t* fifo )
     dague_list_item_t* elem = (dague_list_item_t *)fifo->fifo_ghost.list_next;
     elem->list_next->list_prev = elem->list_prev;
     elem->list_prev->list_next = elem->list_next;
-    return (elem == &(fifo->fifo_ghost) ? NULL : elem);
+    if( &(fifo->fifo_ghost) != elem ) {
+        DAGUE_DETACH_ELEM(elem);
+        return elem;
+    }
+    return NULL;
 }
 
 static inline void dague_fifo_construct( dague_fifo_t* fifo )
