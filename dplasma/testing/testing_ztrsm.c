@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
                         generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
                         printf("Done\n");
 
-                        /* Create TRSM DAGuE */
+                        /* Compute */
                         printf("Compute ... ... ");
                         dplasma_ztrsm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
