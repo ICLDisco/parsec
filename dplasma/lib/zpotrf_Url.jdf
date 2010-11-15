@@ -91,8 +91,8 @@ n = k+1..Ant-1
 READ  T <- T POTRF(k)
 RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
         -> A HERK(k, n)
-        -> A GEMM(k, n, k+1..n-1 )
-        -> B GEMM(k, n+1..Ant-1, n )
+        -> A GEMM(k, n, n+1..Ant-1)
+        -> B GEMM(k, k+1..n-1, n )
         -> A(k, n)
 
 ; (n >= (Ant - PRI_CHANGE)) ? (Ant - n) * (Ant - n) * (Ant - n) + 3 * ((2 * Ant) - k - n - 1) * (n - k) : 1000000000
@@ -185,7 +185,7 @@ n = m+1..Ant-1
 READ  A <- C TRSM(k, m)
 READ  B <- C TRSM(k, n)
 RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
-        -> (n == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
+        -> (m == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
 
 ; (n >= (Ant - PRI_CHANGE)) ? (Ant - n) * (Ant - n) * (Ant - n) + 3 * ((2 * Ant) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
 //;  (n >= (Ant - PRI_CHANGE)) ? (Ant - n - m) * ((Ant - m - k + 1) / 2 + 2) - 1 + (Ant - n + 2) * (Ant - n + 1) * (Ant - n) / 6 + Ant - m + k + 1 : 0
