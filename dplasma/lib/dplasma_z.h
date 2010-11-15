@@ -57,4 +57,6 @@ void dplasma_zgemm_Destruct( dague_object_t *o );
 void dplasma_ztrsm_Destruct( dague_object_t *o );
 void dplasma_ztrmm_Destruct( dague_object_t *o );
 
+void dplasma_zpotrf_Destruct( dague_object_t *o );
+
 #endif /* _DPLASMA_Z_H_ */
