@@ -71,6 +71,10 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     Dague_Complex64_t mn_max = (Dague_Complex64_t) max(Ddesc->n, Ddesc->m);
     Dague_Complex64_t *x = (Dague_Complex64_t*) position;
     unsigned long long int ran;
+    int nbgen = 1;
+#ifdef COMPLEX
+    nbgen = 2;
+#endif
 
     /* These are global values of first row and column of the tile counting from 0 */
     first_row = row * nb;
@@ -78,44 +82,90 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
 
     memset( position, 0, nb*nb*sizeof(Dague_Complex64_t) );
 
-    for (j = 0; j < nb; ++j) {
-        if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
-            {
-                break;
-            }
+    if ( row == col ) { /* Diagonal */
+        for (j = 0; j < nb; ++j) {
+            if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
+                {
+                    break;
+                }
+            ran = Rnd64_jump( nbgen*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m + j) , seed);
+            for (i = j; i < nb; ++i) {
+                if( (first_row + i) >= Ddesc->m)/* padding for rows */
+                    {
+                        break;
+                    }
+                x[0] = 0.5f - ran * RndF_Mul;
+                ran = Rnd64_A * ran + Rnd64_C;
 #ifdef COMPLEX
-        ran = Rnd64_jump( 2*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m) , seed);
-#else
-        ran = Rnd64_jump( first_row + (first_col + j) * (unsigned long long int)Ddesc->m , seed);
+                x[0] += I*(0.5f - ran * RndF_Mul);
+                ran = Rnd64_A * ran + Rnd64_C;
 #endif
-        for (i = 0; i < nb; ++i) {
-            if( (first_row + i) >= Ddesc->lm)/* padding for rows */
-            {
-                break;
+                x += 1;
             }
-            x[0] = 0.5f - ran * RndF_Mul;
-            ran = Rnd64_A * ran + Rnd64_C;
-#ifdef COMPLEX
-            x[0] += I*(0.5f - ran * RndF_Mul);
-            ran = Rnd64_A * ran + Rnd64_C;
-#endif
-            x += 1;
+            x += (nb - i);
         }
-        x += (nb - i);
-    }
-    /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
-    if (row == col) {
+
         x = (Dague_Complex64_t*)position;
-        for (i = 0; i < nb; ++i) {
-            if( ((first_row + i) >= Ddesc->m) || ((first_col + i) >= Ddesc->n) ) /* padding for diagonal */
-            {
+        for (j = 0; j < nb; ++j) {
+            if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
                 break;
-            }
+
+            /* This is only required for Cholesky: diagonal is bumped by max(M, N) */
 #ifdef COMPLEX
-            x[i + i * nb] += mn_max - I*cimag(x[i + i * nb]);
+            x[j + j * nb] += mn_max - I*cimag(x[j + j * nb]);
 #else
-            x[i + i * nb] += mn_max;
+            x[j + j * nb] += mn_max;
 #endif
+
+            for (i=j+1; i<nb; ++i) {
+                if( (first_row + i) >= Ddesc->m)/* padding for rows */
+                    break;
+                x[nb*i+j] = x[nb*j+i];
+            }
+        }
+    } 
+    else if ( row > col ) { /* Lower part */
+        for (j = 0; j < nb; ++j) {
+            if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
+                {
+                    break;
+                }
+            ran = Rnd64_jump( nbgen*(first_row + (first_col + j) * (unsigned long long int)Ddesc->m) , seed);
+            for (i = 0; i < nb; ++i) {
+                if( (first_row + i) >= Ddesc->m)/* padding for rows */
+                    {
+                        break;
+                    }
+                x[0] = 0.5f - ran * RndF_Mul;
+                ran = Rnd64_A * ran + Rnd64_C;
+#ifdef COMPLEX
+                x[0] += I*(0.5f - ran * RndF_Mul);
+                ran = Rnd64_A * ran + Rnd64_C;
+#endif
+                x += 1;
+            }
+            x += (nb - i);
+        }
+    }
+    else if ( row < col ) { /* Upper part */
+        for (i = 0; i < nb; ++i) {
+            if( (first_row + i) >= Ddesc->m ) /* padding for rows  */
+                {
+                    break;
+                }
+            ran = Rnd64_jump( nbgen*(first_col + (first_row + i) * (unsigned long long int)Ddesc->m) , seed);
+            for (j = 0; j<nb; ++j) {
+                if( (first_col + j) >= Ddesc->n)/* padding for rows */
+                    {
+                        break;
+                    }
+                x[j*nb+i] = 0.5f - ran * RndF_Mul;
+                ran = Rnd64_A * ran + Rnd64_C;
+#ifdef COMPLEX
+                x[j*nb+i] += I*(0.5f - ran * RndF_Mul);
+                ran = Rnd64_A * ran + Rnd64_C;
+#endif
+            }
         }
     }
 }
