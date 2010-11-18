@@ -7,6 +7,7 @@ IS			(u|U|l|L)*
 
 %{
 #include <stdio.h>
+#include <stdlib.h>
 #include "node_struct.h"
 #include "q2j.tab.h"
 
@@ -77,6 +78,67 @@ void comment();
                           return(LONG);
                         }
 
+"int8_t"                { count();
+                          yylval.string = strdup(yytext);
+                          return(INT8);
+                        }
+
+"int16_t"               { count();
+                          yylval.string = strdup(yytext);
+                          return(INT16);
+                        }
+
+"int32_t"               { count();
+                          yylval.string = strdup(yytext);
+                          return(INT32);
+                        }
+
+"int64_t"               { count();
+                          yylval.string = strdup(yytext);
+                          return(INT64);
+                        }
+
+"uint8_t"               { count();
+                          yylval.string = strdup(yytext);
+                          return(UINT8);
+                        }
+
+"uint16_t"              { count();
+                          yylval.string = strdup(yytext);
+                          return(UINT16);
+                        }
+
+"uint32_t"              { count();
+                          yylval.string = strdup(yytext);
+                          return(UINT32);
+                        }
+
+"uint64_t"              { count();
+                          yylval.string = strdup(yytext);
+                          return(UINT64);
+                        }
+
+"intptr_t"              { count();
+                          yylval.string = strdup(yytext);
+                          return(INTPTR);
+                        }
+
+"uintptr_t"             { count();
+                          yylval.string = strdup(yytext);
+                          return(UINTPTR);
+                        }
+
+"intmax_t"              { count();
+                          yylval.string = strdup(yytext);
+                          return(INTMAX);
+                        }
+
+"uintmax_t"             { count();
+                          yylval.string = strdup(yytext);
+                          return(UINTMAX);
+                        }
+
+
 "register"		{ count();
                           yylval.string = strdup(yytext);
                           return(REGISTER);
@@ -122,6 +184,35 @@ void comment();
                           return(VOLATILE);
                         }
 
+"PLASMA_Complex32_t"	{ count();
+                          yylval.string = strdup(yytext);
+                          return(PLASMA_COMPLEX32_T);
+			}
+
+"PLASMA_Complex64_t"	{ count();
+                          yylval.string = strdup(yytext);
+                          return(PLASMA_COMPLEX64_T);
+			}
+
+"PLASMA_enum"		{ count();
+                          yylval.string = strdup(yytext);
+                          return(PLASMA_ENUM);
+			}
+
+"PLASMA_sequence"       { count();
+                          yylval.string = strdup(yytext);
+                          return(PLASMA_SEQUENCE);
+			}
+
+"PLASMA_desc"           { count();
+                          yylval.string = strdup(yytext);
+                          return(PLASMA_DESC);
+			}
+
+"PLASMA_request"        { count();
+                          yylval.string = strdup(yytext);
+                          return(PLASMA_REQUEST);
+			}
 
 {L}({L}|{D})*		{ count(); 
                           yylval.node.u.var_name = strdup(yytext);
@@ -132,51 +223,51 @@ void comment();
                         }
 
 0[xX]{H}+{IS}?		{ count(); 
-                          yylval.node.u.const_val.i64_value = atoll(yytext);
+                          yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(INTCONSTANT);
                         }
 0{D}+{IS}?		{ count();
-                          yylval.node.u.const_val.i64_value = atoll(yytext);
+                          yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(INTCONSTANT);
                         }
 {D}+{IS}?		{ count();
-                          yylval.node.u.const_val.i64_value = atoll(yytext);
+                          yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(INTCONSTANT);
                         }
 {D}+{E}{FS}?		{ count();
-                          yylval.node.u.const_val.i64_value = atoll(yytext);
+                          yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(INTCONSTANT);
                         }
 L?'(\\.|[^\\'])+'	{ count();
-                          yylval.node.u.const_val.f64_value = atof(yytext);
+                          yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(FLOATCONSTANT);
                         }
 
 {D}*"."{D}+({E})?{FS}?	{ count();
-                          yylval.node.u.const_val.f64_value = atof(yytext);
+                          yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(FLOATCONSTANT);
                         }
 {D}+"."{D}*({E})?{FS}?	{ count();
-                          yylval.node.u.const_val.f64_value = atof(yytext);
+                          yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
                           return(FLOATCONSTANT);
                         }
 
 L?\"(\\.|[^\\"])*\"	{ count();
-                          yylval.node.u.const_val.str = strdup(yytext);
+                          yylval.node.const_val.str = strdup(yytext);
                           yylval.node.u.kids.kid_count = 0;
                           return(STRING_LITERAL);
                         }

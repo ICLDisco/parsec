@@ -1772,8 +1772,10 @@ string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
     return ss.str();
 }
 
-void print_body(void){
-    printf("  BODY\n    /* comment */\n  END\n");
+void print_body(node_t *task_node){
+    printf("BODY\n\n");
+    printf("%s\n", quark_tree_to_body(task_node));
+    printf("\nEND\n");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2056,7 +2058,7 @@ printf("========================================================================
             print_edges(deps, incoming_edges[task_name], S);
             S.Null();
             printf("\n");
-            print_body();
+            print_body(src_task->task_node);
         }
     }
 }
@@ -2563,11 +2565,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         set<dep_t *>odeps = outg_map[*var_it];
 
         if( !ideps.empty() && !odeps.empty() ){
-            printf("RW    ");
+            printf("  RW    ");
         }else if( !ideps.empty() ){
-            printf("READ  ");
+            printf("  READ  ");
         }else if( !odeps.empty() ){
-            printf("WRITE ");
+            printf("  WRITE ");
         }else{
             assert(0);
         }
@@ -2580,6 +2582,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         // Print the pseudoname
         printf("%s",*var_it);
 
+        // print the incoming edges
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
              dep_t *dep = *dep_it;
              expr_t *rel_exp;
@@ -2591,7 +2594,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
              rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->dst);
              if ( dep_it!=ideps.begin() )
-                 printf("       ");
+                 printf("         ");
              printf(" <- ");
 
              task_t *src_task = dep->src->task;
@@ -2617,6 +2620,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
 #endif
         }
 
+        // print the outgoing edges
         for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
              dep_t *dep = *dep_it;
              expr_t *rel_exp;
@@ -2628,7 +2632,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
              rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->src->task );
              if ( dep_it!=odeps.begin() || !ideps.empty())
-                 printf("       ");
+                 printf("         ");
              printf(" -> ");
 
              cond = simplifyConditions(*dep->rel, copy_tree(rel_exp), S_es);

@@ -600,7 +600,7 @@ node_t *DA_create_int_const(int64_t val){
     node_t rslt;
     rslt.type = INTCONSTANT;
     rslt.u.kids.kid_count = 0;
-    rslt.u.const_val.i64_value = val;
+    rslt.const_val.i64_value = val;
     return node_to_ptr(rslt);
 }
 
@@ -1136,10 +1136,125 @@ int isSimpleVar(char *name){
     return 1;
 }
 
+char *strip_leading_ADDROF(char *str){
+    if( NULL == str )
+        return NULL;
+
+    char *pos = strstr((const char *)str, "&");
+    if( NULL != pos )
+        return (pos+1);
+
+    return NULL;
+}
+
+char *find_definition(char *var_name, node_t *node){
+    node_t *curr, *tmp;
+    do{
+        for(curr=node->prev; NULL!=curr; curr=curr->prev){
+            if( ASSIGN == curr->type ){
+                tmp = DA_assgn_lhs(curr);
+                if( IDENTIFIER == tmp->type && !strcmp(DA_var_name(tmp), var_name) ){
+                    return tree_to_str( curr );
+                }
+            }
+        }
+        node = node->parent;
+    }while(NULL != node);
+    return var_name;
+}
+
+char *quark_tree_to_body(node_t *node){
+    char *str, *prefix=NULL, *tmp;
+    char *printStr, *printSuffix;
+    int i, j;
+
+    assert( FCALL == node->type );
+
+    // Get the name of the function called from the tree.
+    str = tree_to_str(node->u.kids.kids[2]);
+
+    // Remove the suffix
+    tmp = strstr(str, "_quark");
+    if( NULL != tmp ){
+        *tmp = '\0';
+    }
+
+    str = append_to_string( strdup("  "), str, "%s(", 1+strlen(str));
+
+    // Form the string for the "printlog"
+    printStr = strdup("  printlog(\"thread %d ");
+    printStr = append_to_string( printStr, str, NULL, 0);
+    for(int i=0; NULL != node->task->ind_vars[i]; i++ ){
+        if( i > 0 )
+            printStr = append_to_string( printStr, ", ", NULL, 0);
+        printStr = append_to_string( printStr, "%d", NULL, 0);
+    }
+    printStr = append_to_string( printStr, ")\\n\\t(", NULL, 0);
+
+    // Form the string for the suffix of the "printlog". That is whatever follows the format string, or in
+    // other words the variables whose value we are interested in instead of the name.
+    printSuffix = strdup(")\\n\",\n  context->eu_id");
+    for(int i=0; NULL != node->task->ind_vars[i]; i++ ){
+        char *iv = node->task->ind_vars[i];
+        printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
+    }
+
+    // For the string for the actuall function-call as well as the prefix, which is all
+    // the definitions of the variables found in the call.
+    j=0;
+    for(i=5; i<node->u.kids.kid_count; i+=3){
+        if( j > 0 ){
+            str = append_to_string( str, ", ", NULL, 0);
+            printStr = append_to_string( printStr, ", ", NULL, 0);
+        }
+        if( j && !(j%3) )
+            str = append_to_string( str, "\n\t", NULL, 0);
+
+        // Get the next useful parameter and see if it's pass by VALUE (in which case we need to strip the "&")
+        char *param = tree_to_str(node->u.kids.kids[i]);
+        if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "VALUE") ){
+            param = strip_leading_ADDROF(param);
+            // see where this parameter is defined (if anywhere) and copy the definition into the body
+            tmp = find_definition(param, node);
+            if( tmp != param ){
+                prefix = append_to_string( prefix, tmp, "  %s;\n", 4+strlen(tmp));
+            }
+        }
+        str = append_to_string( str, param, NULL, 0);
+
+        // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
+        // do a little more work to print the value of the indices instead of their names and the pointer.
+        if( ARRAY == node->u.kids.kids[i]->type ){
+            node_t *arr = node->u.kids.kids[i];
+            char *base_name = tree_to_str(arr->u.kids.kids[0]);
+            printStr = append_to_string( printStr, base_name, "%s(%%d,%%d)[%%p]", 11+strlen(base_name));
+            for(int ii=1; ii<arr->u.kids.kid_count; ii++){
+                char *var_str = tree_to_str(arr->u.kids.kids[ii]);
+                printSuffix = append_to_string( printSuffix, var_str, ", %s", 2+strlen(var_str));
+            }
+            printSuffix = append_to_string( printSuffix, base_name, ", %s", 2+strlen(base_name));
+        }else{
+            printStr = append_to_string( printStr, param, NULL, 0);
+        }
+
+        j++;
+    }
+    str = append_to_string( str, " )", NULL, 0);
+
+    printStr = append_to_string( printStr, printSuffix, NULL, 0);
+    printStr = append_to_string( printStr, ");", NULL, 0);
+
+    if( NULL != prefix )
+        str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
+
+    str = append_to_string( str, printStr, "\n%s", 1+strlen(printStr));
+
+    return str;
+}
+
 char *tree_to_str(node_t *node){
     int i, kid_count;
     char prfx[16], *str=NULL;
-//    node_t *node_tmp;
 
     if( NULL == node )
         return strdup("nil");
@@ -1170,20 +1285,36 @@ char *tree_to_str(node_t *node){
 
         switch( node->type ){
             case IDENTIFIER:
-                return strdup(node->u.var_name);
+                if( NULL != node->var_type ){
+                    str = append_to_string(strdup("("), node->var_type, NULL, 0);
+                    str = append_to_string(str, ")", NULL, 0);
+                }
+                return append_to_string(str, strdup(node->u.var_name), NULL, 0);
 
             case INTCONSTANT:
-                tmp = (char *)calloc(24,sizeof(char));
-                snprintf(tmp, 24, "%"PRIu64, node->u.const_val.i64_value);
+                if( NULL != node->var_type ){
+                    int len = 24+strlen(node->var_type)+2;
+                    tmp = (char *)calloc(len, sizeof(char));
+                    snprintf(tmp, len, "(%s)%"PRIu64, node->var_type, node->const_val.i64_value);
+                }else{
+                    tmp = (char *)calloc(24,sizeof(char));
+                    snprintf(tmp, 24, "%"PRIu64, node->const_val.i64_value);
+                }
                 return tmp;
 
             case FLOATCONSTANT: 
-                tmp = (char *)calloc(32,sizeof(char));
-                snprintf(tmp, 32, "%lf", node->u.const_val.f64_value);
+                if( NULL != node->var_type ){
+                    int len = 32+strlen(node->var_type)+2;
+                    tmp = (char *)calloc(len, sizeof(char));
+                    snprintf(tmp, len, "(%s)%lf", node->var_type,node->const_val.f64_value);
+                }else{
+                    tmp = (char *)calloc(32,sizeof(char));
+                    snprintf(tmp, 32, "%lf", node->const_val.f64_value);
+                }
                 return tmp;
 
             case STRING_LITERAL:
-                return strdup(node->u.const_val.str);
+                return strdup(node->const_val.str);
 
             case INC_OP:
                 return strdup("++");
@@ -1199,7 +1330,11 @@ char *tree_to_str(node_t *node){
                 return str;
 
             case EXPR:
-                str = tree_to_str(node->u.kids.kids[0]);
+                if( NULL != node->var_type ){
+                    str = append_to_string(strdup("("), node->var_type, NULL, 0);
+                    str = append_to_string(str, ")", NULL, 0);
+                }
+                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0);
                 str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
                 return str;
 

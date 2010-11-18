@@ -66,6 +66,15 @@ struct _node{
     uint64_t loop_depth;
 
     union{
+        uint64_t i64_value;
+        double   f64_value;
+        char     *str;
+    }const_val;
+
+    // This is a temporary hack since we don't have a symbol table
+    char *var_type;
+
+    union{
         struct{
             node_t *first;
             node_t *last;
@@ -75,12 +84,6 @@ struct _node{
             node_t **kids;
             int kid_count;
         }kids;
-
-        union{
-            uint64_t i64_value;
-            double   f64_value;
-            char     *str;
-        }const_val;
 
         char *var_name;
     }u;

@@ -60,6 +60,8 @@ node_t *DA_create_Entry();
 node_t *DA_create_Exit();
 #define DA_create_relation(_T_, _K0_, _K1_) DA_create_B_expr(_T_, _K0_, _K1_)
 
+char *quark_tree_to_body(node_t *node);
+
 // yacc utility
 node_t *node_to_ptr(node_t node);
 
@@ -96,7 +98,7 @@ void dump_all_unds(void);
 #define DA_do_cond(_N_)    DA_kid((_N_), 0)
 #define DA_do_body(_N_)    DA_kid((_N_), 1)
 #define DA_func_name(_N_)  (( DA_kid((_N_), 0)->type == IDENTIFIER ) ? DA_kid((_N_), 0)->u.var_name : NULL)
-#define DA_int_val(_N_)    ((_N_)->u.const_val.i64_value)
+#define DA_int_val(_N_)    ((_N_)->const_val.i64_value)
 
 
 #define UND_IGNORE 0x0

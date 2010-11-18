@@ -94,8 +94,17 @@ extern int yylex (void);
 %type <node> unary_expression
 %type <node> unary_operator
 
+%type <node> init_declarator
+%type <node> init_declarator_list
+%type <node> declarator
+%type <node> direct_declarator
+%type <node> declaration
+%type <node> declaration_list
+%type <node> initializer
+
 
 %type <string> identifier_list
+%type <string> initializer_list
 
 %type <string> AUTO
 %type <string> CHAR
@@ -106,6 +115,20 @@ extern int yylex (void);
 %type <string> FLOAT
 %type <string> INT
 %type <string> LONG
+
+%type <string> INT8
+%type <string> INT16
+%type <string> INT32
+%type <string> INT64
+%type <string> UINT8
+%type <string> UINT16
+%type <string> UINT32
+%type <string> UINT64
+%type <string> INTPTR
+%type <string> UINTPTR
+%type <string> INTMAX
+%type <string> UINTMAX
+
 %type <string> REGISTER
 %type <string> SHORT
 %type <string> SIGNED
@@ -118,23 +141,20 @@ extern int yylex (void);
 %type <string> UNSIGNED
 %type <string> VOID
 %type <string> VOLATILE
+%type <string> PLASMA_COMPLEX32_T
+%type <string> PLASMA_COMPLEX64_T
+%type <string> PLASMA_ENUM
+%type <string> PLASMA_REQUEST
+%type <string> PLASMA_DESC
+%type <string> PLASMA_SEQUENCE
 
-
-%type <string> initializer
-%type <string> initializer_list
 %type <string> parameter_list
 %type <string> parameter_declaration
 %type <string> parameter_type_list
 %type <string> abstract_declarator
-%type <string> declaration
-%type <string> declaration_list
 %type <string> declaration_specifiers
-%type <string> declarator
 %type <string> direct_abstract_declarator
-%type <string> direct_declarator
 %type <string> enum_specifier
-%type <string> init_declarator
-%type <string> init_declarator_list
 %type <string> pointer
 %type <string> specifier_qualifier_list
 %type <string> storage_class_specifier
@@ -158,6 +178,9 @@ extern int yylex (void);
 
 %token TYPEDEF EXTERN STATIC AUTO REGISTER
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
+%token INT8 INT16 INT32 INT64 UINT8 UINT16 UINT32 UINT64 INTPTR UINTPTR INTMAX UINTMAX
+%token PLASMA_COMPLEX32_T PLASMA_COMPLEX64_T PLASMA_ENUM PLASMA_REQUEST PLASMA_DESC PLASMA_SEQUENCE
+
 %token STRUCT UNION ENUM ELLIPSIS
 
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
@@ -174,9 +197,13 @@ primary_expression
 	;
 
 postfix_expression
-	: primary_expression { $$ = $1; }
+	: primary_expression
+          { 
+          $$ = $1;
+          }
 	| postfix_expression '[' expression ']'
           {
+
               if( ARRAY == $1.type ){
                   int count;
                   $$ = $1;
@@ -190,6 +217,7 @@ postfix_expression
                   $$.u.kids.kids[0] = node_to_ptr($1);
                   $$.u.kids.kids[1] = node_to_ptr($3);
               }
+
           }
 	| postfix_expression '(' ')'
           {
@@ -333,7 +361,11 @@ unary_operator
 
 cast_expression
 	: unary_expression 
-	| '(' type_name ')' cast_expression { $$ = $4; }
+	| '(' type_name ')' cast_expression
+          {
+            $$ = $4;
+            $$.var_type = strdup($2);
+          }
 	;
 
 multiplicative_expression
@@ -534,7 +566,10 @@ conditional_expression
 	;
 
 assignment_expression
-	: conditional_expression { $$ = $1; }
+	: conditional_expression
+          { 
+            $$ = $1;
+          }
 	| unary_expression assignment_operator assignment_expression 
           {
             $$.type = $2.type;
@@ -579,16 +614,10 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';'
-          {
-              char *str = strdup($1);
-              $$ = append_to_string(str, ";", NULL, 0 );
-          }
+	: declaration_specifiers ';' { }
 	| declaration_specifiers init_declarator_list ';'
           {
-              char *str = strdup($1);
-              str = append_to_string(str, $2, " %s", 1+strlen($2) );
-              $$ = append_to_string(str, ";", NULL, 0 );
+              $$ = $2;
           }
 	;
 
@@ -624,24 +653,33 @@ declaration_specifiers
 
 init_declarator_list
 	: init_declarator
-          {
-              $$ = $1;
-          }
+          { 
+              node_t *tmp;
+              tmp = node_to_ptr($1);
+              tmp->prev = NULL;
+              tmp->next = NULL;
+              $$.next = tmp;
+          } 
 	| init_declarator_list ',' init_declarator
           {
-              char *str = strdup($1);
-              str = append_to_string(str, ", ", NULL, 0 );
-              $$ = append_to_string(str, $3, NULL, 0 );
+              node_t *tmp;
+              tmp = node_to_ptr($3);
+              tmp->next = NULL;
+              tmp->prev = $1.next;
+              tmp->prev->next = tmp;
+              $$.next = tmp;
           }
 	;
 
 init_declarator
-	: declarator
-/* FIXME: we need to assign the initializer to the variable instead of puking*/
+	: declarator {}
 	| declarator '=' initializer
           {
-              yyerror("\"declarator = initializer\" constructs are not allowed "
-                      "although they are part of ANSI C. Sorry.");
+            $$.type = ASSIGN;
+            $$.u.kids.kid_count = 2;
+            $$.u.kids.kids = (node_t **)calloc(2,sizeof(node_t *));
+            $$.u.kids.kids[0] = node_to_ptr($1);
+            $$.u.kids.kids[1] = node_to_ptr($3);
           }
 	;
 
@@ -659,12 +697,30 @@ type_specifier
 	| SHORT
 	| INT
 	| LONG
+        | INT8
+        | INT16
+        | INT32
+        | INT64
+        | UINT8
+        | UINT16
+        | UINT32
+        | UINT64
+        | INTPTR
+        | UINTPTR
+        | INTMAX
+        | UINTMAX
 	| FLOAT
 	| DOUBLE
 	| SIGNED
 	| UNSIGNED
 	| struct_or_union_specifier
 	| enum_specifier
+        | PLASMA_COMPLEX32_T
+        | PLASMA_COMPLEX64_T
+        | PLASMA_ENUM
+        | PLASMA_REQUEST
+        | PLASMA_DESC
+        | PLASMA_SEQUENCE
 	| TYPE_NAME
 	;
 
@@ -701,7 +757,7 @@ struct_declarator_list
 	;
 
 struct_declarator
-	: declarator
+	: declarator {}
 /*	| ':' constant_expression */
 /*	| declarator ':' constant_expression */
 	;
@@ -729,41 +785,57 @@ type_qualifier
 
 declarator
 	: pointer direct_declarator
+          {
+              $$ = $2;
+          }
 	| direct_declarator
 	;
 
 direct_declarator
 	: IDENTIFIER
-          {
-              $$ = $1.u.var_name;
-          }
 	| '(' declarator ')'
           {
-              char *str = strdup("(");
-              str = append_to_string(str, $2, NULL, 0 );
-              $$ = append_to_string(str, ")", NULL, 0 );
+              $$ = $2;
           }
 	| direct_declarator '[' constant_expression ']'
+          {
+              if( ARRAY == $1.type ){
+                  int count;
+                  $$ = $1;
+                  count = ++($$.u.kids.kid_count);
+                  $$.u.kids.kids = (node_t **)realloc( $$.u.kids.kids, count*sizeof(node_t *) );
+                  $$.u.kids.kids[count-1] = node_to_ptr($3);
+              }else{
+                  $$.type = ARRAY;
+                  $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
+                  $$.u.kids.kid_count = 2;
+                  $$.u.kids.kids[0] = node_to_ptr($1);
+                  $$.u.kids.kids[1] = node_to_ptr($3);
+              }
+          }
 	| direct_declarator '[' ']'
+          {
+              if( ARRAY == $1.type ){
+                  int count;
+                  $$ = $1;
+                  count = ++($$.u.kids.kid_count);
+                  $$.u.kids.kids = (node_t **)realloc( $$.u.kids.kids, count*sizeof(node_t *) );
+                  node_t tmp;
+                  tmp.type=EMPTY;
+                  $$.u.kids.kids[count-1] = node_to_ptr(tmp);
+              }else{
+                  $$.type = ARRAY;
+                  $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
+                  $$.u.kids.kid_count = 2;
+                  $$.u.kids.kids[0] = node_to_ptr($1);
+                  node_t tmp;
+                  tmp.type=EMPTY;
+                  $$.u.kids.kids[1] = node_to_ptr(tmp);
+              }
+          }
 	| direct_declarator '(' parameter_type_list ')'
-          {
-              char *str = strdup($1);
-              str = append_to_string(str, "(", NULL, 0 );
-              str = append_to_string(str, $3, NULL, 0 );
-              $$ = append_to_string(str, ")", NULL, 0 );
-          }
 	| direct_declarator '(' identifier_list ')'
-          {
-              char *str = strdup($1);
-              str = append_to_string(str, "(", NULL, 0 );
-              str = append_to_string(str, $3, NULL, 0 );
-              $$ = append_to_string(str, ")", NULL, 0 );
-          }
 	| direct_declarator '(' ')'
-          {
-              char *str = strdup($1);
-              $$ = append_to_string(str, "( )", NULL, 0 );
-          }
 	;
 
 pointer
@@ -801,7 +873,11 @@ parameter_declaration
 	: declaration_specifiers declarator
           {
               char *str = strdup($1);
-              $$ = append_to_string(str, $2, " %s", 1+strlen($2) );
+if( NULL == $1 ){
+    printf("> declaration_specifiers is NULL\n");
+}
+              char *decl = tree_to_str(&($2));
+              $$ = append_to_string(str, decl, " %s", 1+strlen(decl) );
           }
 	| declaration_specifiers abstract_declarator
           {
@@ -845,8 +921,8 @@ direct_abstract_declarator
 	;
 
 initializer
-	: assignment_expression {}
-	| '{' initializer_list '}' {} 
+	: assignment_expression
+	| '{' initializer_list '}' { } 
 	| '{' initializer_list ',' '}' {}
 	;
 
@@ -883,7 +959,7 @@ compound_statement
 
               $$.type = BLOCK;
               $$.u.block.last = $2.next;
-              for(tmp=$2.next->prev; NULL != tmp && NULL != tmp->prev; tmp=tmp->prev);
+              for(tmp=$2.next->prev; NULL != tmp && NULL != tmp->prev; tmp=tmp->prev) ;
               if( NULL == tmp )
                   $$.u.block.first = $$.u.block.last;
               else
@@ -891,25 +967,62 @@ compound_statement
           }
 	| '{' declaration_list '}'
           {
-              /* Should we do something here? */
-          }
-	| '{' declaration_list statement_list '}'
-          {
               node_t *tmp;
 
               $$.type = BLOCK;
-              $$.u.block.last = $3.next;
-              for(tmp=$3.next->prev; NULL != tmp && NULL != tmp->prev; tmp=tmp->prev);
+              $$.u.block.last = $2.next;
+              for(tmp=$2.next->prev; NULL != tmp && NULL != tmp->prev; tmp=tmp->prev) ;
               if( NULL == tmp )
                   $$.u.block.first = $$.u.block.last;
               else
                   $$.u.block.first = tmp;
           }
+	| '{' declaration_list statement_list '}'
+          {
+              // We've got two separate lists and we need to chain them together.
+              node_t *tmp;
+
+              $$.type = BLOCK;
+              // take as last the last of the second list
+              $$.u.block.last = $3.next;
+
+              // then walk back the first list to find the beginning.
+              for(tmp=$2.next->prev; NULL != tmp && NULL != tmp->prev; tmp=tmp->prev) ;
+
+              if( NULL == tmp )
+                  $$.u.block.first = $2.next;
+              else
+                  $$.u.block.first = tmp;
+
+              // then walk back the second list to find its beginning.
+              for(tmp=$3.next; NULL != tmp && NULL != tmp->prev; tmp=tmp->prev) ;
+
+              // Now connect the end of the first list to the beginning of the second.
+              $2.next->next = tmp;
+              if( NULL != tmp )
+                  tmp->prev = $2.next;
+
+          }
 	;
 
 declaration_list
 	: declaration
+          { 
+              node_t *tmp;
+              tmp = node_to_ptr($1);
+              tmp->prev = NULL;
+              tmp->next = NULL;
+              $$.next = tmp;
+          } 
 	| declaration_list declaration
+          { 
+              node_t *tmp;
+              tmp = node_to_ptr($2);
+              tmp->next = NULL;
+              tmp->prev = $1.next;
+              tmp->prev->next = tmp;
+              $$.next = tmp;
+          } 
 	;
 
 statement_list
@@ -1059,7 +1172,6 @@ extern int column;
 
 void yyerror(const char *s){
 	fflush(stdout);
-//	fprintf(stderr,"\n%s\n", s);
 	fprintf(stderr,"Syntax error near line %d. %s\n", yyget_lineno(), s);
 	exit(-1);
 }
