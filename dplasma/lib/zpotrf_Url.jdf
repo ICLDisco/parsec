@@ -191,6 +191,8 @@ RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
 //;  (n >= (Ant - PRI_CHANGE)) ? (Ant - n - m) * ((Ant - m - k + 1) / 2 + 2) - 1 + (Ant - n + 2) * (Ant - n + 1) * (Ant - n) / 6 + Ant - m + k + 1 : 0
 
 BODY
+    int tempnn = n == Ant-1 ? An - n * Anb : Anb;
+
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
@@ -212,7 +214,7 @@ BODY
     }
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
-    int tempnn = n == Ant-1 ? An - n * Anb : Anb;
+
     DRYRUN(
         CORE_zgemm( 
             PlasmaConjTrans, PlasmaNoTrans,
