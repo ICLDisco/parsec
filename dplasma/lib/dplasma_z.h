@@ -47,6 +47,8 @@ dague_object_t* dplasma_zgeqrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *
 /* Lapack variants */
 dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO);
 dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, int* INFO);
+dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum uplo,
+                                    tiled_matrix_desc_t* ddescA, int* INFO);
 dague_object_t* dplasma_zgetrf_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int* INFO);
 
 
