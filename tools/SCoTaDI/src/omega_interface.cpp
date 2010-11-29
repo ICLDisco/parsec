@@ -2051,12 +2051,12 @@ printf("========================================================================
             }
             printf(")\n");
 
-            Relation S = process_and_print_execution_space(src_task->task_node);
+            Relation S_es = process_and_print_execution_space(src_task->task_node);
             printf("\n");
             print_pseudo_variables(deps, incoming_edges[task_name]);
             printf("\n");
-            print_edges(deps, incoming_edges[task_name], S);
-            S.Null();
+            print_edges(deps, incoming_edges[task_name], S_es);
+            S_es.Null();
             printf("\n");
             print_body(src_task->task_node);
         }

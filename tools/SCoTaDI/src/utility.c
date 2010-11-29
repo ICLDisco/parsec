@@ -1219,8 +1219,13 @@ char *quark_tree_to_body(node_t *node){
             if( tmp != param ){
                 prefix = append_to_string( prefix, tmp, "  %s;\n", 4+strlen(tmp));
             }
+            str = append_to_string( str, param, NULL, 0);
+        }else{
+            char *symname = node->u.kids.kids[i]->var_symname;
+            assert(NULL != symname);
+            str = append_to_string( str, symname, NULL, 0);
+            str = append_to_string( str, param, " /* %s */", 7+strlen(param));
         }
-        str = append_to_string( str, param, NULL, 0);
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
         // do a little more work to print the value of the indices instead of their names and the pointer.

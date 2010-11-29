@@ -1,7 +1,7 @@
-LDFLAGS=-L$(OMEGA_BASE)/omega_lib/obj
+LDFLAGS=$(OMEGA_BASE)/omega_lib/obj/libomega.a
 OBJECTS=driver.o utility.o omega_interface.o
 INCL=-I$(OMEGA_BASE)/omega_lib/include -I$(OMEGA_BASE)/basic/include
-LIB=-lomega
+#LIB=-lomega
 
 
 %.tab.h %.tab.c: %.y
