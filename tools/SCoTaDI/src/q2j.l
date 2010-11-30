@@ -9,8 +9,10 @@ IS			(u|U|l|L)*
 #include <stdio.h>
 #include <stdlib.h>
 #include "node_struct.h"
+#include "parse_utility.h"
 #include "q2j.tab.h"
 
+int check_type();
 void count();
 void comment();
 %}
@@ -215,11 +217,17 @@ void comment();
 			}
 
 {L}({L}|{D})*		{ count(); 
-                          yylval.node.u.var_name = strdup(yytext);
-                          yylval.node.type = IDENTIFIER;
-                          yylval.node.u.kids.kid_count = 0;
-                          return(IDENTIFIER);
-                          //return(check_type());
+                          if( IDENTIFIER == check_type()){
+                              yylval.node.u.var_name = strdup(yytext);
+                              yylval.node.type = IDENTIFIER;
+                              yylval.node.u.kids.kid_count = 0;
+                              return(IDENTIFIER);
+//printf("type: %s\n",yytext);
+                          }else{
+//printf("type: %s\n",yytext);
+                              yylval.string = strdup(yytext);
+                              return(TYPE_NAME);
+                          }
                         }
 
 0[xX]{H}+{IS}?		{ count(); 
@@ -466,20 +474,11 @@ void count()
 }
 
 
-int check_type()
-{
-/*
-* pseudo code --- this is what it should check
-*
-*	if (yytext == type_name)
-*		return(TYPE_NAME);
-*
-*	return(IDENTIFIER);
-*/
+int check_type() {
 
-/*
-*	it actually will only return IDENTIFIER
-*/
+    if( NULL != lookup_type(yytext) ){
+        return(TYPE_NAME);
+    }
 
-	return(IDENTIFIER);
+    return(IDENTIFIER);
 }

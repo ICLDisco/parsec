@@ -7,11 +7,14 @@
 
 #include "node_struct.h"
 #include "utility.h"
+#include "parse_utility.h"
 
 
 extern int yyget_lineno();
 void yyerror(const char *s);
 extern int yylex (void);
+
+type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
 %}
 
@@ -153,6 +156,7 @@ extern int yylex (void);
 %type <string> parameter_type_list
 %type <string> abstract_declarator
 %type <string> declaration_specifiers
+%type <string> typedef_specifier
 %type <string> direct_abstract_declarator
 %type <string> enum_specifier
 %type <string> pointer
@@ -614,20 +618,24 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';' { }
+	: declaration_specifiers ';' { /* do nothing */ }
 	| declaration_specifiers init_declarator_list ';'
           {
               $$ = $2;
           }
 	;
 
+typedef_specifier
+	: TYPEDEF declaration_specifiers IDENTIFIER ';'
+	  {
+              add_type(tree_to_str(&($3)), $2);
+	  }
+
 declaration_specifiers
 	: storage_class_specifier
-          {
-              $$ = $1;
-          }
 	| storage_class_specifier declaration_specifiers
           {
+/*              $$ = $2; */
               char *str = strdup($1);
               $$ = append_to_string(str, $2, " %s", 1+strlen($2) );
           }
@@ -684,8 +692,7 @@ init_declarator
 	;
 
 storage_class_specifier
-	: TYPEDEF
-	| EXTERN
+	: EXTERN
 	| STATIC
 	| AUTO
 	| REGISTER
@@ -722,6 +729,7 @@ type_specifier
         | PLASMA_DESC
         | PLASMA_SEQUENCE
 	| TYPE_NAME
+    
 	;
 
 struct_or_union_specifier
@@ -746,8 +754,16 @@ struct_declaration
 
 specifier_qualifier_list
 	: type_specifier specifier_qualifier_list
+          {
+              char *str = strdup($1);
+              $$ = append_to_string(str, $2, " %s", 1+strlen($2) );
+          }
 	| type_specifier
 	| type_qualifier specifier_qualifier_list
+          {
+              char *str = strdup($1);
+              $$ = append_to_string(str, $2, " %s", 1+strlen($2) );
+          }
 	| type_qualifier
 	;
 
@@ -1130,12 +1146,10 @@ external_declaration
 	: function_definition
           {
               rename_induction_variables(&($1));
-//	      dump_tree($1,4);
               analyze_deps(&($1));
-
-//              printf("}\n");
           }
 	| declaration { static node_t tmp; tmp.type=EMPTY; $$=tmp;}
+        | typedef_specifier { /* do nothing */ }
 	;
 
 function_definition
@@ -1175,3 +1189,66 @@ void yyerror(const char *s){
 	fprintf(stderr,"Syntax error near line %d. %s\n", yyget_lineno(), s);
 	exit(-1);
 }
+
+
+
+void add_type(char *new_type, char *old_type){
+    unsigned long int h;
+    type_list_t *t, *tmp;
+
+    if( NULL != lookup_type(new_type) ){
+        fprintf(stderr,"type defined aready\n");
+        exit(-1);
+    }
+
+    tmp = (type_list_t *)calloc(1, sizeof(type_list_t));
+    tmp->new_type = strdup(new_type);
+    tmp->old_type = strdup(old_type);
+
+    h = hash(new_type);
+    t=type_hash[h];
+    if( NULL == t ){
+        type_hash[h] = tmp;
+        return;
+    }
+
+    for(; NULL != t->next; t=t->next);
+    t->next = tmp;
+ 
+    return;
+}
+
+
+
+char *lookup_type(char *new_type){
+    unsigned long int h;
+    type_list_t *t;
+
+    h = hash(new_type);
+    for(t=type_hash[h]; NULL != t; t=t->next){
+        if( !strcmp(t->new_type, new_type) )
+            return t->old_type;
+    }
+
+    return NULL;
+}
+
+
+/* Modified djb2 hash from: http://www.cse.yorku.ca/~oz/hash.html */
+unsigned long hash(char *str) {
+    unsigned long result = 5381;
+    int c;
+
+    while( 0 != (c = *str++) ){
+        result = ((result << 5) + result) + c; /* result * 33 + c */
+    }
+
+    unsigned long tmp = result;
+    while( tmp > (HASH_TAB_SIZE/4) ){
+        tmp /= 2;
+    }
+    result = tmp + result%(HASH_TAB_SIZE-(HASH_TAB_SIZE/4));
+
+    return result;
+}
+
