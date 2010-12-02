@@ -1,7 +1,7 @@
-export OMEGA_BASE=/Users/adanalis/Desktop/Research/PLASMA_Distributed/Related_Stuff/Omega
+export OMEGA_BASE=/home/adanalis/pub/Omega
 export YACC=yacc -d -y --verbose
 export LEX=flex
-export CC=g++-4.2
+export CC=g++
 export CCFLAGS=-g -Wall
 export LINKER=g++
 
