@@ -14,7 +14,7 @@ endif()
 #
 # Find required packages
 #
-find_package(PLASMA REQUIRED)
+find_package(PLASMA)
 if( PLASMA_SRC )
    list(APPEND PLASMA_INCLUDE_DIR ${PLASMA_SRC})
 endif( PLASMA_SRC )
@@ -29,5 +29,7 @@ endif( DPLASMA_GPU_WITH_MAGMA )
 include_directories(lib)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib/)
 include_directories(${PLASMA_INCLUDE_DIRS})
-Add_Subdirectory(lib)
-Add_Subdirectory(testing)
+if(FOUND_PLASMA)
+  Add_Subdirectory(lib)
+  Add_Subdirectory(testing)
+endif(FOUND_PLASMA)
