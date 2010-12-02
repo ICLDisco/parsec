@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague_config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +15,7 @@
 #include <inttypes.h>
 
 #include "node_struct.h"
-#include "q2j.tab.h"
+#include "q2j.y.h"
 #include "utility.h"
 #include "omega_interface.h"
 

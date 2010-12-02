@@ -6,11 +6,18 @@ FS			(f|F|l|L)
 IS			(u|U|l|L)*
 
 %{
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "node_struct.h"
 #include "parse_utility.h"
-#include "q2j.tab.h"
+#include "q2j.y.h"
 
 int check_type();
 void count();

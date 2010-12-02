@@ -1,8 +1,16 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _DA_UTILITY_H_
 #define _DA_UTILITY_H_
+#include "dague_config.h"
 #include <stdlib.h>
 #include "node_struct.h"
-#include "omega.h"
+
+BEGIN_C_DECLS
 
 typedef struct _var_t var_t;
 typedef struct _und_t und_t;
@@ -20,12 +28,6 @@ struct _var_t{
     char *var_name;
     und_t *und;
     var_t *next;
-};
-
-struct _dep_t{
-    node_t *src;
-    node_t *dst;
-    Relation *rel;
 };
 
 struct _expr_t{
@@ -82,7 +84,7 @@ const char *type_to_symbol(int type);
 void dump_tree(node_t node, int offset);
 void dump_for(node_t *node);
 void dump_all_unds(void);
-
+void dump_und(und_t *und);
 
 #define DA_kid(_N_, _X_)   ((_N_)->u.kids.kids[(_X_)])
 #define DA_assgn_lhs(_N_)  DA_kid((_N_), 0)
@@ -107,4 +109,7 @@ void dump_all_unds(void);
 #define UND_RW     0x3
 #define is_und_read(_U_)   ((_U_ ->rw) & 0x1)
 #define is_und_write(_U_) (((_U_ ->rw) & 0x2)>>1)
+
+END_C_DECLS
+
 #endif

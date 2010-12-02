@@ -1,11 +1,25 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague_config.h"
 #include "node_struct.h"
 #include "utility.h"
-#include "q2j.tab.h"
+#include "q2j.y.h"
 #include "omega_interface.h"
+#include "omega.h"
 #include <map>
 #include <set>
 #include <list>
 #include <sstream>
+
+struct _dep_t{
+    node_t *src;
+    node_t *dst;
+    Relation *rel;
+};
 
 #define DEP_FLOW  0x1
 #define DEP_OUT   0x2

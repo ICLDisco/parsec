@@ -4,6 +4,7 @@
 #target_link_libraries(grapher dplasma dague ${EXTRA_LIBS})
 
 Add_Subdirectory(dague-compiler)
+Add_Subdirectory(q2j)
 
 add_custom_target(
       grapher_create_objects.c

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2010 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _DA_NODE_STRUCT_H_
 #define _DA_NODE_STRUCT_H_
 #include <stdint.h>

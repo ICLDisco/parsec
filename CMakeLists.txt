@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (DAGUE C Fortran)
+project (DAGUE C CXX Fortran)
 # The current version number
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
@@ -72,6 +72,14 @@ option(DAGUE_PROF_DRY_BODY
   "Disable calls to the actual bodies; no computation is performed" OFF)
 option(DAGUE_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
+
+### Look for OMEGA
+option(DAGUE_OMEGA_DIR
+  "Location of the OMEGA installation" OFF)
+set(FOUND_OMEGA false)
+if(DAGUE_OMEGA_DIR)
+  set(FOUND_OMEGA true)
+endif(DAGUE_OMEGA_DIR)
 
 ### Misc options
 option(BUILD_SHARED_LIBS
