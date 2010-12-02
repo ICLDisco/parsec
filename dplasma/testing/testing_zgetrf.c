@@ -20,7 +20,7 @@ int main(int argc, char ** argv)
     
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
-    iparam_default_ibnbmb(iparam, 60, 200, 200);
+    iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
