@@ -9,6 +9,7 @@
 
 #define DEP_FLOW  0x1
 #define DEP_OUT   0x2
+#define DEP_ANTI  0x4
 
 #define EDGE_INCOMING 0x0
 #define EDGE_OUTGOING 0x1
@@ -258,7 +259,7 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
             imax.update_coef(ivar,-1);
             break;
         default:
-            fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %d\n",node->type);
+            fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %s\n", DA_type_name(node) );
             exit(-1);
     }
 
@@ -422,6 +423,8 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+// The variable names and comments in this function abuse the terms "def" and "use".
+// It would be more acurate to use the terms "source" and "destination" for the edges.
 map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node){
     int i, after_def = 0;
     int src_var_count, dst_var_count;
@@ -432,6 +435,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
     map<string, Variable_ID> ivars, ovars;
     map<node_t *, Relation> dep_edges;
 
+    // In the case of anti-dependencies (write after read) "def" is really a USE.
     def = def_und->node;
     src_var_count = def->loop_depth;
     after_def = 0;
@@ -442,13 +446,14 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         def_name = DA_var_name(DA_array_base(def));
         assert( !strcmp(var_name, def_name) );
 
-        if( ((DEP_FLOW==dep_type) && (!is_und_read(und))) || ((DEP_OUT==dep_type) && (!is_und_write(und))) ){
+        if( ((DEP_FLOW==dep_type) && (!is_und_read(und))) || ((DEP_OUT==dep_type) && (!is_und_write(und))) || ((DEP_ANTI==dep_type) && (!is_und_write(und))) ){
             // Since we'll bail, let's first check if this is the definition.
             if( und == def_und ){
                 after_def = 1;
             }
             continue;
         }
+        // In the case of output dependencies (write after write) "use" is really a DEF.
         use = und->node;
 
         dst_var_count = use->loop_depth;
@@ -531,11 +536,16 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         node_t *encl_loop = find_closest_enclosing_loop(use, def);
 
         // If USE and DEF are in the same task and that is not in a loop, there is no data flow, go to the next USE.
-        if( (NULL == encl_loop) && (def->task == use->task) ){
+        // However, if we are looking at anti-dependencies and "def == use" (not the tasks, the actual nodes) then
+        // we should keep this contrived edge because we will need to subtract it from all other anti-dep edges.
+        if( (NULL == encl_loop) && (def->task == use->task) && ((DEP_ANTI!=dep_type) || (def != use)) ){
             continue;
         }
+        
 
-        if( after_def && (def->task != use->task) ){
+        // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
+        // subtract the relation of that "self" antidependency from the relations of all other anti-dependencies.
+        if( ( after_def && (def->task != use->task) ) || ( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
             // Create Relation due to "normal" DU chain.  In this case, not having a common enclosing loop it acceptable.
             if( NULL != encl_loop ){
 
@@ -1783,9 +1793,10 @@ void print_body(node_t *task_node){
 void interrogate_omega(node_t *root, var_t *head){
     var_t *var;
     und_t *und;
-    map<node_t *, map<node_t *, Relation> > flow_sources, output_sources;
+    map<node_t *, map<node_t *, Relation> > flow_sources, output_sources, anti_sources;
     map<char *, set<dep_t *> > outgoing_edges;
     map<char *, set<dep_t *> > incoming_edges;
+    map<char *, set<dep_t *> > control_edges;
 
     declare_global_vars(root);
 
@@ -1802,6 +1813,7 @@ void interrogate_omega(node_t *root, var_t *head){
     for(var=head; NULL != var; var=var->next){
         flow_sources.clear();
         output_sources.clear();
+        anti_sources.clear();
         // Create flow edges starting from the ENTRY
         flow_sources[entry]   = create_entry_relations(entry, var, DEP_FLOW);
         output_sources[entry] = create_entry_relations(entry, var, DEP_OUT);
@@ -1813,7 +1825,118 @@ void interrogate_omega(node_t *root, var_t *head){
                 flow_sources[def] = create_dep_relations(und, var, DEP_FLOW, exit_node);
                 output_sources[def] = create_dep_relations(und, var, DEP_OUT, exit_node);
             }
+            if(is_und_read(und)){
+                node_t *use = und->node;
+                anti_sources[use] = create_dep_relations(und, var, DEP_ANTI, exit_node);
+            }
         }
+
+//#error "HERE"
+//TODO:
+// Let Ra0 = anti-dependency to self
+// foreach anti-dependency Rai
+//   src = Rai->source
+//   dst = Rai->destination
+//   Let Roi = output-dep : Roi->source == src && Roi->destination == dst
+//   Rai = Rai - (Ra0 compose Roi)
+
+        // Minimize the anti dependencies (also known as write-after-read).
+        // by factoring in the output dependencies (also known as write-after-write).
+        //
+
+        // For every USE that is the source of anti dependencies
+        map<node_t *, map<node_t *, Relation> >::iterator anti_src_it;
+        for(anti_src_it=anti_sources.begin(); anti_src_it!=anti_sources.end(); ++anti_src_it){
+            Relation Ra0, Roi, Rai;
+            set<dep_t *> dep_set;
+            // Extract from the map the actual USE from which all the deps in this map start from
+            node_t *use = anti_src_it->first;
+            map<node_t *, Relation> anti_deps = anti_src_it->second;
+
+            Ra0.Null(); // just in case.
+
+            // Iterate over all anti-deps that start from this USE looking for one that has the same
+            // node as its sink (in other words we are looking for an array passed as INOUT to a kernel).
+            map<node_t *, Relation>::iterator ad_it;
+            for(ad_it=anti_deps.begin(); ad_it!=anti_deps.end(); ++ad_it){
+                // Get the sink of the edge.
+                node_t *sink = ad_it->first;
+                if( sink == use ){
+                    Ra0 = ad_it->second;
+                    break;
+                }
+            }
+
+            // Use this "self edge" (composed with the appropriate output-edge) to reduce all other anti-edges.
+            // But if there is no self edge, add all the anti-deps into the set unchanged.
+
+            // Iterate over all anti-dependency edges (but skip the self-edge).
+            for(ad_it=anti_deps.begin(); ad_it!=anti_deps.end(); ++ad_it){
+                // Get the sink of the edge.
+                node_t *sink = ad_it->first;
+                // skip the self-edge
+                if( sink == use ){
+                    continue;
+                }
+                Rai = ad_it->second;
+// DEBUG
+//Rai.print();
+    
+                if( Ra0.is_null() ){
+                    dep_t *dep = (dep_t *)calloc(1, sizeof(dep_t));
+                    dep->src = use;
+                    dep->dst = sink;
+                    dep->rel = new Relation(Rai);
+                    dep_set.insert(dep);
+                }else{
+                    // find an output edge that start where the self-edge starts and ends at "sink".
+                    Roi.Null();
+                    map<node_t *, map<node_t *, Relation> >::iterator out_src_it;
+                    out_src_it = output_sources.find(use);
+                    if(out_src_it == output_sources.end()){
+                       printf("anti w/o out: %s:%s -> %s:%s\n",use->task->task_name, tree_to_str(use), sink->task->task_name, tree_to_str(sink) ); 
+                       exit(-1);
+                    }
+                    map<node_t *, Relation> output_deps = out_src_it->second;
+    
+                    map<node_t *, Relation>::iterator od_it;
+                    for(od_it=output_deps.begin(); od_it!=output_deps.end(); ++od_it){
+                        // If the sink of this output edge is the same as the sink of the anti-flow we are good.
+                        node_t *od_sink = od_it->first;
+                        if( od_sink == sink ){
+                            Roi = od_it->second;
+                            break;
+                        }
+                    }
+    
+                    // Now we have all the necessary edges, so we perform the operation.
+                    if( !Roi.is_null() ){
+                        Relation rKill = Composition(copy(Roi), copy(Ra0));
+                        Rai = Difference(Rai, rKill);
+    
+                        dep_t *dep = (dep_t *)calloc(1, sizeof(dep_t));
+                        dep->src = use;
+                        dep->dst = sink;
+                        dep->rel = new Relation(Rai);
+                        dep_set.insert(dep);
+                    }
+                }
+            }
+            // see if the current task already has some control edges and if so merge them with the new ones.
+            map<char *, set<dep_t *> >::iterator edge_it;
+            char *task_name = use->task->task_name;
+            edge_it = control_edges.find(task_name);
+            if( edge_it != control_edges.end() ){
+                set<dep_t *>tmp_set;
+                tmp_set = control_edges[task_name];
+                dep_set.insert(tmp_set.begin(), tmp_set.end());
+            }
+            control_edges[task_name] = dep_set;
+        }
+
+        // Minimize the flow dependencies (also known as true dependencies, or read-after-write)
+        // by factoring in the output dependencies (also known as write-after-write).
+        //
 
         // For every DEF that is the source of flow dependencies
         map<node_t *, map<node_t *, Relation> >::iterator flow_src_it;
@@ -2050,6 +2173,48 @@ printf("========================================================================
                 printf("%s", src_task->ind_vars[i]);
             }
             printf(")\n");
+
+// DEBUG start
+            printf("  /*\n");
+            map<node_t *, map<node_t *, Relation> >::iterator anti_src_it;
+            for(anti_src_it=anti_sources.begin(); anti_src_it!=anti_sources.end(); ++anti_src_it){
+                // Extract from the map the actual USE from which all the deps in this map start from
+                node_t *use = anti_src_it->first;
+                if( use->task == src_task ){
+                    map<node_t *, Relation> anti_deps = anti_src_it->second;
+
+                    map<node_t *, Relation>::iterator ad_it;
+                    for(ad_it=anti_deps.begin(); ad_it!=anti_deps.end(); ++ad_it){
+                        node_t *sink = ad_it->first;
+                        Relation ad_r = ad_it->second;
+                        char *n1 = use->task->task_name;
+                        char *n2 = sink->task->task_name;
+                        printf("  ANTI edge from %s:%s to %s:%s ",n1, tree_to_str(use), n2, tree_to_str(sink));
+                        ad_r.print_with_subs();
+                    }
+                }
+            }
+            printf("  */\n\n");
+// DEBUG end
+
+            map<char *, set<dep_t *> >::iterator edge_it;
+            edge_it = control_edges.find(task_name);
+            if( edge_it != control_edges.end() ){
+                set<dep_t *>tmp_set;
+                tmp_set = control_edges[task_name];
+                set<dep_t *>::iterator dep_it;
+                for (dep_it=tmp_set.begin(); dep_it!=tmp_set.end(); dep_it++){
+                        node_t *src = (*dep_it)->src;
+                        node_t *dst = (*dep_it)->dst;
+                        Relation r = *(*dep_it)->rel;
+                        char *n1 = src->task->task_name;
+                        char *n2 = dst->task->task_name;
+                        printf("  CONTROL %s:%s -> %s:%s ",n1, tree_to_str(src), n2, tree_to_str(dst));
+                        r.print_with_subs();
+                }
+            }
+
+
 
             Relation S_es = process_and_print_execution_space(src_task->task_node);
             printf("\n");
