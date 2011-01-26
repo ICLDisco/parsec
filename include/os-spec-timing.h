@@ -54,9 +54,9 @@ static inline int time_less( dague_time_t start, dague_time_t end )
 typedef uint64_t dague_time_t;
 static inline dague_time_t take_time(void)
 {
-    dague_time_t ret;
-    __asm__ __volatile__("rdtsc" : "=A"(ret));
-    return ret;
+    unsigned hi, lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
 }
 #define TIMER_UNIT "cycles"
 static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
