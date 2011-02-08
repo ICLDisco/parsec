@@ -1,0 +1,143 @@
+extern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
+  
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "dplasmajdf.h"
+
+%}
+
+/** Globals */
+A
+IPIV      [aligned = A]
+L         [aligned = A]
+B
+
+/* 
+ * Parameters
+ */
+ib   [type = int]
+
+Am   [type = int]
+An   [type = int]
+Amb  [type = int]
+Anb  [type = int]
+Amt  [type = int]
+Ant  [type = int]
+
+Bm   [type = int]
+Bn   [type = int]
+Bmb  [type = int]
+Bnb  [type = int]
+Bmt  [type = int]
+Bnt  [type = int]
+     
+/**************************************************
+ *                      ZGESSM                    *
+ **************************************************/
+zgessm(k,n)
+  /* Execution space */
+  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  n = 0..Bnt-1
+
+  /* A == IPIV(k,k) */
+  /* B == A(k,k) */
+  /* C == B(k,n) */
+  /* D == B(k,n1) */
+  /* E == B(m,n1) */
+
+  READ  A <- IPIV(k,k)
+  READ  B <- A(k,k)
+  RW    C <- (k>=1) ? E zssssm(k-1, k, n) 
+          <- (0==k) ? B(k,n)
+          -> (Amt>=(k+2)) ? D zssssm(k, k+1, n) 
+          -> (Amt==(k+1)) ? B(k,n)
+
+  /*
+
+  */
+
+BODY
+
+   int tempkm   = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
+   int tempnn   = ((n)==(Bnt-1)) ? (Bn-(n*Bnb)) : (Bnb);
+   int tempkmin = ((k)==((min( Amt, Ant ))-1)) ? ((min( Am, An ))-(k*Amb)) : (Amb);
+   int ldak     = ((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);
+   int ldbk     = ((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);
+
+   DRYRUN(
+	   CORE_zgessm(tempkm, tempnn, tempkmin, 
+                       ib, A /* IPIV(k,k) */, B /* A(k,k) */, 
+                       ldak, C /* B(k,n) */, ldbk );
+          );
+
+   printlog("thread %d   CORE_zgessm(%d, %d)\n\t(tempkm, tempnn, tempkmin, ib, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk)\n",
+            context->eu_id, k, n, k, k, IPIV, k, k, A, k, n, B);
+
+END
+
+/**************************************************
+ *                      ZSSSSM                    *
+ **************************************************/
+
+zssssm(k,m,n1)
+  /* Execution space */
+  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  m = k+1..Amt-1
+  n1 = 0..Bnt-1
+
+  /* C == B(k,n) */
+  /* D == B(k,n1) */
+  /* E == B(m,n1) */
+  /* F == L(m,k) */
+  /* G == A(m,k) */
+  /* H == IPIV(m,k) */
+
+  RW    D <- ((1+k)==m) & (Ant>=(k+1)) ? C zgessm(m-1, n1) 
+          <- (m>=(2+k)) ? D zssssm(k, m-1, n1) 
+          -> (Amt==(m+1)) ? B(k,n1)
+          -> (Amt>=(m+2)) ? D zssssm(k, m+1, n1) 
+  RW    E <- (0==k) ? B(m,n1)
+          <- (k>=1) ? E zssssm(k-1, m, n1) 
+          -> (m>=(k+2)) & (Ant>=(k+2)) ? E zssssm(k+1, m, n1) 
+          -> (Ant==(k+1)) ? B(m,n1)
+          -> ((1+k)==m) & (Ant>=(2+k)) ? C zgessm(m, n1) 
+  READ  F <- L(m,k)
+  READ  G <- A(m,k)
+  READ  H <- IPIV(m,k)
+
+  /*
+
+  */
+
+BODY
+
+  int tempnn = ((n1)==(Bnt-1)) ? (Bn1-(n1*Bnb)) : (Bnb);
+  int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
+  int tempnn = ((n1)==(Bnt-1)) ? (Bn1-(n1*Bnb)) : (Bnb);
+  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
+  int ldbk   = ((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);
+  int ldbm   = ((m+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);
+  int ldam   = ((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);
+
+  DRYRUN(
+         CORE_zssssm(Anb, tempnn, tempmm, 
+                     tempnn, tempkn, ib, 
+                     D /* B(k,n1) */, ldbk, 
+                     E /* B(m,n1) */, ldbm, 
+                     F /* L(m,k) */,  Lmb, 
+                     G /* A(m,k) */,  ldam, 
+                     H /* IPIV(m,k) */ );
+         );
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(Anb, tempnn, tempmm, tempnn, tempkn, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
+           context->eu_id, k, m, n1, k, n1, B, m, n1, B, m, k, L, m, k, A, m, k, IPIV);
+
+END
