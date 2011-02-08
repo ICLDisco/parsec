@@ -113,9 +113,47 @@ int main(int argc, char ** argv)
                 t1 = PlasmaNoTrans; t2 = PlasmaconjTrans;
             }   
 
+#if 0
+            /*********************************************************************
+             *               First Check
+             */
             if ( rank == 0 ) {
                 printf("***************************************************\n");
-                printf(" ----- TESTING ZPOTRF + ZTRSM + ZTRSM (%s) --- \n", uplostr[u]);
+            }
+
+            /* matrix generation */
+            printf("Generate matrices ... ");
+            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA,  400);
+            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA0, 400);
+            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+            printf("Done\n");
+
+
+            /* Compute */
+            printf("Compute ... ... ");
+            info = dplasma_zposv(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB );
+            printf("Done\n");
+            printf("Info = %d\n", info);
+
+            /* Check the solution */
+            info_solution = check_solution( dague, uplo[u], (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+
+            if ( rank == 0 ) {
+                if (info_solution == 0) {
+                    printf(" ----- TESTING ZPOSV (%s) ....... PASSED !\n", uplostr[u]);
+                }
+                else {
+                    printf(" ----- TESTING ZPOSV (%s) ... FAILED !\n", uplostr[u]);
+                }
+                printf("***************************************************\n");
+            }
+#endif
+            /*********************************************************************
+             *               Third Check
+             */
+            if ( rank == 0 ) {
+                printf("***************************************************\n");
             }
 
             /* matrix generation */
@@ -130,12 +168,50 @@ int main(int argc, char ** argv)
             /* Compute */
             printf("Compute ... ... ");
             info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+            if ( info == 0 ) {
+                dplasma_zpotrs(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX );
+            }
+            printf("Done\n");
             printf("Info = %d\n", info);
+
+            /* Check the solution */
+            info_solution = check_solution( dague, uplo[u], (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+
+            if ( rank == 0 ) {
+                if (info_solution == 0) {
+                    printf(" ----- TESTING ZPOTRF + ZPOTRS (%s) ....... PASSED !\n", uplostr[u]);
+                }
+                else {
+                    printf(" ----- TESTING ZPOTRF + ZPOTRS (%s) ... FAILED !\n", uplostr[u]);
+                }
+                printf("***************************************************\n");
+            }
+
+            /*********************************************************************
+             *               Third Check
+             */
+            if ( rank == 0 ) {
+                printf("***************************************************\n");
+            }
+
+            /* matrix generation */
+            printf("Generate matrices ... ");
+            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA,  400);
+            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA0, 400);
+            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+            printf("Done\n");
+
+
+            /* Compute */
+            printf("Compute ... ... ");
+            info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
             if ( info == 0 ) {
                 dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
                 dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
             }
             printf("Done\n");
+            printf("Info = %d\n", info);
 
             /* Check the solution */
             info_solution = check_solution( dague, uplo[u], (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
