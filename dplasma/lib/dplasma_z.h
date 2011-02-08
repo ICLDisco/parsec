@@ -8,8 +8,8 @@
 #ifndef _DPLASMA_Z_H_
 #define _DPLASMA_Z_H_
 
-/*
- * Blocking interface 
+/***********************************************************
+ *               Blocking interface 
  */
 /* Level 3 Blas */
 void dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
@@ -26,11 +26,13 @@ void dplasma_ztrsmpl( dague_context_t *dague, const tiled_matrix_desc_t *A, cons
 int  dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA);
 int  dplasma_zpotrs( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescB);
 int  dplasma_zposv ( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescB);
-int  dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV ); 
+int  dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV ); 
+int  dplasma_zgetrs( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B ); 
+int  dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B ); 
 int  dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T) ;
 
-/*
- * Non-Blocking interface
+/***********************************************************
+ *             Non-Blocking interface
  */
 /* Level 3 Blas */
 dague_object_t* dplasma_zgemm_New( const int transa, const int transb,
@@ -56,8 +58,8 @@ dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum
 dague_object_t* dplasma_zgetrf_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int* INFO);
 
 
-/*
- * Destruct functions
+/***********************************************************
+ *               Destruct functions
  */
 void dplasma_zgemm_Destruct( dague_object_t *o );
 void dplasma_ztrmm_Destruct( dague_object_t *o );
