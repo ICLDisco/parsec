@@ -43,6 +43,22 @@ Bnt  [type = int]
 /**************************************************
  *                      ZGESSM                    *
  **************************************************/
+zgessm_inAIPIV(k)  [profile = off]
+k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+
+:A(k, k)
+
+READ A <- A(k, k)
+       -> B zgessm(k, 0..Bnt-1) 
+     I <- IPIV(k, k)
+       -> A zgessm(k, 0..Bnt-1) 
+     
+BODY
+        /* Nothing */
+        printlog("thread %d zgemm_in( %d, %d )\n", 
+                 context->eu_id, k, n);
+END
+
 zgessm(k,n)
   /* Execution space */
   k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
@@ -54,10 +70,11 @@ zgessm(k,n)
   /* D == B(k,n1) */
   /* E == B(m,n1) */
 
-  READ  A <- IPIV(k,k)
-  READ  B <- A(k,k)
-  RW    C <- (k>=1) ? E zssssm(k-1, k, n) 
-          <- (0==k) ? B(k,n)
+:B(k, n)
+
+  READ  A <- I zgessm_inAIPIV(k)
+  READ  B <- A zgessm_inAIPIV(k)
+  RW    C <- (k == 0) ? B(k,n) : E zssssm(k-1, k, n) 
           -> (Amt>=(k+2)) ? D zssssm(k, k+1, n) 
           -> (Amt==(k+1)) ? B(k,n)
 
@@ -70,13 +87,14 @@ BODY
    int tempkm   = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
    int tempnn   = ((n)==(Bnt-1)) ? (Bn-(n*Bnb)) : (Bnb);
    int tempkmin = ((k)==((min( Amt, Ant ))-1)) ? ((min( Am, An ))-(k*Amb)) : (Amb);
-   int ldak     = ((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);
-   int ldbk     = ((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);
+   int ldak     = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+   int ldbk     = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
 
    DRYRUN(
-	   CORE_zgessm(tempkm, tempnn, tempkmin, 
-                       ib, A /* IPIV(k,k) */, B /* A(k,k) */, 
-                       ldak, C /* B(k,n) */, ldbk );
+	   CORE_zgessm(tempkm, tempnn, tempkmin, ib, 
+                       A /* IPIV(k,k) */, 
+                       B /* A(k,k) */, ldak, 
+                       C /* B(k,n) */, ldbk );
           );
 
    printlog("thread %d   CORE_zgessm(%d, %d)\n\t(tempkm, tempnn, tempkmin, ib, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk)\n",
@@ -87,6 +105,38 @@ END
 /**************************************************
  *                      ZSSSSM                    *
  **************************************************/
+zssssm_inALIPIV(k, m)  [profile = off]
+k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+m = k+1..Amt-1
+
+:A(m, k)
+
+READ A <- A(m, k)
+       -> G zssssm(k, m, 0..Bnt-1) 
+     L <- L(m, k)
+       -> F zssssm(k, m, 0..Bnt-1) 
+     I <- IPIV(m, k)
+       -> H zssssm(k, m, 0..Bnt-1) 
+
+BODY
+        /* Nothing */
+        printlog("thread %d zgemm_in( %d, %d )\n", 
+                 context->eu_id, k, n);
+END
+
+zssssm_outB(k, n1)  [profile = off]
+k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+n1 = 0..Bnt-1
+
+:B(k, n1)
+
+     READ B <- D zssssm(k, Amt-1, n1)
+            -> B(k, n1)
+BODY
+        /* Nothing */
+        printlog("thread %d zgemm_in( %d, %d )\n", 
+                 context->eu_id, k, n);
+END
 
 zssssm(k,m,n1)
   /* Execution space */
@@ -101,18 +151,18 @@ zssssm(k,m,n1)
   /* G == A(m,k) */
   /* H == IPIV(m,k) */
 
-  RW    D <- ((1+k)==m) & (Ant>=(k+1)) ? C zgessm(m-1, n1) 
-          <- (m>=(2+k)) ? D zssssm(k, m-1, n1) 
-          -> (Amt==(m+1)) ? B(k,n1)
+:B(m, n1)
+
+  RW    D <- ( m == (1+k) ) ? C zgessm(m-1, n1) : D zssssm(k, m-1, n1)
+          -> (Amt==(m+1)) ? B zssssm_outB(k, n1)
           -> (Amt>=(m+2)) ? D zssssm(k, m+1, n1) 
-  RW    E <- (0==k) ? B(m,n1)
-          <- (k>=1) ? E zssssm(k-1, m, n1) 
+  RW    E <- (0==k) ? B(m,n1) : E zssssm(k-1, m, n1) 
           -> (m>=(k+2)) & (Ant>=(k+2)) ? E zssssm(k+1, m, n1) 
           -> (Ant==(k+1)) ? B(m,n1)
           -> ((1+k)==m) & (Ant>=(2+k)) ? C zgessm(m, n1) 
-  READ  F <- L(m,k)
-  READ  G <- A(m,k)
-  READ  H <- IPIV(m,k)
+  READ  F <- L zssssm_inALIPIV(k, m)
+  READ  G <- A zssssm_inALIPIV(k, m)
+  READ  H <- I zssssm_inALIPIV(k, m)
 
   /*
 
@@ -124,9 +174,9 @@ BODY
   int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
   int tempnn = ((n1)==(Bnt-1)) ? (Bn1-(n1*Bnb)) : (Bnb);
   int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ldbk   = ((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);
-  int ldbm   = ((m+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);
-  int ldam   = ((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);
+  int ldbk   = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
+  int ldbm   = Bmb; /*((m+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
+  int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
 
   DRYRUN(
          CORE_zssssm(Anb, tempnn, tempmm, 
