@@ -2,6 +2,7 @@
 rm -rf CMakeCache.txt CMakeFiles
 
 LOCATION=`dirname $0`
+DAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/
 
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC="/opt/hwloc-1.0.2"
@@ -30,14 +31,14 @@ PLASMA="-DPLASMA_DIR=${PLASMADIR}"
 #        -DPLASMA_LIBRARIES=\\\"-lplasma -lcoreblas -lquark -llapacke -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lm\\\""
 
 if [ "x$1" = "xgcc" ]; then
-# to compile with gcc and plasma-2.1
-cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} 
+  # to compile with gcc and plasma-2.1
+  cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} 
 
 else
-# Compile with icc, ifort, plasma 2.2
-/opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
-/opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
-export CC=icc
-export FC=ifort
-cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
+  # Compile with icc, ifort, plasma 2.2
+  /opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
+  /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
+  export CC=icc
+  export FC=ifort
+  cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
 fi
