@@ -33,6 +33,9 @@ Anb  [type = int]
 Amt  [type = int]
 Ant  [type = int]
 
+Lmb  [type = int]
+Lnb  [type = int]
+
 Bm   [type = int]
 Bn   [type = int]
 Bmb  [type = int]
@@ -44,13 +47,13 @@ Bnt  [type = int]
  *                      ZGESSM                    *
  **************************************************/
 zgessm_inAIPIV(k)  [profile = off]
-k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+k = 0..Amt
 
 :A(k, k)
 
 READ A <- A(k, k)
        -> B zgessm(k, 0..Bnt-1) 
-     I <- IPIV(k, k)
+     IPIV <- IPIV(k, k)
        -> A zgessm(k, 0..Bnt-1) 
      
 BODY
@@ -61,7 +64,7 @@ END
 
 zgessm(k,n)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..Amt
   n = 0..Bnt-1
 
   /* A == IPIV(k,k) */
@@ -72,7 +75,7 @@ zgessm(k,n)
 
 :B(k, n)
 
-  READ  A <- I zgessm_inAIPIV(k)
+  READ  A <- IPIV zgessm_inAIPIV(k)
   READ  B <- A zgessm_inAIPIV(k)
   RW    C <- (k == 0) ? B(k,n) : E zssssm(k-1, k, n) 
           -> (Amt>=(k+2)) ? D zssssm(k, k+1, n) 
@@ -84,12 +87,17 @@ zgessm(k,n)
 
 BODY
 
-   int tempkm   = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
-   int tempnn   = ((n)==(Bnt-1)) ? (Bn-(n*Bnb)) : (Bnb);
-   int tempkmin = ((k)==((min( Amt, Ant ))-1)) ? ((min( Am, An ))-(k*Amb)) : (Amb);
+   int tempkm   = ( k == (Amt-1) ) ? Am - k * Amb : Amb;
+   int tempnn   = ( n == (Bnt-1) ) ? Bn - n * Bnb : Bnb;
+   int tempkmin;
    int ldak     = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
    int ldbk     = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
 
+   if ( Amt < Ant ) {
+     tempkmin = (k == Amt-1) ? Am - k * Amb : Amb;
+   } else {
+     tempkmin = (k == Ant-1) ? An - k * Amb : Amb;
+   }
    DRYRUN(
 	   CORE_zgessm(tempkm, tempnn, tempkmin, ib, 
                        A /* IPIV(k,k) */, 
@@ -106,7 +114,7 @@ END
  *                      ZSSSSM                    *
  **************************************************/
 zssssm_inALIPIV(k, m)  [profile = off]
-k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+k = 0..Amt
 m = k+1..Amt-1
 
 :A(m, k)
@@ -115,8 +123,8 @@ READ A <- A(m, k)
        -> G zssssm(k, m, 0..Bnt-1) 
      L <- L(m, k)
        -> F zssssm(k, m, 0..Bnt-1) 
-     I <- IPIV(m, k)
-       -> H zssssm(k, m, 0..Bnt-1) 
+     IPIV <- IPIV(m, k)
+          -> H zssssm(k, m, 0..Bnt-1) 
 
 BODY
         /* Nothing */
@@ -125,7 +133,7 @@ BODY
 END
 
 zssssm_outB(k, n1)  [profile = off]
-k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+k = 0..Amt
 n1 = 0..Bnt-1
 
 :B(k, n1)
@@ -140,7 +148,7 @@ END
 
 zssssm(k,m,n1)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..Amt
   m = k+1..Amt-1
   n1 = 0..Bnt-1
 
@@ -162,7 +170,7 @@ zssssm(k,m,n1)
           -> ((1+k)==m) & (Ant>=(2+k)) ? C zgessm(m, n1) 
   READ  F <- L zssssm_inALIPIV(k, m)
   READ  G <- A zssssm_inALIPIV(k, m)
-  READ  H <- I zssssm_inALIPIV(k, m)
+  READ  H <- IPIV zssssm_inALIPIV(k, m)
 
   /*
 
@@ -170,7 +178,6 @@ zssssm(k,m,n1)
 
 BODY
 
-  int tempnn = ((n1)==(Bnt-1)) ? (Bn -(n1*Bnb)) : (Bnb);
   int tempmm = ((m) ==(Amt-1)) ? (Am -( m*Amb)) : (Amb);
   int tempnn = ((n1)==(Bnt-1)) ? (Bn -(n1*Bnb)) : (Bnb);
   int tempkn = ((k) ==(Ant-1)) ? (An -( k*Anb)) : (Anb);
