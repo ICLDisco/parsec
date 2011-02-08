@@ -53,7 +53,7 @@ set(JDF
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
   zpotrf_rl.jdf zpotrf_ll.jdf 
   zpotrf_Url.jdf zpotrf_Lrl.jdf 
-  zgetrf.jdf zgetrf_sd.jdf 
+  zgetrf.jdf zgetrf_sd.jdf ztrsmpl.jdf
   zgeqrf.jdf
 )
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JDF}")
@@ -65,6 +65,7 @@ set(SOURCES
   zgemm_wrapper.c 
   ztrsm_wrapper.c 
   ztrmm_wrapper.c 
+  ztrsmpl_wrapper.c   
   # Lapack
   zpotrf_wrapper.c 
   zpotrs_wrapper.c 
