@@ -170,10 +170,10 @@ zssssm(k,m,n1)
 
 BODY
 
-  int tempnn = ((n1)==(Bnt-1)) ? (Bn1-(n1*Bnb)) : (Bnb);
-  int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
-  int tempnn = ((n1)==(Bnt-1)) ? (Bn1-(n1*Bnb)) : (Bnb);
-  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
+  int tempnn = ((n1)==(Bnt-1)) ? (Bn -(n1*Bnb)) : (Bnb);
+  int tempmm = ((m) ==(Amt-1)) ? (Am -( m*Amb)) : (Amb);
+  int tempnn = ((n1)==(Bnt-1)) ? (Bn -(n1*Bnb)) : (Bnb);
+  int tempkn = ((k) ==(Ant-1)) ? (An -( k*Anb)) : (Anb);
   int ldbk   = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
   int ldbm   = Bmb; /*((m+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
   int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
