@@ -47,14 +47,14 @@ Bnt  [type = int]
  *                      ZGESSM                    *
  **************************************************/
 zgessm_inAIPIV(k)  [profile = off]
-k = 0..Amt
+k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
 
 :A(k, k)
 
 READ A <- A(k, k)
        -> B zgessm(k, 0..Bnt-1) 
-     IPIV <- IPIV(k, k)
-       -> A zgessm(k, 0..Bnt-1) 
+     IPIV <- IPIV(k, k)                               [type = PIVOT]
+       -> A zgessm(k, 0..Bnt-1)                       [type = PIVOT]
      
 BODY
         /* Nothing */
@@ -64,7 +64,7 @@ END
 
 zgessm(k,n)
   /* Execution space */
-  k = 0..Amt
+  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
   n = 0..Bnt-1
 
   /* A == IPIV(k,k) */
@@ -75,7 +75,7 @@ zgessm(k,n)
 
 :B(k, n)
 
-  READ  A <- IPIV zgessm_inAIPIV(k)
+  READ  A <- IPIV zgessm_inAIPIV(k)                     [type = PIVOT]
   READ  B <- A zgessm_inAIPIV(k)
   RW    C <- (k == 0) ? B(k,n) : E zssssm(k-1, k, n) 
           -> (Amt>=(k+2)) ? D zssssm(k, k+1, n) 
@@ -114,17 +114,17 @@ END
  *                      ZSSSSM                    *
  **************************************************/
 zssssm_inALIPIV(k, m)  [profile = off]
-k = 0..Amt
+k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
 m = k+1..Amt-1
 
 :A(m, k)
 
 READ A <- A(m, k)
        -> G zssssm(k, m, 0..Bnt-1) 
-     L <- L(m, k)
-       -> F zssssm(k, m, 0..Bnt-1) 
-     IPIV <- IPIV(m, k)
-          -> H zssssm(k, m, 0..Bnt-1) 
+     L <- L(m, k)                            [type = SMALL_L]
+       -> F zssssm(k, m, 0..Bnt-1)           [type = SMALL_L]
+     IPIV <- IPIV(m, k)                      [type = PIVOT]
+          -> H zssssm(k, m, 0..Bnt-1)        [type = PIVOT]  
 
 BODY
         /* Nothing */
@@ -133,7 +133,7 @@ BODY
 END
 
 zssssm_outB(k, n1)  [profile = off]
-k = 0..Amt
+k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
 n1 = 0..Bnt-1
 
 :B(k, n1)
@@ -148,7 +148,7 @@ END
 
 zssssm(k,m,n1)
   /* Execution space */
-  k = 0..Amt
+  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
   m = k+1..Amt-1
   n1 = 0..Bnt-1
 
@@ -168,9 +168,9 @@ zssssm(k,m,n1)
           -> (m>=(k+2)) & (Ant>=(k+2)) ? E zssssm(k+1, m, n1) 
           -> (Ant==(k+1)) ? B(m,n1)
           -> ((1+k)==m) & (Ant>=(2+k)) ? C zgessm(m, n1) 
-  READ  F <- L zssssm_inALIPIV(k, m)
-  READ  G <- A zssssm_inALIPIV(k, m)
-  READ  H <- IPIV zssssm_inALIPIV(k, m)
+  READ  F <- L zssssm_inALIPIV(k, m)         [type = SMALL_L]
+  READ  G <- A zssssm_inALIPIV(k, m)         
+  READ  H <- IPIV zssssm_inALIPIV(k, m)      [type = PIVOT]
 
   /*
 
