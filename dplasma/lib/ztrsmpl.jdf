@@ -17,8 +17,8 @@ extern "C" %{
 
 /** Globals */
 A
-IPIV      [aligned = A]
 L         [aligned = A]
+IPIV      [aligned = A]
 B
 
 /* 
@@ -105,8 +105,8 @@ BODY
                        C /* B(k,n) */, ldbk );
           );
 
-   printlog("thread %d   CORE_zgessm(%d, %d)\n\t(tempkm, tempnn, tempkmin, ib, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk)\n",
-            context->eu_id, k, n, k, k, A, k, k, B, k, n, C);
+   printlog("thread %d   CORE_zgessm(%d, %d)\n\t(%d, %d, %d, %d, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk)\n",
+            context->eu_id, tempkm, tempnn, tempkmin, ib, k, n, k, k, A, k, k, B, k, n, C);
 
 END
 
@@ -133,7 +133,7 @@ BODY
 END
 
 zssssm_outB(k, n1)  [profile = off]
-k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
+k = 0..( (Amt <= Ant) ? Amt-2 : Ant-1 )
 n1 = 0..Bnt-1
 
 :B(k, n1)
@@ -194,7 +194,7 @@ BODY
                      G /* A(m,k) */,  ldam, 
                      H /* IPIV(m,k) */ );
          );
-  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(Anb, tempnn, tempmm, tempnn, tempkn, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
-           context->eu_id, k, m, n1, k, n1, D, m, n1, E, m, k, F, m, k, G, m, k, H);
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
+           context->eu_id, Anb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, m, n1, E, m, k, F, m, k, G, m, k, H);
 
 END

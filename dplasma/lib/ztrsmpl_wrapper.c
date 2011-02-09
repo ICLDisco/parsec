@@ -22,8 +22,8 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L,
 {
     dague_ztrsmpl_object_t *dague_trsmpl = NULL; 
 
-    dague_trsmpl = dague_ztrsmpl_new((dague_ddesc_t*)A, (dague_ddesc_t*)IPIV, 
-                                     (dague_ddesc_t*)L, (dague_ddesc_t*)A, L->mb,
+    dague_trsmpl = dague_ztrsmpl_new((dague_ddesc_t*)A, (dague_ddesc_t*)L, 
+                                     (dague_ddesc_t*)IPIV, (dague_ddesc_t*)B, L->mb,
                                      A->m, A->n, A->mb, A->nb, A->mt, A->nt, L->mb, L->nb,
                                      B->m, B->n, B->mb, B->nb, B->mt, B->nt);
     
