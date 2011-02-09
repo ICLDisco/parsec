@@ -47,7 +47,7 @@ Bnt  [type = int]
  *                      ZGESSM                    *
  **************************************************/
 zgessm_inAIPIV(k)  [profile = off]
-k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
 
 :A(k, k)
 
@@ -58,13 +58,13 @@ READ A <- A(k, k)
      
 BODY
         /* Nothing */
-        printlog("thread %d zgemm_in( %d, %d )\n", 
-                 context->eu_id, k, n);
+        printlog("thread %d zgessm_inAIPIV( %d )\n", 
+                 context->eu_id, k);
 END
 
 zgessm(k,n)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
   n = 0..Bnt-1
 
   /* A == IPIV(k,k) */
@@ -106,7 +106,7 @@ BODY
           );
 
    printlog("thread %d   CORE_zgessm(%d, %d)\n\t(tempkm, tempnn, tempkmin, ib, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, B(%d,%d)[%p], ldbk)\n",
-            context->eu_id, k, n, k, k, IPIV, k, k, A, k, n, B);
+            context->eu_id, k, n, k, k, A, k, k, B, k, n, C);
 
 END
 
@@ -114,7 +114,7 @@ END
  *                      ZSSSSM                    *
  **************************************************/
 zssssm_inALIPIV(k, m)  [profile = off]
-k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
 m = k+1..Amt-1
 
 :A(m, k)
@@ -128,12 +128,12 @@ READ A <- A(m, k)
 
 BODY
         /* Nothing */
-        printlog("thread %d zgemm_in( %d, %d )\n", 
-                 context->eu_id, k, n);
+        printlog("thread %d zssssm_inALIPIV( %d, %d )\n", 
+                 context->eu_id, k, m);
 END
 
 zssssm_outB(k, n1)  [profile = off]
-k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
 n1 = 0..Bnt-1
 
 :B(k, n1)
@@ -142,13 +142,13 @@ n1 = 0..Bnt-1
             -> B(k, n1)
 BODY
         /* Nothing */
-        printlog("thread %d zgemm_in( %d, %d )\n", 
-                 context->eu_id, k, n);
+        printlog("thread %d zssssm_outB( %d, %d )\n", 
+                 context->eu_id, k, n1);
 END
 
 zssssm(k,m,n1)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
   m = k+1..Amt-1
   n1 = 0..Bnt-1
 
@@ -195,6 +195,6 @@ BODY
                      H /* IPIV(m,k) */ );
          );
   printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(Anb, tempnn, tempmm, tempnn, tempkn, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
-           context->eu_id, k, m, n1, k, n1, B, m, n1, B, m, k, L, m, k, A, m, k, IPIV);
+           context->eu_id, k, m, n1, k, n1, D, m, n1, E, m, k, F, m, k, G, m, k, H);
 
 END
