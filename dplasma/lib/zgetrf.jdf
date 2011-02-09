@@ -13,294 +13,298 @@ extern "C" %{
 #include "memory_pool.h"
 #include "dplasmajdf.h"
 
-/* Ugly hack to be remove with plasma 2.3 */
 #if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
 #define CORE_zssssm(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \
-    CORE_zssssm(M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
+        CORE_zssssm(M1,     M2, N2, IB, K, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
 #endif
 
 %}
 
 /** Globals */
 A
-IPIV      [aligned = A]
 L         [aligned = A]
-N       /* Matrix Size (columns = rows) */
-NB      /* Tile Size */
-NT      /* Number of tiled columns */
-IB
+IPIV      [aligned = A]
 work_pool [type = "dague_memory_pool_t*"]
 INFO      [type = "int*"]
+
+/* 
+ * Parameters
+ */
+ib   [type = int]
+
+Am   [type = int]
+An   [type = int]
+Amb  [type = int]
+Anb  [type = int]
+Amt  [type = int]
+Ant  [type = int]
+
+Lmb  [type = int]
+Lnb  [type = int]
 
 /************************************************************************************
  *                                    GETRF                                         *
  ************************************************************************************/
+zgetrf_out(k)  [profile = off]
+k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
 
-GETRF_HACK(k)  [profile = off]
-k = 0..NT-1
+  :A(k, k)
 
-: A(k, k)
-
-RW LU <- LU GETRF(k)
-      -> (k != NT-1) ?                 L GESSM(k, k+1..NT-1)  [type = LOWER_TILE]
-      -> A(k,k)                                               [type = LOWER_TILE]
-
-; (NT-k)*(NT-k)*(NT-k)
-
+  READ A <- A zgetrf(k)
+         -> (Ant>=(k+2)) ? D zgessm(k, (k+1)..(Ant-1))         [type = LOWER_TILE]
+         -> (Amt==(k+1)) ? A(k,k)
+  READ B <- B zgetrf(k)                                        [type = PIVOT]
+         -> (Ant>=(k+2)) ? C zgessm(k, (k+1)..(Ant-1))         [type = PIVOT]
+         -> IPIV(k,k)                                          [type = PIVOT]
+  
 BODY
- /* nothing */
+        /* Nothing */
+        printlog("thread %d zgetrf_out( %d )\n",
+                 context->eu_id, k);
 END
 
-GETRF(k)
-k = 0..NT-1
+zgetrf(k)
+  /* Execution space */
+  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
 
-: A(k, k)
+  /* A == A(k,k) */
+  /* B == IPIV(k,k) */
+  /* C == IPIV(k,k) */
+  /* D == A(k,k) */
+  /* F == A(k,k) */
+  /* K == A(m,n1) */
 
-//This SSSSM always run on the same node, so typing will have no effect.
-RW LU <- (k == 0)    ? A(k, k)       : C2 SSSSM(k-1, k, k)
-      -> (k == NT-1) ? A(k, k)       : U TSTRF(k, k+1)        [type = UPPER_TILE]
-      -> LU GETRF_HACK(k)
-RW IPIV <- IPIV(k, k)                                         [type = PIVOT_VECT]
-        -> IPIV GESSM(k, k+1..NT-1)                           [type = PIVOT_VECT]
-        -> IPIV(k, k)                                         [type = PIVOT_VECT]
+  /* Locality */
+  :A(k, k)
 
-; (NT-k)*(NT-k)*(NT-k)
+  RW    A <- ( 0 == k ) ? A(k,k) : K zssssm(k-1, k, k) 
+          -> (Amt>=(k+2)) ? F ztstrf(k, k+1)                    [type = UPPER_TILE] 
+          -> A zgetrf_out(k)
+          /* Do the next two lines to split the two different types in two tasks */
+          /* -> (Ant>=(k+2)) ? D zgessm(k, (k+1)..(Ant-1))         [type = LOWER_TILE] */
+          /* -> (Amt==(k+1)) ? A(k,k) */
+  RW    B <- IPIV(k,k)                                          [type = PIVOT]
+          -> B zgetrf_out(k)                                    [type = PIVOT]
+          /* -> IPIV(k,k)                                          [type = PIVOT] */
+          /* -> (Ant>=(k+2)) ? C zgessm(k, (k+1)..(Ant-1))         [type = PIVOT] */
+
+  /* Priority */
+  ;(Ant-k)*(Ant-k)*(Ant-k)
 
 BODY
-    DRYRUN(
-        int iinfo = 0;
-        /*debug_warning(context->eu_id, "before", "GETRF", k, -1, -1);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, LU, "LU=A", k, k);*/
-        /*debug_warning(context->eu_id, "before", "GETRF", k, -1, -1);*/
-        /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
 
-        CORE_zgetrf(
-            k == NT-1 ? N-k*NB : NB, /*k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb*/
-            k == NT-1 ? N-k*NB : NB, /*k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb*/
-            IB /*descL.mb*/,
-            LU /*A(k, k)*/, NB /*descA.nb*/,
-            IPIV /*IPIV(k, k)*/, &iinfo);
+  int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
+  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
+  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Bmb);*/
+  int iinfo = 0;
 
-        /*debug_warning(context->eu_id, "after", "GETRF", k, -1, -1);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, LU, "LU=A", k, k);*/
-        /*debug_warning(context->eu_id, "after", "GETRF", k, -1, -1);*/
-        /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
-        if (*INFO == 0 && iinfo > 0 && k == NT /*descA.mt*/-1)
-            *INFO = iinfo + NB /*descA.nb*/*k;
-        )
+  DRYRUN(
+         CORE_zgetrf(tempkm, tempkn, ib, 
+                     A /* A(k,k) */, ldak, 
+                     B /* IPIV(k,k) */, &iinfo );
+         if ( (iinfo != 0) && (k == Amt-1) )
+           *INFO = k * Amb + iinfo; /* Should return if enter here */
+         );
 
-    printlog( "void task_GETRF(Dague_Complex64_t *A, int *IPIV)" );
+  printlog("thread %d   CORE_zgetrf(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
+           context->eu_id, k, k, k, A, k, k, B, k * Amb + iinfo);
 
 END
+
 
 /************************************************************************************
  *                                    GESSM                                         *
  ************************************************************************************/
+zgessm(k,n)
+  /* Execution space */
+  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
+  n = k+1..Ant-1
 
-GESSM(k, n)
+  /* A == A(k,k) */
+  /* B == IPIV(k,k) */
+  /* C == IPIV(k,k) */
+  /* D == A(k,k) */
+  /* E == A(k,n) */
+  /* J == A(k,n1) */
+  /* K == A(m,n1) */
 
-k = 0   .. NT-2
-n = k+1 .. NT-1
+  /* Locality */
+:A(k, n)
 
-: A(k, n)
+  READ  C <- B zgetrf_out(k)                                        [type = PIVOT]                      
+  READ  D <- A zgetrf_out(k)                                        [type = LOWER_TILE]
+  RW    E <- (0==k) ? A(k,n) : K zssssm(k-1, k-1+1, n)          
+          -> (Amt==(k+1)) ? A(k,n)
+          -> (Amt>=(k+2)) ? J zssssm(k, k+1, n) 
 
-READ L    <- LU GETRF_HACK(k)                                  [type = LOWER_TILE]
-READ IPIV <- IPIV GETRF(k)                                     [type = PIVOT_VECT]
-RW   C1   <- (k == 0) ? A(k, n) : C2 SSSSM(k-1, n, k)
-          -> C1 SSSSM(k, n, k+1)
-
-; (NT-k)*(NT-n)*(NT-n)
+    /* Priority */
+; (Amt-k)*(Amt-n)*(Amt-n)
 
 BODY
 
-    DRYRUN(                                
-        /*debug_warning(context->eu_id, "before", "GESSM", k, n, -1);*/
-        /*debug_lower((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, L, "L=A", k, k);*/
-        /*debug_warning(context->eu_id, "before", "GESSM", k, n, -1);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-        /*debug_warning(context->eu_id, "before", "GESSM", k, n, -1);*/
-        /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
-        CORE_zgessm(
-            k == NT-1 ? N-k*NB : NB /* k == descA.mt-1 ? descA.m-k*descA.nb : descA.nb */,
-                   n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
-            NB /* descA.nb */,
-            IB /* descL.mb */,
-            IPIV /*IPIV(k, k)*/,
-            L /*A(k, k)*/, NB /* descA.nb */,
-            C1 /*A(k, n)*/, NB /* descA.nb */);
+  int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
+  int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
+  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
 
-        /*debug_warning(context->eu_id, "after", "GESSM", k, n, -1);*/
-        /*debug_lower((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, L, "L=A", k, k);*/
-        /*debug_warning(context->eu_id, "after", "GESSM", k, n, -1);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-        /*debug_warning(context->eu_id, "after", "GESSM", k, n, -1);*/
-        /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", k, k);*/
-        )
-
-     printlog("void task_GESSM(int *IPIV, Dague_Complex64_t *L, Dague_Complex64_t *C1)");
+  DRYRUN(
+         CORE_zgessm(tempkm, tempnn, tempkm, ib, 
+                     C /* IPIV(k,k) */, 
+                     D /* A(k,k) */, ldak, 
+                     E /* A(k,n) */, ldak );
+         );
+   printlog("thread %d   CORE_zgessm(%d, %d)\n\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+            context->eu_id, k, n, k, k, C, k, k, D, k, n, E);
 
 END
 
 /************************************************************************************
  *                                    TSTRF                                         *
  ************************************************************************************/
+ztstrf_out(k)  [profile = off]
+k = 0..( (Amt <= Ant) ? Amt-2 : Ant-1 )
 
-TSTRF_OUT(k)  [profile = off]
-k = 0 .. NT-2
-  
-: A(k, k)  
+:A(k, k)
 
-RW A <- U TSTRF(k, NT-1) [type = UPPER_TILE]
-     -> A(k, k)          [type = UPPER_TILE]
-
-; (NT-k)*(NT-k)*(NT-k)
+  READ A <- F ztstrf(k, Amt-1)       [type = UPPER_TILE]
+         -> A(k, k)                  [type = UPPER_TILE]
 
 BODY
-/* nothing */
+        /* Nothing */
+        printlog("thread %d ztstrf_out( %d )\n", 
+                 context->eu_id, k);
 END
 
+ztstrf(k,m)
+  /* Execution space */
+  k = 0..( (Amt < Ant)? Amt-1 : Ant-1 )
+  m = k+1..Amt-1
 
-TSTRF(k, m)
-k = 0..NT-2
-m = k+1..NT-1
+  /* A == A(k,k) */
+  /* F == A(k,k) */
+  /* G == A(m,k) */
+  /* H == L(m,k) */
+  /* I == IPIV(m,k) */
+  /* K == A(m,n1) */
+  /* L == L(m,k) */
+  /* M == A(m,k) */
+  /* N == IPIV(m,k) */
 
-: A(m, k)
+  /* Locality */
+:A(m, k)
 
-RW C1 <- (k == 0) ? A(m, k) : C2 SSSSM(k-1, k, m)
-      -> C3 SSSSM(k, k+1..NT-1, m)
-      -> A(m, k)
-RW U  <- (m == k+1) ? LU GETRF(k) : U TSTRF(k, m-1)         [type = UPPER_TILE]
-      -> (m == NT-1) ? A TSTRF_OUT(k) : U TSTRF(k, m+1)     [type = UPPER_TILE]
-RW dL <- L(m, k)                                            [type = LITTLE_L]
-      -> dL SSSSM(k, k+1..NT-1, m)                          [type = LITTLE_L]
-      -> L(m, k)                                            [type = LITTLE_L]
-RW IPIV <- IPIV(m, k)                                       [type = PIVOT_VECT]
-        -> IPIV SSSSM(k, k+1..NT-1, m)                      [type = PIVOT_VECT]
-        -> IPIV(m, k)                                       [type = PIVOT_VECT]
+  RW    F <- ((k+1)==m) ? A zgetrf(m-1) : F ztstrf(k, m-1)   [type = UPPER_TILE]
+          -> (Amt>=(m+2)) ? F ztstrf(k, m+1)                 [type = UPPER_TILE]
+          -> (Amt==(m+1)) ? A ztstrf_out(k)                  [type = UPPER_TILE]
+  RW    G <- (0==k) ? A(m,k) :  K zssssm(k-1, m, k) 
+          -> (Ant>=(k+2)) ? M zssssm(k, m, (k+1)..(Ant-1)) 
+          -> A(m,k)                                          
+  RW    H <- L(m,k)                                          [type = SMALL_L]
+          -> L(m,k)                                          [type = SMALL_L]
+          -> (Ant>=(k+2)) ? L zssssm(k, m, (k+1)..(Ant-1))   [type = SMALL_L]
+  RW    IP<- IPIV(m,k)                                       [type = PIVOT]
+          -> IPIV(m,k)                                       [type = PIVOT]
+          -> (Ant>=(k+2)) ? N zssssm(k, m, (k+1)..(Ant-1))   [type = PIVOT]
 
-; (NT-k)*(NT-k)*(NT-k)
+    /* Priority */
+; (Amt-k)*(Amt-k)*(Amt-k)
 
 BODY
 
-     DRYRUN(                                                            
-         int iinfo = 0;
-         void* work = dague_private_memory_pop(work_pool);
-         /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
-         /*debug_upper((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, U, "U=A", k, k);*/
-         /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
-         /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", m, k);*/
-         /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
-         /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-         /*debug_warning(context->eu_id, "before", "TSTRF", k, m, -1);*/
-         /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
-         CORE_ztstrf(
-             m == NT-1 ? N-m*NB : NB /* m == descA.mt-1 ? descA.m-m*descA.nb : descA.nb */,
-             k == NT-1 ? N-k*NB : NB /* k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb */,
-             IB /* descL.mb */,
-             NB /* descA.nb */,
-             U /*A(k, k)*/, NB /* descA.nb */,
-             C1 /*A(m, k)*/, NB /* descA.nb */,
-             dL /*L(m, k)*/, IB /* descL.mb */,
-             IPIV /*IPIV(m, k)*/, 
-             work, NB /* descL.nb */, &iinfo);
-         /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
-         /*debug_upper((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, U, "U=A", k, k);*/
-         /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
-         /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", m, k);*/
-         /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
-         /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-         /*debug_warning(context->eu_id, "after", "TSTRF", k, m, -1);*/
-         /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
-         if (*INFO == 0 && iinfo > 0 && m == NT /*descA.mt*/-1)
-             *INFO = iinfo + NB /*descA.nb*/*k;
-         dague_private_memory_push(work_pool, work);
-         )
+  int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
+  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
+  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+  int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
 
-     printlog("void task_TSTRF(Dague_Complex64_t *U, Dague_Complex64_t *L, Dague_Complex64_t *dL, int *IPIV)");
+  DRYRUN(
+         int iinfo;
+         PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
+
+         CORE_ztstrf(tempmm, tempkn, ib, Lnb, 
+                     F /* A(k,k) */, ldak, 
+                     G /* A(m,k) */, ldam, 
+                     H /* L(m,k) */, Lmb, 
+                     IP /* IPIV(m,k) */, 
+                     work, Lnb, &iinfo );
+         dague_private_memory_push(work_pool, work);
+
+         if ( (iinfo != 0) && (m == Amt-1) )
+           *INFO = k * Amb + iinfo; /* Should return if enter here */
+         );
+
+  printlog("thread %d   CORE_ztstrf(%d, %d)\n\t(tempmm, tempkn, ib, Lnb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, L(%d,%d)[%p], Lmb, IPIV(%d,%d)[%p], Lnb)\n",
+           context->eu_id, k, m, k, k, F, m, k, G, m, k, H, m, k, IP);
 
 END
 
 /************************************************************************************
  *                                    SSSSM                                         *
  ************************************************************************************/
+zssssm_out(k, n1)  [profile = off]
+k = 0..( (Amt < Ant)? Amt-1 : Ant-2 )
+n1 = k+1..Ant-2
 
-SSSSM_OUT(k, n)  [profile = off]
-k = 0 .. NT-2
-n = k+1 .. NT - 1
-  
-: A(k, n)
-  
-RW A <- C1 SSSSM(k, n, NT-1)
-     -> A(k, n)
-          
-; (NT-k)*(NT-n)*(NT-n)
+:A(k, n1)
+
+  READ A <- J zssssm(k, Amt-1, n1)
+         -> A(k, n1)
 
 BODY
-/* nothing */
+        /* Nothing */
+        printlog("thread %d zssssm_out( %d, %d )\n", 
+                 context->eu_id, k, n1);
 END
-  
-SSSSM(k, n, m)
-k = 0   .. NT-2
-n = k+1 .. NT-1
-m = k+1 .. NT-1
 
-: A(m, n)
+zssssm(k,m,n1)
+  /* Execution space */
+  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
+  m = k+1..Amt-1
+  n1 = k+1..Ant-1
 
-READ C3   <- C1 TSTRF(k, m)
-READ dL   <- dL TSTRF(k, m)                                       [type = LITTLE_L]
-READ IPIV <- IPIV TSTRF(k, m)                                     [type = PIVOT_VECT]
+  /* A == A(k,k) */
+  /* E == A(k,n) */
+  /* G == A(m,k) */
+  /* H == L(m,k) */
+  /* I == IPIV(m,k) */
+  /* J == A(k,n1) */
+  /* K == A(m,n1) */
+  /* L == L(m,k) */
+  /* M == A(m,k) */
+  /* N == IPIV(m,k) */
 
-RW   C2 <- (k == 0)   ? A(m, n)      : C2 SSSSM(k-1, n, m)
-        -> ((n == k+1) & (m == k+1)) ? LU GETRF(k+1)
-        -> ((n == k+1) & (k  < m-1)) ? C1 TSTRF(k+1, m)
-        -> ((k  < n-1) & (m == k+1)) ? C1 GESSM(k+1, n)
-        -> ((k  < n-1) & (k  < m-1)) ? C2 SSSSM(k+1, n, m)
-RW   C1 <- (m == k+1)  ? C1 GESSM(k, n) : C1 SSSSM(k, n, m-1)
-        -> (m == NT-1) ? A SSSSM_OUT(k, n)  : C1 SSSSM(k, n, m+1)
+  /* Locality */
+:A(m, n1)
 
-; (NT-k)*(NT-n)*(NT-n)
+  RW    J <- ((k+1)==m) ? E zgessm(m-1, n1) : J zssssm(k, m-1, n1)
+          -> (Amt>=(m+2)) ? J zssssm(k, m+1, n1)
+          -> (Amt==(m+1)) ? A zssssm_out(k,n1)
+  RW    K <- (0==k) ? A(m,n1) : K zssssm(k-1, m, n1)
+          -> ((1+k)==n1) & (Amt>=(k+2)) & (m>=(k+2))   ? G ztstrf(n1, m)
+          -> ((1+k)==n1) & ((k+1)==m)   & (Amt>=(k+2)) ? A zgetrf(n1)
+          -> ( m==(k+1)) & (n1>=(m+1)) ? E zgessm(k+1, n1)
+          -> (n1>=(k+2)) & (m >=(k+2)) ? K zssssm(k+1, m, n1)
+  READ  L <- H ztstrf(k, m)                                               [type = SMALL_L]
+  READ  M <- G ztstrf(k, m)
+  READ  N <- IP ztstrf(k, m)                                              [type = PIVOT]
+
+    /* Priority */
+; (Amt-k)*(Amt-n1)*(Amt-n1)
 
 BODY
 
-    DRYRUN( 
-        /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-        /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C2, "C2=A", m, n);*/
-        /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
-        /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-        /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C3, "C3=A", m, k);*/
-        /*debug_warning(context->eu_id, "before", "SSSSM", k, n, m);*/
-        /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
-        
-        CORE_zssssm(
-            NB /*descA.nb*/,
-            n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
-            m == NT-1 ? N-m*NB : NB /* m == descA.nt-1 ? descA.m-m*descA.nb : descA.nb */,
-            n == NT-1 ? N-n*NB : NB /* n == descA.nt-1 ? descA.n-n*descA.nb : descA.nb */,
-            NB /*descA.nb*/,
-            IB /*descL.mb*/,
-            C1 /*A(k, n)*/, NB /* descA.nb */,
-            C2 /*A(m, n)*/, NB /* descA.nb */,
-            dL /*L(m, k)*/, IB /* descL.mb */,
-            C3 /*A(m, k)*/, NB /* descA.nb */,
-            IPIV /*IPIV(m, k)*/);
-        
-        
-        /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C1, "C1=A", k, n);*/
-        /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C2, "C2=A", m, n);*/
-        /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
-        /*debug_l((tiled_matrix_desc_t*)(__dague_object->super.L), context->eu_id, dL, "dL=L", m, k);*/
-        /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
-        /*debug_tile((tiled_matrix_desc_t*)(__dague_object->super.A), context->eu_id, C3, "C3=A", m, k);*/
-        /*debug_warning(context->eu_id, "after", "SSSSM", k, n, m);*/
-        /*debug_ipiv((tiled_matrix_desc_t*)(__dague_object->super.IPIV), context->eu_id, IPIV, "IPIV", m, k);*/
-        )
+  int tempmm = ((m) ==(Amt-1)) ? (Am -( m*Amb)) : (Amb);
+  int tempnn = ((n1)==(Ant-1)) ? (An -(n1*Anb)) : (Anb);
+  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+  int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
 
-    printlog("void task_SSSSM(Dague_Complex64_t *C1,  Dague_Complex64_t *C2, Dague_Complex64_t *dL, Dague_Complex64_t *L, int *IPIV)");
+  DRYRUN(
+         CORE_zssssm(Anb, tempnn, tempmm, tempnn, Anb, ib, 
+                     J /* A(k,n1) */, ldak, 
+                     K /* A(m,n1) */, ldam, 
+                     L /* L(m,k) */,  Lmb, 
+                     M /* A(m,k) */,  ldam, 
+                     N /* IPIV(m,k) */ );
+         );
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(Anb, tempnn, tempmm, tempnn, Anb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
+           context->eu_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M, m, k, N);
 
 END
-
