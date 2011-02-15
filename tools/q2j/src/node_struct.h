@@ -6,6 +6,7 @@
 
 #ifndef _DA_NODE_STRUCT_H_
 #define _DA_NODE_STRUCT_H_
+#include "symtab.h"
 #include <stdint.h>
 
 #define EMPTY       0x0000
@@ -65,6 +66,8 @@ struct _node{
     node_t *enclosing_loop;
 
     char *var_symname;
+
+    symtab_t *symtab;
 
     task_t *task;
 

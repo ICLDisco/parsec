@@ -63,6 +63,8 @@ node_t *DA_create_Exit();
 #define DA_create_relation(_T_, _K0_, _K1_) DA_create_B_expr(_T_, _K0_, _K1_)
 
 char *quark_tree_to_body(node_t *node);
+void print_default_task_placement(node_t *task_node);
+
 
 // yacc utility
 node_t *node_to_ptr(node_t node);

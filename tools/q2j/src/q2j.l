@@ -17,11 +17,13 @@ IS			(u|U|l|L)*
 #include <stdlib.h>
 #include "node_struct.h"
 #include "parse_utility.h"
+#include "symtab.h"
 #include "q2j.y.h"
 
 int check_type();
 void count();
 void comment();
+
 %}
 
 %%
@@ -228,6 +230,7 @@ void comment();
                               yylval.node.u.var_name = strdup(yytext);
                               yylval.node.type = IDENTIFIER;
                               yylval.node.u.kids.kid_count = 0;
+                              yylval.node.symtab = st_get_current_st();
                               return(IDENTIFIER);
 //printf("type: %s\n",yytext);
                           }else{
@@ -399,8 +402,14 @@ L?\"(\\.|[^\\"])*\"	{ count();
 
 
 ";"			{ count(); return(';'); }
-("{"|"<%")		{ count(); return('{'); }
-("}"|"%>")		{ count(); return('}'); }
+("{"|"<%")		{ count();
+                          (void)st_enter_new_scope();
+                          return('{');
+                        }
+("}"|"%>")		{ count();
+                          (void)st_exit_scope();
+                          return('}');
+                        }
 ","			{ count(); return(','); }
 ":"			{ count(); return(':'); }
 "="			{ count(); return('='); }

@@ -5,6 +5,7 @@
  */
 
 #include "dague_config.h"
+#include "linked_list.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,9 @@
 #include "q2j.y.h"
 #include "utility.h"
 #include "omega_interface.h"
+
+#define QUARK_FIRST_VAR 5
+#define QUARK_ELEMS_PER_LINE 3
 
 static var_t *var_head=NULL;
 static int _ind_depth=0;
@@ -34,6 +38,8 @@ static int DA_quark_INOUT(node_t *node);
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
 static int is_var_repeating(char *iv_str, char **iv_names);
 
+
+#if 0
 void dump_und(und_t *und){
     char *name;
 
@@ -55,6 +61,28 @@ void dump_und(und_t *und){
    }
     
 }
+
+void dump_all_unds(void){
+    var_t *var;
+    und_t *und;
+    node_t *tmp;
+
+    for(var=var_head; NULL != var; var=var->next){
+        for(und=var->und; NULL != und ; und=und->next){
+            dump_und(und);
+            printf(" ");
+            for(tmp=und->node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+                printf("%s:", DA_var_name(DA_loop_induction_variable(tmp)) );
+                printf("{ %s, ", tree_to_str(DA_loop_lb(tmp)) );
+                printf(" %s }", tree_to_str(DA_loop_ub(tmp)) );
+                if( NULL != tmp->enclosing_loop )
+                    printf(",  ");
+            }
+            printf("\n");
+        }
+    }
+}
+#endif
 
 void add_variable_use_or_def(node_t *node, int rw, int task_count){
     var_t *var=NULL, *prev=NULL;
@@ -113,7 +141,7 @@ void add_variable_use_or_def(node_t *node, int rw, int task_count){
 und_t **get_variable_uses_and_defs(node_t *node){
     var_t *var=NULL;
     und_t *und;
-    und_t **rslt;
+    und_t **rslt=NULL;
     char *var_name=NULL;
 
     node_t *base = DA_array_base(node);
@@ -136,27 +164,6 @@ und_t **get_variable_uses_and_defs(node_t *node){
         }
     }
     return rslt;
-}
-
-void dump_all_unds(void){
-    var_t *var;
-    und_t *und;
-    node_t *tmp;
-
-    for(var=var_head; NULL != var; var=var->next){
-        for(und=var->und; NULL != und ; und=und->next){
-            dump_und(und);
-            printf(" ");
-            for(tmp=und->node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-                printf("%s:", DA_var_name(DA_loop_induction_variable(tmp)) );
-                printf("{ %s, ", tree_to_str(DA_loop_lb(tmp)) );
-                printf(" %s }", tree_to_str(DA_loop_ub(tmp)) );
-                if( NULL != tmp->enclosing_loop )
-                    printf(",  ");
-            }
-            printf("\n");
-        }
-    }
 }
 
 /*********************************************************************************/
@@ -228,6 +235,10 @@ static char *numToSymName(int num){
     char str[4] = {0,0,0,0};
 
     assert(num<2600);
+
+    // capital i ("I") has a special meaning in some contexts (sqrt(-1)), so skip it.
+    if(num>=8)
+        num++;
 
     if( num < 26 ){
         str[0] = 'A'+num;
@@ -367,7 +378,7 @@ static int var_name_to_num(char *name, int prfx_len){
    if( prfx_len == len )
        return 0;
 
-   return atoi( (const char *)name[prfx_len] );
+   return atoi( (const char *)&name[prfx_len] );
 
 }
 
@@ -510,7 +521,7 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
     node_t *tmp;
 
     if( (IDENTIFIER != DA_rel_lhs(node)->type) && (IDENTIFIER != DA_rel_rhs(node)->type) ){
-        printf("Cannot canonicalize for's end condition: ");
+        printf("Cannot canonicalize end condition of for() loop: ");
         dump_tree(*node, 0);
         printf("\n");
         return NULL;
@@ -526,6 +537,19 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
                 tmp = DA_create_B_expr(ADD, DA_rel_rhs(node), DA_create_int_const(1));
                 tmp = DA_create_relation(LT, DA_rel_lhs(node), tmp);
                 return tmp;
+
+            case GE:  // subtract one from the RHS and convert GE to GT
+                tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_int_const(1));
+                tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
+                // call myself again to flip the GT to LT
+                tmp = _DA_canonicalize_for_econd(tmp, ivar);
+                return tmp;
+
+            default: 
+                printf("Cannot canonicalize end condition of for() loop: ");
+                dump_tree(*node, 0);
+                printf("\n");
+                break;
         }
     }else if( (IDENTIFIER == DA_rel_rhs(node)->type) && !strcmp(ivar->u.var_name, (DA_rel_rhs(node)->u.var_name)) ){
         // If the variable is on the RHS, flip the relation operator, exchange LHS and RHS and call myself again.
@@ -541,6 +565,7 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
 /* TODO: This needs a lot more work to become a general canonicalization function */
 int DA_canonicalize_for(node_t *node){
     node_t *ivar, *econd, *tmp;
+
     if( FOR != node->type){
         return 0;
     }
@@ -568,6 +593,23 @@ int DA_canonicalize_for(node_t *node){
     if( NULL == tmp ){
         return 0;
     }
+
+//#error "HERE"
+// turn: 
+// for(i=B; i><E1 && i><E2; i+=S) into:
+//
+// U1 = abs(E1-B) / abs(S);
+// if( abs(E1-B) % abs(S) )
+//     U1 += 1;
+// U2 = abs(E2-B) / abs(S);
+// if( abs(E2-B) % abs(S) )
+//     U2 += 1;
+// for(ii=0; ii<U1 && ii<U2; ii++){
+//     i = B+ii*S;
+// }
+// i = B+ii*S;
+//  
+
     DA_for_econd(node) = tmp;
 
     return 1;
@@ -613,7 +655,8 @@ node_t *DA_create_int_const(int64_t val){
 }
 
 node_t *DA_create_Entry(){
-    node_t rslt = {0};
+    node_t rslt;
+    memset(&rslt, 0, sizeof(node_t));
     rslt.type = ENTRY;
 //    rslt.task = NULL;
     rslt.u.kids.kid_count = 0;
@@ -704,6 +747,7 @@ char *DA_var_name(node_t *node){
     return NULL;
 }
 
+
 static int DA_quark_INOUT(node_t *node){
     int rslt1, rslt2;
     if( NULL == node )
@@ -746,7 +790,7 @@ node_t *DA_array_base(node_t *node){
 
 int DA_array_dim_count(node_t *node){
     if( NULL == node || ARRAY != node->type )
-        return NULL;
+        return 0;
     return node->u.kids.kid_count-1;
 }
 
@@ -1171,10 +1215,42 @@ char *find_definition(char *var_name, node_t *node){
     return var_name;
 }
 
+static int isArrayOut(node_t *task_node, int index){
+    if( index+1 < task_node->u.kids.kid_count ){
+        node_t *type = task_node->u.kids.kids[index+1];
+        if( (UND_WRITE & DA_quark_INOUT(type)) != 0 ){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Take the first OUT or INOUT array variable and suggest it as the data element that this task should follow */
+void print_default_task_placement(node_t *task_node){
+    int i;
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) ){
+            printf("  /* : %s */\n",tree_to_str(task_node->u.kids.kids[i]));
+            return;
+        }
+    }
+}
+
+
+/* var_def_item_t is only used inside quark_tree_to_body() to keep track of the variable definitions already seen */
+typedef struct var_def_item_t {
+    dague_list_item_t super;
+    char *var;
+    char *def;
+} var_def_item_t;
+
 char *quark_tree_to_body(node_t *node){
     char *str, *prefix=NULL, *tmp;
     char *printStr, *printSuffix;
     int i, j;
+
+    dague_linked_list_t var_def_list;
+    dague_linked_list_construct(&var_def_list);
 
     assert( FCALL == node->type );
 
@@ -1207,10 +1283,11 @@ char *quark_tree_to_body(node_t *node){
         printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
     }
 
-    // For the string for the actuall function-call as well as the prefix, which is all
-    // the definitions of the variables found in the call.
+    // Form the string for the actuall function-call as well as the prefix, which is all
+    // the definitions of the variables found in the call. Also generate declarations for
+    // the variables based on their types.
     j=0;
-    for(i=5; i<node->u.kids.kid_count; i+=3){
+    for(i=QUARK_FIRST_VAR; i<node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( j > 0 ){
             str = append_to_string( str, ", ", NULL, 0);
             printStr = append_to_string( printStr, ", ", NULL, 0);
@@ -1218,19 +1295,65 @@ char *quark_tree_to_body(node_t *node){
         if( j && !(j%3) )
             str = append_to_string( str, "\n\t", NULL, 0);
 
-        // Get the next useful parameter and see if it's pass by VALUE (in which case we need to strip the "&")
-        char *param = tree_to_str(node->u.kids.kids[i]);
+        // Get the next useful parameter and see if it's pass by VALUE (in which case we need to ignore the "&")
+        char *param = NULL;
+        node_t *var_node = NULL;
         if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "VALUE") ){
-            param = strip_leading_ADDROF(param);
-            // see where this parameter is defined (if anywhere) and copy the definition into the body
-            tmp = find_definition(param, node);
-            if( tmp != param ){
-                prefix = append_to_string( prefix, tmp, "  %s;\n", 4+strlen(tmp));
+            if( EXPR == node->u.kids.kids[i]->type ){
+                node_t *exp_node = node->u.kids.kids[i];
+                if( ADDR_OF == exp_node->u.kids.kids[0]->type ){
+                    var_node = exp_node->u.kids.kids[1];
+                    if( NULL != var_node )
+                        param = tree_to_str(var_node);
+                }
             }
-            str = append_to_string( str, param, NULL, 0);
+            // param = strip_leading_ADDROF(param);
+
+            if( NULL != var_node && NULL != param ){
+                char *type_name = NULL;
+                if( IDENTIFIER == var_node->type && NULL != var_node->u.var_name && NULL != var_node->symtab){
+                    type_name = st_type_of_variable(var_node->u.var_name, var_node->symtab);
+                    if( NULL != type_name ){
+                        // printf("%s is of type \"%s\"\n", var_node->u.var_name, type_name);
+                    }
+                }
+
+                // See if this parameter is defined in the code and we've already found, stored and emmited the definition
+                tmp = NULL;
+                dague_list_item_t *item = (dague_list_item_t *)var_def_list.ghost_element.list_next;
+                while(item != &(var_def_list.ghost_element) ){
+                    var_def_item_t *true_item = (var_def_item_t *)item;
+                    assert(item && NULL != true_item->var && NULL != true_item->def);
+                    if( !strcmp(true_item->var, param) ){
+                        tmp = true_item->def;
+                        break;
+                    }
+                    item = (dague_list_item_t *)item->list_next;
+                }
+
+                // If we haven't seen this parameter before, see if it's defined and copy the definition into the body
+                if( NULL == tmp ){
+                    tmp = find_definition(param, node);
+                    if( tmp != param ){
+                        prefix = append_to_string( prefix, "  ", NULL, 0);
+                        if( NULL !=  type_name )
+                            prefix = append_to_string( prefix, type_name, "%s ", 1+strlen(tmp));
+                        prefix = append_to_string( prefix, tmp, "%s;\n", 2+strlen(tmp));
+
+                        var_def_item_t *item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
+                        item->var = param;
+                        item->def = tmp;
+                        DAGUE_LIST_ITEM_SINGLETON(item);
+                        dague_linked_list_add_head( &var_def_list, (dague_list_item_t *)item );
+                    }
+                    str = append_to_string( str, param, NULL, 0);
+                }
+            }
         }else{
             char *symname = node->u.kids.kids[i]->var_symname;
+            // FIXME: We currently do not handle "SCRATCH".
             assert(NULL != symname);
+            param = tree_to_str(node->u.kids.kids[i]);
             str = append_to_string( str, symname, NULL, 0);
             str = append_to_string( str, param, " /* %s */", 7+strlen(param));
         }
@@ -1245,14 +1368,17 @@ char *quark_tree_to_body(node_t *node){
                 char *var_str = tree_to_str(arr->u.kids.kids[ii]);
                 printSuffix = append_to_string( printSuffix, var_str, ", %s", 2+strlen(var_str));
             }
-            printSuffix = append_to_string( printSuffix, base_name, ", %s", 2+strlen(base_name));
+            // Mathieu said we should print the DAGuE alias symbol, not the array base name.
+            // printSuffix = append_to_string( printSuffix, base_name, ", %s", 2+strlen(base_name));
+            char *alias = arr->var_symname;
+            printSuffix = append_to_string( printSuffix, alias, ", %s", 2+strlen(base_name));
         }else{
             printStr = append_to_string( printStr, param, NULL, 0);
         }
 
         j++;
     }
-    str = append_to_string( str, " )", NULL, 0);
+    str = append_to_string( str, " );", NULL, 0);
 
     printStr = append_to_string( printStr, printSuffix, NULL, 0);
     printStr = append_to_string( printStr, ");", NULL, 0);
@@ -1261,6 +1387,12 @@ char *quark_tree_to_body(node_t *node){
         str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
 
     str = append_to_string( str, printStr, "\n%s", 1+strlen(printStr));
+
+    // clean up the list of variables and their definitions
+    var_def_item_t *item;
+    while( NULL != (item = (var_def_item_t *)dague_linked_list_remove_head(&var_def_list)) ){
+        free(item);
+    }
 
     return str;
 }

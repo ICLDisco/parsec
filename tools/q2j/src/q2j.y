@@ -13,6 +13,7 @@
 
 #include "node_struct.h"
 #include "utility.h"
+#include "symtab.h"
 #include "parse_utility.h"
 
 
@@ -200,6 +201,15 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
 primary_expression
 	: IDENTIFIER
+          { 
+//              char *name=$1.u.var_name;
+//              char *var_type = st_type_of_variable(name, $1.symtab);
+//              if( NULL == var_type ){
+//                  printf("No entry for \"%s\" in symbol table\n",name);
+//              }else{
+//                  printf("\"%s\" is of type \"%s\"\n",name, var_type);
+//              }
+          } 
 	| INTCONSTANT
 	| FLOATCONSTANT
 	| STRING_LITERAL
@@ -624,9 +634,37 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';' { /* do nothing */ }
+	: declaration_specifiers ';'
+          {
+//              fprintf(stderr,"DEBUG: Is this correct C?: \"%s;\"\n",(char *)$1);
+          }
 	| declaration_specifiers init_declarator_list ';'
           {
+              node_t *tmp;
+              // rewind the pointer to the beginning of the list
+              for(tmp=$2.next; NULL != tmp->prev ; tmp=tmp->prev);
+              // traverse the list
+              for(; NULL != tmp ; tmp=tmp->next){
+                  if( IDENTIFIER == tmp->type ){
+                      st_insert_new_variable(tmp->u.var_name, (char *)$1);
+#if 0 // debug
+                      printf("st_insert(%s, %s)\n",tmp->u.var_name, (char *)$1);
+#endif
+                  }
+              }
+#if 0 // debug
+              printf("%s ",(char *)$1);
+              // rewind the pointer to the beginning of the list
+              for(tmp=$2.next; NULL != tmp->prev; tmp=tmp->prev);
+              // traverse the list
+              for(; NULL != tmp; tmp=tmp->next){
+                  if(NULL != tmp->prev){
+                      printf(", ");
+                  }
+                  printf("%s",tree_to_str(tmp));
+              }
+              printf("\n");
+#endif // debug
               $$ = $2;
           }
 	;
@@ -686,7 +724,7 @@ init_declarator_list
 	;
 
 init_declarator
-	: declarator {}
+	: declarator
 	| declarator '=' initializer
           {
             $$.type = ASSIGN;
@@ -974,6 +1012,8 @@ compound_statement
               $$.type = BLOCK;
               $$.u.block.first = NULL;
               $$.u.block.last = NULL;
+
+//              (void)st_exit_scope();
           }
 	| '{' statement_list '}'
           {
@@ -986,6 +1026,8 @@ compound_statement
                   $$.u.block.first = $$.u.block.last;
               else
                   $$.u.block.first = tmp;
+
+//              (void)st_exit_scope();
           }
 	| '{' declaration_list '}'
           {
@@ -998,6 +1040,8 @@ compound_statement
                   $$.u.block.first = $$.u.block.last;
               else
                   $$.u.block.first = tmp;
+
+//              (void)st_exit_scope();
           }
 	| '{' declaration_list statement_list '}'
           {
@@ -1024,6 +1068,10 @@ compound_statement
               if( NULL != tmp )
                   tmp->prev = $2.next;
 
+//for(; NULL != tmp; tmp=tmp->next)
+//    dump_tree(*tmp,0);
+
+//              (void)st_exit_scope();
           }
 	;
 
@@ -1096,7 +1144,7 @@ iteration_statement
               $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
               $$.u.kids.kid_count = 2;
               $$.u.kids.kids[0] = node_to_ptr($5);
-              $$.u.kids.kids[1] = node_to_ptr($2);
+              $$.u.kids.kids[1] = node_to_ptr($3);
               $$.trip_count = -1;
               $$.loop_depth = -1;
           }
@@ -1154,8 +1202,17 @@ external_declaration
               rename_induction_variables(&($1));
               analyze_deps(&($1));
           }
-	| declaration { static node_t tmp; tmp.type=EMPTY; $$=tmp;}
-        | typedef_specifier { /* do nothing */ }
+	| declaration
+          {
+              // Here is where the global scope variables were declared
+              static node_t tmp;
+              tmp.type=EMPTY;
+              $$=tmp;
+          }
+        | typedef_specifier
+          {
+              /* do nothing */
+          }
 	;
 
 function_definition
