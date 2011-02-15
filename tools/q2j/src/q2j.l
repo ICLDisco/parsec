@@ -443,7 +443,7 @@ int yywrap(){
 
 
 void comment(){
-	char c, c1;
+	int c, c1;
 
 loop:
 #ifdef __cplusplus
