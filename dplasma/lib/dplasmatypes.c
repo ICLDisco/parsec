@@ -95,7 +95,7 @@ int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "TILE %s*%4u*%4u", oldtype_name, tile_mb, tile_nb);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, tile_mb, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }
     return 0;
