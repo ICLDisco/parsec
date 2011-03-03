@@ -259,6 +259,15 @@ static void parse_arguments(int argc, char** argv, int* iparam)
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
     if(iparam[IPARAM_MB] == 0) iparam[IPARAM_MB] = iparam[IPARAM_NB];
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
+    if(iparam[IPARAM_IB] > 0)
+    {
+        if(iparam[IPARAM_NB] % iparam[IPARAM_IB])
+        {
+            fprintf(stderr, "xxx IB=%d does not divide NB=%d or MB=%d\n", iparam[IPARAM_IB], iparam[IPARAM_NB], iparam[IPARAM_MB]);
+            exit(2);
+        }
+    }
+
 
     /* No supertiling by default */    
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
