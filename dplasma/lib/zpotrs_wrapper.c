@@ -17,6 +17,12 @@ dplasma_zpotrs(dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc
     dague_object_t *dague_ztrsm1 = NULL;
     dague_object_t *dague_ztrsm2 = NULL;
 
+    /* Check input arguments */
+    if (uplo != PlasmaUpper && uplo != PlasmaLower) {
+        dplasma_error("dplasma_zpotrs", "illegal value of uplo");
+        return -1;
+    }
+
     if ( uplo == PlasmaUpper ) {
       dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);
       dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B);

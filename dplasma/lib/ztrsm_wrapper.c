@@ -24,10 +24,29 @@
 #include "generated/ztrsm_RUT.h"
 
 dague_object_t *
-dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
+dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, 
+                  const PLASMA_enum trans, const PLASMA_enum diag,
                   const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_trsm = NULL; 
+
+    /* Check input arguments */
+    if (side != PlasmaLeft && side != PlasmaRight) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of side");
+        return NULL /*-1*/;
+    }
+    if (uplo != PlasmaUpper && uplo != PlasmaLower) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of uplo");
+        return NULL /*-2*/;
+    }
+    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of trans");
+        return NULL /*-3*/;
+    }
+    if (diag != PlasmaUnit && diag != PlasmaNonUnit) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of diag");
+        return NULL /*-4*/;
+    }
 
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
@@ -138,15 +157,19 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
 }
 
 void
-dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo, const PLASMA_enum trans, const PLASMA_enum diag,
+dplasma_ztrsm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo, 
+               const PLASMA_enum trans, const PLASMA_enum diag,
                const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B)
 {
     dague_object_t *dague_ztrsm = NULL;
 
     dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
 
-    dague_enqueue( dague, dague_ztrsm );
-    dague_progress( dague );
-
-    dplasma_ztrsm_Destruct( dague_ztrsm );
+    if ( dague_ztrsm != NULL ) 
+    {
+        dague_enqueue( dague, dague_ztrsm );
+        dague_progress( dague );
+        
+        dplasma_ztrsm_Destruct( dague_ztrsm );
+    }
 }

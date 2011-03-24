@@ -25,6 +25,16 @@ dplasma_zgemm_New( const int transA, const int transB,
     dague_object_t* zgemm_object;
     dague_arena_t* arena;
 
+    /* Check input arguments */
+    if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
+        dplasma_error("PLASMA_zgemm", "illegal value of transA");
+        return NULL /*-1*/;
+    }
+    if ((transB != PlasmaNoTrans) && (transB != PlasmaTrans) && (transB != PlasmaConjTrans)) {
+        dplasma_error("PLASMA_zgemm", "illegal value of transB");
+        return NULL /*-2*/;
+    }
+
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
             dague_zgemm_NN_object_t* object;
@@ -107,7 +117,10 @@ dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
                                     alpha, A, B,
                                     beta, C);
 
-    dague_enqueue( dague, (dague_object_t*)dague_zgemm);
-    dague_progress(dague);
-    dplasma_zgemm_Destruct( dague_zgemm );
+    if ( dague_zgemm != NULL )
+    {
+        dague_enqueue( dague, (dague_object_t*)dague_zgemm);
+        dague_progress(dague);
+        dplasma_zgemm_Destruct( dague_zgemm );
+    }
 }

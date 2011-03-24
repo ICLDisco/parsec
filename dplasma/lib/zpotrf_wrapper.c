@@ -23,6 +23,12 @@ dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
     dague_object_t *dague_zpotrf = NULL;
     int pri_change = dplasma_aux_get_priority( "POTRF", A );
  
+    /* Check input arguments */
+    if (uplo != PlasmaUpper && uplo != PlasmaLower) {
+        dplasma_error("dplasma_zpotrf_New", "illegal value of uplo");
+        return NULL /*-1*/;
+    }
+
     *info = 0;
     if ( uplo == PlasmaUpper ) {
         dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new(
@@ -71,10 +77,13 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
     int info = 0;
 
     dague_zpotrf = dplasma_zpotrf_New(uplo, ddescA, &info);
-    dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
-    dague_progress(dague);
-    dplasma_zpotrf_Destruct( dague_zpotrf );
 
+    if ( dague_zpotrf != NULL )
+    {
+        dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
+        dague_progress(dague);
+        dplasma_zpotrf_Destruct( dague_zpotrf );
+    }
     return info;
 }
 
