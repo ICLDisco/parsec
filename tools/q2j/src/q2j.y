@@ -146,6 +146,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> STATIC
 %type <string> STRUCT
 %type <string> TYPEDEF
+%type <string> PRAGMA
 %type <string> TYPE_NAME
 %type <string> UNION
 %type <string> UNSIGNED
@@ -164,6 +165,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> abstract_declarator
 %type <string> declaration_specifiers
 %type <string> typedef_specifier
+%type <string> pragma_specifier
+%type <string> pragma_parameters
 %type <string> direct_abstract_declarator
 %type <string> enum_specifier
 %type <string> pointer
@@ -187,7 +190,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token XOR_ASSIGN OR_ASSIGN TYPE_NAME
 
-%token TYPEDEF EXTERN STATIC AUTO REGISTER
+%token TYPEDEF PRAGMA EXTERN STATIC AUTO REGISTER
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
 %token INT8 INT16 INT32 INT64 UINT8 UINT16 UINT32 UINT64 INTPTR UINTPTR INTMAX UINTMAX
 %token PLASMA_COMPLEX32_T PLASMA_COMPLEX64_T PLASMA_ENUM PLASMA_REQUEST PLASMA_DESC PLASMA_SEQUENCE
@@ -645,10 +648,14 @@ declaration
               for(tmp=$2.next; NULL != tmp->prev ; tmp=tmp->prev);
               // traverse the list
               for(; NULL != tmp ; tmp=tmp->next){
-                  if( IDENTIFIER == tmp->type ){
-                      st_insert_new_variable(tmp->u.var_name, (char *)$1);
+                  node_t *variable = tmp;
+                  if( ASSIGN == tmp->type )
+                      variable = tmp->u.kids.kids[0];
+
+                  if( IDENTIFIER == variable->type ){
+                      st_insert_new_variable(variable->u.var_name, (char *)$1);
 #if 0 // debug
-                      printf("st_insert(%s, %s)\n",tmp->u.var_name, (char *)$1);
+                      printf("st_insert(%s, %s)\n",variable->u.var_name, (char *)$1);
 #endif
                   }
               }
@@ -675,11 +682,20 @@ typedef_specifier
               add_type(tree_to_str(&($3)), $2);
 	  }
 
+pragma_parameters
+	: IDENTIFIER {}
+	| IDENTIFIER pragma_parameters {}
+
+pragma_specifier
+	: PRAGMA IDENTIFIER pragma_parameters
+	  {
+              // ignore the pragmas for now.
+	  }
+
 declaration_specifiers
 	: storage_class_specifier
 	| storage_class_specifier declaration_specifiers
           {
-/*              $$ = $2; */
               char *str = strdup($1);
               $$ = append_to_string(str, $2, " %s", 1+strlen($2) );
           }
@@ -1012,8 +1028,6 @@ compound_statement
               $$.type = BLOCK;
               $$.u.block.first = NULL;
               $$.u.block.last = NULL;
-
-//              (void)st_exit_scope();
           }
 	| '{' statement_list '}'
           {
@@ -1026,8 +1040,6 @@ compound_statement
                   $$.u.block.first = $$.u.block.last;
               else
                   $$.u.block.first = tmp;
-
-//              (void)st_exit_scope();
           }
 	| '{' declaration_list '}'
           {
@@ -1040,8 +1052,6 @@ compound_statement
                   $$.u.block.first = $$.u.block.last;
               else
                   $$.u.block.first = tmp;
-
-//              (void)st_exit_scope();
           }
 	| '{' declaration_list statement_list '}'
           {
@@ -1070,8 +1080,6 @@ compound_statement
 
 //for(; NULL != tmp; tmp=tmp->next)
 //    dump_tree(*tmp,0);
-
-//              (void)st_exit_scope();
           }
 	;
 
@@ -1210,6 +1218,10 @@ external_declaration
               $$=tmp;
           }
         | typedef_specifier
+          {
+              /* do nothing */
+          }
+	| pragma_specifier
           {
               /* do nothing */
           }

@@ -11,19 +11,19 @@
 
 #define EMPTY       0x0000
 
-#define ADDR_OF     0x1001 // 4096
-#define STAR        0x1002
-#define PLUS        0x1003
-#define MINUS       0x1004
-#define TILDA       0x1005
-#define BANG        0x1006
-#define ASSIGN      0x1007
-#define COND        0x1008
-#define ARRAY       0x1009
-#define FCALL       0x100a
+#define ADDR_OF     0x1001 // 4097
+#define STAR        0x1002 // 4098
+#define PLUS        0x1003 // 4099
+#define MINUS       0x1004 // 4100
+#define TILDA       0x1005 // 4101
+#define BANG        0x1006 // 4102
+#define ASSIGN      0x1007 // 4103
+#define COND        0x1008 // 4104
+#define ARRAY       0x1009 // 4105
+#define FCALL       0x100a // 4106
 
-#define ENTRY       0x1010
-#define EXIT        0x1011
+#define ENTRY       0x1010 // 4112
+#define EXIT        0x1011 // 4113
 
 #define EXPR        0x1100 // 4352
 #define ADD         0x1101
@@ -42,7 +42,7 @@
 #define GE          0x111e
 #define DEREF       0x111f
 #define S_U_MEMBER  0x1110
-#define COMMA_EXPR  0x1111
+#define COMMA_EXPR  0x1111 // 4369
 
 #define BLOCK       0xFFFF // 65535
 

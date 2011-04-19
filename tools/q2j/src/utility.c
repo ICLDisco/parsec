@@ -386,6 +386,7 @@ static void do_rename_ivar(char *iv_str, char *new_name, node_t *node){
 
     if( IDENTIFIER == node->type ){
        if( strcmp(node->u.var_name, iv_str) == 0 ){
+//printf("Changing %s of parent %s:%s to %s\n",tree_to_str(node), DA_type_name(node->parent), tree_to_str(node->parent), new_name);
            node->u.var_name = new_name;
        }
     }
@@ -397,6 +398,8 @@ static void do_rename_ivar(char *iv_str, char *new_name, node_t *node){
         }
     }else{
         int i;
+        if( S_U_MEMBER == node->type )
+            return;
         for(i=0; i<node->u.kids.kid_count; ++i){
             do_rename_ivar(iv_str, new_name, node->u.kids.kids[i]);
         }
@@ -1303,19 +1306,28 @@ char *quark_tree_to_body(node_t *node){
                 node_t *exp_node = node->u.kids.kids[i];
                 if( ADDR_OF == exp_node->u.kids.kids[0]->type ){
                     var_node = exp_node->u.kids.kids[1];
-                    if( NULL != var_node )
+                    if( NULL != var_node ){
                         param = tree_to_str(var_node);
+                    }else{
+                        fprintf(stderr,"WARNING: In quark_tree_to_body(), ADDR_OF node does not have an expression as kid\n");
+                        fprintf(stderr,"WARNING: dumping node:\n%s\n",tree_to_str(exp_node));
+                    }
                 }
             }
-            // param = strip_leading_ADDROF(param);
 
             if( NULL != var_node && NULL != param ){
                 char *type_name = NULL;
                 if( IDENTIFIER == var_node->type && NULL != var_node->u.var_name && NULL != var_node->symtab){
                     type_name = st_type_of_variable(var_node->u.var_name, var_node->symtab);
-                    if( NULL != type_name ){
-                        // printf("%s is of type \"%s\"\n", var_node->u.var_name, type_name);
+#ifdef EMMIT_WARNINGS
+                    if( NULL == type_name ){
+                        printf("WARNING: %s has an ST but no type!\n", var_node->u.var_name);
+#  ifdef DEBUG_3
+                    }else{
+                        printf("%s is of type \"%s\"\n", var_node->u.var_name, type_name);
+#  endif
                     }
+#endif
                 }
 
                 // See if this parameter is defined in the code and we've already found, stored and emmited the definition
@@ -1346,12 +1358,15 @@ char *quark_tree_to_body(node_t *node){
                         DAGUE_LIST_ITEM_SINGLETON(item);
                         dague_linked_list_add_head( &var_def_list, (dague_list_item_t *)item );
                     }
-                    str = append_to_string( str, param, NULL, 0);
                 }
+                str = append_to_string( str, param, NULL, 0);
             }
+        }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
+            // FIXME: Currently all we do with "SCRATCH" parameters is add a special entry to the BODY and "printlog".
+            param = strdup("_DAGUE_SCRATCH_BUFFER_");
+            str = append_to_string( str, param, NULL, 0);
         }else{
             char *symname = node->u.kids.kids[i]->var_symname;
-            // FIXME: We currently do not handle "SCRATCH".
             assert(NULL != symname);
             param = tree_to_str(node->u.kids.kids[i]);
             str = append_to_string( str, symname, NULL, 0);

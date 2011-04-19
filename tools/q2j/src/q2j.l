@@ -23,12 +23,15 @@ IS			(u|U|l|L)*
 int check_type();
 void count();
 void comment();
+void cpp_comment();
 
 %}
 
 %%
 "/*"			{ comment(); }
+"//"			{ cpp_comment(); }
 
+"pragma"		{ count(); return(PRAGMA); }
 "break"			{ count(); return(BREAK); }
 "case"			{ count(); return(CASE); }
 "continue"		{ count(); return(CONTINUE); }
@@ -441,6 +444,17 @@ int yywrap(){
 	return(1);
 }
 
+
+void cpp_comment(){
+    int c;
+#ifdef __cplusplus
+    while ((c = yyinput()) != '\n' && c != 0);
+#else
+    while ((c = input()) != '\n' && c != 0);
+#endif
+    if( c == '\n' )
+        yyset_lineno( yyget_lineno() + 1 );
+}
 
 void comment(){
 	int c, c1;

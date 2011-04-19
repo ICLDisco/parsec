@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+
 #include "dague_config.h"
 #include "node_struct.h"
 #include "utility.h"
@@ -19,6 +20,19 @@ struct _dep_t{
     node_t *src;
     node_t *dst;
     Relation *rel;
+};
+
+typedef struct synch_edge_graph_t synch_edge_graph_t;
+typedef struct seg_node_t{
+    bool visited;
+    list<synch_edge_graph_t *> edges;
+    list<Relation *> cycles;
+} seg_node_t;
+
+struct synch_edge_graph_t{
+    seg_node_t *destination;
+    Relation *rel;
+    int rel_type;
 };
 
 #define DEP_FLOW  0x1
@@ -561,6 +575,8 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         }
         
 
+#warning "The following conjunctions are suboptimal. Look at the SC11 submission for better ones."
+
         // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
         // subtract the relation of that "self" antidependency from the relations of all other anti-dependencies.
         if( ( after_def && (def->task != use->task) ) || ( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
@@ -626,6 +642,9 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
                 ge.update_const(-1);
             }
         }
+// DEBUG
+//        R.print();
+// END DEBUG
 
         // Add equalities demanded by the array subscripts. For example is the DEF is A[k][k] and the
         // USE is A[m][n] then add (k=m && k=n).
@@ -1067,7 +1086,7 @@ expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R)
 
         // If control reached this point it means that all the equations
         // we are trying to solve contain output vars, so try to solve all
-        // the other equations first that are solvable and replace these.
+        // the other equations first that are solvable and replace these
         // output variables with the corresponding solutions.
         for(int i=0; i<R.n_out(); i++){
             const char *ovar = strdup(R.output_var(i+1)->char_name());
@@ -2134,8 +2153,8 @@ map<task_t *, set<Relation *> > detect_loops_and_compute_transitive_closures(dep
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-map<char *, set<dep_t *> > restrict_control_edges_due_to_transitive_edges(set<dep_t *> c_deps, set<dep_t *> f_deps){
-    map<char *, set<dep_t *> > control_edges;
+map<char *, set<dep_t *> > restrict_synch_edges_due_to_transitive_edges(set<dep_t *> c_deps, set<dep_t *> f_deps){
+    map<char *, set<dep_t *> > synch_edges;
     map<task_t *, set<Relation *> > loop_effects;
 
 // foreach anti-dependency edge Ai from "src" to "dst"
@@ -2193,18 +2212,18 @@ map<char *, set<dep_t *> > restrict_control_edges_due_to_transitive_edges(set<de
 
         // if the map has a set for this task already, merge the two sets
         map<char *, set<dep_t *> >::iterator edge_it;
-        edge_it = control_edges.find(task_name);
-        if( edge_it != control_edges.end() ){
+        edge_it = synch_edges.find(task_name);
+        if( edge_it != synch_edges.end() ){
             set<dep_t *>tmp_set;
-            tmp_set = control_edges[task_name];
+            tmp_set = synch_edges[task_name];
             dep_set.insert(tmp_set.begin(), tmp_set.end());
         }
 
         // insert the (merged) set into the map.
-        control_edges[task_name] = dep_set;
+        synch_edges[task_name] = dep_set;
     }
 
-    return control_edges;
+    return synch_edges;
 }
 
 #endif
@@ -2219,7 +2238,7 @@ void interrogate_omega(node_t *root, var_t *head){
     map<node_t *, map<node_t *, Relation> > flow_sources, output_sources, anti_sources;
     map<char *, set<dep_t *> > outgoing_edges;
     map<char *, set<dep_t *> > incoming_edges;
-    map<char *, set<dep_t *> > control_edges;
+    map<char *, set<dep_t *> > synch_edges;
 
     declare_global_vars(root);
 
@@ -2301,6 +2320,18 @@ void interrogate_omega(node_t *root, var_t *head){
                 node_t *sink = fd_it->first;
                 Relation fd1_r = fd_it->second;
 
+#ifdef DEBUG_2
+                if( EXIT != sink->type){
+                    printf("    => [[ %s(",sink->task->task_name);
+                    for(int i=0; NULL != sink->task->ind_vars[i]; ++i){
+                    if( i ) printf(",");
+                    printf("%s", sink->task->ind_vars[i]);
+                    }
+                    printf(") %s ]] ", tree_to_str(sink));
+                }
+                fd1_r.print();
+#endif
+
                 Relation rAllKill;
                 // For every output dependency that has "def" as its source
                 map<node_t *, Relation>::iterator od_it;
@@ -2317,8 +2348,17 @@ void interrogate_omega(node_t *root, var_t *head){
                         // If we made it to here it means that I need to ask omega to compute:
                         // rKill := fd1_r compose od_r;  (Yes, this is the original fd)
 
+#ifdef DEBUG_3
+                        printf("Killer output dep:\n");
+                        od_r.print();
+#endif
+
                         rKill = Composition(copy(fd1_r), copy(od_r));
                         rKill.simplify();
+#ifdef DEBUG_3
+                        printf("Killer composed:\n");
+                        rKill.print();
+#endif
                     }else{
 
                         // See if there is a flow dep with source equal to od_sink
@@ -2337,8 +2377,19 @@ void interrogate_omega(node_t *root, var_t *head){
                         Relation fd2_r = fd2_it->second;
                         // If we made it to here it means that I nedd to ask omega to compute:
 
+#ifdef DEBUG_3
+                        printf("Killer flow2 dep:\n");
+                        fd2_r.print();
+                        printf("Killer output dep:\n");
+                        od_r.print();
+#endif
+
                         rKill = Composition(copy(fd2_r), copy(od_r));
                         rKill.simplify();
+#ifdef DEBUG_3
+                        printf("Killer composed:\n");
+                        rKill.print();
+#endif
                     }
                     if( rAllKill.is_null() || rAllKill.is_set() ){ // shouldn't this be !rAllKill.is_set() ?
                         rAllKill = rKill;
@@ -2351,10 +2402,19 @@ void interrogate_omega(node_t *root, var_t *head){
                     rReal = fd1_r;
                 }
                 else{
+#ifdef DEBUG_3
+                    printf("Final Killer:\n");
+                    rAllKill.print();
+#endif
                     rReal = Difference(fd1_r, rAllKill);
                 }
 
                 rReal.simplify();
+#ifdef DEBUG_3
+                printf("Final Edge:\n");
+                rReal.print();
+                printf("==============================\n");
+#endif
                 if( rReal.is_upper_bound_satisfiable() || rReal.is_lower_bound_satisfiable() ){
 
                     if( EXIT == sink->type){
@@ -2477,22 +2537,22 @@ printf("========================================================================
                     }
                 }
             }
-            // see if the current task already has some control edges and if so merge them with the new ones.
+            // see if the current task already has some synch edges and if so merge them with the new ones.
             map<char *, set<dep_t *> >::iterator edge_it;
             char *task_name = use->task->task_name;
-            edge_it = control_edges.find(task_name);
-            if( edge_it != control_edges.end() ){
+            edge_it = synch_edges.find(task_name);
+            if( edge_it != synch_edges.end() ){
                 set<dep_t *>tmp_set;
-                tmp_set = control_edges[task_name];
+                tmp_set = synch_edges[task_name];
                 dep_set.insert(tmp_set.begin(), tmp_set.end());
             }
-            control_edges[task_name] = dep_set;
+            synch_edges[task_name] = dep_set;
         }
 
 #if 0
-        set<dep_t *>c_deps = edge_map_to_dep_set(control_edges);
+        set<dep_t *>c_deps = edge_map_to_dep_set(synch_edges);
         set<dep_t *>f_deps = edge_map_to_dep_set(outgoing_edges);
-        control_edges = restrict_control_edges_due_to_transitive_edges(c_deps, f_deps);
+        synch_edges = restrict_synch_edges_due_to_transitive_edges(c_deps, f_deps);
 #endif
 
 #ifdef DEBUG_2
@@ -2609,7 +2669,7 @@ printf("========================================================================
 
 
 // DEBUG start
-            printf("  /* Anti-dependence analysis and Control Edge generation is still under development, so the result is in a comment\n");
+            printf("  /*\n  The following is a superset of the necessary anti-dependencies:\n");
             map<node_t *, map<node_t *, Relation> >::iterator anti_src_it;
             for(anti_src_it=anti_sources.begin(); anti_src_it!=anti_sources.end(); ++anti_src_it){
                 // Extract from the map the actual USE from which all the deps in this map start from
@@ -2631,6 +2691,7 @@ printf("========================================================================
             printf("\n");
 // DEBUG end
 
+#if 0
             map<char *, set<dep_t *> >::iterator edge_it;
             edge_it = control_edges.find(task_name);
             if( edge_it != control_edges.end() ){
@@ -2647,6 +2708,7 @@ printf("========================================================================
                         r.print_with_subs();
                 }
             }
+#endif
             printf("  */\n\n");
 
             print_body(src_task->task_node);

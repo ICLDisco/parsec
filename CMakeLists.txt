@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (DAGUE C CXX Fortran)
+project (DAGUE C CXX)
 # The current version number
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
@@ -115,17 +115,17 @@ find_package(BISON)
 find_package(FLEX)
 
 # Fortran tricks
-STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
-IF (_match_ifort)
-    MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
-ENDIF (_match_ifort)
+# STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
+# IF (_match_ifort)
+#     MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
+#     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
+# ENDIF (_match_ifort)
 
-STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
-IF (_match_ftn)
-    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
-ENDIF (_match_ftn)
+# STRING(REGEX MATCH ".*ftn$" _match_ftn ${CMAKE_Fortran_COMPILER})
+# IF (_match_ftn)
+#     MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
+#     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
+# ENDIF (_match_ftn)
 
 
 # check for the CPU we build for
@@ -383,9 +383,9 @@ endif (MPI_FOUND)
 #
 
 add_subdirectory(tools)
-add_subdirectory(dplasma)
-add_subdirectory(data_dist)
-add_subdirectory(tests)
+#add_subdirectory(dplasma)
+#add_subdirectory(data_dist)
+#add_subdirectory(tests)
 
 # Configuration header
 configure_file (
