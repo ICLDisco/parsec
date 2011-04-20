@@ -192,7 +192,7 @@ WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
 
 <*>{WHITE}*\n         { current_lineno++;                                  }
 <*>"//".*\n           { current_lineno++;                                  }
-<*>[a-zA-Z_]+[a-zA-Z0-9_]* {
+<*>[a-zA-Z_]+(([a-zA-Z0-9_]\.?)*[a-zA-Z0-9_]+)? {
                         yylval.string = strdup(yytext);
                         return VAR;                                        }
 %%
