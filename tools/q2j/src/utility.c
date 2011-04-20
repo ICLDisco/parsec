@@ -1239,18 +1239,85 @@ void print_default_task_placement(node_t *task_node){
     }
 }
 
+char *int_to_str(int num){
+    int lg, i = 1;
+    char *str;
+    // Find the number of digits of the number;
+    for(lg=1; lg<num; lg*=10){
+        i++;
+    }
+
+    // Create the new variable name
+    str = (char *)calloc(1+i, sizeof(char));
+    snprintf(str, 1+i, "%d", num);
+    return str;
+}
 
 /* var_def_item_t is only used inside quark_tree_to_body() to keep track of the variable definitions already seen */
-typedef struct var_def_item_t {
+typedef struct var_def_item {
     dague_list_item_t super;
     char *var;
     char *def;
 } var_def_item_t;
 
+/*
+ * size_to_pool_name() maintains a map between buffer sizes and memory pools.
+ * Since DAGuE does not have a predefind map, or hash-table, we use a linked list where we
+ * store the different sizes and the pools they map to and traverse it every time we do
+ * a lookup. Given that in reallity the size of this list is not expected to exceed 3, or 4
+ * elements, it doesn't really matter.  Also, we use the "var_def_item_t" structure, just to
+ * reuse code. "var" will be a size and "def" will be a pool name.
+ */
+char *size_to_pool_name(char *size_str){
+    static int pool_count = 0;
+    char *pool_name = NULL;
+    static dague_linked_list_t pool_list;
+
+    if( !pool_count )
+        dague_linked_list_construct(&pool_list);
+
+    /* See if a pool of this size exists already, and if so return it. */
+    dague_list_item_t *list_item = (dague_list_item_t *)pool_list.ghost_element.list_next;
+    while(list_item != &(pool_list.ghost_element) ){
+        var_def_item_t *true_item = (var_def_item_t *)list_item;
+        assert(list_item && NULL != true_item->var && NULL != true_item->def);
+        if( !strcmp(true_item->var, size_str) ){
+            return true_item->def;
+        }
+        list_item = (dague_list_item_t *)list_item->list_next;
+    }
+
+    /* If control reached here, it means that we didn't find a pool of the given size. */
+    pool_name = append_to_string( strdup("pool_"), int_to_str(pool_count), NULL, 0);
+    pool_count++;
+
+    /* add then new pool to the list, so we find it next time we look. */
+    var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
+    new_item->var = size_str;
+    new_item->def = pool_name;
+    DAGUE_LIST_ITEM_SINGLETON(new_item);
+    dague_linked_list_add_head( &pool_list, (dague_list_item_t *)new_item );
+
+    return pool_name;
+}
+
+/*
+ * Traverse the tree containing the QUARK specific code and generate up to five strings.
+ * prefix   : The variable declarations (and maybe initializations)
+ * pool_pop : The calls to dague_private_memory_pop() for SCRATCH parameters
+ * str      : The actual call to the kernel
+ * prentStr : The call to printlog()
+ * pool_push: The calls to dague_private_memory_push() for SCRATCH parameters
+ *
+ * The function returns one string containing these five strings concatenated.
+ */
 char *quark_tree_to_body(node_t *node){
     char *str, *prefix=NULL, *tmp;
     char *printStr, *printSuffix;
+    char *pool_pop = NULL;
+    char *pool_push = NULL;
     int i, j;
+    int pool_buf_count = 0;
 
     dague_linked_list_t var_def_list;
     dague_linked_list_construct(&var_def_list);
@@ -1362,9 +1429,20 @@ char *quark_tree_to_body(node_t *node){
                 str = append_to_string( str, param, NULL, 0);
             }
         }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
-            // FIXME: Currently all we do with "SCRATCH" parameters is add a special entry to the BODY and "printlog".
-            param = strdup("_DAGUE_SCRATCH_BUFFER_");
+            char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
+            char *id = numToSymName(pool_buf_count);
+            param = append_to_string( param, id, "pool_%s", 5+strlen(id));
+            pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(id));
+            pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
+
+            pool_push = append_to_string( pool_push, param, "  dague_private_memory_push( %s", 35+strlen(id));
+            pool_push = append_to_string( pool_push, pool_name, ", %s );\n", 6+strlen(pool_name));
+
             str = append_to_string( str, param, NULL, 0);
+
+            // Every SCRATCH parameter will need a different buffer from the pool,
+            // regardles of how many pools the buffers will belong to.
+            pool_buf_count++;
         }else{
             char *symname = node->u.kids.kids[i]->var_symname;
             assert(NULL != symname);
@@ -1398,8 +1476,12 @@ char *quark_tree_to_body(node_t *node){
     printStr = append_to_string( printStr, printSuffix, NULL, 0);
     printStr = append_to_string( printStr, ");", NULL, 0);
 
-    if( NULL != prefix )
-        str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
+    prefix = append_to_string( prefix, pool_pop, "\n%s", 1+strlen(pool_pop) );
+//    if( NULL != prefix )
+//        str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
+    str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
+
+    str = append_to_string( str, pool_push, "\n\n%s", 2+strlen(pool_push) );
 
     str = append_to_string( str, printStr, "\n%s", 1+strlen(printStr));
 
