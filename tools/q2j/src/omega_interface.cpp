@@ -16,6 +16,7 @@
 #include <list>
 #include <sstream>
 
+
 struct _dep_t{
     node_t *src;
     node_t *dst;
@@ -3234,9 +3235,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         fprintf(stderr,"WARNING: Number of variables (%lu) exceeds 6",vars.size());
     }
 
+
     // For each variable print all the incoming and the outgoing edges
     set<char *>::iterator var_it;
     for (var_it=vars.begin(); var_it!=vars.end(); var_it++){
+        bool insert_fake_read = false;
         set<dep_t *>ideps = incm_map[*var_it];
         set<dep_t *>odeps = outg_map[*var_it];
 
@@ -3245,7 +3248,13 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         }else if( !ideps.empty() ){
             printf("  READ  ");
         }else if( !odeps.empty() ){
-            printf("  WRITE ");
+            // printf("  WRITE ");
+            /* 
+             * DAGuE does not like write-only variables, so make it RW and make
+             * it read from the data matrix tile that corresponds to this variable.
+             */
+            printf("  RW    ");
+            insert_fake_read = true;
         }else{
             assert(0);
         }
@@ -3301,6 +3310,12 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
 #endif
         }
 
+        if(insert_fake_read){
+            dep_t *dep = *(odeps.begin());
+            printf(" <- ");
+            printf("data_%s\n",tree_to_str(dep->src));
+        }
+
         // print the outgoing edges
         for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
              dep_t *dep = *dep_it;
@@ -3310,10 +3325,13 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
              // Needed by Omega
              (void)(*dep->rel).print_with_subs_to_string(false);
 
+
              rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->src->task );
-             if ( dep_it!=odeps.begin() || !ideps.empty())
-                 printf("         ");
+             // Since we are inserting the fake read when there are no reads, 
+             // the following should always be true
+             //if ( dep_it!=odeps.begin() || (!ideps.empty())
+             printf("         ");
              printf(" -> ");
 
              cond = simplifyConditions(*dep->rel, copy_tree(rel_exp), S_es);
