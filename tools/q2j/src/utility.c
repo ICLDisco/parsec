@@ -186,7 +186,6 @@ static void do_loop_parentize(node_t *node, node_t *enclosing_loop){
     }
 
     if( BLOCK == node->type ){
-        node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
             do_loop_parentize(tmp, enclosing_loop);
         }
@@ -241,11 +240,11 @@ static char *numToSymName(int num){
         num++;
 
     if( num < 26 ){
-        str[0] = 'A'+num;
+        str[0] = (char)('A'+num);
         str[1] = '\0';
     }else{
         int cnt;
-        str[0] = 'A'+num%26;
+        str[0] = (char)('A'+num%26);
         cnt = num/26;
         snprintf(&str[1], 3, "%d", cnt);
     }
@@ -254,7 +253,7 @@ static char *numToSymName(int num){
 
 
 // Turn "CORE_taskname_quark" into "taskname" wasting some memory in the process
-char *quark_call_to_task_name( char *call_name ){
+static char *quark_call_to_task_name( char *call_name ){
     char *task_name, *end;
 
     if( NULL != strstr(call_name, "CORE_") )
@@ -292,14 +291,14 @@ static void record_use_and_defs(node_t *node){
             task->task_name = quark_call_to_task_name( DA_var_name(DA_kid(node,2)) );
             task->task_node = node;
             task->ind_vars = (char **)calloc(1+node->loop_depth, sizeof(char *));
-            int i=node->loop_depth-1;
+            i=node->loop_depth-1;
             for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
                 task->ind_vars[i] = DA_var_name(DA_loop_induction_variable(tmp));
                 --i;
             }
             node->task = task;
         }else{
-#if DEBUG
+#if defined(DEBUG)
             printf("WARNING: probably there is something wrong with this QUARK_Insert_Task().\n");
 #endif
             return;
@@ -324,7 +323,6 @@ static void record_use_and_defs(node_t *node){
             record_use_and_defs(tmp);
         }
     }else{
-        int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             record_use_and_defs(node->u.kids.kids[i]);
         }
@@ -1175,7 +1173,7 @@ const char *type_to_symbol(int type){
     return "???";
 }
 
-int isSimpleVar(char *name){
+static int isSimpleVar(char *name){
     int i, len;
 
     if( NULL == name )
@@ -1191,18 +1189,7 @@ int isSimpleVar(char *name){
     return 1;
 }
 
-char *strip_leading_ADDROF(char *str){
-    if( NULL == str )
-        return NULL;
-
-    char *pos = strstr((const char *)str, "&");
-    if( NULL != pos )
-        return (pos+1);
-
-    return NULL;
-}
-
-char *find_definition(char *var_name, node_t *node){
+static char *find_definition(char *var_name, node_t *node){
     node_t *curr, *tmp;
     do{
         for(curr=node->prev; NULL!=curr; curr=curr->prev){
@@ -1244,7 +1231,7 @@ void print_default_task_placement(node_t *task_node){
     }
 }
 
-char *int_to_str(int num){
+static char *int_to_str(int num){
     int lg, i = 1;
     char *str;
     // Find the number of digits of the number;
@@ -1273,7 +1260,7 @@ typedef struct var_def_item {
  * elements, it doesn't really matter.  Also, we use the "var_def_item_t" structure, just to
  * reuse code. "var" will be a size and "def" will be a pool name.
  */
-char *size_to_pool_name(char *size_str){
+static char *size_to_pool_name(char *size_str){
     static int pool_count = 0;
     char *pool_name = NULL;
     static dague_linked_list_t pool_list;
@@ -1345,7 +1332,7 @@ char *quark_tree_to_body(node_t *node){
     // Form the string for the "printlog"
     printStr = strdup("  printlog(\"thread %d ");
     printStr = append_to_string( printStr, str, NULL, 0);
-    for(int i=0; NULL != node->task->ind_vars[i]; i++ ){
+    for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         if( i > 0 )
             printStr = append_to_string( printStr, ", ", NULL, 0);
         printStr = append_to_string( printStr, "%d", NULL, 0);
@@ -1355,7 +1342,7 @@ char *quark_tree_to_body(node_t *node){
     // Form the string for the suffix of the "printlog". That is whatever follows the format string, or in
     // other words the variables whose value we are interested in instead of the name.
     printSuffix = strdup(")\\n\",\n  context->eu_id");
-    for(int i=0; NULL != node->task->ind_vars[i]; i++ ){
+    for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         char *iv = node->task->ind_vars[i];
         printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
     }
@@ -1426,11 +1413,11 @@ char *quark_tree_to_body(node_t *node){
                             prefix = append_to_string( prefix, type_name, "%s ", 1+strlen(tmp));
                         prefix = append_to_string( prefix, tmp, "%s;\n", 2+strlen(tmp));
 
-                        var_def_item_t *item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
-                        item->var = param;
-                        item->def = tmp;
-                        DAGUE_LIST_ITEM_SINGLETON(item);
-                        dague_linked_list_add_head( &var_def_list, (dague_list_item_t *)item );
+                        var_def_item_t *tmp_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
+                        tmp_item->var = param;
+                        tmp_item->def = tmp;
+                        DAGUE_LIST_ITEM_SINGLETON(tmp_item);
+                        dague_linked_list_add_head( &var_def_list, (dague_list_item_t *)tmp_item );
                     }
                 }
                 str = append_to_string( str, param, NULL, 0);
@@ -1792,13 +1779,13 @@ char *tree_to_str(node_t *node){
                 for(j=1; j<=3; j++){
                     max_arg_len[j] = -1;
                     for(i=j; i<node->u.kids.kid_count; i+=3){
-                        int tmp;
+                        int tmp2;
                         char *arg = tree_to_str(node->u.kids.kids[i]);
                     
-                        tmp = strlen(arg);
+                        tmp2 = strlen(arg);
                         free(arg);
-                        if( tmp > max_arg_len[j] )
-                            max_arg_len[j] = tmp;
+                        if( tmp2 > max_arg_len[j] )
+                            max_arg_len[j] = tmp2;
                     }
                 }
                 str = tree_to_str(node->u.kids.kids[0]);
@@ -1847,7 +1834,7 @@ char *tree_to_str(node_t *node){
 
 
             default:
-                snprintf(prfx, 12, "|>%d<| ", node->type);
+                snprintf(prfx, 12, "|>%u<| ", node->type);
                 str = append_to_string(NULL, prfx, NULL, 0);
                 snprintf(prfx, 15, "kid_count: %d {{", kid_count);
                 str = append_to_string(str, prfx, NULL, 0);
@@ -1859,11 +1846,11 @@ char *tree_to_str(node_t *node){
                 }
                 _ind_depth -= 4;
                 str = append_to_string( str, "}}", NULL, 0 );
-                return str;
+                break;
         }
     }
 
-    return NULL;
+    return str;
 }
 
 

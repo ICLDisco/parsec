@@ -2,7 +2,6 @@
 rm -rf CMakeCache.txt CMakeFiles
 
 LOCATION=`dirname $0`
-DAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/
 
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC="/opt/hwloc-1.0.2"
@@ -12,11 +11,13 @@ elif [ "x$USER" = "xYOURSELF" ]; then
   HWLOC=SOMEWHERE
   PLASMADIR=SOMEWHERE
   CUDA=SOMEWHERE
+  DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=SOMEWHERE"
 else
   HWLOC="/opt/hwloc"
   PLASMADIR="/opt/plasma"
   CUDA="/opt/cuda"
   MPI="-DMPI_COMPILER=/usr/bin/mpicc"
+  DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
 fi
 
 PLASMA="-DPLASMA_DIR=${PLASMADIR}"
@@ -32,13 +33,14 @@ PLASMA="-DPLASMA_DIR=${PLASMADIR}"
 
 if [ "x$1" = "xgcc" ]; then
   # to compile with gcc and plasma-2.1
-  cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} 
-
+  echo cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
+  cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
 else
   # Compile with icc, ifort, plasma 2.2
   /opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
   /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
   export CC=icc
   export FC=ifort
-  cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC}
+  echo cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
+  cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
 fi

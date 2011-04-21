@@ -45,3 +45,7 @@ tools/grapher
 tools/grapher\.dot
 tools/grapher\.png
 tools/grapher_create_objects\.c
+tools/q2j/q2j
+tools/q2j/q2j\.l\.c
+tools/q2j/q2j\.y\.c
+tools/q2j/q2j\.y\.h

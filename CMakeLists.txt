@@ -74,12 +74,20 @@ option(DAGUE_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
 
 ### Look for OMEGA
-option(DAGUE_OMEGA_DIR
-  "Location of the OMEGA installation" OFF)
+option(DAGUE_Q2J
+  "Build the JDF generator" OFF)
 set(FOUND_OMEGA false)
-if(DAGUE_OMEGA_DIR)
-  set(FOUND_OMEGA true)
-endif(DAGUE_OMEGA_DIR)
+if(DAGUE_Q2J)
+  message("--  Looking for DAGUE_OMEGA_DIR to enable DAGUE_Q2J")
+  if(DAGUE_OMEGA_DIR)
+    message("--  DAGUE_OMEGA_DIR found in ${DAGUE_OMEGA_DIR}")
+    set(FOUND_OMEGA true)
+  else(DAGUE_OMEGA_DIR)
+    message(WARNING "DAGUE_OMEGA_DIR not set: disabling DAGUE_Q2J")
+    set(DAGUE_Q2J false)
+    set(FOUND_OMEGA false)
+  endif(DAGUE_OMEGA_DIR)
+endif(DAGUE_Q2J)
 
 ### Misc options
 option(BUILD_SHARED_LIBS
