@@ -50,6 +50,11 @@
 typedef struct _task_t task_t;
 typedef struct _node node_t;
 
+typedef struct type_node{
+    char *type;
+    char *var;
+}type_node_t;
+
 struct _task_t{
     char *task_name;
     node_t *task_node;

@@ -2229,6 +2229,19 @@ map<char *, set<dep_t *> > restrict_synch_edges_due_to_transitive_edges(set<dep_
 #endif
 
 
+void print_types_of_formal_parameters(node_t *root){
+    symtab_t *scope;
+    symbol_t *sym;
+
+    scope = root->symtab;
+    do{
+        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
+            printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+        }
+        scope = scope->parent;
+    }while(NULL != scope);
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -2239,6 +2252,8 @@ void interrogate_omega(node_t *root, var_t *head){
     map<char *, set<dep_t *> > outgoing_edges;
     map<char *, set<dep_t *> > incoming_edges;
     map<char *, set<dep_t *> > synch_edges;
+
+    print_types_of_formal_parameters(root);
 
     declare_global_vars(root);
 
@@ -2838,7 +2853,12 @@ static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
    // Dump the map.
    map<string, string>::iterator pvit;
    for (pvit=pseudo_vars.begin(); pvit!=pseudo_vars.end(); pvit++){
-       printf("  /* %s == %s */\n",(pvit->first).c_str(), (pvit->second).c_str());
+       /*
+        * JDF & QUARK specific optimization:
+        * Add the keyword "data_" infront of the matrix to
+        * differentiate the matrix from the struct.
+        */
+       printf("  /* %s == data_%s */\n",(pvit->first).c_str(), (pvit->second).c_str());
    }
 
 }
@@ -2957,11 +2977,14 @@ static string _expr_tree_to_str(const expr_t *exp){
 
     switch( exp->type ){
         case IDENTIFIER:
-            // convert all structure members (A.m) into variables Am
             str = string(exp->value.name);
+            // If the JDF parser does not like structures,
+            // convert all structure members (A.m) into variables Am
+#if 0
             while ( (j=str.find('.',0)) != str.npos) { 
                 str.replace(j, 1, "" ); 
             } 
+#endif
             return str;
 
         case INTCONSTANT:
@@ -3264,7 +3287,12 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
                  printf(") ");
              }else{
                  // ENTRY
-                 printf("%s", tree_to_str(dep->dst));
+                 /*
+                  * JDF & QUARK specific optimization:
+                  * Add the keyword "data_" infront of the matrix to
+                  * differentiate the matrix from the struct.
+                  */
+                 printf("data_%s", tree_to_str(dep->dst));
              }
              printf("\n");
 #ifdef DEBUG_2
@@ -3295,7 +3323,12 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
              node_t *sink = dep->dst;
              if( NULL == sink ){
                  // EXIT
-                 printf("%s",tree_to_str(dep->src));
+                 /*
+                  * JDF & QUARK specific optimization:
+                  * Add the keyword "data_" infront of the matrix to
+                  * differentiate the matrix from the struct.
+                  */
+                 printf("data_%s",tree_to_str(dep->src));
              }else{
                  printf("%s %s(",sink->var_symname, sink->task->task_name);
                  printActualParameters(dep, rel_exp, SINK);

@@ -22,5 +22,6 @@ symtab_t *st_enter_new_scope(void);
 symtab_t *st_exit_scope(void);
 void st_insert_new_variable(char *var, char *type);
 char *st_type_of_variable(char *var, symtab_t *scope);
+void dump_st(symtab_t *scope);
 
 #endif

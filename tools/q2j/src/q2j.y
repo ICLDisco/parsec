@@ -27,6 +27,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
 %union {
  node_t node;
+ type_node_t type_node;
  char *string;
 }
 
@@ -112,6 +113,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> declaration_list
 %type <node> initializer
 
+%type <string> abstract_declarator
+%type <type_node> parameter_declaration
 
 %type <string> identifier_list
 %type <string> initializer_list
@@ -160,9 +163,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> PLASMA_SEQUENCE
 
 %type <string> parameter_list
-%type <string> parameter_declaration
 %type <string> parameter_type_list
-%type <string> abstract_declarator
 %type <string> declaration_specifiers
 %type <string> typedef_specifier
 %type <string> pragma_specifier
@@ -643,6 +644,7 @@ declaration
           }
 	| declaration_specifiers init_declarator_list ';'
           {
+
               node_t *tmp;
               // rewind the pointer to the beginning of the list
               for(tmp=$2.next; NULL != tmp->prev ; tmp=tmp->prev);
@@ -658,6 +660,7 @@ declaration
                       printf("st_insert(%s, %s)\n",variable->u.var_name, (char *)$1);
 #endif
                   }
+
               }
 #if 0 // debug
               printf("%s ",(char *)$1);
@@ -910,6 +913,9 @@ direct_declarator
               }
           }
 	| direct_declarator '(' parameter_type_list ')'
+          {
+              $1.symtab = st_get_current_st();
+          }
 	| direct_declarator '(' identifier_list ')'
 	| direct_declarator '(' ')'
 	;
@@ -938,29 +944,29 @@ parameter_type_list
 
 parameter_list
 	: parameter_declaration
+          {
+              (void)st_enter_new_scope();
+              st_insert_new_variable($1.var, $1.type);
+          }
 	| parameter_list ',' parameter_declaration
           {
-              char *str = strdup($1);
-              $$ = append_to_string(str, $3, ", %s", 2+strlen($3) );
+              st_insert_new_variable($3.var, $3.type);
           }
 	;
 
 parameter_declaration
 	: declaration_specifiers declarator
           {
-              char *str = strdup($1);
-if( NULL == $1 ){
-    printf("> declaration_specifiers is NULL\n");
-}
-              char *decl = tree_to_str(&($2));
-              $$ = append_to_string(str, decl, " %s", 1+strlen(decl) );
+              $$.type = strdup($1);
+              $$.var = tree_to_str(&($2));
           }
 	| declaration_specifiers abstract_declarator
           {
               char *str = strdup($1);
-              $$ = append_to_string(str, $2, " %s", 1+strlen($2) );
+              str = append_to_string(str, $2, " %s", 1+strlen($2) );
+              printf("WARNING: the following parameter declaration is not inserted into the symbol table:\n%s\n",str);
           }
-	| declaration_specifiers
+	| declaration_specifiers { }
 	;
 
 identifier_list
@@ -1208,6 +1214,7 @@ external_declaration
 	: function_definition
           {
               rename_induction_variables(&($1));
+              //printf("%s\n",tree_to_str(&($1)));
               analyze_deps(&($1));
           }
 	| declaration

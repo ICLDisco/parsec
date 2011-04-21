@@ -78,6 +78,21 @@ void st_insert_new_variable(char *var, char *type){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+void dump_st(symtab_t *scope){
+    symbol_t *sym;
+
+    do{
+        for(sym=scope->symbols; NULL!=sym; sym=sym->next){
+            printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+        }
+        scope = scope->parent;
+    }while(NULL != scope);
+
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
 char *st_type_of_variable(char *var, symtab_t *scope){
     symbol_t *sym;
 

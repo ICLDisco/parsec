@@ -1228,12 +1228,17 @@ static int isArrayOut(node_t *task_node, int index){
     return 0;
 }
 
-/* Take the first OUT or INOUT array variable and suggest it as the data element that this task should follow */
+/* 
+ * Take the first OUT or INOUT array variable and make it the data element that
+ * this task should have affinity to.
+ * It would be much better if we found which tile this task writes most times into,
+ * instead of the first write, to reduce unnecessary communication.
+ */
 void print_default_task_placement(node_t *task_node){
     int i;
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
-            printf("  /* : %s */\n",tree_to_str(task_node->u.kids.kids[i]));
+            printf("  : %s\n",tree_to_str(task_node->u.kids.kids[i]));
             return;
         }
     }
@@ -1323,6 +1328,8 @@ char *quark_tree_to_body(node_t *node){
     dague_linked_list_construct(&var_def_list);
 
     assert( FCALL == node->type );
+
+    //dump_st(node->symtab);
 
     // Get the name of the function called from the tree.
     str = tree_to_str(node->u.kids.kids[2]);
@@ -1448,7 +1455,7 @@ char *quark_tree_to_body(node_t *node){
             assert(NULL != symname);
             param = tree_to_str(node->u.kids.kids[i]);
             str = append_to_string( str, symname, NULL, 0);
-            str = append_to_string( str, param, " /* %s */", 7+strlen(param));
+            str = append_to_string( str, param, " /* data_%s */", 11+strlen(param));
         }
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
@@ -1701,10 +1708,8 @@ char *tree_to_str(node_t *node){
                 return str;
 
             case S_U_MEMBER:
-                str = tree_to_str(node->u.kids.kids[0]);
-                // We ommit the "." to make the struct+member look like a single variable for
-                // the JDF->release_dep parser to be able to deal with it.
-                // str = append_to_string( str, ".", NULL, 0 );
+                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0 );
+                str = append_to_string( str, ".", NULL, 0 );
                 str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
                 return str;
 
