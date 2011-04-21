@@ -64,6 +64,8 @@ struct _task_t{
 struct _node{
     uint32_t type;
 
+    uint32_t lineno;
+
     node_t *next;
     node_t *prev;
 

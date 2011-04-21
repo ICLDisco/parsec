@@ -234,6 +234,7 @@ void cpp_comment();
                               yylval.node.type = IDENTIFIER;
                               yylval.node.u.kids.kid_count = 0;
                               yylval.node.symtab = st_get_current_st();
+                              yylval.node.lineno = yyget_lineno();
                               return(IDENTIFIER);
 //printf("type: %s\n",yytext);
                           }else{
@@ -247,30 +248,35 @@ void cpp_comment();
                           yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(INTCONSTANT);
                         }
 0{D}+{IS}?		{ count();
                           yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(INTCONSTANT);
                         }
 {D}+{IS}?		{ count();
                           yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(INTCONSTANT);
                         }
 {D}+{E}{FS}?		{ count();
                           yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(INTCONSTANT);
                         }
 L?'(\\.|[^\\'])+'	{ count();
                           yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(FLOATCONSTANT);
                         }
 
@@ -278,128 +284,153 @@ L?'(\\.|[^\\'])+'	{ count();
                           yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(FLOATCONSTANT);
                         }
 {D}+"."{D}*({E})?{FS}?	{ count();
                           yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(FLOATCONSTANT);
                         }
 
 L?\"(\\.|[^\\"])*\"	{ count();
                           yylval.node.const_val.str = strdup(yytext);
                           yylval.node.u.kids.kid_count = 0;
+                          yylval.node.lineno = yyget_lineno();
                           return(STRING_LITERAL);
                         }
 
 "..."			{ count(); 
                           yylval.node.type = ELLIPSIS;
+                          yylval.node.lineno = yyget_lineno();
                           return(ELLIPSIS);
                         }
 
 ">>="			{ count(); 
                           yylval.node.type = RIGHT_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(RIGHT_ASSIGN);
                         }
 
 "<<="			{ count(); 
                           yylval.node.type = LEFT_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(LEFT_ASSIGN);
                         }
 
 "+="			{ count(); 
                           yylval.node.type = ADD_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(ADD_ASSIGN);
                         }
 
 "-="			{ count(); 
                           yylval.node.type = SUB_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(SUB_ASSIGN);
                         }
 
 "*="			{ count(); 
                           yylval.node.type = MUL_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(MUL_ASSIGN);
                         }
 
 "/="			{ count(); 
                           yylval.node.type = DIV_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(DIV_ASSIGN);
                         }
 
 "%="			{ count(); 
                           yylval.node.type = MOD_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(MOD_ASSIGN);
                         }
 
 "&="			{ count(); 
                           yylval.node.type = AND_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(AND_ASSIGN);
                         }
 
 "^="			{ count(); 
                           yylval.node.type = XOR_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(XOR_ASSIGN);
                         }
 
 "|="			{ count(); 
                           yylval.node.type = OR_ASSIGN;
+                          yylval.node.lineno = yyget_lineno();
                           return(OR_ASSIGN);
                         }
 
 ">>"			{ count(); 
                           yylval.node.type = RIGHT_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(RIGHT_OP);
                         }
 
 "<<"			{ count(); 
                           yylval.node.type = LEFT_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(LEFT_OP);
                         }
 
 "++"			{ count(); 
                           yylval.node.type = INC_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(INC_OP);
                         }
 
 "--"			{ count(); 
                           yylval.node.type = DEC_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(DEC_OP);
                         }
 
 "->"			{ count(); 
                           yylval.node.type = PTR_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(PTR_OP);
                         }
 
 "&&"			{ count(); 
                           yylval.node.type = L_AND;
+                          yylval.node.lineno = yyget_lineno();
                           return(L_AND);
                         }
 
 "||"			{ count(); 
                           yylval.node.type = L_OR;
+                          yylval.node.lineno = yyget_lineno();
                           return(L_OR);
                         }
 
 "<="			{ count(); 
                           yylval.node.type = LE_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(LE_OP);
                         }
 
 ">="			{ count(); 
                           yylval.node.type = GE_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(GE_OP);
                         }
 
 "=="			{ count(); 
                           yylval.node.type = EQ_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(EQ_OP);
                         }
 
 "!="			{ count(); 
                           yylval.node.type = NE_OP;
+                          yylval.node.lineno = yyget_lineno();
                           return(NE_OP);
                         }
 

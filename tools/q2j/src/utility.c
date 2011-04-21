@@ -23,6 +23,8 @@
 #define QUARK_FIRST_VAR 5
 #define QUARK_ELEMS_PER_LINE 3
 
+extern char *dague_input_file_name;
+
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
@@ -1327,17 +1329,28 @@ char *quark_tree_to_body(node_t *node){
         *tmp = '\0';
     }
 
-    str = append_to_string( strdup("  "), str, "%s(", 1+strlen(str));
+    //str = append_to_string( strdup("  "), str, "%s(", 1+strlen(str));
+
+    // Form the printlog string first, because it needs to use the function name in "str", and only
+    // then change "str" to add the "#line" directive.
 
     // Form the string for the "printlog"
     printStr = strdup("  printlog(\"thread %d ");
-    printStr = append_to_string( printStr, str, NULL, 0);
+    printStr = append_to_string( printStr, str, "%s(", 1+strlen(str));
     for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         if( i > 0 )
             printStr = append_to_string( printStr, ", ", NULL, 0);
         printStr = append_to_string( printStr, "%d", NULL, 0);
     }
     printStr = append_to_string( printStr, ")\\n\\t(", NULL, 0);
+
+    // Create the "#line lineno" directive and append a newline at the end.
+    tmp = int_to_str(node->lineno);
+    tmp = append_to_string(strdup("#line "), tmp, NULL, 0);
+    tmp = append_to_string(tmp, dague_input_file_name, " \"%s\"\n", 4+strlen(dague_input_file_name));
+    // Append the call to the kernel after the directive.
+    str = append_to_string(tmp, str, "  %s(", 3+strlen(str));
+
 
     // Form the string for the suffix of the "printlog". That is whatever follows the format string, or in
     // other words the variables whose value we are interested in instead of the name.
