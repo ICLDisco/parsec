@@ -37,6 +37,20 @@ pool_Tnb     [type = "dague_memory_pool_t*"]
 pool_ibTnb   [type = "dague_memory_pool_t*"]
 PLASMA_IB    [type = "int"]
 
+zgelqt_typechange(k)
+  /* Execution space */
+  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+
+  : A(k,k)
+
+RW A <- A zgelqt(k)
+     -> (Amt>=(2+k)) ? C zunmlq(k, (k+1)..(Amt-1))     [type = UPPER_TILE]
+     -> A(k, k)                                        [type = UPPER_TILE]
+
+BODY
+ /* Nothing */
+END
+
 zgelqt(k)
   /* Execution space */
   k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
@@ -50,11 +64,11 @@ zgelqt(k)
   /* F == A(k,k) */
   /* K == A(m1,n) */
 
-  RW    A <- (0==k) ? A(k,k)
+  RW    A <- (0==k) ? A(k,k)                              
           <- (k>=1) ? K ztsmlq(k-1, k, k) 
-          -> (Ant==(k+1)) ? A(k,k)
-          -> (Ant>=(2+k)) ? F ztslqt(k, k+1) 
-          -> (Amt>=(2+k)) ? C zunmlq(k, (k+1)..(Amt-1)) 
+          -> (Ant==(k+1)) ? A(k,k)                        [type = LOWER_TILE]
+          -> (Ant>=(2+k)) ? F ztslqt(k, k+1)              [type = LOWER_TILE]
+          -> A zgelqt_typechange(k)
   RW    B <- T(k,k)                                       [type = LITTLE_T]
           -> (Amt>=(k+2)) ? D zunmlq(k, (k+1)..(Amt-1))   [type = LITTLE_T]
           -> T(k,k)                                       [type = LITTLE_T]
@@ -101,7 +115,7 @@ zunmlq(k,m)
   /* J == A(m1,k) */
   /* K == A(m1,n) */
 
-  READ  C <- A zgelqt(k) 
+  READ  C <- A zgelqt_typechange(k)                   [type = UPPER_TILE] 
   READ  D <- B zgelqt(k)                              [type = LITTLE_T]
   RW    E <- (0==k) ? A(m,k)
           <- (k>=1) ? K ztsmlq(k-1, k-1+1, m) 
@@ -140,8 +154,8 @@ ztsqlt_in_A(k)
 
   : A(k, k)
 
-RW A <- A(k,k)
-     -> F ztslqt(k, Ant-1) /* solved n to Ant-1 because Ant==(n+1) in the outgoing edge of the source task */
+RW A <- A(k,k)             [type = LOWER_TILE]
+     -> F ztslqt(k, Ant-1) [type = LOWER_TILE] /* solved n to Ant-1 because Ant==(n+1) in the outgoing edge of the source task */
 
 BODY
  /* Nothing */
@@ -162,10 +176,10 @@ ztslqt(k,n)
   /* L == A(k,n) */
   /* M == T(k,n) */
 
-  RW    F <- (n>=(k+2)) ? F ztslqt(k, n-1) 
-          <- ((k+1)==n) & (Amt>=(k+1)) ? A zgelqt(n-1) 
-          -> (Ant>=(n+2)) ? F ztslqt(k, n+1) 
-          -> (Ant==(n+1)) ? A ztsqlt_in_A(k) /* A(k, k) */
+  RW    F <- (n>=(k+2)) ? F ztslqt(k, n-1)                  [type = LOWER_TILE]
+          <- ((k+1)==n) & (Amt>=(k+1)) ? A zgelqt(n-1)      [type = LOWER_TILE]
+          -> (Ant>=(n+2)) ? F ztslqt(k, n+1)                [type = LOWER_TILE]
+          -> (Ant==(n+1)) ? A ztsqlt_in_A(k) /* A(k, k) */  [type = LOWER_TILE]
   RW    G <- (k>=1) ? K ztsmlq(k-1, n, k) 
           <- (0==k) ? A(k,n)
           -> (Amt>=(k+2)) ? L ztsmlq(k, n, (k+1)..(Amt-1)) 
