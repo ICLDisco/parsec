@@ -22,7 +22,6 @@ CPackSourceConfig.cmake
 .*cmake_install.cmake
 install_manifest.txt
 .*/generated/.*
-
 dplasma/testing/testing_[zcds]gemm
 dplasma/testing/testing_[zcds]geqrf
 dplasma/testing/testing_[zcds]trmm
@@ -31,9 +30,9 @@ dplasma/testing/testing_[zcds]getrf
 dplasma/testing/testing_[zcds]getrf_sd
 dplasma/testing/testing_[zcds]potrf
 dplasma/testing/testing_[zcds]potrf_ll
+dplasma/testing/testing_[zcds]gelqf
 tools/dague-compiler/dague.l.c
 tools/dague-compiler/dague.y.[ch]
-
 dplasma/testing/TSQR/mpi_testing_tsqr
 dplasma/testing/TSQR/testing_tsqr
 tools/dague-compiler/daguepp
@@ -49,3 +48,4 @@ tools/q2j/q2j
 tools/q2j/q2j\.l\.c
 tools/q2j/q2j\.y\.c
 tools/q2j/q2j\.y\.h
+tools/precision_generator/subs\.pyc
