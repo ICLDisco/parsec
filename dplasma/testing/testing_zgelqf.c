@@ -18,8 +18,8 @@
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
 #define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + (N))))
-#define FMULS_GELQF(__m, __n) FMULS_GERQF(__m, __n)
-#define FADDS_GELQF(__m, __n) FADDS_GERQF(__m, __n)
+#define FMULS_GELQF(__m, __n) FMULS_GEQRF(__m, __n)
+#define FADDS_GELQF(__m, __n) FADDS_GEQRF(__m, __n)
 
 int main(int argc, char ** argv)
 {
