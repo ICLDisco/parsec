@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgelqf);
 
-        /*dplasma_zgelqf_Destruct( DAGUE_zgelqf );*/
+        dplasma_zgelqf_Destruct( DAGUE_zgelqf );
     }
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s) && 0

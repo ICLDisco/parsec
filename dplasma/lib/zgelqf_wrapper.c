@@ -72,5 +72,24 @@ int dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix
     dague_enqueue(dague, (dague_object_t*)dague_zgelqf);
     dague_progress(dague);
 
+    dplasma_zgelqf_Destruct( dague_zgelqf );
     return 0;
 }
+
+void
+dplasma_zgelqf_Destruct( dague_object_t *o )
+{
+    dague_zgelqf_object_t *dague_zgelqf = (dague_zgelqf_object_t *)o;
+
+    /* Maybe we also need to free the pools */
+    /* REMARK: I don't know what is the comportment of finalization, 
+     * do we have to free the buffers after or not ? 
+     * Is it taking care of both memory pools ? */
+
+    /* dague_private_memory_finalization(); */
+    /* free( dague_zgelqf->pool_Tau ); */
+    /* free( dague_zgelqf->pool_work ); */
+
+    dague_zgelqf_destroy(dague_zgelqf);
+}
+
