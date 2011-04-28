@@ -17,25 +17,27 @@ extern "C" %{
 #include "data_distribution.h"
 #include "memory_pool.h"
 
-#define BLKLDD(k) ( ( (k) + Ai/Amb) < Alm1 ? Amb : Alm%Amb )
+/* For now dplasma doesn't store matrices as PLASMA => no need for lm1 and BLKLDD */
+/* #define BLKLDD(k) ( ( (k) + Ai/Amb) < Alm1 ? Amb : Alm%Amb )*/
+#define BLKLDD(k) Amb
 %}
 
-A    [type = "dague_ddesc_t*"]
+A    [type = "dague_ddesc_t *"]
+T    [type = "dague_ddesc_t *" aligned=A]
 Amt  [type = "int"]
 Ant  [type = "int"]
 Amb  [type = "int"]
 Anb  [type = "int"]
 Am   [type = "int"]
 An   [type = "int"]
-Alm1 [type = "int"]
-Alm  [type = "int"]
-Ai   [type = "int"]
-T    [type = "dague_ddesc_t *" aligned=A]
+/*Alm1 [type = "int"]*/
+/*Alm  [type = "int"]*/
+/*Ai   [type = "int"]*/
 Tmb  [type = "int"]
 Tnb  [type = "int"]
-pool_Tnb     [type = "dague_memory_pool_t*"]
-pool_ibTnb   [type = "dague_memory_pool_t*"]
-PLASMA_IB    [type = "int"]
+ib   [type = "int"]
+pool_Tau    [type = "dague_memory_pool_t*"]
+pool_work   [type = "dague_memory_pool_t*"]
 
 zgelqt_typechange(k)
   /* Execution space */
@@ -82,11 +84,10 @@ BODY
 
   int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
   int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ib = PLASMA_IB;
   int ldak = BLKLDD( k );
 
-  void *pool1 = dague_private_memory_pop( pool_Tnb );
-  void *pool2 = dague_private_memory_pop( pool_ibTnb );
+  void *pool1 = dague_private_memory_pop( pool_Tau );
+  void *pool2 = dague_private_memory_pop( pool_work );
 
   CORE_zgelqt(tempkm, tempkn, ib, 
 	A /* A(k,k) */, ldak, B /* T(k,k) */, 
@@ -94,8 +95,8 @@ BODY
   printlog("thread %d   CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
   context->eu_id, k, k, k, A, k, k, B);
 
-  dague_private_memory_push( pool1, pool_Tnb );
-  dague_private_memory_push( pool2, pool_ibTnb );
+  dague_private_memory_push( pool1, pool_Tau );
+  dague_private_memory_push( pool2, pool_work );
 
 END
 
@@ -131,11 +132,10 @@ BODY
 
   int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
   int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ib = PLASMA_IB;
   int ldak = BLKLDD( k );
   int ldam = BLKLDD( m );
 
-  void *pool1 = dague_private_memory_pop( pool_ibTnb );
+  void *pool1 = dague_private_memory_pop( pool_work );
 
   CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	tempkn, tempkn, ib, 
@@ -145,7 +145,7 @@ BODY
   printlog("thread %d   CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, A(%d,%d)[%p], ldam, pool1, Tnb)\n",
   context->eu_id, k, m, k, k, C, k, k, D, m, k, E);
 
-  dague_private_memory_push( pool1, pool_ibTnb );
+  dague_private_memory_push( pool1, pool_work );
 
 END
 
@@ -197,11 +197,10 @@ BODY
 
   int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
   int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
-  int ib = PLASMA_IB;
   int ldak = BLKLDD( k );
 
-  void *pool1 = dague_private_memory_pop( pool_Tnb );
-  void *pool2 = dague_private_memory_pop( pool_ibTnb );
+  void *pool1 = dague_private_memory_pop( pool_Tau );
+  void *pool2 = dague_private_memory_pop( pool_work );
 
   CORE_ztslqt(tempkm, tempnn, ib, 
 	F /* A(k,k) */, ldak, G /* A(k,n) */, 
@@ -210,8 +209,8 @@ BODY
   printlog("thread %d   CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
   context->eu_id, k, n, k, k, F, k, n, G, k, n, H);
 
-  dague_private_memory_push( pool1, pool_Tnb );
-  dague_private_memory_push( pool2, pool_ibTnb );
+  dague_private_memory_push( pool1, pool_Tau );
+  dague_private_memory_push( pool2, pool_work );
 
 END
 
@@ -268,12 +267,11 @@ BODY
 
   int tempmm = ((m1)==(Amt-1)) ? (Am-(m1*Amb)) : (Amb);
   int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
-  int ib = PLASMA_IB;
   int ldam = BLKLDD( m1 );
   int ldak = BLKLDD( k );
   int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (Tnb);
 
-  void *pool1 = dague_private_memory_pop( pool_ibTnb );
+  void *pool1 = dague_private_memory_pop( pool_work );
 
   CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
 	Anb, tempmm, tempnn, 
@@ -284,6 +282,6 @@ BODY
   printlog("thread %d   CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, Anb, tempmm, tempnn, Amb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, ldwork)\n",
   context->eu_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
-  dague_private_memory_push( pool1, pool_ibTnb );
+  dague_private_memory_push( pool1, pool_work );
 
 END

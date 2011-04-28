@@ -44,8 +44,9 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                    M, N, SMB, SNB, P))
+                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
+                                    LDA, N, SMB, SNB, P))
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
                                     nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
@@ -56,7 +57,7 @@ int main(int argc, char ** argv)
 #endif
 
     /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     if(iparam[IPARAM_NGPUS] > 0)
     {
         if(loud) printf("+++ Load GPU kernel ... ");
@@ -78,15 +79,17 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf, 
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgelqf, 
                                            ((tiled_matrix_desc_t*)&ddescA,
-                                            (tiled_matrix_desc_t*)&ddescT))
+                                            (tiled_matrix_desc_t*)&ddescT));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf)
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgelqf);
+
+        /*dplasma_zgelqf_Destruct( DAGUE_zgelqf );*/
     }
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
     if(iparam[IPARAM_NGPUS] > 0) 
     {
         stsmqr_cuda_fini(dague);
