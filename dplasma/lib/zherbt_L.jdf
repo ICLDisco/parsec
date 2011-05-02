@@ -1,0 +1,366 @@
+xtern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "memory_pool.h"
+%}
+
+uplo [type = "PLASMA_enum"]
+A [type = "PLASMA_desc"]
+T [type = "PLASMA_desc"]
+sequence [type = "PLASMA_sequence"]
+request [type = "PLASMA_request"]
+
+
+zgeqrt(k)
+  /* Execution space */
+  k = 0..(A.nt)-1-1
+
+  : A(k+1,k)
+
+  /* A == data_A(k+1,k) */
+  /* B == data_T(k+1,k) */
+  /* C == data_A(k+1,k) */
+  /* D == data_T(k+1,k) */
+  /* F == data_A(k+1,k) */
+  /* G == data_T(k+1,k) */
+  /* J == data_A(k+1,k) */
+  /* R == data_A(m1,k+1) */
+
+  RW    A <- (A.mt>=(k+2)) & (k>=1) ? R ztsmqrlr(k+1-2, k+1) 
+          <- ) || (((k>=1) & ((1+k)>=A.mt)(0==k)) ? data_A(k+1,k)
+          -> C zherfb1(k) 
+          -> (A.mt>=(3+k)) ? F zunmqr(k, (k+2)..(A.mt-1)) 
+          -> (A.mt>=(3+k)) ? J ztsqrt(k, k+2) 
+          -> ((k+2)>=A.mt) ? data_A(k+1,k)
+  RW    B <- data_T(k+1,k)
+          -> (A.mt>=(k+3)) ? G zunmqr(k, (k+2)..(A.mt-1)) 
+          -> D zherfb1(k) 
+          -> data_T(k+1,k)
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+
+  */
+
+BODY
+
+  int tempkn = ((k+1)==((A.nt)-1)) ? ((A.n)-((k+1)*(A.nb))) : (A.nb);
+  int ib = PLASMA_IB;
+  int ldak = BLKLDD( A, k+1 );
+
+  void *pool_A = dague_private_memory_pop( pool_0 );
+  void *pool_B = dague_private_memory_pop( pool_1 );
+
+#line 117 "hatem-pzherbt-L_cpp.c"
+  CORE_zgeqrt(tempkn, A.nb, ib, 
+	A /* data_A(k+1,k) *, ldak, B /* data_T(k+1,k) *, 
+	T.mb, pool_A, pool_B );
+
+  dague_private_memory_push( pool_A, pool_0 );
+  dague_private_memory_push( pool_B, pool_1 );
+
+  printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkn, A.nb, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
+  context->eu_id, k, k+1, k, A, k+1, k, B);
+
+END
+
+
+zherfb1(k)
+  /* Execution space */
+  k = 0..(A.nt)-1-1
+
+  : A(k+1,k+1)
+
+  /* A == data_A(k+1,k) */
+  /* B == data_T(k+1,k) */
+  /* C == data_A(k+1,k) */
+  /* D == data_T(k+1,k) */
+  /* E == data_A(k+1,k+1) */
+  /* Q == data_A(k+1,k+1) */
+  /* S == data_A(m1,m1) */
+
+  READ  C <- A zgeqrt(k) 
+  READ  D <- B zgeqrt(k) 
+  RW    E <- (A.mt>=(k+2)) & (k>=1) ? S ztsmqrlr(k+1-2, k+1) 
+          <- ) || (((0==k)(k>=1) & ((1+k)>=A.mt)) ? data_A(k+1,k+1)
+          -> (A.mt>=(k+3)) ? Q ztsmqrlr(k, k+2) 
+          -> ((k+2)>=A.mt) ? data_A(k+1,k+1)
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+
+  */
+
+BODY
+
+  int tempkn = ((k+1)==((A.nt)-1)) ? ((A.n)-((k+1)*(A.nb))) : (A.nb);
+  int ib = PLASMA_IB;
+  int ldak = BLKLDD( A, k+1 );
+
+  void *pool_A = dague_private_memory_pop( pool_2 );
+
+#line 120 "hatem-pzherbt-L_cpp.c"
+  CORE_zherfb1(PlasmaLower, tempkn, tempkn, 
+	ib, T.nb, C /* data_A(k+1,k) *, 
+	ldak, D /* data_T(k+1,k) *, T.mb, 
+	E /* data_A(k+1,k+1) *, ldak, pool_A, 
+	T.nb );
+
+  dague_private_memory_push( pool_A, pool_2 );
+
+  printlog("thread %d CORE_zherfb1(%d)\n\t(PlasmaLower, tempkn, tempkn, ib, T.nb, A(%d,%d)[%p], ldak, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
+  context->eu_id, k, k+1, k, C, k+1, k, D, k+1, k+1, E);
+
+END
+
+
+zunmqr(k,m)
+  /* Execution space */
+  k = 0..(A.nt)-1-1
+  m = k+2..A.mt-1
+
+  : A(m,k+1)
+
+  /* A == data_A(k+1,k) */
+  /* B == data_T(k+1,k) */
+  /* F == data_A(k+1,k) */
+  /* G == data_T(k+1,k) */
+  /* H == data_A(m,k+1) */
+  /* M == data_A(j,k+1) */
+  /* N == data_A(j,m1) */
+  /* R == data_A(m1,k+1) */
+
+  READ  F <- A zgeqrt(k) 
+  READ  G <- B zgeqrt(k) 
+  RW    H <- (0==k) ? data_A(m,k+1)
+          <- (k>=1) ? N ztsmqr(k+1-2, k+1, m) 
+          -> ((k+2)==m) & (A.nt>=(k+2)) ? R ztsmqrlr(m-2, m) 
+          -> (m>=(k+3)) ? M ztsmqr(k, k+2, m) 
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+
+  */
+
+BODY
+
+  int tempmm = ((m)==((A.mt)-1)) ? ((A.m)-(m*(A.mb))) : (A.mb);
+  int tempkn = ((k+1)==((A.nt)-1)) ? ((A.n)-((k+1)*(A.nb))) : (A.nb);
+  int ib = PLASMA_IB;
+  int ldak = BLKLDD( A, k+1 );
+  int ldam = BLKLDD( A, m );
+
+  void *pool_A = dague_private_memory_pop( pool_1 );
+
+#line 126 "hatem-pzherbt-L_cpp.c"
+  CORE_zunmqr(PlasmaRight, PlasmaNoTrans, tempmm, 
+	A.nb, tempkn, ib, 
+	F /* data_A(k+1,k) *, ldak, G /* data_T(k+1,k) *, 
+	T.mb, H /* data_A(m,k+1) *, ldam, 
+	pool_A, T.nb );
+
+  dague_private_memory_push( pool_A, pool_1 );
+
+  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempmm, A.nb, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldam, pool_A, T.nb)\n",
+  context->eu_id, k, m, k+1, k, F, k+1, k, G, m, k+1, H);
+
+END
+
+
+ztsqrt(k,m1)
+  /* Execution space */
+  k = 0..(A.nt)-1-1
+  m1 = k+2..A.mt-1
+
+  : A(k+1,k)
+
+  /* A == data_A(k+1,k) */
+  /* J == data_A(k+1,k) */
+  /* K == data_A(m1,k) */
+  /* L == data_T(m1,k) */
+  /* O == data_A(m1,k) */
+  /* P == data_T(m1,k) */
+  /* R == data_A(m1,k+1) */
+  /* T == data_A(m1,k) */
+  /* U == data_T(m1,k) */
+
+  RW    J <- ((k+2)==m1) & (A.nt>=(k+2)) ? A zgeqrt(m1-2) 
+          <- (m1>=(3+k)) ? J ztsqrt(k, m1-1) 
+          -> (A.mt==(m1+1)) ? data_A(k+1,k)
+          -> (A.mt>=(m1+2)) ? J ztsqrt(k, m1+1) 
+  RW    K <- (k>=1) ? R ztsmqrlr(k-1, m1) 
+          <- (0==k) ? data_A(m1,k)
+          -> (A.mt>=(m1+2)) ? O ztsmqr(k, m1, (m1+1)..(A.mt-1)) 
+          -> T ztsmqrlr(k, m1) 
+          -> data_A(m1,k)
+  RW    L <- data_T(m1,k)
+          -> (A.mt>=(m1+2)) ? P ztsmqr(k, m1, (m1+1)..(A.mt-1)) 
+          -> U ztsmqrlr(k, m1) 
+          -> data_T(m1,k)
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+
+  */
+
+BODY
+
+  int tempmm = ((m1)==((A.mt)-1)) ? ((A.m)-(m1*(A.mb))) : (A.mb);
+  int ib = PLASMA_IB;
+  int ldak = BLKLDD( A, k+1 );
+  int ldam = BLKLDD( A, m1 );
+
+  void *pool_A = dague_private_memory_pop( pool_0 );
+  void *pool_B = dague_private_memory_pop( pool_1 );
+
+#line 132 "hatem-pzherbt-L_cpp.c"
+  CORE_ztsqrt(tempmm, A.nb, ib, 
+	J /* data_A(k+1,k) *, ldak, K /* data_A(m1,k) *, 
+	ldam, L /* data_T(m1,k) *, T.mb, 
+	pool_A, pool_B );
+
+  dague_private_memory_push( pool_A, pool_0 );
+  dague_private_memory_push( pool_B, pool_1 );
+
+  printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
+  context->eu_id, k, m1, k+1, k, J, m1, k, K, m1, k, L);
+
+END
+
+
+ztsmqr(k,m1,j)
+  /* Execution space */
+  k = 0..(A.nt)-1-1
+  m1 = k+2..A.mt-1
+  j = m1+1..A.mt-1
+
+  : A(j,k+1)
+
+  /* H == data_A(m,k+1) */
+  /* K == data_A(m1,k) */
+  /* L == data_T(m1,k) */
+  /* M == data_A(j,k+1) */
+  /* N == data_A(j,m1) */
+  /* O == data_A(m1,k) */
+  /* P == data_T(m1,k) */
+  /* R == data_A(m1,k+1) */
+
+  RW    M <- ((k+2)==m1) & (A.nt>=(k+2)) ? H zunmqr(m1-2, j) 
+          <- (m1>=(k+3)) ? M ztsmqr(k, m1-1, j) 
+          -> (j>=(2+m1)) ? M ztsmqr(k, m1+1, j) 
+          -> ((1+m1)==j) ? R ztsmqrlr(k, j) 
+  RW    N <- (0==k) ? data_A(j,m1)
+          <- (k>=1) ? N ztsmqr(k-1, m1, j) 
+          -> ((k+2)==m1) & (A.nt>=(3+k)) ? H zunmqr(m1-1, j) 
+          -> (A.nt==(k+2)) ? data_A(j,m1)
+          -> (m1>=(k+3)) & (A.nt>=(k+3)) ? N ztsmqr(k+1, m1, j) 
+  READ  O <- K ztsqrt(k, m1) 
+  READ  P <- L ztsqrt(k, m1) 
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+
+  */
+
+BODY
+
+  int tempjj = ((j)==((A.mt)-1)) ? ((A.m)-(j*(A.mb))) : (A.mb);
+  int tempmm = ((m1)==((A.mt)-1)) ? ((A.m)-(m1*(A.mb))) : (A.mb);
+  int ib = PLASMA_IB;
+  int ldaj = BLKLDD( A, j );
+  int ldam = BLKLDD( A, m1 );
+  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (T.nb);
+
+  void *pool_A = dague_private_memory_pop( pool_1 );
+
+#line 151 "hatem-pzherbt-L_cpp.c"
+  CORE_ztsmqr(PlasmaRight, PlasmaNoTrans, tempjj, 
+	A.nb, tempjj, tempmm, 
+	A.nb, ib, M /* data_A(j,k+1) *, 
+	ldaj, N /* data_A(j,m1) *, ldaj, 
+	O /* data_A(m1,k) *, ldam, P /* data_T(m1,k) *, 
+	T.mb, pool_A, ldwork );
+
+  dague_private_memory_push( pool_A, pool_1 );
+
+  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempjj, A.nb, tempjj, tempmm, A.nb, ib, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldam, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  context->eu_id, k, m1, j, j, k+1, M, j, m1, N, m1, k, O, m1, k, P);
+
+END
+
+
+ztsmqrlr(k,m1)
+  /* Execution space */
+  k = 0..(A.nt)-1-1
+  m1 = k+2..A.mt-1
+
+  : A(k+1,k+1)
+
+  /* A == data_A(k+1,k) */
+  /* E == data_A(k+1,k+1) */
+  /* H == data_A(m,k+1) */
+  /* K == data_A(m1,k) */
+  /* L == data_T(m1,k) */
+  /* M == data_A(j,k+1) */
+  /* Q == data_A(k+1,k+1) */
+  /* R == data_A(m1,k+1) */
+  /* S == data_A(m1,m1) */
+  /* T == data_A(m1,k) */
+  /* U == data_T(m1,k) */
+
+  RW    Q <- (m1>=(3+k)) ? Q ztsmqrlr(k, m1-1) 
+          <- ((k+2)==m1) & (A.nt>=(k+2)) ? E zherfb1(m1-2) 
+          -> (A.mt==(1+m1)) ? data_A(k+1,k+1)
+          -> (A.mt>=(m1+2)) ? Q ztsmqrlr(k, m1+1) 
+  RW    R <- ((k+2)==m1) & (A.nt>=(k+2)) ? H zunmqr(m1-2, m1) 
+          <- (m1>=(k+3)) ? M ztsmqr(k, m1-1, m1) 
+          -> ((k+2)==m1) & (A.nt>=(k+3)) ? A zgeqrt(m1-1) 
+          -> (m1>=(k+3)) & (A.nt>=(k+3)) ? K ztsqrt(k+1, m1) 
+          -> ) || (((A.nt==m1) & (A.nt==(k+2))(A.nt==(k+2)) & (m1>=(A.nt+1))) ? data_A(m1,k+1)
+  RW    S <- (k>=1) ? S ztsmqrlr(k-1, m1) 
+          <- (0==k) ? data_A(m1,m1)
+          -> (m1>=(k+3)) & (A.nt>=(k+3)) ? S ztsmqrlr(k+1, m1) 
+          -> (A.nt==(k+2)) ? data_A(m1,m1)
+          -> ((k+2)==m1) & (A.nt>=(k+3)) ? E zherfb1(m1-1) 
+  READ  T <- K ztsqrt(k, m1) 
+  READ  U <- L ztsqrt(k, m1) 
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+
+  */
+
+BODY
+
+  int tempmm = ((m1)==((A.mt)-1)) ? ((A.m)-(m1*(A.mb))) : (A.mb);
+  int ib = PLASMA_IB;
+  int ldak = BLKLDD( A, k+1 );
+  int ldam = BLKLDD( A, m1 );
+  int ldwork = T.nb;
+
+  void *pool_A = dague_private_memory_pop( pool_3 );
+
+#line 155 "hatem-pzherbt-L_cpp.c"
+  CORE_ztsmqrlr(A.nb, A.nb, tempmm, 
+	A.nb, tempmm, tempmm, 
+	A.nb, ib, T.nb, 
+	Q /* data_A(k+1,k+1) *, ldak, R /* data_A(m1,k+1) *, 
+	ldam, S /* data_A(m1,m1) *, ldam, 
+	T /* data_A(m1,k) *, ldam, U /* data_T(m1,k) *, 
+	T.mb, pool_A, ldwork );
+
+  dague_private_memory_push( pool_A, pool_3 );
+
+  printlog("thread %d CORE_ztsmqrlr(%d, %d)\n\t(A.nb, A.nb, tempmm, A.nb, tempmm, tempmm, A.nb, ib, T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  context->eu_id, k, m1, k+1, k+1, Q, m1, k+1, R, m1, m1, S, m1, k, T, m1, k, U);
+
+END
