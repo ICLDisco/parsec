@@ -1152,7 +1152,10 @@ const char *type_to_symbol(int type){
             else
                 return "&&";
         case L_OR:
-            return "||";
+            if( JDF_NOTATION )
+                return "|";
+            else
+                return "||";
         case LSHIFT:
             return "<<";
         case RSHIFT:

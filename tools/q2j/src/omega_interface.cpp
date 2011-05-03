@@ -575,7 +575,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             continue;
         }
         
-
 #warning "The following conjunctions are suboptimal. Look at the SC11 submission for better ones."
 
         // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
@@ -1807,15 +1806,15 @@ string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
     }
 
     if( simpl_conj.size() > 1 )
-        ss << "(";
+        ss << "( (";
     for(cj_it = simpl_conj.begin(); cj_it != simpl_conj.end(); cj_it++){
         expr_t *cur_exp = *cj_it;
         if( cj_it != simpl_conj.begin()  )
-            printf(") || (");
+            ss << ") | ("; /* The symbol for Logical OR in the JDF parser is a single "|" */
         ss << expr_tree_to_str(cur_exp);
     }
     if( simpl_conj.size() > 1 )
-        ss << ")";
+        ss << ") )";
 
     return ss.str();
 }
@@ -3325,7 +3324,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
              }
              printf("\n");
 #ifdef DEBUG_2
-             printf("       // ");
+             if( NULL != src_task ){
+                 printf("          // %s -> %s ",src_task->task_name, tree_to_str(dep->dst));
+             }else{
+                 printf("          // ENTRY -> %s ", tree_to_str(dep->dst));
+             }
              (*dep->rel).print_with_subs(stdout);
 #endif
         }
