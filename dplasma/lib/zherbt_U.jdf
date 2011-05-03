@@ -1,4 +1,4 @@
-xtern "C" %{
+extern "C" %{
   /**
    * PLASMA include for defined and constants.
    *
@@ -61,9 +61,9 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_0 );
   void *pool_B = dague_private_memory_pop( pool_1 );
 
-#line 114 "hatem-pzherbt-U_cpp.c"
+#line 67 "pzherbt-U.c"
   CORE_zgelqt(A.nb, tempkn, ib, 
-	A /* data_A(k,k+1) *, A.nb, B /* data_T(k,k+1) *, 
+	A /* data_A(k,k+1) */, A.nb, B /* data_T(k,k+1) */, 
 	T.mb, pool_A, pool_B );
 
   dague_private_memory_push( pool_A, pool_0 );
@@ -109,11 +109,11 @@ BODY
 
   void *pool_A = dague_private_memory_pop( pool_2 );
 
-#line 117 "hatem-pzherbt-U_cpp.c"
+#line 81 "pzherbt-U.c"
   CORE_zherfb1(PlasmaUpper, tempkn, tempkn, 
-	ib, T.nb, C /* data_A(k,k+1) *, 
-	A.nb, D /* data_T(k,k+1) *, T.mb, 
-	E /* data_A(k+1,k+1) *, ldak, pool_A, 
+	ib, T.nb, C /* data_A(k,k+1) */, 
+	A.nb, D /* data_T(k,k+1) */, T.mb, 
+	E /* data_A(k+1,k+1) */, ldak, pool_A, 
 	T.nb );
 
   dague_private_memory_push( pool_A, pool_2 );
@@ -144,7 +144,7 @@ zunmlq(k,n)
   READ  G <- B zgelqt(k) 
   RW    H <- (0==k) ? data_A(k+1,n)
           <- (k>=1) ? N ztsmlq1(k+1-2, n, k+1) 
-          -> ((k+2)==n) ? V ztsmlqrl(n-2, n) 
+          -> ((2+k)==n) ? V ztsmlqrl(n-2, n) 
           -> (n>=(3+k)) ? Q ztsmlq(k, k+2, n) 
 
   /*
@@ -161,11 +161,11 @@ BODY
 
   void *pool_A = dague_private_memory_pop( pool_1 );
 
-#line 122 "hatem-pzherbt-U_cpp.c"
+#line 101 "pzherbt-U.c"
   CORE_zunmlq(PlasmaLeft, PlasmaNoTrans, A.nb, 
 	tempnn, tempkn, ib, 
-	F /* data_A(k,k+1) *, A.nb, G /* data_T(k,k+1) *, 
-	T.mb, H /* data_A(k+1,n) *, ldak, 
+	F /* data_A(k,k+1) */, A.nb, G /* data_T(k,k+1) */, 
+	T.mb, H /* data_A(k+1,n) */, ldak, 
 	pool_A, T.nb );
 
   dague_private_memory_push( pool_A, pool_1 );
@@ -197,7 +197,7 @@ ztslqt(k,n1)
   /* Y == data_T(k,n1) */
 
   RW    J <- (n1>=(k+3)) ? J ztslqt(k, n1-1) 
-          <- ((k+2)==n1) ? A zgelqt(k) 
+          <- ((2+k)==n1) ? A zgelqt(k) 
           -> (A.nt>=(n1+2)) ? J ztslqt(k, n1+1) 
           -> (A.nt==(n1+1)) ? data_A(k,k+1)
   RW    K <- ((n1+1)==A.nt) & (k>=1) ? V ztsmlqrl(k-1, A.nt-1) 
@@ -226,10 +226,10 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_0 );
   void *pool_B = dague_private_memory_pop( pool_1 );
 
-#line 128 "hatem-pzherbt-U_cpp.c"
+#line 123 "pzherbt-U.c"
   CORE_ztslqt(A.nb, tempnn, ib, 
-	J /* data_A(k,k+1) *, A.nb, K /* data_A(k,n1) *, 
-	A.nb, L /* data_T(k,n1) *, T.mb, 
+	J /* data_A(k,k+1) */, A.nb, K /* data_A(k,n1) */, 
+	A.nb, L /* data_T(k,n1) */, T.mb, 
 	pool_A, pool_B );
 
   dague_private_memory_push( pool_A, pool_0 );
@@ -287,12 +287,12 @@ BODY
 
   void *pool_A = dague_private_memory_pop( pool_1 );
 
-#line 133 "hatem-pzherbt-U_cpp.c"
+#line 142 "pzherbt-U.c"
   CORE_ztsmlq1(PlasmaRight, PlasmaConjTrans, A.mb, 
 	A.nb, A.nb, tempnn, 
-	A.nb, ib, M /* data_A(k+1,i) *, 
-	ldak, N /* data_A(i,n1) *, ldai, 
-	O /* data_A(k,n1) *, A.nb, P /* data_T(k,n1) *, 
+	A.nb, ib, M /* data_A(k+1,i) */, 
+	ldak, N /* data_A(i,n1) */, ldai, 
+	O /* data_A(k,n1) */, A.nb, P /* data_T(k,n1) */, 
 	T.mb, pool_A, ldwork );
 
   dague_private_memory_push( pool_A, pool_1 );
@@ -348,12 +348,12 @@ BODY
 
   void *pool_A = dague_private_memory_pop( pool_1 );
 
-#line 140 "hatem-pzherbt-U_cpp.c"
+#line 170 "pzherbt-U.c"
   CORE_ztsmlq(PlasmaLeft, PlasmaNoTrans, A.nb, 
 	tempjj, tempnn, tempjj, 
-	A.nb, ib, Q /* data_A(k+1,j) *, 
-	ldak, R /* data_A(n1,j) *, ldan, 
-	S /* data_A(k,n1) *, A.nb, T /* data_T(k,n1) *, 
+	A.nb, ib, Q /* data_A(k+1,j) */, 
+	ldak, R /* data_A(n1,j) */, ldan, 
+	S /* data_A(k,n1) */, A.nb, T /* data_T(k,n1) */, 
 	T.mb, pool_A, ldwork );
 
   dague_private_memory_push( pool_A, pool_1 );
@@ -415,13 +415,13 @@ BODY
 
   void *pool_A = dague_private_memory_pop( pool_3 );
 
-#line 144 "hatem-pzherbt-U_cpp.c"
+#line 195 "pzherbt-U.c"
   CORE_ztsmlqrl(A.nb, A.nb, A.nb, 
 	tempnn, tempnn, tempnn, 
 	A.nb, ib, T.nb, 
-	U /* data_A(k+1,k+1) *, ldak, V /* data_A(k+1,n1) *, 
-	ldak, W /* data_A(n1,n1) *, ldan, 
-	X /* data_A(k,n1) *, A.nb, Y /* data_T(k,n1) *, 
+	U /* data_A(k+1,k+1) */, ldak, V /* data_A(k+1,n1) */, 
+	ldak, W /* data_A(n1,n1) */, ldan, 
+	X /* data_A(k,n1) */, A.nb, Y /* data_T(k,n1) */, 
 	T.mb, pool_A, ldwork );
 
   dague_private_memory_push( pool_A, pool_3 );
