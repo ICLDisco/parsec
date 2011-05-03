@@ -1830,6 +1830,24 @@ void print_body(node_t *task_node){
 }
 
 
+void print_header(){
+    printf("extern \"C\" %%{\n"
+           "  /**\n"                 /* The following lines are PLASMA/DPLASMA specific */
+           "   * PLASMA include for defined and constants.\n"
+           "   *\n"
+           "   * @precisions normal z -> s d c\n"
+           "   *\n"
+           "   */\n"
+           "#include <plasma.h>\n"    
+           "#include <core_blas.h>\n" /* The previous lines are PLASMA/DPLASMA specific */
+           "\n"
+           "#include \"dague.h\"\n"
+           "#include \"data_distribution.h\"\n"
+           "#include \"memory_pool.h\"\n"
+           "%%}\n"
+           "\n");
+}
+
 
 #if 0
 
@@ -2254,6 +2272,7 @@ void interrogate_omega(node_t *root, var_t *head){
     map<char *, set<dep_t *> > incoming_edges;
     map<char *, set<dep_t *> > synch_edges;
 
+    print_header();
     print_types_of_formal_parameters(root);
 
     declare_global_vars(root);
@@ -2666,6 +2685,7 @@ printf("========================================================================
 
         // If the source task is NOT the ENTRY, then dump all the info
         if( NULL != src_task ){
+
             printf("\n\n%s(",task_name);
             for(int i=0; NULL != src_task->ind_vars[i]; ++i){
                 if( i ) printf(",");
