@@ -41,7 +41,7 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
 static int is_var_repeating(char *iv_str, char **iv_names);
 
 
-#if 0
+//#if 0
 void dump_und(und_t *und){
     char *name;
 
@@ -69,6 +69,7 @@ void dump_all_unds(void){
     und_t *und;
     node_t *tmp;
 
+printf("###############\n");
     for(var=var_head; NULL != var; var=var->next){
         for(und=var->und; NULL != und ; und=und->next){
             dump_und(und);
@@ -83,8 +84,9 @@ void dump_all_unds(void){
             printf("\n");
         }
     }
+printf("###############\n");
 }
-#endif
+//#endif
 
 void add_variable_use_or_def(node_t *node, int rw, int task_count){
     var_t *var=NULL, *prev=NULL;
@@ -276,7 +278,6 @@ static void record_use_and_defs(node_t *node){
     static int symbolic_name_count = 0;
     int i;
 
-
     if( FCALL == node->type ){
         int kid_count;
         task_t *task;
@@ -334,6 +335,7 @@ static void record_use_and_defs(node_t *node){
 
 void analyze_deps(node_t *node){
     record_use_and_defs(node);
+    dump_all_unds();
     interrogate_omega(node, var_head);
 }
 
@@ -1445,8 +1447,8 @@ char *quark_tree_to_body(node_t *node){
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(id));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
 
-            pool_push = append_to_string( pool_push, param, "  dague_private_memory_push( %s", 35+strlen(id));
-            pool_push = append_to_string( pool_push, pool_name, ", %s );\n", 6+strlen(pool_name));
+            pool_push = append_to_string( pool_push, param, "  dague_private_memory_push( %s", 35+strlen(pool_name));
+            pool_push = append_to_string( pool_push, pool_name, ", %s );\n", 6+strlen(id));
 
             str = append_to_string( str, param, NULL, 0);
 

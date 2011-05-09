@@ -1137,7 +1137,22 @@ expression_statement
 
 selection_statement
 	: IF '(' expression ')' statement
+          {
+              $$.type = IF;
+              $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
+              $$.u.kids.kid_count = 2;
+              $$.u.kids.kids[0] = node_to_ptr($3);
+              $$.u.kids.kids[1] = node_to_ptr($5);
+          }
 	| IF '(' expression ')' statement ELSE statement
+          {
+              $$.type = IF;
+              $$.u.kids.kids = (node_t **)calloc(3, sizeof(node_t *));
+              $$.u.kids.kid_count = 3;
+              $$.u.kids.kids[0] = node_to_ptr($3);
+              $$.u.kids.kids[1] = node_to_ptr($5);
+              $$.u.kids.kids[2] = node_to_ptr($7);
+          }
 	| SWITCH '(' expression ')' statement
 	;
 

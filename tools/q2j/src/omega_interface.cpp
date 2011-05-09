@@ -223,6 +223,73 @@ void expr_to_Omega_coef(node_t *node, Constraint_Handle &handle, int sign, map<s
 }
 
 
+#if 0
+/*
+ * A path can exist from src to dst iff both following conditions are true:
+ * 1) src & dst have at least one common enclosing block
+ * 2) src & dst are either:
+ *    2a) not in different branches of an if-then-else condition
+ *    2b) are in different branches of an if-then-else such that both following conditions hold:
+ *        i)  the if-then-else is enclosed by at least one loop
+ *        ii) the if-then-else condition is not loop invariant w.r.t. the enclosing loop
+ */
+
+bool path_can_exist_from_src_to_dst(node_t *src, node_t *dst){
+    bool common_parent_found = false;
+    node_t *prnt = NULL;
+    printf("src: %s\n",tree_to_str(src));
+    printf("dst: %s\n",tree_to_str(dst));
+
+    for(prnt=src; prnt!=NULL; prnt=prnt->parent){
+        node_t *tmp;
+        for(tmp=dst; tmp!=NULL; tmp=tmp->parent){
+            if( tmp == prnt ){
+                common_parent_found = true;
+                break;
+            }
+        }
+        if( common_parent_found )
+            break;
+    }
+    if( !common_parent_found ){
+        printf("Source and Destination (%s and %s) do not share a common parent.\n",tree_to_str(src), tree_to_str(dst));
+        return false;
+    }
+
+    printf("Common parent found: %s\n", DA_type_name(prnt) );
+        
+    // Check to see if "src" is inside an if-then-else
+    for(node_t *tmp=src; tmp!=NULL; tmp=tmp->parent){
+        if( IF == tmp->parent ){
+            // Since "src" is in an if-then-else, see whether "dst" is inside the same if-then-else
+            for(node_t *tmp2=dst; tmp2!=NULL; tmp2=tmp2->parent){
+                if( tmp->parent == tmp2->parent ){
+                    // Since "dst" is in the same if-then-else as "src" see if they are in the same branch
+                    if( tmp2 == tmp ){
+                        continue;
+                    }else{
+                        // Since "src" and "dst" are in different branches of an if-then-else, for a path to exist:
+                        // a) the if-then-else must be inside a loop AND
+                        // b) it must be loop dependent
+#error "HERE"
+                    }
+                }
+            }
+        }
+        printf("%s ", DA_type_name(tmp) );
+    }
+    printf("\n");
+
+    printf("dst (%s) ancestory: ",tree_to_str(dst));
+    for(node_t *tmp=dst; tmp!=NULL; tmp=tmp->parent){
+        printf("%s ", DA_type_name(tmp) );
+    }
+    printf("\n");
+
+    return true;
+}
+#endif
+
 /*
  * Find the first loop that encloses both arguments
  */
@@ -486,6 +553,14 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             }
             continue;
         }
+
+/*
+// IF THEN ELSE HERE Here here
+        // Experimental code to handle if-then-else
+        if( !path_can_exist_from_src_to_dst(def, und->node) )
+            continue;
+*/
+
         // In the case of output dependencies (write after write) "use" is really a DEF.
         use = und->node;
 
