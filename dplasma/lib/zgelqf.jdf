@@ -9,8 +9,8 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "dague.h"
-#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasmajdf.h"
 
 #define PRECISION_z
 
@@ -95,8 +95,8 @@ BODY
   printlog("thread %d   CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
   context->eu_id, k, k, k, A, k, k, B);
 
-  dague_private_memory_push( pool1, pool_Tau );
-  dague_private_memory_push( pool2, pool_work );
+  dague_private_memory_push( pool_Tau, pool1 );
+  dague_private_memory_push( pool_work, pool2 );
 
 END
 
@@ -145,17 +145,17 @@ BODY
   printlog("thread %d   CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, A(%d,%d)[%p], ldam, pool1, Tnb)\n",
   context->eu_id, k, m, k, k, C, k, k, D, m, k, E);
 
-  dague_private_memory_push( pool1, pool_work );
+  dague_private_memory_push( pool_work, pool1 );
 
 END
 
-ztsqlt_in_A(k)
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+ztsqlt_out_A(k)
+  k = 0..( (Amt-1 < Ant-1)? Amt-2 : Ant-2 )
 
   : A(k, k)
 
-RW A <- A(k,k)             [type = LOWER_TILE]
-     -> F ztslqt(k, Ant-1) [type = LOWER_TILE] /* solved n to Ant-1 because Ant==(n+1) in the outgoing edge of the source task */
+RW A  <- F ztslqt(k, Ant-1) [type = LOWER_TILE] /* solved n to Ant-1 because Ant==(n+1) in the outgoing edge of the source task */
+      -> A(k,k)             [type = LOWER_TILE]
 
 BODY
  /* Nothing */
@@ -179,7 +179,7 @@ ztslqt(k,n)
   RW    F <- (n>=(k+2)) ? F ztslqt(k, n-1)                  [type = LOWER_TILE]
           <- ((k+1)==n) & (Amt>=(k+1)) ? A zgelqt(n-1)      [type = LOWER_TILE]
           -> (Ant>=(n+2)) ? F ztslqt(k, n+1)                [type = LOWER_TILE]
-          -> (Ant==(n+1)) ? A ztsqlt_in_A(k) /* A(k, k) */  [type = LOWER_TILE]
+          -> (Ant==(n+1)) ? A ztsqlt_out_A(k) /* A(k, k) */  [type = LOWER_TILE]
   RW    G <- (k>=1) ? K ztsmlq(k-1, n, k) 
           <- (0==k) ? A(k,n)
           -> (Amt>=(k+2)) ? L ztsmlq(k, n, (k+1)..(Amt-1)) 
@@ -209,8 +209,8 @@ BODY
   printlog("thread %d   CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
   context->eu_id, k, n, k, k, F, k, n, G, k, n, H);
 
-  dague_private_memory_push( pool1, pool_Tau );
-  dague_private_memory_push( pool2, pool_work );
+  dague_private_memory_push( pool_Tau, pool1 );
+  dague_private_memory_push( pool_work, pool2 );
 
 END
 
@@ -282,6 +282,6 @@ BODY
   printlog("thread %d   CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, Anb, tempmm, tempnn, Amb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, ldwork)\n",
   context->eu_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
-  dague_private_memory_push( pool1, pool_work );
+  dague_private_memory_push( pool_work, pool1 );
 
 END

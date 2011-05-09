@@ -211,15 +211,17 @@ foreach ($ALLXML as $xml) {
                 $cyid = 0;
                 $nby = 0;
                 
-                foreach ( $key->EVENT as $candidate ) {
-                    if( $event == $candidate ) {
-                        $eyid = $cyid;
-                    } 
-                    if( collide($candidate, $event) ) {
-                        $cyid++;
-                        $nby++;
-                    }
-                }
+#                foreach ( $key->EVENT as $candidate ) {
+#                    if( $event == $candidate ) {
+#                        $eyid = $cyid;
+#                    } 
+#                    if( collide($candidate, $event) ) {
+#                        $cyid++;
+#                        $nby++;
+#                    }
+#                }
+                $eyid = 0;
+                $nby = 1;
 
                 $eheight = $h/$nby; #$nby >= 1 because collide($event, $event)
                 $ey = $y + $eyid * $eheight;

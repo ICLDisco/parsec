@@ -48,7 +48,7 @@ struct dague_execution_unit {
     uint32_t              eu_nb_hierarch_queues;
     dague_dequeue_t      *eu_system_queue;
 #  if defined(DAGUE_SCHED_CACHE_AWARE)
-    cache_t *closest_cache;
+    struct cache_t *closest_cache;
 #  endif
 #endif /* HAVE_HWLOC */
 

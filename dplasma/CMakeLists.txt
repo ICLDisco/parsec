@@ -1,6 +1,4 @@
 # DPLASMA specific option.
-option(DPLASMA_CALL_TRACE
-  "Enable the output of the BLAS kernels call trace during execution" OFF)
 option(DPLASMA_GPU_WITH_MAGMA
   "Enable GPU support using MAGMA kernels" OFF)
 if(DPLASMA_GPU_WITH_MAGMA)

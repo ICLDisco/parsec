@@ -94,7 +94,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
 typedef void (dague_traverse_function_t)(struct dague_execution_unit *, dague_execution_context_t *, dague_ontask_function_t *, void *);
 
 #if defined(DAGUE_SCHED_CACHE_AWARE)
-typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *exec_context, const cache_t *cache, unsigned int reward);
+typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *exec_context, const struct cache_t *cache, unsigned int reward);
 #endif
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
