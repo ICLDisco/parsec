@@ -282,7 +282,7 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
     if( (context->next_event + this_event_length) > context->events_top ) {
         if( context->next_event <= context->events_top ) {
             fprintf(stderr, "Profiling warning: profiling for ID %s will be truncated after %lu events\n",
-                    context->hr_id, context->nb_events);
+                    context->hr_id, (unsigned long)context->nb_events);
             context->next_event = context->events_top + 1;
         }
         return -1;
