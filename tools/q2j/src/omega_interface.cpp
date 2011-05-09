@@ -575,7 +575,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             continue;
         }
         
-
 #warning "The following conjunctions are suboptimal. Look at the SC11 submission for better ones."
 
         // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
@@ -1807,15 +1806,15 @@ string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
     }
 
     if( simpl_conj.size() > 1 )
-        ss << "(";
+        ss << "( (";
     for(cj_it = simpl_conj.begin(); cj_it != simpl_conj.end(); cj_it++){
         expr_t *cur_exp = *cj_it;
         if( cj_it != simpl_conj.begin()  )
-            printf(") || (");
+            ss << ") | ("; /* The symbol for Logical OR in the JDF parser is a single "|" */
         ss << expr_tree_to_str(cur_exp);
     }
     if( simpl_conj.size() > 1 )
-        ss << ")";
+        ss << ") )";
 
     return ss.str();
 }
@@ -1829,6 +1828,24 @@ void print_body(node_t *task_node){
     printf("\nEND\n");
 }
 
+
+void print_header(){
+    printf("extern \"C\" %%{\n"
+           "  /**\n"                 /* The following lines are PLASMA/DPLASMA specific */
+           "   * PLASMA include for defined and constants.\n"
+           "   *\n"
+           "   * @precisions normal z -> s d c\n"
+           "   *\n"
+           "   */\n"
+           "#include <plasma.h>\n"    
+           "#include <core_blas.h>\n" /* The previous lines are PLASMA/DPLASMA specific */
+           "\n"
+           "#include \"dague.h\"\n"
+           "#include \"data_distribution.h\"\n"
+           "#include \"memory_pool.h\"\n"
+           "%%}\n"
+           "\n");
+}
 
 
 #if 0
@@ -2254,6 +2271,7 @@ void interrogate_omega(node_t *root, var_t *head){
     map<char *, set<dep_t *> > incoming_edges;
     map<char *, set<dep_t *> > synch_edges;
 
+    print_header();
     print_types_of_formal_parameters(root);
 
     declare_global_vars(root);
@@ -2666,6 +2684,7 @@ printf("========================================================================
 
         // If the source task is NOT the ENTRY, then dump all the info
         if( NULL != src_task ){
+
             printf("\n\n%s(",task_name);
             for(int i=0; NULL != src_task->ind_vars[i]; ++i){
                 if( i ) printf(",");
@@ -3305,7 +3324,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
              }
              printf("\n");
 #ifdef DEBUG_2
-             printf("       // ");
+             if( NULL != src_task ){
+                 printf("          // %s -> %s ",src_task->task_name, tree_to_str(dep->dst));
+             }else{
+                 printf("          // ENTRY -> %s ", tree_to_str(dep->dst));
+             }
              (*dep->rel).print_with_subs(stdout);
 #endif
         }

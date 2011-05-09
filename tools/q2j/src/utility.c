@@ -1152,7 +1152,10 @@ const char *type_to_symbol(int type){
             else
                 return "&&";
         case L_OR:
-            return "||";
+            if( JDF_NOTATION )
+                return "|";
+            else
+                return "||";
         case LSHIFT:
             return "<<";
         case RSHIFT:
@@ -1455,7 +1458,7 @@ char *quark_tree_to_body(node_t *node){
             assert(NULL != symname);
             param = tree_to_str(node->u.kids.kids[i]);
             str = append_to_string( str, symname, NULL, 0);
-            str = append_to_string( str, param, " /* data_%s */", 11+strlen(param));
+            str = append_to_string( str, param, " /* data_%s */", 12+strlen(param));
         }
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
