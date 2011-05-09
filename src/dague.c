@@ -301,7 +301,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #error "The DAGUE_SCHED_CACHE_AWARE code depends on obsolete global TILE_SIZE. Please disable this option (in ccmake toggle DAGUE_SCHED_CACHE_AWARE to off)."
 #define TILE_SIZE (120*120*sizeof(double))
         for(level = 0; level < dague_hwloc_nb_levels(); level++) {
-            master = dague_hwloc_master_id(level, eu->eu_id);
+            int master = dague_hwloc_master_id(level, eu->eu_id);
             if( eu->eu_id == master ) {
                 int nbtiles = (dague_hwloc_cache_size(level, master) / TILE_SIZE)-1;
                 int nbcores = dague_hwloc_nb_cores(level, master);
