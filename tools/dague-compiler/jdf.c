@@ -92,19 +92,25 @@ static int jdf_sanity_check_global_masked(void)
 static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_entry_t *g1)
 {
     jdf_global_entry_t *g2;
+    char *vc, *dot;
     int rc = 0;
     switch( e->op ) {
     case JDF_VAR:
+        vc = strdup(e->jdf_var);
+        dot = strchr(vc, '.');
+        if( NULL != dot )
+            *dot = '\0';
         for(g2 = current_jdf.globals; g2 != g1; g2 = g2->next) {
-            if( !strcmp( e->jdf_var, g2->name ) ) {
+            if( !strcmp( vc, g2->name ) ) {
                 break;
             }
         }
         if( g2 == g1 ) {
-            jdf_fatal(g1->lineno, "Global %s is defined using variable %s which is unbound at this time\n",
-                      g1->name, e->jdf_var);
+            jdf_fatal(g1->lineno, "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
+                      g1->name, vc, e->jdf_var);
             rc = -1;
         }
+        free(vc);
         return rc;
     case JDF_CST:
         return 0;
@@ -199,25 +205,32 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
 {
     jdf_global_entry_t *g;
     jdf_def_list_t *d2;
+    char *vc, *dot;
     int rc = 0;
+
     switch( e->op ) {
     case JDF_VAR:
+        vc = strdup(e->jdf_var);
+        dot = strchr(vc, '.');
+        if( NULL != dot )
+            *dot = '\0';
         for(g = current_jdf.globals; g != NULL; g = g->next) {
-            if( !strcmp( e->jdf_var, g->name ) ) {
+            if( !strcmp( vc, g->name ) ) {
                 break;
             }
         }
         if( g == NULL ) {
             for(d2 = f->definitions; d2 != d; d2 = d2->next) {
-                if( !strcmp( e->jdf_var, d2->name ) ) {
+                if( !strcmp( vc, d2->name ) ) {
                     break;
                 }
             }
             if( d2 == d ) {
-                jdf_fatal(d->lineno, "Local %s is defined using variable %s which is unbound at this time\n",
-                          d->name, e->jdf_var);
+                jdf_fatal(d->lineno, "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
+                          d->name,  vc, e->jdf_var);
                 rc = -1;
             }
+            free(vc);
         }
         return rc;
     case JDF_CST:
@@ -262,25 +275,32 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
 {
     jdf_global_entry_t *g;
     jdf_def_list_t *d;
+    char *vc, *dot;
     int rc = 0;
+
     switch( e->op ) {
     case JDF_VAR:
+        vc = strdup(e->jdf_var);
+        dot = strchr(vc, '.');
+        if( NULL != dot )
+            *dot = '\0';
         for(g = current_jdf.globals; g != NULL; g = g->next) {
-            if( !strcmp( e->jdf_var, g->name ) ) {
+            if( !strcmp( vc, g->name ) ) {
                 break;
             }
         }
         if( g == NULL ) {
             for(d = f->definitions; d != NULL; d = d->next) {
-                if( !strcmp( e->jdf_var, d->name ) ) {
+                if( !strcmp( vc, d->name ) ) {
                     break;
                 }
             }
             if( d == NULL ) {
-                jdf_fatal(f->lineno, "%s of function %s is defined using variable %s which is unbound at this time\n",
-                          kind, f->fname, e->jdf_var);
+                jdf_fatal(f->lineno, "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
+                          kind, f->fname, vc, e->jdf_var);
                 rc = -1;
             }
+            free(vc);
         }
         return rc;
     case JDF_CST:

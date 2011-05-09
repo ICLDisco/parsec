@@ -186,6 +186,7 @@ static char * dump_expr(void **elem, void *arg)
     jdf_expr_t *e = *(jdf_expr_t**)elem;
     string_arena_t *sa = expr_info->sa;
     string_arena_t *la, *ra;
+    char *vc, *dot;
 
     string_arena_init(sa);
 
@@ -201,13 +202,18 @@ static char * dump_expr(void **elem, void *arg)
     switch( e->op ) {
     case JDF_VAR: {
         jdf_global_entry_t* item = current_jdf.globals;
+        vc = strdup( e->jdf_var );
+        dot = strchr(vc, '.');
+        if( NULL != dot )
+            *dot = '\0';
         while( item != NULL ) {
-            if( !strcmp(item->name, e->jdf_var) ) {
+            if( !strcmp(item->name, vc) ) {
                 string_arena_add_string(sa, "%s", e->jdf_var);
                 break;
             }
             item = item->next;
         }
+        free(vc);
         if( NULL == item ) {
             string_arena_add_string(sa, "%s%s", expr_info->prefix, e->jdf_var);
         }
