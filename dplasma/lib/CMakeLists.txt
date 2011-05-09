@@ -56,6 +56,7 @@ set(JDF
   zgetrf.jdf zgetrf_sd.jdf ztrsmpl.jdf
   zgeqrf.jdf
   zgelqf.jdf
+  zherbt_L.jdf
 )
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JDF}")
 jdf_rules(generated_files "${generated_jdf}")
