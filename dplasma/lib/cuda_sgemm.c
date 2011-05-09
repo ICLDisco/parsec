@@ -51,6 +51,16 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
 
     char *env;
 
+    /**
+     * Right now the sgemm function available with DPLASMA can only handle
+     * square tiles with a size multiple of 64.
+     */
+    if( (tileA->mb != tileA->nb) || ((tileA->nb % 64) != 0) ) {
+        printf("#\n# The CUDA GEMM version provided by DPLASMA is limitted to square tiles\n"
+               "# with a size multiple of 64.\n");
+        return -1;
+    }
+
     env = getenv("OHM_N");
     if( NULL != env )
         OHM_N = atoi(env);
