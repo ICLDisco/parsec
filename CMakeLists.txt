@@ -56,6 +56,8 @@ option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
+option(DAGUE_CALL_TRACE
+  "Enable the output of the kernels call trace during execution" OFF)
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
