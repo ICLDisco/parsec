@@ -5,14 +5,13 @@ extern "C" %{
    * @precisions normal z -> s d c
    *
    */
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasmajdf.h"
-
-#define PRECISION_z
 
 #include "data_distribution.h"
 #include "memory_pool.h"
@@ -27,7 +26,7 @@ desc_A [type = "PLASMA_desc"]
 data_A [type = "dague_ddesc_t*"]
 desc_T [type = "PLASMA_desc"]
 data_T [type = "dague_ddesc_t*" aligned=data_A]
-IB [type = int]
+IB     [type = int]
 pool_0 [type = "dague_memory_pool_t *"]
 pool_1 [type = "dague_memory_pool_t *"]
 pool_2 [type = "dague_memory_pool_t *"]
@@ -56,10 +55,10 @@ zgeqrt(k)
           -> (desc_A.mt>=(k+3)) ? J ztsqrt(k, k+2) 
           -> ((k+2)>=desc_A.mt) ? data_A(k+1,k)
           -> (desc_A.mt>=(k+3)) ? F zunmqr(k, (k+2)..(desc_A.mt-1)) 
-  RW    B <- data_T(k+1,k)
-          -> D zherfb1(k) 
-          -> (desc_A.mt>=(3+k)) ? G zunmqr(k, (k+2)..(desc_A.mt-1)) 
-          -> data_T(k+1,k)
+  RW    B <- data_T(k+1,k)                                                 [type = LITTLE_T]
+          -> D zherfb1(k)                                                  [type = LITTLE_T]
+          -> (desc_A.mt>=(3+k)) ? G zunmqr(k, (k+2)..(desc_A.mt-1))        [type = LITTLE_T]
+          -> data_T(k+1,k)                                                 [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -155,7 +154,7 @@ zunmqr(k,m)
   /* V == data_A(m1,k+1) */
 
   READ  F <- A zgeqrt(k) 
-  READ  G <- B zgeqrt(k) 
+  READ  G <- B zgeqrt(k)                                       [ type = LITTLE_T ]
   RW    H <- (0==k) ? data_A(m,k+1)
           <- (k>=1) ? N ztsmqr1(k+1-2, m, k+1) 
           -> (m==(k+2)) & (desc_A.nt>=m) ? V ztsmqrlr(m-2, m) 
@@ -233,11 +232,11 @@ ztsqrt(k,m1)
           -> X ztsmqrlr(k, m1) 
           -> data_A(m1,k)
           -> (m1>=(k+3)) ? O ztsmqr1(k, m1, (k+2)..(m1-1)) 
-  RW    L <- data_T(m1,k)
-          -> (m1>=(k+3)) ? P ztsmqr1(k, m1, (k+2)..(m1-1)) 
-          -> data_T(m1,k)
-          -> (desc_A.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(desc_A.mt-1)) 
-          -> Y ztsmqrlr(k, m1) 
+  RW    L <- data_T(m1,k)                                                     [ type = LITTLE_T ]
+          -> (m1>=(k+3)) ? P ztsmqr1(k, m1, (k+2)..(m1-1))                    [ type = LITTLE_T ]
+          -> data_T(m1,k)                                                     [ type = LITTLE_T ]
+          -> (desc_A.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(desc_A.mt-1))     [ type = LITTLE_T ]
+          -> Y ztsmqrlr(k, m1)                                                [ type = LITTLE_T ]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -314,7 +313,7 @@ ztsmqr1(k,m1,i)
           -> (desc_A.nt==(k+2)) ? data_A(m1,i)
           -> ((2+k)==i) & (desc_A.nt>=(k+3)) ? H zunmqr(i-1, m1) 
   READ  O <- K ztsqrt(k, m1) 
-  READ  P <- L ztsqrt(k, m1) 
+  READ  P <- L ztsqrt(k, m1)                                               [ type = LITTLE_T ]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -374,7 +373,7 @@ ztsmqr(k,m1,j)
           -> N ztsmqr1(k, j, m1) 
           -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? R ztsmqr(k+1, m1, j) 
   READ  S <- K ztsqrt(k, m1) 
-  READ  T <- L ztsqrt(k, m1) 
+  READ  T <- L ztsqrt(k, m1)                                           [ type = LITTLE_T ]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -480,7 +479,7 @@ ztsmqrlr(k,m1)
           -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? W ztsmqrlr(k+1, m1) 
           -> (desc_A.nt==(k+2)) ? A ztsmqrlr_out2_data_A(m1)
   READ  X <- K ztsqrt(k, m1) 
-  READ  Y <- L ztsqrt(k, m1) 
+  READ  Y <- L ztsqrt(k, m1)                                 [ type = LITTLE_T ]
 
   /*
   The following is a superset of the necessary anti-dependencies:

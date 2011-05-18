@@ -77,6 +77,8 @@ set(SOURCES
   zgesv_wrapper.c 
   zgeqrf_wrapper.c
   zgelqf_wrapper.c
+  # ???
+  zherbt_wrapper.c
 )
 precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}") 
 
