@@ -64,6 +64,7 @@ node_t *DA_create_Exit();
 
 char *quark_tree_to_body(node_t *node);
 void print_default_task_placement(node_t *task_node);
+char *create_pool_declarations(void);
 
 
 // yacc utility

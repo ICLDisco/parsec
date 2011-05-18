@@ -2329,11 +2329,17 @@ void print_types_of_formal_parameters(node_t *root){
     scope = root->symtab;
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
-            printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+            if( !strcmp(sym->var_type, "PLASMA_desc") ){
+                printf("desc_%s [type = \"PLASMA_desc\"]\n",sym->var_name);
+                printf("data_%s [type = \"dague_ddesc_t *\"]\n",sym->var_name);
+            }else{
+                printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+            }
         }
         scope = scope->parent;
     }while(NULL != scope);
 
+    printf("%s",create_pool_declarations());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3411,6 +3417,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         if(insert_fake_read){
             dep_t *dep = *(odeps.begin());
             printf(" <- ");
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
             printf("data_%s\n",tree_to_str(dep->src));
         }
 

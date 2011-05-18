@@ -25,6 +25,7 @@
 
 extern char *dague_input_file_name;
 
+static dague_linked_list_t _dague_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
@@ -39,6 +40,7 @@ static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static int DA_quark_INOUT(node_t *node);
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
 static int is_var_repeating(char *iv_str, char **iv_names);
+static char *size_to_pool_name(char *size_str);
 
 
 //#if 0
@@ -274,7 +276,7 @@ static char *quark_call_to_task_name( char *call_name ){
 }
 
 
-static void record_use_and_defs(node_t *node){
+static void quark_record_uses_defs_and_pools(node_t *node){
     static int symbolic_name_count = 0;
     int i;
 
@@ -310,11 +312,17 @@ static void record_use_and_defs(node_t *node){
         for(i=1; i<kid_count; ++i){
             node_t *tmp = node->u.kids.kids[i];
 
+            // Record USE of DEF
             if( ARRAY == tmp->type ){
                 tmp->task = task;
                 tmp->var_symname = numToSymName(symbolic_name_count++);
                 node_t *qual = node->u.kids.kids[i+1];
                 add_variable_use_or_def( tmp, DA_quark_INOUT(qual), _task_count );
+            }
+
+            // Record a pool (size_to_pool_name() will create an entry for each new pool)
+            if( (i+1<node->u.kids.kid_count) && (i>1) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
+                (void)size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
             }
         }
         _task_count++;
@@ -323,19 +331,19 @@ static void record_use_and_defs(node_t *node){
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            record_use_and_defs(tmp);
+            quark_record_uses_defs_and_pools(tmp);
         }
     }else{
         for(i=0; i<node->u.kids.kid_count; ++i){
-            record_use_and_defs(node->u.kids.kids[i]);
+            quark_record_uses_defs_and_pools(node->u.kids.kids[i]);
         }
     }
 
 }
 
 void analyze_deps(node_t *node){
-    record_use_and_defs(node);
-    dump_all_unds();
+    quark_record_uses_defs_and_pools(node);
+    //dump_all_unds();
     interrogate_omega(node, var_head);
 }
 
@@ -1232,7 +1240,12 @@ void print_default_task_placement(node_t *task_node){
     int i;
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
-            printf("  : %s\n",tree_to_str(task_node->u.kids.kids[i]));
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
+            printf("  : data_%s\n",tree_to_str(task_node->u.kids.kids[i]));
             return;
         }
     }
@@ -1263,21 +1276,20 @@ typedef struct var_def_item {
  * size_to_pool_name() maintains a map between buffer sizes and memory pools.
  * Since DAGuE does not have a predefind map, or hash-table, we use a linked list where we
  * store the different sizes and the pools they map to and traverse it every time we do
- * a lookup. Given that in reallity the size of this list is not expected to exceed 3, or 4
+ * a lookup. Given that in reallity the size of this list is not expected to exceed 4 or 5
  * elements, it doesn't really matter.  Also, we use the "var_def_item_t" structure, just to
  * reuse code. "var" will be a size and "def" will be a pool name.
  */
 static char *size_to_pool_name(char *size_str){
     static int pool_count = 0;
     char *pool_name = NULL;
-    static dague_linked_list_t pool_list;
 
     if( !pool_count )
-        dague_linked_list_construct(&pool_list);
+        dague_linked_list_construct(&_dague_pool_list);
 
     /* See if a pool of this size exists already, and if so return it. */
-    dague_list_item_t *list_item = (dague_list_item_t *)pool_list.ghost_element.list_next;
-    while(list_item != &(pool_list.ghost_element) ){
+    dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
+    while(list_item != &(_dague_pool_list.ghost_element) ){
         var_def_item_t *true_item = (var_def_item_t *)list_item;
         assert(list_item && NULL != true_item->var && NULL != true_item->def);
         if( !strcmp(true_item->var, size_str) ){
@@ -1295,9 +1307,25 @@ static char *size_to_pool_name(char *size_str){
     new_item->var = size_str;
     new_item->def = pool_name;
     DAGUE_LIST_ITEM_SINGLETON(new_item);
-    dague_linked_list_add_head( &pool_list, (dague_list_item_t *)new_item );
+    dague_linked_list_add_head( &_dague_pool_list, (dague_list_item_t *)new_item );
 
     return pool_name;
+}
+
+char *create_pool_declarations(){
+    char *result = NULL;
+
+    dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
+    while(list_item != &(_dague_pool_list.ghost_element) ){
+        var_def_item_t *true_item = (var_def_item_t *)list_item;
+        assert(list_item && NULL != true_item->var && NULL != true_item->def);
+       
+        result = append_to_string(result, true_item->def, NULL, 0);
+        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\", size = \"%s\"]\n", 47+strlen(true_item->var));
+
+        list_item = (dague_list_item_t *)list_item->list_next;
+    }
+    return result;
 }
 
 /*
@@ -1460,6 +1488,11 @@ char *quark_tree_to_body(node_t *node){
             assert(NULL != symname);
             param = tree_to_str(node->u.kids.kids[i]);
             str = append_to_string( str, symname, NULL, 0);
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
             str = append_to_string( str, param, " /* data_%s */", 12+strlen(param));
         }
 
@@ -1543,6 +1576,18 @@ char *tree_to_str(node_t *node){
                     str = append_to_string(strdup("("), node->var_type, NULL, 0);
                     str = append_to_string(str, ")", NULL, 0);
                 }
+                 /*
+                  * JDF & QUARK specific optimization:
+                  * Add the keyword "desc_" infront of the variable to
+                  * differentiate the matrix from the struct.
+                  */
+                if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
+                    char *type = st_type_of_variable(node->u.var_name, node->symtab);
+                    if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
+                        str = strdup("desc_");
+                    }
+                }
+
                 return append_to_string(str, strdup(node->u.var_name), NULL, 0);
 
             case INTCONSTANT:
