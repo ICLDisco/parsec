@@ -2329,11 +2329,17 @@ void print_types_of_formal_parameters(node_t *root){
     scope = root->symtab;
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
-            printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+            if( !strcmp(sym->var_type, "PLASMA_desc") ){
+                printf("desc_%s [type = \"PLASMA_desc\"]\n",sym->var_name);
+                printf("data_%s [type = \"dague_ddesc_t *\"]\n",sym->var_name);
+            }else{
+                printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
+            }
         }
         scope = scope->parent;
     }while(NULL != scope);
 
+    printf("%s",create_pool_declarations());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
