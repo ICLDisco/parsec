@@ -312,6 +312,7 @@ static void quark_record_uses_defs_and_pools(node_t *node){
         for(i=1; i<kid_count; ++i){
             node_t *tmp = node->u.kids.kids[i];
 
+            // Record USE of DEF
             if( ARRAY == tmp->type ){
                 tmp->task = task;
                 tmp->var_symname = numToSymName(symbolic_name_count++);
@@ -319,6 +320,7 @@ static void quark_record_uses_defs_and_pools(node_t *node){
                 add_variable_use_or_def( tmp, DA_quark_INOUT(qual), _task_count );
             }
 
+            // Record a pool (size_to_pool_name() will create an entry for each new pool)
             if( (i+1<node->u.kids.kid_count) && (i>1) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
                 (void)size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
             }
@@ -1564,6 +1566,14 @@ char *tree_to_str(node_t *node){
                     str = append_to_string(strdup("("), node->var_type, NULL, 0);
                     str = append_to_string(str, ")", NULL, 0);
                 }
+                // QUARK specific code
+                if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
+                    char *type = st_type_of_variable(node->u.var_name, node->symtab);
+                    if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
+                        str = strdup("desc_");
+                    }
+                }
+
                 return append_to_string(str, strdup(node->u.var_name), NULL, 0);
 
             case INTCONSTANT:

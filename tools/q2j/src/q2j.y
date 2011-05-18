@@ -52,6 +52,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> IF
 %type <node> INC_OP
 %type <node> INTCONSTANT
+%type <node> BIN_MASK
 %type <node> L_AND
 %type <node> L_OR
 %type <node> LEFT_ASSIGN
@@ -185,7 +186,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> type_name
 
 
-%token IDENTIFIER INTCONSTANT FLOATCONSTANT STRING_LITERAL SIZEOF
+%token IDENTIFIER INTCONSTANT BIN_MASK FLOATCONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token L_AND L_OR MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
@@ -687,6 +688,7 @@ typedef_specifier
 
 pragma_parameters
 	: IDENTIFIER {}
+	| BIN_MASK {}
 	| IDENTIFIER pragma_parameters {}
 
 pragma_specifier
