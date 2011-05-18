@@ -3417,6 +3417,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         if(insert_fake_read){
             dep_t *dep = *(odeps.begin());
             printf(" <- ");
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
             printf("data_%s\n",tree_to_str(dep->src));
         }
 

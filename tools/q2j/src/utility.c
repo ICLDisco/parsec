@@ -1240,7 +1240,12 @@ void print_default_task_placement(node_t *task_node){
     int i;
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
-            printf("  : %s\n",tree_to_str(task_node->u.kids.kids[i]));
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
+            printf("  : data_%s\n",tree_to_str(task_node->u.kids.kids[i]));
             return;
         }
     }
@@ -1483,6 +1488,11 @@ char *quark_tree_to_body(node_t *node){
             assert(NULL != symname);
             param = tree_to_str(node->u.kids.kids[i]);
             str = append_to_string( str, symname, NULL, 0);
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
             str = append_to_string( str, param, " /* data_%s */", 12+strlen(param));
         }
 
@@ -1566,7 +1576,11 @@ char *tree_to_str(node_t *node){
                     str = append_to_string(strdup("("), node->var_type, NULL, 0);
                     str = append_to_string(str, ")", NULL, 0);
                 }
-                // QUARK specific code
+                 /*
+                  * JDF & QUARK specific optimization:
+                  * Add the keyword "desc_" infront of the variable to
+                  * differentiate the matrix from the struct.
+                  */
                 if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
                     char *type = st_type_of_variable(node->u.var_name, node->symtab);
                     if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
