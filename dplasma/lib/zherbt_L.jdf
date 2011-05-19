@@ -6,6 +6,8 @@ extern "C" %{
    *
    */
 
+#define DAGUE_CALL_TRACE 1
+
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -75,12 +77,13 @@ BODY
   void *pool_B = dague_private_memory_pop( pool_1 );
 
 #line 66 "pzherbt-L.c"
+#if 0
   CORE_zgeqrt(tempkn, desc_A.nb, ib, 
 	A /* data_A(k+1,k) */, ldak, B /* data_T(k+1,k) */, 
 	desc_T.mb, pool_A, pool_B );
-
-  dague_private_memory_push( pool_A, pool_0 );
-  dague_private_memory_push( pool_B, pool_1 );
+#endif
+  dague_private_memory_push( pool_0, pool_A );
+  dague_private_memory_push( pool_1, pool_B );
 
   printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkn, desc_A.nb, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, pool_A, pool_B)\n",
   context->eu_id, k, k+1, k, A, k+1, k, B);
@@ -123,13 +126,14 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_2 );
 
 #line 78 "pzherbt-L.c"
+#if 0
   CORE_zherfb1(PlasmaLower, tempkn, tempkn, 
 	ib, desc_T.nb, C /* data_A(k+1,k) */, 
 	ldak, D /* data_T(k+1,k) */, desc_T.mb, 
 	E /* data_A(k+1,k+1) */, ldak, pool_A, 
 	desc_T.nb );
-
-  dague_private_memory_push( pool_A, pool_2 );
+#endif
+  dague_private_memory_push( pool_2, pool_A );
 
   printlog("thread %d CORE_zherfb1(%d)\n\t(PlasmaLower, tempkn, tempkn, ib, desc_T.nb, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldak, pool_A, desc_T.nb)\n",
   context->eu_id, k, k+1, k, C, k+1, k, D, k+1, k+1, E);
@@ -176,13 +180,14 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_1 );
 
 #line 97 "pzherbt-L.c"
+#if 0
   CORE_zunmqr(PlasmaRight, PlasmaNoTrans, tempmm, 
 	desc_A.nb, tempkn, ib, 
 	F /* data_A(k+1,k) */, ldak, G /* data_T(k+1,k) */, 
 	desc_T.mb, H /* data_A(m,k+1) */, ldam, 
 	pool_A, desc_T.nb );
-
-  dague_private_memory_push( pool_A, pool_1 );
+#endif
+  dague_private_memory_push( pool_1, pool_A );
 
   printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempmm, desc_A.nb, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldam, pool_A, desc_T.nb)\n",
   context->eu_id, k, m, k+1, k, F, k+1, k, G, m, k+1, H);
@@ -254,13 +259,14 @@ BODY
   void *pool_B = dague_private_memory_pop( pool_1 );
 
 #line 118 "pzherbt-L.c"
+#if 0
   CORE_ztsqrt(tempmm, desc_A.nb, ib, 
 	J /* data_A(k+1,k) */, ldak, K /* data_A(m1,k) */, 
 	ldam, L /* data_T(m1,k) */, desc_T.mb, 
 	pool_A, pool_B );
-
-  dague_private_memory_push( pool_A, pool_0 );
-  dague_private_memory_push( pool_B, pool_1 );
+#endif
+  dague_private_memory_push( pool_0, pool_A );
+  dague_private_memory_push( pool_1, pool_B );
 
   printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, desc_A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, pool_A, pool_B)\n",
   context->eu_id, k, m1, k+1, k, J, m1, k, K, m1, k, L);
@@ -331,14 +337,15 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_1 );
 
 #line 135 "pzherbt-L.c"
+#if 0
   CORE_ztsmqr1(PlasmaLeft, PlasmaConjTrans, desc_A.mb, 
 	desc_A.nb, tempmm, desc_A.nb, 
 	desc_A.nb, ib, M /* data_A(i,k+1) */, 
 	ldai, N /* data_A(m1,i) */, ldam, 
 	O /* data_A(m1,k) */, ldam, P /* data_T(m1,k) */, 
 	desc_T.mb, pool_A, ldwork );
-
-  dague_private_memory_push( pool_A, pool_1 );
+#endif
+  dague_private_memory_push( pool_1, pool_A );
 
   printlog("thread %d CORE_ztsmqr1(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A.mb, desc_A.nb, tempmm, desc_A.nb, desc_A.nb, ib, A(%d,%d)[%p], ldai, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, pool_A, ldwork)\n",
   context->eu_id, k, m1, i, i, k+1, M, m1, i, N, m1, k, O, m1, k, P);
@@ -392,14 +399,15 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_1 );
 
 #line 161 "pzherbt-L.c"
+#if 0
   CORE_ztsmqr(PlasmaRight, PlasmaNoTrans, tempjj, 
 	desc_A.nb, tempjj, tempmm, 
 	desc_A.nb, ib, Q /* data_A(j,k+1) */, 
 	ldaj, R /* data_A(j,m1) */, ldaj, 
 	S /* data_A(m1,k) */, ldam, T /* data_T(m1,k) */, 
 	desc_T.mb, pool_A, ldwork );
-
-  dague_private_memory_push( pool_A, pool_1 );
+#endif
+  dague_private_memory_push( pool_1, pool_A );
 
   printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempjj, desc_A.nb, tempjj, tempmm, desc_A.nb, ib, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, pool_A, ldwork)\n",
   context->eu_id, k, m1, j, j, k+1, Q, j, m1, R, m1, k, S, m1, k, T);
@@ -497,6 +505,7 @@ BODY
   void *pool_A = dague_private_memory_pop( pool_3 );
 
 #line 183 "pzherbt-L.c"
+#if 0
   CORE_ztsmqrlr(desc_A.nb, desc_A.nb, tempmm, 
 	desc_A.nb, tempmm, tempmm, 
 	desc_A.nb, ib, desc_T.nb, 
@@ -504,8 +513,8 @@ BODY
 	ldam, W /* data_A(m1,m1) */, ldam, 
 	X /* data_A(m1,k) */, ldam, Y /* data_T(m1,k) */, 
 	desc_T.mb, pool_A, ldwork );
-
-  dague_private_memory_push( pool_A, pool_3 );
+#endif
+  dague_private_memory_push( pool_3, pool_A );
 
   printlog("thread %d CORE_ztsmqrlr(%d, %d)\n\t(desc_A.nb, desc_A.nb, tempmm, desc_A.nb, tempmm, tempmm, desc_A.nb, ib, desc_T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, pool_A, ldwork)\n",
   context->eu_id, k, m1, k+1, k+1, U, m1, k+1, V, m1, m1, W, m1, k, X, m1, k, Y);
