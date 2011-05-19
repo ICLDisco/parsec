@@ -8,11 +8,13 @@
  */
 
 #include <plasma.h>
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "common.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
-#define FADDS_ZHERBT(__m, __n) 1
-#define FMULS_ZHERBT(__m, __n) 1
+/* Including the bulge chassing */
+#define FADDS_ZHERBT(__n) (((__n) * (-8 / 3 + (__n) * (1 + 2 / 3 * (__n)))) - 4)
+#define FMULS_ZHERBT(__n) (((__n) * (-1 / 6 + (__n) * (5 / 2 + 2 / 3 * (__n)))) - 15)
 
 int main(int argc, char *argv[])
 {
@@ -30,13 +32,15 @@ int main(int argc, char *argv[])
 
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS_COUNT(FADDS_ZHERBT, FMULS_ZHERBT, ((DagDouble_t)M,(DagDouble_t)N))
+    PASTE_CODE_FLOPS_COUNT(FADDS_ZHERBT, FMULS_ZHERBT, ((DagDouble_t)N))
 
     LDA = max(M, LDA);
     LDB = max( LDB, N );
     SMB = 1; SNB = 1;
 
     if( !check ) {
+        PLASMA_Init(1);
+
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
                                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                                           nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
@@ -45,7 +49,6 @@ int main(int argc, char *argv[])
                            ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
                            ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j, 
                            ddescA.super.m, ddescA.super.n);
-
         PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
                                    two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
                                                           nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
@@ -54,7 +57,6 @@ int main(int argc, char *argv[])
                            ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
                            ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
                            ddescT.super.m, ddescT.super.n);
-
         PLASMA_enum uplo = PlasmaLower;
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
         PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
