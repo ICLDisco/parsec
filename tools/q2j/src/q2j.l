@@ -1,7 +1,6 @@
 D			[0-9]
 L			[a-zA-Z_]
 H			[a-fA-F0-9]
-B			[Bb]
 E			[Ee][+-]?{D}+
 FS			(f|F|l|L)
 IS			(u|U|l|L)*
@@ -237,15 +236,13 @@ void cpp_comment();
                               yylval.node.symtab = st_get_current_st();
                               yylval.node.lineno = yyget_lineno();
                               return(IDENTIFIER);
-//printf("type: %s\n",yytext);
                           }else{
-//printf("type: %s\n",yytext);
                               yylval.string = strdup(yytext);
                               return(TYPE_NAME);
                           }
                         }
 
-0B(0|1)+		{ 
+0[bB](0|1)+		{ 
                           int i,len;
                           char *num = yytext+2;
                           count(); 
@@ -254,7 +251,6 @@ void cpp_comment();
                           for(i=len; i>=0; i--){
                               yylval.node.const_val.i64_value += ((*(num+i))-'0')<<(len-i);
                           }
-                          printf("We just read binary %s = %lld\n",yytext, yylval.node.const_val.i64_value);
                           yylval.node.type = BIN_MASK;
                           yylval.node.u.kids.kid_count = 0;
                           yylval.node.lineno = yyget_lineno();
