@@ -1,6 +1,6 @@
 #set(CMAKE_C_COMPILER "vtcc")
 #set(CMAKE_Fortran_COMPILER "vtf77")
-#Add_Subdirectory(rtt)
+Add_Subdirectory(rtt)
 if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   Add_Subdirectory(unit)
 #  Add_Subdirectory(debug)

@@ -1,47 +1,29 @@
 extern "C" %{
-#include "dplasma.h"
-
-extern unsigned char *_A;
-#if defined(HAVE_MPI)
-#include "mpi.h"
-extern MPI_Datatype ATYPE;
-#endif
-
-#define A(n) _A
-
+  /* This simple example does not need to include anything */
 %}
 
-rowRANK
-colRANK
-GRIDrows
-GRIDcols
 NT
 
 PING(k)
 
 k = 0 .. NT
-: ((0*k) + 0) == rowRANK
-: 0*k == colRANK
+: A(k)
 
-INOUT T <- (k==0) ? A(0) : I PONG(k-1)   [ATYPE]
-        -> (k==NT) ? A(0) : I PONG(k)    [ATYPE]
+RW T <- (k==0) ? A(k) : I PONG(k-1)
+     -> (k==NT) ? A(k) : I PONG(k)
 
 BODY
-/* no body */
-DEBUG(("PING(%d) on %d\n", k, rowRANK));
+	/* no body */
 END
-
 
 PONG(k)
 
 k = 0 .. NT-1
-: ((0*k) + 1) == rowRANK
-: 0*k         == colRANK
+: A(k+1) 
 
-INOUT I <- T PING(k)                    [ATYPE]
-        -> T PING(k+1)                  [ATYPE]
+RW I <- T PING(k)
+     -> T PING(k+1)
 
 BODY
-/* no body */
-DEBUG(("PONG(%d) on %d\n", k, rowRANK));
+	/* no body */
 END
