@@ -33,13 +33,13 @@ dplasma_zherbt_New( PLASMA_enum uplo,
         return NULL;
     }
 
-    pool[0] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    pool[0] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* tau */
     dague_private_memory_init( pool[0], descT.nb * sizeof(Dague_Complex64_t) );
-    pool[1] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( pool[1], ib * descT.nb * sizeof(Dague_Complex64_t) );
-    pool[2] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    pool[1] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work */
+    dague_private_memory_init( pool[1], descT.mb * descT.nb * sizeof(Dague_Complex64_t) );
+    pool[2] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work for HERFB1 */
     dague_private_memory_init( pool[2], 2 * descT.nb * descT.nb * sizeof(Dague_Complex64_t) );
-    pool[3] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    pool[3] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work for the TSMQRLR */
     dague_private_memory_init( pool[3], 4 * descT.nb * descT.nb * sizeof(Dague_Complex64_t) );
 
     if( PlasmaLower == uplo ) {
