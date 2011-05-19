@@ -30,6 +30,7 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
 # define MPI_DOUBLE         NULL
 # define MPI_FLOAT          NULL
 # define MPI_INTEGER        NULL
+# define MPI_INT            NULL
 
 # define dplasma_datatype_define_rectangle( oldtype, tile_mb, tile_nb, resized, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
