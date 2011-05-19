@@ -113,6 +113,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> declaration
 %type <node> declaration_list
 %type <node> initializer
+%type <node> pragma_parameters
+%type <node> pragma_specifier
 
 %type <string> abstract_declarator
 %type <type_node> parameter_declaration
@@ -167,8 +169,6 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> parameter_type_list
 %type <string> declaration_specifiers
 %type <string> typedef_specifier
-%type <string> pragma_specifier
-%type <string> pragma_parameters
 %type <string> direct_abstract_declarator
 %type <string> enum_specifier
 %type <string> pointer
@@ -687,14 +687,51 @@ typedef_specifier
 	  }
 
 pragma_parameters
-	: IDENTIFIER {}
-	| BIN_MASK {}
-	| IDENTIFIER pragma_parameters {}
+	: IDENTIFIER
+          { 
+              node_t *tmp;
+              tmp = node_to_ptr($1);
+              tmp->prev = NULL;
+              tmp->next = NULL;
+              $$.next = tmp;
+          } 
+	| BIN_MASK
+          { 
+              node_t *tmp;
+              tmp = node_to_ptr($1);
+              tmp->prev = NULL;
+              tmp->next = NULL;
+              $$.next = tmp;
+          } 
+	| IDENTIFIER pragma_parameters
+	  {
+              node_t *tmp;
+              tmp = node_to_ptr($1);
+              tmp->next = NULL;
+              tmp->prev = $2.next;
+              tmp->prev->next = tmp;
+              $$.next = tmp;
+	  }
 
 pragma_specifier
 	: PRAGMA IDENTIFIER pragma_parameters
 	  {
-              // ignore the pragmas for now.
+              //#pragma DAGUE_DATA_COLOCATED T A
+              if( !strcmp("DAGUE_DATA_COLOCATED",$2.u.var_name) ){
+                  int i=0;
+                  node_t *tmp;
+                  // traverse the list backwards
+                  printf("(");
+                  for(tmp=$3.next; NULL != tmp->prev; tmp=tmp->prev){
+                      if(i++)
+                          printf(" and ");
+                      printf("%s",tmp->u.var_name);
+                  }
+                  printf(") is co-located with %s\n",tmp->u.var_name);
+              }
+
+              // ignore the other pragmas for now.
+
 	  }
 
 declaration_specifiers
@@ -1022,6 +1059,7 @@ statement
 	| selection_statement
 	| iteration_statement
 	| jump_statement
+        | pragma_specifier
 	;
 
 labeled_statement

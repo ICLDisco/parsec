@@ -6,9 +6,7 @@
 #include <sys/time.h>
 
 static double time_elapsed;
-#ifdef HAVE_MPI
 static double sync_time_elapsed;
-#endif
 
 static inline double get_cur_time(void)
 {
