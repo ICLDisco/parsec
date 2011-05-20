@@ -105,8 +105,8 @@ zherfb1(k)
   /* U == data_A(k+1,k+1) */
   /* W == data_A(m1,m1) */
 
-  READ  C <- A zgeqrt(k) 
-  READ  D <- B zgeqrt(k) 
+  READ  C <- A zgeqrt(k)                                                         [type = LOWER_TILE] 
+  READ  D <- B zgeqrt(k)                                                         [type = LITTLE_T] 
   RW    E <- ( ((0==k)) | ((k>=1) & ((k+1)>=desc_A.mt)) ) ? data_A(k+1,k+1)
           <- (desc_A.mt>=(k+2)) & (k>=1) ? W ztsmqrlr(k+1-2, k+1) 
           -> ((2+k)>=desc_A.mt) ? data_A(k+1,k+1)
@@ -157,8 +157,8 @@ zunmqr(k,m)
   /* Q == data_A(j,k+1) */
   /* V == data_A(m1,k+1) */
 
-  READ  F <- A zgeqrt(k) 
-  READ  G <- B zgeqrt(k)                                       [ type = LITTLE_T ]
+  READ  F <- A zgeqrt(k)                                       [type = LOWER_TILE] 
+  READ  G <- B zgeqrt(k)                                       [type = LITTLE_T]
   RW    H <- (0==k) ? data_A(m,k+1)
           <- (k>=1) ? N ztsmqr1(k+1-2, m, k+1) 
           -> (m==(k+2)) & (desc_A.nt>=m) ? V ztsmqrlr(m-2, m) 
@@ -226,10 +226,10 @@ ztsqrt(k,m1)
   /* X == data_A(m1,k) */
   /* Y == data_T(m1,k) */
 
-  RW    J <- (m1>=(3+k)) ? J ztsqrt(k, m1-1) 
-          <- ((k+2)==m1) & (desc_A.nt>=(k+2)) ? A zgeqrt(m1-2) 
-          -> (desc_A.mt==(m1+1)) ? A ztsqrt_out_data_A(k)
-          -> (desc_A.mt>=(m1+2)) ? J ztsqrt(k, m1+1) 
+  RW    J <- (m1>=(3+k)) ? J ztsqrt(k, m1-1)                                  [type = UPPER_TILE] 
+          <- ((k+2)==m1) & (desc_A.nt>=(k+2)) ? A zgeqrt(m1-2)                [type = UPPER_TILE] 
+          -> (desc_A.mt==(m1+1)) ? A ztsqrt_out_data_A(k)                     [type = UPPER_TILE]
+          -> (desc_A.mt>=(m1+2)) ? J ztsqrt(k, m1+1)                          [type = UPPER_TILE]
   RW    K <- ((m1+1)==desc_A.mt) & (k>=1) ? V ztsmqrlr(k-1, desc_A.mt-1) 
           <- (0==k) ? data_A(m1,k)
           <- (desc_A.mt>=(m1+2)) & (k>=1) ? M ztsmqr1(k-1, desc_A.mt-1, m1) 
