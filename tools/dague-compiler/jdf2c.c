@@ -1021,7 +1021,7 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
     string_arena_free(sa3);
 }
 
-static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t *context,
+static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_name_list_t *context,
                                          const char *fname, const char *name)
 {
     string_arena_t *sa = string_arena_new(64);
@@ -1759,7 +1759,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                                                  "", prefix, ", ", ""));
 
     sprintf(prefix, "pred_of_%s_%s_as_expr", jdf_basename, f->fname);
-    jdf_generate_predicate_expr(jdf, f->definitions, f->fname, prefix);
+    jdf_generate_predicate_expr(jdf, f->parameters, f->fname, prefix);
     string_arena_add_string(sa, "  .pred = &%s,\n", prefix);
 
     if( NULL != f->priority ) {
@@ -2059,6 +2059,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 {
     string_arena_t *sa = string_arena_new(64);
     jdf_def_list_t *dl;
+    jdf_name_list_t *pl;
     expr_info_t info;
 
     (void)jdf;
@@ -2090,9 +2091,9 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     }
 
     string_arena_init(sa);
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        coutput("  __h += (%s - %s_min)%s;\n",dl->name, dl->name, string_arena_get_string(sa));
-        string_arena_add_string(sa, " * %s_range", dl->name);
+    for(pl = f->parameters; pl != NULL; pl = pl->next) {
+        coutput("  __h += (%s - %s_min)%s;\n",pl->name, pl->name, string_arena_get_string(sa));
+        string_arena_add_string(sa, " * %s_range", pl->name);
     }
 
     coutput("  return __h;\n");
