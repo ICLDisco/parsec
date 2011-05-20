@@ -16,6 +16,7 @@
 #include <list>
 #include <sstream>
 
+map<string, string> q2j_colocated_map;
 
 struct _dep_t{
     node_t *src;
@@ -55,7 +56,7 @@ static void dump_full_und(und_t *und);
 #endif
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R);
-static void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S);
+static void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
 static Relation process_and_print_execution_space(node_t *node);
 static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp);
@@ -1012,11 +1013,14 @@ const char *findBoundsOfVar(expr_t *exp, const char *var_name, Relation R){
         expr_t *rslt_exp = solveConstraintForVar(ge_exp, var_name);
 
         // If the expression has output variables we need to ignore it
-        for(int i=0; i<R.n_out(); i++){
-            const char *ovar = R.output_var(i+1)->char_name();
-            if( treeContainsVar(rslt_exp, ovar) ){
-                exp_has_output_vars = 1;
-                break;
+   
+        if( !R.is_set() ){
+            for(int i=0; i<R.n_out(); i++){
+                const char *ovar = R.output_var(i+1)->char_name();
+                if( treeContainsVar(rslt_exp, ovar) ){
+                    exp_has_output_vars = 1;
+                    break;
+                }
             }
         }
 
@@ -1114,7 +1118,7 @@ expr_t *eliminateVarUsingTransitivity(expr_t *exp, const char *var_name, Relatio
         exp = removeNodeFromAND(ge_exp, exp);
     }
 
-    // Add all the combinations off LBs and UBs in the expression
+    // Add all the combinations of LBs and UBs in the expression
     for(it=ubs.begin(); it!=ubs.end(); it++){
         set<expr_t *>::iterator lb_it;
         for(lb_it=lbs.begin(); lb_it!=lbs.end(); lb_it++){
@@ -1146,7 +1150,7 @@ expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R)
     // and propagate the solutions to the other ovars, until everything is
     // solvable (assuming that this is always feasible).
     int i=0;
-    while( 1 ){
+    while( true ){
         // If we tried to solve for 1000 output variables and still haven't
         // found a solution, probably something went wrong and we've entered
         // an infinite loop
@@ -1314,6 +1318,9 @@ static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relati
         eq_exp = *e_it;
         rslt_exp = solveConstraintForVar(eq_exp, var_name);
 
+        if( R.is_set() )
+            return rslt_exp;
+  
         for(int i=0; i<R.n_out(); i++){
             const char *ovar = R.output_var(i+1)->char_name();
             if( treeContainsVar(rslt_exp, ovar) ){
@@ -1838,7 +1845,7 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// WARNING: this function it destructive.  It actually removes nodes from the tree
+// WARNING: this function is destructive.  It actually removes nodes from the tree
 // and deletes them altogether. In many cases you will need to pass a copy of the
 // tree to this function.
 string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
@@ -2775,11 +2782,11 @@ printf("========================================================================
 
             Relation S_es = process_and_print_execution_space(src_task->task_node);
             printf("\n");
-            print_default_task_placement(src_task->task_node);
+            node_t *reference_data_element = print_default_task_placement(src_task->task_node);
             printf("\n");
             print_pseudo_variables(deps, incoming_edges[task_name]);
             printf("\n");
-            print_edges(deps, incoming_edges[task_name], S_es);
+            print_edges(deps, incoming_edges[task_name], S_es, reference_data_element);
             S_es.Null();
             printf("\n");
 
@@ -3306,8 +3313,75 @@ static string _expr_tree_to_str(const expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
-    task_t *src_task;
+char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
+// ztsqrt_in_data_A1(k,m1)
+//   /* Execution space */
+//   /* solution of these
+//    *k = 0..(desc_A.nt)-1-1
+//    *m1 = k+2..desc_A.mt-1
+//    * & (0==k) from the edge
+//    */
+// 
+//   : data_A(m1,k)
+// 
+//   RW A <- data_A(m1,k)
+//        -> K ztsqrt(k,m1)
+// 
+// BODY
+// /* nothing */
+// END
+    char *parent_task_name, *pseudotask_name;
+    char *formal_parameters = NULL;
+    char *mtrx_name         = tree_to_str(DA_array_base(data_element));
+    char *number;
+
+    for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
+        if( i )
+            formal_parameters = append_to_string(formal_parameters, ",", NULL, 0);
+        formal_parameters = append_to_string(formal_parameters, parent_task->ind_vars[i], NULL, 0);
+    }
+
+    asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, formal_parameters);
+    asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
+
+    Relation newS_es = Intersection(copy(S_es), Domain(copy(cond)));
+    newS_es.simplify();
+
+printf("\n################################\n");
+printf("%s\n",pseudotask_name);
+//S_es.print();
+//cond.print();
+//newS_es.print();
+
+    for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
+        char *var_name = parent_task->ind_vars[i];
+        printf("  %s = ", var_name); 
+        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
+        if( NULL != solution )
+            printf("%s\n", expr_tree_to_str(solution));
+        else
+            printf("%s\n", findBoundsOfVar(relation_to_tree(newS_es), var_name, copy(newS_es)) );
+    }
+             
+char *data_str = tree_to_str(data_element);
+printf("  : data_%s\n",data_str);
+printf("  RW %s <- data_%s\n",var_pseudoname, data_str);
+printf("       -> %s %s\n",var_pseudoname, parent_task_name);
+printf("BODY\n/* nothing */\nEND\n");
+printf("################################\n");
+
+
+     free(parent_task_name);
+     free(pseudotask_name);
+     free(mtrx_name);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
+    task_t *this_task;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
     map<char *, set<dep_t *> > incm_map, outg_map;
@@ -3316,7 +3390,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         return;
     }
 
-    src_task = (*outg_deps.begin())->src->task;
+    this_task = (*outg_deps.begin())->src->task;
 
 
     // Group the edges based on the variable they flow into or from
@@ -3339,9 +3413,11 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
     // For each variable print all the incoming and the outgoing edges
     set<char *>::iterator var_it;
     for (var_it=vars.begin(); var_it!=vars.end(); var_it++){
+        int pseudotask_count = 0;
         bool insert_fake_read = false;
-        set<dep_t *>ideps = incm_map[*var_it];
-        set<dep_t *>odeps = outg_map[*var_it];
+        char *var_pseudoname = *var_it;
+        set<dep_t *>ideps = incm_map[var_pseudoname];
+        set<dep_t *>odeps = outg_map[var_pseudoname];
 
         if( !ideps.empty() && !odeps.empty() ){
             printf("  RW    ");
@@ -3360,12 +3436,12 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
         }
 
         if( ideps.size() > 6 )
-            fprintf(stderr,"WARNING: Number of incoming edges (%lu) for variable \"%s\" exceeds 6",ideps.size(), *var_it);
+            fprintf(stderr,"WARNING: Number of incoming edges (%lu) for variable \"%s\" exceeds 6",ideps.size(), var_pseudoname);
         if( odeps.size() > 6 )
-            fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds 6",odeps.size(), *var_it);
+            fprintf(stderr,"WARNING: Number of outgoing edges (%lu) for variable \"%s\" exceeds 6",odeps.size(), var_pseudoname);
 
         // Print the pseudoname
-        printf("%s",*var_it);
+        printf("%s",var_pseudoname);
 
         // print the incoming edges
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
@@ -3396,12 +3472,46 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
                  printf(") ");
              }else{
                  // ENTRY
-                 /*
-                  * JDF & QUARK specific optimization:
-                  * Add the keyword "data_" infront of the matrix to
-                  * differentiate the matrix from the struct.
-                  */
-                 printf("data_%s", tree_to_str(dep->dst));
+                 bool need_pseudotask = false;
+                 char *comm_mtrx, *refr_mtrx;
+
+                 comm_mtrx = tree_to_str(DA_array_base(dep->dst));
+                 refr_mtrx = tree_to_str(DA_array_base(reference_data_element));
+                 // If the matrices are different and not co-located, we need a pseudo-task.
+                 if( strcmp(comm_mtrx,refr_mtrx) && q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ){
+                     need_pseudotask = true;
+                 }else{
+                     // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
+                     int count = DA_array_dim_count(dep->dst);
+                     if( DA_array_dim_count(reference_data_element) != count ){
+                         fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
+                                        " This should never happen in dplasma\n",
+                                        tree_to_str(dep->dst), tree_to_str(reference_data_element));
+                         need_pseudotask = true;
+                     }
+
+                     for(int i=0; i<count && !need_pseudotask; i++){
+                         char *a = tree_to_str(DA_array_index(dep->dst, i));
+                         char *b = tree_to_str(DA_array_index(reference_data_element, i));
+                         if( strcmp(a,b) )
+                             need_pseudotask = true;
+                         free(a);
+                         free(b);
+                     }
+                 }
+                 free(comm_mtrx);
+                 free(refr_mtrx);
+
+                 if( need_pseudotask ){
+                     char *pseudotask = create_pseudotask(this_task, S_es, *dep->rel, dep->dst, var_pseudoname, pseudotask_count++, "in");
+                 }else{
+                     /*
+                      * JDF & QUARK specific optimization:
+                      * Add the keyword "data_" infront of the matrix to
+                      * differentiate the matrix from the struct.
+                      */
+                     printf("data_%s", tree_to_str(dep->dst));
+                 }
              }
              printf("\n");
 #ifdef DEBUG_2
@@ -3437,9 +3547,6 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es){
 
              rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->src->task );
-             // Since we are inserting the fake read when there are no reads, 
-             // the following should always be true
-             //if ( dep_it!=odeps.begin() || (!ideps.empty())
              printf("         ");
              printf(" -> ");
 

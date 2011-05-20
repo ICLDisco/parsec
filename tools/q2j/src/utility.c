@@ -1236,19 +1236,21 @@ static int isArrayOut(node_t *task_node, int index){
  * It would be much better if we found which tile this task writes most times into,
  * instead of the first write, to reduce unnecessary communication.
  */
-void print_default_task_placement(node_t *task_node){
+node_t *print_default_task_placement(node_t *task_node){
     int i;
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
              /*
               * JDF & QUARK specific optimization:
               * Add the keyword "data_" infront of the matrix to
               * differentiate the matrix from the struct.
               */
-            printf("  : data_%s\n",tree_to_str(task_node->u.kids.kids[i]));
-            return;
+            printf("  : data_%s\n",tree_to_str(data_element));
+            return data_element;
         }
     }
+    return NULL;
 }
 
 static char *int_to_str(int num){
