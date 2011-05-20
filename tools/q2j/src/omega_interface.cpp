@@ -3436,6 +3436,7 @@ printf("################################\n");
 ////////////////////////////////////////////////////////////////////////////////
 //
 void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
+    int pseudotask_count = 0;
     task_t *this_task;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
@@ -3468,7 +3469,6 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
     // For each variable print all the incoming and the outgoing edges
     set<char *>::iterator var_it;
     for (var_it=vars.begin(); var_it!=vars.end(); var_it++){
-        int pseudotask_count = 0;
         bool insert_fake_read = false;
         char *var_pseudoname = *var_it;
         set<dep_t *>ideps = incm_map[var_pseudoname];

@@ -1323,7 +1323,7 @@ char *create_pool_declarations(){
         assert(list_item && NULL != true_item->var && NULL != true_item->def);
        
         result = append_to_string(result, true_item->def, NULL, 0);
-        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\", size = \"%s\"]\n", 47+strlen(true_item->var));
+        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
 
         list_item = (dague_list_item_t *)list_item->list_next;
     }
