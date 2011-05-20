@@ -191,10 +191,9 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
         }
         for(; d!= NULL; d = d->next, pi++) {
             if( d->expr->op == JDF_RANGE ) {
-                jdf_fatal(f->lineno, "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
-                          "  That would make multiple functions %s with the same name, which is not acceptable.\n",
+                jdf_warn(f->lineno, "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
+                          "  If this range allows for more than one value, that would make multiple functions %s with the same name.\n",
                           pi, f->fname, d->name);
-                rc = -1;
             }
         }
     }

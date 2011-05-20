@@ -3314,6 +3314,7 @@ static string _expr_tree_to_str(const expr_t *exp){
 ////////////////////////////////////////////////////////////////////////////////
 //
 char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
+
 // ztsqrt_in_data_A1(k,m1)
 //   /* Execution space */
 //   /* solution of these
@@ -3365,8 +3366,13 @@ printf("%s\n",pseudotask_name);
              
 char *data_str = tree_to_str(data_element);
 printf("  : data_%s\n",data_str);
-printf("  RW %s <- data_%s\n",var_pseudoname, data_str);
-printf("       -> %s %s\n",var_pseudoname, parent_task_name);
+if( !strcmp(inout,"in") ){
+    printf("  RW %s <- data_%s\n",var_pseudoname, data_str);
+    printf("       -> %s %s\n",var_pseudoname, parent_task_name);
+}else{
+    printf("  RW %s <- %s %s\n",var_pseudoname, var_pseudoname, parent_task_name);
+    printf("        -> data_%s\n",data_str);
+}
 printf("BODY\n/* nothing */\nEND\n");
 printf("################################\n");
 
@@ -3503,6 +3509,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
                  free(refr_mtrx);
 
                  if( need_pseudotask ){
+                     printf("[[ data_%s ]]", tree_to_str(dep->dst));
                      char *pseudotask = create_pseudotask(this_task, S_es, *dep->rel, dep->dst, var_pseudoname, pseudotask_count++, "in");
                  }else{
                      /*
@@ -3557,12 +3564,47 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
              node_t *sink = dep->dst;
              if( NULL == sink ){
                  // EXIT
-                 /*
-                  * JDF & QUARK specific optimization:
-                  * Add the keyword "data_" infront of the matrix to
-                  * differentiate the matrix from the struct.
-                  */
-                 printf("data_%s",tree_to_str(dep->src));
+                 bool need_pseudotask = false;
+                 char *comm_mtrx, *refr_mtrx;
+
+                 comm_mtrx = tree_to_str(DA_array_base(dep->src));
+                 refr_mtrx = tree_to_str(DA_array_base(reference_data_element));
+                 // If the matrices are different and not co-located, we need a pseudo-task.
+                 if( strcmp(comm_mtrx,refr_mtrx) && q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ){
+                     need_pseudotask = true;
+                 }else{
+                     // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
+                     int count = DA_array_dim_count(dep->src);
+                     if( DA_array_dim_count(reference_data_element) != count ){
+                         fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
+                                        " This should never happen in dplasma\n",
+                                        tree_to_str(dep->src), tree_to_str(reference_data_element));
+                         need_pseudotask = true;
+                     }
+
+                     for(int i=0; i<count && !need_pseudotask; i++){
+                         char *a = tree_to_str(DA_array_index(dep->src, i));
+                         char *b = tree_to_str(DA_array_index(reference_data_element, i));
+                         if( strcmp(a,b) )
+                             need_pseudotask = true;
+                         free(a);
+                         free(b);
+                     }
+                 }
+                 free(comm_mtrx);
+                 free(refr_mtrx);
+
+                 if( need_pseudotask ){
+                     printf("[[ data_%s ]]", tree_to_str(dep->src));
+                     char *pseudotask = create_pseudotask(this_task, S_es, *dep->rel, dep->src, var_pseudoname, pseudotask_count++, "out");
+                 }else{
+                     /*
+                      * JDF & QUARK specific optimization:
+                      * Add the keyword "data_" infront of the matrix to
+                      * differentiate the matrix from the struct.
+                      */
+                     printf("data_%s",tree_to_str(dep->src));
+                 }
              }else{
                  printf("%s %s(",sink->var_symname, sink->task->task_name);
                  printActualParameters(dep, rel_exp, SINK);

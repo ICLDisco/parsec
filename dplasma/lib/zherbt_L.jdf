@@ -418,6 +418,7 @@ ztsmqrlr_out_data_A(k,m1)
   /* Execution space */
   k = 0..(desc_A.nt)-1-1
   m1 = k+2..desc_A.mt-1
+/*  p = 1..( ((desc_A.nt==(k+2)) & (desc_A.mt==(1+m1)) & (desc_A.mt>=(2+desc_A.nt))) | ((desc_A.nt==m1) & (desc_A.nt==(k+2)) & ((desc_A.nt+1)==desc_A.mt)) ) */
 
   : data_A(m1,k+1)
 
