@@ -204,6 +204,8 @@ ztsqrt_out_data_A(k)
 
 BODY
  /* NOTHING */
+  printlog("thread %d zunmqr_OUT(%d)\n\t( A(%d,%d)[%p] )\n",
+           context->eu_id, k, k+1, k, A);
 END
 
 ztsqrt(k,m1)
@@ -286,6 +288,8 @@ RW A <- (desc_A.mt==(m1+1)) & ((2+k)==desc_A.nt) & (i>=(k+2)) & (desc_A.mt>=(k+3
 
 BODY
   /* Nothing */
+  printlog("thread %d ztsmqr1_OUT(%d,%d,%d)\n\t( A(%d,%d)[%p] )\n",
+           context->eu_id, k, m1, i, i, k+1, A);
 END
 
 ztsmqr1(k,m1,i)
@@ -427,7 +431,10 @@ ztsmqrlr_out_data_A(k,m1)
 
 BODY
  /* Nothing */
+  printlog("thread %d ztsmqrlr_OUT(%d,%d)\n\t( A(%d,%d)[%p] )\n",
+           context->eu_id, k, m1, m1, k+1, A);
 END
+
 ztrsmqrlr_in_data_A(m1)
   m1 = 2..desc_A.mt-1
 
@@ -438,6 +445,8 @@ ztrsmqrlr_in_data_A(m1)
 
 BODY
  /* nothing */
+  printlog("thread %d ztsmqrlr_IN(%d)\n\t( A(%d,%d)[%p] )\n",
+           context->eu_id, m1, m1, m1, A);
 END
 
 ztsmqrlr_out2_data_A(m1)
@@ -450,6 +459,8 @@ ztsmqrlr_out2_data_A(m1)
 
 BODY
  /* nothing */
+  printlog("thread %d ztsmqrlr_OUT2(%d)\n\t( A(%d,%d)[%p] )\n",
+           context->eu_id, m1, m1, m1, A);
 END
 
 ztsmqrlr(k,m1)
