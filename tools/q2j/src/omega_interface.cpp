@@ -69,6 +69,11 @@ static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relati
 static void substituteExprForVar(expr_t *exp, const char *var_name, expr_t *root);
 static map<string, Free_Var_Decl *> global_vars;
 
+expr_t *relation_to_tree( Relation R );
+
+//static list<string> simplifyConditionsAndSplitDisjunctions(Relation R, expr_t *exp, Relation S_es);
+static list< pair<expr_t *, Relation> > simplifyConditionsAndSplitDisjunctions(Relation R, Relation S_es);
+
 #if 0
 void dump_all_uses(und_t *def, var_t *head){
     int after_def = 0;
@@ -1633,6 +1638,30 @@ expr_t *relation_to_tree( Relation R ){
     return root;
 }
 
+/*
+Relation extract_matching_conjunction_from_relation( Relation R, string con_str, Relation S_es ){
+    Relation newR;
+    list<string> cond_list;
+
+    if( R.is_null() )
+        return newR;
+
+    for(DNF_Iterator di(R.query_DNF()); di; di++) {
+        Relation tmpR = Relation(copy(R), *di);
+        cond_list = simplifyConditionsAndSplitDisjunctions(copy(tmpR), relation_to_tree(tmpR), S_es);
+        string tmp_str = static_cast<string>(cond_list.front());
+
+        if( !con_str.compare( tmp_str ) ){
+            printf("\nFound matching conjunction: %s\n",tmp_str.c_str());
+            return Relation(copy(R), *di);
+        }else{
+            printf("\n%s != %s\n",con_str.c_str(), tmp_str.c_str());
+        }
+    }
+
+    return newR;
+}
+*/
 
 static set<expr_t *> findAllConjunctions(expr_t *exp){
     set<expr_t *> eq_set;
@@ -1848,23 +1877,28 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 // WARNING: this function is destructive.  It actually removes nodes from the tree
 // and deletes them altogether. In many cases you will need to pass a copy of the
 // tree to this function.
-string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
+static list< pair<expr_t *,Relation> > simplifyConditionsAndSplitDisjunctions(Relation R, Relation S_es){
     stringstream ss;
-    set<expr_t *> conj, simpl_conj;
-    set<expr_t *>::iterator cj_it;
+    set<expr_t *> simpl_conj;
 
-    conj = findAllConjunctions(exp);
+    list< pair<expr_t *, Relation> > result;
+    list< pair<expr_t *, Relation> >::iterator cj_it;
 
-    // If we didn't find any it's because there are no unions, so the whole
-    // expression "exp" is one conjunction
-    if( conj.empty() ){
-        conj.insert(exp);
+//    conj = findAllConjunctions(exp);
+
+    for(DNF_Iterator di(R.query_DNF()); di; di++) {
+        pair<expr_t *, Relation> p;
+        Relation tmpR = Relation(copy(R), *di);
+        p.first = relation_to_tree(tmpR);
+        p.second = tmpR;
+        result.push_back(p);
     }
 
     // Eliminate the conjunctions that are covered by the execution space
     // and simplify the remaining ones
-    for(cj_it = conj.begin(); cj_it != conj.end(); cj_it++){
-        expr_t *cur_exp = *cj_it;
+    for(cj_it = result.begin(); cj_it != result.end(); cj_it++){
+        pair<expr_t*, Relation> p = *cj_it;
+        expr_t *cur_exp = p.first;
 
         int dst_count = R.n_out();
         for(int i=0; i<dst_count; i++){
@@ -1883,10 +1917,12 @@ string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
         }
         cur_exp = simplify_constraint_based_on_execution_space(cur_exp, S_es, R);
         if(cur_exp){
-            simpl_conj.insert(cur_exp);
+//            simpl_conj.insert(cur_exp);
+            cj_it->first = cur_exp;
         }
     }
 
+#if 0
     if( simpl_conj.size() > 1 )
         ss << "( (";
     for(cj_it = simpl_conj.begin(); cj_it != simpl_conj.end(); cj_it++){
@@ -1899,6 +1935,9 @@ string simplifyConditions(Relation R, expr_t *exp, Relation S_es){
         ss << ") )";
 
     return ss.str();
+#endif
+
+    return result;
 }
 
 
@@ -3086,13 +3125,6 @@ static string _expr_tree_to_str(const expr_t *exp){
     switch( exp->type ){
         case IDENTIFIER:
             str = string(exp->value.name);
-            // If the JDF parser does not like structures,
-            // convert all structure members (A.m) into variables Am
-#if 0
-            while ( (j=str.find('.',0)) != str.npos) { 
-                str.replace(j, 1, "" ); 
-            } 
-#endif
             return str;
 
         case INTCONSTANT:
@@ -3313,7 +3345,7 @@ static string _expr_tree_to_str(const expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
+char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, string cond_str, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
 
 // ztsqrt_in_data_A1(k,m1)
 //   /* Execution space */
@@ -3345,13 +3377,24 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
     asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, formal_parameters);
     asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
 
+/*
+    Relation matching_conjunct = extract_matching_conjunction_from_relation(cond, cond_str, S_es );
+    if( matching_conjunct.is_null() ){
+        printf("\nOops, the matching conjunct is null\n");
+        fflush(stdout);
+        assert(0);
+    }
+*/
+
     Relation newS_es = Intersection(copy(S_es), Domain(copy(cond)));
     newS_es.simplify();
 
 printf("\n################################\n");
 printf("%s\n",pseudotask_name);
 //S_es.print();
+//printf("\n");
 //cond.print();
+//printf("\n");
 //newS_es.print();
 
     for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
@@ -3363,6 +3406,12 @@ printf("%s\n",pseudotask_name);
         else
             printf("%s\n", findBoundsOfVar(relation_to_tree(newS_es), var_name, copy(newS_es)) );
     }
+    Relation dom = Relation(Domain(cond));
+    // WARNING: This is needed by Omega. If you remove it you get strange
+    // assert() calls being triggered inside the Omega library.
+    (void)dom.print_with_subs_to_string(false);
+    printf("  _dague_pseudotask_predicate = 1..%s\n", expr_tree_to_str(relation_to_tree(dom))); 
+
              
 char *data_str = tree_to_str(data_element);
 printf("  : data_%s\n",data_str);
@@ -3452,83 +3501,95 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
         // print the incoming edges
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
              dep_t *dep = *dep_it;
-             expr_t *rel_exp;
+//             expr_t *rel_exp;
+             list< pair<expr_t *,Relation> > cond_list;
+             //list<string> cond_list;
+             list< pair<expr_t *, Relation> >::iterator cond_it;
              string cond;
 
              // Needed by Omega
              (void)(*dep->rel).print_with_subs_to_string(false);
 
-             rel_exp = relation_to_tree( *dep->rel );
+//             rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->dst);
-             if ( dep_it!=ideps.begin() )
-                 printf("         ");
-             printf(" <- ");
 
-             task_t *src_task = dep->src->task;
+//#error "If there is a disjunction in the condition, split the edge in two."
+//             cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, copy_tree(rel_exp), S_es);
+             cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, S_es);
+             for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+                 //string cond = *cond_it;
+                 string cond = expr_tree_to_str(cond_it->first);
 
-             cond = simplifyConditions(*dep->rel, copy_tree(rel_exp), S_es);
-             if( !cond.empty() )
-                 printf("%s ? ",cond.c_str());
+                 if ( dep_it!=ideps.begin() )
+                     printf("         ");
+                 printf(" <- ");
 
-             if( NULL != src_task ){
+                 task_t *src_task = dep->src->task;
 
-                 printf("%s ", dep->src->var_symname);
-                 printf("%s(",src_task->task_name);
-                 printActualParameters(dep, rel_exp, SOURCE);
-                 printf(") ");
-             }else{
-                 // ENTRY
-                 bool need_pseudotask = false;
-                 char *comm_mtrx, *refr_mtrx;
+                 if( !cond.empty() )
+                     printf("%s ? ",cond.c_str());
 
-                 comm_mtrx = tree_to_str(DA_array_base(dep->dst));
-                 refr_mtrx = tree_to_str(DA_array_base(reference_data_element));
-                 // If the matrices are different and not co-located, we need a pseudo-task.
-                 if( strcmp(comm_mtrx,refr_mtrx) && q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ){
-                     need_pseudotask = true;
+                 if( NULL != src_task ){
+
+                     printf("%s ", dep->src->var_symname);
+                     printf("%s(",src_task->task_name);
+                     printActualParameters(dep, relation_to_tree(*dep->rel), SOURCE);
+                     printf(") ");
                  }else{
-                     // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
-                     int count = DA_array_dim_count(dep->dst);
-                     if( DA_array_dim_count(reference_data_element) != count ){
-                         fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
-                                        " This should never happen in dplasma\n",
-                                        tree_to_str(dep->dst), tree_to_str(reference_data_element));
+                     // ENTRY
+                     bool need_pseudotask = false;
+                     char *comm_mtrx, *refr_mtrx;
+
+                     comm_mtrx = tree_to_str(DA_array_base(dep->dst));
+                     refr_mtrx = tree_to_str(DA_array_base(reference_data_element));
+                     // If the matrices are different and not co-located, we need a pseudo-task.
+                     if( strcmp(comm_mtrx,refr_mtrx) && q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ){
                          need_pseudotask = true;
-                     }
-
-                     for(int i=0; i<count && !need_pseudotask; i++){
-                         char *a = tree_to_str(DA_array_index(dep->dst, i));
-                         char *b = tree_to_str(DA_array_index(reference_data_element, i));
-                         if( strcmp(a,b) )
+                     }else{
+                         // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
+                         int count = DA_array_dim_count(dep->dst);
+                         if( DA_array_dim_count(reference_data_element) != count ){
+                             fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
+                                            " This should never happen in dplasma\n",
+                                            tree_to_str(dep->dst), tree_to_str(reference_data_element));
                              need_pseudotask = true;
-                         free(a);
-                         free(b);
+                         }
+
+                         for(int i=0; i<count && !need_pseudotask; i++){
+                             char *a = tree_to_str(DA_array_index(dep->dst, i));
+                             char *b = tree_to_str(DA_array_index(reference_data_element, i));
+                             if( strcmp(a,b) )
+                                 need_pseudotask = true;
+                             free(a);
+                             free(b);
+                         }
+                     }
+                     free(comm_mtrx);
+                     free(refr_mtrx);
+
+                     if( need_pseudotask ){
+                         printf("[[ data_%s ]]", tree_to_str(dep->dst));
+                         char *pseudotask = create_pseudotask(this_task, S_es, cond_it->second, cond, dep->dst, var_pseudoname, pseudotask_count++, "in");
+                     }else{
+                         /*
+                          * JDF & QUARK specific optimization:
+                          * Add the keyword "data_" infront of the matrix to
+                          * differentiate the matrix from the struct.
+                          */
+                         printf("data_%s", tree_to_str(dep->dst));
                      }
                  }
-                 free(comm_mtrx);
-                 free(refr_mtrx);
-
-                 if( need_pseudotask ){
-                     printf("[[ data_%s ]]", tree_to_str(dep->dst));
-                     char *pseudotask = create_pseudotask(this_task, S_es, *dep->rel, dep->dst, var_pseudoname, pseudotask_count++, "in");
-                 }else{
-                     /*
-                      * JDF & QUARK specific optimization:
-                      * Add the keyword "data_" infront of the matrix to
-                      * differentiate the matrix from the struct.
-                      */
-                     printf("data_%s", tree_to_str(dep->dst));
-                 }
-             }
-             printf("\n");
+                 printf("\n");
 #ifdef DEBUG_2
-             if( NULL != src_task ){
-                 printf("          // %s -> %s ",src_task->task_name, tree_to_str(dep->dst));
-             }else{
-                 printf("          // ENTRY -> %s ", tree_to_str(dep->dst));
-             }
-             (*dep->rel).print_with_subs(stdout);
+                 if( NULL != src_task ){
+                     printf("          // %s -> %s ",src_task->task_name, tree_to_str(dep->dst));
+                 }else{
+                     printf("          // ENTRY -> %s ", tree_to_str(dep->dst));
+                 }
+                 (*dep->rel).print_with_subs(stdout);
 #endif
+             }
+
         }
 
         if(insert_fake_read){
@@ -3545,76 +3606,88 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
         // print the outgoing edges
         for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
              dep_t *dep = *dep_it;
-             expr_t *rel_exp;
+//             expr_t *rel_exp;
+             //list<string> cond_list;
+             list< pair<expr_t *,Relation> > cond_list;
+             list< pair<expr_t *,Relation> >::iterator cond_it;
              string cond;
 
              // Needed by Omega
              (void)(*dep->rel).print_with_subs_to_string(false);
 
 
-             rel_exp = relation_to_tree( *dep->rel );
+//             rel_exp = relation_to_tree( *dep->rel );
              assert( NULL != dep->src->task );
-             printf("         ");
-             printf(" -> ");
 
-             cond = simplifyConditions(*dep->rel, copy_tree(rel_exp), S_es);
-             if( !cond.empty() )
-                 printf("%s ? ", cond.c_str());
+//             cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, copy_tree(rel_exp), S_es);
+             cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, S_es);
+             for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+                 string cond = expr_tree_to_str(cond_it->first);
 
-             node_t *sink = dep->dst;
-             if( NULL == sink ){
-                 // EXIT
-                 bool need_pseudotask = false;
-                 char *comm_mtrx, *refr_mtrx;
+                 printf("         ");
+                 printf(" -> ");
 
-                 comm_mtrx = tree_to_str(DA_array_base(dep->src));
-                 refr_mtrx = tree_to_str(DA_array_base(reference_data_element));
-                 // If the matrices are different and not co-located, we need a pseudo-task.
-                 if( strcmp(comm_mtrx,refr_mtrx) && q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ){
-                     need_pseudotask = true;
-                 }else{
-                     // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
-                     int count = DA_array_dim_count(dep->src);
-                     if( DA_array_dim_count(reference_data_element) != count ){
-                         fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
-                                        " This should never happen in dplasma\n",
-                                        tree_to_str(dep->src), tree_to_str(reference_data_element));
+                 if( !cond.empty() )
+                     printf("%s ? ", cond.c_str());
+
+                 node_t *sink = dep->dst;
+                 if( NULL == sink ){
+                     // EXIT
+                     bool need_pseudotask = false;
+                     char *comm_mtrx, *refr_mtrx;
+
+                     comm_mtrx = tree_to_str(DA_array_base(dep->src));
+                     refr_mtrx = tree_to_str(DA_array_base(reference_data_element));
+                     // If the matrices are different and not co-located, we need a pseudo-task.
+                     if( strcmp(comm_mtrx,refr_mtrx) && q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ){
                          need_pseudotask = true;
-                     }
-
-                     for(int i=0; i<count && !need_pseudotask; i++){
-                         char *a = tree_to_str(DA_array_index(dep->src, i));
-                         char *b = tree_to_str(DA_array_index(reference_data_element, i));
-                         if( strcmp(a,b) )
+                     }else{
+                         // If the element we are communicating is not the same as the reference element, we also need a pseudo-task.
+                         int count = DA_array_dim_count(dep->src);
+                         if( DA_array_dim_count(reference_data_element) != count ){
+                             fprintf(stderr,"Matrices with different dimension counts detected \"%s\" and \"%s\"."
+                                            " This should never happen in dplasma\n",
+                                            tree_to_str(dep->src), tree_to_str(reference_data_element));
                              need_pseudotask = true;
-                         free(a);
-                         free(b);
-                     }
-                 }
-                 free(comm_mtrx);
-                 free(refr_mtrx);
+                         }
 
-                 if( need_pseudotask ){
-                     printf("[[ data_%s ]]", tree_to_str(dep->src));
-                     char *pseudotask = create_pseudotask(this_task, S_es, *dep->rel, dep->src, var_pseudoname, pseudotask_count++, "out");
+                         for(int i=0; i<count && !need_pseudotask; i++){
+                             char *a = tree_to_str(DA_array_index(dep->src, i));
+                             char *b = tree_to_str(DA_array_index(reference_data_element, i));
+                             if( strcmp(a,b) )
+                                 need_pseudotask = true;
+                             free(a);
+                             free(b);
+                         }
+                     }
+                     free(comm_mtrx);
+                     free(refr_mtrx);
+
+                     if( need_pseudotask ){
+//                     printf(" << ");
+//                     (*dep->rel).print();
+//                     printf(" >> ");
+                         printf("[[ data_%s ]]", tree_to_str(dep->src));
+                         char *pseudotask = create_pseudotask(this_task, S_es, cond_it->second, cond, dep->src, var_pseudoname, pseudotask_count++, "out");
+                     }else{
+                         /*
+                          * JDF & QUARK specific optimization:
+                          * Add the keyword "data_" infront of the matrix to
+                          * differentiate the matrix from the struct.
+                          */
+                         printf("data_%s",tree_to_str(dep->src));
+                     }
                  }else{
-                     /*
-                      * JDF & QUARK specific optimization:
-                      * Add the keyword "data_" infront of the matrix to
-                      * differentiate the matrix from the struct.
-                      */
-                     printf("data_%s",tree_to_str(dep->src));
+                     printf("%s %s(",sink->var_symname, sink->task->task_name);
+                     printActualParameters(dep, relation_to_tree(*dep->rel), SINK);
+                     printf(") ");
                  }
-             }else{
-                 printf("%s %s(",sink->var_symname, sink->task->task_name);
-                 printActualParameters(dep, rel_exp, SINK);
-                 printf(") ");
-             }
-             printf("\n");
+                 printf("\n");
 #ifdef DEBUG_2
-             printf("       // ");
-             (*dep->rel).print_with_subs(stdout);
+                 printf("       // ");
+                 (*dep->rel).print_with_subs(stdout);
 #endif
+            }
         }
 
     }
