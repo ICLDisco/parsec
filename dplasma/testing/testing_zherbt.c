@@ -16,6 +16,176 @@
 #define FADDS_ZHERBT(__n) (((__n) * (-8 / 3 + (__n) * (1 + 2 / 3 * (__n)))) - 4)
 #define FMULS_ZHERBT(__n) (((__n) * (-1 / 6 + (__n) * (5 / 2 + 2 / 3 * (__n)))) - 15)
 
+
+enum blas_order_type {
+            blas_rowmajor = 101,
+            blas_colmajor = 102 };
+
+enum blas_uplo_type  {
+            blas_upper = 121,
+            blas_lower = 122 };
+
+enum blas_cmach_type {
+            blas_base      = 151,
+            blas_t         = 152,
+            blas_rnd       = 153,
+            blas_ieee      = 154,
+            blas_emin      = 155,
+            blas_emax      = 156,
+            blas_eps       = 157,
+            blas_prec      = 158,
+            blas_underflow = 159,
+            blas_overflow  = 160,
+            blas_sfmin     = 161};
+
+enum blas_norm_type {
+            blas_one_norm       = 171,
+            blas_real_one_norm  = 172,
+            blas_two_norm       = 173,
+            blas_frobenius_norm = 174,
+            blas_inf_norm       = 175,
+            blas_real_inf_norm  = 176,
+            blas_max_norm       = 177,
+            blas_real_max_norm  = 178 };
+
+static void
+BLAS_error(char *rname, int err, int val, int x) {
+  fprintf( stderr, "%s %d %d %d\n", rname, err, val, x );
+  abort();
+}
+
+static
+void
+BLAS_zsy_norm(enum blas_order_type order, enum blas_norm_type norm,
+  enum blas_uplo_type uplo, int n, const PLASMA_Complex64_t *a, int lda, double *res) {
+  int i, j; double anorm, v;
+  char rname[] = "BLAS_zsy_norm";
+
+  if (order != blas_colmajor) BLAS_error( rname, -1, order, 0 );
+
+  if (norm == blas_inf_norm) {
+    anorm = 0.0;
+    if (blas_upper == uplo) {
+      for (i = 0; i < n; ++i) {
+        v = 0.0;
+        for (j = 0; j < i; ++j) {
+          v += cabs( a[j + i * lda] );
+        }
+        for (j = i; j < n; ++j) {
+          v += cabs( a[i + j * lda] );
+        }
+        if (v > anorm)
+          anorm = v;
+      }
+    } else {
+      BLAS_error( rname, -3, norm, 0 );
+      return;
+    }
+  } else {
+    BLAS_error( rname, -2, norm, 0 );
+    return;
+  }
+
+  if (res) *res = anorm;
+}
+
+static
+void
+BLAS_zge_norm(enum blas_order_type order, enum blas_norm_type norm,
+  int m, int n, const PLASMA_Complex64_t *a, int lda, double *res) {
+  int i, j; float anorm, v;
+  char rname[] = "BLAS_zge_norm";
+
+  if (order != blas_colmajor) BLAS_error( rname, -1, order, 0 );
+
+  if (norm == blas_frobenius_norm) {
+    anorm = 0.0f;
+    for (j = n; j; --j) {
+      for (i = m; i; --i) {
+        v = a[0];
+        anorm += v * v;
+        a++;
+      }
+      a += lda - m;
+    }
+    anorm = sqrt( anorm );
+  } else if (norm == blas_inf_norm) {
+    anorm = 0.0f;
+    for (i = 0; i < m; ++i) {
+      v = 0.0f;
+      for (j = 0; j < n; ++j) {
+        v += cabs( a[i + j * lda] );
+      }
+      if (v > anorm)
+        anorm = v;
+    }
+  } else {
+    BLAS_error( rname, -2, norm, 0 );
+    return;
+  }
+
+  if (res) *res = anorm;
+}
+
+static
+double
+BLAS_dpow_di(double x, int n) {
+  double rv = 1.0;
+
+  if (n < 0) {
+    n = -n;
+    x = 1.0 / x;
+  }
+
+  for (; n; n >>= 1, x *= x) {
+    if (n & 1)
+      rv *= x;
+  }
+
+  return rv;
+}
+
+static
+double
+BLAS_dfpinfo(enum blas_cmach_type cmach) {
+  double eps = 1.0, r = 1.0, o = 1.0, b = 2.0;
+  int t = 53, l = 1024, m = -1021;
+  char rname[] = "BLAS_dfpinfo";
+
+  if ((sizeof eps) == sizeof(float)) {
+    t = 24;
+    l = 128;
+    m = -125;
+  } else {
+    t = 53;
+    l = 1024;
+    m = -1021;
+  }
+
+  /* for (i = 0; i < t; ++i) eps *= half; */
+  eps = BLAS_dpow_di( b, -t );
+  /* for (i = 0; i >= m; --i) r *= half; */
+  r = BLAS_dpow_di( b, m-1 );
+
+  o -= eps;
+  /* for (i = 0; i < l; ++i) o *= b; */
+  o = (o * BLAS_dpow_di( b, l-1 )) * b;
+
+  switch (cmach) {
+    case blas_eps: return eps;
+    case blas_sfmin: return r;
+    default:
+      BLAS_error( rname, -1, cmach, 0 );
+      break;
+  }
+  return 0.0;
+}
+
+static int check_orthogonality(int, int, int, PLASMA_Complex64_t*, double);
+static int check_reduction(int, int, int, PLASMA_Complex64_t*, PLASMA_Complex64_t*, int, PLASMA_Complex64_t*, double);
+static int check_solution(int, double*, double*, double);
+static int check_solution2(int, double*, double*, double);
+
 int main(int argc, char *argv[])
 {
     dague_context_t *dague;
@@ -38,78 +208,178 @@ int main(int argc, char *argv[])
     LDB = max( LDB, N );
     SMB = 1; SNB = 1;
 
-    if( !check ) {
-        PLASMA_Init(1);
+    PLASMA_Init(1);
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
                                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                                           nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
                                                           N, N, SMB, SNB, P))
-        PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble, 
+    PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble, 
                            ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
                            ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j, 
                            ddescA.super.m, ddescA.super.n);
-        PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
                                    two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
                                                           nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
                                                           MT*IB, N, SMB, SNB, P))
-        PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble, 
+    PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble, 
                            ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
                            ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
                            ddescT.super.m, ddescT.super.n);
-        PLASMA_enum uplo = PlasmaLower;
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
+    PLASMA_enum uplo = PlasmaLower;
+    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
                                   (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
 
-        PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
+    PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 
-        dplasma_zherbt_Destruct( DAGUE_zherbt );
-
-        dague_data_free(ddescA.mat);
-        dague_data_free(ddescT.mat);
+    if( check ) {
+        /*----------------------------------------------------------
+        *  TESTING ZHEEV
+        */
+        double eps;
+        int uplo, vec;
+        int info_ortho, info_solution;
+        int i, j;
+        int LDAxN = LDA*N;
+        
+        int nminusone = N - 1;
+        int mode = 4;
+        double rcond = 1.0e6;  //(double) N;
+        double anorm = 1.0;
+        int bw; // Bandwidth of the first stage reduction
+        int ISEED[4] = {0,0,0,1};   /* initial seed for zlarnv() */
+	
     
-        cleanup_dague(dague);
-        
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
-        
-        return EXIT_SUCCESS;
+        PLASMA_Complex64_t *A1 = (PLASMA_Complex64_t *)malloc(LDAxN*sizeof(PLASMA_Complex64_t));
+        PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDAxN*sizeof(PLASMA_Complex64_t));
+        PLASMA_Complex64_t *Q  = (PLASMA_Complex64_t *)malloc(LDAxN*sizeof(PLASMA_Complex64_t));
+        double *W1             = (double *)malloc(N*sizeof(double));
+        double *W2             = (double *)malloc(N*sizeof(double));
+        PLASMA_Complex64_t *work = (PLASMA_Complex64_t *)malloc(3*N* sizeof(PLASMA_Complex64_t));
+        PLASMA_Complex64_t *T;
 
-    } else {
-        fprintf(stderr, "Run with checks not coded yet\n");
-        /* Initialize with checks:
-         *  LAPACK zlatms function that takes as input a set of parameters
-         *  And create as output
-         *     - corresponding eigenvalues
-         *     - a matrix whose eigenvalue is this vector
-         *  See testing_zeev.c in Hatem's branch
-         *   Look at line 261: call to LAPACKE_zlatms_work
-         *     A1 is the matrix
-         *     W1 is the eigenvalues for A1
-         *
-         *  Sort the eigenvalues with dlasrt_ (see same file)
-         */
-        
-        /* Scatter A1 (the remaining in assuming a _L operation) */
-        
-        /* Call dague_L_zherbt */
-        
-        /* Gather everything in the lower part of A1.
-         * The upper part is irrelevant */
-        
-        /* In the lower part of A1, we get the Band,
-         * and some data similar to the reflector vectors of QR
-         * These reflectors must be zeroed.
-         * Everything below the band of radius nb+2 inclusive must be zeroed.
-         */
-        
-        /* Call LAPACK_zheev to compute the eigenvalues from the Band
-         * See */
-        
-        /* Compare resulting vector with result W1 of zlatms
-         * using the check_solution function of testing_zeev.c */
+        PLASMA_Alloc_Workspace_zheev(N, N, &T);
+        eps = BLAS_dfpinfo( blas_eps );
+        PLASMA_Get(PLASMA_TILE_SIZE, &bw);
+    
+        LAPACKE_zlatms_work( LAPACK_COL_MAJOR, N, N,
+               lapack_const(PlasmaDistSymmetric), ISEED,
+               lapack_const(PlasmaHermGeev), W1, mode, rcond,
+               anorm, nminusone, nminusone,
+               lapack_const(PlasmaNoPacking), A1, LDA, work );
+    
+        /*
+         * Sort the eigenvalue because when computing the tridiag
+         * and then the eigenvalue of the DSTQR are sorted.
+         * So to avoid testing fail when having good results W1 should be sorted
+        */
 
-        cleanup_dague(dague);
+	// Need to be uncommented as soon as Julie adds this function to lapacke wrapper lib
+        //dlasrt_( "I", &N, W1, &i );
+    
+        printf("Eigenvalues original\n");
+        for (i = 0; i < min(N,25); i++){
+            printf("%f \n", W1[i]);
+        }
+        printf("\n");
+    
+        /* Initialize A1 and A2 */
+        for (i = 0; i < N; i++)
+            for (j = 0; j < N; j++)
+                A2[LDA*j+i] = A1[LDA*j+i];
+        /* PLASMA ZHEEV */
+        uplo = PlasmaLower;
+        vec  = PlasmaVec;
+        PLASMA_zheev(vec, uplo, N, A2, LDA, T, W2, Q, LDA);
+
+        printf("Eigenvalues computed\n");
+        for (i = 0; i < min(N,25); i++){
+            printf("%f \n", W2[i]);
+        }
+        printf("\n");
+    
+        printf("\n");
+        printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
+        printf("        Size of the Matrix %d by %d\n", N, N);
+        printf("\n");
+        printf(" The matrix A is randomly generated for each test.\n");
+        printf("============\n");
+        printf(" The relative machine precision (eps) is to be %e \n",eps);
+        printf(" Computational tests pass if scaled residuals are less than 60.\n");
+    
+        /* Check the orthogonality, reduction and the eigen solutions */
+        //info_ortho = check_orthogonality(N, N, LDA, Q, eps);
+        //info_reduction = check_reduction(uplo, N, bw, A1, A2, LDA, Q, eps);
+        info_solution = check_solution(N, W1, W2, eps);
+    
+        if (info_solution == 0) {
+            printf("***************************************************\n");
+            printf(" ---- TESTING ZHEEV ...................... PASSED !\n");
+            printf("***************************************************\n");
+        }
+        else {
+            printf("************************************************\n");
+            printf(" - TESTING ZHEEV ... FAILED !\n");
+            printf("************************************************\n");
+        }
+
+        free(A1);
+        free(A2);
+        free(Q);
+        free(W1);
+        free(W2);
+        free(work);
+        free(T);    
     }
+    dplasma_zherbt_Destruct( DAGUE_zherbt );
+
+    dague_data_free(ddescA.mat);
+    dague_data_free(ddescT.mat);
+    
+    cleanup_dague(dague);
+        
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
+        
+    return EXIT_SUCCESS;
+}
+
+/*--------------------------------------------------------------
+ * Check the solution
+ */
+
+static int check_solution(int N, double *E1, double *E2, double eps)
+{
+    int info_solution, i;
+    double *Residual = (double *)malloc(N*sizeof(double));
+
+    double maxel = fabs(fabs(E1[0])-fabs(E2[0]));
+    for (i = 1; i < N; i++){
+        Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
+        //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
+        if (maxel < Residual[i])
+           maxel =  Residual[i];
+    }
+
+
+    printf(" ======================================================\n");
+    printf(" | D -  eigcomputed | / (ulp)      : %15.3E \n",  maxel/eps );
+    printf(" ======================================================\n");
+
+    printf("============\n");
+    printf("Checking the eigenvalues of A\n");
+    if (isnan(maxel / eps) || isinf(maxel / eps) || ((maxel / eps) > 100.0) ) {
+        //printf("isnan: %d %f %e\n", isnan(maxel / eps), maxel, eps );
+        //printf("isinf: %d %f %e\n", isinf(maxel / eps), maxel, eps );
+        printf("-- The eigenvalues are suspicious ! \n");
+        info_solution = 1;
+    }
+    else{
+        printf("-- The eigenvalues are CORRECT ! \n");
+        info_solution = 0;
+    }
+
+    free(Residual);
+    return info_solution;
 }
