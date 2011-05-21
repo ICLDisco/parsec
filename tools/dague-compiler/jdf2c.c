@@ -617,7 +617,8 @@ static char* dump_typed_globals(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
-    jdf_expr_t* expr = jdf_find_property( global->properties, "type", NULL );
+    jdf_expr_t* type_str = jdf_find_property( global->properties, "type", NULL );
+    jdf_expr_t *size_str = jdf_find_property( global->properties, "size", NULL );
     expr_info_t info;
 
     string_arena_init(sa);
@@ -627,10 +628,14 @@ static char* dump_typed_globals(void **elem, void *arg)
 
     if( NULL == global->data ) {
         string_arena_add_string(sa, "%s %s",
-                                (NULL == expr ? "int" : dump_expr((void**)&expr, &info)), global->name);
+                                (NULL == type_str ? "int" : dump_expr((void**)&type_str, &info)), global->name);
     } else {
         string_arena_add_string(sa, "%s %s /* data %s */",
-                                (NULL == expr ? "int" : dump_expr((void**)&expr, &info)), global->name, global->name);
+                                (NULL == type_str ? "int" : dump_expr((void**)&type_str, &info)), global->name, global->name);
+    }
+    if( NULL != size_str ) {
+        houtput("#define %s_%s_SIZE %s\n",
+                jdf_basename, global->name, dump_expr((void**)&size_str, &info));
     }
     string_arena_free(info.sa);
 
@@ -2799,7 +2804,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
             nbopen++;
         } else {
             string_arena_add_string(sa_open, 
-                                    "%s%s  if( (%s_%s == (%s))", 
+                                    "%s%s  if( (%s_%s == (%s)) ) {\n", 
                                     prefix, indent(nbopen), t->fname, nl->name, 
                                     dump_expr((void**)&def->expr, &linfo));
             string_arena_add_string(sa_close, "%s%s  }\n", prefix, indent(nbopen));
