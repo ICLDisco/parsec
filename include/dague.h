@@ -195,6 +195,8 @@ int dague_release_OUT_dependencies( const dague_object_t *dague_object,
 const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
+int dague_enqueue( dague_context_t* context, dague_object_t* object);
+int dague_progress(dague_context_t* context);
 char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                char* tmp,
                                size_t length );
