@@ -71,7 +71,6 @@ static map<string, Free_Var_Decl *> global_vars;
 
 expr_t *relation_to_tree( Relation R );
 
-//static list<string> simplifyConditionsAndSplitDisjunctions(Relation R, expr_t *exp, Relation S_es);
 static list< pair<expr_t *, Relation> > simplifyConditionsAndSplitDisjunctions(Relation R, Relation S_es);
 
 #if 0
@@ -1638,30 +1637,6 @@ expr_t *relation_to_tree( Relation R ){
     return root;
 }
 
-/*
-Relation extract_matching_conjunction_from_relation( Relation R, string con_str, Relation S_es ){
-    Relation newR;
-    list<string> cond_list;
-
-    if( R.is_null() )
-        return newR;
-
-    for(DNF_Iterator di(R.query_DNF()); di; di++) {
-        Relation tmpR = Relation(copy(R), *di);
-        cond_list = simplifyConditionsAndSplitDisjunctions(copy(tmpR), relation_to_tree(tmpR), S_es);
-        string tmp_str = static_cast<string>(cond_list.front());
-
-        if( !con_str.compare( tmp_str ) ){
-            printf("\nFound matching conjunction: %s\n",tmp_str.c_str());
-            return Relation(copy(R), *di);
-        }else{
-            printf("\n%s != %s\n",con_str.c_str(), tmp_str.c_str());
-        }
-    }
-
-    return newR;
-}
-*/
 
 static set<expr_t *> findAllConjunctions(expr_t *exp){
     set<expr_t *> eq_set;
@@ -1794,7 +1769,7 @@ void tree_to_omega_set(expr_t *tree, Constraint_Handle &handle, map<string, Vari
 
 }
 
-expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es, Relation R){
+expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es){
     Relation S_rslt;
     set<expr_t *> e_set;
     set<expr_t *>::iterator e_it;
@@ -1881,23 +1856,24 @@ static list< pair<expr_t *,Relation> > simplifyConditionsAndSplitDisjunctions(Re
     stringstream ss;
     set<expr_t *> simpl_conj;
 
-    list< pair<expr_t *, Relation> > result;
+    list< pair<expr_t *, Relation> > tmp, result;
     list< pair<expr_t *, Relation> >::iterator cj_it;
-
-//    conj = findAllConjunctions(exp);
 
     for(DNF_Iterator di(R.query_DNF()); di; di++) {
         pair<expr_t *, Relation> p;
         Relation tmpR = Relation(copy(R), *di);
+        tmpR.simplify();
         p.first = relation_to_tree(tmpR);
+        tmpR.simplify();
         p.second = tmpR;
-        result.push_back(p);
+        tmp.push_back(p);
     }
 
     // Eliminate the conjunctions that are covered by the execution space
     // and simplify the remaining ones
-    for(cj_it = result.begin(); cj_it != result.end(); cj_it++){
-        pair<expr_t*, Relation> p = *cj_it;
+    for(cj_it = tmp.begin(); cj_it != tmp.end(); cj_it++){
+        pair<expr_t *, Relation> new_p;
+        pair<expr_t *, Relation> p = *cj_it;
         expr_t *cur_exp = p.first;
 
         int dst_count = R.n_out();
@@ -1915,27 +1891,12 @@ static list< pair<expr_t *,Relation> > simplifyConditionsAndSplitDisjunctions(Re
             }
             free((void *)ovar);
         }
-        cur_exp = simplify_constraint_based_on_execution_space(cur_exp, S_es, R);
-        if(cur_exp){
-//            simpl_conj.insert(cur_exp);
-            cj_it->first = cur_exp;
-        }
-    }
+        cur_exp = simplify_constraint_based_on_execution_space(cur_exp, S_es);
 
-#if 0
-    if( simpl_conj.size() > 1 )
-        ss << "( (";
-    for(cj_it = simpl_conj.begin(); cj_it != simpl_conj.end(); cj_it++){
-        expr_t *cur_exp = *cj_it;
-        if( cj_it != simpl_conj.begin()  )
-            ss << ") | ("; /* The symbol for Logical OR in the JDF parser is a single "|" */
-        ss << expr_tree_to_str(cur_exp);
+        new_p.first = cur_exp;
+        new_p.second = p.second;
+        result.push_back(new_p);
     }
-    if( simpl_conj.size() > 1 )
-        ss << ") )";
-
-    return ss.str();
-#endif
 
     return result;
 }
@@ -3420,6 +3381,8 @@ printf("################################\n");
 bool need_pseudotask(node_t *ref1, node_t *ref2){
     bool need_ptask = false;
     char *comm_mtrx, *refr_mtrx;
+
+    return false;
 
     comm_mtrx = tree_to_str(DA_array_base(ref1));
     refr_mtrx = tree_to_str(DA_array_base(ref2));
