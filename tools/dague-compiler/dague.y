@@ -205,7 +205,6 @@ jdf:            jdf function
         |       jdf VAR properties ASSIGNMENT expr 
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    printf("%s is a global with a property and a constant value\n", $2);
                     e->next       = NULL;
                     e->name       = $2;
                     e->properties = $3;
@@ -222,7 +221,6 @@ jdf:            jdf function
         |       jdf VAR properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    printf("%s is a global with a property and no constant value\n", $2);
                     e->next       = NULL;
                     e->name       = $2;
                     e->properties = $3;
