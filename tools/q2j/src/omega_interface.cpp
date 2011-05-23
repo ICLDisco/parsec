@@ -655,73 +655,52 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             continue;
         }
         
-#warning "The following conjunctions are suboptimal. Look at the SC11 submission for better ones."
+        if( NULL == encl_loop && 
+            !( after_def && (def->task != use->task) ) &&
+            !( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
+
+            fprintf(stderr,"create_dep_relations(): Destination is before Source and they do not have a common enclosing loop\n");
+            fprintf(stderr,"Destination:%s %s\n", tree_to_str(use), use->task->task_name );
+            fprintf(stderr,"Source:%s %s\n", tree_to_str(def), def->task->task_name);
+            exit(-1);
+        }
 
         // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
         // subtract the relation of that "self" antidependency from the relations of all other anti-dependencies.
-        if( ( after_def && (def->task != use->task) ) || ( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
-            // Create Relation due to "normal" DU chain.  In this case, not having a common enclosing loop it acceptable.
-            if( NULL != encl_loop ){
 
-                for(tmp=encl_loop; NULL != tmp->enclosing_loop; tmp=tmp->enclosing_loop );
-                char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
-                Variable_ID ovar = ovars[var_name];
-                Variable_ID ivar = ivars[var_name];
-                GEQ_Handle ge = R_root->add_GEQ();
-                ge.update_coef(ovar,1);
-                ge.update_coef(ivar,-1);
-
-                if( tmp != encl_loop ){
-                    F_Or *or1 = R_root->add_or();
-                    for(tmp=encl_loop; NULL != tmp->enclosing_loop; tmp=tmp->enclosing_loop ){
-                        F_And *and1 = or1->add_and();
-
-                        // Force at least one of the input variables (that correspond to the DEF)
-                        // to be less or equal to the output variables.
-                        char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
-                        Variable_ID ovar = ovars[var_name];
-                        Variable_ID ivar = ivars[var_name];
-                        GEQ_Handle ge = and1->add_GEQ();
-                        ge.update_coef(ovar,1);
-                        ge.update_coef(ivar,-1);
-                    }
-                }
-            }
-        }else{
-            // Create Relation due to loop carried DU chain
-
-            if( NULL == encl_loop ){
-                fprintf(stderr,"create_dep_relations(): USE is before DEF and they do not have a common enclosing loop\n");
-                fprintf(stderr,"USE:%s %s\n", tree_to_str(use), use->task->task_name );
-                fprintf(stderr,"DEF:%s %s\n", tree_to_str(def), def->task->task_name);
-                exit(-1);
-            }
-
-            // Get the ind. var. of the outer most enclosing loop (say k) and create a k'>=k condition.
-            for(tmp=encl_loop; NULL != tmp->enclosing_loop; tmp=tmp->enclosing_loop );
-            char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
-            Variable_ID ovar = ovars[var_name];
-            Variable_ID ivar = ivars[var_name];
-            GEQ_Handle ge = R_root->add_GEQ();
-            ge.update_coef(ovar,1);
-            ge.update_coef(ivar,-1);
+        // Create a conjunction to enforce the iteration vectors of src and dst to be Is<=Id or Is<Id.
+        if( NULL != encl_loop ){
 
             F_Or *or1 = R_root->add_or();
-            // Get the ind. var. of all enclosing loops (say k,m,n) and create a (k'>k || m'>m || n'>n) condition.
-            for(tmp=encl_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+            for(tmp=encl_loop; NULL != tmp->enclosing_loop; tmp=tmp->enclosing_loop ){
                 F_And *and1 = or1->add_and();
 
-                // Force at least one of the input variables (i.e., induction variables for DEF) to be less than
-                // the corresponding output variable, so that the USE happens at least one iteration after the DEF
                 char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
                 Variable_ID ovar = ovars[var_name];
                 Variable_ID ivar = ivars[var_name];
                 GEQ_Handle ge = and1->add_GEQ();
                 ge.update_coef(ovar,1);
                 ge.update_coef(ivar,-1);
-                ge.update_const(-1);
+                // Create Relation due to "normal" DU chain.
+                if( (( after_def && (def->task != use->task) ) || ( (DEP_ANTI==dep_type) && (after_def||(def==use)) )) && (tmp == encl_loop) ){
+                    // If there this is "normal" DU chain, i.e. there is direct path from src to dst, then the inner most loop can be n<=n'
+                    ;
+                }else{
+                    // If this is can only be a loop carried dependency then the iteration vectors have to be strictly Isrc < Idst
+                    ge.update_const(-1);
+                }
+
+                for(node_t *tmp2=tmp->enclosing_loop; NULL != tmp2; tmp2=tmp2->enclosing_loop ){
+                    char *var_name = DA_var_name(DA_loop_induction_variable(tmp2));
+                    Variable_ID ovar = ovars[var_name];
+                    Variable_ID ivar = ivars[var_name];
+                    EQ_Handle eq = and1->add_EQ();
+                    eq.update_coef(ovar,1);
+                    eq.update_coef(ivar,-1);
+                }
             }
         }
+
 // DEBUG
 //        R.print();
 // END DEBUG
