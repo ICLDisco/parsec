@@ -56,7 +56,7 @@ WHITE         [\f\t\v ]
 
 %x comment
 %x properties
-%x str
+%x dstr
 
 %%
 
@@ -143,7 +143,7 @@ WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
 <*>";"                { return SEMICOLON;                                  }
 <*>","                { return COMMA;                                      }
 
-<str>\"               { /* saw closing quote - all done */
+<dstr>\"              { /* saw closing quote - all done */
                         yy_pop_state();
                         *string_buf_ptr = '\0';
                         /* return string constant token type and
@@ -152,14 +152,14 @@ WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
                         yylval.string = string_buf;
                         return STRING;                                     }
 <*>\"                 { string_buf_ptr = string_buf;
-                        yy_push_state(str);                                }
+                        yy_push_state(dstr);                               }
 
-<str>\n               {
+<dstr>\n              {
                         /* error - unterminated string constant */
                         printf("Unterminated string constant at line %d\n", current_lineno);
                         exit(-1);                                          }
 
-<str>\\[0-7]{1,3}     { /* octal escape sequence */
+<dstr>\\[0-7]{1,3}    { /* octal escape sequence */
                         int result;
 
                         (void) sscanf( yytext + 1, "%o", &result );
@@ -171,21 +171,21 @@ WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
                         }
                         *string_buf_ptr++ = (char)result;                  }
 
-<str>\\[0-9]+         { /* generate error - bad escape sequence; something
+<dstr>\\[0-9]+        { /* generate error - bad escape sequence; something
                          * like '\48' or '\0777777'
                          */
                          printf("Bad escape sequence at line %d\n", current_lineno);
                          exit(-1);                                         }
 
-<str>\\n              { *string_buf_ptr++ = '\n'; current_lineno++;        }
-<str>\\t              { *string_buf_ptr++ = '\t';                          }
-<str>\\r              { *string_buf_ptr++ = '\r';                          }
-<str>\\b              { *string_buf_ptr++ = '\b';                          }
-<str>\\f              { *string_buf_ptr++ = '\f';                          }
+<dstr>\\n             { *string_buf_ptr++ = '\n'; current_lineno++;        }
+<dstr>\\t             { *string_buf_ptr++ = '\t';                          }
+<dstr>\\r             { *string_buf_ptr++ = '\r';                          }
+<dstr>\\b             { *string_buf_ptr++ = '\b';                          }
+<dstr>\\f             { *string_buf_ptr++ = '\f';                          }
 
-<str>\\(.|\n)         { *string_buf_ptr++ = yytext[1];                     }
+<dstr>\\(.|\n)        { *string_buf_ptr++ = yytext[1];                     }
 
-<str>[^\\\n\"]+       {
+<dstr>[^\\\n\"]+      {
                         char *yptr = yytext;
                         while ( *yptr )
                             *string_buf_ptr++ = *yptr++;                   }
