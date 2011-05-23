@@ -253,8 +253,6 @@ int main(int argc, char ** argv)
     return EXIT_SUCCESS;
 }
 
-
-
 static int check_solution( dague_context_t *dague, PLASMA_enum uplo, 
                            tiled_matrix_desc_t *ddescA, tiled_matrix_desc_t *ddescB, tiled_matrix_desc_t *ddescX )
 {

@@ -80,8 +80,8 @@ int main(int argc, char ** argv)
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgelqf, 
-                                           ((tiled_matrix_desc_t*)&ddescA,
-                                            (tiled_matrix_desc_t*)&ddescT));
+                                  ((tiled_matrix_desc_t*)&ddescA,
+                                   (tiled_matrix_desc_t*)&ddescT));
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgelqf);
