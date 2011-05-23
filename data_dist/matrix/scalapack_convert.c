@@ -19,6 +19,10 @@
 #include "data_distribution.h"
 #include "matrix.h"
 
+#if !defined(UINT_MAX)
+#define UINT_MAX (~0UL)
+#endif
+
 /**
  *(as of http://www.netlib.org/scalapack/slug/node77.html#secdesc1)
  *

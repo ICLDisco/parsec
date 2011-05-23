@@ -17,6 +17,10 @@
 #include "dague.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 
+#if !defined(UINT_MAX)
+#define UINT_MAX (~0UL)
+#endif
+
 static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
     unsigned int rr, cr, m, n;
