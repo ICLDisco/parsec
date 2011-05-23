@@ -1356,7 +1356,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
                         string_arena_init(sa1);
                         info.sa = sa1;
                         dump_expr((void**)&dep->guard->guard, &info);
-                        string_arena_add_string( sa, "&& (%s) ", string_arena_get_string(sa1) );
+                        string_arena_add_string( sa, "|| (%s) ", string_arena_get_string(sa1) );
                     }
                 }
             }
@@ -1373,17 +1373,17 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
                             string_arena_init(sa1);
                             info.sa = sa1;
                             dump_expr((void**)&dep->guard->guard, &info);
-                            string_arena_add_string( sa, "&& (%s) ", string_arena_get_string(sa1) );
+                            string_arena_add_string( sa, "|| (%s) ", string_arena_get_string(sa1) );
                         }
                     } else if( NULL == dep->guard->callfalse->var ) {
                         string_arena_init(sa1);
                         info.sa = sa1;
                         dump_expr((void**)&dep->guard->guard, &info);
                         if( 0 == already_added ) {
-                            string_arena_add_string( sa, "!(%s)", string_arena_get_string(sa1) );
+                            string_arena_add_string( sa, "(!(%s))", string_arena_get_string(sa1) );
                             already_added = 1;
                         } else {
-                            string_arena_add_string( sa, "&& !(%s)", string_arena_get_string(sa1) );
+                            string_arena_add_string( sa, "|| (!(%s))", string_arena_get_string(sa1) );
                         }
                     }
                 }
