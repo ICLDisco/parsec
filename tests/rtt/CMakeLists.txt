@@ -1,6 +1,8 @@
 include(RulesJDF)
 
 jdf_rules(rtt_generated "${CMAKE_CURRENT_SOURCE_DIR}/rtt.jdf")
+string( REGEX REPLACE "rtt.c" "" include_dir "${rtt_generated}" )
+include_directories(${include_dir})
 
 if( MPI_FOUND )
    add_executable(mpi_rtt ${rtt_generated} rtt_wrapper.c rtt_data.c main.c)
