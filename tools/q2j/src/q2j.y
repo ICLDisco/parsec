@@ -13,6 +13,7 @@
 
 #include "node_struct.h"
 #include "utility.h"
+#include "omega_interface.h"
 #include "symtab.h"
 #include "parse_utility.h"
 
@@ -115,6 +116,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> initializer
 %type <node> pragma_parameters
 %type <node> pragma_specifier
+%type <node> pragma_options
+%type <node> task_arguments
 
 %type <string> abstract_declarator
 %type <type_node> parameter_declaration
@@ -153,6 +156,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> STRUCT
 %type <string> TYPEDEF
 %type <string> PRAGMA
+%type <string> DIR_DAGUE_DATA_COLOCATED
+%type <string> DIR_DAGUE_TASK_START
 %type <string> TYPE_NAME
 %type <string> UNION
 %type <string> UNSIGNED
@@ -193,6 +198,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %token XOR_ASSIGN OR_ASSIGN TYPE_NAME
 
 %token TYPEDEF PRAGMA EXTERN STATIC AUTO REGISTER
+%token DIR_DAGUE_DATA_COLOCATED DIR_DAGUE_TASK_START
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
 %token INT8 INT16 INT32 INT64 UINT8 UINT16 UINT32 UINT64 INTPTR UINTPTR INTMAX UINTMAX
 %token PLASMA_COMPLEX32_T PLASMA_COMPLEX64_T PLASMA_ENUM PLASMA_REQUEST PLASMA_DESC PLASMA_SEQUENCE
@@ -685,6 +691,25 @@ typedef_specifier
 	  {
               add_type(tree_to_str(&($3)), $2);
 	  }
+	;
+
+pragma_options
+	: IDENTIFIER
+          {
+          }
+	| IDENTIFIER ':' pragma_options
+          {
+          }
+	;
+
+task_arguments
+	: pragma_options
+	  {
+	  }
+	| pragma_options ',' task_arguments
+	  {
+	  }
+	;
 
 pragma_parameters
 	: IDENTIFIER
@@ -712,27 +737,39 @@ pragma_parameters
               tmp->prev->next = tmp;
               $$.next = tmp;
 	  }
+	;
 
 pragma_specifier
 	: PRAGMA IDENTIFIER pragma_parameters
 	  {
-              //#pragma DAGUE_DATA_COLOCATED T A
-              if( !strcmp("DAGUE_DATA_COLOCATED",$2.u.var_name) ){
-                  int i=0;
-                  node_t *tmp;
-                  // traverse the list backwards
-                  printf("(");
-                  for(tmp=$3.next; NULL != tmp->prev; tmp=tmp->prev){
-                      if(i++)
-                          printf(" and ");
-                      printf("%s",tmp->u.var_name);
-                  }
-                  printf(") is co-located with %s\n",tmp->u.var_name);
-              }
-
-              // ignore the other pragmas for now.
-
 	  }
+	| PRAGMA DIR_DAGUE_DATA_COLOCATED pragma_parameters
+	  {
+              //#pragma DAGUE_DATA_COLOCATED T A
+              //int i=0;
+              node_t *tmp, *reference;
+
+              // find the reference matrix in the pragma
+              for(reference=$3.next; NULL != reference->prev; reference=reference->prev)
+                  /* nothing */ ;
+
+              // traverse the list backwards
+              //printf("(");
+              for(tmp=$3.next; NULL != tmp->prev; tmp=tmp->prev){
+                  //if(i++)
+                  //    printf(" and ");
+                  //printf("%s",tmp->u.var_name);
+                  add_colocated_data_info(tmp->u.var_name, reference->u.var_name);
+              }
+              // add a tautologic relation from the reference element to itself
+              add_colocated_data_info(reference->u.var_name, reference->u.var_name);
+              //printf(") is co-located with %s\n",tmp->u.var_name);
+	  }
+	| PRAGMA DIR_DAGUE_TASK_START IDENTIFIER task_arguments
+	  {
+              //#pragma DAGUE_TASK_START  TASK_NAME  PARAM[:PSEUDONAME]:(IN|OUT|INOUT|SCRATCH)[:TYPE_NAME] [, ...]
+	  }
+	;
 
 declaration_specifiers
 	: storage_class_specifier

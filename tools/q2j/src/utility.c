@@ -1323,7 +1323,7 @@ char *create_pool_declarations(){
         assert(list_item && NULL != true_item->var && NULL != true_item->def);
        
         result = append_to_string(result, true_item->def, NULL, 0);
-        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\", size = \"%s\"]\n", 47+strlen(true_item->var));
+        result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
 
         list_item = (dague_list_item_t *)list_item->list_next;
     }
@@ -1473,12 +1473,14 @@ char *quark_tree_to_body(node_t *node){
         }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
             char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
             char *id = numToSymName(pool_buf_count);
-            param = append_to_string( param, id, "pool_%s", 5+strlen(id));
+            param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
 
-            pool_push = append_to_string( pool_push, param, "  dague_private_memory_push( %s", 35+strlen(param));
-            pool_push = append_to_string( pool_push, pool_name, ", %s );\n", 6+strlen(pool_name));
+            //pool_push = append_to_string( pool_push, param, "  dague_private_memory_push( %s", 35+strlen(param));
+            //pool_push = append_to_string( pool_push, pool_name, ", %s );\n", 6+strlen(pool_name));
+            pool_push = append_to_string( pool_push, pool_name, "  dague_private_memory_push( %s", 35+strlen(pool_name));
+            pool_push = append_to_string( pool_push, param, ", %s );\n", 6+strlen(param));
 
             str = append_to_string( str, param, NULL, 0);
 
