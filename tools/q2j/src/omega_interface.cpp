@@ -50,6 +50,8 @@ struct synch_edge_graph_t{
 #define SOURCE  0x0
 #define SINK    0x1
 
+extern int q2j_produce_shmem_jdf;
+
 #if 0
 extern void dump_und(und_t *und);
 static void dump_full_und(und_t *und);
@@ -3361,7 +3363,8 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     bool need_ptask = false;
     char *comm_mtrx, *refr_mtrx;
 
-    return false;
+    if( q2j_produce_shmem_jdf )
+        return false;
 
     comm_mtrx = tree_to_str(DA_array_base(ref1));
     refr_mtrx = tree_to_str(DA_array_base(ref2));

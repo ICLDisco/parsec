@@ -23,7 +23,7 @@
 #define QUARK_FIRST_VAR 5
 #define QUARK_ELEMS_PER_LINE 3
 
-extern char *dague_input_file_name;
+extern char *q2j_input_file_name;
 
 static dague_linked_list_t _dague_pool_list;
 static var_t *var_head=NULL;
@@ -1382,7 +1382,7 @@ char *quark_tree_to_body(node_t *node){
     // Create the "#line lineno" directive and append a newline at the end.
     tmp = int_to_str(node->lineno);
     tmp = append_to_string(strdup("#line "), tmp, NULL, 0);
-    tmp = append_to_string(tmp, dague_input_file_name, " \"%s\"\n", 4+strlen(dague_input_file_name));
+    tmp = append_to_string(tmp, q2j_input_file_name, " \"%s\"\n", 4+strlen(q2j_input_file_name));
     // Append the call to the kernel after the directive.
     str = append_to_string(tmp, str, "  %s(", 3+strlen(str));
 
