@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
 	double XnormF, AnormF, RnormF, residF = -1.0e+00;
 /**/
 	double elapsed, GFLOPS;
-	double my_elapsed;
+	double my_elapsed = 0.0e+00;
 /**/
 
 	MPI_Init( &argc, &argv);
@@ -76,10 +76,11 @@ int main(int argc, char **argv) {
 	for (i = 0; i < mloc; i++) {
 		for (j = 0; j < nloc; j++) {
 			A[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-			k++;	
+			k++;
 		}
 	}
 
+#if 0 /* A is not diagonal dominant in LU, lets the pivoting do its office */
 	/* not that smart..., could used pdgeadd and pdlaset as well or pdmatgen */
 	for (i = 1; i <= n; i++) {
 		int idum1, idum2, iloc, jloc, i0=0;
@@ -91,15 +92,17 @@ int main(int argc, char **argv) {
 		}
 		
 	}
+#endif
 
+#if 0    /* PDMATGEN is part of the testing, it is not in the general lib...*/
     {int i0 = 0; int seed = 800;
     pdmatgen_ (&ictxt, "N", "N", &n, &n, &nb, &nb, A, descA+8, descA+6, descA+7, &seed,
                &i0, &mloc, &i0, &nloc, &myrow, &mycol, &nprow, &npcol); }
-
+#endif
 
 	if (verif==1){
 		Acpy = (double *)malloc(mloc*nloc*sizeof(double)) ;
-      		{ int i1=1; pdlacpy_( "A", &n, &n, A, &i1, &i1, descA, Acpy, &i1, &i1, descA ); }
+		{ int i1=1; pdlacpy_( "A", &n, &n, A, &i1, &i1, descA, Acpy, &i1, &i1, descA ); }
 	}
 
 
@@ -114,7 +117,7 @@ int main(int argc, char **argv) {
 
 	if (verif == 1)
 	  {
-	        { int i0=0; sloc = numroc_( &s, &nb, &mycol, &i0, &npcol ); }
+	    { int i0=0; sloc = numroc_( &s, &nb, &mycol, &i0, &npcol ); }
 		{ int i0=0; descinit_( descB, &n, &s, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info ); }
 		    
 		if (mloc*sloc > 0) 
@@ -125,7 +128,7 @@ int main(int argc, char **argv) {
 		for (i = 0; i < mloc; i++) {
 		  for (j = 0; j < sloc; j++) {
 		    B[k] = ((double) rand()) / ((double) RAND_MAX) - 0.5 ;
-		    k++;	
+		    k++;
 		  }
 		}
 		
@@ -166,7 +169,6 @@ int main(int argc, char **argv) {
 	  
 	free( A );
 
-	{ int i0=0; blacs_gridexit_( &i0 ); }
 	//{ int i0=0; blacs_exit_( &i0 ); } // OK, so that should be done, nevermind ...
 	MPI_Finalize();
 	return 0;
