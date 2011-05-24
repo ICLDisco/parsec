@@ -2,11 +2,13 @@
 rm -rf CMakeCache.txt CMakeFiles
 
 LOCATION=`dirname $0`
+HWLOC="/opt/hwloc"
+PLASMADIR="/home/bosilca/opt/plasma/intel/hatem"
+CUDA="/opt/cuda"
 
 if [ "x$USER" = "xbosilca" ]; then
-  HWLOC="/opt/hwloc-1.0.2"
-  PLASMADIR="/home/bosilca/opt/plasma-svn"
-  CUDA="/opt/cuda"
+  CC=icc
+  FC=ifort
 elif [ "x$USER" = "xherault" ]; then
   HWLOC="/opt/hwloc"
   PLASMADIR="/home/bosilca/opt/plasma/intel/hatem/"
@@ -19,9 +21,7 @@ elif [ "x$USER" = "xYOURSELF" ]; then
   CUDA=SOMEWHERE
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=SOMEWHERE"
 else
-  HWLOC="/opt/hwloc"
   PLASMADIR="/opt/plasma/"
-  CUDA="/opt/cuda"
   MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
 fi
