@@ -190,9 +190,8 @@ BODY
 END
 
 ztsqrt_out_data_A0(k,m1)
-  k = 0..(desc_A.nt)-1-1
-  m1 = k+2..desc_A.mt-1
-  _dague_pseudotask_predicate = 1..(desc_A.mt==(m1+1))
+  k = 0..(desc_A.nt)-3
+  m1 = desc_A.mt-1
 
 :data_A(k+1,k)
 
@@ -272,10 +271,9 @@ BODY
 END
 
 ztsmqr1_out_data_A0(k,m1,i)
-  k = desc_A.nt-2
+  k = ((desc_A.nt>=2) ? (desc_A.nt-2) : (desc_A.nt-1))..desc_A.nt-2
   m1 = (k+2)..(desc_A.mt-1)
   i = (k+2)..(m1-1)
-  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
 
   : data_A(m1,i)
 
@@ -352,9 +350,9 @@ END
 
 ztsmqr_in_data_A0(k,m1,j)
   k = 0
-  m1 = (2)..(desc_A.mt-1)
+  m1 = ((desc_A.nt>=2) ? 2 : (desc_A.mt))..(desc_A.mt-1)
   j = (m1+1)..(desc_A.mt-1)
-  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
+
   : data_A(j,m1)
   RW R <- data_A(j,m1)
        -> R ztsmqr(k,m1,j)
@@ -424,9 +422,9 @@ BODY
 END
 
 ztsmqrlr_out_data_A0(k,m1)
-  k = 0..(desc_A.mt-3)
+  k = ((desc_A.nt>=2) ? 0 : (desc_A.mt-2))..(desc_A.mt-3)
   m1 = (desc_A.mt-1)
-  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
+
   : data_A(k+1,k+1)
   RW U <- U ztsmqrlr(k,m1)
        -> data_A(k+1,k+1)

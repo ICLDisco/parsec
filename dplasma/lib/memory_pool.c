@@ -16,8 +16,12 @@ dague_private_memory_init( dague_memory_pool_t* pool,
     return 0;
 }
 
-int dague_private_memory_finalization(void)
+int dague_private_memory_fini( dague_memory_pool_t* pool )
 {
-    /* TODO: release the allocated memory */
+    dague_list_item_t* elem;
+
+    while( NULL != (elem = dague_atomic_lifo_pop(&(pool->lifo))) ) {
+        free(elem);
+    }
     return 0;
 }

@@ -1606,6 +1606,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 f->definitions->name, f->definitions->name, f->definitions->name,
                 jdf_basename, f->fname, f->definitions->name);
     } else {
+        int last_dimension_is_a_range = 0;
+
         coutput("  dep = NULL;\n");
 
         nesting = 0;
@@ -1614,6 +1616,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 coutput("%s  __foundone = 0;\n", indent(nesting));
             }
             if(dl->expr->op == JDF_RANGE) {
+                last_dimension_is_a_range = 1;
                 coutput("%s  %s_start = %s;\n", 
                         indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
                 coutput("%s  %s_end = %s;\n", 
@@ -1622,6 +1625,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
+                last_dimension_is_a_range = 0;
                 coutput("%s  %s = %s_start = %s_end = %s;\n", 
                         indent(nesting), dl->name, dl->name, 
                         dl->name, dump_expr((void**)&dl->expr, &info1));
@@ -1651,9 +1655,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
         }
-        coutput("%s    break;\n"
-                "%s  }\n",
-                indent(nesting), indent(nesting));
+        if( last_dimension_is_a_range )
+            coutput("%s    break;\n", indent(nesting));
+        coutput("%s  }\n", indent(nesting));
         
         for(; nesting > 0; nesting--) {
             coutput("%s}\n", indent(nesting));
@@ -2516,7 +2520,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     }
     coutput("%s\n", f->body);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
-        coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
+        coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     }
     jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
     jdf_generate_code_dry_run_after(jdf, f);
@@ -3095,7 +3099,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     if( NULL != jdf->prologue ) {
         coutput("%s\n", jdf->prologue->external_code);
         if( !JDF_COMPILER_GLOBAL_ARGS.noline )
-            coutput("#line %d \"%s\"\n", cfile_lineno, jdf_cfilename);
+            coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     }
 
     jdf_generate_structure(jdf);
@@ -3117,7 +3121,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     if( NULL != jdf->epilogue ) {
         coutput("%s\n", jdf->epilogue->external_code);
         if( !JDF_COMPILER_GLOBAL_ARGS.noline )
-            coutput("#line %d \"%s\"\n",cfile_lineno, jdf_cfilename);
+            coutput("#line %d \"%s\"\n",cfile_lineno+1, jdf_cfilename);
     }
 
  err:
