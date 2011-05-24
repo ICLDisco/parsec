@@ -47,7 +47,7 @@ dplasma_zherbt_New( PLASMA_enum uplo,
                                                             desc_A, &A->super, 
                                                             desc_T, &T->super,
                                                             ib,
-                                                            pool[3], pool[2], pool[2], pool[0]);
+                                                            pool[3], pool[2], pool[1], pool[0]);
         dplasma_add2arena_rectangle( ((dague_zherbt_L_object_t *)dague_zherbt)->arenas[DAGUE_zherbt_L_DEFAULT_ARENA], 
                                      desc_A.mb*desc_A.nb*sizeof(Dague_Complex64_t),
                                      DAGUE_ARENA_ALIGNMENT_SSE,
@@ -66,9 +66,13 @@ void dplasma_zherbt_Destruct( dague_object_t *o )
     dague_zherbt_L_object_t *dague_zherbt = (dague_zherbt_L_object_t *)o;
     
     if( PlasmaLower == dague_zherbt->uplo ) {
+        dague_private_memory_fini( dague_zherbt->pool_0 );
         free( dague_zherbt->pool_0 );
+        dague_private_memory_fini( dague_zherbt->pool_1 );
         free( dague_zherbt->pool_1 );
+        dague_private_memory_fini( dague_zherbt->pool_2 );
         free( dague_zherbt->pool_2 );
+        dague_private_memory_fini( dague_zherbt->pool_3 );
         free( dague_zherbt->pool_3 );
         dague_zherbt_L_destroy(dague_zherbt);
     }
