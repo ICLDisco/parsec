@@ -250,11 +250,19 @@ int main(int argc, char *argv[])
 
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
 
-    int i, j;
     PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
+    double *W1             = (double *)malloc(N*sizeof(double));
+    double *W2             = (double *)malloc(N*sizeof(double));
+    int i, j;
 
     if( check ) {
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
+
+        LAPACKE_zheev( LAPACK_COL_MAJOR,
+               lapack_const(PlasmaNoVec), lapack_const(uplo), 
+               N, A2, LDA, W1);
+
+	/*
         printf("A2 avant\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
@@ -263,6 +271,12 @@ int main(int argc, char *argv[])
             }
             printf("\n");
         }
+	printf("Eigenvalues original\n");
+        for (i = 0; i < N; i++){
+            printf("%f \n", W1[i]);
+        }
+        printf("\n");
+	*/
     }
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
@@ -273,6 +287,15 @@ int main(int argc, char *argv[])
     if( check ) {
         int i, j;
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
+        for (j = 0; j < N; j++)
+            for (i = j+NB+1; i < N; i++)
+                A2[LDA*j+i]=0.0;
+
+        LAPACKE_zheev( LAPACK_COL_MAJOR,
+               lapack_const(PlasmaNoVec), lapack_const(uplo), 
+               N, A2, LDA, W2);
+
+	/*
         printf("A2 apres\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
@@ -281,8 +304,40 @@ int main(int argc, char *argv[])
             }
             printf("\n");
         }
+	
+        printf("Eigenvalues computed\n");
+        for (i = 0; i < N; i++){
+            printf("%f \n", W2[i]);
+        }
+        printf("\n");
+	*/
+
+        double eps = BLAS_dfpinfo( blas_eps );
+        printf("\n");
+        printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
+        printf("        Size of the Matrix %d by %d\n", N, N);
+        printf("\n");
+        printf(" The matrix A is randomly generated for each test.\n");
+        printf("============\n");
+        printf(" The relative machine precision (eps) is to be %e \n",eps);
+        printf(" Computational tests pass if scaled residuals are less than 60.\n");
+    
+        /* Check the eigen solutions */
+        int info_solution = check_solution(N, W1, W2, eps);
+    
+        if (info_solution == 0) {
+            printf("***************************************************\n");
+            printf(" ---- TESTING ZHEEV ...................... PASSED !\n");
+            printf("***************************************************\n");
+        }
+        else {
+            printf("************************************************\n");
+            printf(" - TESTING ZHEEV ... FAILED !\n");
+            printf("************************************************\n");
+        }
     }
 
+    free(A2); free(W1); free(W2);
     dplasma_zherbt_Destruct( DAGUE_zherbt );
 
     dague_data_free(ddescA.mat);
@@ -304,23 +359,28 @@ static int check_solution(int N, double *E1, double *E2, double eps)
 {
     int info_solution, i;
     double *Residual = (double *)malloc(N*sizeof(double));
-
+    double maxtmp;
     double maxel = fabs(fabs(E1[0])-fabs(E2[0]));
+    double maxeig = max(fabs(E1[0]), fabs(E2[0]));
     for (i = 1; i < N; i++){
         Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
+        maxtmp      = max(fabs(E1[i]), fabs(E2[i]));
+        maxeig      = max(maxtmp, maxeig);
         //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
         if (maxel < Residual[i])
            maxel =  Residual[i];
     }
 
+    //printf("maxel: %.16f maxeig: %.16f \n", maxel, maxeig );
 
     printf(" ======================================================\n");
-    printf(" | D -  eigcomputed | / (ulp)      : %15.3E \n",  maxel/eps );
+    printf(" | D -  eigcomputed | / (|D| ulp)      : %15.3E \n",  maxel/(maxeig*eps) );
     printf(" ======================================================\n");
+
 
     printf("============\n");
     printf("Checking the eigenvalues of A\n");
-    if (isnan(maxel / eps) || isinf(maxel / eps) || ((maxel / eps) > 100.0) ) {
+    if (isnan(maxel / eps) || isinf(maxel / eps) || ((maxel / (maxeig*eps)) > 1000.0) ) {
         //printf("isnan: %d %f %e\n", isnan(maxel / eps), maxel, eps );
         //printf("isinf: %d %f %e\n", isinf(maxel / eps), maxel, eps );
         printf("-- The eigenvalues are suspicious ! \n");
