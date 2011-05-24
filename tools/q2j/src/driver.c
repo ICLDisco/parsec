@@ -6,20 +6,38 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "symtab.h"
 
 extern int yyparse (void);
-char *dague_input_file_name=NULL;
+char *q2j_input_file_name=NULL;
+int q2j_produce_shmem_jdf = 0;
 extern FILE *yyin;
 
-int main(int argc, char **argv){
-    if( argc < 2 ){
-        fprintf(stderr,"Usage: %s file_name.c\n",argv[0]);
-        exit(1);
-    }
-    dague_input_file_name = argv[1];
+void usage(char *pname){
+    fprintf(stderr,"Usage: %s [-shmem] file_name.c\n",pname);
+    exit(1);
+}
 
-    yyin = fopen(dague_input_file_name, "r");
+int main(int argc, char **argv){
+
+    q2j_input_file_name = argv[1];
+    if( argc == 3 ){
+        if( !strcmp(argv[1],"-shmem") ){
+            q2j_produce_shmem_jdf = 1;
+            q2j_input_file_name = argv[2];
+        }else if( !strcmp(argv[2],"-shmem") ){
+            q2j_produce_shmem_jdf = 1;
+            q2j_input_file_name = argv[1];
+        }else{
+            usage(argv[0]);
+        }
+    }
+    if( argc < 2 ){
+        usage(argv[0]);
+    }
+
+    yyin = fopen(q2j_input_file_name, "r");
     (void)st_init_symtab();
     return yyparse();
     fclose(yyin);
