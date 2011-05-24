@@ -672,7 +672,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         if( NULL != encl_loop ){
 
             F_Or *or1 = R_root->add_or();
-            for(tmp=encl_loop; NULL != tmp->enclosing_loop; tmp=tmp->enclosing_loop ){
+            for(tmp=encl_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
                 F_And *and1 = or1->add_and();
 
                 char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
