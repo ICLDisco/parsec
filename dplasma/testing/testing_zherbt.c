@@ -210,128 +210,77 @@ int main(int argc, char *argv[])
 
     PLASMA_Init(1);
 
+    /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-                                   sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                                          N, N, P, MatrixLower))
+         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+         nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+         N, N, P, MatrixLower))
+    */
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+         nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+         N, N, SMB, SNB, P))
+
     PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble, 
-                           ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
-                           ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j, 
-                           ddescA.super.m, ddescA.super.n);
+         ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
+         ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j, 
+         ddescA.super.m, ddescA.super.n);
+
+    /*
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
-                                   sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
-                                                          nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
-                                                          MT*IB, N, P, MatrixLower))
+         sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
+         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+         MT*IB, N, P, MatrixLower))
+    */
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
+         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
+         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+         MT*IB, N, SMB, SNB, P))
+
     PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble, 
-                           ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
-                           ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
-                           ddescT.super.m, ddescT.super.n);
+         ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
+         ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
+         ddescT.super.m, ddescT.super.n);
+
     PLASMA_enum uplo = PlasmaLower;
+
     generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+
+    int i, j;
+    PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
+
+    if( check ) {
+	PLASMA_Tile_to_Lapack(&plasmaDescA, (void*)A2, N);
+        printf("A2 avant\n");
+        for (i = 0; i < N; i++){
+            for (j = 0; j < N; j++) {
+                //printf("%f+%fi ", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+                printf("%f ", A2[LDA*j+i]);
+            }
+            printf("\n");
+        }
+    }
+
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
-                                  (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
+         (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 
     if( check ) {
-        /*----------------------------------------------------------
-        *  TESTING ZHEEV
-        */
-        double eps;
-        int uplo, vec;
-        int info_ortho, info_solution;
         int i, j;
-        int LDAxN = LDA*N;
-        
-        int nminusone = N - 1;
-        int mode = 4;
-        double rcond = 1.0e6;  //(double) N;
-        double anorm = 1.0;
-        int bw; // Bandwidth of the first stage reduction
-        int ISEED[4] = {0,0,0,1};   /* initial seed for zlarnv() */
-	
-    
-        PLASMA_Complex64_t *A1 = (PLASMA_Complex64_t *)malloc(LDAxN*sizeof(PLASMA_Complex64_t));
-        PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDAxN*sizeof(PLASMA_Complex64_t));
-        PLASMA_Complex64_t *Q  = (PLASMA_Complex64_t *)malloc(LDAxN*sizeof(PLASMA_Complex64_t));
-        double *W1             = (double *)malloc(N*sizeof(double));
-        double *W2             = (double *)malloc(N*sizeof(double));
-        PLASMA_Complex64_t *work = (PLASMA_Complex64_t *)malloc(3*N* sizeof(PLASMA_Complex64_t));
-        PLASMA_Complex64_t *T;
-
-        PLASMA_Alloc_Workspace_zheev(N, N, &T);
-        eps = BLAS_dfpinfo( blas_eps );
-        PLASMA_Get(PLASMA_TILE_SIZE, &bw);
-    
-        LAPACKE_zlatms_work( LAPACK_COL_MAJOR, N, N,
-               lapack_const(PlasmaDistSymmetric), ISEED,
-               lapack_const(PlasmaHermGeev), W1, mode, rcond,
-               anorm, nminusone, nminusone,
-               lapack_const(PlasmaNoPacking), A1, LDA, work );
-    
-        /*
-         * Sort the eigenvalue because when computing the tridiag
-         * and then the eigenvalue of the DSTQR are sorted.
-         * So to avoid testing fail when having good results W1 should be sorted
-        */
-
-	// Need to be uncommented as soon as Julie adds this function to lapacke wrapper lib
-        //dlasrt_( "I", &N, W1, &i );
-    
-        printf("Eigenvalues original\n");
-        for (i = 0; i < min(N,25); i++){
-            printf("%f \n", W1[i]);
+	PLASMA_Tile_to_Lapack(&plasmaDescA, (void*)A2, N);
+        printf("A2 apres\n");
+        for (i = 0; i < N; i++){
+            for (j = 0; j < N; j++) {
+                //printf("%f+%fi ", creal(A2[LDA*j+i]), cimag(A2[LDA*j+i]));
+                printf("%f ", A2[LDA*j+i]);
+            }
+            printf("\n");
         }
-        printf("\n");
-    
-        /* Initialize A1 and A2 */
-        for (i = 0; i < N; i++)
-            for (j = 0; j < N; j++)
-                A2[LDA*j+i] = A1[LDA*j+i];
-        /* PLASMA ZHEEV */
-        uplo = PlasmaLower;
-        vec  = PlasmaVec;
-        PLASMA_zheev(vec, uplo, N, A2, LDA, T, W2, Q, LDA);
-
-        printf("Eigenvalues computed\n");
-        for (i = 0; i < min(N,25); i++){
-            printf("%f \n", W2[i]);
-        }
-        printf("\n");
-    
-        printf("\n");
-        printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
-        printf("        Size of the Matrix %d by %d\n", N, N);
-        printf("\n");
-        printf(" The matrix A is randomly generated for each test.\n");
-        printf("============\n");
-        printf(" The relative machine precision (eps) is to be %e \n",eps);
-        printf(" Computational tests pass if scaled residuals are less than 60.\n");
-    
-        /* Check the orthogonality, reduction and the eigen solutions */
-        //info_ortho = check_orthogonality(N, N, LDA, Q, eps);
-        //info_reduction = check_reduction(uplo, N, bw, A1, A2, LDA, Q, eps);
-        info_solution = check_solution(N, W1, W2, eps);
-    
-        if (info_solution == 0) {
-            printf("***************************************************\n");
-            printf(" ---- TESTING ZHEEV ...................... PASSED !\n");
-            printf("***************************************************\n");
-        }
-        else {
-            printf("************************************************\n");
-            printf(" - TESTING ZHEEV ... FAILED !\n");
-            printf("************************************************\n");
-        }
-
-        free(A1);
-        free(A2);
-        free(Q);
-        free(W1);
-        free(W2);
-        free(work);
-        free(T);    
     }
+
     dplasma_zherbt_Destruct( DAGUE_zherbt );
 
     dague_data_free(ddescA.mat);
