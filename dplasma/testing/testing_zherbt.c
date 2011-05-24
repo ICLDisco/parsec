@@ -13,8 +13,8 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
 /* Including the bulge chassing */
-#define FADDS_ZHERBT(__n) (((__n) * (-8 / 3 + (__n) * (1 + 2 / 3 * (__n)))) - 4)
-#define FMULS_ZHERBT(__n) (((__n) * (-1 / 6 + (__n) * (5 / 2 + 2 / 3 * (__n)))) - 15)
+#define FADDS_ZHERBT(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
+#define FMULS_ZHERBT(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
 
 
 enum blas_order_type {
@@ -92,8 +92,10 @@ BLAS_zsy_norm(enum blas_order_type order, enum blas_norm_type norm,
 static
 void
 BLAS_zge_norm(enum blas_order_type order, enum blas_norm_type norm,
-  int m, int n, const PLASMA_Complex64_t *a, int lda, double *res) {
-  int i, j; float anorm, v;
+  int m, int n, const PLASMA_Complex64_t *a, int lda, double *res)
+{
+  int i, j;
+  float anorm, v;
   char rname[] = "BLAS_zge_norm";
 
   if (order != blas_colmajor) BLAS_error( rname, -1, order, 0 );
@@ -252,7 +254,7 @@ int main(int argc, char *argv[])
     PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
 
     if( check ) {
-	PLASMA_Tile_to_Lapack(&plasmaDescA, (void*)A2, N);
+        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
         printf("A2 avant\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
@@ -270,7 +272,7 @@ int main(int argc, char *argv[])
 
     if( check ) {
         int i, j;
-	PLASMA_Tile_to_Lapack(&plasmaDescA, (void*)A2, N);
+        PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
         printf("A2 apres\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
