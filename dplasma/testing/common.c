@@ -115,7 +115,7 @@ static struct option long_options[] =
     {"SMB",         required_argument,  0, 'S'},
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
-    {"x",           required_argument,  0, 'x'},
+    {"x",           no_argument,        0, 'x'},
 
     {"verbose",     optional_argument,  0, 'v'},
     {"v",           optional_argument,  0, 'v'},
