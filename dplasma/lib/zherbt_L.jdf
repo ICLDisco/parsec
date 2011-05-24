@@ -5,22 +5,17 @@ extern "C" %{
    * @precisions normal z -> s d c
    *
    */
-
-#define DAGUE_CALL_TRACE 1
-
 #include <plasma.h>
 #include <core_blas.h>
-
-#include "dague.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasmajdf.h"
 
+#include "dague.h"
 #include "data_distribution.h"
 #include "memory_pool.h"
-
 /* For now dplasma doesn't store matrices as PLASMA => no need for lm1 and BLKLDD */
 /* #define BLKLDD(k) ( ( (k) + desc_A.i/desc_A.mb) < desc_A.lm1 ? desc_A.mb : desc_A.lm%desc_A.mb )*/
-#define BLKLDD(k) desc_A.mb
+#define BLKLDD(DESC,k) desc_A.mb
 %}
 
 uplo [type = "PLASMA_enum"]
@@ -73,7 +68,7 @@ BODY
 
   int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
   int ib = IB;
-  int ldak = BLKLDD( k+1 );
+  int ldak = BLKLDD( desc_A, k+1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -123,7 +118,7 @@ BODY
 
   int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
   int ib = IB;
-  int ldak = BLKLDD( k+1 );
+  int ldak = BLKLDD( desc_A, k+1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_2 );
 
@@ -175,8 +170,8 @@ BODY
   int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
   int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
   int ib = IB;
-  int ldak = BLKLDD( k+1 );
-  int ldam = BLKLDD( m );
+  int ldak = BLKLDD( desc_A, k+1 );
+  int ldam = BLKLDD( desc_A, m );
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
@@ -241,8 +236,8 @@ BODY
 
   int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
   int ib = IB;
-  int ldak = BLKLDD( k+1 );
-  int ldam = BLKLDD( m1 );
+  int ldak = BLKLDD( desc_A, k+1 );
+  int ldam = BLKLDD( desc_A, m1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -304,8 +299,8 @@ BODY
 
   int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
   int ib = IB;
-  int ldai = BLKLDD( i );
-  int ldam = BLKLDD( m1 );
+  int ldai = BLKLDD( desc_A, i );
+  int ldam = BLKLDD( desc_A, m1 );
   int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (desc_T.nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -364,8 +359,8 @@ BODY
   int tempjj = ((j)==((desc_A.mt)-1)) ? ((desc_A.m)-(j*(desc_A.mb))) : (desc_A.mb);
   int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
   int ib = IB;
-  int ldaj = BLKLDD( j );
-  int ldam = BLKLDD( m1 );
+  int ldaj = BLKLDD( desc_A, j );
+  int ldam = BLKLDD( desc_A, m1 );
   int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (desc_T.nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -434,8 +429,8 @@ BODY
 
   int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
   int ib = IB;
-  int ldak = BLKLDD( k+1 );
-  int ldam = BLKLDD( m1 );
+  int ldak = BLKLDD( desc_A, k+1 );
+  int ldam = BLKLDD( desc_A, m1 );
   int ldwork = desc_T.nb;
 
   void *p_elem_A = dague_private_memory_pop( pool_3 );

@@ -48,10 +48,12 @@ dplasma_zherbt_New( PLASMA_enum uplo,
                                                             desc_T, &T->super,
                                                             ib,
                                                             pool[0], pool[1], pool[2], pool[3]);
+#if 0
         dplasma_add2arena_rectangle( ((dague_zherbt_L_object_t *)dague_zherbt)->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA], 
                                      desc_T.mb*desc_T.nb*sizeof(Dague_Complex64_t),
                                      DAGUE_ARENA_ALIGNMENT_SSE,
                                      MPI_DOUBLE_COMPLEX, desc_T.mb, desc_T.nb, -1);
+#endif
     }
 
     return dague_zherbt;
