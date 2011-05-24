@@ -9,7 +9,7 @@ if [ "x$USER" = "xbosilca" ]; then
   CUDA="/opt/cuda"
 elif [ "x$USER" = "xherault" ]; then
   HWLOC="/opt/hwloc"
-  PLASMADIR="/home/herault/plasma-hatem/install/"
+  PLASMADIR="/home/bosilca/opt/plasma/intel/hatem/"
   CUDA="/opt/cuda"
   MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
