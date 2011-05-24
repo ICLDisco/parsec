@@ -23,7 +23,7 @@ desc_A [type = "PLASMA_desc"]
 data_A [type = "dague_ddesc_t *"]
 desc_T [type = "PLASMA_desc"]
 data_T [type = "dague_ddesc_t *" aligned=data_A]
-IB     [type = int]
+IB [type = "int"]
 pool_3 [type = "dague_memory_pool_t *" size = "(((sizeof(PLASMA_Complex64_t))*4)*(desc_T.nb))*(desc_T.nb)"]
 pool_2 [type = "dague_memory_pool_t *" size = "(((sizeof(PLASMA_Complex64_t))*2)*(desc_T.nb))*(desc_T.nb)"]
 pool_1 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(desc_T.nb)"]
@@ -49,11 +49,11 @@ zgeqrt(k)
   RW    A <- ((2+k)==desc_A.mt) & (k>=1) ? V ztsmqrlr(k+1-2, k+1) 
           <- (0==k) ? data_A(k+1,k)
           <- (k>=1) & ((1+k)>=desc_A.mt) ? data_A(k+1,k)
-          <- (desc_A.mt>=(3+k)) & (k>=1) ? M ztsmqr1(k+1-2, desc_A.mt-1, k+1) 
+          <- (k>=1) & (desc_A.mt>=(k+3)) ? M ztsmqr1(k+1-2, desc_A.mt-1, k+1) 
           -> C zherfb1(k) 
-          -> ((2+k)>=desc_A.mt) ? data_A(k+1,k)
-          -> (desc_A.mt>=(3+k)) ? F zunmqr(k, (k+2)..(desc_A.mt-1)) 
-          -> (desc_A.mt>=(3+k)) ? J ztsqrt(k, k+2) 
+          -> ((k+2)>=desc_A.mt) ? data_A(k+1,k)
+          -> (desc_A.mt>=(k+3)) ? F zunmqr(k, (k+2)..(desc_A.mt-1)) 
+          -> (desc_A.mt>=(k+3)) ? J ztsqrt(k, k+2) 
   RW    B <- data_T(k+1,k)  [type = LITTLE_T]
           -> data_T(k+1,k)  [type = LITTLE_T]
           -> D zherfb1(k)   [type = LITTLE_T]
@@ -105,9 +105,9 @@ zherfb1(k)
   READ  D <- B zgeqrt(k)   [type = LITTLE_T]
   RW    E <- (0==k) ? data_A(k+1,k+1)
           <- (k>=1) & ((k+1)>=desc_A.mt) ? data_A(k+1,k+1)
-          <- (desc_A.mt>=(k+2)) & (k>=1) ? W ztsmqrlr(k+1-2, k+1) 
-          -> ((k+2)>=desc_A.mt) ? data_A(k+1,k+1)
-          -> (desc_A.mt>=(k+3)) ? U ztsmqrlr(k, k+2) 
+          <- (k>=1) & (desc_A.mt>=(k+2)) ? W ztsmqrlr(k+1-2, k+1)
+          -> ((2+k)>=desc_A.mt) ? data_A(k+1,k+1)
+          -> (desc_A.mt>=(k+3)) ? U ztsmqrlr(k, k+2)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -157,8 +157,8 @@ zunmqr(k,m)
   READ  G <- B zgeqrt(k)   [type = LITTLE_T]
   RW    H <- (0==k) ? data_A(m,k+1)
           <- (k>=1) ? N ztsmqr1(k+1-2, m, k+1) 
-          -> (m>=(3+k)) ? Q ztsmqr(k, k+2, m) 
-          -> ((2+k)==m) & (desc_A.nt>=(2+k)) ? V ztsmqrlr(m-2, m) 
+          -> (m>=(k+3)) ? Q ztsmqr(k, k+2, m) 
+          -> ((k+2)==m) & (desc_A.nt>=(k+2)) ? V ztsmqrlr(m-2, m) 
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -189,13 +189,28 @@ BODY
 
 END
 
+ztsqrt_out_data_A0(k,m1)
+  k = 0..(desc_A.nt)-1-1
+  m1 = k+2..desc_A.mt-1
+  _dague_pseudotask_predicate = 1..(desc_A.mt==(m1+1))
+
+:data_A(k+1,k)
+
+RW J <- J ztsqrt(k,m1)
+     -> data_A(k+1,k)
+
+BODY
+ /* Nothing */
+ printlog("thread %d ztsqrt_out_data_A0(%d, %d) A(%d, %d)[%p]\n",
+          context->eu_id, k, m1, k+1, k, J);
+END
 
 ztsqrt(k,m1)
   /* Execution space */
   k = 0..(desc_A.nt)-1-1
   m1 = k+2..desc_A.mt-1
 
-  : data_A(k+1,k)
+  : data_A(m1,k)
 
   /* A == data_A(k+1,k) */
   /* J == data_A(k+1,k) */
@@ -212,7 +227,7 @@ ztsqrt(k,m1)
 
   RW    J <- (m1==(2+k)) ? A zgeqrt(m1-2) 
           <- (m1>=(3+k)) ? J ztsqrt(k, m1-1) 
-          -> (desc_A.mt==(m1+1)) ? data_A(k+1,k)
+          -> (desc_A.mt==(m1+1)) ? J ztsqrt_out_data_A0(k,m1)
           -> (desc_A.mt>=(m1+2)) ? J ztsqrt(k, m1+1) 
   RW    K <- ((m1+1)==desc_A.mt) & (k>=1) ? V ztsmqrlr(k-1, desc_A.mt-1) 
           <- (0==k) ? data_A(m1,k)
@@ -222,10 +237,10 @@ ztsqrt(k,m1)
           -> X ztsmqrlr(k, m1) 
           -> data_A(m1,k)
   RW    L <- data_T(m1,k)   [type = LITTLE_T]
-          -> Y ztsmqrlr(k, m1)   [type = LITTLE_T]
-          -> (desc_A.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(desc_A.mt-1))   [type = LITTLE_T]
-          -> data_T(m1,k)  [type = LITTLE_T]
-          -> (m1>=(3+k)) ? P ztsmqr1(k, m1, (k+2)..(m1-1))   [type = LITTLE_T]
+          -> Y ztsmqrlr(k, m1)    [type = LITTLE_T]
+          -> (desc_A.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(desc_A.mt-1))   [type = LITTLE_T] 
+          -> data_T(m1,k)   [type = LITTLE_T]
+          -> (m1>=(k+3)) ? P ztsmqr1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -256,6 +271,21 @@ BODY
 
 END
 
+ztsmqr1_out_data_A0(k,m1,i)
+  k = desc_A.nt-2
+  m1 = (k+2)..(desc_A.mt-1)
+  i = (k+2)..(m1-1)
+  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
+
+  : data_A(m1,i)
+
+  RW N <- N ztsmqr1(k,m1,i)
+        -> data_A(m1,i)
+BODY
+/* nothing */
+ printlog("thread %d ztsmqr1_out_data_A0(%d, %d, %d) A(%d, %d)[%p]\n",
+          context->eu_id, k, m1, i, m1, i, N);
+END
 
 ztsmqr1(k,m1,i)
   /* Execution space */
@@ -281,14 +311,14 @@ ztsmqr1(k,m1,i)
           -> (desc_A.mt==(m1+1)) & ((k+2)==i) & (desc_A.nt>=(k+3)) ? A zgeqrt(i-1) 
           -> (desc_A.mt==(m1+1)) & (i>=(k+3)) & (desc_A.nt>=(k+3)) ? K ztsqrt(k+1, i) 
           -> (desc_A.mt>=(2+m1)) ? M ztsmqr1(k, m1+1, i) 
-          -> (desc_A.nt==i) & (desc_A.nt==(k+2)) & (desc_A.mt==(m1+1)) ? data_A(i,k+1)
-          -> (desc_A.nt==(k+2)) & (desc_A.mt==(m1+1)) & (i>=(desc_A.nt+1)) ? data_A(i,k+1)
+          -> (desc_A.nt==i) ? data_A(i,k+1)
+          -> (desc_A.nt==(k+2)) & (i>=(desc_A.nt+1)) ? data_A(i,k+1)
   RW    N <- R ztsmqr(k, i, m1) 
           -> (i>=(k+3)) & (desc_A.nt>=(3+k)) ? R ztsmqr(k+1, i, m1) 
-          -> (desc_A.nt==(k+2)) ? data_A(m1,i)
-          -> ((k+2)==i) & (desc_A.nt>=(k+3)) ? H zunmqr(i-1, m1) 
+          -> (desc_A.nt==(k+2)) ? N ztsmqr1_out_data_A0(k,m1,i)
+          -> (i==(k+2)) & (desc_A.nt>=(i+1)) ? H zunmqr(i-1, m1) 
   READ  O <- K ztsqrt(k, m1) 
-  READ  P <- L ztsqrt(k, m1)   [type = LITTLE_T]
+  READ  P <- L ztsqrt(k, m1)    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -320,6 +350,19 @@ BODY
 
 END
 
+ztsmqr_in_data_A0(k,m1,j)
+  k = 0
+  m1 = (2)..(desc_A.mt-1)
+  j = (m1+1)..(desc_A.mt-1)
+  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
+  : data_A(j,m1)
+  RW R <- data_A(j,m1)
+       -> R ztsmqr(k,m1,j)
+BODY
+/* nothing */
+ printlog("thread %d ztsmqr_in_data_A0(%d, %d, %d) A(%d, %d)[%p]\n",
+          context->eu_id, k, m1, j, j, m1, R);
+END
 
 ztsmqr(k,m1,j)
   /* Execution space */
@@ -340,14 +383,14 @@ ztsmqr(k,m1,j)
   /* V == data_A(m1,k+1) */
 
   RW    Q <- (m1>=(3+k)) ? Q ztsmqr(k, m1-1, j) 
-          <- ((2+k)==m1) & (desc_A.nt>=(k+2)) ? H zunmqr(m1-2, j) 
+          <- ((2+k)==m1) ? H zunmqr(m1-2, j) 
           -> (j>=(2+m1)) ? Q ztsmqr(k, m1+1, j) 
           -> ((1+m1)==j) ? V ztsmqrlr(k, j) 
   RW    R <- (k>=1) ? N ztsmqr1(k-1, j, m1) 
-          <- (0==k) ? data_A(j,m1)
+          <- (0==k) ? R ztsmqr_in_data_A0(k,m1,j)
           -> N ztsmqr1(k, j, m1) 
   READ  S <- K ztsqrt(k, m1) 
-  READ  T <- L ztsqrt(k, m1)   [type = LITTLE_T]
+  READ  T <- L ztsqrt(k, m1)    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -380,11 +423,52 @@ BODY
 
 END
 
+ztsmqrlr_in_data_A2(k,m1)
+  k = 0
+  m1 = (2)..(desc_A.mt-1)
+  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
+  : data_A(m1,m1)
+  RW W <- data_A(m1,m1)
+       -> W ztsmqrlr(k,m1)
+BODY
+/* nothing */
+ printlog("thread %d ztsmqrlr_in_data_A2(%d, %d) A(%d, %d)[%p]\n",
+          context->eu_id, k, m1, m1, m1, W);
+END
+
+ztsmqrlr_out_data_A3(k,m1)
+  k = desc_A.nt-2
+  m1 = (k+2)..(desc_A.mt-1)
+  _dague_pseudotask_predicate = 1..(desc_A.nt>=2)
+  : data_A(m1,m1)
+  RW W <- W ztsmqrlr(k,m1)
+        -> data_A(m1,m1)
+BODY
+/* nothing */
+ printlog("thread %d ztsmqrlr_out_data_A3(%d, %d) A(%d, %d)[%p]\n",
+          context->eu_id, k, m1, m1, m1, W);
+END
 
 ztsmqrlr(k,m1)
   /* Execution space */
   k = 0..(desc_A.nt)-1-1
   m1 = k+2..desc_A.mt-1
+
+ /*
+  * Hand Tunning: decision of the data affinity,
+  * and simplification of phony tasks is based on the
+  * following observation:
+  * 
+  * Because MT == NT, cases where m1==NT & 1+m1==MT are never true
+  * Based on that, we compute how many times each of the possible phony
+  * tasks will be used for A and for T, depending on the access:
+  *              A                     T
+  * (k+1,k+1)    NT-2                  0
+  * (m1,k+1)     0(2)                  0
+  * (m1,m1)      MT-3 + 0(NT..MT-1)    0
+  * So, it's better to have a locality with (k+1,k+1) (one access less than (m1,m1))
+  *
+  */
 
   : data_A(k+1,k+1)
 
@@ -401,24 +485,28 @@ ztsmqrlr(k,m1)
   /* X == data_A(m1,k) */
   /* Y == data_T(m1,k) */
 
-  RW    U <- ((k+2)==m1) & (desc_A.nt>=(2+k)) ? E zherfb1(m1-2) 
+  RW    U <- ((k+2)==m1) ? E zherfb1(m1-2) 
           <- (m1>=(3+k)) ? U ztsmqrlr(k, m1-1) 
           -> (desc_A.mt==(m1+1)) ? data_A(k+1,k+1)
           -> (desc_A.mt>=(m1+2)) ? U ztsmqrlr(k, m1+1) 
-  RW    V <- ((k+2)==m1) & (desc_A.nt>=(k+2)) ? H zunmqr(m1-2, m1) 
+  RW    V <- ((k+2)==m1) ? H zunmqr(m1-2, m1) 
           <- (m1>=(k+3)) ? Q ztsmqr(k, m1-1, m1) 
-          -> (desc_A.nt==m1) & (desc_A.nt==(k+2)) & ((desc_A.nt+1)==desc_A.mt) ? data_A(m1,k+1)
-          -> (desc_A.nt==(2+k)) & (desc_A.mt==(m1+1)) & (desc_A.mt>=(desc_A.nt+2)) ? data_A(m1,k+1)
-          -> (desc_A.mt==(m1+1)) & (desc_A.mt==(k+3)) & (desc_A.nt>=desc_A.mt) ? A zgeqrt(m1-1) 
+/*
+ *            Not possible: because MT == NT && NT+1 == MT
+ *        -> (desc_A.nt==m1) & (desc_A.nt==(k+2)) & ((desc_A.nt+1)==desc_A.mt) ? data_A(m1,k+1)
+ *            NOy possible: because MT >= NT + 2 && MT == NT
+ *        -> (desc_A.nt==(2+k)) & (desc_A.mt==(m1+1)) & (desc_A.mt>=(desc_A.nt+2)) ? data_A(m1,k+1)
+ */
+          -> (desc_A.mt==(1+m1)) & (desc_A.mt==(k+3)) & (desc_A.nt>=desc_A.mt) ? A zgeqrt(m1-1) 
           -> ((m1+1)==desc_A.mt) & (m1>=(3+k)) & (desc_A.nt>=(k+3)) ? K ztsqrt(k+1, m1) 
           -> (desc_A.mt>=(m1+2)) ? M ztsmqr1(k, m1+1, m1) 
-  RW    W <- (0==k) ? data_A(m1,m1)
+  RW    W <- (0==k) ? W ztsmqrlr_in_data_A2(k,m1)
           <- (k>=1) ? W ztsmqrlr(k-1, m1) 
           -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? W ztsmqrlr(k+1, m1) 
-          -> (desc_A.nt==(k+2)) ? data_A(m1,m1)
-          -> ((2+k)==m1) & (desc_A.nt>=(k+3)) ? E zherfb1(m1-1) 
+          -> (desc_A.nt==(k+2)) ? W ztsmqrlr_out_data_A3(k,m1)
+          -> ((k+2)==m1) & (desc_A.nt>=(k+3)) ? E zherfb1(m1-1) 
   READ  X <- K ztsqrt(k, m1) 
-  READ  Y <- L ztsqrt(k, m1)   [type = LITTLE_T]
+  READ  Y <- L ztsqrt(k, m1) [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
