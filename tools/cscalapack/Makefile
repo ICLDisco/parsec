@@ -2,9 +2,12 @@ MPICC=mpicc
 MPIF77=mpif77
 CFLAGS="-Wall"
 CC=$(MPICC)
-LD=gfortran
+LD=mpif77
 SMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl_sequential -lmkl_gf_lp64 -lmkl_core 
-TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl -lmkl_gf_lp64 -lmkl_core -lguide -lpthread
+# Old MKL < 11.xx
+#TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl -lmkl_gf_lp64 -lmkl_core -lguide -lpthread
+# New MKL > 11.xx
+TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl_gnu_thread -lmkl_gf_lp64 -lmkl_core -fopenmp -lpthread
 TLIBS=$(TMKL)
 SLIBS=$(SMKL)
 TARGETS=scadpotrf scadgetrf scadgeqrf tscadpotrf tscadgetrf tscadgeqrf

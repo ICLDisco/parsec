@@ -92,6 +92,11 @@ int main(int argc, char **argv) {
 		
 	}
 
+    {int i0 = 0; int seed = 800;
+    pdmatgen_ (&ictxt, "N", "N", &n, &n, &nb, &nb, A, descA+8, descA+6, descA+7, &seed,
+               &i0, &mloc, &i0, &nloc, &myrow, &mycol, &nprow, &npcol);
+
+
 	if (verif==1){
 		Acpy = (double *)malloc(mloc*nloc*sizeof(double)) ;
       		{ int i1=1; pdlacpy_( "A", &n, &n, A, &i1, &i1, descA, Acpy, &i1, &i1, descA ); }
@@ -130,12 +135,12 @@ int main(int argc, char **argv) {
 		  }
 		{ int i1=1; pdlacpy_( "A", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB ); }
 		
-		{ int i1=1; pdpotrs_( "L", &n, &s, A, &i1, &i1, descA, X, &i1, &i1, descB, &my_info_solve ); }
+		{ int i1=1; pdgetrs_( "N", &n, &s, A, &i1, &i1, descA, ippiv, X, &i1, &i1, descB, &my_info_solve ); }
 		MPI_Allreduce( &my_info_solve, &info_solve, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 		
-		{ int i1=1; double pone=1.00e+00, mone = -1.00e+00; pdsymm_( "L", "L", &n, &s, &mone, Acpy, &i1, &i1, descA, X, &i1, &i1, descB,
+		{ int i1=1; double pone=1.00e+00, mone = -1.00e+00; pdgemm_( "N", "N", &n, &s, &n, &mone, Acpy, &i1, &i1, descA, X, &i1, &i1, descB,
 									     &pone, B, &i1, &i1, descB); }
-		{ int i1=1; AnormF = pdlansy_( "F", "L", &n, Acpy, &i1, &i1, descA, work); }
+		{ int i1=1; AnormF = pdlange_( "F", &n, &n, Acpy, &i1, &i1, descA, work); }
 		{ int i1=1; XnormF = pdlange_( "F", &n, &s, X, &i1, &i1, descB, work); }
 		{ int i1=1; RnormF = pdlange_( "F", &n, &s, B, &i1, &i1, descB, work); }
 		residF = RnormF / ( AnormF * XnormF );

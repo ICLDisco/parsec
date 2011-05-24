@@ -3,10 +3,10 @@ rm -rf CMakeCache.txt CMakeFiles
 
 LOCATION=`dirname $0`
 HWLOC="/opt/hwloc"
-PLASMADIR="/home/bosilca/opt/plasma/intel/hatem"
 CUDA="/opt/cuda"
 
 if [ "x$USER" = "xbosilca" ]; then
+  PLASMADIR="/home/bosilca/opt/plasma/intel/hatem"
   CC=icc
   FC=ifort
 elif [ "x$USER" = "xherault" ]; then
