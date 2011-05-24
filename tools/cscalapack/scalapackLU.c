@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 
     {int i0 = 0; int seed = 800;
     pdmatgen_ (&ictxt, "N", "N", &n, &n, &nb, &nb, A, descA+8, descA+6, descA+7, &seed,
-               &i0, &mloc, &i0, &nloc, &myrow, &mycol, &nprow, &npcol);
+               &i0, &mloc, &i0, &nloc, &myrow, &mycol, &nprow, &npcol); }
 
 
 	if (verif==1){
