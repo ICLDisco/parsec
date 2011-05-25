@@ -193,7 +193,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), C, 1, B, 1);
     Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    if (getenv("DPLASMA_TESTING_VERBOSE"))
+    //if (getenv("DPLASMA_TESTING_VERBOSE"))
         printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
                Rnorm, Anorm, Binitnorm, Bdaguenorm, Blapacknorm);
 
