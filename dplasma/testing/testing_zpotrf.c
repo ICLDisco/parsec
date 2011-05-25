@@ -45,7 +45,6 @@ int main(int argc, char ** argv)
     int info = 0;
     LDA = max( LDA, N );
     LDB = max( LDB, N );
-    SMB = 1; SNB = 1;
 
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
@@ -67,7 +66,6 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    if(!check) 
     {
         PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
 
@@ -76,6 +74,7 @@ int main(int argc, char ** argv)
         generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t*) &ddescA, 100);
         if(loud > 2) printf("Done\n");
 
+        if(loud > 2) printf("+++ Computing potrf ... ");
 #if defined(LLT_LL)
         PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf_ll, 
                                   (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
@@ -87,25 +86,69 @@ int main(int argc, char ** argv)
 
         dplasma_zpotrf_Destruct( DAGUE_zpotrf );
 #endif
+        if(loud > 2) printf("Done.\n");
     }
+    if(check)
+    {
+        int info_solution;
+
+        if(loud > 2) printf("+++ generate check matrices ... ");
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
+            sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
+                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                       N, N, P, uplo));
+        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t*) &ddescA0, 100);
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                                   N, NRHS, 1, 1, P));
+        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
+            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                                   N, NRHS, 1, 1, P));
+        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+        if(loud > 2) printf("Done\n");    
+        
+        if(loud > 2) printf("+++ computing solution ... ");
+        info_solution = dplasma_zpotrs(dague, uplo, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX );
+        if(info_solution == 0) 
+        {
+            if(loud > 2) printf("Done\n");
+        }
+        else printf("!!! INFO SOLVE FAILED !!!\n");
+
+        info_solution = check_solution(dague, uplo, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+
+        if(rank == 0)
+        {
+            if (info_solution == 0) {
+               printf(" ----- TESTING POTRF+POTRS  ....... PASSED !\n");
+            }
+            else {
+               printf(" ----- TESTING POTRF+POTRS ........ FAILED !\n");
+            }
+            printf("***************************************************\n");
+        }
+         
+        dague_data_free(ddescA0.mat);
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
+        dague_data_free(ddescB.mat);
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
+        dague_data_free(ddescX.mat);
+    }
+    dague_data_free(ddescA.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+
+
+
+
 #if 0 /* THIS IS ALL WRONG, you cannot use a two_dim_block_cyclic and fill it with sym_pos_mat (what is the value of uplo if you do that ?) */
     else 
     {
         int u, t1, t2;
         int info_solution;
 
-       PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
-          two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
-                                 nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                 N, N, SMB, SNB, P));
-       PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
-                                   N, NRHS, SMB, SNB, P));
-       PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
-            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
-                                   N, NRHS, SMB, SNB, P));
         
         for ( u=0; u<2; u++) {
             if ( uplo[u] == PlasmaUpper ) {
@@ -248,8 +291,6 @@ int main(int argc, char ** argv)
 #endif
 
 
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     cleanup_dague(dague);
 
 
