@@ -63,10 +63,14 @@ void matrix_stile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsign
 
 /**
  * Generate the full distributed matrix using all nodes/cores available.
- * The matrix generated is symetric positive and diagonal dominant.
+ * The generated matrix is symetric positive and diagonal dominant.
  */
 void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed);
-
+/**
+ * Generate the full distributed matrix using all nodes/cores available.
+ * The generated matrix if symetric.
+ */
+void generate_tiled_random_sym_mat( tiled_matrix_desc_t * Mdesc, unsigned long long int seed );
 /**
  * Generate the full distributed matrix using all nodes/cores available.
  */
@@ -100,5 +104,14 @@ void matrix_scompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 #define matrix_dcompare_dist_data(...) do {} while(0)
 #define matrix_scompare_dist_data(...) do {} while(0)
 #endif
+
+typedef int (*dague_operator_t)( void* data, void* op_data, ... );
+
+extern struct dague_object_t*
+dague_apply_operator_new(tiled_matrix_desc_t* A,
+                         dague_operator_t op,
+                         void* op_data);
+extern void
+dague_apply_operator_destroy( struct dague_object_t* o );
 
 #endif /* _MATRIX_H_  */
