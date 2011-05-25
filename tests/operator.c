@@ -1,7 +1,8 @@
 #include "dague.h"
+#include "execution_unit.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
-static int dague_operator_print_id( void* data, void* op_data, ... )
+static int dague_operator_print_id( struct dague_execution_unit *eu, void* data, void* op_data, ... )
 {
     va_list ap;
     int k, n;
@@ -10,7 +11,8 @@ static int dague_operator_print_id( void* data, void* op_data, ... )
     k = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
-    printf( "tile %s(%d, %d) -> %p:%p\n", (char*)op_data, k, n, data, op_data );
+    printf( "thread %d tile %s(%d, %d) -> %p:%p\n",
+            eu->eu_id, (char*)op_data, k, n, data, op_data );
     return 0;
 }
 
@@ -19,7 +21,7 @@ int main( int argc, char* argv[] )
     dague_context_t* dague;
     struct dague_object_t* object;
     two_dim_block_cyclic_t ddescA;
-    int cores = 1, world = 1, rank = 0;
+    int cores = 4, world = 1, rank = 0;
     int mb = 120, nb = 120;
     int lm = 10000, ln = 10000;
     int rows = 1;
@@ -34,6 +36,9 @@ int main( int argc, char* argv[] )
     
     two_dim_block_cyclic_init( &ddescA, matrix_RealFloat,
                                world, cores, rank, mb, nb, lm, ln, 0, 0, lm, ln, 1, 1, rows );
+    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles *
+                                     (size_t)ddescA.super.bsiz *
+                                     (size_t)ddescA.super.mtype);
 
     dague_ddesc_set_key(&ddescA.super, "A");
     object = dague_apply_operator_new((tiled_matrix_desc_t*)&ddescA,
