@@ -40,6 +40,8 @@ const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
 
+double time_elapsed = 0.0;
+double sync_time_elapsed = 0.0;
 
 /**********************************
  * Command line arguments 
