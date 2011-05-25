@@ -41,14 +41,17 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     /* initializing matrix structure */
+    PLASMA_enum uplo = PlasmaLower;
     int info = 0;
     LDA = max( LDA, N );
     LDB = max( LDB, N );
     SMB = 1; SNB = 1;
+
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                               N, N, SMB, SNB, P));
+        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                   N, N, P, uplo));
 
     /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -66,12 +69,11 @@ int main(int argc, char ** argv)
 
     if(!check) 
     {
-        PLASMA_enum uplo = PlasmaLower;
         PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t*) &ddescA, 100);
         if(loud > 2) printf("Done\n");
 
 #if defined(LLT_LL)
@@ -86,6 +88,7 @@ int main(int argc, char ** argv)
         dplasma_zpotrf_Destruct( DAGUE_zpotrf );
 #endif
     }
+#if 0 /* THIS IS ALL WRONG, you cannot use a two_dim_block_cyclic and fill it with sym_pos_mat (what is the value of uplo if you do that ?) */
     else 
     {
         int u, t1, t2;
@@ -95,13 +98,11 @@ int main(int argc, char ** argv)
           two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
                                  nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
                                  N, N, SMB, SNB, P));
-       
        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
             two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    N, NRHS, SMB, SNB, P));
-
-        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
+       PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
             two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    N, NRHS, SMB, SNB, P));
@@ -228,6 +229,8 @@ int main(int argc, char ** argv)
 
         }
 
+        dague_data_free(ddescA.mat);
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
         dague_data_free(ddescA0.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
         dague_data_free(ddescB.mat);
@@ -235,7 +238,7 @@ int main(int argc, char ** argv)
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     }
-
+#endif
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 
@@ -245,10 +248,10 @@ int main(int argc, char ** argv)
 #endif
 
 
-    cleanup_dague(dague);
-
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
+    cleanup_dague(dague);
+
 
     return EXIT_SUCCESS;
 }

@@ -5,9 +5,12 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-static double time_elapsed;
-static double sync_time_elapsed;
+extern double time_elapsed;
+extern double sync_time_elapsed;
 
+#ifdef HAVE_MPI
+# define get_cur_time() MPI_Wtime()
+#else
 static inline double get_cur_time(void)
 {
     struct timeval tv;
@@ -17,6 +20,7 @@ static inline double get_cur_time(void)
     t = tv.tv_sec + tv.tv_usec / 1e6;
     return t;
 }
+#endif
 
 #define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
