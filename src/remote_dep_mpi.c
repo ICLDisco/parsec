@@ -875,6 +875,8 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 #if defined(DAGUE_PROF_TRACE)
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
                             eu_context->master_context->my_rank, item->peer, deps->msg);
+#else
+        (void) eu_context;
 #endif /* DAGUE_PROF_TRACE */
         MPI_Isend(data, 1, dtt, item->peer, tag + k, dep_comm, &dep_put_snd_req[i*MAX_PARAM_COUNT+k]);
         DEBUG_MARK_DTA_MSG_START_SEND(item->peer, data, tag+k);
