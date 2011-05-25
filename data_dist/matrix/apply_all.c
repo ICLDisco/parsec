@@ -179,6 +179,27 @@ static const param_t param_of_apply = {
     .dep_out = { &param_of_apply_dep_out }
 };
 
+static dague_ontask_iterate_t
+add_task_to_list(struct dague_execution_unit *eu_context,
+                 dague_execution_context_t *newcontext,
+                 dague_execution_context_t *oldcontext,
+                 int param_index, int outdep_index,
+                 int rank_src, int rank_dst,
+                 dague_arena_t* arena,
+                 void *param)
+{
+    dague_execution_context_t** pready_list = (dague_execution_context_t**)param;
+    dague_execution_context_t* new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
+    dague_thread_mempool_t* mpool = new_context->mempool_owner;
+
+    memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
+    new_context->mempool_owner = mpool;
+
+    dague_list_add_single_elem_by_priority( pready_list, new_context );
+    (void)arena; (void)oldcontext; (void)param_index; (void)outdep_index; (void)rank_src; (void)rank_dst;
+    return DAGUE_ITERATE_STOP;
+}
+
 static void iterate_successors(dague_execution_unit_t *eu,
                                dague_execution_context_t *exec_context,
                                dague_ontask_function_t *ontask,
@@ -186,18 +207,21 @@ static void iterate_successors(dague_execution_unit_t *eu,
 {
     __dague_matrix_operator_object_t *__dague_object = (__dague_matrix_operator_object_t*)exec_context->dague_object;
     int k = exec_context->locals[0].value;
-    int n = exec_context->locals[1].value;
+    int n = exec_context->locals[1].value+1;
     dague_execution_context_t nc;
 
     /* If this is the last n, try to move to the next k */
-    for( k = exec_context->locals[0].value; k < __dague_object->super.A->nt; ) {
-        for( n = exec_context->locals[1].value + 1; n < __dague_object->super.A->mt; n++ ) {
+    for( ; k < __dague_object->super.A->nt; n = 0) {
+        for( ; n < __dague_object->super.A->mt; n++ ) {
             int is_local = (__dague_object->super.A->super.myrank ==
                             ((dague_ddesc_t*)__dague_object->super.A)->rank_of((dague_ddesc_t*)__dague_object->super.A,
                                                                                k, n));
             if( !is_local ) continue;
             /* Here we go, one ready local task */
+            nc.locals[0].value = k;
+            nc.locals[1].value = n;
             nc.function = &dague_matrix_operator /*this*/;
+            nc.dague_object = exec_context->dague_object;
             nc.priority = 0;
             ontask(eu, &nc, exec_context, 0, 0,
                    __dague_object->super.A->super.myrank,
@@ -215,20 +239,14 @@ static int release_deps(dague_execution_unit_t *eu,
                         dague_remote_deps_t *deps,
                         dague_arena_chunk_t **data)
 {
-    dague_release_dep_fct_arg_t arg;
-    arg.nb_released = 0;
-    arg.output_usage = 0;
-    arg.action_mask = action_mask;
-    arg.deps = deps;
-    arg.data = data;
-    arg.ready_list = NULL;
+    dague_execution_context_t* ready_list = NULL;
 
-    iterate_successors(eu, exec_context, dague_release_dep_fct, &arg);
+    iterate_successors(eu, exec_context, add_task_to_list, &ready_list);
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
-        if( NULL != arg.ready_list ) {
-            __dague_schedule(eu, arg.ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));
-            arg.ready_list = NULL;
+        if( NULL != ready_list ) {
+            __dague_schedule(eu, ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));
+            ready_list = NULL;
         }
     }
 
@@ -236,8 +254,9 @@ static int release_deps(dague_execution_unit_t *eu,
         (void)AUNREF(exec_context->data[0].data);
     }
 
-    assert( NULL == arg.ready_list );
-    return arg.nb_released;
+    assert( NULL == ready_list );
+    (void)deps; (void)data;
+    return 1;
 }
 
 static int hook_of(dague_execution_unit_t *context,
@@ -256,7 +275,7 @@ static int hook_of(dague_execution_unit_t *context,
     TAKE_TIME(context, 2*exec_context->function->function_id,
               apply_op( __dague_object, k), __dague_object->super.A,
               ((dague_ddesc_t*)(__dague_object->super.A))->data_key((dague_ddesc_t*)__dague_object->super.A, k, n) );
-    __dague_object->super.op( data, __dague_object->super.op_data, k, n );
+    __dague_object->super.op( context, data, __dague_object->super.op_data, k, n );
 #endif
     (void)context;
     return 0;
@@ -311,6 +330,31 @@ static const dague_t dague_matrix_operator = {
     .complete_execution = complete_hook,
 };
 
+static void dague_apply_operator_startup_fn(dague_context_t *context, 
+                                            dague_object_t *dague_object,
+                                            dague_execution_context_t** startup_list)
+{
+    dague_execution_context_t fake_context;
+    dague_execution_context_t* ready_list;
+    int i;
+
+    fake_context.locals[0].value = 0;
+    fake_context.locals[1].value = -1;
+    fake_context.dague_object = dague_object;
+    for( i = 0; i < context->nb_cores; i++ ) {
+        dague_execution_unit_t* eu = context->execution_units[i];
+        ready_list = NULL;
+        /* get the list of ready tasks */
+        iterate_successors(eu,
+                           &fake_context,
+                           add_task_to_list,
+                           (void*)&ready_list);
+        /* and schedule them */
+        __dague_schedule( eu, ready_list, 0 );
+    }
+    *startup_list = NULL;
+}
+
 struct dague_object_t*
 dague_apply_operator_new(tiled_matrix_desc_t* A,
                          dague_operator_t op,
@@ -321,6 +365,10 @@ dague_apply_operator_new(tiled_matrix_desc_t* A,
     res->super.A = A;
     res->super.op = op;
     res->super.op_data = op_data;
+
+    res->super.super.object_id = 1111;
+    res->super.super.nb_local_tasks = A->nb_local_tiles;
+    res->super.super.startup_hook = dague_apply_operator_startup_fn;
     return (struct dague_object_t*)res;
 }
 

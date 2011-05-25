@@ -105,7 +105,8 @@ void matrix_scompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 #define matrix_scompare_dist_data(...) do {} while(0)
 #endif
 
-typedef int (*dague_operator_t)( void* data, void* op_data, ... );
+struct dague_execution_unit;
+typedef int (*dague_operator_t)( struct dague_execution_unit *eu, void* data, void* op_data, ... );
 
 extern struct dague_object_t*
 dague_apply_operator_new(tiled_matrix_desc_t* A,

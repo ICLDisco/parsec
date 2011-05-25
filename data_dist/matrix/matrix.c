@@ -93,117 +93,90 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
     tiles = malloc(tiles_coord_size * sizeof(tile_coordinate_t));
 
     /* check which tiles to generate */
-    for ( j = 0 ; j < Mdesc->lnt ; j++)
-        for ( i = 0 ; i < Mdesc->lmt ; i++)
-            {
-                if(Mdesc->super.myrank ==
-                   Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j ))
-                    {
-                        if (pos == tiles_coord_size)
-                            {
-                                tiles_coord_size = 2 * tiles_coord_size;
-                                tiles = realloc(tiles,
-                                                tiles_coord_size*sizeof(tile_coordinate_t));
-                                if (NULL == tiles)
-                                    {
-                                        perror("cannot generate random matrix\n");
-                                        exit(-1);
-                                    }                                
-                            }
-                        tiles[pos].row = i;
-                        tiles[pos].col = j;
-                        pos++;                        
-                    }
+    for ( j = 0 ; j < Mdesc->lnt ; j++) {
+        for ( i = 0 ; i < Mdesc->lmt ; i++) {
+            if(Mdesc->super.myrank == Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j )) {
+                if (pos == tiles_coord_size) {
+                    tiles_coord_size = 2 * tiles_coord_size;
+                    tiles = realloc(tiles,
+                                    tiles_coord_size*sizeof(tile_coordinate_t));
+                    if (NULL == tiles) {
+                        perror("cannot generate random matrix\n");
+                        exit(-1);
+                    }                                
+                }
+                tiles[pos].row = i;
+                tiles[pos].col = j;
+                pos++;                        
             }
-
+        }
+    }
     /* have 'pos' tiles to generate, knowing which ones. Now gererating them */
     j = 0;
     info_gen = malloc(sizeof(info_tiles_t) * Mdesc->super.cores);
-    for ( i = 0 ; i < Mdesc->super.cores ; i++ )
-        {
-            info_gen[i].th_id = i;
-            info_gen[i].tiles = tiles;
-            info_gen[i].Ddesc = Mdesc;
-            info_gen[i].nb_elements = pos / Mdesc->super.cores;
-            info_gen[i].starting_position = j;
-            info_gen[i].seed = sed;
-            j += info_gen[i].nb_elements;
-            if (mtype == 1) /* cholesky like generation (symetric, diagonal dominant) */
-                {
-                    if(Mdesc->mtype == matrix_RealFloat) 
-                        {
-                            info_gen[i].gen_fct = matrix_stile_cholesky;
-                        }
-                    else if (Mdesc->mtype == matrix_RealDouble)
-                        {
-                            info_gen[i].gen_fct = matrix_dtile_cholesky;
-                        }
-                    else /* unknown type */
-                        {
-                            printf("unknown generation type: aborting generation\n");
-                            free (info_gen);
-                            free(tiles);
-                            return;
-                        }
-
-                }
-            else if (mtype == 0)/* LU like generation */
-                {
-                    if(Mdesc->mtype == matrix_RealFloat) 
-                        {
-                            info_gen[i].gen_fct = matrix_stile;
-                        }
-                    else if (Mdesc->mtype == matrix_RealDouble)
-                        {
-                            info_gen[i].gen_fct = matrix_dtile;
-                        }
-                    else /* unknown type */
-                        {
-                            printf("unknown generation type: aborting generation\n");
-                            free (info_gen);
-                            free(tiles);
-                            return;
-                        }
-                }
-            else if(mtype == 2)
-                {
-                    info_gen[i].gen_fct = create_tile_zero;
-                }
-            
+    for ( i = 0 ; i < Mdesc->super.cores ; i++ ) {
+        info_gen[i].th_id = i;
+        info_gen[i].tiles = tiles;
+        info_gen[i].Ddesc = Mdesc;
+        info_gen[i].nb_elements = pos / Mdesc->super.cores;
+        info_gen[i].starting_position = j;
+        info_gen[i].seed = sed;
+        j += info_gen[i].nb_elements;
+        if (mtype == 1) { /* cholesky like generation (symetric, diagonal dominant) */
+            if(Mdesc->mtype == matrix_RealFloat) {
+                info_gen[i].gen_fct = matrix_stile_cholesky;
+            } else if (Mdesc->mtype == matrix_RealDouble) {
+                info_gen[i].gen_fct = matrix_dtile_cholesky;
+            } else { /* unknown type */
+                printf("unknown generation type: aborting generation\n");
+                free (info_gen);
+                free(tiles);
+                return;
+            }
+        } else if (mtype == 0) { /* LU like generation */
+            if(Mdesc->mtype == matrix_RealFloat) {
+                info_gen[i].gen_fct = matrix_stile;
+            } else if (Mdesc->mtype == matrix_RealDouble) {
+                info_gen[i].gen_fct = matrix_dtile;
+            } else { /* unknown type */
+                printf("unknown generation type: aborting generation\n");
+                free (info_gen);
+                free(tiles);
+                return;
+            }
+        } else if(mtype == 2) {
+            info_gen[i].gen_fct = create_tile_zero;
         }
+    }
     info_gen[i - 1].nb_elements += pos % Mdesc->super.cores;
 
-    if (Mdesc->super.cores > 1)
-        {
-            pthread_attr_init(&thread_attr);
-            pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
+    if (Mdesc->super.cores > 1) {
+        pthread_attr_init(&thread_attr);
+        pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 #ifdef __linux
-            pthread_setconcurrency(Mdesc->super.cores);
+        pthread_setconcurrency(Mdesc->super.cores);
 #endif            
-            threads = malloc((Mdesc->super.cores - 1) * sizeof(pthread_t));
-            if (NULL == threads)
-                {
-                    perror("No memory for generating matrix\n");
-                    exit(-1);
-                }
-                
-            for ( i = 1 ; i < Mdesc->super.cores ; i++)
-                {
-                    pthread_create( &(threads[i-1]),
-                                    &thread_attr,
-                                    (void* (*)(void*))rand_dist_tiles,
-                                    (void*)&(info_gen[i]));
-                }
+        threads = malloc((Mdesc->super.cores - 1) * sizeof(pthread_t));
+        if (NULL == threads) {
+            perror("No memory for generating matrix\n");
+            exit(-1);
         }
+                
+        for ( i = 1 ; i < Mdesc->super.cores ; i++) {
+            pthread_create( &(threads[i-1]),
+                            &thread_attr,
+                            (void* (*)(void*))rand_dist_tiles,
+                            (void*)&(info_gen[i]));
+        }
+    }
 
     rand_dist_tiles((void*) &(info_gen[0]));
 
-    if (Mdesc->super.cores > 1)
-        {
-            for(i = 0 ; i < Mdesc->super.cores - 1 ; i++)
-                pthread_join(threads[i],NULL);
-            free (threads);
-        }
+    if (Mdesc->super.cores > 1) {
+        for(i = 0 ; i < Mdesc->super.cores - 1 ; i++)
+            pthread_join(threads[i],NULL);
+        free (threads);
+    }
     free(info_gen);
     free(tiles);
     return;
@@ -220,29 +193,32 @@ void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc, unsigned lon
     rand_dist_matrix(Mdesc, 1, seed);
 }
 
+void generate_tiled_random_sym_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
+{
+    rand_dist_matrix(Mdesc, 1, seed);
+}
+
 void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed)
 {
     rand_dist_matrix(Mdesc, 0, seed);
 }
 
 
-void pddiagset(tiled_matrix_desc_t * Mdesc, double val){
+void pddiagset(tiled_matrix_desc_t * Mdesc, double val)
+{
     unsigned int i, j;
     unsigned int target;
     double * buffer;
     target = (Mdesc->lmt < Mdesc->lnt) ? Mdesc->lmt : Mdesc->lnt;
 
-    for( i = 0 ; i < target ; i++ )
-        {
-            if(Mdesc->super.myrank == Mdesc->super.rank_of( (dague_ddesc_t *)Mdesc, i, i ))
-                {
-                    buffer = Mdesc->super.data_of( (dague_ddesc_t *)Mdesc, i, i );
-                    for( j = 0 ; j < Mdesc->nb ; j++)
-                        {
-                            buffer[(j * Mdesc->mb) + j] = val;
-                        }
-                }
+    for( i = 0 ; i < target ; i++ ) {
+        if(Mdesc->super.myrank == Mdesc->super.rank_of( (dague_ddesc_t *)Mdesc, i, i )) {
+            buffer = Mdesc->super.data_of( (dague_ddesc_t *)Mdesc, i, i );
+            for( j = 0 ; j < Mdesc->nb ; j++) {
+                buffer[(j * Mdesc->mb) + j] = val;
+            }
         }
+    }
     return;
 }
 

@@ -4,7 +4,7 @@
 
 typedef struct {
     dague_ddesc_t super;
-    unsigned char *data;
+    int32_t* data;
 } my_datatype_t;
 
 static uint32_t rank_of(dague_ddesc_t *desc, ...)
@@ -47,7 +47,7 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int si
     d->rank_of = rank_of;
     d->data_of = data_of;
 
-    m->data = (unsigned char *)malloc(size);
+    m->data = (int32_t*)malloc(size * sizeof(int32_t));
 
     return d;
 }
