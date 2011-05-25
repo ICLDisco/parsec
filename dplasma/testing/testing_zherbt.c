@@ -95,13 +95,13 @@ BLAS_zge_norm(enum blas_order_type order, enum blas_norm_type norm,
   int m, int n, const PLASMA_Complex64_t *a, int lda, double *res)
 {
   int i, j;
-  float anorm, v;
+  double anorm, v;
   char rname[] = "BLAS_zge_norm";
 
   if (order != blas_colmajor) BLAS_error( rname, -1, order, 0 );
 
   if (norm == blas_frobenius_norm) {
-    anorm = 0.0f;
+    anorm = 0.0;
     for (j = n; j; --j) {
       for (i = m; i; --i) {
         v = a[0];
@@ -112,9 +112,9 @@ BLAS_zge_norm(enum blas_order_type order, enum blas_norm_type norm,
     }
     anorm = sqrt( anorm );
   } else if (norm == blas_inf_norm) {
-    anorm = 0.0f;
+    anorm = 0.0;
     for (i = 0; i < m; ++i) {
-      v = 0.0f;
+      v = 0.0;
       for (j = 0; j < n; ++j) {
         v += cabs( a[i + j * lda] );
       }
@@ -136,7 +136,7 @@ BLAS_dpow_di(double x, int n) {
 
   if (n < 0) {
     n = -n;
-    x = 1.0 / x;
+    x = (double)1.0 / x;
   }
 
   for (; n; n >>= 1, x *= x) {
@@ -253,9 +253,9 @@ int main(int argc, char *argv[])
     PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
     double *W1             = (double *)malloc(N*sizeof(double));
     double *W2             = (double *)malloc(N*sizeof(double));
-    int i, j;
 
     if( check ) {
+        /*int i, j;*/
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
 
         LAPACKE_zheev( LAPACK_COL_MAJOR,
@@ -361,11 +361,11 @@ static int check_solution(int N, double *E1, double *E2, double eps)
     double *Residual = (double *)malloc(N*sizeof(double));
     double maxtmp;
     double maxel = fabs(fabs(E1[0])-fabs(E2[0]));
-    double maxeig = max(fabs(E1[0]), fabs(E2[0]));
+    double maxeig = fmax(fabs(E1[0]), fabs(E2[0]));
     for (i = 1; i < N; i++){
         Residual[i] = fabs(fabs(E1[i])-fabs(E2[i]));
-        maxtmp      = max(fabs(E1[i]), fabs(E2[i]));
-        maxeig      = max(maxtmp, maxeig);
+        maxtmp      = fmax(fabs(E1[i]), fabs(E2[i]));
+        maxeig      = fmax(maxtmp, maxeig);
         //printf("Residu: %f E1: %f E2: %f\n", Residual[i], E1[i], E2[i] );
         if (maxel < Residual[i])
            maxel =  Residual[i];
