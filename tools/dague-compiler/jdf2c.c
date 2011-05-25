@@ -606,7 +606,7 @@ static char *dump_startup_call(void **elem, void *arg)
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         string_arena_init(sa);
         string_arena_add_string(sa,
-                                "_%s_startup_tasks(eu_context, (__dague_%s_internal_object_t*)dague_object, pready_list);",
+                                "_%s_startup_tasks(context, (__dague_%s_internal_object_t*)dague_object, pready_list);",
                                 f->fname, jdf_basename);
         return string_arena_get_string(sa);
     }
@@ -1410,7 +1410,7 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(dague_execution_unit_t *eu_context, __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
+    coutput("static int %s(dague_context_t *context, __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
             "  dague_execution_context_t* new_context;\n"
             "%s",
@@ -1471,7 +1471,7 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
     ai.idx = 0;
     ai.holder = "  new_context->locals";
     ai.expr = NULL;
-    coutput("%s  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );\n"
+    coutput("%s  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
             "%s  DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
             "%s  DAGUE_LIST_ITEM_SINGLETON( new_context );\n"
             "%s  new_context->dague_object = (dague_object_t*)__dague_object;\n"
@@ -1926,7 +1926,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    coutput("static void %s_startup(dague_execution_unit_t *eu_context, dague_object_t *dague_object, dague_execution_context_t** pready_list)\n"
+    coutput("static void %s_startup(dague_context_t *context, dague_object_t *dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
             "%s\n"
             "}\n"

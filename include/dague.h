@@ -150,7 +150,7 @@ extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
 #endif
 
-typedef void (*dague_startup_fn_t)(dague_execution_unit_t *eu_context, 
+typedef void (*dague_startup_fn_t)(dague_context_t *context, 
                                    dague_object_t *dague_object,
                                    dague_execution_context_t** startup_list);
 
