@@ -22,6 +22,7 @@
 #include "barrier.h"
 #include "remote_dep.h"
 #include "bindthread.h"
+#include "dague_prof_grapher.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -44,8 +45,6 @@
 
 dague_allocate_data_t dague_data_allocate = malloc;
 dague_free_data_t     dague_data_free = free;
-
-FILE *__dague_graph_file = NULL;
 
 #ifdef DAGUE_PROF_TRACE
 int MEMALLOC_start_key, MEMALLOC_end_key;
@@ -349,7 +348,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
-            {"dot",         required_argument,  NULL, 'd'},
             {"papi",        required_argument,  NULL, 'p'},
             {"bind",        required_argument,  NULL, 'b'},
             {0, 0, 0, 0}
@@ -409,28 +407,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
             
-            ret = getopt_long (argc, argv, "d:p:b:",
+            ret = getopt_long (argc, argv, "p:b:",
                                long_options, &option_index);
 #else
-            ret = getopt (argc, argv, "d:p:b:");
+            ret = getopt (argc, argv, "p:b:");
 #endif  /* defined(HAVE_GETOPT_LONG) */
             if( -1 == ret ) break;  /* we're done */
             
             switch(ret) {
-            case 'd':
-                if( NULL == __dague_graph_file ) {
-                    int len = strlen(optarg) + 32;
-                    char filename[len];
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
-                    int rank;
-                    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-                    snprintf(filename, len, "%s%d", optarg, rank);
-#else
-                    snprintf(filename, len, "%s", optarg);
-#endif
-                    __dague_graph_file = fopen( filename, "w");
-                }
-                break;
             case 'b':
                 {
                     char* option = strdup(optarg);
@@ -496,11 +480,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_cores );
-
-    if( NULL != __dague_graph_file ) {
-        fprintf(__dague_graph_file, "digraph G {\n");
-        fflush(__dague_graph_file);
-    }
 #ifdef DAGUE_PROF_TRACE
     dague_profiling_init( "%s", (*pargv)[0] );
 
@@ -618,7 +597,7 @@ int dague_fini( dague_context_t** pcontext )
     }
 
     (void) dague_remote_dep_fini( context );
-    
+
     for(i = 0; i < context->nb_cores; i++) {
 #if defined(DAGUE_USE_LIFO) && !defined(DAGUE_USE_GLOBAL_LIFO)
         free( context->execution_units[i]->eu_task_queue );
@@ -656,12 +635,6 @@ int dague_fini( dague_context_t** pcontext )
 
     if( context->nb_cores > 1 ) {
         free(context->pthreads);
-    }
-
-    if( NULL != __dague_graph_file ) {
-        fprintf(__dague_graph_file, "}\n");
-        fclose(__dague_graph_file);
-        __dague_graph_file = NULL;
     }
 
 #if defined(HAVE_HWLOC)
@@ -713,23 +686,6 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
     }
     index += snprintf(tmp + index, length - index, ")");
 
-    return tmp;
-}
-
-/**
- * Convert a dependency to a string under the format X(...) -> Y(...).
- */
-static char* dague_dependency_to_string( const dague_execution_context_t* from,
-                                         const dague_execution_context_t* to,
-                                         char* tmp,
-                                         size_t length )
-{
-    int index = 0;
-
-    dague_service_to_string( from, tmp, length );
-    index = strlen(tmp);
-    index += snprintf( tmp + index, length - index, " -> " );
-    dague_service_to_string( to, tmp + index, length - index );
     return tmp;
 }
 
@@ -873,17 +829,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #endif /* defined(DAGUE_SCHED_DEPS_MASK) */
 
-
-#if defined(DAGUE_GRAPHER) || 1
-        if( NULL != __dague_graph_file ) {
-            char tmp1[128];
-            fprintf(__dague_graph_file, 
-                    "%s [label=\"%s=>%s\" color=\"#00FF00\" style=\"solid\"]\n", 
-                    dague_dependency_to_string(origin, exec_context, tmp1, 128),
-                    origin_param->name, dest_param->name);
-            fflush(__dague_graph_file);
-        }
-#endif  /* defined(DAGUE_GRAPHER) */
+        dague_prof_grapher_dep(origin, exec_context, 1, origin_param, dest_param);
 
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
@@ -935,16 +881,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     } else { /* Service not ready */
 
-#if defined(DAGUE_GRAPHER) || 1
-        if( NULL != __dague_graph_file ) {
-            char tmp1[128];
-            fprintf(__dague_graph_file, 
-                    "%s [label=\"%s=>%s\" color=\"#FF0000\" style=\"dashed\"]\n", 
-                    dague_dependency_to_string(origin, exec_context, tmp1, 128),
-                    origin_param->name, dest_param->name);
-            fflush(__dague_graph_file);
-        }
-#endif  /* defined(DAGUE_GRAPHER) */
+        dague_prof_grapher_dep(origin, exec_context, 0, origin_param, dest_param);
 
 #if defined(DAGUE_SCHED_DEPS_MASK)
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",

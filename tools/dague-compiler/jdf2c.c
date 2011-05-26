@@ -913,6 +913,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#else\n"
             "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
             "#endif\n"
+            "#include \"dague_prof_grapher.h\"\n"
             "#include <mempool.h>\n", 
             jdf_basename, 
             jdf_basename, nbfunctions, 
@@ -1396,7 +1397,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
     return (0 == already_added) ? NULL : string_arena_get_string(sa);
 }
 
-static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
+static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2;
     jdf_def_list_t *dl;
@@ -1505,6 +1506,13 @@ static void jdf_generate_startup_task(const jdf_t *jdf, const jdf_function_entry
         coutput("%s}\n", indent(nesting));
     }
 
+    /* Quiet the compiler by using the varibales */
+    coutput("%s"
+            "%s",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+                                 "  ", "(void)", "_start; (void)", "_start;\n"),
+            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+                                 "  ", "(void)", "_end; (void)", "_end;\n"));
     string_arena_free(sa1);    
     string_arena_free(sa2);
 
@@ -1664,6 +1672,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
     }
 
+    /* Quiet the compiler by using the varibales */
+    coutput("%s"
+            "%s",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+                                 "  ", "(void)", "_start; (void)", "_start;\n"),
+            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+                                 "  ", "(void)", "_end; (void)", "_end;\n"));
+
     string_arena_free(sa1);    
     string_arena_free(sa2);
 
@@ -1809,7 +1825,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
 
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         sprintf(prefix, "%s_%s_startup_tasks", jdf_basename, f->fname);
-        jdf_generate_startup_task(jdf, f, prefix);
+        jdf_generate_startup_tasks(jdf, f, prefix);
     }
     
     free(prefix);
@@ -2370,18 +2386,9 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 
     (void)jdf;
 
-    coutput("#if defined(DAGUE_GRAPHER)\n"
-            "  if( NULL != __dague_graph_file ) {\n"
-            "    char tmp[128];\n"
-            "    dague_service_to_string(exec_context, tmp, 128);\n"
-            "    fprintf(__dague_graph_file,\n"
-            "           \"%%s [shape=\\\"polygon\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
-            "            tmp, colors[context->eu_id], tmp, %s_hash( __dague_object, %s ));\n"
-            "  }\n"
-            "#endif /* DAGUE_GRAPHER */\n",
-            f->fname, f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                                     dump_string, NULL, "", "", ", ", ""));
-    
+    coutput("  dague_prof_grapher_task(exec_context, context->eu_id, %s_hash(__dague_object, %s));\n",
+            f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                           dump_string, NULL, "", "", ", ", ""));    
     string_arena_free(sa);
 }
 
