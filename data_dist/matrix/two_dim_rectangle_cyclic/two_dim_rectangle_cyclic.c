@@ -191,6 +191,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     if((Ddesc->super.lnt % Ddesc->ncst) != 0)
         nbstile_c++;
 
+#if 0
     if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
         {
             printf("The process grid chosen is %ux%u, block distribution choosen is %u, %u : cannot generate matrix \n",
@@ -198,6 +199,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
             exit(-1);
         }
     // printf("matrix to be generated distributed by block of %d x %d tiles \n", nbstile_r, nbstile_c);
+#endif
 
     /* find the number of tiles this process will handle */
     Ddesc->nb_elem_r = 0;
@@ -227,8 +229,8 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
             Ddesc->nb_elem_c += ((Ddesc->super.lnt) - temp);
             break;
         }
-    /*  printf("process %d(%d,%d) handles %d x %d tiles\n",
-        Ddesc->mpi_rank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
+/*    printf("process %d(%d,%d) handles %d x %d tiles\n",
+        myrank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
 
