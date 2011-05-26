@@ -173,7 +173,7 @@ dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
     two_dim_block_cyclic_t work;
     /* Create workspace for control */
     two_dim_block_cyclic_init(&work, matrix_Integer, B->super.nodes, B->super.cores, B->super.myrank,
-                              1, 1, B->mt, B->nt, 0, 0, B->mt, B->nt, 1, 1, ((two_dim_block_cyclic_t*)B)->GRIDrows);
+                              1, 1, B->mt, B->nt, 0, 0, B->mt, B->nt, 1, 1, ((two_dim_block_cyclic_t*)B)->grid.rows);
     work.mat = dague_data_allocate((size_t)work.super.nb_local_tiles * (size_t)work.super.bsiz * (size_t)work.super.mtype);
     
     dague_ztrmm = dplasma_ztrmm_New(side, uplo, trans, diag, alpha,
