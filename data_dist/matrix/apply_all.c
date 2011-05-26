@@ -212,8 +212,8 @@ static void iterate_successors(dague_execution_unit_t *eu,
     dague_execution_context_t nc;
 
     /* If this is the last n, try to move to the next k */
-    for( ; k < __dague_object->super.A->nt; n = 0) {
-        for( ; n < __dague_object->super.A->mt; n++ ) {
+    for( ; k < (int)__dague_object->super.A->nt; n = 0) {
+        for( ; n < (int)__dague_object->super.A->mt; n++ ) {
             int is_local = (__dague_object->super.A->super.myrank ==
                             ((dague_ddesc_t*)__dague_object->super.A)->rank_of((dague_ddesc_t*)__dague_object->super.A,
                                                                                k, n));
@@ -327,24 +327,41 @@ static void dague_apply_operator_startup_fn(dague_context_t *context,
                                             dague_object_t *dague_object,
                                             dague_execution_context_t** startup_list)
 {
+    __dague_matrix_operator_object_t *__dague_object = (__dague_matrix_operator_object_t*)dague_object;
     dague_execution_context_t fake_context;
-    dague_execution_context_t* ready_list;
-    int i;
+    dague_execution_context_t *ready_list;
+    int k = 0, n = 0, count = 0;
+    dague_execution_unit_t* eu;
 
-    fake_context.locals[0].value = 0;
-    fake_context.locals[1].value = -1;
-    fake_context.dague_object = dague_object;
-    for( i = 0; i < context->nb_cores; i++ ) {
-        dague_execution_unit_t* eu = context->execution_units[i];
+    /* If this is the last n, try to move to the next k */
+    for( ; k < (int)__dague_object->super.A->nt; n = 0) {
+        eu = context->execution_units[count];
         ready_list = NULL;
-        /* get the list of ready tasks */
-        iterate_successors(eu,
-                           &fake_context,
-                           add_task_to_list,
-                           (void*)&ready_list);
-        /* and schedule them */
-        __dague_schedule( eu, ready_list, 0 );
+
+        for( ; n < (int)__dague_object->super.A->mt; n++ ) {
+            int is_local = (__dague_object->super.A->super.myrank ==
+                            ((dague_ddesc_t*)__dague_object->super.A)->rank_of((dague_ddesc_t*)__dague_object->super.A,
+                                                                               k, n));
+            if( !is_local ) continue;
+            /* Here we go, one ready local task */
+            fake_context.locals[0].value = k;
+            fake_context.locals[1].value = n;
+            fake_context.function = &dague_matrix_operator /*this*/;
+            fake_context.dague_object = dague_object;
+            fake_context.priority = 0;
+            add_task_to_list(eu, &fake_context, NULL, 0, 0,
+                             __dague_object->super.A->super.myrank,
+                             __dague_object->super.A->super.myrank, NULL, (void*)&ready_list);
+            __dague_schedule( eu, ready_list, 0 );
+            count++;
+            break;
+        }
+        /* Go to the next row ... atomically */
+        k = dague_atomic_inc_32b( &__dague_object->super.next_k );
+        if( count == context->nb_cores )
+            break;
     }
+
     *startup_list = NULL;
 }
 
