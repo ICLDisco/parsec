@@ -38,15 +38,15 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     n += ((tiled_matrix_desc_t *)desc)->j;
     /* for tile (m,n), first find coordinate of process in
        process grid which possess the tile in block cyclic dist */
-    str = m / Ddesc->nrst; /* (m,n) is in super-tile (str, stc)*/
-    stc = n / Ddesc->ncst;
+    str = m / Ddesc->grid.strows; /* (m,n) is in super-tile (str, stc)*/
+    stc = n / Ddesc->grid.stcols;
 
-    rr = str % Ddesc->GRIDrows;
-    cr = stc % Ddesc->GRIDcols;
+    rr = str % Ddesc->grid.rows;
+    cr = stc % Ddesc->grid.cols;
     /* P(rr, cr) has the tile, compute the mpi rank*/
-    res = rr * Ddesc->GRIDcols + cr;
+    res = rr * Ddesc->grid.cols + cr;
     /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
-/*            m, n, res, rr, cr, Ddesc->GRIDrows, Ddesc->GRIDcols); */
+/*            m, n, res, rr, cr, Ddesc->grid.rows, Ddesc->grid.cols); */
     return res;
 }
 
@@ -77,31 +77,31 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 
     /**********************************/
 
-    nb_elem_r = Ddesc->nb_elem_r * Ddesc->ncst; /* number of tiles per column of super-tile */
+    nb_elem_r = Ddesc->nb_elem_r * Ddesc->grid.stcols; /* number of tiles per column of super-tile */
 
-    pos = nb_elem_r * ((n / Ddesc->ncst)/ Ddesc->GRIDcols); /* pos is currently at head of supertile (0xA) */
+    pos = nb_elem_r * ((n / Ddesc->grid.stcols)/ Ddesc->grid.cols); /* pos is currently at head of supertile (0xA) */
 
-    if (n >= ((Ddesc->super.lnt/Ddesc->ncst) * Ddesc->ncst )) /* tile is in the last column of super-tile */
+    if (n >= ((Ddesc->super.lnt/Ddesc->grid.stcols) * Ddesc->grid.stcols )) /* tile is in the last column of super-tile */
         {
-            last_c_size = (Ddesc->super.lnt % Ddesc->ncst) * Ddesc->nrst; /* number of tile per super tile in last column */
+            last_c_size = (Ddesc->super.lnt % Ddesc->grid.stcols) * Ddesc->grid.strows; /* number of tile per super tile in last column */
         }
     else
         {
-            last_c_size = Ddesc->ncst * Ddesc->nrst;
+            last_c_size = Ddesc->grid.stcols * Ddesc->grid.strows;
         }
-    pos += (last_c_size * ((m / Ddesc->nrst) / Ddesc->GRIDrows ) ); /* pos is at head of supertile (BxA) containing (m,n)  */
+    pos += (last_c_size * ((m / Ddesc->grid.strows) / Ddesc->grid.rows ) ); /* pos is at head of supertile (BxA) containing (m,n)  */
 
     /* if tile (m,n) is in the last row of super tile and this super tile is smaller than others */
-    if (m >= ((Ddesc->super.lmt/Ddesc->nrst)*Ddesc->nrst))
+    if (m >= ((Ddesc->super.lmt/Ddesc->grid.strows)*Ddesc->grid.strows))
         {
-            last_c_size = Ddesc->super.lmt % Ddesc->nrst;
+            last_c_size = Ddesc->super.lmt % Ddesc->grid.strows;
         }
     else
         {
-            last_c_size = Ddesc->nrst;
+            last_c_size = Ddesc->grid.strows;
         }
-    pos += ((n % Ddesc->ncst) * last_c_size); /* pos is at (B, n)*/
-    pos += (m % Ddesc->nrst); /* pos is at (m,n)*/
+    pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
+    pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
 
     //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
     /************************************/
@@ -159,12 +159,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.j = j;
     Ddesc->super.m = m;
     Ddesc->super.n = n;
-    Ddesc->nrst = nrst;
-    Ddesc->ncst = ncst;
-    Ddesc->GRIDrows = process_GridRows;
 
     assert((nodes % process_GridRows) == 0);
-    Ddesc->GRIDcols = nodes / process_GridRows;
+    grid_2Dcyclic_init(&Ddesc->grid, myrank, process_GridRows, nodes/process_GridRows, nrst, ncst);
 
     // Matrix derived parameters
     Ddesc->super.lmt = ((Ddesc->super.lm)%(Ddesc->super.mb)==0) ? ((Ddesc->super.lm)/(Ddesc->super.mb)) : ((Ddesc->super.lm)/(Ddesc->super.mb) + 1);
@@ -175,27 +172,21 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
     Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
 
-
-    /* computing colRANK and rowRANK */
-    Ddesc->rowRANK = (Ddesc->super.super.myrank)/(Ddesc->GRIDcols);
-    Ddesc->colRANK = (Ddesc->super.super.myrank)%(Ddesc->GRIDcols);
-
-
     /* computing the number of rows of super-tile */
-    nbstile_r = Ddesc->super.lmt / Ddesc->nrst;
-    if((Ddesc->super.lmt % Ddesc->nrst) != 0)
+    nbstile_r = Ddesc->super.lmt / Ddesc->grid.strows;
+    if((Ddesc->super.lmt % Ddesc->grid.strows) != 0)
         nbstile_r++;
 
     /* computing the number of colums of super-tile*/
-    nbstile_c = Ddesc->super.lnt / Ddesc->ncst;
-    if((Ddesc->super.lnt % Ddesc->ncst) != 0)
+    nbstile_c = Ddesc->super.lnt / Ddesc->grid.stcols;
+    if((Ddesc->super.lnt % Ddesc->grid.stcols) != 0)
         nbstile_c++;
 
 #if 0
-    if ( Ddesc->GRIDrows > nbstile_r || Ddesc->GRIDcols > nbstile_c)
+    if ( Ddesc->grid.rows > nbstile_r || Ddesc->grid.cols > nbstile_c)
         {
             printf("The process grid chosen is %ux%u, block distribution choosen is %u, %u : cannot generate matrix \n",
-                   Ddesc->GRIDrows, Ddesc->GRIDcols, nbstile_r, nbstile_c);
+                   Ddesc->grid.rows, Ddesc->grid.cols, nbstile_r, nbstile_c);
             exit(-1);
         }
     // printf("matrix to be generated distributed by block of %d x %d tiles \n", nbstile_r, nbstile_c);
@@ -203,13 +194,13 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 
     /* find the number of tiles this process will handle */
     Ddesc->nb_elem_r = 0;
-    temp = Ddesc->rowRANK * Ddesc->nrst; /* row coordinate of the first tile to handle */
+    temp = Ddesc->grid.rrank * Ddesc->grid.strows; /* row coordinate of the first tile to handle */
     while ( temp < Ddesc->super.lmt)
         {
-            if ( (temp  + (Ddesc->nrst)) < Ddesc->super.lmt)
+            if ( (temp  + (Ddesc->grid.strows)) < Ddesc->super.lmt)
                 {
-                    Ddesc->nb_elem_r += (Ddesc->nrst);
-                    temp += ((Ddesc->GRIDrows) * (Ddesc->nrst));
+                    Ddesc->nb_elem_r += (Ddesc->grid.strows);
+                    temp += ((Ddesc->grid.rows) * (Ddesc->grid.strows));
                     continue;
                 }
             Ddesc->nb_elem_r += ((Ddesc->super.lmt) - temp);
@@ -217,20 +208,20 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
         }
 
     Ddesc->nb_elem_c = 0;
-    temp = Ddesc->colRANK * Ddesc->ncst;
+    temp = Ddesc->grid.crank * Ddesc->grid.stcols;
     while ( temp < Ddesc->super.lnt)
         {
-            if ( (temp  + (Ddesc->ncst)) < Ddesc->super.lnt)
+            if ( (temp  + (Ddesc->grid.stcols)) < Ddesc->super.lnt)
                 {
-                    Ddesc->nb_elem_c += (Ddesc->ncst);
-                    temp += (Ddesc->GRIDcols) * (Ddesc->ncst);
+                    Ddesc->nb_elem_c += (Ddesc->grid.stcols);
+                    temp += (Ddesc->grid.cols) * (Ddesc->grid.stcols);
                     continue;
                 }
             Ddesc->nb_elem_c += ((Ddesc->super.lnt) - temp);
             break;
         }
 /*    printf("process %d(%d,%d) handles %d x %d tiles\n",
-        myrank, Ddesc->rowRANK, Ddesc->colRANK, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
+        myrank, Ddesc->grid.rrank, Ddesc->grid.crank, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
 
@@ -252,7 +243,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROF_TRACE */
 #ifdef DAGUE_DEBUG
-     printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores, Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb, Ddesc->super.lm,  Ddesc->super.ln,  Ddesc->super.i, Ddesc->super.j, Ddesc->super.m, Ddesc->super.n, Ddesc->nrst, Ddesc->ncst, Ddesc->GRIDrows);
+     printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores, Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb, Ddesc->super.lm,  Ddesc->super.ln,  Ddesc->super.i, Ddesc->super.j, Ddesc->super.m, Ddesc->super.n, Ddesc->grid.strows, Ddesc->grid.stcols, Ddesc->grid.rows);
 
 #endif /* DAGUE_DEBUG*/
 }

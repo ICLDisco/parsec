@@ -359,8 +359,8 @@ int tiles_to_scalapack(tiled_matrix_desc_t * Ddesc, int * desc, void * sca_mat, 
 	    if( Ddesc->super.super.myrank ==
 		Ddesc->super.super.rank_of((dague_ddesc_t *)Ddesc, i, j ) )
                 {
-                    il = i / ( Ddesc->nrst * Ddesc->GRIDrows ) +  (i % ( Ddesc->nrst * Ddesc->GRIDrows )) - ( Ddesc->nrst * Ddesc->rowRANK );
-                    jl = j / ( Ddesc->ncst * Ddesc->GRIDcols ) +  (j % ( Ddesc->ncst * Ddesc->GRIDcols )) - ( Ddesc->ncst * Ddesc->colRANK );
+                    il = i / ( Ddesc->grid.strows * Ddesc->grid.rows ) +  (i % ( Ddesc->grid.strows * Ddesc->grid.rows )) - ( Ddesc->grid.strows * Ddesc->grid.rrank );
+                    jl = j / ( Ddesc->grid.stcols * Ddesc->grid.cols ) +  (j % ( Ddesc->grid.stcols * Ddesc->grid.cols )) - ( Ddesc->grid.stcols * Ddesc->grid.crank );
                     dec = ((int64_t)(Ddesc->super.nb)*(int64_t)(Ddesc->lm)*(int64_t)(jl)) + (int64_t)((Ddesc->super.mb)*(il));
                     bdl = Ddesc->super.super.data_of((dague_ddesc_t *)Ddesc, i, j );
                     f77 = &sca_mat[ dec ];

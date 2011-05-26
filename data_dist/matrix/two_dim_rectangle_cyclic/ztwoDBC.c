@@ -24,8 +24,8 @@ int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int ld
             if( Mdesc->super.super.myrank ==
                 Mdesc->super.super.rank_of((dague_ddesc_t *)Mdesc, i, j ) )
             {
-                il = i / ( Mdesc->nrst * Mdesc->GRIDrows ) +  (i % ( Mdesc->nrst * Mdesc->GRIDrows )) - ( Mdesc->nrst * Mdesc->rowRANK );
-                jl = j / ( Mdesc->ncst * Mdesc->GRIDcols ) +  (j % ( Mdesc->ncst * Mdesc->GRIDcols )) - ( Mdesc->ncst * Mdesc->colRANK );
+                il = i / ( Mdesc->grid.strows * Mdesc->grid.rows ) +  (i % ( Mdesc->grid.strows * Mdesc->grid.rows )) - ( Mdesc->grid.strows * Mdesc->grid.rrank );
+                jl = j / ( Mdesc->grid.stcols * Mdesc->grid.cols ) +  (j % ( Mdesc->grid.stcols * Mdesc->grid.cols )) - ( Mdesc->grid.stcols * Mdesc->grid.crank );
                 dec = ((int64_t)(Mdesc->super.nb)*(int64_t)lda*(int64_t)(jl)) + (int64_t)((Mdesc->super.mb)*(il));
                 bdl = Mdesc->super.super.data_of((dague_ddesc_t *)Mdesc, i, j );
                 f77 = &A[ dec ];

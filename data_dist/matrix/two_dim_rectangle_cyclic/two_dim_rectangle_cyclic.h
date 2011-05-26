@@ -12,6 +12,7 @@
 
 #include "dague_config.h"
 #include "../matrix.h"
+#include "../grid_2Dcyclic.h"
 
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
@@ -26,13 +27,8 @@
  */
 typedef struct two_dim_block_cyclic {
     tiled_matrix_desc_t super;
+    grid_2Dcyclic_t grid; 
     void *mat;               /**< pointer to the beginning of the matrix */
-    unsigned int nrst;       /**< max number of tile rows in a super-tile */
-    unsigned int ncst;       /**< max number of tile columns in a super tiles */
-    unsigned int GRIDrows;   /**< number of processes rows in the process grid */
-    unsigned int GRIDcols;   /**< number of processes cols in the process grid - derived parameter */
-    unsigned int colRANK;    /**< process column rank in the process grid - derived parameter */
-    unsigned int rowRANK;    /**< process row rank in the process grid - derived parameter */
     unsigned int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
     unsigned int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
 } two_dim_block_cyclic_t;
@@ -70,7 +66,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
 			       unsigned int mb, unsigned int nb, 
 			       unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, 
 			       unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
-
 
 int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
 
