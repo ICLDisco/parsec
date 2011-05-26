@@ -34,7 +34,6 @@ else()
         grid_2Dcyclic.c
         two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
         sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
-        scalapack_convert.c
         ${generated_files})
     install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
 endif()

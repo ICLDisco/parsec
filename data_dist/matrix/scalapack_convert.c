@@ -125,7 +125,10 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  u
 
 int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, unsigned int process_grid_rows)
 {
+#ifdef HAVE_MPI
     int length, size;
+#endif
+
     info->Ddesc = Ddesc;
     info->sca_desc = sca_desc;
     info->sca_mat = sca_mat;
@@ -197,6 +200,8 @@ void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
     MPI_Type_free(&(info->MPI_Dague_last_row));
     MPI_Type_free(&(info->MPI_Dague_last_col));
     MPI_Type_free(&(info->MPI_Dague_last_block));
+#else
+    (void)info;
 #endif /* HAVE_MPI */
     return;
 }
@@ -326,11 +331,11 @@ void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned in
 
     bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
     dec = ((info->Ddesc->nb)*(info->Ddesc->m)*col) + ((info->Ddesc->mb)*row);
-    f77 = (double*)&(info->sca_mat[ dec ]);
+    lapack = (double*)&(((double*)(info->sca_mat))[ dec ]);
     
     for (y = 0; y < (info->Ddesc->nb); y++)
         for (x = 0; x < (info->Ddesc->mb); x++)
-            f77[(info->Ddesc->m)*y+x] = bdl[(info->Ddesc->mb)*y + x];
+            lapack[(info->Ddesc->m)*y+x] = bdl[(info->Ddesc->mb)*y + x];
 
     return;
 }
@@ -349,7 +354,7 @@ int tiles_to_scalapack(scalapack_info_t * info)
 int tiles_to_scalapack(tiled_matrix_desc_t * Ddesc, int * desc, void * sca_mat, unsigned int process_grid_rows)
 {
     unsigned int i, j, il, jl, x, y;
-    double *bdl, *f77;
+    double *bdl, *lapack;
     int64_t dec;
 
     // check which tiles to generate 
@@ -363,11 +368,11 @@ int tiles_to_scalapack(tiled_matrix_desc_t * Ddesc, int * desc, void * sca_mat, 
                     jl = j / ( Ddesc->grid.stcols * Ddesc->grid.cols ) +  (j % ( Ddesc->grid.stcols * Ddesc->grid.cols )) - ( Ddesc->grid.stcols * Ddesc->grid.crank );
                     dec = ((int64_t)(Ddesc->super.nb)*(int64_t)(Ddesc->lm)*(int64_t)(jl)) + (int64_t)((Ddesc->super.mb)*(il));
                     bdl = Ddesc->super.super.data_of((dague_ddesc_t *)Ddesc, i, j );
-                    f77 = &sca_mat[ dec ];
+                    lapack = &sca_mat[ dec ];
                     
                     for (y = 0; y < (Ddesc->super.nb); y++)
                         for (x = 0; x < (Ddesc->super.mb); x++)
-                            f77[(Ddesc->lm)*y+x] = bdl[(Ddesc->super.nb)*y + x];
+                            lapack[(Ddesc->lm)*y+x] = bdl[(Ddesc->super.nb)*y + x];
                 }
 	}
     return 0;
