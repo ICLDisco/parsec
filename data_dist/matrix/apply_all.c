@@ -6,6 +6,7 @@
 
 #include "dague.h"
 #include "matrix.h"
+#include "dague_prof_grapher.h"
 #include <scheduling.h>
 
 #if defined(DAGUE_PROF_TRACE)
@@ -290,15 +291,7 @@ static int complete_hook(dague_execution_unit_t *context,
 
     TAKE_TIME(context,2*exec_context->function->function_id+1, apply_op_hash( __dague_object, k, n ), NULL, 0);
       
-#if defined(DAGUE_GRAPHER)
-    if( NULL != __dague_graph_file ) {
-        char tmp[128];
-        dague_service_to_string(exec_context, tmp, 128);
-        fprintf(__dague_graph_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\",tooltip=\"PONG%ld\"];\n",
-                tmp, colors[context->eu_id], tmp, PONG_hash( __dague_object, k, n ));
-    }
-#endif /* DAGUE_GRAPHER */
+    dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
     release_deps(context, exec_context,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |

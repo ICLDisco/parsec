@@ -55,6 +55,7 @@ enum iparam_t {
   IPARAM_SMB,        /* Number of rows in a super-tile    */
   IPARAM_CHECK,      /* Checking activated or not         */
   IPARAM_VERBOSE,    /* How much noise do we want?        */
+  IPARAM_DOT,        /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };
 

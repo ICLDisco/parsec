@@ -913,6 +913,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#else\n"
             "#define TAKE_TIME(context, key, id, refdesc, refid)\n"
             "#endif\n"
+            "#include \"dague_prof_grapher.h\"\n"
             "#include <mempool.h>\n", 
             jdf_basename, 
             jdf_basename, nbfunctions, 
@@ -2370,18 +2371,9 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 
     (void)jdf;
 
-    coutput("#if defined(DAGUE_GRAPHER)\n"
-            "  if( NULL != __dague_graph_file ) {\n"
-            "    char tmp[128];\n"
-            "    dague_service_to_string(exec_context, tmp, 128);\n"
-            "    fprintf(__dague_graph_file,\n"
-            "           \"%%s [shape=\\\"polygon\\\",style=filled,fillcolor=\\\"%%s\\\",fontcolor=\\\"black\\\",label=\\\"%%s\\\",tooltip=\\\"%s%%ld\\\"];\\n\",\n"
-            "            tmp, colors[context->eu_id], tmp, %s_hash( __dague_object, %s ));\n"
-            "  }\n"
-            "#endif /* DAGUE_GRAPHER */\n",
-            f->fname, f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                                     dump_string, NULL, "", "", ", ", ""));
-    
+    coutput("  dague_prof_grapher_task(exec_context, context->eu_id, %s_hash(__dague_object, %s));\n",
+            f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
+                                           dump_string, NULL, "", "", ", ", ""));    
     string_arena_free(sa);
 }
 

@@ -4,6 +4,8 @@
  *                         reserved.
  *
  */
+#include "dague_config.h"
+
 #include "common.h"
 #include "common_timing.h"
 #include "dague.h"
@@ -23,6 +25,8 @@
 #include "gpu_data.h"
 #endif
 
+#include "dague_prof_grapher.h"
+
 /*******************************
  * globals and argv set values *
  *******************************/
@@ -39,6 +43,8 @@ const char *sidestr[2]  = { "Left ", "Right" };
 const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
+
+static char *dot_filename = NULL;
 
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
@@ -72,6 +78,8 @@ void print_usage(void)
             " -s --SNB          : columns of tiles in a supertile (default: 1)\n"
             " -S --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -x --check        : verify the results\n"
+            "\n"
+            "    --dot          : create a dot output file (default: don't)\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
@@ -118,6 +126,8 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
+
+    {"dot",         required_argument,  0, '.'},
 
     {"verbose",     optional_argument,  0, 'v'},
     {"v",           optional_argument,  0, 'v'},
@@ -174,7 +184,9 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 's': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'x': iparam[IPARAM_CHECK] = 1; break; 
-            
+                
+            case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
+
             case 'v': 
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
@@ -361,6 +373,9 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]); 
+#else
+    iparam[IPARAM_NNODES] = 1;
+    iparam[IPARAM_RANK] = 0;
 #endif
     parse_arguments(argc, argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
@@ -378,6 +393,22 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
         }
     }
 #endif
+
+
+#if defined(DAGUE_PROF_GRAPHER)
+    if(iparam[IPARAM_DOT] != 0) {
+        dague_prof_grapher_init(dot_filename, iparam[IPARAM_RANK], iparam[IPARAM_NNODES], iparam[IPARAM_NCORES]);
+    }
+#else
+    (void)dot_filename;
+    if(iparam[IPARAM_DOT] != 0) {
+        fprintf(stderr, 
+                "************************************************************************************************\n"
+                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
+                "************************************************************************************************\n");
+    }
+#endif
+
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;
 }
@@ -396,8 +427,9 @@ void cleanup_dague(dague_context_t* dague)
     dague_profiling_dump_xml(filename);
     free(filename);
 #endif  /* DAGUE_PROF_TRACE */
-
     dague_fini(&dague);
+
+    dague_prof_grapher_fini();
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif    

@@ -331,6 +331,10 @@ if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)
 endif( DAGUE_PROF_TRACE )
 
+if( DAGUE_PROF_GRAPHER )
+  list(APPEND EXTRA_SOURCES src/dague_prof_grapher.c)
+endif( DAGUE_PROF_GRAPHER )
+
 #
 ##
 ###
