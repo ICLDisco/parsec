@@ -40,7 +40,7 @@ int main( int argc, char* argv[] )
                                      (size_t)ddescA.super.bsiz *
                                      (size_t)ddescA.super.mtype);
 
-    dague_ddesc_set_key(&ddescA.super, "A");
+    dague_ddesc_set_key(&ddescA.super.super, "A");
     object = dague_apply_operator_new((tiled_matrix_desc_t*)&ddescA,
                                       dague_operator_print_id,
                                       "A");

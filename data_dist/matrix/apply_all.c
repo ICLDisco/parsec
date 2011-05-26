@@ -10,7 +10,7 @@
 #include <scheduling.h>
 
 #if defined(DAGUE_PROF_TRACE)
-int rtt_profiling_array[2*DAGUE_rtt_NB_FUNCTIONS] = {-1};
+int rtt_profiling_array[2] = {-1};
 #define TAKE_TIME(context, key, eid, refdesc, refid) do {   \
    dague_profile_ddesc_info_t info;                         \
    info.desc = (dague_ddesc_t*)refdesc;                     \
@@ -39,6 +39,11 @@ static const param_t param_of_apply;
 static const dague_t dague_matrix_operator;
 
 #define A(k,n)  (((dague_ddesc_t*)__dague_object->super.A)->data_of((dague_ddesc_t*)__dague_object->super.A, (k), (n)))
+
+static inline uint32_t apply_op_hash(const dague_matrix_operator_object_t *o, int k, int n )
+{
+    return o->A->mt * k + n;
+}
 
 static inline int minexpr_of_row_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
@@ -264,6 +269,7 @@ static int hook_of(dague_execution_unit_t *context,
                    dague_execution_context_t *exec_context)
 {
     const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)exec_context->dague_object;
+    const dague_matrix_operator_object_t *dague_object = ( const dague_matrix_operator_object_t * )exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     dague_arena_chunk_t* arena = (dague_arena_chunk_t*) A(k,n);
@@ -274,8 +280,8 @@ static int hook_of(dague_execution_unit_t *context,
 
 #if !defined(DAGUE_PROF_DRY_BODY)
     TAKE_TIME(context, 2*exec_context->function->function_id,
-              apply_op( __dague_object, k), __dague_object->super.A,
-              ((dague_ddesc_t*)(__dague_object->super.A))->data_key((dague_ddesc_t*)__dague_object->super.A, k, n) );
+              apply_op_hash( dague_object, k, n ), dague_object->A,
+              ((dague_ddesc_t*)(dague_object->A))->data_key((dague_ddesc_t*)dague_object->A, k, n) );
     __dague_object->super.op( context, data, __dague_object->super.op_data, k, n );
 #endif
     (void)context;
@@ -285,11 +291,13 @@ static int hook_of(dague_execution_unit_t *context,
 static int complete_hook(dague_execution_unit_t *context,
                          dague_execution_context_t *exec_context)
 {
+    const __dague_matrix_operator_object_t *__dague_object = ( const __dague_matrix_operator_object_t * )exec_context->dague_object;
+    const dague_matrix_operator_object_t *dague_object = ( const dague_matrix_operator_object_t * )exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     (void)k; (void)n;
 
-    TAKE_TIME(context,2*exec_context->function->function_id+1, apply_op_hash( __dague_object, k, n ), NULL, 0);
+    TAKE_TIME(context, 2*exec_context->function->function_id+1, apply_op_hash( dague_object, k, n ), NULL, 0);
       
     dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
