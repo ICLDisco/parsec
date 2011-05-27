@@ -38,6 +38,7 @@ int JDF_NOTATION = 1;
 static void do_parentize(node_t *node);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static int DA_quark_INOUT(node_t *node);
+static int DA_quark_TYPE(node_t *node);
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
 static int is_var_repeating(char *iv_str, char **iv_names);
 static char *size_to_pool_name(char *size_str);
@@ -52,18 +53,19 @@ void dump_und(und_t *und){
         return;
 
     name = tree_to_str(und->node);
+
     switch( und->rw ){
         case UND_READ:
-            printf("%s R",name);
+            printf("%s R type:%d", name, und->type);
             break;
         case UND_WRITE:
-            printf("%s W",name);
+            printf("%s W type:%d", name, und->type);
             break;
         case UND_RW:
-            printf("%s RW",name);
+            printf("%s RW type:%d", name, und->type);
             break;
    }
-    
+
 }
 
 void dump_all_unds(void){
@@ -90,7 +92,7 @@ printf("###############\n");
 }
 //#endif
 
-void add_variable_use_or_def(node_t *node, int rw, int task_count){
+void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
     var_t *var=NULL, *prev=NULL;
     und_t *und;
     node_t *base;
@@ -120,6 +122,7 @@ void add_variable_use_or_def(node_t *node, int rw, int task_count){
             und->next = (und_t *)calloc(1, sizeof(und_t));
             und = und->next;
             und->rw = rw;
+            und->type = type;
             und->task_num = task_count;
             und->node = node;
             und->next = NULL;
@@ -129,6 +132,7 @@ void add_variable_use_or_def(node_t *node, int rw, int task_count){
     // If we didn't find the array, we create a new "var" and a new "und"
     und = (und_t *)calloc(1, sizeof(und_t));
     und->rw = rw;
+    und->type = type;
     und->node = node;
     und->next = NULL;
 
@@ -317,7 +321,7 @@ static void quark_record_uses_defs_and_pools(node_t *node){
                 tmp->task = task;
                 tmp->var_symname = numToSymName(symbolic_name_count++);
                 node_t *qual = node->u.kids.kids[i+1];
-                add_variable_use_or_def( tmp, DA_quark_INOUT(qual), _task_count );
+                add_variable_use_or_def( tmp, DA_quark_INOUT(qual), DA_quark_TYPE(qual), _task_count );
             }
 
             // Record a pool (size_to_pool_name() will create an entry for each new pool)
@@ -760,6 +764,39 @@ char *DA_var_name(node_t *node){
     return NULL;
 }
 
+static int DA_quark_TYPE(node_t *node){
+    int rslt1, rslt2;
+    if( NULL == node )
+        return -1;
+
+    switch(node->type){
+        case IDENTIFIER:
+            if( !strcmp(node->u.var_name, "QUARK_REGION_U") ){
+                return 0x2;
+            }
+            if( !strcmp(node->u.var_name, "QUARK_REGION_L") ){
+                return 0x4;
+            }
+            if( !strcmp(node->u.var_name, "QUARK_REGION_D") ){
+                return 0x1;
+            }
+            return UND_IGNORE;
+
+        case B_OR:
+            rslt1 = DA_quark_TYPE(node->u.kids.kids[0]);
+            if( rslt1 < 0 ) return -1;
+            rslt2 = DA_quark_TYPE(node->u.kids.kids[1]);
+            if( rslt2 < 0 ) return -1;
+
+            return rslt1 | rslt2;
+
+        default:
+            fprintf(stderr,"DA_quark_TYPE(): unsupported flag type for dep\n");
+            exit(-1);
+
+    }
+    return -1;
+}
 
 static int DA_quark_INOUT(node_t *node){
     int rslt1, rslt2;
@@ -1318,9 +1355,11 @@ char *create_pool_declarations(){
     char *result = NULL;
 
     dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
-    while(list_item != &(_dague_pool_list.ghost_element) ){
+    while(list_item && list_item != &(_dague_pool_list.ghost_element) ){
         var_def_item_t *true_item = (var_def_item_t *)list_item;
-        assert(list_item && NULL != true_item->var && NULL != true_item->def);
+        assert(list_item);
+        assert(NULL != true_item->var);
+        assert(NULL != true_item->def);
        
         result = append_to_string(result, true_item->def, NULL, 0);
         result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
@@ -1525,12 +1564,13 @@ char *quark_tree_to_body(node_t *node){
     printStr = append_to_string( printStr, printSuffix, NULL, 0);
     printStr = append_to_string( printStr, ");", NULL, 0);
 
-    prefix = append_to_string( prefix, pool_pop, "\n%s", 1+strlen(pool_pop) );
-//    if( NULL != prefix )
-//        str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
+    if( NULL != pool_pop )
+        prefix = append_to_string( prefix, pool_pop, "\n%s", 1+strlen(pool_pop) );
+
     str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
 
-    str = append_to_string( str, pool_push, "\n\n%s", 2+strlen(pool_push) );
+    if( NULL != pool_push )
+        str = append_to_string( str, pool_push, "\n\n%s", 2+strlen(pool_push) );
 
     str = append_to_string( str, printStr, "\n%s", 1+strlen(printStr));
 

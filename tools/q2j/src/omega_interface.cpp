@@ -553,11 +553,17 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         def_name = DA_var_name(DA_array_base(def));
         assert( !strcmp(var_name, def_name) );
 
+        // Make sure that it's a proper flow (w->r) or anti (r->w) or output (w->w) dependency
         if( ((DEP_FLOW==dep_type) && (!is_und_read(und))) || ((DEP_OUT==dep_type) && (!is_und_write(und))) || ((DEP_ANTI==dep_type) && (!is_und_write(und))) ){
             // Since we'll bail, let's first check if this is the definition.
             if( und == def_und ){
                 after_def = 1;
             }
+            continue;
+        }
+
+        // If the types of source and destination are not overlapping, then ignore this edge.
+        if(def_und->type && und->type && !(def_und->type & und->type)){
             continue;
         }
 
@@ -2311,6 +2317,7 @@ map<char *, set<dep_t *> > restrict_synch_edges_due_to_transitive_edges(set<dep_
 
 
 void print_types_of_formal_parameters(node_t *root){
+    char *pool_decl;
     symtab_t *scope;
     symbol_t *sym;
 
@@ -2327,7 +2334,12 @@ void print_types_of_formal_parameters(node_t *root){
         scope = scope->parent;
     }while(NULL != scope);
 
-    printf("%s",create_pool_declarations());
+    pool_decl = create_pool_declarations();
+    if( NULL != pool_decl ){
+        printf("%s", pool_decl);
+        free(pool_decl);
+    }
+    return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
