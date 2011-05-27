@@ -64,6 +64,8 @@ zgeqrt(k)
 
   */
 
+; (desc_A.nt-k)*(desc_A.nt-k)*(desc_A.nt-k)
+
 BODY
 
   int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
@@ -113,6 +115,7 @@ zherfb1(k)
   The following is a superset of the necessary anti-dependencies:
 
   */
+; (desc_A.nt-k)*(desc_A.nt-k)*(desc_A.nt-k)
 
 BODY
 
@@ -165,6 +168,8 @@ zunmqr(k,m)
 
   */
 
+; (desc_A.nt - k)*(desc_A.mt - m)*(desc_A.mt - m)
+
 BODY
 
   int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
@@ -189,7 +194,7 @@ BODY
 
 END
 
-ztsqrt_out_data_A0(k,m1)
+ztsqrt_out_data_A0(k,m1) [profile = off]
   k = 0..(desc_A.nt)-3
   m1 = desc_A.mt-1
 
@@ -246,6 +251,8 @@ ztsqrt(k,m1)
 
   */
 
+; (desc_A.nt - k)*(desc_A.mt - m1)*(desc_A.mt - m1)
+
 BODY
 
   int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
@@ -270,7 +277,7 @@ BODY
 
 END
 
-ztsmqr1_out_data_A0(k,m1,i)
+ztsmqr1_out_data_A0(k,m1,i) [profile = off]
   k = ((desc_A.nt>=2) ? (desc_A.nt-2) : (desc_A.nt-1))..desc_A.nt-2
   m1 = (k+2)..(desc_A.mt-1)
   i = (k+2)..(m1-1)
@@ -348,7 +355,7 @@ BODY
 
 END
 
-ztsmqr_in_data_A0(k,m1,j)
+ztsmqr_in_data_A0(k,m1,j)  [profile = off]
   k = 0
   m1 = ((desc_A.nt>=2) ? 2 : (desc_A.mt))..(desc_A.mt-1)
   j = (m1+1)..(desc_A.mt-1)
@@ -395,6 +402,8 @@ ztsmqr(k,m1,j)
 
   */
 
+; (desc_A.nt - k)*(desc_A.mt - j)*(desc_A.mt - m1)
+
 BODY
 
   int tempjj = ((j)==((desc_A.mt)-1)) ? ((desc_A.m)-(j*(desc_A.mb))) : (desc_A.mb);
@@ -421,7 +430,7 @@ BODY
 
 END
 
-ztsmqrlr_out_data_A0(k,m1)
+ztsmqrlr_out_data_A0(k,m1) [profile = off]
   k = ((desc_A.nt>=2) ? 0 : (desc_A.mt-2))..(desc_A.mt-3)
   m1 = (desc_A.mt-1)
 
@@ -444,13 +453,13 @@ ztsmqrlr(k,m1)
   * and simplification of phony tasks is based on the
   * following observation:
   * 
-  * Because MT == NT, cases where m1==NT & 1+m1==MT are never true
+  * Because MT == desc_A->nt, cases where m1==desc_A->nt & 1+m1==MT are never true
   * Based on that, we compute how many times each of the possible phony
   * tasks will be used for A and for T, depending on the access:
   *              A                     T
-  * (k+1,k+1)    NT-2                  0
+  * (k+1,k+1)    desc_A->nt-2                  0
   * (m1,k+1)     0(2)                  0
-  * (m1,m1)      2*(MT-3)+ 0(NT..MT-1) 0
+  * (m1,m1)      2*(MT-3)+ 0(desc_A->nt..MT-1) 0
   * So, it's better to have a locality with (m1,m1), as soon as MT > 4
   *
   */
@@ -477,9 +486,9 @@ ztsmqrlr(k,m1)
   RW    V <- ((k+2)==m1) ? H zunmqr(m1-2, m1) 
           <- (m1>=(k+3)) ? Q ztsmqr(k, m1-1, m1) 
 /*
- *            Not possible: because MT == NT && NT+1 == MT
+ *            Not possible: because MT == desc_A->nt && desc_A->nt+1 == MT
  *        -> (desc_A.nt==m1) & (desc_A.nt==(k+2)) & ((desc_A.nt+1)==desc_A.mt) ? data_A(m1,k+1)
- *            NOy possible: because MT >= NT + 2 && MT == NT
+ *            NOy possible: because MT >= desc_A->nt + 2 && MT == desc_A->nt
  *        -> (desc_A.nt==(2+k)) & (desc_A.mt==(m1+1)) & (desc_A.mt>=(desc_A.nt+2)) ? data_A(m1,k+1)
  */
           -> (desc_A.mt==(1+m1)) & (desc_A.mt==(k+3)) & (desc_A.nt>=desc_A.mt) ? A zgeqrt(m1-1) 
