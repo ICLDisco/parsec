@@ -110,7 +110,7 @@ BLAS_zge_norm(enum blas_order_type order, enum blas_norm_type norm,
       }
       a += lda - m;
     }
-    anorm = sqrt( anorm );
+    anorm = csqrt( anorm );
   } else if (norm == blas_inf_norm) {
     anorm = 0.0;
     for (i = 0; i < m; ++i) {
