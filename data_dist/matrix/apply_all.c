@@ -10,7 +10,7 @@
 #include <scheduling.h>
 
 #if defined(DAGUE_PROF_TRACE)
-int rtt_profiling_array[2] = {-1};
+int dague_apply_operator_profiling_array[2] = {-1};
 #define TAKE_TIME(context, key, eid, refdesc, refid) do {   \
    dague_profile_ddesc_info_t info;                         \
    info.desc = (dague_ddesc_t*)refdesc;                     \
@@ -40,10 +40,12 @@ static const dague_t dague_matrix_operator;
 
 #define A(k,n)  (((dague_ddesc_t*)__dague_object->super.A)->data_of((dague_ddesc_t*)__dague_object->super.A, (k), (n)))
 
-static inline uint32_t apply_op_hash(const dague_matrix_operator_object_t *o, int k, int n )
+#if defined(DAGUE_PROF_TRACE)
+static inline uint32_t apply_op_hash(const __dague_matrix_operator_object_t *o, int k, int n )
 {
-    return o->A->mt * k + n;
+    return o->super.A->mt * k + n;
 }
+#endif  /* defined(DAGUE_PROF_TRACE) */
 
 static inline int minexpr_of_row_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
@@ -269,7 +271,6 @@ static int hook_of(dague_execution_unit_t *context,
                    dague_execution_context_t *exec_context)
 {
     const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)exec_context->dague_object;
-    const dague_matrix_operator_object_t *dague_object = ( const dague_matrix_operator_object_t * )exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     dague_arena_chunk_t* arena = (dague_arena_chunk_t*) A(k,n);
@@ -280,8 +281,8 @@ static int hook_of(dague_execution_unit_t *context,
 
 #if !defined(DAGUE_PROF_DRY_BODY)
     TAKE_TIME(context, 2*exec_context->function->function_id,
-              apply_op_hash( dague_object, k, n ), dague_object->A,
-              ((dague_ddesc_t*)(dague_object->A))->data_key((dague_ddesc_t*)dague_object->A, k, n) );
+              apply_op_hash( __dague_object, k, n ), __dague_object->super.A,
+              ((dague_ddesc_t*)(__dague_object->super.A))->data_key((dague_ddesc_t*)__dague_object->super.A, k, n) );
     __dague_object->super.op( context, data, __dague_object->super.op_data, k, n );
 #endif
     (void)context;
@@ -291,14 +292,13 @@ static int hook_of(dague_execution_unit_t *context,
 static int complete_hook(dague_execution_unit_t *context,
                          dague_execution_context_t *exec_context)
 {
-    const __dague_matrix_operator_object_t *__dague_object = ( const __dague_matrix_operator_object_t * )exec_context->dague_object;
-    const dague_matrix_operator_object_t *dague_object = ( const dague_matrix_operator_object_t * )exec_context->dague_object;
+    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t *)exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
-    (void)k; (void)n;
+    (void)k; (void)n; (void)__dague_object;
 
-    TAKE_TIME(context, 2*exec_context->function->function_id+1, apply_op_hash( dague_object, k, n ), NULL, 0);
-      
+    TAKE_TIME(context, 2*exec_context->function->function_id+1, apply_op_hash( __dague_object, k, n ), NULL, 0);
+
     dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
     release_deps(context, exec_context,
@@ -384,6 +384,16 @@ dague_apply_operator_new(tiled_matrix_desc_t* A,
     res->super.op = op;
     res->super.op_data = op_data;
 
+#  if defined(DAGUE_PROF_TRACE)
+    res->super.super.profiling_array = dague_apply_operator_profiling_array;
+    if( -1 == dague_apply_operator_profiling_array[0] ) {
+        dague_profiling_add_dictionary_keyword("operator", "fill:CC2828",
+                                               sizeof(dague_profile_ddesc_info_t), dague_profile_ddesc_key_to_string,
+                                               (int*)&res->super.super.profiling_array[0 + 2 * dague_matrix_operator.function_id],
+                                               (int*)&res->super.super.profiling_array[1 + 2 * dague_matrix_operator.function_id]);
+    }
+#  endif /* defined(DAGUE_PROF_TRACE) */
+
     res->super.super.object_id = 1111;
     res->super.super.nb_local_tasks = A->nb_local_tiles;
     res->super.super.startup_hook = dague_apply_operator_startup_fn;
@@ -392,5 +402,17 @@ dague_apply_operator_new(tiled_matrix_desc_t* A,
 
 void dague_apply_operator_destroy( struct dague_object_t* o )
 {
+#if defined(DAGUE_PROF_TRACE)
+    char* filename = NULL;
+#if defined(HAVE_MPI)
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    asprintf(&filename, "%s.%d.profile", "operator", rank);
+#else
+    asprintf(&filename, "%s.profile", "operator");
+#endif
+    dague_profiling_dump_xml(filename);
+    free(filename);
+#endif  /* defined(DAGUE_PROF_TRACE) */
     (void)o;
 }
