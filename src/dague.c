@@ -810,6 +810,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                dague_service_to_string(exec_context, tmp2, 128),  dest_param->name ));
     }
     assert( 0 == (deps->u.dependencies[position] & dest_param->param_mask) );
+#   else
+    (void) origin; (void) origin_param;
 #   endif 
 
     dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | dest_param->param_mask;
