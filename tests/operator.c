@@ -11,8 +11,8 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
     k = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
-    printf( "thread %d tile %s(%d, %d) -> %p:%p\n",
-            eu->eu_id, (char*)op_data, k, n, data, op_data );
+    printf( "tile %s(%d, %d) -> %p:%p thread %d\n",
+            (char*)op_data, k, n, data, op_data, eu->eu_id );
     return 0;
 }
 
@@ -22,8 +22,8 @@ int main( int argc, char* argv[] )
     struct dague_object_t* object;
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
-    int mb = 120, nb = 120;
-    int lm = 10000, ln = 10000;
+    int mb = 100, nb = 100;
+    int lm = 1000, ln = 1000;
     int rows = 1;
 
 #if defined(HAVE_MPI)
