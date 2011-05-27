@@ -19,6 +19,7 @@ typedef struct _expr_t expr_t;
 
 struct _und_t{
     int rw;
+    int type;
     int task_num;
     node_t *node;
     und_t *next;
@@ -72,7 +73,7 @@ node_t *node_to_ptr(node_t node);
 
 // Use/Def data structure utility functions
 und_t **get_variable_uses_and_defs(node_t *node);
-void add_variable_use_or_def(node_t *node, int rw, int task_count);
+void add_variable_use_or_def(node_t *node, int rw, int type, int task_count);
 void rename_induction_variables(node_t *node);
 
 

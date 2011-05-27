@@ -1,0 +1,58 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague.h"
+#include "data_distribution.h"
+
+%}
+
+treeHeight [type = int   /* by default its an int */
+            hidden = on] // height of the reduction tree
+
+local_reduce( index )  [profile = off]
+    index = 0 .. (1 << treeHeight) - 1
+
+    : A( index, 0 )
+
+    READ  Rtop <- A(index, 0)
+               -> ((index % 2) == 0)
+                    ? Rtop    reduce( 1, index / 2 )
+                    : Rbottom reduce( 1, index / 2 )
+BODY
+    printf( "local_reduce index: %i\n", index );
+END
+
+/**************************************************
+ *                                                *
+ **************************************************/
+reduce( level, index )
+    level = 1 .. treeHeight
+
+    index = 0 .. ((1 << (treeHeight - level)) - 1)
+
+    : A( 2 * index, 0 )
+
+    READ     Rbottom <- (level == 1)
+                        ? Rtop    local_reduce( (2 * index) + 1 )
+                        : Rtop    reduce(level - 1, (2 * index) + 1)
+
+    RW       Rtop    <- (level == 1)
+                        ? Rtop    local_reduce( 2 * index )
+                        : Rtop    reduce( level - 1, 2 * index )
+
+                     -> (((index % 2) == 0) & (level < treeHeight))
+                        ? Rtop    reduce( level + 1, index / 2 )
+
+                     -> (((index % 2) == 1) & (level < treeHeight))
+                        ? Rbottom reduce( level + 1, index / 2 )
+
+                     -> (level == treeHeight)
+                        ? A( 2*index, 0 )
+BODY
+    printf( "reduce level: %i index: %i\n", level, index );
+END
+

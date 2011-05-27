@@ -341,6 +341,7 @@ static void dague_apply_operator_startup_fn(dague_context_t *context,
     int k = 0, n = 0, count = 0;
     dague_execution_unit_t* eu;
 
+    *startup_list = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.A->nt; n = 0) {
         eu = context->execution_units[count];
@@ -362,15 +363,14 @@ static void dague_apply_operator_startup_fn(dague_context_t *context,
                              __dague_object->super.A->super.myrank, NULL, (void*)&ready_list);
             __dague_schedule( eu, ready_list, 0 );
             count++;
+            if( count == context->nb_cores ) goto done;
             break;
         }
         /* Go to the next row ... atomically */
         k = dague_atomic_inc_32b( &__dague_object->super.next_k );
-        if( count == context->nb_cores )
-            break;
     }
-
-    *startup_list = NULL;
+ done:
+    return;
 }
 
 struct dague_object_t*

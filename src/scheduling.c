@@ -432,7 +432,7 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
     if( NULL != object->startup_hook ) {
         object->startup_hook(context, object, &startup_list);
         if( NULL != startup_list ) {
-            /* We should add these tasks on the sstem queue */
+            /* We should add these tasks on the system queue */
             __dague_schedule( context->execution_units[0], startup_list, 0 );
         }
     }
