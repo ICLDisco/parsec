@@ -3,8 +3,12 @@
 # Sources depending on Precision 
 #
 include(RulesPrecisions)
+include(RulesJDF)
 set(generated_files "")
+set(generated_jdf "")
 include_directories(".")
+
+jdf_rules(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf")
 
 set( precision_files
   zmatrix.c
@@ -21,7 +25,7 @@ if (MPI_FOUND)
         two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c
         sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
         scalapack_convert.c
-        ${generated_files})
+        ${generated_files} ${generated_jdf})
     set_target_properties(dague_distribution_matrix-mpi PROPERTIES COMPILE_FLAGS
                             "${MPI_COMPILE_FLAGS} -DUSE_MPI")
     install(TARGETS dague_distribution_matrix-mpi ARCHIVE DESTINATION lib)
@@ -34,7 +38,7 @@ else()
         grid_2Dcyclic.c
         two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.c 
         sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.c
-        ${generated_files})
+        ${generated_files} ${generated_jdf})
     install(TARGETS dague_distribution_matrix ARCHIVE DESTINATION lib)
 endif()
 
