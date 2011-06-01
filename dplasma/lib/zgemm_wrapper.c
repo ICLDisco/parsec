@@ -38,7 +38,7 @@ dplasma_zgemm_New( const int transA, const int transB,
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
             dague_zgemm_NN_object_t* object;
-            object = dague_zgemm_NN_new((dague_ddesc_t*)C, (dague_ddesc_t*)B, (dague_ddesc_t*)A, /* KA,KB*/ NULL, NULL
+            object = dague_zgemm_NN_new((dague_ddesc_t*)C, (dague_ddesc_t*)B, (dague_ddesc_t*)A,
                                         transA, transB, alpha, beta,
                                         A->m, A->n, A->mb, A->nb, A->mt, A->nt,
                                         B->m, B->n, B->mb, B->nb, B->mt, B->nt,

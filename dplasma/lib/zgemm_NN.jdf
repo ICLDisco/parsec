@@ -28,7 +28,6 @@ Amb  [type = int]
 Anb  [type = int]
 Amt  [type = int]
 Ant  [type = int]
-KA   [aligned = A]
 
 Bm   [type = int]
 Bn   [type = int]
@@ -36,7 +35,6 @@ Bmb  [type = int]
 Bnb  [type = int]
 Bmt  [type = int]
 Bnt  [type = int]
-KB   [aligned = B]
 
 Cm   [type = int]
 Cn   [type = int]
@@ -56,8 +54,6 @@ k = 0 .. Ant-1
 
 : A(m, k)
 
-KA <- (k > 0) ? KA GEMM(m, 0, k-1) : KA(m, k)  [type = CONTROL]
-   -> KA GEMM(m, 0, k)      [type = CONTROL]
 A  <- A(m, k)
    -> A GEMM(m, 0, k)
 
@@ -76,8 +72,6 @@ n = 0 .. Bnt-1
 
 : B(k, n)
 
-KB <- (k > 0) ? KB GEMM(0, n, k-1) : KB(k, n)    [type = CONTROL]
-   -> KB GEMM(0, n, k)                 [type = CONTROL]
 B <- B(k, n)
   -> B GEMM(0, n, k)
 BODY
@@ -99,10 +93,6 @@ k = 0 .. Ant-1
 
 // Parameters
 
-READ KA     <- KA READ_A(m, k) [type = CONTROL]
-            -> (k < Ant-1) ? KA READ_A(m, k+1) [type = CONTROL]
-READ KB     <- KB READ_B(k, n) [type = CONTROL]
-            -> (k < Bmt-1) ? KB READ_B(k+1, n)  [type = CONTROL]
 READ A <- (n == 0)       ? A READ_A(m, k) : A GEMM( m, (n+Cnt-1) % Cnt, k )
        -> (n <= (Cnt-2)) ? A GEMM( m, (n+1) % Cnt, k )
 READ B <- (m == 0)       ? B READ_B(k, n) : B GEMM( (m+Cmt-1) % Cmt, n, k )
