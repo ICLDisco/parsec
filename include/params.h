@@ -16,6 +16,7 @@ typedef struct param param_t;
 #define SYM_OUT    0x02
 #define SYM_INOUT  (SYM_IN | SYM_OUT)
 
+#define ACCESS_NONE     0x00
 #define ACCESS_READ     0x01
 #define ACCESS_WRITE    0x02
 #define ACCESS_RW       (ACCESS_READ | ACCESS_WRITE)

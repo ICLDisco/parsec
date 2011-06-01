@@ -98,6 +98,8 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}          
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { yylval.number = atol(yytext);
                         return INT;                                        }
+CTL                   { yylval.number = JDF_VAR_TYPE_CTL;
+                        return DEPENDENCY_TYPE;                            }
 RW                    { yylval.number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 READ                  { yylval.number = JDF_VAR_TYPE_READ;
