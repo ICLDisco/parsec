@@ -474,7 +474,7 @@ static char *dump_resinit(void **elem, void *arg)
     char *varname = *(char**)elem;
     string_arena_init(sa);
 
-    string_arena_add_string(sa, "res->super.%s = %s;", varname, varname);
+    string_arena_add_string(sa, "_res->super.%s = %s;", varname, varname);
 
     return string_arena_get_string(sa);
 }
@@ -582,8 +582,8 @@ static char *dump_profiling_init(void **elem, void *arg)
     string_arena_add_string(info->sa,
                             "dague_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(dague_profile_ddesc_info_t), dague_profile_ddesc_key_to_string,\n"
-                            "                                       (int*)&res->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
-                            "                                       (int*)&res->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
+                            "                                       (int*)&_res->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
+                            "                                       (int*)&_res->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
                             fname, R, G, B,
                             jdf_basename, fname, fname,
                             jdf_basename, fname, fname);
@@ -653,12 +653,12 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_list_t, next, nbdata);
 
     string_arena_add_string(sa, 
-                            "  %s_nblocal_tasks = %s_%s_internal_init(res);\n"
+                            "  %s_nblocal_tasks = %s_%s_internal_init(_res);\n"
                             "  if( 0 == %s_nblocal_tasks ) %s_nblocal_tasks = 10;\n"
-                            "  res->%s_repository = data_repo_create_nothreadsafe(\n"
-                            "         ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
-                            "         MAX_DATAREPO_HASH :\n"
-                            "         ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);\n",
+                            "  _res->%s_repository = data_repo_create_nothreadsafe(\n"
+                            "          ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
+                            "          MAX_DATAREPO_HASH :\n"
+                            "          ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);\n",
                             f->fname, jdf_basename, f->fname,
                             f->fname, f->fname,
                             f->fname,
@@ -2016,7 +2016,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, sa2,
                             "", "", ", ", ""));
 
-    coutput("  __dague_%s_internal_object_t *res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
+    coutput("  __dague_%s_internal_object_t *_res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
@@ -2024,19 +2024,19 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  int ", "_nblocal_tasks;\n", "_nblocal_tasks;\n") );
 
-    coutput("  res->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
-    coutput("  res->super.super.functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
+    coutput("  _res->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
+    coutput("  _res->super.super.functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename);
-    coutput("  res->super.super.dependencies_array = (dague_dependencies_t **)\n"
-            "             calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",
+    coutput("  _res->super.super.dependencies_array = (dague_dependencies_t **)\n"
+            "              calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",
             jdf_basename);
-    coutput("  memcpy(res->super.super.functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
+    coutput("  memcpy(_res->super.super.functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
             jdf_basename, jdf_basename);
     {
         struct jdf_name_list* g;
 
         for( g = jdf->datatypes; NULL != g; g = g->next ) {
-            coutput("  res->super.arenas[DAGUE_%s_%s_ARENA] = (dague_arena_t*)calloc(1, sizeof(dague_arena_t));\n",
+            coutput("  _res->super.arenas[DAGUE_%s_%s_ARENA] = (dague_arena_t*)calloc(1, sizeof(dague_arena_t));\n",
                     jdf_basename, g->name);
         }
     }
@@ -2053,7 +2053,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
             "#  if defined(DAGUE_PROF_TRACE)\n"
-            "  res->super.super.profiling_array = %s_profiling_array;\n"
+            "  _res->super.super.profiling_array = %s_profiling_array;\n"
             "  if( -1 == %s_profiling_array[0] ) {\n"
             "%s"
             "  }\n"
@@ -2068,13 +2068,13 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
                             "", "", "\n", "\n"));
 
-    coutput("  res->super.super.startup_hook = %s_startup;\n", jdf_basename);
+    coutput("  _res->super.super.startup_hook = %s_startup;\n", jdf_basename);
 
     coutput("#if defined(DISTRIBUTED)\n"
             "  remote_deps_allocation_init(((dague_ddesc_t*)%s)->nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
-            "  (void)dague_object_register((dague_object_t*)res);\n"
-            "  return (dague_%s_object_t*)res;\n"
+            "  (void)dague_object_register((dague_object_t*)_res);\n"
+            "  return (dague_%s_object_t*)_res;\n"
             "}\n\n", jdf->data[0].dname,jdf_basename);
 
     string_arena_free(sa1);
