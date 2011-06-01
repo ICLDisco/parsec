@@ -127,9 +127,9 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
             rc = -1;
         return rc;
     default:
-        if( jdf_sanity_check_expr_bound_before_global(e->jdf_ba1, g1) < 0 )
+        if( (NULL != e->jdf_ba1) && (jdf_sanity_check_expr_bound_before_global(e->jdf_ba1, g1) < 0) )
             rc = -1;
-        if( jdf_sanity_check_expr_bound_before_global(e->jdf_ba2, g1) < 0 )
+        if( (NULL != e->jdf_ba2) && (jdf_sanity_check_expr_bound_before_global(e->jdf_ba2, g1) < 0) )
             rc = -1;
         return rc;
     }
