@@ -1455,19 +1455,20 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         }
     }
 
-    string_arena_init(sa1);
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
                                                             dump_string, NULL, 
                                                             "", "", ", ", ""));
     {
-        char* condition;
-
+        char* condition = NULL;
+        string_arena_init(sa2);
+        
         condition = UTIL_DUMP_LIST(sa1, f->dataflow, next, dump_direct_input_conditions, sa2,
                                    "", "", " && ", "");
         if( strlen(condition) > 1 )
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
+    string_arena_init(sa2);
     ai.sa = sa2;
     ai.idx = 0;
     ai.holder = "  new_context->locals";
