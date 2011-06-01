@@ -1,0 +1,68 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "matrix.h"
+
+%}
+
+treeHeight [type = int   /* by default its an int */
+            hidden = on] // height of the reduction tree
+A          [type = "tiled_matrix_desc_t*"]
+res        [type = "tiled_matrix_desc_t*" aligned = A]
+operator   [type = dague_operator_t]
+op_data    [type = "void*"]
+IA         [type = int]
+JA         [type = int]
+M          [type = int]
+N          [type = int]
+
+/**************************************************
+ * Reduction by column                            *
+ **************************************************/
+reduce_in_col( row, col )  [profile = off]
+    row = IA .. M
+    col = JA .. N
+
+    : A( row, col )
+
+    READ  Rtop <- A(row, col)
+               -> ((row % 2) == 0)
+                    ? Rtop    reduce_col( 1, row / 2, col )
+                    : Rbottom reduce_col( 1, row / 2, col )
+BODY
+    /* Just the input task */
+END
+
+reduce_col( level, index, col )
+    level = 1 .. treeHeight
+    index = 0 .. ((1 << (treeHeight - level)) - 1)
+    col = JA .. N
+
+    : A( 2 * index, 0 )
+
+    READ     Rbottom <- (level == 1)
+                        ? Rtop    reduce_in_col( (2 * index) + 1, col )
+                        : Rtop    reduce_col(level - 1, (2 * index) + 1, col)
+
+    RW       Rtop    <- (level == 1)
+                        ? Rtop    reduce_in_col( 2 * index, col )
+                        : Rtop    reduce_col( level - 1, 2 * index, col )
+
+                     -> (0 == (index % 2))
+                        ? Rtop    reduce_col( level + 1, index / 2, col )
+
+                     -> (1 == (index % 2))
+                        ? Rbottom reduce_col( level + 1, index / 2, col )
+
+                     -> (level == treeHeight)
+                        ? res(col)
+BODY
+    printf( "reduce_col level: %i index: %i\n", level, index );
+END
+

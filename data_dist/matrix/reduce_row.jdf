@@ -1,0 +1,63 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "matrix.h"
+
+%}
+
+treeHeight [type = int   /* by default its an int */
+            hidden = on] // height of the reduction tree
+A          [type = "tiled_matrix_desc_t*"]
+res        [type = "tiled_matrix_desc_t*" aligned = A]
+operator   [type = dague_operator_t]
+op_data    [type = "void*"]
+
+/**************************************************
+ * Reduction by row                            *
+ **************************************************/
+reduce_in_row( index )  [profile = off]
+    index = 0 .. (1 << treeHeight) - 1
+
+    : A( index, 0 )
+
+    READ  Rtop <- A(index, 0)
+               -> ((index % 2) == 0)
+                    ? Rtop    reduce_row( 1, index / 2 )
+                    : Rbottom reduce_row( 1, index / 2 )
+BODY
+    /* Just the input task */
+END
+
+reduce_row( level, index )
+    level = 1 .. treeHeight
+
+    index = 0 .. ((1 << (treeHeight - level)) - 1)
+
+    : A( 2 * index, 0 )
+
+    READ     Rbottom <- (level == 1)
+                        ? Rtop    reduce_in_row( (2 * index) + 1 )
+                        : Rtop    reduce_row(level - 1, (2 * index) + 1)
+
+    RW       Rtop    <- (level == 1)
+                        ? Rtop    reduce_in_row( 2 * index )
+                        : Rtop    reduce_row( level - 1, 2 * index )
+
+                     -> (0 == (index % 2))
+                        ? Rtop    reduce_row( level + 1, index / 2 )
+
+                     -> (1 == (index % 2))
+                        ? Rbottom reduce_row( level + 1, index / 2 )
+
+                     -> (level == treeHeight)
+                        ? res(0)
+BODY
+    printf( "reduce_row level: %i index: %i\n", level, index );
+END
+
