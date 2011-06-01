@@ -11,6 +11,11 @@
 #include <assert.h>
 #include "jdf.h"
 
+/**
+ * Better error handling
+ */
+#define YYERROR_VERBOSE 1
+
 #include "dague.y.h"
 
 extern int yyparse(void);
