@@ -374,7 +374,7 @@ static void dague_apply_operator_startup_fn(dague_context_t *context,
 }
 
 struct dague_object_t*
-dague_apply_operator_new(tiled_matrix_desc_t* A,
+dague_apply_operator_New(tiled_matrix_desc_t* A,
                          dague_operator_t op,
                          void* op_data)
 {
@@ -400,7 +400,7 @@ dague_apply_operator_new(tiled_matrix_desc_t* A,
     return (struct dague_object_t*)res;
 }
 
-void dague_apply_operator_destroy( struct dague_object_t* o )
+void dague_apply_operator_Destruct( struct dague_object_t* o )
 {
 #if defined(DAGUE_PROF_TRACE)
     char* filename = NULL;

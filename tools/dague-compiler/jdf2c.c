@@ -463,23 +463,6 @@ static char *dump_dataflow(void **elem, void *arg)
 }
 
 /**
- * dump_resinit:
- *  Takes the pointer to a char *, which is a parameter name of the _new function,
- *  and a string_arena, and writes in the string_arena the assignment of this
- *  parameter in the res structure to the parameter passed to the _new function.
- */
-static char *dump_resinit(void **elem, void *arg)
-{
-    string_arena_t *sa = (string_arena_t*)arg;
-    char *varname = *(char**)elem;
-    string_arena_init(sa);
-
-    string_arena_add_string(sa, "_res->super.%s = %s;", varname, varname);
-
-    return string_arena_get_string(sa);
-}
-
-/**
  * dump_data_declaration:
  *  Takes the pointer to a flow *f, let say that f->varname == "A",
  *  this produces a string like void *A = NULL;\n  
@@ -613,14 +596,66 @@ static char *dump_startup_call(void **elem, void *arg)
     return NULL;
 }
 
+/**
+ * dump_globals_init:
+ *  Takes a pointer to a global variables and generate the code used to initialize
+ *  the global variable during *_New. If the variable has a default value or is
+ *  marked as hidden the output code will not be generated.
+ */
+static char *dump_globals_init(void **elem, void *arg)
+{
+    jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
+    string_arena_t *sa = (string_arena_t*)arg;
+    jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
+    expr_info_t info;
+
+    string_arena_init(sa);
+    /* We might have a default value */
+    if( NULL == prop ) prop = global->expression;
+
+    /* No default value ? */
+    if( NULL == prop ) {
+        prop = jdf_find_property( global->properties, "hidden", NULL );
+        /* Hidden variable or not ? */
+        if( NULL == prop )
+            string_arena_add_string(sa, "_res->super.%s = %s;", global->name, global->name);
+    } else {
+        info.sa = string_arena_new(8);
+        info.prefix = "";
+        string_arena_add_string(sa, "_res->super.%s = %s;",
+                                global->name, dump_expr((void**)&prop, &info));
+        string_arena_free(info.sa);
+    }
+
+    return string_arena_get_string(sa);
+}
+
+/**
+ * Print global variables that have (or not) a certain property.
+ */
+typedef struct typed_globals_info {
+    string_arena_t *sa;
+    char* include;
+    char* exclude;
+} typed_globals_info_t;
+
 static char* dump_typed_globals(void **elem, void *arg)
 {
-    string_arena_t *sa = (string_arena_t*)arg;
+    typed_globals_info_t* prop = (typed_globals_info_t*)arg;
+    string_arena_t *sa = prop->sa;
     jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
     jdf_expr_t* type_str = jdf_find_property( global->properties, "type", NULL );
     jdf_expr_t *size_str = jdf_find_property( global->properties, "size", NULL );
+    jdf_expr_t *prop_str;
     expr_info_t info;
 
+    if( NULL != prop->include ) {
+        prop_str = jdf_find_property( global->properties, prop->include, NULL );
+        if( NULL == prop_str ) return NULL;
+    } else if( NULL != prop->exclude ) {
+        prop_str = jdf_find_property( global->properties, prop->exclude, NULL );
+        if( NULL != prop_str ) return NULL;
+    }
     string_arena_init(sa);
 
     info.sa = string_arena_new(8);
@@ -853,10 +888,13 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     }
     houtput("\ntypedef struct dague_%s_object {\n", jdf_basename);
     houtput("  dague_object_t super;\n");
-    houtput("  /* The list of globals */\n"
-            "%s",
-            UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, sa2,
-                            "", "  ", ";\n", ";\n"));
+    {
+        typed_globals_info_t prop = { sa2, NULL, NULL };
+        houtput("  /* The list of globals */\n"
+                "%s",
+                UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, &prop,
+                                "", "  ", ";\n", ";\n"));
+    }
     houtput("  /* The array of datatypes %s */\n"
             "  dague_arena_t* arenas[%d];\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->datatypes, next, name,
@@ -865,9 +903,12 @@ static void jdf_generate_header_file(const jdf_t* jdf)
 
     houtput("} dague_%s_object_t;\n\n", jdf_basename);
     
-    houtput("extern dague_%s_object_t *dague_%s_new(%s);\n", jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, sa3,
-                            "", "", ", ", ""));
+    {
+        typed_globals_info_t prop = { sa3, NULL, "hidden" };
+        houtput("extern dague_%s_object_t *dague_%s_new(%s);\n", jdf_basename, jdf_basename,
+                UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, &prop,
+                                "", "", ", ", ""));
+    }
 
     houtput("extern void dague_%s_destroy( dague_%s_object_t *o );\n",
             jdf_basename, jdf_basename);
@@ -2012,10 +2053,13 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
                                   dump_string, NULL, "", "#undef ", "\n", "\n"));
 
-    coutput("dague_%s_object_t *dague_%s_new(%s)\n{\n",
-            jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, sa2,
-                            "", "", ", ", ""));
+    {
+        typed_globals_info_t prop = { sa2, NULL, "hidden" };
+        coutput("dague_%s_object_t *dague_%s_new(%s)\n{\n",
+                jdf_basename, jdf_basename,
+                UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, &prop,
+                                "", "", ", ", ""));
+    }
 
     coutput("  __dague_%s_internal_object_t *_res = (__dague_%s_internal_object_t *)calloc(1, sizeof(__dague_%s_internal_object_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
@@ -2042,12 +2086,9 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         }
     }
 
-    coutput("  /* Now the Parameter-dependent structures: */\n");
-
-    coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->data, next, dname,
-                                       dump_resinit, sa2, "", "  ", "\n", "\n"));
-    coutput("%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
-                                       dump_resinit, sa2, "", "  ", "\n", "\n"));
+    coutput("  /* Now the Parameter-dependent structures: */\n"
+            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                 dump_globals_init, sa2, "", "  ", "\n", "\n"));
 
     pi.sa = sa2;
     pi.idx = 0;

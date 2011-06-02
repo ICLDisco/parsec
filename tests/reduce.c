@@ -2,6 +2,15 @@
 #include "execution_unit.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 
+#include <math.h>
+
+struct dague_reduce_object_t;
+typedef struct dague_reduce_object_t dague_reduce_object_t;
+
+extern dague_reduce_object_t *dague_reduce_new(dague_ddesc_t* R /* data R */, dague_ddesc_t* A /* data A */, int MT, int depth, void* ELEM_NEUTRE /* data ELEM_NEUTRE */);
+extern void dague_reduce_destroy( dague_reduce_object_t *o );
+
+#if 0
 static int dague_operator_print_id( struct dague_execution_unit *eu, void* data, void* op_data, ... )
 {
     va_list ap;
@@ -15,6 +24,7 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
             (char*)op_data, k, n, data, op_data, eu->eu_id );
     return 0;
 }
+#endif
 
 int main( int argc, char* argv[] )
 {
@@ -23,7 +33,7 @@ int main( int argc, char* argv[] )
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
-    int lm = 1000, ln = 1000;
+    int lm = 900, ln = 900;
     int rows = 1;
 
 #if defined(HAVE_MPI)
@@ -41,9 +51,12 @@ int main( int argc, char* argv[] )
                                      (size_t)ddescA.super.mtype);
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
-    object = dague_apply_operator_New((tiled_matrix_desc_t*)&ddescA,
-                                      dague_operator_print_id,
-                                      "A");
+
+    object = (struct dague_object_t*)dague_reduce_new((dague_ddesc_t*)&ddescA,
+                                                    (dague_ddesc_t*)&ddescA,
+                                                    ddescA.super.mt,
+                                                    (int)ceil(log(ddescA.super.mt) / log(2.0)),
+                                                    NULL);
     dague_enqueue(dague, (dague_object_t*)object);
 
     dague_progress(dague);
