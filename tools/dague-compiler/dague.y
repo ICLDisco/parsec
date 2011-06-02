@@ -100,6 +100,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     global->data       = data;
     global->expression = NULL;
     global->lineno     = current_lineno;
+    data->global       = global;
     /* Chain it with the other globals */
     global->next = jdf->globals;
     jdf->globals = global;
