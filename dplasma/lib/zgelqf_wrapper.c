@@ -42,11 +42,11 @@ dague_object_t* dplasma_zgelqf_New( tiled_matrix_desc_t *A,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
-    /* Lower trinagular part of tile without diagonal */
+    /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( object->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA], 
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
+                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Upper triangular part of tile with diagonal */
     dplasma_add2arena_upper( object->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA], 
