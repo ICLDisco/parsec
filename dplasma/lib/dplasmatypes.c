@@ -122,7 +122,7 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
 
     /* UPPER_TILE with the diagonal */
     for( i = diag; i < tile_nb; i++ ) {
-        blocklens[i] = i + diag;
+        blocklens[i] = i + 1 - diag;
         indices[i] = i * tile_nb;
     }
     MPI_Type_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
