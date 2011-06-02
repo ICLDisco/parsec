@@ -37,17 +37,17 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* A,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
     
-    /* Lower part of A with diagonal part */
+    /* Lower part of A without diagonal part */
     dplasma_add2arena_lower( dague_getrf->arenas[DAGUE_zgetrf_LOWER_TILE_ARENA], 
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
+                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
     
-    /* Upper part of A without diagonal part */
+    /* Upper part of A with diagonal part */
     dplasma_add2arena_upper( dague_getrf->arenas[DAGUE_zgetrf_UPPER_TILE_ARENA], 
                              A->mb*A->nb*sizeof(Dague_Complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
+                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
 
     /* IPIV */
     dplasma_add2arena_rectangle( dague_getrf->arenas[DAGUE_zgetrf_PIVOT_ARENA], 
