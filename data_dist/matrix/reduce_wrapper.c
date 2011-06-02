@@ -17,7 +17,7 @@ dague_reduce_col_New( tiled_matrix_desc_t* A,
 {
     struct dague_object_t* dague;
 
-    dague = (struct dague_object_t*)dague_reduce_col_new( A->lnt, A, res, operator, op_data, 0, 0, A->lnt, A->lmt );
+    dague = (struct dague_object_t*)dague_reduce_col_new( A, res, operator, op_data, 0, 0, A->lnt, A->lmt );
     return dague;
 }
 
@@ -34,7 +34,7 @@ dague_reduce_row_New( tiled_matrix_desc_t* A,
 {
     struct dague_object_t* dague;
 
-    dague = (struct dague_object_t*)dague_reduce_row_new( A->lnt, A, res, operator, op_data );
+    dague = (struct dague_object_t*)dague_reduce_row_new( A, res, operator, op_data );
     return dague;
 }
 
