@@ -1287,8 +1287,9 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     sym_type = ( (alldeps_type == JDF_DEP_TYPE_IN) ? "SYM_IN" :
                  ((alldeps_type == JDF_DEP_TYPE_OUT) ? "SYM_OUT" : "SYM_INOUT") );
 
-    access_type = ( (flow->access_type == JDF_VAR_TYPE_READ) ? "ACCESS_READ" :
-                    ((flow->access_type == JDF_VAR_TYPE_WRITE) ? "ACCESS_WRITE" : "ACCESS_RW") ); 
+    access_type = (  (flow->access_type == JDF_VAR_TYPE_CTL) ? "ACCESS_NONE" :
+                    ((flow->access_type == JDF_VAR_TYPE_READ) ? "ACCESS_READ" :
+                    ((flow->access_type == JDF_VAR_TYPE_WRITE) ? "ACCESS_WRITE" : "ACCESS_RW") ) ); 
     
     if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
         string_arena_add_string(sa_dep_in, "NULL");
@@ -2244,6 +2245,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                                      dump_expr, &info, "", "", ", ", ""));
     }
+    coutput("  %s = ADATA(g%s);\n", f->varname, f->varname);
 
     string_arena_free(sa);
     string_arena_free(sa2);
@@ -2291,7 +2293,6 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
             coutput("  }\n");
             break;
         }
-        coutput("  %s = ADATA(g%s);\n", f->varname, f->varname);
     }
 
     string_arena_free(sa);
@@ -2541,6 +2542,12 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
     coutput("  /** Lookup the input data, and store them in the context */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+        if(fl->flow->access_type == JDF_VAR_TYPE_CTL) 
+        {
+            coutput("  exec_context->data[%d].data = NULL;\n"
+                    "  exec_context->data[%d].data_repo = NULL;\n", di, di);
+            continue;
+        }
         jdf_generate_code_flow_initialization(jdf, f->fname, fl->flow);
         coutput("  exec_context->data[%d].data = g%s;\n"
                 "  exec_context->data[%d].data_repo = e%s;\n",
@@ -2628,10 +2635,11 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS) {\n");
     for( dl = f->dataflow; dl != NULL; dl = dl->next ) {
+        if(dl->flow->access_type == JDF_VAR_TYPE_CTL) continue;
         for( dep = dl->flow->deps; dep != NULL; dep = dep->next ) {
             if( dep->dep->type & JDF_DEP_TYPE_IN ) {
                 i = jdf_data_input_index(f, dl->flow->varname);
-
+                
                 switch( dep->dep->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
                     if( NULL != dep->dep->guard->calltrue->var ) {

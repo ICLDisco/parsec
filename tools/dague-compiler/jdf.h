@@ -134,6 +134,7 @@ typedef struct jdf_dataflow_list {
 } jdf_dataflow_list_t;
 
 typedef unsigned int jdf_access_type_t;
+#define JDF_VAR_TYPE_CTL   ((jdf_access_type_t)0)
 #define JDF_VAR_TYPE_READ  ((jdf_access_type_t)(1<<0))
 #define JDF_VAR_TYPE_WRITE ((jdf_access_type_t)(1<<1))
 typedef struct jdf_dataflow {
