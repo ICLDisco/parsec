@@ -13,8 +13,7 @@ extern int rank;
  *   - http://www.netlib.org/lapack/double/dgeqrf.f
  *
  **************************************************/
-treeHeight [type = int   /* by default its an int */
-            hidden = on] // height of the reduction tree
+treeHeight [type = int] // height of the reduction tree
 
 LOCALQR( index )  [profile = off]
     index = 0 .. (1 << treeHeight) - 1
