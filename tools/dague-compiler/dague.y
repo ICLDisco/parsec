@@ -384,6 +384,11 @@ optional_access_type :
 dataflow:       optional_access_type VAR dependencies
                 {
                     jdf_dataflow_t *flow = new(jdf_dataflow_t);
+                    if($1 == JDF_VAR_TYPE_CTL) {
+                        jdf_data_entry_t* var;
+                        var = jdf_find_or_create_data(&current_jdf, $2);
+                        var->global->properties = jdf_create_properties_list( "hidden", 0, "on", var->global->properties);
+                    }
                     flow->access_type = $1;
                     flow->varname     = $2;
                     flow->deps        = $3;
