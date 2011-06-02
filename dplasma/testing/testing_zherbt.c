@@ -208,7 +208,6 @@ int main(int argc, char *argv[])
 
     LDA = max(M, LDA);
     LDB = max( LDB, N );
-    SMB = 1; SNB = 1;
 
     PLASMA_Init(1);
 
@@ -222,7 +221,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
          two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
          nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-         N, N, SMB, SNB, P))
+         N, N, 1, 1, P))
 
     PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble, 
          ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
@@ -239,12 +238,18 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
          two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
          nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
-         MT*IB, N, SMB, SNB, P))
+         MT*IB, N, 1, 1, P))
 
     PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble, 
          ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
          ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
          ddescT.super.m, ddescT.super.n);
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1, 
+        two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble,
+        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0, 
+        NB+2, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+
 
     PLASMA_enum uplo = PlasmaLower;
 
@@ -342,9 +347,11 @@ int main(int argc, char *argv[])
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
-    
+    dague_data_free(ddescBAND.mat);
+
     cleanup_dague(dague);
-        
+   
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescBAND);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
         
