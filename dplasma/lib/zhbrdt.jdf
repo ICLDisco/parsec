@@ -1,0 +1,100 @@
+extern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasmajdf.h"
+%}
+
+A          [type = "tiled_matrix_desc_t*"]
+NT         [type = int
+            hidden = on
+            default="A->nt"]
+NB         [type = int
+            hidden = on
+            default="A->nb"]
+
+/*
+ *
+ */
+zhbrdt_in_data_A0(s1,s,i)
+  s1 = 0
+  s = 0
+  i = (0)..(NT-1)
+
+  : A(0,i+1)
+
+  RW B <- A(0,i+1)
+       -> B zhbrdt(s1,s,i)
+BODY
+/* nothing */
+END
+
+/*
+ *
+ */
+zhbrdt_out_data_A1(s,i, s1)
+  s = NB-1
+  i = NT-1
+  s1 = i..i
+
+  : A(0,i+1)
+
+  RW B <- B zhbrdt(s1,s,i)
+        -> A(0,i+1)
+BODY
+/* nothing */
+END
+
+
+/*
+ *
+ */
+zhbrdt(s1,s,i)
+  /* Execution space */
+  s1 = 0..NT-1
+  s = 0..NB-1
+  i = s1..NT-1
+
+  : A(0,i)
+
+  /* A == data_A(0,i) */
+  /* B == data_A(0,i+1) */
+
+  RW    A <- (i>=(1+s1)) ? B zhbrdt(s1, s, i-1) 
+          <- (0==s) & (0==i) & (0==s1) ? A(0,i)
+          <- (s1==i) & (s>=1) ? A zhbrdt(i, s-1, i) 
+          <- !((s1==i) & (s>=1)) & (i==s1) & (0==s) & (i>=1) ? A zhbrdt(s1-1, NB-1, s1)
+          -> ((1+s)==NB) & (s1==i) ? A(0,i)
+          -> (s1==i) & (NB>=(2+s)) ? A zhbrdt(i, s+1, i) 
+          -> !((s1==i) & (NB>=(2+s))) & ((s1+1)==i) & (NB==(s+1)) & (s1>=0) ? A zhbrdt(i, 0, i) 
+          -> (i>=(s1+1)) & (NB>=(s+2)) ? B zhbrdt(s1, s+1, i-1) 
+          -> !((i>=(s1+1)) & (NB>=(s+2))) & (NB==(s+1)) & (i>=(s1+2)) & (NT>=(s1+2)) ? B zhbrdt(s1+1, 0, i-1) 
+  RW    B <- ((i+1)==NT) & (s>=1) ? B zhbrdt(s1, s-1, NT-1) 
+          <- !(((i+1)==NT) & (s>=1)) & ((1+i)==NT) & (0==s) & (s1>=1) ? B zhbrdt(s1-1, NB-1, NT-1) 
+          <- (0==s1) & (0==s) ? B zhbrdt_in_data_A0(s1,s,i)
+          <- (NT>=(2+i)) & (s>=1) ? A zhbrdt(s1, s-1, i+1) 
+          <- !((NT>=(2+i)) & (s>=1)) & (0==s) & (NT>=(i+2)) & (s1>=1) ? A zhbrdt(s1-1, NB-1, i+1) 
+          -> (NT==(i+1)) & (NB>=(s+2)) ? B zhbrdt(s1, s+1, i) 
+          -> !((NT==(i+1)) & (NB>=(s+2))) & (NT==(i+1)) & (NB==(s+1)) & (NT>=(s1+2)) ? B zhbrdt(s1+1, 0, i) 
+          -> (NT>=(2+i)) ? A zhbrdt(s1, s, i+1) 
+          -> (NT==(1+i)) & (NT==(s1+1)) & (NB==(s+1)) ? B zhbrdt_out_data_A1(s,i,s1)
+BODY
+
+
+#line 7 "blg_chasing2.c"
+#if 0
+  CORE_zhbrdt(A /* A(0,i) */, B /* A(0,i+1) */, s1*NB+s, i%2);
+#endif
+  printlog("thread %d CORE_zhbrdt(%d, %d, %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i%2)\n",
+  context->eu_id, s1, s, i, 0, i, A, 0, i+1, B);
+
+END

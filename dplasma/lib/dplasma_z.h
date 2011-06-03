@@ -59,10 +59,15 @@ dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum
                                     tiled_matrix_desc_t* ddescA, int* INFO);
 dague_object_t* dplasma_zgetrf_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int* INFO);
 
-/* Unkown */
+/* Unknown */
 dague_object_t *dplasma_zherbt_New( PLASMA_enum uplo, int ib,
                                     PLASMA_desc descA, tiled_matrix_desc_t *A, 
                                     PLASMA_desc descT, tiled_matrix_desc_t *T);
+void dplasma_zherbt_Destruct( dague_object_t *o );
+
+/* Bulge Chasing */
+dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A);
+void dplasma_zhbrdt_Destruct( dague_object_t* o );
 
 /***********************************************************
  *               Destruct functions
@@ -75,6 +80,5 @@ void dplasma_ztrsmpl_Destruct( dague_object_t *o );
 void dplasma_zpotrf_Destruct( dague_object_t *o );
 void dplasma_zgelqf_Destruct( dague_object_t *o );
 
-void dplasma_zherbt_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_Z_H_ */
