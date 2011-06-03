@@ -57,6 +57,7 @@ set(JDF
   zgeqrf.jdf
   zgelqf.jdf
   zherbt_L.jdf
+  zhbrdt.jdf
 )
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JDF}")
 jdf_rules(generated_files "${generated_jdf}")
@@ -79,6 +80,7 @@ set(SOURCES
   zgelqf_wrapper.c
   # ???
   zherbt_wrapper.c
+  zhbrdt_wrapper.c
 )
 precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}") 
 
