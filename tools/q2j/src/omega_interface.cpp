@@ -58,7 +58,7 @@ static void dump_full_und(und_t *und);
 #endif
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R);
-static void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
+static list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
 static Relation process_and_print_execution_space(node_t *node);
 static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp);
@@ -869,7 +869,7 @@ expr_t *copy_tree(expr_t *root){
 // WARNING: This function is destructive in that it actually changes
 // the nodes of the tree.  If you need your original tree intact,
 // you should pass it a copy of the tree.
-void negateTree(expr_t *root){
+void flipSignOfTree(expr_t *root){
     if( NULL == root )
         return;
 
@@ -884,13 +884,13 @@ void negateTree(expr_t *root){
             }else if( INTCONSTANT == root->r->type ){
                 root->r->value.int_const *= -1;
             }else{
-                fprintf(stderr,"ERROR: negateTree(): malformed expression: \"%s\"\n",expr_tree_to_str(root));
+                fprintf(stderr,"ERROR: flipSignOfTree(): malformed expression: \"%s\"\n",expr_tree_to_str(root));
             }
             break;
 
         default:
-            negateTree(root->l);
-            negateTree(root->r);
+            flipSignOfTree(root->l);
+            flipSignOfTree(root->r);
     }
 
     return;
@@ -898,7 +898,7 @@ void negateTree(expr_t *root){
 
 
 // Move the first argument "e_src" to the second argument "e_dst".
-// That means that we negate each element of e_src and add it to e_dst.
+// That means that we flip the sign of each element of e_src and add it to e_dst.
 //
 // WARNING: This function is destructive in that it actually changes
 // the nodes of the tree e_src.  If you need your original tree intact,
@@ -912,7 +912,7 @@ expr_t *moveToOtherSideOfEQ(expr_t *e_src, expr_t *e_dst){
     e = (expr_t *)calloc( 1, sizeof(expr_t) );
     e->type = ADD;
     e->l = e_dst;
-    negateTree(e_src);
+    flipSignOfTree(e_src);
     e->r = e_src;
 
     return e;
@@ -1419,8 +1419,10 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
             tmp_l = findAllConstraintsWithVar(var_name, exp->l, constr_type);
             tmp_r = findAllConstraintsWithVar(var_name, exp->r, constr_type);
             if( !tmp_l.empty() && !tmp_r.empty() ){
-                fprintf(stderr,"ERROR: findAllConstraintsWithVar(): variable \"%s\" is not supposed to be in more than one conjuncts.\n", var_name);
-                exit( -1 );
+                fprintf(stderr,"\nERROR: findAllConstraintsWithVar(): variable \"%s\" is not supposed to be in more than one conjuncts.\n", var_name);
+                fprintf(stderr,"exp->l : %s\n",expr_tree_to_str(exp->l));
+                fprintf(stderr,"exp->r : %s\n\n",expr_tree_to_str(exp->r));
+                assert( 0 );
             }
             // otherwise proceed normaly
             if( !tmp_l.empty() ) return tmp_l;
@@ -2779,7 +2781,7 @@ printf("========================================================================
             printf("\n");
             print_pseudo_variables(deps, incoming_edges[task_name]);
             printf("\n");
-            print_edges(deps, incoming_edges[task_name], S_es, reference_data_element);
+            list <char *>ptask_list = print_edges(deps, incoming_edges[task_name], S_es, reference_data_element);
             S_es.Null();
             printf("\n");
 
@@ -2828,6 +2830,12 @@ printf("========================================================================
             printf("  */\n\n");
 
             print_body(src_task->task_node);
+
+            // Print all the pseudo-tasks that were created by print_edges()
+            list <char *>::iterator ptask_it;
+            for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
+                printf("\n/*\n * Pseudo-task\n */\n%s\n",*ptask_it);
+            }
         }
     }
 }
@@ -3308,6 +3316,7 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
     char *formal_parameters = NULL;
     char *mtrx_name         = tree_to_str(DA_array_base(data_element));
     char *number;
+    char *ptask_str;
     Relation newS_es;
 
     for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
@@ -3319,6 +3328,8 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
     asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, formal_parameters);
     asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
 
+    printf("%s %s\n",var_pseudoname, pseudotask_name);
+
     if( !cond.is_null() ){
         newS_es = Intersection(copy(S_es), Domain(copy(cond)));
         newS_es.simplify();
@@ -3326,6 +3337,7 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
         newS_es = copy(S_es);
     }
 
+#if 0
 printf("\n################################\n");
 printf("%s\n",pseudotask_name);
 //S_es.print();
@@ -3363,11 +3375,50 @@ if( !strcmp(inout,"in") ){
 }
 printf("BODY\n/* nothing */\nEND\n");
 printf("################################\n");
+#endif
 
+    ptask_str = append_to_string(NULL, pseudotask_name, "%s\n", 1+strlen(pseudotask_name)); 
+    for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
+        char *var_name = parent_task->ind_vars[i];
+        ptask_str = append_to_string(ptask_str, var_name, "  %s = ", 5+strlen(var_name)); 
+        expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
+        if( NULL != solution )
+            ptask_str = append_to_string(ptask_str, expr_tree_to_str(solution), NULL, 0);
+        else
+            ptask_str = append_to_string(ptask_str, findBoundsOfVar(relation_to_tree(newS_es), var_name, copy(newS_es)), NULL, 0);
+        ptask_str = append_to_string(ptask_str, "\n", NULL, 0);
+    }
 
-     free(parent_task_name);
-     free(pseudotask_name);
-     free(mtrx_name);
+    if( !cond.is_null() ){
+        Relation dom = Relation(Domain(cond));
+        // WARNING: This is needed by Omega. If you remove it you get strange
+        // assert() calls being triggered inside the Omega library.
+        (void)dom.print_with_subs_to_string(false);
+        const char *tmp = expr_tree_to_str(relation_to_tree(dom)); 
+        ptask_str = append_to_string(ptask_str, tmp, "  /*_dague_pseudotask_predicate = 1..%s*/\n", 40+strlen(tmp));
+    }
+
+             
+    char *data_str = tree_to_str(data_element);
+    ptask_str = append_to_string(ptask_str, data_str, "\n  : data_%s\n\n",12+strlen(data_str));
+    if( !strcmp(inout,"in") ){
+        ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
+        ptask_str = append_to_string(ptask_str, data_str, " <- data_%s\n",11+strlen(data_str));
+        ptask_str = append_to_string(ptask_str, var_pseudoname, "       -> %s",10+strlen(var_pseudoname));
+        ptask_str = append_to_string(ptask_str, parent_task_name, " %s\n",2+strlen(parent_task_name));
+    }else{
+        ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
+        ptask_str = append_to_string(ptask_str, var_pseudoname, " <- %s", 4+strlen(var_pseudoname));
+        ptask_str = append_to_string(ptask_str, parent_task_name, " %s\n",2+strlen(parent_task_name));
+        ptask_str = append_to_string(ptask_str, data_str, "        -> data_%s\n",17+strlen(data_str));
+    }
+    ptask_str = append_to_string(ptask_str,"BODY\n/* nothing */\nEND\n", NULL, 0);
+
+    free(parent_task_name);
+    free(pseudotask_name);
+    free(mtrx_name);
+
+    return ptask_str;
 }
 
 
@@ -3412,15 +3463,16 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
+list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
     int pseudotask_count = 0;
     task_t *this_task;
     set<dep_t *>::iterator dep_it;
     set<char *> vars;
     map<char *, set<dep_t *> > incm_map, outg_map;
+    list<char *> ptask_list;
 
     if( outg_deps.empty() && incm_deps.empty() ){
-        return;
+        return ptask_list;
     }
 
     this_task = (*outg_deps.begin())->src->task;
@@ -3479,7 +3531,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
         for (dep_it=ideps.begin(); dep_it!=ideps.end(); dep_it++){
              dep_t *dep = *dep_it;
              list< pair<expr_t *,Relation> > cond_list;
-             list< pair<expr_t *, Relation> >::iterator cond_it;
+             list< pair<expr_t *, Relation> >::iterator cond_it, cond_it2;
              string cond;
 
              // Needed by Omega
@@ -3489,29 +3541,49 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
 
              // If the condition has disjunctions (logical OR operators) then split them so that each one
              // is treated independently.
-#warning "For each one, we have to negate the previous ones: a|b|c => a, (!a)&b, (!a)&(!b)&c"
              cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  string cond = expr_tree_to_str(cond_it->first);
+                 bool printed_condition = false;
 
-                 if ( dep_it!=ideps.begin() )
+                 if ( dep_it!=ideps.begin() || cond_it != cond_list.begin() )
                      printf("         ");
                  printf(" <- ");
 
                  task_t *src_task = dep->src->task;
 
-                 if( !cond.empty() )
+                 
+                 // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
+
+                 // For each condition that resulted from spliting a disjunction, negate
+                 // all the other parts of the disjunction
+                 for(cond_it2 = cond_list.begin(); cond_it2 != cond_it; cond_it2++){
+                     string cond2 = expr_tree_to_str(cond_it2->first);
+                     if( !cond2.empty() ){
+                         if( printed_condition )
+                             printf(" & ");
+                         printf("!(%s)",cond2.c_str());
+                         printed_condition = true;
+                     }
+                 }
+                 if( !cond.empty() ){
+                     if( printed_condition )
+                         printf(" & ");
                      printf("%s ? ",cond.c_str());
+                 }else if( printed_condition ){
+                     printf(" ? ");
+                 }
 
                  if( NULL != src_task ){
                      printf("%s ", dep->src->var_symname);
                      printf("%s(",src_task->task_name);
-                     printActualParameters(dep, relation_to_tree(*dep->rel), SOURCE);
+                     //printActualParameters(dep, relation_to_tree(*dep->rel), SOURCE);
+                     printActualParameters(dep, relation_to_tree(cond_it->second), SOURCE);
                      printf(") ");
                  }else{ // ENTRY
                      if( need_pseudotask(dep->dst, reference_data_element) ){
-                         printf("[[ data_%s ]]", tree_to_str(dep->dst));
-                         char *pseudotask = create_pseudotask(this_task, S_es, cond_it->second, dep->dst, var_pseudoname, pseudotask_count++, "in");
+                         //printf("[[ data_%s ]]", tree_to_str(dep->dst));
+                         ptask_list.push_back( create_pseudotask(this_task, S_es, cond_it->second, dep->dst, var_pseudoname, pseudotask_count++, "in") );
                      }else{
                          /*
                           * JDF & QUARK specific optimization:
@@ -3544,8 +3616,8 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
               * differentiate the matrix from the struct.
               */
             if( need_pseudotask(dep->src, reference_data_element) ){
-                printf("[[ data_%s ]]", tree_to_str(dep->src));
-                char *pseudotask = create_pseudotask(this_task, S_es, emptyR, dep->src, var_pseudoname, pseudotask_count++, "in");
+                //printf("[[ data_%s ]]", tree_to_str(dep->src));
+                ptask_list.push_back( create_pseudotask(this_task, S_es, emptyR, dep->src, var_pseudoname, pseudotask_count++, "in") );
             }else{
                 printf("data_%s\n",tree_to_str(dep->src));
             }
@@ -3555,7 +3627,7 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
         for (dep_it=odeps.begin(); dep_it!=odeps.end(); dep_it++){
              dep_t *dep = *dep_it;
              list< pair<expr_t *,Relation> > cond_list;
-             list< pair<expr_t *,Relation> >::iterator cond_it;
+             list< pair<expr_t *,Relation> >::iterator cond_it, cond_it2;
              string cond;
 
              // Needed by Omega
@@ -3565,24 +3637,42 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
 
              // If the condition has disjunctions (logical OR operators) then split them so that each one
              // is treated independently.
-#warning "For each one, we have to negate the previous ones: a|b|c => a, (!a)&b, (!a)&(!b)&c"
              cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  string cond = expr_tree_to_str(cond_it->first);
+                 bool printed_condition = false;
 
                  printf("         ");
                  printf(" -> ");
 
-                 if( !cond.empty() )
-                     printf("%s ? ", cond.c_str());
+                 // TODO: If the conditions are mutually exclusive, we do not need to do the following step.
+
+                 // For each condition that resulted from spliting a disjunction, negate
+                 // all the other parts of the disjunction
+                 for(cond_it2 = cond_list.begin(); cond_it2 != cond_it; cond_it2++){
+                     string cond2 = expr_tree_to_str(cond_it2->first);
+                     if( !cond2.empty() ){
+                         if( printed_condition )
+                             printf(" & ");
+                         printf("!(%s)",cond2.c_str());
+                         printed_condition = true;
+                     }
+                 }
+                 if( !cond.empty() ){
+                     if( printed_condition )
+                         printf(" & ");
+                     printf("%s ? ",cond.c_str());
+                 }else if( printed_condition ){
+                     printf(" ? ");
+                 }
 
                  node_t *sink = dep->dst;
                  if( NULL == sink ){
                      // EXIT
 
                      if( need_pseudotask(dep->src, reference_data_element) ){
-                         printf("[[ data_%s ]]", tree_to_str(dep->src));
-                         char *pseudotask = create_pseudotask(this_task, S_es, cond_it->second, dep->src, var_pseudoname, pseudotask_count++, "out");
+                         //printf("[[ data_%s ]]", tree_to_str(dep->src));
+                         ptask_list.push_back( create_pseudotask(this_task, S_es, cond_it->second, dep->src, var_pseudoname, pseudotask_count++, "out") );
                      }else{
                          /*
                           * JDF & QUARK specific optimization:
@@ -3593,7 +3683,8 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
                      }
                  }else{
                      printf("%s %s(",sink->var_symname, sink->task->task_name);
-                     printActualParameters(dep, relation_to_tree(*dep->rel), SINK);
+                     //printActualParameters(dep, relation_to_tree(*dep->rel), SINK);
+                     printActualParameters(dep, relation_to_tree(cond_it->second), SINK);
                      printf(") ");
                  }
                  printf("\n");
@@ -3606,5 +3697,6 @@ void print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, no
 
     }
 
+    return ptask_list;
 }
 
