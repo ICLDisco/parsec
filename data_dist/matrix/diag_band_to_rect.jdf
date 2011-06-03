@@ -1,0 +1,96 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "matrix.h"
+
+/**************************************************
+ * Convert a tiled 2D cyclic band diagonal matrix *
+ * into a 1D cyclic rectangle                     *
+ **************************************************/
+
+%}
+
+MT  [type = int]
+NT  [type = int]
+MB  [type = int]
+NB  [type = int]
+TY  [type = size_t]
+
+convert_diag(k)
+    k = 0 .. NT
+    : B(0,k)
+
+RO  D   <- (k < NT)     ? A read_diag(k)
+RO  SD  <- (k < NT-1)   ? A read_subdiag(k)
+RW  B   <- B(0,k)
+        -> B(0,k)
+
+BODY
+    int j;
+    char* b  = B;
+    char* d  = D;
+    char* sd = SD;
+
+
+    assert(MB == NB);
+    if(k == NT)
+    {
+        /*
+        for(j = 0; j < NB+2; j++) for(i = 0; i < MB+1; i++)
+            B[j*NB+i] = 0e0;
+        */
+        memset(b, 0, TY* (NB+2)*(MB+1));
+    } 
+    else
+    {
+        for(j = 0; j < NB; j++)
+        {
+            /*
+            for(i = 0; i < MB-j; i++)
+                B[j*NB+i] = D[j*NB+j+i];
+            */
+            memcpy(b+TY* (j*NB), d+TY* (j*NB+j), TY* (MB-j));
+            if(k == NT-1)
+                /*
+                for(i = MB-j; i < MB+1; i++)
+                    B[j*NB+i] = 0e0;
+                */
+                memset(b+TY* (j*NB+MB-j), 0, TY* (j+1));
+            else
+                /*
+                for(i = MB-j; i <= MB+1; i++)
+                    B[j*NB+i] = SD[j*NB+i-(MB-j)];
+                */
+                memcpy(b+TY* (j*NB+MB-j), sd+TY* (j*NB), TY* (j+1));
+        }
+    }
+END
+
+read_diag(k)
+    k = 0 .. NT-1
+    : A(k,k)
+
+RO  A <- A(k,k)
+      -> SD convert_diag(k)
+
+BODY
+    /*nothing*/
+END
+
+read_subdiag(k)
+    k = 0 .. NT-2
+    : A(k+1,k)
+
+RO  A <- A(k+1,k)
+      -> SD convert_diag(k)
+
+BODY
+    /*nothing*/
+END
+
