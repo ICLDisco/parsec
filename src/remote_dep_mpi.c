@@ -362,6 +362,14 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
      * Move as many elements as possible from the dequeue into our ordered lifo.
      */
     while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)) ) {
+        if( DEP_CTL == item->action ) {
+            /* A DEP_CTL is a barrier that must not be crossed, flush the
+             * ordered fifo and don't add anything until it is consumed */
+            if( !dague_fifo_is_empty(&dep_cmd_fifo) ) {
+                dague_dequeue_push_front(&dep_cmd_queue, (dague_list_item_t*)item);
+                break;
+            } else goto handle_now;
+        }
         DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)item);
         DAGUE_FIFO_PUSH(&dep_cmd_fifo, (dague_list_item_t*)item);
     }
@@ -380,6 +388,7 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
         }
         return ret;
     }
+handle_now:
     switch(item->action) {
     case DEP_ACTIVATE:
         remote_dep_nothread_send(eu_context, item->cmd.activate.rank, item->cmd.activate.deps);
