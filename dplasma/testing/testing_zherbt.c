@@ -248,8 +248,8 @@ int main(int argc, char *argv[])
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1, 
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble,
-        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0, 
-        NB+2, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*(NT+1), 0, 0, 
+        NB+2, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
 
 
     PLASMA_enum uplo = PlasmaLower;

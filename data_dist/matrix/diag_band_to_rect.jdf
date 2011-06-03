@@ -39,6 +39,8 @@ BODY
     char* b  = B;
     char* d  = D;
     char* sd = SD;
+    int  BNB = NB+2;
+    int  BMB = MB+1;
 
     fprintf(stderr, "convert_diag( %d )\n", k);
 
@@ -47,9 +49,9 @@ BODY
     {
         /*
         for(j = 0; j < NB+2; j++) for(i = 0; i < MB+1; i++)
-            B[j*NB+i] = 0e0;
+            B[j*(NB+2)+i] = 0e0;
         */
-        memset(b, 0, TY* (NB+2)*(MB+1));
+        memset(b, 0, TY* BNB*BMB);
     } 
     else
     {
@@ -57,21 +59,21 @@ BODY
         {
             /*
             for(i = 0; i < MB-j; i++)
-                B[j*NB+i] = D[j*NB+j+i];
+                B[j*BNB+i] = D[j*NB+j+i];
             */
-            memcpy(b+TY* (j*NB), d+TY* (j*NB+j), TY* (MB-j));
+            memcpy(b+TY* (j*BNB), d+TY* (j*BNB+j), TY* (MB-j));
             if(k == NT-1)
                 /*
                 for(i = MB-j; i < MB+1; i++)
-                    B[j*NB+i] = 0e0;
+                    B[j*BNB+i] = 0e0;
                 */
-                memset(b+TY* (j*NB+MB-j), 0, TY* (j+1));
+                memset(b+TY* (j*BNB+MB-j), 0, TY* (j+1));
             else
                 /*
                 for(i = MB-j; i <= MB+1; i++)
-                    B[j*NB+i] = SD[j*NB+i-(MB-j)];
+                    B[j*BNB+i] = SD[j*NB+i-(MB-j)];
                 */
-                memcpy(b+TY* (j*NB+MB-j), sd+TY* (j*NB), TY* (j+1));
+                memcpy(b+TY* (j*BNB+MB-j), sd+TY* (j*NB), TY* (j+1));
         }
     }
 END
