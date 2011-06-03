@@ -42,7 +42,7 @@ BODY
     int  BNB = NB+2;
     int  BMB = MB+1;
 
-    fprintf(stderr, "convert_diag( %d )\n", k);
+    //fprintf(stderr, "convert_diag( %d )\n", k);
 
     assert(MB == NB);
     if(k == NT)
@@ -86,7 +86,7 @@ RO  A <- A(k,k)
       -> D convert_diag(k)
 
 BODY
-    fprintf(stderr, "read_diag( %d )\n", k);
+    //fprintf(stderr, "read_diag( %d )\n", k);
     /*nothing*/
 END
 
@@ -98,7 +98,7 @@ RO  A <- A(k+1,k)
       -> SD convert_diag(k)
 
 BODY
-    fprintf(stderr, "read_subdiag( %d )\n", k);
+    //fprintf(stderr, "read_subdiag( %d )\n", k);
     /*nothing*/
 END
 
