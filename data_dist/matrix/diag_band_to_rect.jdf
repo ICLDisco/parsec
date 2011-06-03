@@ -6,16 +6,19 @@ extern "C" %{
  */
 
 #include "dague.h"
-#include "data_distribution.h"
-#include "matrix.h"
+#include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 
-/**************************************************
- * Convert a tiled 2D cyclic band diagonal matrix *
- * into a 1D cyclic rectangle                     *
- **************************************************/
+/***********************************************************
+ * Convert a tiled 2D cyclic symetric band diagonal matrix *
+ * into a 1D cyclic rectangle                              *
+ ***********************************************************/
 
 %}
 
+A   [type = "sym_two_dim_block_cyclic_t*"]
+B   [type = "two_dim_block_cyclic_t*"]
 MT  [type = int]
 NT  [type = int]
 MB  [type = int]
