@@ -29,8 +29,8 @@ convert_diag(k)
     k = 0 .. NT
     : B(0,k)
 
-RO  D   <- (k < NT)     ? A read_diag(k)
-RO  SD  <- (k < NT-1)   ? A read_subdiag(k)
+RO  D   <- (k < NT)     ? A read_diag(k)    : B(0,k)
+RO  SD  <- (k < NT-1)   ? A read_subdiag(k) : B(0,k)
 RW  B   <- B(0,k)
         -> B(0,k)
 
@@ -40,6 +40,7 @@ BODY
     char* d  = D;
     char* sd = SD;
 
+    fprintf(stderr, "convert_diag( %d )\n", k);
 
     assert(MB == NB);
     if(k == NT)
@@ -80,9 +81,10 @@ read_diag(k)
     : A(k,k)
 
 RO  A <- A(k,k)
-      -> SD convert_diag(k)
+      -> D convert_diag(k)
 
 BODY
+    fprintf(stderr, "read_diag( %d )\n", k);
     /*nothing*/
 END
 
@@ -94,6 +96,7 @@ RO  A <- A(k+1,k)
       -> SD convert_diag(k)
 
 BODY
+    fprintf(stderr, "read_subdiag( %d )\n", k);
     /*nothing*/
 END
 

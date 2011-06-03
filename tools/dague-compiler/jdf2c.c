@@ -1376,6 +1376,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
     int already_added = 0;
     expr_info_t info;
 
+    string_arena_init(sa);
     sa1 = string_arena_new(64);
 
     info.prefix = "";
