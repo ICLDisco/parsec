@@ -104,7 +104,11 @@ RW                    { yylval.number = JDF_VAR_TYPE_READ | JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 READ                  { yylval.number = JDF_VAR_TYPE_READ;
                         return DEPENDENCY_TYPE;                            }
+RO                    { yylval.number = JDF_VAR_TYPE_READ;
+                        return DEPENDENCY_TYPE;                            }
 WRITE                 { yylval.number = JDF_VAR_TYPE_WRITE;
+                        return DEPENDENCY_TYPE;                            }
+WO                    { yylval.number = JDF_VAR_TYPE_WRITE;
                         return DEPENDENCY_TYPE;                            }
 "->"                  { yylval.dep_type = JDF_DEP_TYPE_OUT;
                         return ARROW;                                      }
