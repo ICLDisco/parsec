@@ -58,7 +58,7 @@ A <- A(k, m)
   -> A GEMM(m, 0, k)
 BODY
     printlog("A( %d, %d) / B (%d, %d) / C( %d, %d)\n", Amt, Ant, Bmt, Bnt, Cmt, Cnt);
-    printlog("rank %d <- A(%d,%d)\n", __dague_object->super.A->myrank, k, m);
+    printlog("rank %u <- A(%d,%d)\n", __dague_object->super.A->myrank, k, m);
 END
 
 /**************************************************
@@ -74,7 +74,7 @@ n = 0 .. Bnt-1
 B <- B(k, n)
   -> B GEMM(0, n, k)
 BODY
-     printlog("rank %d <- B(%d,%d)\n", __dague_object->super.B->myrank, k, n);
+     printlog("rank %u <- B(%d,%d)\n", __dague_object->super.B->myrank, k, n);
 END
 
 /**************************************************
