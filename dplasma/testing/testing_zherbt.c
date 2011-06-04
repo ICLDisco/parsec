@@ -12,6 +12,7 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/generated/diag_band_to_rect.h"
+#include "dplasmatypes.h"
 
 /* Including the bulge chassing */
 #define FADDS_ZHERBT(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
@@ -291,7 +292,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 
     SYNC_TIME_START();
-    dague_object_t* DAGUE_diag_band_to_rect = (dague_object_t*) dague_diag_band_to_rect_new(&ddescA, &ddescBAND, 
+    dague_object_t* DAGUE_diag_band_to_rect = (dague_object_t*) dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND, 
             MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
     dague_arena_t* arena = ((dague_diag_band_to_rect_object_t*)DAGUE_diag_band_to_rect)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]; 
     dplasma_add2arena_tile(arena,
