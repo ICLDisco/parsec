@@ -2257,7 +2257,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
     jdf_dep_list_t *dl;
     expr_info_t info;
     string_arena_t *sa;
-    int input_dumped = 0;
+    int cond_index = 0;
+    char* condition[] = {"  if( %s ) {\n", "  else if( %s ) {\n"};
 
     sa = string_arena_new(64);
     info.sa = sa;
@@ -2268,22 +2269,16 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
             /** No initialization for output-only flows */
             continue;
 
-        if( (input_dumped == 1) && (JDF_COMPILER_GLOBAL_ARGS.wmask & JDF_WARN_MASKED_GLOBALS) ) {
-            jdf_warn(f->lineno, 
-                     "The flow of data %s from function %s has multiple inputs.\n"
-                     "If the cases are not mutually exclusive, expect unpredicted results / deadlocks.\n",
-                     f->varname, fname);
-        }
-        input_dumped = 1;
         switch( dl->dep->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
             jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "" );
-            break;
+            goto done_with_input;
         case JDF_GUARD_BINARY:
-            coutput("  if( %s ) {\n",
-                    dump_expr((void**)&dl->dep->guard->guard, &info));
+            coutput( (0 == cond_index ? condition[0] : condition[1]),
+                     dump_expr((void**)&dl->dep->guard->guard, &info));
             jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "  " );
             coutput("  }\n");
+            cond_index++;
             break;
         case JDF_GUARD_TERNARY:
             coutput("  if( %s ) {\n",
@@ -2292,10 +2287,11 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
             coutput("  } else {\n");
             jdf_generate_code_call_initialization( jdf, dl->dep->guard->callfalse, f->lineno, fname, f, "  " );
             coutput("  }\n");
-            break;
+            goto done_with_input;
         }
     }
 
+ done_with_input:
     string_arena_free(sa);
 }
 
@@ -2773,8 +2769,14 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     string_arena_free(sa1);
 }
 
-static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *jdf, const char *calltext,
-                                         const jdf_call_t *call, int lineno, const char *prefix, const char *var)
+static char *jdf_dump_context_assignment(string_arena_t *sa_open,
+                                         const jdf_t *jdf,
+                                         const jdf_dataflow_t *flow,
+                                         const char *calltext,
+                                         const jdf_call_t *call,
+                                         int lineno,
+                                         const char *prefix,
+                                         const char *var)
 {
     jdf_function_entry_t *t;
     jdf_expr_list_t *el;
@@ -2794,10 +2796,10 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
             break;
 
     if( NULL == t ) {
-         jdf_fatal(lineno, 
-                   "During code generation: unable to find function %s referenced in this call.\n",
-                   call->func_or_mem);
-         exit(1);
+        jdf_fatal(lineno, 
+                  "During code generation: unable to find function %s referenced in this call.\n",
+                  call->func_or_mem);
+        exit(1);
     }
 
     sa1 = string_arena_new(64);
@@ -2822,25 +2824,28 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
         el != NULL && nl != NULL; 
         el = el->next, nl = nl->next, i++) {
         
-        string_arena_add_string(sa_open, 
-                                "%s%s{\n"
-                                "%s%s  int %s_%s;\n",
-                                prefix, indent(nbopen),
-                                prefix, indent(nbopen), t->fname, nl->name);
         string_arena_add_string(sa_close,
                                 "%s%s}\n", prefix, indent(nbopen));
-
         if( el->expr->op == JDF_RANGE ) {
-            string_arena_add_string(sa_open, "%s%s  for( %s_%s = %s;",
-                                    prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info));
-            string_arena_add_string(sa_open, " %s_%s <= %s; %s_%s++ ) {\n",
+            string_arena_add_string(sa_open, 
+                                    "%s%s{\n"
+                                    "%s%s  int %s_%s;\n"
+                                    "%s%s  for( %s_%s = %s; %s_%s <= %s; %s_%s++ ) {\n",
+                                    prefix, indent(nbopen),
+                                    prefix, indent(nbopen), t->fname, nl->name,
+                                    prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info),
                                     t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba2, &info), t->fname, nl->name);
             string_arena_add_string(sa_close,
                                     "%s%s  }\n", prefix, indent(nbopen));
             nbopen++;
         } else {
-            string_arena_add_string(sa_open, "%s%s  %s_%s = %s;\n", prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr, &info));
+            string_arena_add_string(sa_open, 
+                                    "%s%s{\n"
+                                    "%s%s  const int %s_%s = %s;\n",
+                                    prefix, indent(nbopen),
+                                    prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr, &info));
         }
+
         jdf_def_list_t *def;
         
         for(def = t->definitions; NULL != def; def = def->next)
@@ -2892,11 +2897,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
                             "#if defined(DAGUE_DEBUG)\n"
                             "if( NULL != eu ) {\n"
                             "  char tmp[128], tmp1[128];\n"
-                            "  DEBUG((\"thread %%d release deps of %%s to %%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
+                            "  DEBUG((\"thread %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
                             "         dague_service_to_string(exec_context, tmp, 128),\n"
                             "         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst));\n"
                             "}\n"
-                            "#endif\n", var);
+                            "#endif\n", flow->varname, call->var, var);
     free(p);
     linfo.prefix = NULL;
 
@@ -2911,8 +2916,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open, const jdf_t *j
     
     string_arena_add_string(sa_open, 
                             "%s%s  if( %s == DAGUE_ITERATE_STOP )\n"
-                            "%s%s    return;\n"
-                            "\n",
+                            "%s%s    return;\n",
                             prefix, indent(nbopen), calltext,
                             prefix, indent(nbopen));
 
@@ -3001,7 +3005,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                         flowempty = 0;
                         
                         coutput("%s\n",
-                                jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
+                                jdf_dump_context_assignment(sa1, jdf, fl->flow, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
                                                             "  ", "nc") );
                     } else {
                         flowtomem = 1;
@@ -3014,7 +3018,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                 "%s\n"
                                 "  }\n",
                                 dump_expr((void**)&dl->dep->guard->guard, &info),
-                                jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
+                                jdf_dump_context_assignment(sa1, jdf, fl->flow, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
                                                             "    ", "nc") );
                     } else {
                         flowtomem = 1;
@@ -3027,7 +3031,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                 "%s\n"
                                 "  }",
                                 dump_expr((void**)&dl->dep->guard->guard, &info),
-                                jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
+                                jdf_dump_context_assignment(sa1, jdf, fl->flow, string_arena_get_string(sa), dl->dep->guard->calltrue, dl->dep->lineno, 
                                                             "    ", "nc"));
 
                         depnb++;
@@ -3039,7 +3043,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                             coutput(" else {\n"
                                     "%s\n"
                                     "  }\n",
-                                    jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->callfalse, dl->dep->lineno, 
+                                    jdf_dump_context_assignment(sa1, jdf, fl->flow, string_arena_get_string(sa), dl->dep->guard->callfalse, dl->dep->lineno, 
                                                                 "    ", "nc") );
                         } else {
                             coutput("\n");
@@ -3056,7 +3060,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                     "%s\n"
                                     "  }\n",
                                     dump_expr((void**)&dl->dep->guard->guard, &info),
-                                    jdf_dump_context_assignment(sa1, jdf, string_arena_get_string(sa), dl->dep->guard->callfalse, dl->dep->lineno, 
+                                    jdf_dump_context_assignment(sa1, jdf, fl->flow, string_arena_get_string(sa), dl->dep->guard->callfalse, dl->dep->lineno, 
                                                                 "    ", "nc") );
                         } else {
                             flowtomem = 1;
