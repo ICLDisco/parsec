@@ -206,6 +206,7 @@ static char * dump_expr(void **elem, void *arg)
         dot = strchr(vc, '.');
         if( NULL != dot )
             *dot = '\0';
+        /* Do not prefix if the variable is global */
         while( item != NULL ) {
             if( !strcmp(item->name, vc) ) {
                 string_arena_add_string(sa, "%s", e->jdf_var);
@@ -327,7 +328,7 @@ static char * dump_expr(void **elem, void *arg)
         string_arena_add_string(sa, "%s", e->jdf_var);
         break;
     default:
-        string_arena_add_string(sa, "DonKnow");
+        string_arena_add_string(sa, "DontKnow");
         break;
     }
     string_arena_free(la);
@@ -1400,7 +1401,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
                         string_arena_init(sa1);
                         info.sa = sa1;
                         dump_expr((void**)&dep->guard->guard, &info);
-                        string_arena_add_string( sa, "|| (%s) ", string_arena_get_string(sa1) );
+                        string_arena_add_string( sa, " || (%s) ", string_arena_get_string(sa1) );
                     }
                 }
             }
@@ -1417,7 +1418,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
                             string_arena_init(sa1);
                             info.sa = sa1;
                             dump_expr((void**)&dep->guard->guard, &info);
-                            string_arena_add_string( sa, "|| (%s) ", string_arena_get_string(sa1) );
+                            string_arena_add_string( sa, " || (%s) ", string_arena_get_string(sa1) );
                         }
                     } else if( NULL == dep->guard->callfalse->var ) {
                         string_arena_init(sa1);
@@ -1427,7 +1428,7 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
                             string_arena_add_string( sa, "(!(%s)) ", string_arena_get_string(sa1) );
                             already_added = 1;
                         } else {
-                            string_arena_add_string( sa, "|| (!(%s)) ", string_arena_get_string(sa1) );
+                            string_arena_add_string( sa, " || (!(%s)) ", string_arena_get_string(sa1) );
                         }
                     }
                 }
@@ -1507,7 +1508,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         string_arena_init(sa2);
         
         condition = UTIL_DUMP_LIST(sa1, f->dataflow, next, dump_direct_input_conditions, sa2,
-                                   "", "", " && ", "");
+                                   "", "(", ") && ", ")");
         if( strlen(condition) > 1 )
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
