@@ -52,10 +52,10 @@ int main(int argc, char *argv[])
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
                                two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                                      nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0, 
-                                                      NB+2, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+                                                      nodes, cores, rank, MB, NB, MB, NB*NT, 0, 0, 
+                                                      NB, NB*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
-    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
 
     PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
     double *W1             = (double *)malloc(N*sizeof(double));
