@@ -2831,10 +2831,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             string_arena_add_string(sa_open, 
                                     "%s%s{\n"
                                     "%s%s  int %s_%s;\n"
-                                    "%s%s  for( %s_%s = %s; %s_%s <= %s; %s_%s++ ) {\n",
+                                    "%s%s  for( %s_%s = %s;",
                                     prefix, indent(nbopen),
                                     prefix, indent(nbopen), t->fname, nl->name,
-                                    prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info),
+                                    prefix, indent(nbopen), t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba1, &info));
+            string_arena_add_string(sa_open, "%s_%s <= %s; %s_%s++ ) {\n",
                                     t->fname, nl->name, dump_expr((void**)&el->expr->jdf_ba2, &info), t->fname, nl->name);
             string_arena_add_string(sa_close,
                                     "%s%s  }\n", prefix, indent(nbopen));
