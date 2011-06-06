@@ -2247,7 +2247,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                                      dump_expr, &info, "", "", ", ", ""));
     }
-    coutput("  %s = ADATA(g%s);\n", f->varname, f->varname);
+    coutput("%s  %s = ADATA(g%s);\n", spaces, f->varname, f->varname);
 
     string_arena_free(sa);
     string_arena_free(sa2);
@@ -2272,7 +2272,10 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
 
         switch( dl->dep->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
-            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "" );
+            if( 0 != cond_index ) coutput("  else {\n");
+            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f,
+                                                   (0 != cond_index ? "  " : "") );
+            if( 0 != cond_index ) coutput("  }\n");
             goto done_with_input;
         case JDF_GUARD_BINARY:
             coutput( (0 == cond_index ? condition[0] : condition[1]),
@@ -2282,7 +2285,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
             cond_index++;
             break;
         case JDF_GUARD_TERNARY:
-            coutput("  if( %s ) {\n",
+            coutput( (0 == cond_index ? condition[0] : condition[1]),
                     dump_expr((void**)&dl->dep->guard->guard, &info));
             jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "  " );
             coutput("  } else {\n");
@@ -2627,76 +2630,73 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     jdf_dep_list_t *dep;
     expr_info_t info;
     string_arena_t *sa1 = string_arena_new(64);
-    int i;
+    int i, cond_index;
+    char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
-    (void)jdf;
-
-    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS) {\n");
+    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n");
     for( dl = f->dataflow; dl != NULL; dl = dl->next ) {
         if(dl->flow->access_type == JDF_VAR_TYPE_CTL) continue;
+        cond_index = 0;
         for( dep = dl->flow->deps; dep != NULL; dep = dep->next ) {
             if( dep->dep->type & JDF_DEP_TYPE_IN ) {
                 i = jdf_data_input_index(f, dl->flow->varname);
-                
+
                 switch( dep->dep->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
                     if( NULL != dep->dep->guard->calltrue->var ) {
+                        if( 0 != cond_index ) coutput("    else {\n");
                         coutput("    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "    (void)AUNREF(context->data[%d].data);\n",
-                                dep->dep->guard->calltrue->func_or_mem, i,
-                                i);
+                                dep->dep->guard->calltrue->func_or_mem, i, i);
+                        if( 0 != cond_index ) coutput("    }\n");
                     }
-                    break;
+                    goto next_dependency;
                 case JDF_GUARD_BINARY:
                     if( NULL != dep->dep->guard->calltrue->var ) {
                         info.prefix = "";
                         info.sa = sa1;
-                        coutput("    if( %s ) {\n"
-                                "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
+                        coutput((0 == cond_index ? condition[0] : condition[1]),
+                                dump_expr((void**)&dep->dep->guard->guard, &info));
+                        coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "      (void)AUNREF(context->data[%d].data);\n"
                                 "    }\n",
-                                dump_expr((void**)&dep->dep->guard->guard, &info),
-                                dep->dep->guard->calltrue->func_or_mem, i,
-                                i);
+                                dep->dep->guard->calltrue->func_or_mem, i, i);
+                        cond_index++;
                     }
                     break;
                 case JDF_GUARD_TERNARY:
                     if( NULL != dep->dep->guard->calltrue->var ) {
                         info.prefix = "";
                         info.sa = sa1;
-                        coutput("    if( %s ) {\n"
-                                "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                "      (void)AUNREF(context->data[%d].data);\n"
-                                "    }\n",
-                                dump_expr((void**)&dep->dep->guard->guard, &info),
-                                dep->dep->guard->calltrue->func_or_mem, i,
-                                i);
+                        coutput((0 == cond_index ? condition[0] : condition[1]),
+                                dump_expr((void**)&dep->dep->guard->guard, &info));
+                        coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
+                                "      (void)AUNREF(context->data[%d].data);\n",
+                                dep->dep->guard->calltrue->func_or_mem, i, i);
                         if( NULL != dep->dep->guard->callfalse->var ) {
-                            coutput(" else {\n"
+                            coutput("    } else {\n"
                                     "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                    "      (void)AUNREF(context->data[%d].data);\n"
-                                    "    }\n",
-                                    dep->dep->guard->callfalse->func_or_mem, i,
-                                    i);
+                                    "      (void)AUNREF(context->data[%d].data);\n",
+                                    dep->dep->guard->callfalse->func_or_mem, i, i);
                         }
                     } else if( NULL != dep->dep->guard->callfalse->var ) {
                         info.prefix = "";
                         info.sa = sa1;
                         coutput("    if( !(%s) ) {\n"
                                 "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                "      (void)AUNREF(context->data[%d].data);\n"
-                                "    }\n",
+                                "      (void)AUNREF(context->data[%d].data);\n",
                                 dump_expr((void**)&dep->dep->guard->guard, &info),
-                                dep->dep->guard->callfalse->func_or_mem, i,
-                                i);
+                                dep->dep->guard->callfalse->func_or_mem, i, i);
                     }
-                    break;
+                    coutput("    }\n");
+                    goto next_dependency;
                 }
             }
         }
+    next_dependency:
+        (void)jdf;  /* just to keep the compilers happy regarding the goto to an empty statement */
     }
-    coutput("  }\n"
-            "\n");
+    coutput("  }\n");
 
     string_arena_free(sa1);
 }
