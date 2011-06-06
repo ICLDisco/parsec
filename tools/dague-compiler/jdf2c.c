@@ -206,6 +206,7 @@ static char * dump_expr(void **elem, void *arg)
         dot = strchr(vc, '.');
         if( NULL != dot )
             *dot = '\0';
+        /* Do not prefix if the variable is global */
         while( item != NULL ) {
             if( !strcmp(item->name, vc) ) {
                 string_arena_add_string(sa, "%s", e->jdf_var);
@@ -327,7 +328,7 @@ static char * dump_expr(void **elem, void *arg)
         string_arena_add_string(sa, "%s", e->jdf_var);
         break;
     default:
-        string_arena_add_string(sa, "DonKnow");
+        string_arena_add_string(sa, "DontKnow");
         break;
     }
     string_arena_free(la);
