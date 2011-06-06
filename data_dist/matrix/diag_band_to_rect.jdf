@@ -59,21 +59,21 @@ BODY
         {
             /*
             for(i = 0; i < MB-j; i++)
-                B[j*BNB+i] = D[j*NB+j+i];
+                B[j*BMB+i] = D[j*MB+j+i];
             */
-            memcpy(b+TY* (j*BNB), d+TY* (j*BNB+j), TY* (MB-j));
+            memcpy(b+TY* (j*BMB), d+TY* (j*MB+j), TY* (MB-j));
             if(k == NT-1)
                 /*
                 for(i = MB-j; i < MB+1; i++)
-                    B[j*BNB+i] = 0e0;
+                    B[j*BMB+i] = 0e0;
                 */
-                memset(b+TY* (j*BNB+MB-j), 0, TY* (j+1));
+                memset(b+TY* (j*BMB+MB-j), 0, TY* (j+1));
             else
                 /*
                 for(i = MB-j; i <= MB+1; i++)
-                    B[j*BNB+i] = SD[j*NB+i-(MB-j)];
+                    B[j*BMB+i] = SD[j*MB+i-(MB-j)];
                 */
-                memcpy(b+TY* (j*BNB+MB-j), sd+TY* (j*NB), TY* (j+1));
+                memcpy(b+TY* (j*BMB+MB-j), sd+TY* (j*MB), TY* (j+1));
         }
     }
 END

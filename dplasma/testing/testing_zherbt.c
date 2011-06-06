@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1, 
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble,
         nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*(NT+1), 0, 0, 
-        NB+2, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
+        MB+1, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
 
 
     PLASMA_enum uplo = PlasmaLower;
@@ -285,11 +285,30 @@ int main(int argc, char *argv[])
         printf("\n");
 	*/
     }
-
+/*
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
          (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
+*/
+    int i,j;
+    for(j = 0; j < NT; j++) for(i = 0; i < MT; i++)
+    {
+        if(rank == ddescA.super.super.rank_of(&ddescA.super.super, i, j))
+        {
+            A2 = ddescA.super.super.data_of(&ddescA.super.super, i, j);
+            int ii,jj;
+            for(jj = 0; jj < NB; jj++) 
+            {for(ii = 0; ii < MB; ii++)
+            {
+                A2[jj*MB+ii] = (Dague_Complex64_t)(ii+i*MT);
+                printf(" %g", A2[jj*MB+ii]);
+            }
+            printf("\n");
+            }
+            printf("\n");
+        }
+    }
 
     SYNC_TIME_START();
     dague_object_t* DAGUE_diag_band_to_rect = (dague_object_t*) dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND, 
@@ -303,6 +322,22 @@ int main(int argc, char *argv[])
     dague_progress(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 
+    for(j = 0; j < NT+1; j++)
+    {
+        if(rank == ddescBAND.super.super.rank_of(&ddescBAND.super.super, 0, j))
+        {
+            int ii,jj;
+            A2 = ddescBAND.super.super.data_of(&ddescBAND.super.super, 0, j);
+            for(jj = 0; jj < NB; jj++) { for(ii = 0; ii < MB+1; ii++)
+            {
+                printf(" %g", A2[jj*(MB+1)+ii]);
+                assert(A2[jj*(MB+1)+ii] == (ii+jj+j*MT));
+            }
+            printf("\n");
+            }
+            printf("\n");
+        }
+    }
     if( check ) {
         int i, j;
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
@@ -357,7 +392,7 @@ int main(int argc, char *argv[])
     }
 
     free(A2); free(W1); free(W2);
-    dplasma_zherbt_Destruct( DAGUE_zherbt );
+//    dplasma_zherbt_Destruct( DAGUE_zherbt );
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
