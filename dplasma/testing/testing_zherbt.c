@@ -285,13 +285,13 @@ int main(int argc, char *argv[])
         printf("\n");
 	*/
     }
-   /* 
+    
     PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
          (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
-    */
-#if 1
+    
+#if 0
 /* Check for the conversion from 2D band diag to 1D band */
     int i,j;
     for(j = 0; j < NT; j++) for(i = 0; i < MT; i++)
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
     dague_progress(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 
-#if 1
+#if 0
 /* Check for the conversion from 2D band diag to 1D band */
     for(j = 0; j < NT+1; j++)
     {
@@ -399,8 +399,8 @@ int main(int argc, char *argv[])
         }
     }
 
-//    free(A2); free(W1); free(W2);
-//    dplasma_zherbt_Destruct( DAGUE_zherbt );
+    free(A2); free(W1); free(W2);
+    dplasma_zherbt_Destruct( DAGUE_zherbt );
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
