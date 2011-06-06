@@ -60,7 +60,7 @@ zhbrdt(s1,s,i)
 
           -> ((1+s)==NB) & (i==s1)     ? A(0,i)
           -> ((1+s)==NB) & ((1+s1)==i) ? A zhbrdt(s1+1, 0, s1+1)
-          -> ((1+s)==NB) & ((1+s1)<i)  ? B zhbrdt(s1+1, 0, s1+1)
+          -> ((1+s)==NB) & ((1+s1)<i)  ? B zhbrdt(s1+1, 0, i-1)
           -> (i==s1) & ((1+s)<NB)      ? A zhbrdt(s1, s+1, i)
           -> (i>s1)                    ? B zhbrdt(s1, s+1, i-1)
 
