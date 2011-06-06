@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
             for(jj = 0; jj < NB; jj++) 
             {for(ii = 0; ii < MB; ii++)
             {
-                A2[jj*MB+ii] = (Dague_Complex64_t)(ii+i*MT);
+                A2[jj*MB+ii] = (Dague_Complex64_t)(ii+i*MT+(j*MT+jj)*100);
                 printf(" %g", A2[jj*MB+ii]);
             }
             printf("\n");
@@ -331,7 +331,8 @@ int main(int argc, char *argv[])
             for(jj = 0; jj < NB; jj++) { for(ii = 0; ii < MB+1; ii++)
             {
                 printf(" %g", A2[jj*(MB+1)+ii]);
-                assert(A2[jj*(MB+1)+ii] == (ii+jj+j*MT));
+                if(ii+jj+j*MT >= MT*MB) assert(A2[jj*(MB+1)+ii] == 0e0);
+                else assert(A2[jj*(MB+1)+ii] == (ii+jj+j*MT+(j*MT+jj)*100));
             }
             printf("\n");
             }
