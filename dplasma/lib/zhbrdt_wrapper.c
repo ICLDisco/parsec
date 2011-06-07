@@ -22,7 +22,7 @@ dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 {
     dague_zhbrdt_object_t *dague_zhbrdt = NULL;
 
-    dague_zhbrdt = dague_zhbrdt_new(A, A->nb-1);
+    dague_zhbrdt = dague_zhbrdt_new(A, A->mb-1);
 
 #if 0
     dplasma_add2arena_tile(dague_zhbrdt->arenas[DAGUE_zhbrdt_DEFAULT_ARENA],
