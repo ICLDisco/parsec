@@ -31,12 +31,12 @@ in_dat(i) [profile = off hidden = on]
 
   : A(0,i)
 
-  RW B <- A(0,i)
+  RW A <- A(0,i)
        -> B zhbrdt(0,0,i-1)
 BODY
 /* nothing */
   printlog("thread %d in_dat(%d, %d, %d) -> A[0, %d] = %p\n",
-           context->eu_id, 0, 0, i, i+1, B);
+           context->eu_id, 0, 0, i, i+1, A);
 END
 
 /*
@@ -64,11 +64,11 @@ zhbrdt(s1,s,i)
           -> (i==s1) & ((1+s)<NB)      ? A zhbrdt(s1, s+1, i)
           -> (i>s1)                    ? B zhbrdt(s1, s+1, i-1)
 
-  RW    B <- (0==s) & (0==s1)          ? B in_dat(i+1)
-          <- (0==s) & (NT==(2+i))      ? A zhbrdt_half(s1-1, NB-1) 
+  RW    B <- (0==s) & (0==s1)          ? A in_dat(i+1)
+          <- (0==s) & ((NT-2)==i)      ? A zhbrdt_half(s1-1, NB-1) 
           <- (0==s)                    ? A zhbrdt(s1-1, NB-1, i+1)
-          <- (s!=0) & (NT==(2+i))      ? A zhbrdt_half(s1, s-1) 
-          <- ((i+2)==NT) & (s>=1)      ? B zhbrdt(s1, s-1, NT-2) 
+          <- ((NT-2)==i)               ? A zhbrdt_half(s1, s-1) 
+          <-                             A zhbrdt(s1, s-1, i+1)
 
           -> ((NT-2)==i)               ? A zhbrdt_half(s1, s)
           ->                             A zhbrdt(s1, s, i+1)
@@ -95,13 +95,12 @@ zhbrdt_half(s1,s)
 
   /* A == data_A(0,i) */
 
-  RW    A <- (0==s1) & (0==s)           ? B zhbrdt(s1, s, NT-2)
-          <- ((NT-1)!=s1) & (0==s)      ? B zhbrdt(s1-1, NB-1, NT-2)
-          <- ((NT-1)!=s1)               ? B zhbrdt(s1, s-1, NT-2)
+  RW    A <- ((NT-1)!=s1)               ? B zhbrdt(s1, s, NT-2)
           <- (0==s)                     ? A zhbrdt_half(s1-1, NB-1) : A zhbrdt_half(s1, s-1)
-          -> ((NT-2)==s1) & ((NB-1)==s) ? A zhbrdt_half(s1+1, 0)
+
           -> ((NT-1)==s1) & ((NB-1)==s) ? A(0,NT-1)
           -> ((NT-1)==s1)               ? A zhbrdt_half(s1, s+1)
+          -> ((NT-2)==s1) & ((NB-1)==s) ? A zhbrdt_half(s1+1, 0)
           -> ((NB-1)==s)                ? B zhbrdt(s1+1, 0, NT-2) : B zhbrdt(s1, s+1, NT-2)
 BODY
 
