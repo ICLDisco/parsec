@@ -76,9 +76,9 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int N     = iparam[IPARAM_N];\
   int K     = iparam[IPARAM_K];\
   int NRHS  = K;\
-  int LDA   = iparam[IPARAM_LDA];\
-  int LDB   = iparam[IPARAM_LDB];\
-  int LDC   = iparam[IPARAM_LDC];\
+  int LDA   = max(M, iparam[IPARAM_LDA]);\
+  int LDB   = max(N, iparam[IPARAM_LDB]);\
+  int LDC   = max(K, iparam[IPARAM_LDC]);\
   int IB    = iparam[IPARAM_IB];\
   int MB    = iparam[IPARAM_MB];\
   int NB    = iparam[IPARAM_NB];\
