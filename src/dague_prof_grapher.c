@@ -153,6 +153,8 @@ void dague_prof_grapher_fini(void)
 {
     int t;
 
+    if( NULL == grapher_file ) return;
+
     fprintf(grapher_file, "}\n");
     fclose(grapher_file);
     for(t = 0; t < nbthreads; t++)
