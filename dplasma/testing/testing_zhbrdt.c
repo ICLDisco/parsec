@@ -16,10 +16,7 @@
 #define FADDS_ZHBRDT(__n) (-1)
 #define FMULS_ZHBRDT(__n) (-1)
 
-static int check_orthogonality(int, int, int, PLASMA_Complex64_t*, double);
-static int check_reduction(int, int, int, PLASMA_Complex64_t*, PLASMA_Complex64_t*, int, PLASMA_Complex64_t*, double);
 static int check_solution(int, double*, double*, double);
-static int check_solution2(int, double*, double*, double);
 
 int main(int argc, char *argv[])
 {
@@ -34,13 +31,10 @@ int main(int argc, char *argv[])
 #endif
 
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS_COUNT(FADDS_ZHBRDT, FMULS_ZHBRDT, ((DagDouble_t)N))
-
-    LDA = max(M, LDA);
-    LDB = max( LDB, N );
-    SMB = 1; SNB = 1;
-
+    PASTE_CODE_IPARAM_LOCALS(iparam);
+    if(P != 1) fprintf(stderr, "!!! This algorithm works on a band 1D matrix. The value of P=%d has been overriden, the actual grid is %dx%d\n", P, 1, nodes);
+        
+    PASTE_CODE_FLOPS_COUNT(FADDS_ZHBRDT, FMULS_ZHBRDT, ((DagDouble_t)N));
     PLASMA_Init(1);
 
     /*
@@ -53,13 +47,9 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
                                two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
                                                       nodes, cores, rank, MB, NB, MB, NB*NT, 0, 0, 
-                                                      NB, NB*NT, 1, SNB, 1 /* 1D cyclic */ ));
+                                                      MB, NB*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-
-    PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
-    double *W1             = (double *)malloc(N*sizeof(double));
-    double *W2             = (double *)malloc(N*sizeof(double));
 
     if( check ) {
         printf( "No check implemented yet.\n" );
@@ -70,14 +60,11 @@ int main(int argc, char *argv[])
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
 
-    free(A2); free(W1); free(W2);
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
-
     dague_data_free(ddescA.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     
     cleanup_dague(dague);
-        
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
         
     return EXIT_SUCCESS;
 }
