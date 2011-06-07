@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,7 +25,7 @@
 
 #include "scheduling.h"
 #include "profiling.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dplasma.h"
 
 static void runtime_init(int argc, char **argv);

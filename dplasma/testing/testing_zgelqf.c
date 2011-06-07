@@ -8,7 +8,7 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "cuda_stsmqr.h"
@@ -99,7 +99,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
 
-    cleanup_dague(dague);
+    cleanup_dague(dague, iparam);
 
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);

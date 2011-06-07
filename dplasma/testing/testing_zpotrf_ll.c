@@ -92,7 +92,7 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
 
-    cleanup_dague(dague);
+    cleanup_dague(dague, iparam);
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
 
     return EXIT_SUCCESS;

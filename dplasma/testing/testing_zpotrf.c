@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,8 +8,8 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "cuda_sgemm.h"
 #endif
@@ -291,7 +291,7 @@ int main(int argc, char ** argv)
 #endif
 
 
-    cleanup_dague(dague);
+    cleanup_dague(dague, iparam);
 
 
     return EXIT_SUCCESS;

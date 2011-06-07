@@ -26,7 +26,7 @@ NB         [type = int
 /*
  *
  */
-in_dat(i)
+in_dat(i) [profile = off hidden = on]
   i = 1..(NT-1)
 
   : A(0,i)

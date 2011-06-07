@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague.h"
 #include "scheduling.h"
 #include "profiling.h"
@@ -7,7 +13,7 @@
 #include <mpi.h>
 #endif  /* defined(HAVE_MPI) */
 
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include <stdlib.h>
 #include <stdio.h>

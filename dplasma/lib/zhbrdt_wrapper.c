@@ -25,9 +25,9 @@ dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
     dague_zhbrdt = dague_zhbrdt_new(A);
 
     dplasma_add2arena_tile(dague_zhbrdt->arenas[DAGUE_zhbrdt_DEFAULT_ARENA],
-                           (A->nb)*(A->nb)*sizeof(Dague_Complex64_t),
+                           (A->nb)*(A->mb)*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->nb);
+                           MPI_DOUBLE_COMPLEX, A->mb);
 
     return (dague_object_t*)dague_zhbrdt;
 }

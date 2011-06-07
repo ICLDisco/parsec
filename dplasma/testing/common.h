@@ -121,7 +121,7 @@ extern const char *transstr[3];
 void print_usage(void);
 
 dague_context_t *setup_dague(int argc, char* argv[], int *iparam);
-void cleanup_dague(dague_context_t* dague);
+void cleanup_dague(dague_context_t* dague, int *iparam);
 
 /**
  * No macro with the name max or min is acceptable as there is

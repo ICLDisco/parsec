@@ -7,8 +7,8 @@
 #define __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 
 #include "dague_config.h"
-#include "../matrix.h"
-#include "../grid_2Dcyclic.h"
+#include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/grid_2Dcyclic.h"
 
 /*
  * Symmetrical matrix. 2D block cyclic distribution, lower tiles dsitributed only
