@@ -15,12 +15,12 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set(testings_addexec_CFLAGS  "${MPI_COMPILE_FLAGS} ${testings_addexec_CFLAGS} -DUSE_MPI")
     set(testings_addexec_LDFLAGS "${MPI_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
     set(testings_addexec_LIBS   
-      common-mpi dplasma-mpi dague-mpi  dague_distribution_matrix-mpi 
+      common-mpi dplasma-mpi dplasma-core dague-mpi dague_distribution_matrix-mpi 
       ${testings_addexec_LIBS} ${MPI_LIBRARIES} 
       )
   else ( MPI_FOUND )
     set(testings_addexec_LIBS   
-      common dplasma dague dague_distribution_matrix 
+      common dplasma dplasma-core dague dague_distribution_matrix 
       ${testings_addexec_LIBS}
       )
   endif()
