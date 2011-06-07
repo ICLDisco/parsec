@@ -15,6 +15,9 @@ extern "C" %{
  * into a 1D cyclic rectangle                              *
  ***********************************************************/
 
+#define ddescA (__dague_object->super.A)
+#define ddescB (__dague_object->super.B)
+
 %}
 
 A   [type = "sym_two_dim_block_cyclic_t*"]
@@ -42,17 +45,27 @@ BODY
     int  BNB = NB+2;
     int  BMB = MB+1;
 
-    //fprintf(stderr, "convert_diag( %d )\n", k);
-
+#ifdef DAGUE_CALL_TRACE
+    fprintf(stderr, "convert_diag( %d )\n", k);
+#endif
+    
     assert(MB == NB);
     if(k == NT)
     {
-        /*
-        for(j = 0; j < NB+2; j++) for(i = 0; i < MB+1; i++)
-            B[j*(NB+2)+i] = 0e0;
-        */
-        memset(b, 0, TY* BNB*BMB);
-    } 
+        /* Check if the output matrix has size for padding */
+        if(ddescB->super.n == (NT+1)*BNB)
+        {
+            /*
+            for(j = 0; j < NB+2; j++) for(i = 0; i < MB+1; i++)
+                B[j*(NB+2)+i] = 0e0;
+            */
+            memset(b, 0, TY* BNB*BMB);
+        }
+        else
+        {
+            assert(ddescB->super.n == NT*BNB);
+        }
+    }
     else
     {
         for(j = 0; j < NB; j++)
@@ -86,7 +99,9 @@ RO  A <- A(k,k)
       -> D convert_diag(k)
 
 BODY
-    //fprintf(stderr, "read_diag( %d )\n", k);
+#ifdef DAGUE_CALL_TRACE
+    fprintf(stderr, "read_diag( %d )\n", k);
+#endif
     /*nothing*/
 END
 
@@ -98,7 +113,9 @@ RO  A <- A(k+1,k)
       -> SD convert_diag(k)
 
 BODY
-    //fprintf(stderr, "read_subdiag( %d )\n", k);
+#ifdef DAGUE_CALL_TRACE
+    fprintf(stderr, "read_subdiag( %d )\n", k);
+#endif
     /*nothing*/
 END
 
