@@ -8,11 +8,25 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "matrix.h"
+#include <math.h>
 
 %}
 
-treeHeight [type = int   /* by default its an int */
-            hidden = on] // height of the reduction tree
+depth      [type = int
+            hidden = on
+            default = "(int)ceil(log(A->mt) / log(2.0))"] // height of the reduction tree
+MT         [type = int
+            hidden = on
+            default="A->mt"]
+NT         [type = int
+            hidden = on
+            default="A->nt"]
+IA         [type = int
+            hidden = on
+            default="A->i"]
+JA         [type = int
+            hidden = on
+            default="A->j"]
 A          [type = "tiled_matrix_desc_t*"]
 res        [type = "tiled_matrix_desc_t*" aligned = A]
 operator   [type = dague_operator_t]
@@ -21,42 +35,43 @@ op_data    [type = "void*"]
 /**************************************************
  * Reduction by row                            *
  **************************************************/
-reduce_in_row( index )  [profile = off]
-    index = 0 .. (1 << treeHeight) - 1
+reduce_in_row( index, column )  [profile = off]
+    index = 0 .. (1 << depth) - 1
+    column = IA .. NT
 
     : A( index, 0 )
 
     READ  Rtop <- A(index, 0)
                -> ((index % 2) == 0)
-                    ? Rtop    reduce_row( 1, index / 2 )
-                    : Rbottom reduce_row( 1, index / 2 )
+                    ? Rtop    reduce_row( 1, index / 2, column )
+                    : Rbottom reduce_row( 1, index / 2, column )
 BODY
     /* Just the input task */
 END
 
-reduce_row( level, index )
-    level = 1 .. treeHeight
+reduce_row( level, index, column )
+    level = 1 .. depth
+    index = 0 .. ((1 << (depth - level)) - 1)
+    column = IA .. NT
 
-    index = 0 .. ((1 << (treeHeight - level)) - 1)
-
-    : A( 2 * index, 0 )
+    : A( 2 * index, column )
 
     READ     Rbottom <- (level == 1)
-                        ? Rtop    reduce_in_row( (2 * index) + 1 )
-                        : Rtop    reduce_row(level - 1, (2 * index) + 1)
+                        ? Rtop    reduce_in_row( (2 * index) + 1, column )
+                        : Rtop    reduce_row(level - 1, (2 * index) + 1, column)
 
     RW       Rtop    <- (level == 1)
-                        ? Rtop    reduce_in_row( 2 * index )
-                        : Rtop    reduce_row( level - 1, 2 * index )
+                        ? Rtop    reduce_in_row( 2 * index, column )
+                        : Rtop    reduce_row( level - 1, 2 * index, column )
 
                      -> (0 == (index % 2))
-                        ? Rtop    reduce_row( level + 1, index / 2 )
+                        ? Rtop    reduce_row( level + 1, index / 2, column )
 
                      -> (1 == (index % 2))
-                        ? Rbottom reduce_row( level + 1, index / 2 )
+                        ? Rbottom reduce_row( level + 1, index / 2, column )
 
-                     -> (level == treeHeight)
-                        ? res(0)
+                     -> (level == depth)
+                        ? res(column)
 BODY
     printf( "reduce_row level: %i index: %i\n", level, index );
 END

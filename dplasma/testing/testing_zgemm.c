@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,7 +8,7 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
@@ -173,7 +173,7 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescC.mat);
 
-    cleanup_dague(dague);
+    cleanup_dague(dague, iparam);
 
     dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
 

@@ -8,13 +8,16 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "matrix.h"
+#include <math.h>
 
 %}
 
-treeHeight [type = int   /* by default its an int */
-            hidden = on] // height of the reduction tree
+depth      [type = int
+            hidden = on
+            default = "(int)ceil(log(A->mt) / log(2.0))"] // height of the reduction tree
 A          [type = "tiled_matrix_desc_t*"]
-res        [type = "tiled_matrix_desc_t*" aligned = A]
+res        [type = "tiled_matrix_desc_t*"
+            aligned = A]
 operator   [type = dague_operator_t]
 op_data    [type = "void*"]
 IA         [type = int]
@@ -40,8 +43,8 @@ BODY
 END
 
 reduce_col( level, index, col )
-    level = 1 .. treeHeight
-    index = 0 .. ((1 << (treeHeight - level)) - 1)
+    level = 1 .. depth
+    index = 0 .. ((1 << (depth - level)) - 1)
     col = JA .. N
 
     : A( 2 * index, 0 )
@@ -60,7 +63,7 @@ reduce_col( level, index, col )
                      -> (1 == (index % 2))
                         ? Rbottom reduce_col( level + 1, index / 2, col )
 
-                     -> (level == treeHeight)
+                     -> (level == depth)
                         ? res(col)
 BODY
     printf( "reduce_col level: %i index: %i\n", level, index );

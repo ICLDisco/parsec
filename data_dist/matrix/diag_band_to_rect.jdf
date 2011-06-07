@@ -7,8 +7,8 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 
 /***********************************************************
  * Convert a tiled 2D cyclic symetric band diagonal matrix *

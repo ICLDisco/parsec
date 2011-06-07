@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -12,7 +12,7 @@
 #include <scheduling.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "generated/ztrmm_LLN.h"
 #include "generated/ztrmm_LLT.h"

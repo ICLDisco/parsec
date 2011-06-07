@@ -11,8 +11,8 @@
 #endif /* HAVE_MPI */
 
 #include "dague_config.h"
-#include "../matrix.h"
-#include "../grid_2Dcyclic.h"
+#include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/grid_2Dcyclic.h"
 
 /*
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0

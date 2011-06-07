@@ -9,8 +9,8 @@
 
 #include <plasma.h>
 #include "common.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /* Including the bulge chassing */
 #define FADDS_ZHBRDT(__n) (-1)
@@ -39,7 +39,6 @@ int main(int argc, char *argv[])
 
     LDA = max(M, LDA);
     LDB = max( LDB, N );
-    SMB = 1; SNB = 1;
 
     PLASMA_Init(1);
 
@@ -75,7 +74,7 @@ int main(int argc, char *argv[])
 
     dague_data_free(ddescA.mat);
     
-    cleanup_dague(dague);
+    cleanup_dague(dague, iparam);
         
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
         

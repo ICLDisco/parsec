@@ -109,10 +109,22 @@ struct dague_execution_unit;
 typedef int (*dague_operator_t)( struct dague_execution_unit *eu, void* data, void* op_data, ... );
 
 extern struct dague_object_t*
-dague_apply_operator_new(tiled_matrix_desc_t* A,
+dague_apply_operator_New(tiled_matrix_desc_t* A,
                          dague_operator_t op,
                          void* op_data);
 extern void
-dague_apply_operator_destroy( struct dague_object_t* o );
+dague_apply_operator_Destruct( struct dague_object_t* o );
+extern struct dague_object_t*
+dague_reduce_col_New( tiled_matrix_desc_t* A,
+                      tiled_matrix_desc_t* res,
+                      dague_operator_t operator,
+                      void* op_data );
+extern void dague_reduce_col_Destruct( struct dague_object_t *o );
+extern struct dague_object_t*
+dague_reduce_row_New( tiled_matrix_desc_t* A,
+                      tiled_matrix_desc_t* res,
+                      dague_operator_t operator,
+                      void* op_data );
+extern void dague_reduce_row_Destruct( struct dague_object_t *o );
 
 #endif /* _MATRIX_H_  */

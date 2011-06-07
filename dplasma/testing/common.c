@@ -413,7 +413,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     return ctx;
 }
 
-void cleanup_dague(dague_context_t* dague)
+void cleanup_dague(dague_context_t* dague, int *iparam)
 {
 #ifdef DAGUE_PROF_TRACE
     char* filename = NULL;
@@ -429,7 +429,11 @@ void cleanup_dague(dague_context_t* dague)
 #endif  /* DAGUE_PROF_TRACE */
     dague_fini(&dague);
 
-    dague_prof_grapher_fini();
+#if defined(DAGUE_PROF_GRAPHER)
+    if(iparam[IPARAM_DOT] != 0) {
+        dague_prof_grapher_fini();
+    }
+#endif
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif    

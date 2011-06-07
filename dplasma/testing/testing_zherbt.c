@@ -9,8 +9,8 @@
 
 #include <plasma.h>
 #include "common.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/generated/diag_band_to_rect.h"
 #include "dplasmatypes.h"
 
@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
     dague_data_free(ddescT.mat);
     dague_data_free(ddescBAND.mat);
 
-    cleanup_dague(dague);
+    cleanup_dague(dague, iparam);
    
     dague_ddesc_destroy((dague_ddesc_t*)&ddescBAND);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
