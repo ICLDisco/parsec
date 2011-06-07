@@ -11,6 +11,7 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma/core/generated/core_z.h"
 
 #include "dplasmajdf.h"
 %}
@@ -19,9 +20,7 @@ A          [type = "tiled_matrix_desc_t*"]
 NT         [type = int
             hidden = on
             default="A->nt"]
-NB         [type = int
-            hidden = on
-            default="A->nb"]
+NB         [type = int]
 
 /*
  *
@@ -73,14 +72,21 @@ zhbrdt(s1,s,i)
           -> ((NT-2)==i)               ? A zhbrdt_half(s1, s)
           ->                             A zhbrdt(s1, s, i+1)
 BODY
+    Dague_Complex64_t *vi, *vii, *taui, *tauii;
+    vi    = (Dague_Complex64_t*)A + __dague_object->super.A->mb * (__dague_object->super.A->nb-2);
+    vii   = (Dague_Complex64_t*)B + __dague_object->super.A->mb * (__dague_object->super.A->nb-2);
+    taui  = vi  + __dague_object->super.A->mb;
+    tauii = vii + __dague_object->super.A->mb;
 
-
-#line 7 "blg_chasing2.c"
-#if 0
-  CORE_zhbrdt(A /* A(0,i) */, B /* A(0,i+1) */, s1*NB+s, i%2);
-#endif
-  printlog("thread %d CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i%2)\n",
-  context->eu_id, s1, s, i, 0, i, A, 0, i+1, B);
+    blgchase_trdv2( __dague_object->super.A->nt,
+                    __dague_object->super.A->n - 2 * __dague_object->super.A->nt,
+                    __dague_object->super.A->nb - 2,
+                    A /* A(0, i) */, B /* A(0, i+1) */,
+                    vi,  taui,
+                    vii, tauii,
+                    s1 * (__dague_object->super.A->mb - 1) + s, i, s1);
+    printlog("thread %d CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i%2)\n",
+             context->eu_id, s1, s, i, 0, i, A, 0, i+1, B);
 END
 
 /*
@@ -103,12 +109,15 @@ zhbrdt_half(s1,s)
           -> ((NT-2)==s1) & ((NB-1)==s) ? A zhbrdt_half(s1+1, 0)
           -> ((NB-1)==s)                ? B zhbrdt(s1+1, 0, NT-2) : B zhbrdt(s1, s+1, NT-2)
 BODY
+    Dague_Complex64_t *vi, *taui;
+    vi    = (Dague_Complex64_t*)A + __dague_object->super.A->mb * (__dague_object->super.A->nb-2);
+    taui  = vi  + __dague_object->super.A->mb;
 
-
-#line 7 "blg_chasing2.c"
-#if 0
-  CORE_zhbrdt(A /* A(0,i) */, NULL, s1*NB+s, i%2);
-#endif
-  printlog("thread %d CORE_zhbrdt_half(s1 = %d, s = %d)\n\t(A(%d,%d)[%p], NULL, s1*NB+s, i%2)\n",
-            context->eu_id, s1, s, 0, NT-1, A);
+    blgchase_trdv2( __dague_object->super.A->nt,
+                    __dague_object->super.A->n - 2 * __dague_object->super.A->nt,
+                    __dague_object->super.A->nb - 2,
+                    A /* A(0, i) */, A /* same */,
+                    vi,  taui,
+                    vi, taui,
+                    s1 * (__dague_object->super.A->mb - 1) + s, NT-1, s1);
 END
