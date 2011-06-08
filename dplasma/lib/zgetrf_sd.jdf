@@ -19,7 +19,9 @@ extern "C" %{
 #define CORE_zssssm(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \
     CORE_zssssm(M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
 #endif
-
+#if (PLASMA_VERSION_MAJOR >= 2) && (PLASMA_VERSION_MINOR >= 4)
+#define CORE_zgetrf CORE_zgetrf_incpiv
+#endif
 
 #define CIPIV(dLIPIV) ((int*)(dLIPIV))
 #define CdL(dLIPIV)   ((Dague_Complex64_t*)dLIPIV + NB)
