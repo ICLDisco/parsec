@@ -254,7 +254,7 @@ static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
     return 1;
 }
 
-void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_dep_datatype_t datatype)
+void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context, void *dst, dague_arena_chunk_t *src, dague_remote_dep_datatype_t datatype)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     item->action = DEP_MEMCPY;
@@ -262,6 +262,7 @@ void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, dague_remote_d
     item->cmd.memcpy.destination = dst;
     item->cmd.memcpy.datatype = datatype;
     AREF(src);
+    remote_dep_inc_flying_messages(eu_context->master_context);
     item->priority = 0;
     DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
@@ -410,6 +411,7 @@ handle_now:
         remote_dep_nothread_memcpy(item->cmd.memcpy.destination, 
                                    item->cmd.memcpy.source,
                                    item->cmd.memcpy.datatype);
+        remote_dep_dec_flying_messages(eu_context->master_context);
         break;
     default:
         break;

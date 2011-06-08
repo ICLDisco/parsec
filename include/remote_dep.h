@@ -131,7 +131,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 uint32_t remote_deps_count );
 
 /* Memcopy a particular data using datatype specification */
-void dague_remote_dep_memcpy(void *dst, dague_arena_chunk_t *src, const dague_remote_dep_datatype_t datatype);
+void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context, 
+        void *dst, dague_arena_chunk_t *src, 
+        const dague_remote_dep_datatype_t datatype);
 
 #else 
 # define dague_remote_dep_init(ctx) (1)
