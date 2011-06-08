@@ -6,12 +6,12 @@ HWLOC="/opt/hwloc"
 CUDA="/opt/cuda"
 
 if [ "x$USER" = "xbosilca" ]; then
-  PLASMADIR="/home/bosilca/opt/plasma/intel/hatem"
+  PLASMADIR="/home/bosilca/opt/plasma/intel/"
   CC=icc
   FC=ifort
 elif [ "x$USER" = "xherault" ]; then
   HWLOC="/opt/hwloc"
-  PLASMADIR="/home/bosilca/opt/plasma/intel/hatem/"
+  PLASMADIR="/home/bosilca/opt/plasma/intel/"
   CUDA="/opt/cuda"
   MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
@@ -21,7 +21,7 @@ elif [ "x$USER" = "xYOURSELF" ]; then
   CUDA=SOMEWHERE
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=SOMEWHERE"
 else
-  PLASMADIR="/home/bosilca/opt/plasma/intel/hatem/"
+  PLASMADIR="/home/bosilca/opt/plasma/intel/"
   # for dplasma rev < #2640
   #PLASMADIR="/opt/plasma/"
   #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
