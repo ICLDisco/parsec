@@ -9,324 +9,236 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "dague.h"
-#include "data_dist/matrix/matrix.h"
-#include "dplasmajdf.h"
-
-#define PRECISION_z
-
-/* Ugly hack to be remove with plasma 2.3 */
-#if (PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR == 2)
-#define CORE_ztsmqr(side, trans, M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK) \
-  CORE_zssmqr(side, trans, M1, M2, N2, IB, K, A1, LDA1, A2, LDA2, V, LDV, T, LDT, WORK, LDWORK)
-#define CORE_zunmqr(side, trans, M, N, K, IB, A, LDA, T, LDT, C, LDC, WORK, LDWORK) \
-  CORE_zunmqr(side, trans, M, N, IB, K, A, LDA, T, LDT, C, LDC, WORK, LDWORK)
-#endif
-
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "gpu_data.h"
-#include "cuda_stsmqr.h"
-extern int *gpu_counter;
-#endif
-
 #include "data_distribution.h"
 #include "memory_pool.h"
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+#define PRECISION_z
+#define BLKLDD(_desc, _k) (_desc).mb
 %}
 
-A
-T          [aligned = A]
-MB  /* Number of lines in a block for T and dL should be equal to NB */
-NB  /* Tile Size */
-M   /* Matrix Height (in lines) */
-N   /* Matrix Width (in columns) */
-work_pool  [type = "dague_memory_pool_t*"]
-tau_pool   [type = "dague_memory_pool_t*"]
+desc_A   [type = "tiled_matrix_desc_t"]
+data_A   [type = "dague_ddesc_t *"]
+desc_T   [type = "tiled_matrix_desc_t"]
+data_T   [type = "dague_ddesc_t *" aligned=data_A]
+ib       [type = "int"]
+p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(desc_T.nb))"]
+p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(desc_T.nb))"]
 
-MT = (M + (NB - 1)) / NB        /* Number of tiled lines */
-NT = (N + (NB - 1)) / NB        /* Number of tiled columns */
-MINMTNT = ((MT < NT) ? MT : NT)
 
-GEQRT_HACK(k)  [high_priority = on
-                profile=off]
-k = 0..MINMTNT-1
+zgeqrt(k)
+  /* Execution space */
+  k = 0..( (desc_A.mt < desc_A.nt) ? desc_A.mt-1 : desc_A.nt-1 )
 
-: A(k, k)
+  : data_A(k,k)
 
-RW RV1 <- RV1 GEQRT(k)
-       -> (k != NT-1) ? V1 UNMQR(k, k+1..NT-1) [type = LOWER_TILE]
-       -> A(k,k)                               [type = LOWER_TILE]
-; (NT-k)*(NT-k)*(NT-k)
+  /* A == data_A(k,k) */
+  /* B == data_T(k,k) */
+  /* C == data_A(k,k) */
+  /* D == data_T(k,k) */
+  /* F == data_A(k,k) */
+  /* K == data_A(m,n1) */
 
-BODY
- /* nothing */
-END
-
-GEQRT(k)  [high_priority = on]
-
-  // Execution space
-  k = 0..MINMTNT-1
-
-  // Parallel partitioning
- : A(k, k)
-
-  RW RV1 <- (k == 0)    ? A(k,k) : C2 TSMQR(k-1,k,k)
-         -> RV1 GEQRT_HACK(k)
-         -> (k == MT-1) ? A(k,k) : R TSQRT(k,k+1)          [type = UPPER_TILE]
-  // Only output
-  RW T   <- T(k,k)                                         [type = LITTLE_T]
-         -> T UNMQR(k, k+1..NT-1)                          [type = LITTLE_T]
-         -> T(k,k)                                         [type = LITTLE_T]
-
-; (NT-k)*(NT-k)*(NT-k)
+  RW    A <- (0 == k) ? data_A(k, k) : K ztsmqr(k-1, k, k)
+          -> (desc_A.nt>=(k+2)) ? C zunmqr(k, (k+1)..(desc_A.nt-1)) 
+          -> (desc_A.mt>=(k+2)) ? F ztsqrt(k, k+1) 
+          -> (desc_A.mt==(k+1)) ? data_A(k,k)
+  RW    B <- data_T(k, k)                                          [type = LITTLE_T]
+          -> data_T(k, k)                                          [type = LITTLE_T]
+          -> (desc_A.nt-1 > k) ? D zunmqr(k, (k+1)..(desc_A.nt-1)) [type = LITTLE_T]
 
 BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, k, k );
-#endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
-    void* work = dague_private_memory_pop(work_pool);
-    void* tau = dague_private_memory_pop(tau_pool); 
+  int tempkm = ((k)==((desc_A.mt)-1)) ? ((desc_A.m)-(k*(desc_A.mb))) : (desc_A.mb);
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int ldak = BLKLDD( desc_A, k );
 
-    DRYRUN(
-        CORE_zgeqrt(
-            (k == (MT-1)) ? (M-(k*NB)) : NB,
-            (k == (NT-1)) ? (N-(k*NB)) : NB,
-            MB,
-            RV1 /*A(k, k)*/, NB,
-            T /*T(k, k)*/, MB,
-            tau, work);
-        );
+  void *p_elem_A = dague_private_memory_pop( p_tau  );
+  void *p_elem_B = dague_private_memory_pop( p_work );
 
-    printlog( "CORE_zgeqrt(%d, %d, %d, %p, %d, %p, %d, %p, %p)\n",
-              (k == (MT-1)) ? (M-(k*NB)) : NB,
-              (k == (NT-1)) ? (N-(k*NB)) : NB,
-              MB,
-              RV1 /*A(k, k)*/, NB,
-              T /*T(k, k)*/, MB,
-              tau, work);
-    dague_private_memory_push(tau_pool, tau);
-    dague_private_memory_push(work_pool, work);
+#line 102 "pzgeqrf.c"
+  CORE_zgeqrt(tempkm, tempkn, ib, 
+	A /* data_A(k,k) */, ldak, B /* data_T(k,k) */, 
+	desc_T.mb, p_elem_A, p_elem_B );
+
+  dague_private_memory_push( p_tau , p_elem_A );
+  dague_private_memory_push( p_work, p_elem_B );
+
+  printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, p_elem_A, p_elem_B)\n",
+  context->eu_id, k, k, k, A, k, k, B);
 
 END
 
-TSQRT_OUT(k)  [high_priority = on
-               profile = off]
-  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
 
- : A(k, k)
+zunmqr(k,n)
+  /* Execution space */
+  k = 0..( ( desc_A.mt < desc_A.nt ) ? desc_A.mt-1 : desc_A.nt-1)
+  n = k+1..desc_A.nt-1
 
-  RW R <- R TSQRT(k, MT-1)      [type = UPPER_TILE]
-       -> A(k, k)               [type = UPPER_TILE]
-          
-  ; (NT-k)*(NT-k)*(NT-k)
+  : data_A(k,n)
+
+  /* A == data_A(k,k) */
+  /* B == data_T(k,k) */
+  /* C == data_A(k,k) */
+  /* D == data_T(k,k) */
+  /* E == data_A(k,n) */
+  /* J == data_A(k,n1) */
+  /* K == data_A(m,n1) */
+
+  READ  C <- A zgeqrt(k) 
+  READ  D <- B zgeqrt(k)                                         [type = LITTLE_T]
+  RW    E <- (0==k) ? data_A(k, n) : K ztsmqr(k-1, k-1+1, n) 
+          -> (desc_A.mt==(k+1)) ? data_A(k, n)
+          -> (desc_A.mt>=(k+2)) ? J ztsmqr(k, k+1, n) 
 
 BODY
-/* nothing */
+
+  int tempkm = ((k)==((desc_A.mt)-1)) ? ((desc_A.m)-(k*(desc_A.mb))) : (desc_A.mb);
+  int tempnn = ((n)==((desc_A.nt)-1)) ? ((desc_A.n)-(n*(desc_A.nb))) : (desc_A.nb);
+  int ldak = BLKLDD( desc_A, k );
+
+  void *p_elem_A = dague_private_memory_pop( p_work );
+
+#line 115 "pzgeqrf.c"
+  DRYRUN(
+  CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm, 
+	tempnn, tempkm, ib, 
+	C /* data_A(k,k) */, ldak, D /* data_T(k,k) */, 
+	desc_T.mb, E /* data_A(k,n) */, ldak, 
+	p_elem_A, desc_T.nb );
+         );
+  dague_private_memory_push( p_work, p_elem_A );
+
+  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T.nb)\n",
+  context->eu_id, k, n, k, k, C, k, k, D, k, n, E);
+
 END
 
 
-TSQRT(k,m)  [high_priority = on]
+ztsqrt_out_data_Ak(k)
+  k = 0..( (desc_A.mt <= desc_A.nt) ? desc_A.mt-2 : desc_A.nt-1 )
+    
+  : data_A(k, k)
 
-  // Execution space
-  k = 0..MINMTNT-1
-  m = k+1..MT-1
-
-  // Parallel partitioning
-  : A(m, k)
-
-  RW V2 <- (k == 0) ? A(m,k) : C2 TSMQR(k-1,k,m)
-        -> V2 TSMQR(k,k+1..NT-1,m)
-        -> A(m,k)
-  RW R  <- (m == k+1) ? RV1 GEQRT(k) : R TSQRT(k,m-1)        [type = UPPER_TILE]           
-        -> (m == MT-1) ? R TSQRT_OUT(k) : R TSQRT(k,m+1)     [type = UPPER_TILE]
-  // Output only
-  RW T  <- T(m,k)                                            [type = LITTLE_T]
-        -> T TSMQR(k,k+1..NT-1,m)                            [type = LITTLE_T]
-        -> T(m,k)                                            [type = LITTLE_T]
-
-  ; (NT-k)*(NT-m)*(NT-m)
-
-BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, k );
-    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ | DAGUE_WRITE, m, k );
-#endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
-
-    void* work = dague_private_memory_pop(work_pool);
-    void* tau = dague_private_memory_pop(tau_pool);
-
-    DRYRUN(
-        CORE_ztsqrt(
-            (m == (MT-1)) ? (M-(m*NB)) : NB,
-            (k == (NT-1)) ? (N-(k*NB)) : NB,
-            MB,
-            R  /*A(k, k)*/, NB,
-            V2 /*A(m, k)*/, NB,
-            T  /*T(m, k)*/, MB,
-            tau, work);
-        );
-    printlog( "CORE_dtsqrt(%d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %p)\n",
-              (m == (MT-1)) ? (M-(m*NB)) : NB,
-              (k == (NT-1)) ? (N-(k*NB)) : NB,
-              MB,
-              R  /*A(k, k)*/, NB,
-              V2 /*A(m, k)*/, NB,
-              T  /*T(m, k)*/, MB,
-              tau, work);
-    dague_private_memory_push(tau_pool, tau);
-    dague_private_memory_push(work_pool, work);
-
-END
-
-UNMQR(k,n)  [high_priority = on]
-
-  // Execution space
-  k = 0..MINMTNT-1
-  n = k+1..NT-1
-
-  // Parallel partitioning
-  : A(k, n)
-
-  READ T  <- T GEQRT(k)                               [type = LITTLE_T]
-  READ V1 <- RV1 GEQRT_HACK(k)                        [type = LOWER_TILE] 
-  RW   C1 <- (k == 0) ? A(k, n) : C2 TSMQR(k-1, n, k)
-          -> C1 TSMQR(k, n, k+1)
-
-  ; (NT-k)*(NT-n)*(NT-n)
-
-BODY
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, k );
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
-    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, k, k );
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
-
-    void* work = dague_private_memory_pop(work_pool);
-
-    DRYRUN(
-        CORE_zunmqr(
-            PlasmaLeft, PlasmaTrans,
-            (k == (MT-1)) ? (M-(k*NB)) : NB,
-            (n == (NT-1)) ? (N-(n*NB)) : NB,
-            (k == (MT-1)) ? (M-(k*NB)) : NB,
-            MB,
-            V1 /*A(k, k)*/, NB,
-            T  /*T(k, k)*/, MB,
-            C1 /*A(k, n)*/, NB,
-            work, NB);
-        );
-
-    printlog( "CORE_zunmqr(%s, %s, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
-              "PlasmaLeft", "PlasmaTrans",
-              (k == (MT-1)) ? (M-(k*NB)) : NB,
-              (n == (NT-1)) ? (N-(n*NB)) : NB,
-              (k == (MT-1)) ? (M-(k*NB)) : NB,
-              MB,
-              V1 /*A(k, k)*/, NB,
-              T  /*T(k, k)*/, MB,
-              C1 /*A(k, n)*/, NB,
-              work, NB );
-    dague_private_memory_push(work_pool, work);
-END
-
-TSMQR_OUT(k, n) [profile = off]
-  k = 0 .. (MT > NT ? MINMTNT-1 : MINMTNT-2)
-  n = k+1 .. NT-1
-
-  : A(k, n)
-  
-  RW A <- C1 TSMQR(k, n, MT-1)
-       -> A(k, n)
-          
-  ; (NT-k)*(NT-n)*(NT-n)
-
+  RW F <- F ztsqrt(k, desc_A.mt-1)
+       -> data_A(k, k)
 BODY
 /* nothing */
 END
 
-TSMQR(k,n,m)
+ztsqrt(k,m)
+  /* Execution space */
+  k = 0..( (desc_A.mt < desc_A.nt) ? desc_A.mt-1 : desc_A.nt-1 )
+  m = k+1..desc_A.mt-1
 
-  // Execution space
-  k = 0   .. MINMTNT-1
-  n = k+1 .. NT-1
-  m = k+1 .. MT-1
+  : data_A(m, k)
 
-  // Parallel partitioning
-  : A(m, n)
+  /* A == data_A(k,k) */
+  /* F == data_A(k,k) */
+  /* G == data_A(m,k) */
+  /* H == data_T(m,k) */
+  /* K == data_A(m,n1) */
+  /* L == data_A(m,k) */
+  /* M == data_T(m,k) */
 
-  READ V2 <- V2 TSQRT(k,m)
-  READ T  <- T TSQRT(k,m)                                           [type = LITTLE_T]
-
-  RW C2   <- (k == 0) ? A(m,n) : C2 TSMQR(k-1,n,m)
-          -> ((n == k+1) & (m == k+1)) ? RV1 GEQRT(k+1)
-          -> ((n == k+1) & (k  < m-1)) ? V2 TSQRT(k+1,m)
-          -> ((k  < n-1) & (m == k+1)) ? C1 UNMQR(k+1,n)
-          -> ((k  < n-1) & (k  < m-1)) ? C2 TSMQR(k+1,n,m)
-  RW C1   <- (m == k+1) ? C1 UNMQR(k,n) : C1 TSMQR(k,n,m-1)
-          -> (m == MT-1) ? A TSMQR_OUT(k,n) : C1 TSMQR(k,n,m+1)
-
-  ; (NT-k)*(NT-n)*(NT-m)
-
+  RW    F <- ( m == (k+1) )   ? A zgeqrt(m-1) : F ztsqrt(k, m-1) 
+          -> (desc_A.mt==(m+1)) ? F ztsqrt_out_data_Ak(k) : F ztsqrt(k, m+1) 
+  RW    G <- (0==k) ? data_A(m, k) : K ztsmqr(k-1, m, k) 
+          -> data_A(m, k)
+          -> (desc_A.nt-1 > k) ? L ztsmqr(k, m, (k+1)..(desc_A.nt-1)) 
+  RW    H <- data_T(m, k)
+          -> data_T(m, k)
+          -> (desc_A.nt-1 > k) ? M ztsmqr(k, m, (k+1)..(desc_A.nt-1))
 BODY
-    void *work;
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, m, k );
-    gpu_qr_mark_data_usage( 1, (tiled_matrix_desc_t*)__dague_object->super.T, DAGUE_READ, m, k );
-    if( dague_using_gpu() > 0 ) {
-        int rc;
+  int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
+  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int ldak = BLKLDD( desc_A, k );
+  int ldam = BLKLDD( desc_A, m );
 
-        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
-            goto FIN;
-        if( -1 == rc ) {
-            /* We're done, but the task has been already destroyed */
-            return -1;
-        }
-        if( -2 == rc ) {
-            /* The GPU failed to execute this task, but the task was already rescheduled */
-	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
-	    exit(2);
-        }
-        /* Continue with the task on the cores */
-    }    
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
-    gpu_qr_mark_data_usage( 0, (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+  void *p_elem_A = dague_private_memory_pop( p_tau  );
+  void *p_elem_B = dague_private_memory_pop( p_work );
 
-    work = dague_private_memory_pop(work_pool);
-    DRYRUN(
-        CORE_ztsmqr(
-            PlasmaLeft, PlasmaTrans,
-            NB,
-            (n == (NT-1)) ? (N-(n*NB)) : NB,
-            (m == (MT-1)) ? (M-(m*NB)) : NB,
-            (n == (NT-1)) ? (N-(n*NB)) : NB,
-            NB,
-            MB,
-            C1 /*A(k, n)*/, NB,
-            C2 /*A(m, n)*/, NB,
-            V2 /*A(m, k)*/, NB,
-            T  /*T(m, k)*/, MB,
-            work, MB);
-        );
+#line 134 "pzgeqrf_cpp.c"
+  DRYRUN(
+  CORE_ztsqrt(tempmm, tempkn, ib, 
+	F /* data_A(k,k) */, ldak, 
+        G /* data_A(m,k) */, ldam, 
+        H /* data_T(m,k) */, desc_T.mb, 
+	p_elem_A, p_elem_B );
+         );
+  dague_private_memory_push( p_tau , p_elem_A );
+  dague_private_memory_push( p_work, p_elem_B );
 
-    printlog( "CORE_ztsmqr(%s, %s, %d, %d, %d, %d, %d, %p, %d, %p, %d, %p, %d, %p, %d, %p, %d)\n",
-              "PlasmaLeft", "PlasmaTrans",
-              NB,
-              (m == (MT-1)) ? (M-(m*NB)) : NB,
-              (n == (NT-1)) ? (N-(n*NB)) : NB,
-              NB,
-              MB,
-              C1 /*A(k, n)*/, NB,
-              C2 /*A(m, n)*/, NB,
-              V2 /*A(m, k)*/, NB,
-              T  /*T(m, k)*/, MB,
-              work, MB);
+  printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, p_elem_B)\n",
+  context->eu_id, k, m, k, k, F, m, k, G, m, k, H);
 
-    dague_private_memory_push(work_pool, work);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-FIN:
-#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 END
 
+
+ztsmqr_out_data_A1(k, n1)
+  k = 0..( (desc_A.mt < desc_A.nt) ? desc_A.mt-2 : desc_A.nt-2 )
+  n1 = k+1..desc_A.nt-1
+
+  : data_A(k, n1)
+
+  RW J <- J ztsmqr(k, desc_A.mt-1, n1)
+       -> data_A(k, n1)
+BODY
+/* nothing */
+END
+
+ztsmqr(k,m,n1)
+  /* Execution space */
+  k = 0..( (desc_A.mt < desc_A.nt) ? desc_A.mt-1 : desc_A.nt-1 )
+  m = k+1..desc_A.mt-1
+  n1 = k+1..desc_A.nt-1
+
+  : data_A(m, n1)
+
+  /* A == data_A(k,k) */
+  /* E == data_A(k,n) */
+  /* G == data_A(m,k) */
+  /* H == data_T(m,k) */
+  /* J == data_A(k,n1) */
+  /* K == data_A(m,n1) */
+  /* L == data_A(m,k) */
+  /* M == data_T(m,k) */
+
+  RW    J <- ( (k+1) == m ) ? E zunmqr(m-1, n1) : J ztsmqr(k, m-1, n1)
+          -> ( m == (desc_A.mt-1) ) ? J ztsmqr_out_data_A1(k, n1) : J ztsmqr(k, m+1, n1) 
+  RW    K <- (0==k) ? data_A(m, n1) : K ztsmqr(k-1, m, n1) 
+          -> ( ((k+1) == n1) & ((k+1) == m)) ? A zgeqrt(n1)       /* Diagonal */
+          -> ( ( m==(k+1)) & (n1 > m) ) ? E zunmqr(k+1, n1)       /* Next row */
+          -> ( (n1==(k+1)) & (m > n1) ) ? G ztsqrt(n1, m)         /* Next column */
+          -> ( (n1>(1+k)) & (m>(1+k)) ) ? K ztsmqr(k+1, m, n1)     /* trailing submatrix */
+  READ  L <- G ztsqrt(k, m) 
+  READ  M <- H ztsqrt(k, m) 
+
+BODY
+
+  int tempnn = ((n1)==((desc_A.nt)-1)) ? ((desc_A.n)-(n1*(desc_A.nb))) : (desc_A.nb);
+  int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
+  int ldak = BLKLDD( desc_A, k );
+  int ldam = BLKLDD( desc_A, m );
+  int ldwork = ib;
+
+  void *p_elem_A = dague_private_memory_pop( p_work );
+
+#line 151 "pzgeqrf_cpp.c"
+  DRYRUN(
+  CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A.mb, 
+	tempnn, tempmm, tempnn, desc_A.nb, ib, 
+        J /* data_A(k,n1) */, ldak, 
+        K /* data_A(m,n1) */, ldam, 
+	L /* data_A(m,k) */,  ldam, 
+        M /* data_T(m,k) */,  desc_T.mb, 
+        p_elem_A, ldwork );
+         );
+  dague_private_memory_push( p_work, p_elem_A );
+
+  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A.mb, tempnn, tempmm, tempnn, desc_A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
+  context->eu_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M);
+
+END
