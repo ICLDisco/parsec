@@ -50,13 +50,13 @@ zgeqrt(k)
           <- (0==k) ? data_A(k+1,k)
           <- (k>=1) & ((1+k)>=desc_A.mt) ? data_A(k+1,k)
           <- (k>=1) & (desc_A.mt>=(k+3)) ? M ztsmqr_hetra1(k+1-2, desc_A.mt-1, k+1) 
-          -> C zherfb1(k) 
+          -> C zherfb(k) 
           -> ((k+2)>=desc_A.mt) ? data_A(k+1,k)
           -> (desc_A.mt>=(k+3)) ? F zunmqr(k, (k+2)..(desc_A.mt-1)) 
           -> (desc_A.mt>=(k+3)) ? J ztsqrt(k, k+2) 
   RW    B <- data_T(k+1,k)  [type = LITTLE_T]
           -> data_T(k+1,k)  [type = LITTLE_T]
-          -> D zherfb1(k)   [type = LITTLE_T]
+          -> D zherfb(k)   [type = LITTLE_T]
           -> (desc_A.mt>=(k+3)) ? G zunmqr(k, (k+2)..(desc_A.mt-1))   [type = LITTLE_T]
 
   /*
@@ -89,7 +89,7 @@ BODY
 END
 
 
-zherfb1(k)
+zherfb(k)
   /* Execution space */
   k = 0..(desc_A.nt)-1-1
 
@@ -126,7 +126,7 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_2 );
 
 #line 85 "pzherbt-L.c"
-  CORE_zherfb1(PlasmaLower, tempkn, tempkn, 
+  CORE_zherfb(PlasmaLower, tempkn, tempkn, 
 	ib, desc_T.nb, C /* data_A(k+1,k) */, 
 	ldak, D /* data_T(k+1,k) */, desc_T.mb, 
 	E /* data_A(k+1,k+1) */, ldak, p_elem_A, 
@@ -134,7 +134,7 @@ BODY
 
   dague_private_memory_push( pool_2, p_elem_A );
 
-  printlog("thread %d CORE_zherfb1(%d)\n\t(PlasmaLower, tempkn, tempkn, ib, desc_T.nb, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T.nb)\n",
+  printlog("thread %d CORE_zherfb(%d)\n\t(PlasmaLower, tempkn, tempkn, ib, desc_T.nb, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T.nb)\n",
   context->eu_id, k, k+1, k, C, k+1, k, D, k+1, k+1, E);
 
 END
@@ -479,7 +479,7 @@ ztsmqr_corner(k,m1)
   /* X == data_A(m1,k) */
   /* Y == data_T(m1,k) */
 
-  RW    U <- ((k+2)==m1) ? E zherfb1(m1-2) 
+  RW    U <- ((k+2)==m1) ? E zherfb(m1-2) 
           <- (m1>=(3+k)) ? U ztsmqr_corner(k, m1-1) 
           -> (desc_A.mt==(m1+1)) ? U ztsmqr_corner_out_data_A0(k,m1)
           -> (desc_A.mt>=(m1+2)) ? U ztsmqr_corner(k, m1+1) 
@@ -498,7 +498,7 @@ ztsmqr_corner(k,m1)
           <- (k>=1) ? W ztsmqr_corner(k-1, m1) 
           -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? W ztsmqr_corner(k+1, m1) 
           -> (desc_A.nt==(k+2)) ? data_A(m1,m1)
-          -> ((k+2)==m1) & (desc_A.nt>=(k+3)) ? E zherfb1(m1-1) 
+          -> ((k+2)==m1) & (desc_A.nt>=(k+3)) ? E zherfb(m1-1) 
   READ  X <- K ztsqrt(k, m1) 
   READ  Y <- L ztsqrt(k, m1) [type = LITTLE_T]
 
