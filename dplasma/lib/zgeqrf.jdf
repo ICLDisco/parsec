@@ -16,6 +16,13 @@ extern "C" %{
 
 #define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
+
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#include "gpu_data.h"
+#include "cuda_stsmqr.h"
+extern int *gpu_counter;
+#endif
+
 %}
 
 desc_A   [type = "tiled_matrix_desc_t"]
@@ -49,6 +56,10 @@ zgeqrt(k)
           -> (desc_A.nt-1 > k) ? D zunmqr(k, (k+1)..(desc_A.nt-1)) [type = LITTLE_T]
 
 BODY
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_qr_mark_data_usage( 1, &desc_T, DAGUE_READ | DAGUE_WRITE, k, k );
+#endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
   int tempkm = ((k)==((desc_A.mt)-1)) ? ((desc_A.m)-(k*(desc_A.mb))) : (desc_A.mb);
   int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
@@ -93,6 +104,11 @@ zunmqr(k,n)
           -> (desc_A.mt>=(k+2)) ? J ztsmqr(k, k+1, n) 
 
 BODY
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ, k, k );
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ | DAGUE_WRITE, k, n );
+    gpu_qr_mark_data_usage( 1, &desc_T, DAGUE_READ, k, k );
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
   int tempkm = ((k)==((desc_A.mt)-1)) ? ((desc_A.m)-(k*(desc_A.mb))) : (desc_A.mb);
   int tempnn = ((n)==((desc_A.nt)-1)) ? ((desc_A.n)-(n*(desc_A.nb))) : (desc_A.nb);
@@ -151,6 +167,11 @@ ztsqrt(k,m)
           -> data_T(m, k)
           -> (desc_A.nt-1 > k) ? M ztsmqr(k, m, (k+1)..(desc_A.nt-1))
 BODY
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ | DAGUE_WRITE, k, k );
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ | DAGUE_WRITE, m, k );
+    gpu_qr_mark_data_usage( 1, &desc_T, DAGUE_READ | DAGUE_WRITE, m, k );
+#endif  /* defined(HAVE_CUDA)  && defined(PRECISION_s) */
 
   int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
   int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
@@ -224,9 +245,33 @@ BODY
   int ldam = BLKLDD( desc_A, m );
   int ldwork = ib;
 
-  void *p_elem_A = dague_private_memory_pop( p_work );
+  void *p_elem_A;
 
-#line 151 "pzgeqrf_cpp.c"
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ, m, k );
+    gpu_qr_mark_data_usage( 1, &desc_T, DAGUE_READ, m, k );
+    if( dague_using_gpu() > 0 ) {
+        int rc;
+
+        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
+            goto FIN;
+        if( -1 == rc ) {
+            /* We're done, but the task has been already destroyed */
+            return -1;
+        }
+        if( -2 == rc ) {
+            /* The GPU failed to execute this task, but the task was already rescheduled */
+	    fprintf(stderr, "Unable to disable GPU at runtime. Fatal error.\n");
+	    exit(2);
+        }
+        /* Continue with the task on the cores */
+    }    
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ | DAGUE_WRITE, k, n1 );
+    gpu_qr_mark_data_usage( 0, &desc_A, DAGUE_READ | DAGUE_WRITE, m, n1 );
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
+
+#line 151 "pzgeqrf.c"
+  p_elem_A = dague_private_memory_pop( p_work );
   DRYRUN(
   CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A.mb, 
 	tempnn, tempmm, tempnn, desc_A.nb, ib, 
@@ -240,5 +285,9 @@ BODY
 
   printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A.mb, tempnn, tempmm, tempnn, desc_A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
   context->eu_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M);
+
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+FIN:
+#endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
 END
