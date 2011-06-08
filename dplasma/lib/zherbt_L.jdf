@@ -46,10 +46,10 @@ zgeqrt(k)
   /* M == data_A(i,k+1) */
   /* V == data_A(m1,k+1) */
 
-  RW    A <- ((2+k)==desc_A.mt) & (k>=1) ? V ztsmqrlr(k+1-2, k+1) 
+  RW    A <- ((2+k)==desc_A.mt) & (k>=1) ? V ztsmqr_corner(k+1-2, k+1) 
           <- (0==k) ? data_A(k+1,k)
           <- (k>=1) & ((1+k)>=desc_A.mt) ? data_A(k+1,k)
-          <- (k>=1) & (desc_A.mt>=(k+3)) ? M ztsmqr1(k+1-2, desc_A.mt-1, k+1) 
+          <- (k>=1) & (desc_A.mt>=(k+3)) ? M ztsmqr_hetra1(k+1-2, desc_A.mt-1, k+1) 
           -> C zherfb1(k) 
           -> ((k+2)>=desc_A.mt) ? data_A(k+1,k)
           -> (desc_A.mt>=(k+3)) ? F zunmqr(k, (k+2)..(desc_A.mt-1)) 
@@ -107,9 +107,9 @@ zherfb1(k)
   READ  D <- B zgeqrt(k)   [type = LITTLE_T]
   RW    E <- (0==k) ? data_A(k+1,k+1)
           <- (k>=1) & ((k+1)>=desc_A.mt) ? data_A(k+1,k+1)
-          <- (k>=1) & (desc_A.mt>=(k+2)) ? W ztsmqrlr(k+1-2, k+1)
+          <- (k>=1) & (desc_A.mt>=(k+2)) ? W ztsmqr_corner(k+1-2, k+1)
           -> ((2+k)>=desc_A.mt) ? data_A(k+1,k+1)
-          -> (desc_A.mt>=(k+3)) ? U ztsmqrlr(k, k+2)
+          -> (desc_A.mt>=(k+3)) ? U ztsmqr_corner(k, k+2)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -159,9 +159,9 @@ zunmqr(k,m)
   READ  F <- A zgeqrt(k) 
   READ  G <- B zgeqrt(k)   [type = LITTLE_T]
   RW    H <- (0==k) ? data_A(m,k+1)
-          <- (k>=1) ? N ztsmqr1(k+1-2, m, k+1) 
+          <- (k>=1) ? N ztsmqr_hetra1(k+1-2, m, k+1) 
           -> (m>=(k+3)) ? Q ztsmqr(k, k+2, m) 
-          -> ((k+2)==m) & (desc_A.nt>=(k+2)) ? V ztsmqrlr(m-2, m) 
+          -> ((k+2)==m) & (desc_A.nt>=(k+2)) ? V ztsmqr_corner(m-2, m) 
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -233,18 +233,18 @@ ztsqrt(k,m1)
           <- (m1>=(3+k)) ? J ztsqrt(k, m1-1) 
           -> (desc_A.mt==(m1+1)) ? J ztsqrt_out_data_A0(k,m1)
           -> (desc_A.mt>=(m1+2)) ? J ztsqrt(k, m1+1) 
-  RW    K <- ((m1+1)==desc_A.mt) & (k>=1) ? V ztsmqrlr(k-1, desc_A.mt-1) 
+  RW    K <- ((m1+1)==desc_A.mt) & (k>=1) ? V ztsmqr_corner(k-1, desc_A.mt-1) 
           <- (0==k) ? data_A(m1,k)
-          <- (desc_A.mt>=(m1+2)) & (k>=1) ? M ztsmqr1(k-1, desc_A.mt-1, m1) 
-          -> (m1>=(3+k)) ? O ztsmqr1(k, m1, (k+2)..(m1-1)) 
+          <- (desc_A.mt>=(m1+2)) & (k>=1) ? M ztsmqr_hetra1(k-1, desc_A.mt-1, m1) 
+          -> (m1>=(3+k)) ? O ztsmqr_hetra1(k, m1, (k+2)..(m1-1)) 
           -> (desc_A.mt>=(2+m1)) ? S ztsmqr(k, m1, (m1+1)..(desc_A.mt-1)) 
-          -> X ztsmqrlr(k, m1) 
+          -> X ztsmqr_corner(k, m1) 
           -> data_A(m1,k)
   RW    L <- data_T(m1,k)   [type = LITTLE_T]
-          -> Y ztsmqrlr(k, m1)    [type = LITTLE_T]
+          -> Y ztsmqr_corner(k, m1)    [type = LITTLE_T]
           -> (desc_A.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(desc_A.mt-1))   [type = LITTLE_T] 
           -> data_T(m1,k)   [type = LITTLE_T]
-          -> (m1>=(k+3)) ? P ztsmqr1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
+          -> (m1>=(k+3)) ? P ztsmqr_hetra1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -277,22 +277,22 @@ BODY
 
 END
 
-ztsmqr1_out_data_A0(k,m1,i) [profile = off]
+ztsmqr_hetra1_out_data_A0(k,m1,i) [profile = off]
   k = ((desc_A.nt>=2) ? (desc_A.nt-2) : (desc_A.nt-1))..desc_A.nt-2
   m1 = (k+2)..(desc_A.mt-1)
   i = (k+2)..(m1-1)
 
   : data_A(m1,i)
 
-  RW N <- N ztsmqr1(k,m1,i)
+  RW N <- N ztsmqr_hetra1(k,m1,i)
         -> data_A(m1,i)
 BODY
 /* nothing */
- printlog("thread %d ztsmqr1_out_data_A0(%d, %d, %d) A(%d, %d)[%p]\n",
+ printlog("thread %d ztsmqr_hetra1_out_data_A0(%d, %d, %d) A(%d, %d)[%p]\n",
           context->eu_id, k, m1, i, m1, i, N);
 END
 
-ztsmqr1(k,m1,i)
+ztsmqr_hetra1(k,m1,i)
   /* Execution space */
   k = 0..(desc_A.nt)-1-1
   m1 = k+2..desc_A.mt-1
@@ -311,16 +311,16 @@ ztsmqr1(k,m1,i)
   /* R == data_A(j,m1) */
   /* V == data_A(m1,k+1) */
 
-  RW    M <- (m1>=(2+i)) ? M ztsmqr1(k, m1-1, i) 
-          <- ((1+i)==m1) ? V ztsmqrlr(k, m1-1) 
+  RW    M <- (m1>=(2+i)) ? M ztsmqr_hetra1(k, m1-1, i) 
+          <- ((1+i)==m1) ? V ztsmqr_corner(k, m1-1) 
           -> (desc_A.mt==(m1+1)) & ((k+2)==i) & (desc_A.nt>=(k+3)) ? A zgeqrt(i-1) 
           -> (desc_A.mt==(m1+1)) & (i>=(k+3)) & (desc_A.nt>=(k+3)) ? K ztsqrt(k+1, i) 
-          -> (desc_A.mt>=(2+m1)) ? M ztsmqr1(k, m1+1, i) 
+          -> (desc_A.mt>=(2+m1)) ? M ztsmqr_hetra1(k, m1+1, i) 
           -> (desc_A.nt==i) ? data_A(i,k+1)
           -> (desc_A.nt==(k+2)) & (i>=(desc_A.nt+1)) ? data_A(i,k+1)
   RW    N <- R ztsmqr(k, i, m1) 
           -> (i>=(k+3)) & (desc_A.nt>=(3+k)) ? R ztsmqr(k+1, i, m1) 
-          -> (desc_A.nt==(k+2)) ? N ztsmqr1_out_data_A0(k,m1,i)
+          -> (desc_A.nt==(k+2)) ? N ztsmqr_hetra1_out_data_A0(k,m1,i)
           -> (i==(k+2)) & (desc_A.nt>=(i+1)) ? H zunmqr(i-1, m1) 
   READ  O <- K ztsqrt(k, m1) 
   READ  P <- L ztsqrt(k, m1)    [type = LITTLE_T]
@@ -341,7 +341,7 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 143 "pzherbt-L.c"
-  CORE_ztsmqr1(PlasmaLeft, PlasmaConjTrans, desc_A.mb, 
+  CORE_ztsmqr_hetra1(PlasmaLeft, PlasmaConjTrans, desc_A.mb, 
 	desc_A.nb, tempmm, desc_A.nb, 
 	desc_A.nb, ib, M /* data_A(i,k+1) */, 
 	ldai, N /* data_A(m1,i) */, ldam, 
@@ -350,7 +350,7 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqr1(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A.mb, desc_A.nb, tempmm, desc_A.nb, desc_A.nb, ib, A(%d,%d)[%p], ldai, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
+  printlog("thread %d CORE_ztsmqr_hetra1(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A.mb, desc_A.nb, tempmm, desc_A.nb, desc_A.nb, ib, A(%d,%d)[%p], ldai, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
   context->eu_id, k, m1, i, i, k+1, M, m1, i, N, m1, k, O, m1, k, P);
 
 END
@@ -390,10 +390,10 @@ ztsmqr(k,m1,j)
   RW    Q <- (m1>=(3+k)) ? Q ztsmqr(k, m1-1, j) 
           <- ((2+k)==m1) ? H zunmqr(m1-2, j) 
           -> (j>=(2+m1)) ? Q ztsmqr(k, m1+1, j) 
-          -> ((1+m1)==j) ? V ztsmqrlr(k, j) 
-  RW    R <- (k>=1) ? N ztsmqr1(k-1, j, m1) 
+          -> ((1+m1)==j) ? V ztsmqr_corner(k, j) 
+  RW    R <- (k>=1) ? N ztsmqr_hetra1(k-1, j, m1) 
           <- (0==k) ? R ztsmqr_in_data_A0(k,m1,j)
-          -> N ztsmqr1(k, j, m1) 
+          -> N ztsmqr_hetra1(k, j, m1) 
   READ  S <- K ztsqrt(k, m1) 
   READ  T <- L ztsqrt(k, m1)    [type = LITTLE_T]
 
@@ -430,20 +430,20 @@ BODY
 
 END
 
-ztsmqrlr_out_data_A0(k,m1) [profile = off]
+ztsmqr_corner_out_data_A0(k,m1) [profile = off]
   k = ((desc_A.nt>=2) ? 0 : (desc_A.mt-2))..(desc_A.mt-3)
   m1 = (desc_A.mt-1)
 
   : data_A(k+1,k+1)
-  RW U <- U ztsmqrlr(k,m1)
+  RW U <- U ztsmqr_corner(k,m1)
        -> data_A(k+1,k+1)
 BODY
 /* nothing */
- printlog("thread %d ztsmqrlr_out_data_A0(%d, %d) A(%d, %d)[%p]\n",
+ printlog("thread %d ztsmqr_corner_out_data_A0(%d, %d) A(%d, %d)[%p]\n",
           context->eu_id, k, m1, k+1, k+1, U);
 END
 
-ztsmqrlr(k,m1)
+ztsmqr_corner(k,m1)
   /* Execution space */
   k = 0..(desc_A.nt)-1-1
   m1 = k+2..desc_A.mt-1
@@ -480,9 +480,9 @@ ztsmqrlr(k,m1)
   /* Y == data_T(m1,k) */
 
   RW    U <- ((k+2)==m1) ? E zherfb1(m1-2) 
-          <- (m1>=(3+k)) ? U ztsmqrlr(k, m1-1) 
-          -> (desc_A.mt==(m1+1)) ? U ztsmqrlr_out_data_A0(k,m1)
-          -> (desc_A.mt>=(m1+2)) ? U ztsmqrlr(k, m1+1) 
+          <- (m1>=(3+k)) ? U ztsmqr_corner(k, m1-1) 
+          -> (desc_A.mt==(m1+1)) ? U ztsmqr_corner_out_data_A0(k,m1)
+          -> (desc_A.mt>=(m1+2)) ? U ztsmqr_corner(k, m1+1) 
   RW    V <- ((k+2)==m1) ? H zunmqr(m1-2, m1) 
           <- (m1>=(k+3)) ? Q ztsmqr(k, m1-1, m1) 
 /*
@@ -493,10 +493,10 @@ ztsmqrlr(k,m1)
  */
           -> (desc_A.mt==(1+m1)) & (desc_A.mt==(k+3)) & (desc_A.nt>=desc_A.mt) ? A zgeqrt(m1-1) 
           -> ((m1+1)==desc_A.mt) & (m1>=(3+k)) & (desc_A.nt>=(k+3)) ? K ztsqrt(k+1, m1) 
-          -> (desc_A.mt>=(m1+2)) ? M ztsmqr1(k, m1+1, m1) 
+          -> (desc_A.mt>=(m1+2)) ? M ztsmqr_hetra1(k, m1+1, m1) 
   RW    W <- (0==k) ? data_A(m1,m1)
-          <- (k>=1) ? W ztsmqrlr(k-1, m1) 
-          -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? W ztsmqrlr(k+1, m1) 
+          <- (k>=1) ? W ztsmqr_corner(k-1, m1) 
+          -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? W ztsmqr_corner(k+1, m1) 
           -> (desc_A.nt==(k+2)) ? data_A(m1,m1)
           -> ((k+2)==m1) & (desc_A.nt>=(k+3)) ? E zherfb1(m1-1) 
   READ  X <- K ztsqrt(k, m1) 
@@ -518,7 +518,7 @@ BODY
   void *p_elem_A = dague_private_memory_pop( pool_3 );
 
 #line 191 "pzherbt-L.c"
-  CORE_ztsmqrlr(desc_A.nb, desc_A.nb, tempmm, 
+  CORE_ztsmqr_corner(desc_A.nb, desc_A.nb, tempmm, 
 	desc_A.nb, tempmm, tempmm, 
 	desc_A.nb, ib, desc_T.nb, 
 	U /* data_A(k+1,k+1) */, ldak, V /* data_A(m1,k+1) */, 
@@ -528,7 +528,7 @@ BODY
 
   dague_private_memory_push( pool_3, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqrlr(%d, %d)\n\t(desc_A.nb, desc_A.nb, tempmm, desc_A.nb, tempmm, tempmm, desc_A.nb, ib, desc_T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
+  printlog("thread %d CORE_ztsmqr_corner(%d, %d)\n\t(desc_A.nb, desc_A.nb, tempmm, desc_A.nb, tempmm, tempmm, desc_A.nb, ib, desc_T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
   context->eu_id, k, m1, k+1, k+1, U, m1, k+1, V, m1, m1, W, m1, k, X, m1, k, Y);
 
 END
