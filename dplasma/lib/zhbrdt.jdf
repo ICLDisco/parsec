@@ -34,8 +34,8 @@ in_dat(i) [profile = off hidden = on]
        -> B zhbrdt(0,0,i-1)
 BODY
 /* nothing */
-  printlog("thread %d in_dat(%d, %d, %d) -> A[0, %d] = %p\n",
-           context->eu_id, 0, 0, i, i+1, A);
+  printlog("thread %d in_dat(%d, %d, %d) <- A[0, %d] = %p\n",
+           context->eu_id, 0, 0, i-1, i, A);
 END
 
 /*
@@ -43,7 +43,7 @@ END
  */
 zhbrdt(s1,s,i)
   /* Execution space */
-  s1 = 0..NT-2
+  s1 = 0..NT-1
   s = 0..NB-1
   i = s1..NT-2
 
@@ -72,21 +72,27 @@ zhbrdt(s1,s,i)
           -> ((NT-2)==i)               ? A zhbrdt_half(s1, s)
           ->                             A zhbrdt(s1, s, i+1)
 BODY
+    int nbA, mbA;
+    nbA   = __dague_object->super.A->nb;
+    mbA   = __dague_object->super.A->mb;
     Dague_Complex64_t *vi, *vii, *taui, *tauii;
-    vi    = (Dague_Complex64_t*)A + __dague_object->super.A->mb * (__dague_object->super.A->nb-2);
-    vii   = (Dague_Complex64_t*)B + __dague_object->super.A->mb * (__dague_object->super.A->nb-2);
-    taui  = vi  + __dague_object->super.A->mb;
-    tauii = vii + __dague_object->super.A->mb;
-
-    blgchase_trdv2( __dague_object->super.A->nt,
-                    __dague_object->super.A->n - 2 * __dague_object->super.A->nt,
-                    __dague_object->super.A->nb - 2,
+    vi    = (Dague_Complex64_t*)A + mbA * NB;
+    vii   = (Dague_Complex64_t*)B + mbA * NB;
+    taui  = vi  + mbA;
+    tauii = vii + mbA;
+    
+    assert(NB+2 == nbA); 
+    assert(NB+1 == mbA);
+    blgchase_trdv2( NT,
+                    NT * NB,
+                    NB,
                     A /* A(0, i) */, B /* A(0, i+1) */,
                     vi,  taui,
                     vii, tauii,
-                    s1 * (__dague_object->super.A->mb - 1) + s, i, s1);
-    printlog("thread %d CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i%2)\n",
-             context->eu_id, s1, s, i, 0, i, A, 0, i+1, B);
+                    s1 * NB + s, i, s1);
+    printlog("thread %d CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i)\n",
+                 context->eu_id, s1, s, i, 0, i, A, 0, i+1, B);
+
 END
 
 /*
@@ -109,15 +115,23 @@ zhbrdt_half(s1,s)
           -> ((NT-2)==s1) & ((NB-1)==s) ? A zhbrdt_half(s1+1, 0)
           -> ((NB-1)==s)                ? B zhbrdt(s1+1, 0, NT-2) : B zhbrdt(s1, s+1, NT-2)
 BODY
+    int nbA, mbA;
+    nbA   = __dague_object->super.A->nb;
+    mbA   = __dague_object->super.A->mb;
     Dague_Complex64_t *vi, *taui;
-    vi    = (Dague_Complex64_t*)A + __dague_object->super.A->mb * (__dague_object->super.A->nb-2);
-    taui  = vi  + __dague_object->super.A->mb;
+    vi    = (Dague_Complex64_t*)A + mbA * NT;
+    taui  = vi + mbA;
 
-    blgchase_trdv2( __dague_object->super.A->nt,
-                    __dague_object->super.A->n - 2 * __dague_object->super.A->nt,
-                    __dague_object->super.A->nb - 2,
+    assert(NB+2 == nbA); 
+    assert(NB+1 == mbA);
+    blgchase_trdv2( NT,
+                    NT * NB,
+                    NB,
                     A /* A(0, i) */, A /* same */,
-                    vi,  taui,
                     vi, taui,
-                    s1 * (__dague_object->super.A->mb - 1) + s, NT-1, s1);
+                    vi, taui,
+                    s1 * NB + s, NT-1, s1);
+    printlog("thread %d CORE_zhbrdt_half(s1 = %d, s = %d)\n\t(A(%d,%d)[%p], s1*NB+s, NT-1)\n",
+                 context->eu_id, s1, s, 0, NT-1, A);
 END
+
