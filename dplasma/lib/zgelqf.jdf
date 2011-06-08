@@ -150,7 +150,7 @@ BODY
 END
 
 ztsqlt_out_A(k)
-  k = 0..( (Amt-1 < Ant-1)? Amt-2 : Ant-2 )
+  k = 0..( (Ant <= Amt )? Ant-2 : Amt-1 )
 
   : A(k, k)
 
@@ -163,7 +163,7 @@ END
 
 ztslqt(k,n)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
   n = k+1..Ant-1
 
   : A(k,n)
@@ -214,27 +214,25 @@ BODY
 
 END
 
-ztsmlq_in_A(k,n,m1)
-  k = 0..0  /* Solved 0 <= k <= ( (Amt-1 < Ant-1)? Amt-1 : Ant-1 ) with (0==k) */
-  n = k+1..Ant-1
+ztsmlq_out_data_A1(k, m1)
+  k = 0..( (Ant < Amt) ? Ant-2 : Amt-2 )
   m1 = k+1..Amt-1
 
-  : A(m1,n)
+  : A(m1, k)
 
-RW A <- A(m1,n)
-     -> K ztsmlq(k,n,m1)
-
+  RW J <- J ztsmlq(k, Ant-1, m1)
+       -> A(m1, k)
 BODY
-  /* Nothing */
+/* nothing */
 END
 
 ztsmlq(k,n,m1)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..( (Amt < Ant)? Amt-1 : Ant-1 )
   n = k+1..Ant-1
   m1 = k+1..Amt-1
 
-  : A(m1,k)
+  : A(m1, n)
 
   /* A == A(k,k) */
   /* E == A(m,k) */
@@ -245,16 +243,13 @@ ztsmlq(k,n,m1)
   /* L == A(k,n) */
   /* M == T(k,n) */
 
-  RW    J <- ((k+1)==n) & (m1>=(1+k)) & (Amt>=(k+1)) ? E zunmlq(n-1, m1) 
-          <- (n>=(2+k)) ? J ztsmlq(k, n-1, m1) 
-          -> (Ant>=(n+2)) ? J ztsmlq(k, n+1, m1) 
-          -> (Ant==(n+1)) ? A(m1,k)
-  RW    K <- (k>=1) ? K ztsmlq(k-1, n, m1) 
-          <- (0==k) ? A ztsmlq_in_A(k,n,m1)
-          -> ((k+1)==m1) & ((k+1)==n) & (Ant>=(k+2)) ? A zgelqt(m1) 
-          -> (n==(1+k)) & (m1>=(n+1)) ? E zunmlq(k+1, m1) 
-          -> ((k+1)==m1) & (Ant>=(k+2)) & (n>=(2+k)) ? G ztslqt(m1, n) 
-          -> (m1>=(k+2)) & (n>=(k+2)) ? K ztsmlq(k+1, n, m1) 
+  RW    J <- ( (k+1) == n ) ? E zunmlq(n-1, m1) : J ztsmlq(k, n-1, m1) 
+          -> ( Ant == (n+1) ) ? J ztsmlq_out_data_A1(k, m1) : J ztsmlq(k, n+1, m1)
+  RW    K <- (0==k) ? A(m1, n) : K ztsmlq(k-1, n, m1) 
+          -> ((k+1)==m1) & ((k+1)==n) ? A zgelqt(m1)                    /* Diagonal */
+          -> ( n==(1+k)) & (m1 > n) ? E zunmlq(k+1, m1)                 /* Next Column */ 
+          -> ((k+1)==m1) & (n > m1) ? G ztslqt(m1, n)                   /* Next row */
+          -> (m1>(k+1)) & (n>(k+1)) ? K ztsmlq(k+1, n, m1)              /* trailing submatrix */
   READ  L <- G ztslqt(k, n) 
   READ  M <- H ztslqt(k, n)                                                  [type = LITTLE_T]
 
