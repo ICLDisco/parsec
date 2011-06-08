@@ -91,12 +91,14 @@ if (MPI_FOUND)
     ${generated_files} 
     ${EXTRA_SOURCES})
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+  target_link_libraries(dplasma-mpi dplasma-core)
   install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
 else (MPI_FOUND)
   add_library(dplasma 
     ${generated_headers}
     ${generated_files}
     ${EXTRA_SOURCES})
+  target_link_libraries(dplasma dplasma-core)
 # set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
 endif (MPI_FOUND)
