@@ -26,40 +26,40 @@ enum matrix_type {
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
     enum matrix_type mtype;      /**< precision of the matrix */
-    unsigned int mb;             /**< number of rows in a tile */
-    unsigned int nb;             /**< number of columns in a tile */
-    unsigned int bsiz;           /**< size in elements including padding of a tile - derived parameter */
-    unsigned int lm;             /**< number of rows of the entire matrix */
-    unsigned int ln;             /**< number of columns of the entire matrix */
-    unsigned int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
-    unsigned int lnt;            /**< number of tile columns of the entire matrix - derived parameter */
-    unsigned int i;              /**< row index to the beginning of the submatrix */
-    unsigned int j;              /**< column indes to the beginning of the submatrix */
-    unsigned int m;              /**< number of rows of the submatrix */
-    unsigned int n;              /**< number of columns of the submatrix */
-    unsigned int mt;             /**< number of tile rows of the submatrix - derived parameter */
-    unsigned int nt;             /**< number of tile columns of the submatrix - derived parameter */
-    unsigned int nb_local_tiles; /**< number of tile handled locally */
+    int mb;             /**< number of rows in a tile */
+    int nb;             /**< number of columns in a tile */
+    int bsiz;           /**< size in elements including padding of a tile - derived parameter */
+    int lm;             /**< number of rows of the entire matrix */
+    int ln;             /**< number of columns of the entire matrix */
+    int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
+    int lnt;            /**< number of tile columns of the entire matrix - derived parameter */
+    int i;              /**< row index to the beginning of the submatrix */
+    int j;              /**< column indes to the beginning of the submatrix */
+    int m;              /**< number of rows of the submatrix */
+    int n;              /**< number of columns of the submatrix */
+    int mt;             /**< number of tile rows of the submatrix - derived parameter */
+    int nt;             /**< number of tile columns of the submatrix - derived parameter */
+    int nb_local_tiles; /**< number of tile handled locally */
 } tiled_matrix_desc_t;
 
 /**
  * Generate the tile (row, col) int the buffer position.
  */
 
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
+void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
+void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
 
-void matrix_ctile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void matrix_ctile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_ctile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
+void matrix_ctile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
 
 
 
-void matrix_dtile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void matrix_dtile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_dtile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
+void matrix_dtile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
 
-void matrix_stile(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
-void matrix_stile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed);
+void matrix_stile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
+void matrix_stile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
 
 /**
  * Generate the full distributed matrix using all nodes/cores available.

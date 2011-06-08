@@ -21,7 +21,7 @@
 #include "dague.h"
 #include "grid_2Dcyclic.h"
 
-void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, unsigned int myrank, unsigned int P, unsigned int Q, unsigned int nrst, unsigned int ncst)
+void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrst, int ncst)
 {
     // Filling matrix description woth user parameter
     grid->rank = myrank ;

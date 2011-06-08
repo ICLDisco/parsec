@@ -12,8 +12,8 @@
 
 int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda)
 {
-    unsigned int i, j, il, jl, x, y;
-    unsigned int imax, jmax;
+    int i, j, il, jl, x, y;
+    int imax, jmax;
     Dague_Complex64_t *bdl, *f77;
     int64_t dec;
 

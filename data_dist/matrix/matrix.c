@@ -20,7 +20,7 @@
 #include "matrix.h"
 #include "bindthread.h"
 
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned int row, unsigned int col, unsigned long long int seed)
+void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed)
 {
    
     (void)row;
@@ -30,8 +30,8 @@ void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  unsigned in
 }
 
 typedef struct tile_coordinate{
-    unsigned int row;
-    unsigned int col;
+    int row;
+    int col;
 } tile_coordinate_t;
 
 typedef struct info_tiles{
@@ -41,7 +41,7 @@ typedef struct info_tiles{
     unsigned int nb_elements;
     unsigned int starting_position;
     unsigned long long int seed;
-    void (*gen_fct)( tiled_matrix_desc_t *, void *, unsigned int, unsigned int, unsigned long long int);
+    void (*gen_fct)( tiled_matrix_desc_t *, void *, int, int, unsigned long long int);
 } info_tiles_t;
 
 
@@ -81,10 +81,10 @@ static void * rand_dist_tiles(void * info)
 static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned long long int sed)
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
-    unsigned int tiles_coord_size;      /* size of the above table */
+    int tiles_coord_size;      /* size of the above table */
     unsigned int i;
     unsigned int j;
-    unsigned int pos = 0;
+    int pos = 0;
     pthread_t *threads = NULL;
     pthread_attr_t thread_attr;
     info_tiles_t * info_gen;
@@ -93,21 +93,24 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
     tiles = malloc(tiles_coord_size * sizeof(tile_coordinate_t));
 
     /* check which tiles to generate */
-    for ( j = 0 ; j < Mdesc->lnt ; j++) {
-        for ( i = 0 ; i < Mdesc->lmt ; i++) {
-            if(Mdesc->super.myrank == Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j )) {
-                if (pos == tiles_coord_size) {
-                    tiles_coord_size = 2 * tiles_coord_size;
-                    tiles = realloc(tiles,
-                                    tiles_coord_size*sizeof(tile_coordinate_t));
-                    if (NULL == tiles) {
-                        perror("cannot generate random matrix\n");
-                        exit(-1);
-                    }                                
+    {
+        int i, j;
+        for ( j = 0 ; j < Mdesc->lnt ; j++) {
+            for ( i = 0 ; i < Mdesc->lmt ; i++) {
+                if(Mdesc->super.myrank == Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j )) {
+                    if (pos == tiles_coord_size) {
+                        tiles_coord_size = 2 * tiles_coord_size;
+                        tiles = realloc(tiles,
+                                        tiles_coord_size*sizeof(tile_coordinate_t));
+                        if (NULL == tiles) {
+                            perror("cannot generate random matrix\n");
+                            exit(-1);
+                        }                                
+                    }
+                    tiles[pos].row = i;
+                    tiles[pos].col = j;
+                    pos++;                        
                 }
-                tiles[pos].row = i;
-                tiles[pos].col = j;
-                pos++;                        
             }
         }
     }
@@ -206,8 +209,8 @@ void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long i
 
 void pddiagset(tiled_matrix_desc_t * Mdesc, double val)
 {
-    unsigned int i, j;
-    unsigned int target;
+    int i, j;
+    int target;
     double * buffer;
     target = (Mdesc->lmt < Mdesc->lnt) ? Mdesc->lmt : Mdesc->lnt;
 
@@ -224,7 +227,7 @@ void pddiagset(tiled_matrix_desc_t * Mdesc, double val)
 
 int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
-    size_t i, j;
+    int i, j;
     void* buf;
     tmpf = fopen(filename, "w");
     if(NULL == tmpf)
@@ -247,7 +250,7 @@ int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
 
 int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
     FILE * tmpf;
-    size_t i, j;
+    int i, j;
     void * buf;
     tmpf = fopen(filename, "r");
     if(NULL == tmpf)
@@ -260,7 +263,7 @@ int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
             {
                 if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
                     {
-                        size_t ret;
+                        int ret;
                         buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
                         ret = fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
                         if ( ret !=  Ddesc->bsiz )

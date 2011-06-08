@@ -71,7 +71,7 @@ static void * td_get_local_tile(dague_ddesc_t * desc, ...)
 #ifdef DAGUE_PROF_TRACE
 static uint32_t td_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 {
-    unsigned int m, n;
+    int m, n;
     tabular_distribution_t * Ddesc;
     va_list ap;
     Ddesc = (tabular_distribution_t *)desc;
@@ -101,7 +101,7 @@ static int  td_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char *
 
 void tabular_distribution_init(tabular_distribution_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int * table )
 {
-    size_t res;
+    int res;
     unsigned int total = 0;
     
 

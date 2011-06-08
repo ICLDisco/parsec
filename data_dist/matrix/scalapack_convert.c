@@ -51,9 +51,9 @@
  */
 
 
-void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  unsigned int process_grid_rows)
+void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  int process_grid_rows)
 {
-    unsigned int pgr, pgc, rr, cr, nb_elem_r, nb_elem_c, rlength, clength;
+    int pgr, pgc, rr, cr, nb_elem_r, nb_elem_c, rlength, clength;
     void * smat;
 
     if((Ddesc->super.nodes % process_grid_rows) != 0 )
@@ -123,7 +123,7 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  u
     return smat;    
 }
 
-int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, unsigned int process_grid_rows)
+int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, int process_grid_rows)
 {
 #ifdef HAVE_MPI
     int length, size;
@@ -209,9 +209,9 @@ void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
 
 #ifdef HAVE_MPI
 /* to compute which process will get this tile as a scalapack block */
-static unsigned int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, unsigned int process_grid_rows, unsigned int row, unsigned int col)
+static int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, int process_grid_rows, int row, int col)
 {
-    unsigned int cr, rr, res, GRIDcols, GRIDrows;
+    int cr, rr, res, GRIDcols, GRIDrows;
 
     GRIDrows = process_grid_rows;
     GRIDcols = Ddesc->super.nodes / GRIDrows;
@@ -225,18 +225,18 @@ static unsigned int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, unsigned int pr
     return res;
 }
 
-void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned int col)
+void tile_to_block_double(scalapack_info_t * info, int row, int col)
 {
-    unsigned int x, y, dec, GRIDcols, GRIDrows;
-    unsigned int src, dest;
+    int x, y, dec, GRIDcols, GRIDrows;
+    int src, dest;
     double *bdl, *lapack;
-    unsigned int il, jl, max_mb, max_nb;
+    int il, jl, max_mb, max_nb;
     MPI_Status status;
          
     src = info->Ddesc->super.rank_of((dague_ddesc_t *)(info->Ddesc), row, col);
     dest = twoDBC_get_rank( info->Ddesc, info->process_grid_rows, row, col);
 
-    if (UINT_MAX == src)
+    if (INT_MAX == src)
         return;
    
     if(src == dest) /* local operation */
@@ -253,7 +253,7 @@ void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned in
                     
                     il = row / GRIDrows;
                     jl = col / GRIDcols;
-                    dec = (info->Ddesc->nb * (unsigned int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
+                    dec = (info->Ddesc->nb * (int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
                     
                     bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
                     lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
@@ -315,7 +315,7 @@ void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned in
 
 int tiles_to_scalapack(scalapack_info_t * info)
 {
-    unsigned int i,j;
+    int i,j;
     for(i = 0 ; i < info->Ddesc->mt ; i++)
         for(j = 0 ; j < info->Ddesc->nt ; j++)
             tile_to_block_double(info, i, j);    
@@ -324,9 +324,9 @@ int tiles_to_scalapack(scalapack_info_t * info)
 
 #else /* ! HAVE_MPI */
 
-void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned int col)
+void tile_to_block_double(scalapack_info_t * info, int row, int col)
 {
-    unsigned int x, y, dec;
+    int x, y, dec;
     double *bdl, *lapack;
 
     bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
@@ -343,7 +343,7 @@ void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned in
 //TODO : multi-threading ?
 int tiles_to_scalapack(scalapack_info_t * info)
 {
-    unsigned int i,j;
+    int i,j;
     for(i = 0 ; i < info->Ddesc->mt ; i++)
         for(j = 0 ; j < info->Ddesc->nt ; j++)
             tile_to_block_double(info, i, j);    
@@ -351,9 +351,9 @@ int tiles_to_scalapack(scalapack_info_t * info)
 }
 
 /*
-int tiles_to_scalapack(tiled_matrix_desc_t * Ddesc, int * desc, void * sca_mat, unsigned int process_grid_rows)
+int tiles_to_scalapack(tiled_matrix_desc_t * Ddesc, int * desc, void * sca_mat, int process_grid_rows)
 {
-    unsigned int i, j, il, jl, x, y;
+    int i, j, il, jl, x, y;
     double *bdl, *lapack;
     int64_t dec;
 

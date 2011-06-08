@@ -19,7 +19,7 @@ typedef struct scalapack_info_t {
     tiled_matrix_desc_t * Ddesc;
     int * sca_desc;
     void * sca_mat;
-    unsigned int process_grid_rows;
+    int process_grid_rows;
 #ifdef HAVE_MPI
     MPI_Datatype MPI_Sca_full_block;
     MPI_Datatype MPI_Sca_last_row;
@@ -38,13 +38,13 @@ typedef struct scalapack_info_t {
  * @param process_grid_rows: number of rows in the process grid for 2D block cyclic (number of column computed internally)
  * @return buffer allocated to contain scalapack conversion
  */
-void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc, unsigned int process_grid_rows);
+void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc, int process_grid_rows);
 
-int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, unsigned int process_grid_rows);
+int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, int process_grid_rows);
 
 void tiles_to_scalapack_info_destroy(scalapack_info_t * info);
     
-void tile_to_block_double(scalapack_info_t * info, unsigned int row, unsigned int col);
+void tile_to_block_double(scalapack_info_t * info, int row, int col);
 
 /* Convert the local view of a matrix from dague format to scalapack format.
  * @param Ddesc: dague format description of the matrix to convert (distributed in any fashion)

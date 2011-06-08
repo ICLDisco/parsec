@@ -22,14 +22,14 @@
 
 static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
-    unsigned int rr, cr, m, n;
-    unsigned int res;
+    int rr, cr, m, n;
+    int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
     Ddesc = (sym_two_dim_block_cyclic_t *) desc;
     va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
+    m = va_arg(ap, int);
+    n = va_arg(ap, int);
     va_end(ap);
     /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
     m += ((tiled_matrix_desc_t *)desc)->i;
@@ -54,14 +54,14 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 
 static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    unsigned int pos, m, n;
-    unsigned int nb_elem, nb_elem_col, column;
+    int pos, m, n;
+    int nb_elem, nb_elem_col, column;
     sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
+    m = va_arg(ap, int);
+    n = va_arg(ap, int);
     va_end(ap);
 
     /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
@@ -127,13 +127,13 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 #ifdef DAGUE_PROF_TRACE
 static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 {
-    unsigned int m, n;
+    int m, n;
     sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
+    m = va_arg(ap, int);
+    n = va_arg(ap, int);
     va_end(ap);
 
     return ((n * Ddesc->super.lmt) + m);    
@@ -141,7 +141,7 @@ static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...) /* return a u
 static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size) /* return a string meaningful for profiling about data */
 {
     sym_two_dim_block_cyclic_t * Ddesc;    
-    unsigned int row, column;
+    int row, column;
     int res;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     column = datakey / Ddesc->super.lmt;
@@ -156,9 +156,9 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
 #endif /* DAGUE_PROF_TRACE */
 
 
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int process_GridRows, int uplo )
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int lm, int ln, int i, int j, int m, int n, int process_GridRows, int uplo )
 {
-    unsigned int nb_elem, nb_elem_col, column, total;
+    int nb_elem, nb_elem_col, column, total;
 
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;

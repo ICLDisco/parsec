@@ -29,8 +29,8 @@ typedef struct two_dim_block_cyclic {
     tiled_matrix_desc_t super;
     grid_2Dcyclic_t grid; 
     void *mat;               /**< pointer to the beginning of the matrix */
-    unsigned int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
-    unsigned int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
+    int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
+    int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
 } two_dim_block_cyclic_t;
 
 /************************************************
@@ -62,10 +62,10 @@ typedef struct two_dim_block_cyclic {
  * @param ncst number of column of tiles for block distribution
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, 
-			       unsigned int mb, unsigned int nb, 
-			       unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, 
-			       unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows );
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, 
+			       int mb, int nb, 
+			       int lm, int ln, int i, int j, 
+			       int m, int n, int nrst, int ncst, int process_GridRows );
 
 int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
 

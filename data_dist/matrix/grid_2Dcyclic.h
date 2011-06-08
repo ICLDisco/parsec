@@ -18,15 +18,15 @@
 
 /* Placeholder for all relevant 2D distribution parameters */
 typedef struct grid_2Dcyclic {
-    unsigned int rank;       /**< Sequential rank of this processor */
-    unsigned int rows;       /**< number of processes rows in the process grid */
-    unsigned int cols;       /**< number of processes cols in the process grid - derived parameter */
-    unsigned int strows;     /**< max number of tile rows in a super-tile */
-    unsigned int stcols;     /**< max number of tile columns in a super tiles */
-    unsigned int crank;      /**< process column rank in the process grid - derived parameter */
-    unsigned int rrank;      /**< process row rank in the process grid - derived parameter */
-    unsigned int rloc;       /**< number of row of tiles  handled by this process - derived parameter */
-    unsigned int cloc;       /**< number of column of tiles handled by this process - derived parameter */
+    int rank;       /**< Sequential rank of this processor */
+    int rows;       /**< number of processes rows in the process grid */
+    int cols;       /**< number of processes cols in the process grid - derived parameter */
+    int strows;     /**< max number of tile rows in a super-tile */
+    int stcols;     /**< max number of tile columns in a super tiles */
+    int crank;      /**< process column rank in the process grid - derived parameter */
+    int rrank;      /**< process row rank in the process grid - derived parameter */
+    int rloc;       /**< number of row of tiles  handled by this process - derived parameter */
+    int cloc;       /**< number of column of tiles handled by this process - derived parameter */
 } grid_2Dcyclic_t;
 
 /************************************************
@@ -47,6 +47,6 @@ typedef struct grid_2Dcyclic {
  * @param nrst: number of consecutive tiles along rows held by the same processor
  * @param ncst: number of consecutive tiles along columns held by the same processor
  */
-void grid_2Dcyclic_init(grid_2Dcyclic_t* grid, unsigned int rank, unsigned int P, unsigned int Q, unsigned int nrst, unsigned int ncst);
+void grid_2Dcyclic_init(grid_2Dcyclic_t* grid, int rank, int P, int Q, int nrst, int ncst);
 
 #endif /* __GRID_2DCYCLIC_H__*/

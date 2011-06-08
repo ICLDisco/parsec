@@ -64,10 +64,10 @@ Rnd64_jump(unsigned long long int n, unsigned long long int seed ) {
 }
 
 void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position, 
-                           unsigned int row, unsigned int col, unsigned long long int seed)
+                           int row, int col, unsigned long long int seed)
 {
-    unsigned int i, j, first_row, first_col;
-    unsigned int nb = Ddesc->nb;
+    int i, j, first_row, first_col;
+    int nb = Ddesc->nb;
     Dague_Complex64_t mn_max = (Dague_Complex64_t) max(Ddesc->n, Ddesc->m);
     Dague_Complex64_t *x = (Dague_Complex64_t*) position;
     unsigned long long int ran;
@@ -171,11 +171,11 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
 }
 
 void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position, 
-                  unsigned int row, unsigned int col, unsigned long long int seed)
+                  int row, int col, unsigned long long int seed)
 {
-    unsigned int i, j, first_row, first_col;
-    unsigned int mb = Ddesc->mb;
-    unsigned int nb = Ddesc->nb;
+    int i, j, first_row, first_col;
+    int mb = Ddesc->mb;
+    int nb = Ddesc->nb;
     Dague_Complex64_t *x = (Dague_Complex64_t*)position;
     unsigned long long int ran;
 
@@ -237,10 +237,10 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
     Dague_Complex64_t * tmpA = malloc(a->bsiz * sizeof(Dague_Complex64_t));
     Dague_Complex64_t * tmpB = malloc(a->bsiz * sizeof(Dague_Complex64_t));
 
-    size_t i,j;
-    unsigned int k;
+    int i,j;
+    int k;
     uint32_t rankA, rankB;
-    unsigned int count = 0;
+    int count = 0;
     int diff, dc;
     double eps;
     
@@ -297,7 +297,7 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                                 if (diff)
                                     {
                                         count++;
-                                        printf("tile (%zu, %zu) differs in %d numbers\n", i, j, dc);
+                                        printf("tile (%d, %d) differs in %d numbers\n", i, j, dc);
                                     }
                             }
                         

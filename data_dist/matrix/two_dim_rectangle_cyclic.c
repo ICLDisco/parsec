@@ -52,8 +52,8 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 
 static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    unsigned int pos, m, n;
-    unsigned int nb_elem_r, last_c_size;
+    int pos, m, n;
+    int nb_elem_r, last_c_size;
     two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (two_dim_block_cyclic_t *)desc;
@@ -139,11 +139,11 @@ static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, ch
 }
 #endif /* DAGUE_PROF_TRACE */
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, unsigned int nodes, unsigned int cores, unsigned int myrank, unsigned int mb, unsigned int nb, unsigned int lm, unsigned int ln, unsigned int i, unsigned int j, unsigned int m, unsigned int n, unsigned int nrst, unsigned int ncst, unsigned int process_GridRows )
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows )
 {
-    unsigned int temp;
-    unsigned int nbstile_r;
-    unsigned int nbstile_c;
+    int temp;
+    int nbstile_r;
+    int nbstile_c;
 
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
