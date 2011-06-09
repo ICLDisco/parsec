@@ -10,10 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "cuda_stsmqr.h"
-#endif
-
 #define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
 #define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
@@ -31,9 +27,6 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 48, 144, 144);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -56,20 +49,6 @@ int main(int argc, char ** argv)
     ddescT.super.super.key = strdup("T");
 #endif
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(loud) printf("+++ Load GPU kernel ... ");
-        if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT)) 
-        {
-            fprintf(stderr, "XXX Unable to load GPU kernel.\n");
-            exit(3);
-        }
-        if(loud) printf("Done\n");
-    }
-#endif
-
     if(!check) 
     {
         /* matrix generation */
@@ -89,12 +68,6 @@ int main(int argc, char ** argv)
         dplasma_zgelqf_Destruct( DAGUE_zgelqf );
     }
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
-    if(iparam[IPARAM_NGPUS] > 0) 
-    {
-        stsmqr_cuda_fini(dague);
-    }
-#endif
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
