@@ -6,6 +6,7 @@ HWLOC="/opt/hwloc"
 CUDA="/opt/cuda"
 
 if [ "x$USER" = "xbosilca" ]; then
+  HWLOC="/home/bosilca/opt/"
   PLASMADIR="/home/bosilca/opt/plasma/intel/"
   CC=icc
   FC=ifort
@@ -41,14 +42,14 @@ PLASMA="-DPLASMA_DIR=${PLASMADIR}"
 
 if [ "x$1" = "xgcc" ]; then
   # to compile with gcc and plasma-2.1
-  echo cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
-  cmake ${LOCATION} ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
+  echo cmake -G "Unix Makefiles" ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
+  cmake -G "Unix Makefiles" ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
 else
   # Compile with icc, ifort, plasma 2.2
   /opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
   /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
   export CC=icc
   export FC=ifort
-  echo cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
-  cmake ${LOCATION} ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J}
+  echo cmake -G "Unix Makefiles" ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
+  cmake -G "Unix Makefiles" ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
 fi
