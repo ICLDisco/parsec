@@ -67,11 +67,10 @@ int main(int argc, char ** argv)
     
     dague_data_free(ddescA.mat);
     dague_data_free(ddescLIPIV.mat);
-
-    cleanup_dague(dague, iparam);
-
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescLIPIV);
+
+    cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;
 }
