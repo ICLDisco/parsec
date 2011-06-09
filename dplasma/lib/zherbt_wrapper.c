@@ -19,7 +19,7 @@
 
 dague_object_t *
 dplasma_zherbt_New( PLASMA_enum uplo,
-                    int ib,
+                    int IB,
                     PLASMA_desc desc_A,
                     tiled_matrix_desc_t *A,
                     PLASMA_desc desc_T,
@@ -46,7 +46,7 @@ dplasma_zherbt_New( PLASMA_enum uplo,
         dague_zherbt = (dague_object_t *)dague_zherbt_L_new(uplo, 
                                                             desc_A, &A->super, 
                                                             desc_T, &T->super,
-                                                            ib,
+                                                            IB,
                                                             pool[3], pool[2], pool[1], pool[0]);
         dplasma_add2arena_rectangle( ((dague_zherbt_L_object_t *)dague_zherbt)->arenas[DAGUE_zherbt_L_DEFAULT_ARENA], 
                                      desc_A.mb*desc_A.nb*sizeof(Dague_Complex64_t),
