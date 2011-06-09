@@ -43,7 +43,7 @@ END
  */
 zhbrdt(s1,s,i)
   /* Execution space */
-  s1 = 0..NT-1
+  s1 = 0..NT-2
   s = 0..NB-1
   i = s1..NT-2
 
