@@ -10,10 +10,10 @@ if [ "x$USER" == "xbouteill" ]; then
 export CC=gcc-4
 if [ "x$1" == "x64" ]; then
 	PLASMA_DIR=$HOME/dague/plasma-2.2.0-x86_64
-	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_CUDA=OFF"
+	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_GPU_WITH_CUDA=OFF"
 else
 	PLASMA_DIR=$HOME/dague/plasma-2.2.0
-	MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_CUDA=OFF"
+	MY_OPTS="-DBUILD_64bits=OFF -DDAGUE_GPU_WITH_CUDA=OFF"
 fi
 
 elif [ "x$USER" == "xherault" ]; then
@@ -22,9 +22,7 @@ elif [ "x$USER" == "xherault" ]; then
 
 elif [ "x$USER" == "xbosilca" ]; then 
 	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
-	PLASMA_DIR=${HOME}/opt/plasma-svn
-#	PLASMA_SRC=${HOME}/unstable/dplasma/PLASMA/plasma-svn/
-	MY_OPTS="$HWLOC_OPTS -DPLASMA_SRC=${PLASMA_SRC}"
+	PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
 fi
 
-cmake ${LOCATION} -Wdev -DPLASMA_DIR=${PLASMA_DIR} -DDAGUE_MPI=ON ${MY_OPTS}
+cmake ${LOCATION} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}

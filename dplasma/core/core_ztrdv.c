@@ -6,17 +6,13 @@
  * @precisions normal z -> s d c
  *
  */
+#include "dague_config.h"
 #include "core_z.h"
 
-#include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <string.h>
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#include <errno.h>
-#include <sys/time.h> // Time
+#endif
 
 #include "plasma.h"
 

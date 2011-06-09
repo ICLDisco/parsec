@@ -4,16 +4,26 @@
  *                         reserved.
  */
 
+#include "dague_config.h"
+#include "dague.h"
+
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_STRING_H
 #include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdint.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
+#include <assert.h>
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif
+#include <stdint.h>
 
-#include "dague.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 
 #if !defined(UINT_MAX)

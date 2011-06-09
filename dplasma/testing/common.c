@@ -5,16 +5,20 @@
  *
  */
 #include "dague_config.h"
+#include "dague.h"
 
 #include "common.h"
 #include "common_timing.h"
-#include "dague.h"
 #include <plasma.h>
 
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */

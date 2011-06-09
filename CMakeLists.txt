@@ -269,7 +269,8 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
-
+check_include_files(limits.h HAVE_LIMITS_H)
+check_include_files(string.h HAVE_STRING_H)
 
 #
 # Find optional packages

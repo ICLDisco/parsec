@@ -4,20 +4,22 @@
  *                         reserved.
  */
 
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef HAVE_MPI
-#include "mpi.h"
-#endif
-
 #include "dague_config.h"
 #include "dague.h"
 #include "scalapack_convert.h"
 #include "data_distribution.h"
 #include "matrix.h"
+
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef HAVE_MPI
+#include "mpi.h"
+#endif
 
 #if !defined(UINT_MAX)
 #define UINT_MAX (~0UL)

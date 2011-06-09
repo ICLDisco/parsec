@@ -7,6 +7,7 @@
 /* /!\  THIS FILE IS NOT INTENDED TO BE COMPILED ON ITS OWN
  *      It should be included from remote_dep.c if HAVE_MPI is defined
  */
+#include "dague_config.h"
 
 #include <mpi.h>
 #include "profiling.h"
@@ -589,7 +590,9 @@ static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 /* Pointers are converted to long to be used as keys to fetch data in the get
  * rdv protocol. Make sure we can carry pointers correctly.
  */
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #if ULONG_MAX < UINTPTR_MAX
 #error "unsigned long is not large enough to hold a pointer!"
 #endif
