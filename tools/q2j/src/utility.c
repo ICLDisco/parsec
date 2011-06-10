@@ -775,6 +775,34 @@ char *DA_var_name(node_t *node){
     return NULL;
 }
 
+static int DA_quark_LOCALITY_FLAG(node_t *node){
+    int rslt1, rslt2;
+    if( NULL == node )
+        return 0;
+
+    switch(node->type){
+        case IDENTIFIER:
+            if( !strcmp(node->u.var_name, "LOCALITY") ){
+                return 1;
+            }
+            return 0;
+
+        case B_OR:
+            rslt1 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[0]);
+            if( rslt1 > 0 ) return 1;
+            rslt2 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[1]);
+            if( rslt2 > 0 ) return 1;
+
+            return 0;
+
+        default:
+            fprintf(stderr,"DA_quark_LOCALITY_FLAG(): unsupported flag type for dep\n");
+            exit(-1);
+
+    }
+    return 0;
+}
+
 static int DA_quark_TYPE(node_t *node){
     int rslt1, rslt2;
     if( NULL == node )
@@ -1268,10 +1296,18 @@ static char *find_definition(char *var_name, node_t *node){
     return var_name;
 }
 
+static int isArrayLocal(node_t *task_node, int index){
+    if( index+1 < task_node->u.kids.kid_count ){
+        node_t *flag = task_node->u.kids.kids[index+1];
+        return DA_quark_LOCALITY_FLAG(flag);
+    }
+    return 0;
+}
+
 static int isArrayOut(node_t *task_node, int index){
     if( index+1 < task_node->u.kids.kid_count ){
-        node_t *type = task_node->u.kids.kids[index+1];
-        if( (UND_WRITE & DA_quark_INOUT(type)) != 0 ){
+        node_t *flag = task_node->u.kids.kids[index+1];
+        if( (UND_WRITE & DA_quark_INOUT(flag)) != 0 ){
             return 1;
         }
     }
@@ -1286,6 +1322,20 @@ static int isArrayOut(node_t *task_node, int index){
  */
 node_t *print_default_task_placement(node_t *task_node){
     int i;
+
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
+            printf("  : data_%s\n",tree_to_str(data_element));
+            return data_element;
+        }
+    }
+
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
             node_t *data_element = task_node->u.kids.kids[i];
@@ -1298,6 +1348,8 @@ node_t *print_default_task_placement(node_t *task_node){
             return data_element;
         }
     }
+
+    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->task->task_name);
     return NULL;
 }
 
