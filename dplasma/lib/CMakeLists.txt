@@ -58,6 +58,7 @@ set(JDF
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
+  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf
 )
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JDF}")
 jdf_rules(generated_files "${generated_jdf}")
@@ -70,6 +71,10 @@ set(SOURCES
   ztrmm_wrapper.c 
   ztrsmpl_wrapper.c   
   # Lapack
+  zlaset_wrapper.c
+  zplrnt_wrapper.c
+  zplghe_wrapper.c
+  zplgsy_wrapper.c
   zpotrf_wrapper.c 
   zpotrs_wrapper.c 
   zposv_wrapper.c 
@@ -78,7 +83,6 @@ set(SOURCES
   zgesv_wrapper.c 
   zgeqrf_wrapper.c
   zgelqf_wrapper.c
-  # ???
   zherbt_wrapper.c
   zhbrdt_wrapper.c
 )
