@@ -437,6 +437,8 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
     if(iparam[IPARAM_DOT] != 0) {
         dague_prof_grapher_fini();
     }
+#else
+    (void)iparam;
 #endif
 #ifdef HAVE_MPI
     MPI_Finalize();

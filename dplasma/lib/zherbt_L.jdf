@@ -26,7 +26,7 @@ data_T [type = "dague_ddesc_t *" aligned=data_A]
 IB [type = "int"]
 pool_3 [type = "dague_memory_pool_t *" size = "(((sizeof(PLASMA_Complex64_t))*4)*(desc_T.nb))*(desc_T.nb)"]
 pool_2 [type = "dague_memory_pool_t *" size = "(((sizeof(PLASMA_Complex64_t))*2)*(desc_T.nb))*(desc_T.nb)"]
-pool_1 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(desc_T.nb)"]
+pool_1 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*IB)*(desc_T.nb)"]
 pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*(desc_T.nb)"]
 
 

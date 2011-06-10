@@ -82,8 +82,8 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
     int tiles_coord_size;      /* size of the above table */
-    unsigned int i;
-    unsigned int j;
+    int i;
+    int j;
     int pos = 0;
     pthread_t *threads = NULL;
     pthread_attr_t thread_attr;
@@ -94,7 +94,6 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
 
     /* check which tiles to generate */
     {
-        int i, j;
         for ( j = 0 ; j < Mdesc->lnt ; j++) {
             for ( i = 0 ; i < Mdesc->lmt ; i++) {
                 if(Mdesc->super.myrank == Mdesc->super.rank_of((dague_ddesc_t *)Mdesc, i, j )) {

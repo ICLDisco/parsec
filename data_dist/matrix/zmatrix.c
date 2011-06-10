@@ -316,7 +316,7 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                     }
             }
     if(a->super.myrank == 0)
-        printf("compared the matrices: %u difference(s)\n", count);
+        printf("compared the matrices: %d difference(s)\n", count);
 }
 
 #endif

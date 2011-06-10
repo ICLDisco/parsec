@@ -1465,15 +1465,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "  int32_t ", " ", ",", ""));
-
-    coutput("%s"
-            "%s"
-            "  (void)__dague_object;\n",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 ",", " ", "_start,", "_start"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
-                                 ",", " ", "_end,", "_end;\n"));
+                                 "  int32_t ", " ", ",", ";"));
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -1489,17 +1481,16 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     nesting = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
-            coutput("%s  %s_start = %s;\n", 
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
-            coutput("%s  %s_end = %s;\n", 
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
-            coutput("%s  for(%s = %s_start; %s <= %s_end; %s++) {\n",
-                    indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name);
+            coutput("%s  for(%s = %s;\n"
+                    "%s      %s <= %s;\n"
+                    "%s      %s++) {\n",
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
+                    indent(nesting), dl->name);
             nesting++;
         } else {
-            coutput("%s  %s = %s_start = %s_end = %s;\n", 
-                    indent(nesting), dl->name, dl->name, dl->name,
-                    dump_expr((void**)&dl->expr, &info1));
+            coutput("%s  %s = %s;\n", 
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
         }
     }
 
@@ -1556,12 +1547,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     }
 
     /* Quiet the compiler by using the varibales */
-    coutput("%s"
-            "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "  ", "(void)", "_start; (void)", "_start;\n"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
-                                 "  ", "(void)", "_end; (void)", "_end;\n"));
     string_arena_free(sa1);    
     string_arena_free(sa2);
 
@@ -1594,14 +1579,23 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                  "  int32_t ", " ", "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
             UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_max = 0,", "_max = 0;\n"));
+#if 0
     coutput("%s"
-            "%s"
-            "  (void)__dague_object;\n"
-            "  (void)__foundone;\n",
+            "%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_start,", "_start;\n"),
             UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_end,", "_end;\n"));
+#endif
+    coutput("  (void)__dague_object;\n"
+            "  (void)__foundone;\n");
+    if( NULL != f->definitions->next ) {
+        for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+            if(dl->expr->op == JDF_RANGE) {
+                coutput("  int32_t %s_start, %s_end;", dl->name, dl->name );
+            }
+        }
+    }
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -1617,17 +1611,16 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     nesting = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
-            coutput("%s  %s_start = %s;\n", 
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
-            coutput("%s  %s_end = %s;\n", 
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
-            coutput("%s  for(%s = %s_start; %s <= %s_end; %s++) {\n",
-                    indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name);
+            coutput("%s  for(%s = %s;\n"
+                    "%s      %s <= %s;\n"
+                    "%s      %s++) {\n",
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
+                    indent(nesting), dl->name);
             nesting++;
         } else {
-            coutput("%s  %s = %s_start = %s_end = %s;\n", 
-                    indent(nesting), dl->name, dl->name, dl->name,
-                    dump_expr((void**)&dl->expr, &info1));
+            coutput("%s  %s = %s;\n", 
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
         }
     }
 
@@ -1683,9 +1676,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 nesting++;
             } else {
                 last_dimension_is_a_range = 0;
-                coutput("%s  %s = %s_start = %s_end = %s;\n", 
-                        indent(nesting), dl->name, dl->name, 
-                        dl->name, dump_expr((void**)&dl->expr, &info1));
+                coutput("%s  %s = %s;\n", 
+                        indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
             }
         }
 
@@ -1722,12 +1714,13 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     /* Quiet the compiler by using the varibales */
-    coutput("%s"
-            "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "  ", "(void)", "_start; (void)", "_start;\n"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
-                                 "  ", "(void)", "_end; (void)", "_end;\n"));
+    if( NULL != f->definitions->next ) {
+        for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+            if(dl->expr->op == JDF_RANGE) {
+                coutput("  (void)%s_start; (void)%s_end;", dl->name, dl->name );
+            }
+        }
+    }
 
     string_arena_free(sa1);    
     string_arena_free(sa2);
