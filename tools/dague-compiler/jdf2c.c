@@ -1006,12 +1006,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  (DEPS)->max = _vmax;                                                                       \\\n"
             "  (DEPS)->prev = (PREVDEP); /* chain them backward */                                        \\\n"
             "} while (0)                                                                                  \n\n"
-            "#ifndef MIN\n"
-            "#define MIN(a, b) ( ((a)<(b)) ? (a) : (b) )\n"
-            "#endif\n"
-            "#ifndef MAX\n"
-            "#define MAX(a, b) ( ((a)>(b)) ? (a) : (b) )\n"
-            "#endif\n");
+            "static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };                     \n\n"
+            "static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };                     \n\n");
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -1632,8 +1628,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                                             "", "", ", ", ""),
             indent(nesting));
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
-        coutput("%s  %s_max = MAX(%s_max, %s);\n"
-                "%s  %s_min = MIN(%s_min, %s);\n",
+        coutput("%s  %s_max = dague_imax(%s_max, %s);\n"
+                "%s  %s_min = dague_imin(%s_min, %s);\n",
                 indent(nesting), dl->name, dl->name, dl->name,
                 indent(nesting), dl->name, dl->name, dl->name);
     }
@@ -1671,7 +1667,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1));
                 coutput("%s  %s_end = %s;\n", 
                         indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2));
-                coutput("%s  for(%s = MAX(%s_start, %s_min); %s <= MIN(%s_end, %s_max); %s++) {\n",
+                coutput("%s  for(%s = dague_imax(%s_start, %s_min); %s <= dague_imin(%s_end, %s_max); %s++) {\n",
                         indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
