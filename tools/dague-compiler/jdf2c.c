@@ -1006,8 +1006,12 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  (DEPS)->max = _vmax;                                                                       \\\n"
             "  (DEPS)->prev = (PREVDEP); /* chain them backward */                                        \\\n"
             "} while (0)                                                                                  \n\n"
+            "#ifndef MIN\n"
             "#define MIN(a, b) ( ((a)<(b)) ? (a) : (b) )\n"
-            "#define MAX(a, b) ( ((a)>(b)) ? (a) : (b) )\n");
+            "#endif\n"
+            "#ifndef MAX\n"
+            "#define MAX(a, b) ( ((a)>(b)) ? (a) : (b) )\n"
+            "#endif\n");
 
     string_arena_free(sa1);
     string_arena_free(sa2);
