@@ -46,7 +46,7 @@ dague_object_t* dplasma_zplghe_New( Dague_Complex64_t bump, PLASMA_enum uplo,
 {
     dague_zplghe_object_t* object;
     
-    object = dague_zplghe_new( uplo, bump, seed, A, (dague_ddesc_t*)A);
+    object = dague_zplghe_new( uplo, bump, seed, *A, (dague_ddesc_t*)A);
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zplghe_DEFAULT_ARENA], 

@@ -8,7 +8,7 @@
  */
 #include <plasma.h>
 #include <dague.h>
-#include <scsyduling.h>
+#include <scheduling.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
@@ -35,7 +35,7 @@ dague_object_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A,
 {
     dague_zplrnt_object_t* object;
     
-    object = dague_zplrnt_new( seed, A, (dague_ddesc_t*)A);
+    object = dague_zplrnt_new( seed, *A, (dague_ddesc_t*)A);
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zplrnt_DEFAULT_ARENA], 

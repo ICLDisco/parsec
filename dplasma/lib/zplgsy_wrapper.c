@@ -8,7 +8,7 @@
  */
 #include <plasma.h>
 #include <dague.h>
-#include <scsyduling.h>
+#include <scheduling.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
@@ -46,7 +46,7 @@ dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo,
 {
     dague_zplgsy_object_t* object;
     
-    object = dague_zplgsy_new( uplo, bump, seed, A, (dague_ddesc_t*)A);
+    object = dague_zplgsy_new( uplo, bump, seed, *A, (dague_ddesc_t*)A);
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zplgsy_DEFAULT_ARENA], 

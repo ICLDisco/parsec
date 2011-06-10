@@ -47,7 +47,7 @@ dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, Dague_Complex64_t alpha, D
 {
     dague_zlaset_object_t* object;
     
-    object = dague_zlaset_new( uplo, alpha, beta, A, (dague_ddesc_t*)A);
+    object = dague_zlaset_new( uplo, alpha, beta, *A, (dague_ddesc_t*)A);
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_zlaset_DEFAULT_ARENA], 
