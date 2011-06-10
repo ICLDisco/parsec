@@ -1331,25 +1331,25 @@ function_definition
           {
               $$ = $4;
 //              printf("%s %s %s{\n",$1, $2, $3);
-	      DA_parentize($4);
+	      DA_parentize(node_to_ptr($4));
           }
 	| declaration_specifiers declarator compound_statement
           {
               $$ = $3;
 //              printf("%s %s{\n",$1, $2);
-	      DA_parentize($3);
+	      DA_parentize(node_to_ptr($3));
           }
 	| declarator declaration_list compound_statement
           {
               $$ = $3;
 //              printf("%s %s{\n",$1, $2);
-	      DA_parentize($3);
+	      DA_parentize(node_to_ptr($3));
           }
 	| declarator compound_statement
           {
               $$ = $2;
 //              printf("%s{\n",$1);
-	      DA_parentize($2);
+	      DA_parentize(node_to_ptr($2));
           }
 	;
 

@@ -35,7 +35,7 @@ static int _task_count=0;
 // we might want to set it to false.
 int JDF_NOTATION = 1;
 
-static void do_parentize(node_t *node);
+static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static int DA_quark_INOUT(node_t *node);
 static int DA_quark_TYPE(node_t *node);
@@ -207,7 +207,7 @@ static void do_loop_parentize(node_t *node, node_t *enclosing_loop){
     }
 }
 
-static void do_parentize(node_t *node){
+static void do_parentize(node_t *node, int off){
     if( (NULL == node) || (EMPTY == node->type) )
         return;
 
@@ -215,20 +215,31 @@ static void do_parentize(node_t *node){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
             tmp->parent = node;
-            do_parentize(tmp);
+#ifdef DEBUG
+            printf("%*s", off, " ");
+            printf("Next in block: %s\n",DA_type_name(tmp));
+            fflush(stdout);
+#endif
+            do_parentize(tmp, off+4);
         }
     }else{
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             node->u.kids.kids[i]->parent = node;
-            do_parentize( node->u.kids.kids[i] );
+#ifdef DEBUG
+            printf("%*s", off, " ");
+            printf("Next kid: %s\n",DA_type_name(node->u.kids.kids[i]));
+            fflush(stdout);
+#endif
+            do_parentize( node->u.kids.kids[i], off+4 );
         }
     }
 }
 
-void DA_parentize(node_t node){
-    do_parentize(&node);
-    do_loop_parentize(&node, NULL);
+void DA_parentize(node_t *node){
+    do_parentize(node, 0);
+    do_loop_parentize(node, NULL);
+    node->parent = NULL;
 }
 
 void dump_tree(node_t node, int off){

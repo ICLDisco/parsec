@@ -48,7 +48,7 @@ int    DA_is_scf(node_t *node);
 int    DA_is_rel(node_t *node);
 int    DA_flip_rel_op(int type);
 int    DA_canonicalize_for(node_t *node);
-void   DA_parentize(node_t node);
+void   DA_parentize(node_t *node);
 char   *DA_type_name(node_t *node);
 char   *DA_var_name(node_t *node);
 node_t *DA_array_base(node_t *node);
