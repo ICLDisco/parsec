@@ -119,7 +119,7 @@ BODY
     nbA   = __dague_object->super.A->nb;
     mbA   = __dague_object->super.A->mb;
     Dague_Complex64_t *vi, *taui;
-    vi    = (Dague_Complex64_t*)A + mbA * NT;
+    vi    = (Dague_Complex64_t*)A + mbA * NB;
     taui  = vi + mbA;
 
     assert(NB+2 == nbA); 
