@@ -74,6 +74,11 @@ int main(int argc, char ** argv)
     }
     else 
     {
+        if ( iparam[IPARAM_NNODES] > 1 ) {
+            fprintf(stderr, "Checking doesn't work in distributed\n");
+            return EXIT_FAILURE;
+        }
+
         int info_solution;
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 

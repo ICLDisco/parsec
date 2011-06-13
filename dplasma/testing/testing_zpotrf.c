@@ -97,6 +97,11 @@ int main(int argc, char ** argv)
     }
     else 
     {
+        if ( iparam[IPARAM_NNODES] > 1 ) {
+            fprintf(stderr, "Checking doesn't work in distributed\n");
+            return EXIT_FAILURE;
+        }
+
         int u, t1, t2;
         int info_solution;
         
