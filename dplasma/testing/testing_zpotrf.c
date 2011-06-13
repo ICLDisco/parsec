@@ -100,14 +100,15 @@ int main(int argc, char ** argv)
         int u, t1, t2;
         int info_solution;
         
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+        /* We use full nmatrices for checking because of the gemm in check_solution */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, SMB, SNB, P));
           
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
-            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
+            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, SMB, SNB, P));
           
         PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
@@ -136,10 +137,11 @@ int main(int argc, char ** argv)
             }
 
             /* matrix generation */
+            /* A and A0 are initialized with PlasmaUpperLower for the gemm in check_solution */
             printf("Generate matrices ... ");
-            dplasma_zplghe( dague, (double)(N), uplo[u], 
+            dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescA,  1358);
-            dplasma_zplghe( dague, (double)(N), uplo[u], 
+            dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescA0, 1358);
             dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
             dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 3872);
@@ -178,9 +180,9 @@ int main(int argc, char ** argv)
 
             /* matrix generation */
             printf("Generate matrices ... ");
-            dplasma_zplghe( dague, (double)(N), uplo[u], 
+            dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescA,  1358);
-            dplasma_zplghe( dague, (double)(N), uplo[u], 
+            dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescA0, 1358);
             dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
             dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 3872);
@@ -224,9 +226,9 @@ int main(int argc, char ** argv)
 
             /* matrix generation */
             printf("Generate matrices ... ");
-            dplasma_zplghe( dague, (double)(N), uplo[u], 
+            dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescA,  1358);
-            dplasma_zplghe( dague, (double)(N), uplo[u], 
+            dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescA0, 1358);
             dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
             dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 3872);
@@ -261,13 +263,13 @@ int main(int argc, char ** argv)
                 }
                 printf("***************************************************\n");
             }
-
         }
 
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
         dague_data_free(ddescA0.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
+        
         dague_data_free(ddescB.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
         dague_data_free(ddescX.mat);
