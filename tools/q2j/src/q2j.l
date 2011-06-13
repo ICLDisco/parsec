@@ -232,6 +232,7 @@ void cpp_comment();
 
 {L}({L}|{D})*		{ count(); 
                           if( IDENTIFIER == check_type()){
+                              memset(&(yylval.node),0,sizeof(node_t));
                               yylval.node.u.var_name = strdup(yytext);
                               yylval.node.type = IDENTIFIER;
                               yylval.node.u.kids.kid_count = 0;
@@ -248,6 +249,7 @@ void cpp_comment();
                           int i,len;
                           char *num = yytext+2;
                           count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.i64_value = 0;
                           len = strlen(num)-1;
                           for(i=len; i>=0; i--){
@@ -260,6 +262,7 @@ void cpp_comment();
                         }
 
 0[xX]{H}+{IS}?		{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.i64_value = strtoll(yytext, NULL, 16);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -268,6 +271,7 @@ void cpp_comment();
                         }
 
 0{D}+{IS}?		{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.i64_value = strtoll(yytext, NULL, 8);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -275,6 +279,7 @@ void cpp_comment();
                           return(INTCONSTANT);
                         }
 {D}+{IS}?		{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -282,6 +287,7 @@ void cpp_comment();
                           return(INTCONSTANT);
                         }
 {D}+{E}{FS}?		{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.i64_value = atoll(yytext);
                           yylval.node.type = INTCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -289,6 +295,7 @@ void cpp_comment();
                           return(INTCONSTANT);
                         }
 L?'(\\.|[^\\'])+'	{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -297,6 +304,7 @@ L?'(\\.|[^\\'])+'	{ count();
                         }
 
 {D}*"."{D}+({E})?{FS}?	{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -304,6 +312,7 @@ L?'(\\.|[^\\'])+'	{ count();
                           return(FLOATCONSTANT);
                         }
 {D}+"."{D}*({E})?{FS}?	{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.f64_value = atof(yytext);
                           yylval.node.type = FLOATCONSTANT;
                           yylval.node.u.kids.kid_count = 0;
@@ -312,6 +321,7 @@ L?'(\\.|[^\\'])+'	{ count();
                         }
 
 L?\"(\\.|[^\\"])*\"	{ count();
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.const_val.str = strdup(yytext);
                           yylval.node.u.kids.kid_count = 0;
                           yylval.node.lineno = yyget_lineno();
@@ -319,132 +329,154 @@ L?\"(\\.|[^\\"])*\"	{ count();
                         }
 
 "..."			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = ELLIPSIS;
                           yylval.node.lineno = yyget_lineno();
                           return(ELLIPSIS);
                         }
 
 ">>="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = RIGHT_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(RIGHT_ASSIGN);
                         }
 
 "<<="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = LEFT_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(LEFT_ASSIGN);
                         }
 
 "+="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = ADD_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(ADD_ASSIGN);
                         }
 
 "-="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = SUB_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(SUB_ASSIGN);
                         }
 
 "*="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = MUL_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(MUL_ASSIGN);
                         }
 
 "/="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = DIV_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(DIV_ASSIGN);
                         }
 
 "%="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = MOD_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(MOD_ASSIGN);
                         }
 
 "&="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = AND_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(AND_ASSIGN);
                         }
 
 "^="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = XOR_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(XOR_ASSIGN);
                         }
 
 "|="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = OR_ASSIGN;
                           yylval.node.lineno = yyget_lineno();
                           return(OR_ASSIGN);
                         }
 
 ">>"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = RIGHT_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(RIGHT_OP);
                         }
 
 "<<"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = LEFT_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(LEFT_OP);
                         }
 
 "++"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = INC_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(INC_OP);
                         }
 
 "--"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = DEC_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(DEC_OP);
                         }
 
 "->"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = PTR_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(PTR_OP);
                         }
 
 "&&"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = L_AND;
                           yylval.node.lineno = yyget_lineno();
                           return(L_AND);
                         }
 
 "||"			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = L_OR;
                           yylval.node.lineno = yyget_lineno();
                           return(L_OR);
                         }
 
 "<="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = LE_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(LE_OP);
                         }
 
 ">="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = GE_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(GE_OP);
                         }
 
 "=="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = EQ_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(EQ_OP);
                         }
 
 "!="			{ count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = NE_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(NE_OP);

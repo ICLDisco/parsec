@@ -87,6 +87,11 @@ int main(int argc, char ** argv)
     }
     else
     { 
+        if ( iparam[IPARAM_NNODES] > 1 ) {
+            fprintf(stderr, "Checking doesn't work in distributed\n");
+            return EXIT_FAILURE;
+        }
+
         int Am, An, Bm, Bn;
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 

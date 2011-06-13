@@ -72,7 +72,7 @@ n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
 
 // Parameters
 
-READ A <- A(m, n)
+RW   A <- A(m, n)
        -> A(m, n)
 BODY
   int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
@@ -101,8 +101,8 @@ LASET_DIAG(k)
 
 // Parameters
 
-READ A <- A(k, k)
-       -> A(k, k)
+RW  A <- A(k, k)
+      -> A(k, k)
 BODY
   int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
   int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);

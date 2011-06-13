@@ -46,8 +46,12 @@ int main(int argc, char ** argv)
 
     if(!check) 
     {
-        int s = PlasmaLeft;
-        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
+        PLASMA_enum side  = PlasmaLeft;
+        PLASMA_enum uplo  = PlasmaLower;
+        PLASMA_enum trans = PlasmaNoTrans;
+        PLASMA_enum diag  = PlasmaUnit;
+
+        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (side, (DagDouble_t)M, (DagDouble_t)NRHS));
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
@@ -57,7 +61,7 @@ int main(int argc, char ** argv)
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrsm,
-                                  (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                                  (side, uplo, trans, diag,
                                    (Dague_Complex64_t)1.0, 
                                    (tiled_matrix_desc_t *)&ddescA, 
                                    (tiled_matrix_desc_t *)&ddescB));
@@ -69,6 +73,11 @@ int main(int argc, char ** argv)
     }
     else
     { 
+        if ( iparam[IPARAM_NNODES] > 1 ) {
+            fprintf(stderr, "Checking doesn't work in distributed\n");
+            return EXIT_FAILURE;
+        }
+
         int s, u, t, d;
         int info_solution;
         Dague_Complex64_t alpha = 3.5;

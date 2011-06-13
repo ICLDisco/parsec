@@ -35,7 +35,7 @@ static int _task_count=0;
 // we might want to set it to false.
 int JDF_NOTATION = 1;
 
-static void do_parentize(node_t *node);
+static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static int DA_quark_INOUT(node_t *node);
 static int DA_quark_TYPE(node_t *node);
@@ -207,7 +207,7 @@ static void do_loop_parentize(node_t *node, node_t *enclosing_loop){
     }
 }
 
-static void do_parentize(node_t *node){
+static void do_parentize(node_t *node, int off){
     if( (NULL == node) || (EMPTY == node->type) )
         return;
 
@@ -215,20 +215,31 @@ static void do_parentize(node_t *node){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
             tmp->parent = node;
-            do_parentize(tmp);
+#ifdef DEBUG
+            printf("%*s", off, " ");
+            printf("Next in block: %s\n",DA_type_name(tmp));
+            fflush(stdout);
+#endif
+            do_parentize(tmp, off+4);
         }
     }else{
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             node->u.kids.kids[i]->parent = node;
-            do_parentize( node->u.kids.kids[i] );
+#ifdef DEBUG
+            printf("%*s", off, " ");
+            printf("Next kid: %s\n",DA_type_name(node->u.kids.kids[i]));
+            fflush(stdout);
+#endif
+            do_parentize( node->u.kids.kids[i], off+4 );
         }
     }
 }
 
-void DA_parentize(node_t node){
-    do_parentize(&node);
-    do_loop_parentize(&node, NULL);
+void DA_parentize(node_t *node){
+    do_parentize(node, 0);
+    do_loop_parentize(node, NULL);
+    node->parent = NULL;
 }
 
 void dump_tree(node_t node, int off){
@@ -764,6 +775,34 @@ char *DA_var_name(node_t *node){
     return NULL;
 }
 
+static int DA_quark_LOCALITY_FLAG(node_t *node){
+    int rslt1, rslt2;
+    if( NULL == node )
+        return 0;
+
+    switch(node->type){
+        case IDENTIFIER:
+            if( !strcmp(node->u.var_name, "LOCALITY") ){
+                return 1;
+            }
+            return 0;
+
+        case B_OR:
+            rslt1 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[0]);
+            if( rslt1 > 0 ) return 1;
+            rslt2 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[1]);
+            if( rslt2 > 0 ) return 1;
+
+            return 0;
+
+        default:
+            fprintf(stderr,"DA_quark_LOCALITY_FLAG(): unsupported flag type for dep\n");
+            exit(-1);
+
+    }
+    return 0;
+}
+
 static int DA_quark_TYPE(node_t *node){
     int rslt1, rslt2;
     if( NULL == node )
@@ -1257,10 +1296,18 @@ static char *find_definition(char *var_name, node_t *node){
     return var_name;
 }
 
+static int isArrayLocal(node_t *task_node, int index){
+    if( index+1 < task_node->u.kids.kid_count ){
+        node_t *flag = task_node->u.kids.kids[index+1];
+        return DA_quark_LOCALITY_FLAG(flag);
+    }
+    return 0;
+}
+
 static int isArrayOut(node_t *task_node, int index){
     if( index+1 < task_node->u.kids.kid_count ){
-        node_t *type = task_node->u.kids.kids[index+1];
-        if( (UND_WRITE & DA_quark_INOUT(type)) != 0 ){
+        node_t *flag = task_node->u.kids.kids[index+1];
+        if( (UND_WRITE & DA_quark_INOUT(flag)) != 0 ){
             return 1;
         }
     }
@@ -1275,6 +1322,20 @@ static int isArrayOut(node_t *task_node, int index){
  */
 node_t *print_default_task_placement(node_t *task_node){
     int i;
+
+    for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
+            node_t *data_element = task_node->u.kids.kids[i];
+             /*
+              * JDF & QUARK specific optimization:
+              * Add the keyword "data_" infront of the matrix to
+              * differentiate the matrix from the struct.
+              */
+            printf("  : data_%s\n",tree_to_str(data_element));
+            return data_element;
+        }
+    }
+
     for(i=QUARK_FIRST_VAR; i<task_node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
         if( isArrayOut(task_node, i) ){
             node_t *data_element = task_node->u.kids.kids[i];
@@ -1287,6 +1348,8 @@ node_t *print_default_task_placement(node_t *task_node){
             return data_element;
         }
     }
+
+    fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->task->task_name);
     return NULL;
 }
 

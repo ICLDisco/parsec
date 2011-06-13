@@ -2,9 +2,10 @@ extern "C" %{
   /**
    * PLASMA include for defined and constants.
    *
-   * @precisions normal z -> c
+   * @precisions normal z -> c d s
    *
    */
+#include <lapacke.h>
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -22,15 +23,15 @@ extern "C" %{
  * Globals
  */
 uplo   [type = PLASMA_enum]
-bump   [type = double]
-seed   [type = "unsigned long long int" ]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
+descB  [type = "tiled_matrix_desc_t"]
+B      [type = "dague_ddesc_t *" aligned=A]
 
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
-PLGHE_L(m, n)
+LACPY_L(m, n)
 
 // Execution space
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
@@ -41,27 +42,30 @@ n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
 
 // Parameters
 
-RW A <- A(m, n)
-     -> A(m, n)
+READ  A <- A(m, n)
+        -> A(m, n)
+RW    B <- B(m, n)
+        -> B(m, n)
 BODY
   int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
   int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
   int ldam = BLKLDD( descA, m );
+  int ldbm = BLKLDD( descB, m );
 
         DRYRUN(
-               CORE_zplghe( 
-                   bump, tempmm, tempnn, A, ldam,
-                   descA.m, m*descA.mb, n*descA.nb, seed );
+               LAPACKE_zlacpy_work( 
+                   LAPACK_COL_MAJOR,
+                   lapack_const(uplo), tempmm, tempnn, 
+                   A, ldam, B, ldbm);
                );
 
-        printlog("thread %d plghe( %d, %d )\n"
-                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
+        printlog("thread %d lacpy_l( %d, %d )\n"
+                 "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
                  context->eu_id, m, n, tempmm, tempnn, 
-                 bump, m, n, ldam,
-                 descA.m, m*descA.mb, n*descA.nb, seed);
+                 m, n, ldam, m, n, ldbm);
 END
 
-PLGHE_U(m, n)
+LACPY_U(m, n)
 
 // Execution space
 m = 0   .. descA.mt-1
@@ -72,27 +76,30 @@ n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
 
 // Parameters
 
-RW   A <- A(m, n)
-       -> A(m, n)
+READ  A <- A(m, n)
+        -> A(m, n)
+RW    B <- B(m, n)
+        -> B(m, n)
 BODY
   int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
   int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
   int ldam = BLKLDD( descA, m );
+  int ldbm = BLKLDD( descB, m );
 
         DRYRUN(
-               CORE_zplghe( 
-                   bump, tempmm, tempnn, A, ldam,
-                   descA.m, m*descA.mb, n*descA.nb, seed );
+               LAPACKE_zlacpy_work( 
+                   LAPACK_COL_MAJOR,
+                   lapack_const(uplo), tempmm, tempnn, 
+                   A, ldam, B, ldbm);
                );
 
-        printlog("thread %d plghe( %d, %d )\n"
-                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
+        printlog("thread %d lacpy_u( %d, %d )\n"
+                 "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
                  context->eu_id, m, n, tempmm, tempnn, 
-                 bump, m, n, ldam,
-                 descA.m, m*descA.mb, n*descA.nb, seed);
+                 m, n, ldam, m, n, ldbm);
 END
 
-PLGHE_DIAG(k)
+LACPY_DIAG(k)
 
 // Execution space
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
@@ -102,24 +109,27 @@ PLGHE_DIAG(k)
 
 // Parameters
 
-RW   A <- A(k, k)
-       -> A(k, k)
+READ  A <- A(k, k)
+        -> A(k, k)
+RW    B <- B(k, k)
+        -> B(k, k)
 BODY
   int tempkm = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
   int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
   int ldak = BLKLDD( descA, k );
+  int ldbk = BLKLDD( descB, k );
 
         DRYRUN(
-               CORE_zplghe( 
-                   bump, tempkm, tempkn, A, ldak,
-                   descA.m, k*descA.mb, k*descA.nb, seed );
+               LAPACKE_zlacpy_work( 
+                   LAPACK_COL_MAJOR,
+                   lapack_const(uplo), tempkm, tempkn, 
+                   A, ldak, B, ldbk);
                );
 
-        printlog("thread %d plghe( %d, %d )\n"
-                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
+        printlog("thread %d lacpy_diag( %d, %d )\n"
+                 "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
                  context->eu_id, k, k, tempkm, tempkn, 
-                 bump, k, k, ldak,
-                 descA.m, k*descA.mb, k*descA.nb, seed);
+                 k, k, ldak, k, k, ldbk);
 END
 extern "C" %{
 
