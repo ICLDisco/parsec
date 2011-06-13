@@ -253,10 +253,10 @@ static void DLARFX_C(char side, int N, Dague_Complex64_t V, Dague_Complex64_t TA
 ///////////////////////////////////////////////////////////
 #define A1(m,n)   &(A1[((m)-(n)) + LDA1*(n)])
 #define A2(m,n)   &(A2[((m)-(n)) + LDA2*((n)-NB)])
-#define V1(m)     &(V1[m])
-#define TAU1(m)   &(TAU1[m])
-#define V2(m)     &(V2[m])
-#define TAU2(m)   &(TAU2[m])
+#define V1(m)     &(V1[m-st])
+#define TAU1(m)   &(TAU1[m-st])
+#define V2(m)     &(V2[m-st])
+#define TAU2(m)   &(TAU2[m-st])
 ///////////////////////////////////////////////////////////
 //                  TYPE 1-BAND Householder
 ///////////////////////////////////////////////////////////
