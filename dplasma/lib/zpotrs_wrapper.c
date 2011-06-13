@@ -14,14 +14,15 @@
 int
 dplasma_zpotrs(dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B)
 {
-    dague_object_t *dague_ztrsm1 = NULL;
-    dague_object_t *dague_ztrsm2 = NULL;
-
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
         dplasma_error("dplasma_zpotrs", "illegal value of uplo");
         return -1;
     }
+
+#ifdef DAGUE_COMPOSITION
+    dague_object_t *dague_ztrsm1 = NULL;
+    dague_object_t *dague_ztrsm2 = NULL;
 
     if ( uplo == PlasmaUpper ) {
       dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);
@@ -38,7 +39,15 @@ dplasma_zpotrs(dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc
 
     dplasma_ztrsm_Destruct( dague_ztrsm1 );
     dplasma_ztrsm_Destruct( dague_ztrsm2 );
-
+#else
+    if ( uplo == PlasmaUpper ) {
+      dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B );
+      dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B );
+    } else {
+      dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B );
+      dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B );
+    }
+#endif
     return 0;
 }
 
