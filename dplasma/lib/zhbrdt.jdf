@@ -83,7 +83,7 @@ BODY
     
     assert(NB+2 == nbA); 
     assert(NB+1 == mbA);
-    blgchase_trdv2( NT,
+    blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
                     A /* A(0, i) */, B /* A(0, i+1) */,
@@ -124,7 +124,7 @@ BODY
 
     assert(NB+2 == nbA); 
     assert(NB+1 == mbA);
-    blgchase_trdv2( NT,
+    blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
                     A /* A(0, i) */, A /* same */,

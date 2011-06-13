@@ -9,7 +9,7 @@
 
 #include "dague.h"
 
-int blgchase_trdv2(int NT, int N, int NB,
+int blgchase_ztrdv2(int NT, int N, int NB,
                    Dague_Complex64_t *A1, Dague_Complex64_t *A2,
                    Dague_Complex64_t *V1, Dague_Complex64_t *TAU1,
                    Dague_Complex64_t *V2, Dague_Complex64_t *TAU2,
