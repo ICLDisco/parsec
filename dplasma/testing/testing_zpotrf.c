@@ -41,16 +41,11 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     /* initializing matrix structure */
-    PLASMA_enum uplo = PlasmaLower;
     int info = 0;
     LDA = max( LDA, N );
     LDB = max( LDB, N );
-
-
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                   N, N, P, uplo));
+    SMB = 1;
+    SNB = 1;
 
     /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -65,13 +60,22 @@ int main(int argc, char ** argv)
         if(loud) printf("Done\n");
     }
 #endif
-
+ 
+    if(!check)
     {
+        PLASMA_enum uplo = PlasmaLower;
+
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+            sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                       N, N, P, uplo));
+
         PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t*) &ddescA, 100);
+        dplasma_zplghe( dague, (Dague_Complex64_t)(N), uplo, 
+                        (tiled_matrix_desc_t *)&ddescA, 1358);
         if(loud > 2) printf("Done\n");
 
         if(loud > 2) printf("+++ Computing potrf ... ");
@@ -87,69 +91,36 @@ int main(int argc, char ** argv)
         dplasma_zpotrf_Destruct( DAGUE_zpotrf );
 #endif
         if(loud > 2) printf("Done.\n");
+
+        dague_data_free(ddescA.mat);
+        dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
-    if(check)
-    {
-        int info_solution;
-
-        if(loud > 2) printf("+++ generate check matrices ... ");
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
-            sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
-                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                       N, N, P, uplo));
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t*) &ddescA0, 100);
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
-                                   N, NRHS, 1, 1, P));
-        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
-            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
-                                   N, NRHS, 1, 1, P));
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
-        if(loud > 2) printf("Done\n");    
-        
-        if(loud > 2) printf("+++ computing solution ... ");
-        info_solution = dplasma_zpotrs(dague, uplo, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX );
-        if(info_solution == 0) 
-        {
-            if(loud > 2) printf("Done\n");
-        }
-        else printf("!!! INFO SOLVE FAILED !!!\n");
-
-        info_solution = check_solution(dague, uplo, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
-
-        if(rank == 0)
-        {
-            if (info_solution == 0) {
-               printf(" ----- TESTING POTRF+POTRS  ....... PASSED !\n");
-            }
-            else {
-               printf(" ----- TESTING POTRF+POTRS ........ FAILED !\n");
-            }
-            printf("***************************************************\n");
-        }
-         
-        dague_data_free(ddescA0.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescA0);
-        dague_data_free(ddescB.mat);
-        dague_ddesc_destroy( (dague_ddesc_t*)&ddescB);
-        dague_data_free(ddescX.mat);
-    }
-    dague_data_free(ddescA.mat);
-    dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
-
-
-
-
-#if 0 /* THIS IS ALL WRONG, you cannot use a two_dim_block_cyclic and fill it with sym_pos_mat (what is the value of uplo if you do that ?) */
     else 
     {
         int u, t1, t2;
         int info_solution;
-
         
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                   N, N, SMB, SNB, P));
+          
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
+            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                   N, N, SMB, SNB, P));
+          
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                                   N, NRHS, SMB, SNB, P));
+
+        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
+            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+                                   N, NRHS, SMB, SNB, P));
+
+
         for ( u=0; u<2; u++) {
             if ( uplo[u] == PlasmaUpper ) {
                 t1 = PlasmaConjTrans; t2 = PlasmaNoTrans;
@@ -157,7 +128,6 @@ int main(int argc, char ** argv)
                 t1 = PlasmaNoTrans; t2 = PlasmaconjTrans;
             }   
 
-#if 0
             /*********************************************************************
              *               First Check
              */
@@ -167,21 +137,27 @@ int main(int argc, char ** argv)
 
             /* matrix generation */
             printf("Generate matrices ... ");
-            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA,  400);
-            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA0, 400);
-            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+            dplasma_zplghe( dague, (double)(N), uplo[u], 
+                            (tiled_matrix_desc_t *)&ddescA,  1358);
+            dplasma_zplghe( dague, (double)(N), uplo[u], 
+                            (tiled_matrix_desc_t *)&ddescA0, 1358);
+            dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+            dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 3872);
             printf("Done\n");
-
 
             /* Compute */
             printf("Compute ... ... ");
-            info = dplasma_zposv(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescB );
+            info = dplasma_zposv(dague, uplo[u], 
+                                 (tiled_matrix_desc_t *)&ddescA, 
+                                 (tiled_matrix_desc_t *)&ddescX );
             printf("Done\n");
             printf("Info = %d\n", info);
 
             /* Check the solution */
-            info_solution = check_solution( dague, uplo[u], (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+            info_solution = check_solution( dague, uplo[u], 
+                                            (tiled_matrix_desc_t *)&ddescA0, 
+                                            (tiled_matrix_desc_t *)&ddescB, 
+                                            (tiled_matrix_desc_t *)&ddescX);
 
             if ( rank == 0 ) {
                 if (info_solution == 0) {
@@ -192,7 +168,7 @@ int main(int argc, char ** argv)
                 }
                 printf("***************************************************\n");
             }
-#endif
+
             /*********************************************************************
              *               Second Check
              */
@@ -202,24 +178,32 @@ int main(int argc, char ** argv)
 
             /* matrix generation */
             printf("Generate matrices ... ");
-            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA,  400);
-            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA0, 400);
-            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+            dplasma_zplghe( dague, (double)(N), uplo[u], 
+                            (tiled_matrix_desc_t *)&ddescA,  1358);
+            dplasma_zplghe( dague, (double)(N), uplo[u], 
+                            (tiled_matrix_desc_t *)&ddescA0, 1358);
+            dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+            dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 3872);
             printf("Done\n");
 
 
             /* Compute */
             printf("Compute ... ... ");
-            info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+            info = dplasma_zpotrf(dague, uplo[u], 
+                                  (tiled_matrix_desc_t *)&ddescA );
             if ( info == 0 ) {
-                dplasma_zpotrs(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX );
+                dplasma_zpotrs(dague, uplo[u], 
+                               (tiled_matrix_desc_t *)&ddescA, 
+                               (tiled_matrix_desc_t *)&ddescX );
             }
             printf("Done\n");
             printf("Info = %d\n", info);
 
             /* Check the solution */
-            info_solution = check_solution( dague, uplo[u], (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+            info_solution = check_solution( dague, uplo[u], 
+                                            (tiled_matrix_desc_t *)&ddescA0, 
+                                            (tiled_matrix_desc_t *)&ddescB, 
+                                            (tiled_matrix_desc_t *)&ddescX);
 
             if ( rank == 0 ) {
                 if (info_solution == 0) {
@@ -240,25 +224,33 @@ int main(int argc, char ** argv)
 
             /* matrix generation */
             printf("Generate matrices ... ");
-            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA,  400);
-            generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA0, 400);
-            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-            generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescX, 200);
+            dplasma_zplghe( dague, (double)(N), uplo[u], 
+                            (tiled_matrix_desc_t *)&ddescA,  1358);
+            dplasma_zplghe( dague, (double)(N), uplo[u], 
+                            (tiled_matrix_desc_t *)&ddescA0, 1358);
+            dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 3872);
+            dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescX, 3872);
             printf("Done\n");
-
 
             /* Compute */
             printf("Compute ... ... ");
             info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
             if ( info == 0 ) {
-                dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
-                dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
+                dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0, 
+                              (tiled_matrix_desc_t *)&ddescA, 
+                              (tiled_matrix_desc_t *)&ddescX);
+                dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0, 
+                              (tiled_matrix_desc_t *)&ddescA, 
+                              (tiled_matrix_desc_t *)&ddescX);
             }
             printf("Done\n");
             printf("Info = %d\n", info);
 
             /* Check the solution */
-            info_solution = check_solution( dague, uplo[u], (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
+            info_solution = check_solution( dague, uplo[u], 
+                                            (tiled_matrix_desc_t *)&ddescA0, 
+                                            (tiled_matrix_desc_t *)&ddescB, 
+                                            (tiled_matrix_desc_t *)&ddescX);
 
             if ( rank == 0 ) {
                 if (info_solution == 0) {
@@ -281,7 +273,6 @@ int main(int argc, char ** argv)
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     }
-#endif
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     if(iparam[IPARAM_NGPUS] > 0) 

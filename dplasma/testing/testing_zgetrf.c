@@ -91,7 +91,6 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    N, NRHS, SMB, SNB, P));
         
-#if 0
         /*********************************************************************
          *               First Check
          */
@@ -166,7 +165,6 @@ int main(int argc, char ** argv)
             printf("***************************************************\n");
         }
         
-#endif
         /*********************************************************************
          *               Third Check
          */
