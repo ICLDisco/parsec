@@ -52,9 +52,10 @@ int main(int argc, char ** argv)
     if(!check) 
     {
         /* matrix generation */
+        /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */

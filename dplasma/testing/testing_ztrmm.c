@@ -46,8 +46,12 @@ int main(int argc, char ** argv)
 
     if(!check) 
     {
-        int s = PlasmaLeft;
-        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (s, (DagDouble_t)M, (DagDouble_t)NRHS));
+        PLASMA_enum side  = PlasmaLeft;
+        PLASMA_enum uplo  = PlasmaLower;
+        PLASMA_enum trans = PlasmaNoTrans;
+        PLASMA_enum diag  = PlasmaUnit;
+
+        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (side, (DagDouble_t)M, (DagDouble_t)NRHS));
 
         MT = ddescB.super.mt;
         NT = ddescB.super.nt;
@@ -58,13 +62,13 @@ int main(int argc, char ** argv)
           
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+        dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplrnt( dague,           (tiled_matrix_desc_t *)&ddescB, 5676);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrmm,
-                                  (s, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+                                  (side, uplo, trans, diag,
                                    (Dague_Complex64_t)1.0, 
                                    (tiled_matrix_desc_t *)&ddescA, 
                                    (tiled_matrix_desc_t *)&ddescB, 
@@ -94,6 +98,9 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    M, NRHS, SMB, SNB, P));
 
+        dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 5676);
+
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
@@ -111,9 +118,8 @@ int main(int argc, char ** argv)
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
-                        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 400);
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
+                        dplasma_zlacpy( dague, PlasmaUpperLower,
+                                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescC );
                         printf("Done\n");
 
                         /* Create TRMM DAGuE */

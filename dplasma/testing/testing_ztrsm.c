@@ -55,8 +55,8 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
+        dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplrnt( dague,           (tiled_matrix_desc_t *)&ddescB, 5676);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
@@ -87,6 +87,9 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    M, NRHS, SMB, SNB, P));
 
+        dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 5676);
+
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
@@ -104,9 +107,8 @@ int main(int argc, char ** argv)
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
-                        generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 400);
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-                        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 200);
+                        dplasma_zlacpy( dague, PlasmaUpperLower,
+                                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescC );
                         printf("Done\n");
 
                         /* Compute */
@@ -202,7 +204,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), C, 1, B, 1);
     Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    //if (getenv("DPLASMA_TESTING_VERBOSE"))
+    if (getenv("DPLASMA_TESTING_VERBOSE"))
         printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
                Rnorm, Anorm, Binitnorm, Bdaguenorm, Blapacknorm);
 

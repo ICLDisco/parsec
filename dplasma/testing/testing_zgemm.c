@@ -62,9 +62,9 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB, 200);
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC, 300);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 4674);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC, 2873);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
@@ -96,8 +96,10 @@ int main(int argc, char ** argv)
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
-                                   M, N, SMB, SNB, P))
+                                   M, N, SMB, SNB, P));
                 
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, 2873);
+
 /* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
         for(tA=0; tA<3; tA++) {
@@ -125,6 +127,9 @@ int main(int argc, char ** argv)
                                            nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
                                            Bm, Bn, SMB, SNB, P));
 
+                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  3872);
+                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB,  4674);
+
                 if ( rank == 0 ) {
                     printf("***************************************************\n");
                     printf(" ----- TESTING DGEMM (%s, %s) -------- \n",
@@ -133,10 +138,8 @@ int main(int argc, char ** argv)
                 
                 /* matrix generation */
                 if(loud) printf("Generate matrices ... ");
-                generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA,  100);
-                generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescB,  200);
-                generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC,  300);
-                generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescC2, 300);
+                dplasma_zlacpy( dague, PlasmaUpperLower,
+                                (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
                 if(loud) printf("Done\n");
 
                 /* Create GEMM DAGuE */

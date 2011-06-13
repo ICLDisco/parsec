@@ -71,14 +71,14 @@ int main(int argc, char ** argv)
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescT);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf, 
-                                           ((tiled_matrix_desc_t*)&ddescA,
-                                            (tiled_matrix_desc_t*)&ddescT))
+                                  ((tiled_matrix_desc_t*)&ddescA,
+                                   (tiled_matrix_desc_t*)&ddescT))
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf)

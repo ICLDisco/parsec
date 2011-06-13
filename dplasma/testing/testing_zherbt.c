@@ -247,7 +247,7 @@ int main(int argc, char *argv[])
 
     PLASMA_enum uplo = PlasmaLower;
 
-    generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
 
     PLASMA_Complex64_t *A2 = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
     double *W1             = (double *)malloc(N*sizeof(double));
