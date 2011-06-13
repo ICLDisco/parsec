@@ -47,24 +47,11 @@ int main(int argc, char ** argv)
     SMB = 1;
     SNB = 1;
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(loud) printf("+++ Load GPU kernel ... ");
-        if(0 != zpotrf_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
-        {
-            fprintf(stderr, "XXX Unable to load GPU kernel.\n");
-            exit(3);
-        }
-        if(loud) printf("Done\n");
-    }
-#endif
- 
+
     if(!check)
     {
         PLASMA_enum uplo = PlasmaLower;
-
+    
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
             sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                        nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
@@ -72,6 +59,20 @@ int main(int argc, char ** argv)
 
         PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
 
+        /* load the GPU kernel */
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+        if(iparam[IPARAM_NGPUS] > 0)
+        {
+            if(loud) printf("+++ Load GPU kernel ... ");
+            if(0 != zpotrf_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA))
+            {
+                fprintf(stderr, "XXX Unable to load GPU kernel.\n");
+                exit(3);
+            }
+            if(loud) printf("Done\n");
+        }
+#endif
+ 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         dplasma_zplghe( dague, (Dague_Complex64_t)(N), uplo, 
@@ -92,6 +93,12 @@ int main(int argc, char ** argv)
 #endif
         if(loud > 2) printf("Done.\n");
 
+#if defined(HAVE_CUDA) && defined(PRECISION_s)
+        if(iparam[IPARAM_NGPUS] > 0) 
+        {
+            zpotrf_cuda_fini(dague);
+        }
+#endif
         dague_data_free(ddescA.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescA);
     }
@@ -280,14 +287,6 @@ int main(int argc, char ** argv)
         dague_data_free(ddescX.mat);
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
     }
-
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    if(iparam[IPARAM_NGPUS] > 0) 
-    {
-        zpotrf_cuda_fini(dague);
-    }
-#endif
-
 
     cleanup_dague(dague, iparam);
 
