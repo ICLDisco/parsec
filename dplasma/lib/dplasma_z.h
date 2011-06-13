@@ -33,9 +33,9 @@ int  dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matri
 int  dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T) ;
 
 int dplasma_zlaset( dague_context_t *dague, PLASMA_enum uplo, Dague_Complex64_t alpha, Dague_Complex64_t beta, tiled_matrix_desc_t *A); 
-int dplasma_zplghe( dague_context_t *dague, Dague_Complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
+int dplasma_zplghe( dague_context_t *dague, double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 int dplasma_zplgsy( dague_context_t *dague, Dague_Complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
-int dplasma_zplrnt( dague_context_t *dague, tiled_matrix_desc_t *A, unsigned long long int seed);
+int dplasma_zplrnt( dague_context_t *dague,                                           tiled_matrix_desc_t *A, unsigned long long int seed);
 
 /***********************************************************
  *             Non-Blocking interface
@@ -67,8 +67,8 @@ dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum
 
 /* Auxiliary routines */
 dague_object_t* dplasma_zlaset_New( PLASMA_enum uplo, Dague_Complex64_t alpha, Dague_Complex64_t beta, tiled_matrix_desc_t *A);
-dague_object_t* dplasma_zplrnt_New( tiled_matrix_desc_t *A, unsigned long long int seed);
-dague_object_t* dplasma_zplghe_New( Dague_Complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
+dague_object_t* dplasma_zplrnt_New(                                           tiled_matrix_desc_t *A, unsigned long long int seed);
+dague_object_t* dplasma_zplghe_New( double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 
 /***********************************************************

@@ -40,7 +40,7 @@
  *          The seed used in the random generation.
  *
  ******************************************************************************/
-dague_object_t* dplasma_zplghe_New( Dague_Complex64_t bump, PLASMA_enum uplo, 
+dague_object_t* dplasma_zplghe_New( double bump, PLASMA_enum uplo, 
                                     tiled_matrix_desc_t *A,
                                     unsigned long long int seed)
 {
@@ -58,7 +58,7 @@ dague_object_t* dplasma_zplghe_New( Dague_Complex64_t bump, PLASMA_enum uplo,
 }
 
 int dplasma_zplghe( dague_context_t *dague, 
-                    Dague_Complex64_t bump, PLASMA_enum uplo, 
+                    double bump, PLASMA_enum uplo, 
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed) 
 {
