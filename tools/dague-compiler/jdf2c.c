@@ -2012,8 +2012,11 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  d->nb_functions = 0;\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
-        coutput("  dague_arena_destruct(o->arenas[DAGUE_%s_%s_ARENA]);\n"
-                "  free(o->arenas[DAGUE_%s_%s_ARENA]);\n",
+        coutput("  if( o->arenas[DAGUE_%s_%s_ARENA] != NULL ) {\n"
+                "    dague_arena_destruct(o->arenas[DAGUE_%s_%s_ARENA]);\n"
+                "    free(o->arenas[DAGUE_%s_%s_ARENA]);\n"
+                "  }\n",
+                jdf_basename, g->name,
                 jdf_basename, g->name,
                 jdf_basename, g->name);
     }
