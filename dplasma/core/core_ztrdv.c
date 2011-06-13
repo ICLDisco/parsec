@@ -25,7 +25,8 @@ void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA);
 void band_to_trd_vmpi2(int N, int NB, Dague_Complex64_t *A, int LDA);
 void band_to_trd_v8seq(int N, int NB, Dague_Complex64_t *A, int LDA, int INgrsiz, int INthgrsiz);
 int TRD_seqgralgtype(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *C, Dague_Complex64_t *S, int i, int j, int m, int grsiz, int BAND);
-int blgchase_trdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile);
+int blgchase_ztrdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile);
+int blgchase_ztrdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64_t *A2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int sweep, int id, int blktile);
 
 int CORE_zlarfx2(int side, int N,
                 Dague_Complex64_t V,
@@ -252,10 +253,10 @@ static void DLARFX_C(char side, int N, Dague_Complex64_t V, Dague_Complex64_t TA
 ///////////////////////////////////////////////////////////
 #define A1(m,n)   &(A1[((m)-(n)) + LDA1*(n)])
 #define A2(m,n)   &(A2[((m)-(n)) + LDA2*((n)-NB)])
-#define V1(m)     &(V1[m])
-#define TAU1(m)   &(TAU1[m])
-#define V2(m)     &(V2[m])
-#define TAU2(m)   &(TAU2[m])
+#define V1(m)     &(V1[m-st])
+#define TAU1(m)   &(TAU1[m-st])
+#define V2(m)     &(V2[m-st])
+#define TAU2(m)   &(TAU2[m-st])
 ///////////////////////////////////////////////////////////
 //                  TYPE 1-BAND Householder
 ///////////////////////////////////////////////////////////
@@ -805,7 +806,7 @@ void band_to_trd_v8seq(int N, int NB, Dague_Complex64_t *A, int LDA, int INgrsiz
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int blgchase_trdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile) {
+int blgchase_ztrdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile) {
   int    edloc, stloc, st, ed, KDM1, LDA;
   int    IONE, ITWO; 
   IONE=1;
@@ -846,6 +847,8 @@ int blgchase_trdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_
   }
   return 0;
 }
+
+#if 0
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -870,20 +873,20 @@ void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA) {
      for (S = 0; S<NB; S++){
         sweep = blktile*NB + S ;
         for (id = blktile; id<NT; id++){
-               blgchase_trdv1 (NT, N, NB, A, V, TAU, sweep , id, blktile);
+               blgchase_ztrdv1 (NT, N, NB, A, V, TAU, sweep , id, blktile);
 	}
      }
   }
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#endif
 
 
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int blgchase_trdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64_t *A2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int sweep, int id, int blktile) {
+int blgchase_ztrdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64_t *A2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int sweep, int id, int blktile) {
   int    edloc, stloc, st, ed, KDM1, LDA;
   int    IONE, ITWO; 
   IONE=1;
@@ -921,6 +924,8 @@ int blgchase_trdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64
   }
   return 0;
 }
+
+#if 0
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -946,7 +951,7 @@ void band_to_trd_vmpi2(int N, int NB, Dague_Complex64_t *A, int LDA) {
             sweep = blktile*NB + S ;
             for (id = blktile; id<NT; id++){
                 //printf("voici  blktile %d    S %d     id %d   sweep %d   \n",blktile, S, id, sweep); 
-                blgchase_trdv2 (NT, N, NB,
+                blgchase_ztrdv2 (NT, N, NB,
                                 A+(id*NB*LDA), A+((id+1)*NB*LDA),
                                 V+(id*NB), TAU+(id*NB),
                                 V+((id+1)*NB), TAU+((id+1)*NB),
@@ -958,7 +963,7 @@ void band_to_trd_vmpi2(int N, int NB, Dague_Complex64_t *A, int LDA) {
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#endif
 
 
 

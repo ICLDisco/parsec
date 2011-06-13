@@ -53,7 +53,7 @@ macro(precisions_rules OUTPUTLIST PRECISIONS SOURCES)
             COMMAND ${CMAKE_CURRENT_BINARY_DIR}/generated && cp ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} ${CMAKE_CURRENT_BINARY_DIR}/${prec_rules_OSRC}
             MAIN_DEPENDENCY ${prec_rules_SOURCE})
         endif()
-        set_source_files_properties(${prec_rules_OSRC} PROPERTIES COMPILE_FLAGS "-DPRECISION_${prec_rules_PREC}")
+        set_source_files_properties(${prec_rules_OSRC} PROPERTIES COMPILE_FLAGS "-DPRECISION_${prec_rules_PREC}" GENERATED 1)
         list(APPEND ${OUTPUTLIST} ${prec_rules_OSRC})
       endif()
     endforeach()

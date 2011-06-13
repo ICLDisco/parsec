@@ -83,7 +83,7 @@ BODY
     
     assert(NB+2 == nbA); 
     assert(NB+1 == mbA);
-    blgchase_trdv2( NT,
+    blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
                     A /* A(0, i) */, B /* A(0, i+1) */,
@@ -119,12 +119,12 @@ BODY
     nbA   = __dague_object->super.A->nb;
     mbA   = __dague_object->super.A->mb;
     Dague_Complex64_t *vi, *taui;
-    vi    = (Dague_Complex64_t*)A + mbA * NT;
+    vi    = (Dague_Complex64_t*)A + mbA * NB;
     taui  = vi + mbA;
 
     assert(NB+2 == nbA); 
     assert(NB+1 == mbA);
-    blgchase_trdv2( NT,
+    blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
                     A /* A(0, i) */, A /* same */,

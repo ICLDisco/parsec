@@ -81,6 +81,7 @@ subs = {
     ('CORE_sasum','CORE_dasum','CORE_scasum','CORE_dzasum'),
     ('core_sasum','core_dasum','core_scasum','core_dzasum'),
     ('coreblas_s','coreblas_d','coreblas_c','coreblas_z'),
+    ('strdv', 'dtrdv', 'ctrdv', 'ztrdv'),
     ('sytra1','sytra1','hetra1','hetra1'),
     ('ssygst','dsygst','chegst','zhegst'),
     ('SSYGST','DSYGST','CHEGST','ZHEGST'),
