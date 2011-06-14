@@ -1646,7 +1646,29 @@ char *quark_tree_to_body(node_t *node){
     return str;
 }
 
+/*
+ * The second parameter, "subs", holds an array of str_pair_t whose last element contains NULL values.
+ */
+static inline const char *return_string_or_substitute(char *str, str_pair_t *subs){
+    str_pair_t *curr;
+
+    if( NULL == subs ){
+        return str;
+    }
+
+    for(curr=subs; NULL != curr->str1; curr++){
+        if( !strcmp(curr->str1, str) )
+            return curr->str2;
+    }
+
+    return str;
+}
+
 char *tree_to_str(node_t *node){
+    return tree_to_str_with_substitutions(node, NULL);
+}
+
+char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
     int i, kid_count;
     char prfx[16], *str=NULL;
 
@@ -1666,7 +1688,7 @@ char *tree_to_str(node_t *node){
             str = append_to_string(str, ws, NULL, 0);
             free(ws);
 
-            tmp_str = tree_to_str(tmp);
+            tmp_str = tree_to_str_with_substitutions(tmp, subs);
             if( DA_is_scf(tmp ) )
                 str = append_to_string(str, tmp_str, "%s\n", 1+strlen(tmp_str) );
             else
@@ -1680,14 +1702,16 @@ char *tree_to_str(node_t *node){
         switch( node->type ){
             case IDENTIFIER:
                 if( NULL != node->var_type ){
+                    // I don't think this code does anything any more.
+                    // It was an early hack due to lack of symbol table.
                     str = append_to_string(strdup("("), node->var_type, NULL, 0);
                     str = append_to_string(str, ")", NULL, 0);
                 }
-                 /*
-                  * JDF & QUARK specific optimization:
-                  * Add the keyword "desc_" infront of the variable to
-                  * differentiate the matrix from the struct.
-                  */
+                /*
+                 * JDF & QUARK specific optimization:
+                 * Add the keyword "desc_" infront of the variable to
+                 * differentiate the matrix from the struct.
+                 */
                 if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
                     char *type = st_type_of_variable(node->u.var_name, node->symtab);
                     if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
@@ -1695,7 +1719,9 @@ char *tree_to_str(node_t *node){
                     }
                 }
 
-                return append_to_string(str, strdup(node->u.var_name), NULL, 0);
+                tmp = (char *)return_string_or_substitute(node->u.var_name, subs);
+
+                return append_to_string(str, strdup(tmp), NULL, 0);
 
             case INTCONSTANT:
                 if( NULL != node->var_type ){
@@ -1728,7 +1754,7 @@ char *tree_to_str(node_t *node){
             case SIZEOF:
                 str = strdup("sizeof(");
                 if(node->u.kids.kid_count ){
-                    str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0 );
+                    str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
                 }else{
                     str = append_to_string( str, node->u.var_name, NULL, 0 );
                 }
@@ -1740,8 +1766,8 @@ char *tree_to_str(node_t *node){
                     str = append_to_string(strdup("("), node->var_type, NULL, 0);
                     str = append_to_string(str, ")", NULL, 0);
                 }
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0);
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0);
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
 	    case ADDR_OF:
@@ -1774,8 +1800,8 @@ char *tree_to_str(node_t *node){
             case LE:
             case GE:
             case COMMA_EXPR:
-                lhs = tree_to_str(node->u.kids.kids[0]);
-                rhs = tree_to_str(node->u.kids.kids[1]);
+                lhs = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+                rhs = tree_to_str_with_substitutions(node->u.kids.kids[1], subs);
 
                 if( isSimpleVar(lhs) ){
                     str = lhs;
@@ -1799,106 +1825,106 @@ char *tree_to_str(node_t *node){
 
 
             case ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " = ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case MUL_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " *= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case DIV_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " /= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case MOD_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " %= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case ADD_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " += ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case SUB_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " -= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case LEFT_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " <<= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case RIGHT_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " >>= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case AND_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " &= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case XOR_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " ^= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case OR_ASSIGN:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, " |= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case S_U_MEMBER:
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
                 str = append_to_string( str, ".", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case PTR_OP:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, "->", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
             case COND:
                 str = strdup("(");
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
                 str = append_to_string( str, ") ? (", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 str = append_to_string( str, ") : (", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[2]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[2], subs), NULL, 0 );
                 str = append_to_string( str, ")", NULL, 0 );
                 return str;
 
             case EQ_OP:
                 str = strdup("(");
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
                 str = append_to_string( str, ")==(", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 str = append_to_string( str, ")", NULL, 0);
                 return str;
 
             case NE_OP:
                 str = strdup("(");
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[0]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
                 str = append_to_string( str, ")!=(", NULL, 0 );
-                str = append_to_string( str, tree_to_str(node->u.kids.kids[1]), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 str = append_to_string( str, ")", NULL, 0);
                 return str;
 
@@ -1907,11 +1933,11 @@ char *tree_to_str(node_t *node){
                 for(i=0; i<kid_count-1; ++i){
                     if(i>0)
                         str = append_to_string( str, "; ", NULL, 0);
-                    str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
+                    str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
                 }
                 str = append_to_string( str, ") {\n", NULL, 0);
                 _ind_depth += 4;
-                str = append_to_string( str, tree_to_str(DA_for_body(node)), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_for_body(node), subs), NULL, 0 );
                 _ind_depth -= 4;
                 for(i=0; i<_ind_depth; i+=4){
                     str = append_to_string(str, "    ", NULL, 0);
@@ -1921,10 +1947,10 @@ char *tree_to_str(node_t *node){
 
             case WHILE:
                 str = strdup("while( ");
-                str = append_to_string( str, tree_to_str(DA_while_cond(node)), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_while_cond(node), subs), NULL, 0 );
                 str = append_to_string( str, " ) {\n", NULL, 0);
                 _ind_depth += 4;
-                str = append_to_string( str, tree_to_str(DA_while_body(node)), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_while_body(node), subs), NULL, 0 );
                 _ind_depth -= 4;
                 for(i=0; i<_ind_depth; i+=4){
                     str = append_to_string(str, "    ", NULL, 0);
@@ -1935,13 +1961,13 @@ char *tree_to_str(node_t *node){
             case DO:
                 str = strdup("do{\n");
                 _ind_depth += 4;
-                str = append_to_string( str, tree_to_str(DA_do_body(node)), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_do_body(node), subs), NULL, 0 );
                 _ind_depth -= 4;
                 for(i=0; i<_ind_depth; i+=4){
                     str = append_to_string(str, "    ", NULL, 0);
                 }
                 str = append_to_string( str, "}while( ", NULL, 0);
-                str = append_to_string( str, tree_to_str(DA_do_cond(node)), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_do_cond(node), subs), NULL, 0 );
                 str = append_to_string( str, " );\n", NULL, 0);
                 return str;
 
@@ -1950,7 +1976,7 @@ char *tree_to_str(node_t *node){
                     max_arg_len[j] = -1;
                     for(i=j; i<node->u.kids.kid_count; i+=3){
                         int tmp2;
-                        char *arg = tree_to_str(node->u.kids.kids[i]);
+                        char *arg = tree_to_str_with_substitutions(node->u.kids.kids[i], subs);
                     
                         tmp2 = strlen(arg);
                         free(arg);
@@ -1958,7 +1984,7 @@ char *tree_to_str(node_t *node){
                             max_arg_len[j] = tmp2;
                     }
                 }
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 str = append_to_string( str, "( ", NULL, 0);
                 for(i=1; i<node->u.kids.kid_count; ++i){
                     char fmt[32];
@@ -1974,28 +2000,28 @@ char *tree_to_str(node_t *node){
                         int len = max_arg_len[1+((i-1)%3)];
                         memset(fmt,0,32*sizeof(char));
                         sprintf(fmt,"%%-%ds",len);
-                        str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), fmt, len+1 );
+                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), fmt, len+1 );
                     }else{
-                        str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0);
+                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0);
                     }
                 }
                 str = append_to_string( str, " )", NULL, 0);
                 return str;
 
             case ARRAY:
-                str = tree_to_str(node->u.kids.kids[0]);
+                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
                 if( JDF_NOTATION ){
                     str = append_to_string( str, "(", NULL, 0);
                     for(i=1; i<node->u.kids.kid_count; ++i){
                         if( i > 1 ) 
                             str = append_to_string( str, ",", NULL, 0);
-                        str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
+                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
                     }
                     str = append_to_string( str, ")", NULL, 0);
                 }else{
                     for(i=1; i<node->u.kids.kid_count; ++i){
                         str = append_to_string( str, "[", NULL, 0);
-                        str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
+                        str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
                         str = append_to_string( str, "]", NULL, 0);
                     }
 
@@ -2012,7 +2038,7 @@ char *tree_to_str(node_t *node){
                 for(i=0; i<kid_count; ++i){
                     if( i > 0 )
                         str = append_to_string( str, " ## ", NULL, 0 );
-                    str = append_to_string( str, tree_to_str(node->u.kids.kids[i]), NULL, 0 );
+                    str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
                 }
                 _ind_depth -= 4;
                 str = append_to_string( str, "}}", NULL, 0 );

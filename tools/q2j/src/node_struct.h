@@ -46,6 +46,10 @@
 
 #define BLOCK       0xFFFF // 65535
 
+typedef struct str_pair{
+    const char *str1;
+    const char *str2;
+}str_pair_t;
 
 typedef struct _task_t task_t;
 typedef struct _node node_t;

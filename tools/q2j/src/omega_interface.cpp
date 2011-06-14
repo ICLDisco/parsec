@@ -59,6 +59,7 @@ static void dump_full_und(und_t *und);
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 static list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
+static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
 static Relation process_and_print_execution_space(node_t *node);
 static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
@@ -3427,13 +3428,16 @@ static string _expr_tree_to_str(const expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
+static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_t *data_element, char *var_pseudoname, int ptask_count, const char *inout){
+    int var_count;
     char *parent_task_name, *pseudotask_name;
-    char *formal_parameters = NULL;
-    char *mtrx_name         = tree_to_str(DA_array_base(data_element));
-    char *ptask_str         = NULL;
+    char *formal_parameters = NULL, *parent_formal_parameters = NULL;
+    char *ptask_str = NULL, *mtrx_name;
     Relation newS_es;
     set <const char *> prev_vars;
+    str_pair_t *solved_vars;
+
+    mtrx_name = tree_to_str(DA_array_base(data_element));
 
     if( !cond.is_null() ){
         newS_es = Intersection(copy(S_es), Domain(copy(cond)));
@@ -3442,21 +3446,41 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
         newS_es = copy(S_es);
     }
 
+    // Find the maximum number of variable substitutions we might need and add one for the termination flag.
+    for(var_count=0; NULL != parent_task->ind_vars[var_count]; ++var_count)
+        /* nothing */;
+    solved_vars = (str_pair_t *)calloc(var_count+1, sizeof(str_pair_t));
+    var_count = 0;
+
     // We start with the parameters in order to discover which ones should be included.
     for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
-        char *var_name = parent_task->ind_vars[i];
+        const char *var_name = parent_task->ind_vars[i];
         expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
-        if( NULL == solution ){
+        if( NULL != solution ){
+            const char *solution_str = expr_tree_to_str(solution);
+            solved_vars[var_count].str1 = var_name;
+            solved_vars[var_count].str2 = solution_str;
+            var_count++;
+
+            if( NULL != parent_formal_parameters )
+                parent_formal_parameters = append_to_string(parent_formal_parameters, ",", NULL, 0);
+            parent_formal_parameters = append_to_string(parent_formal_parameters, solution_str, NULL, 0);
+        }else{
             ptask_str = append_to_string(ptask_str, var_name, "  %s = ", 5+strlen(var_name)); 
             ptask_str = append_to_string(ptask_str, findBoundsOfVar(relation_to_tree(newS_es), var_name, prev_vars, copy(newS_es)), NULL, 0);
 
             // the following code is for generating the string for the caller (the real task)
             if( NULL != formal_parameters )
                 formal_parameters = append_to_string(formal_parameters, ",", NULL, 0);
-            formal_parameters = append_to_string(formal_parameters, parent_task->ind_vars[i], NULL, 0);
+            formal_parameters = append_to_string(formal_parameters, var_name, NULL, 0);
             ptask_str = append_to_string(ptask_str, "\n", NULL, 0);
+
+            if( NULL != parent_formal_parameters )
+                parent_formal_parameters = append_to_string(parent_formal_parameters, ",", NULL, 0);
+            parent_formal_parameters = append_to_string(parent_formal_parameters, var_name, NULL, 0);
+
             prev_vars.insert(var_name);
         }
     }
@@ -3471,7 +3495,6 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
 
     // create_pseudotask() was called by print_edges_and_create_pseudotasks(), so if we print here
     // the string will end up at the right place in the body of the real task.
-    asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, formal_parameters);
     asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
     printf("%s %s\n",var_pseudoname, pseudotask_name);
 
@@ -3490,8 +3513,11 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
         ptask_str = append_to_string(ptask_str, tmp, "  /*_dague_pseudotask_predicate = 1..%s*/\n", 40+strlen(tmp));
     }
 #endif
-             
-    char *data_str = tree_to_str(data_element);
+
+    asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, parent_formal_parameters);
+
+    //char *data_str = tree_to_str(data_element);
+    char *data_str = tree_to_str_with_substitutions(data_element, solved_vars);
     ptask_str = append_to_string(ptask_str, data_str, "\n  : data_%s\n\n",12+strlen(data_str));
     if( !strcmp(inout,"in") ){
         ptask_str = append_to_string(ptask_str, var_pseudoname, "  RW %s",5+strlen(var_pseudoname));
