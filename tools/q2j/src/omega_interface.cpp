@@ -58,23 +58,21 @@ static void dump_full_und(und_t *und);
 #endif
 
 static void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
-static list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
+static list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_edges, Relation S, node_t *reference_data_element);
 static void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps);
 static Relation process_and_print_execution_space(node_t *node);
-static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp);
-static inline set<expr_t *> findAllGEsWithVar(const char *var_name, expr_t *exp);
-static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp, int constr_type);
+static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
+static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
+static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
 static bool is_expr_simple(const expr_t *exp);
 static const char *expr_tree_to_str(const expr_t *exp);
 static string _expr_tree_to_str(const expr_t *exp);
-static int treeContainsVar(expr_t *root, const char *var_name);
-static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relation R);
-static void substituteExprForVar(expr_t *exp, const char *var_name, expr_t *root);
+static int tree_contains_var(expr_t *root, const char *var_name);
+static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
+static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
 static map<string, Free_Var_Decl *> global_vars;
-
+static list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es);
 expr_t *relation_to_tree( Relation R );
-
-static list< pair<expr_t *, Relation> > simplifyConditionsAndSplitDisjunctions(Relation R, Relation S_es);
 
 #if 0
 void dump_all_uses(und_t *def, var_t *head){
@@ -804,9 +802,9 @@ long int getVarCoeff(expr_t *root, const char * var_name){
             break; // although control can never reach this point
 
         default:
-            if( treeContainsVar(root->l, var_name) ){
+            if( tree_contains_var(root->l, var_name) ){
                 return getVarCoeff(root->l, var_name);
-            }else if( treeContainsVar(root->r, var_name) ){
+            }else if( tree_contains_var(root->r, var_name) ){
                 return getVarCoeff(root->r, var_name);
             }else{
                 fprintf(stderr,"ERROR: getVarCoeff(): tree: \"%s\" does not contain variable: \"%s\"\n",expr_tree_to_str(root), var_name);
@@ -834,12 +832,12 @@ expr_t *removeVarFromTree(expr_t *root, const char *var_name){
     // we were given the "a*X" part.  In that case, we return NULL and the caller will
     // know what to do.
     if( MUL == root->type ){
-        if( treeContainsVar(root->l, var_name) || treeContainsVar(root->r, var_name) ){
+        if( tree_contains_var(root->l, var_name) || tree_contains_var(root->r, var_name) ){
             return NULL;
         }
     }
 
-    if( treeContainsVar(root->l, var_name) ){
+    if( tree_contains_var(root->l, var_name) ){
         if( MUL == root->l->type ){
             free_tree( root->l );
             return root->r;
@@ -847,7 +845,7 @@ expr_t *removeVarFromTree(expr_t *root, const char *var_name){
             root->l = removeVarFromTree(root->l, var_name);
             return root;
         }
-    }else if( treeContainsVar(root->r, var_name) ){
+    }else if( tree_contains_var(root->r, var_name) ){
         if( MUL == root->r->type ){
             free_tree( root->r );
             return root->l;
@@ -939,10 +937,10 @@ expr_t *solveConstraintForVar(expr_t *constr_exp, const char *var_name){
 
     assert( (EQ_OP == constr_exp->type) || (GE == constr_exp->type) );
 
-    if( treeContainsVar(constr_exp->l, var_name) ){
+    if( tree_contains_var(constr_exp->l, var_name) ){
         e = copy_tree(constr_exp->l);
         e_other = copy_tree(constr_exp->r);
-    }else if( treeContainsVar(constr_exp->r, var_name) ){
+    }else if( tree_contains_var(constr_exp->r, var_name) ){
         e = copy_tree(constr_exp->r);
         e_other = copy_tree(constr_exp->l);
     }else{
@@ -1015,7 +1013,7 @@ int treeContainsOnlyVarsInSet(expr_t *root, set<const char *>vars){
  * This function returns 1 if the tree passed as first parameter contains the
  * variable passed as second parameter anywhere in the tree.
  */
-int treeContainsVar(expr_t *root, const char *var_name){
+int tree_contains_var(expr_t *root, const char *var_name){
 
     if( NULL == root )
         return 0;
@@ -1026,9 +1024,9 @@ int treeContainsVar(expr_t *root, const char *var_name){
                 return 1;
             return 0;
         default:
-            if( treeContainsVar(root->l, var_name) )
+            if( tree_contains_var(root->l, var_name) )
                 return 1;
-            if( treeContainsVar(root->r, var_name) )
+            if( tree_contains_var(root->r, var_name) )
                 return 1;
             return 0;
     }
@@ -1038,7 +1036,7 @@ int treeContainsVar(expr_t *root, const char *var_name){
 const char *findBoundsOfVar(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
     char *lb = NULL, *ub = NULL;
     stringstream ss;
-    set<expr_t *> ges = findAllGEsWithVar(var_name, exp);
+    set<expr_t *> ges = find_all_GEs_with_var(var_name, exp);
     bool is_lb_simple = false, is_ub_simple = false;
 
     map<string, Free_Var_Decl *>::iterator g_it;
@@ -1060,7 +1058,7 @@ const char *findBoundsOfVar(expr_t *exp, const char *var_name, set<const char *>
         if( !R.is_set() ){
             for(int i=0; i<R.n_out(); i++){
                 const char *ovar = R.output_var(i+1)->char_name();
-                if( treeContainsVar(rslt_exp, ovar) ){
+                if( tree_contains_var(rslt_exp, ovar) ){
                     exp_has_output_vars = 1;
                     break;
                 }
@@ -1159,7 +1157,7 @@ expr_t *eliminateVarUsingTransitivity(expr_t *exp, const char *var_name, Relatio
     set<expr_t *> ubs, lbs;
     set<expr_t *>::iterator it;
 
-    ges = findAllGEsWithVar(var_name, exp);
+    ges = find_all_GEs_with_var(var_name, exp);
 
     // solve all GEs that involve "var_name" and get all the lower/upper bounds.
     for(it=ges.begin(); it!=ges.end(); it++){
@@ -1202,7 +1200,7 @@ expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R)
     set<expr_t *> eqs;
     expr_t *rslt_exp;
 
-    eqs = findAllEQsWithVar(var_name, exp);
+    eqs = find_all_EQs_with_var(var_name, exp);
     if( eqs.empty() ){
         return NULL;
     }
@@ -1219,7 +1217,7 @@ expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R)
 
         // If one of the equations includes this variable and no other output
         // variables, we solve that equation for the variable and return the solution.
-        rslt_exp = solveDirectlySolvableEQ(exp, var_name, R);
+        rslt_exp = solve_directly_solvable_EQ(exp, var_name, R);
         if( NULL != rslt_exp ){
             return rslt_exp;
         }
@@ -1241,9 +1239,9 @@ expr_t *solveExpressionTreeForVar(expr_t *exp, const char *var_name, Relation R)
             if( !strcmp(ovar, var_name) )
                 continue;
 
-            expr_t *tmp_exp = solveDirectlySolvableEQ(exp, ovar, R);
+            expr_t *tmp_exp = solve_directly_solvable_EQ(exp, ovar, R);
             if( NULL != tmp_exp ){
-                substituteExprForVar(tmp_exp, ovar, exp);
+                substitute_exp_for_var(tmp_exp, ovar, exp);
             }
             free((void *)ovar);
         }
@@ -1336,12 +1334,12 @@ void multiplyTreeByConstant(expr_t *exp, int c){
 }
 
 
-static void substituteExprForVar(expr_t *exp, const char *var_name, expr_t *root){
+static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root){
     expr_t *eq_exp, *new_exp, *mul, *parent;
     set<expr_t *> cnstr, ges;
 
-    cnstr = findAllEQsWithVar(var_name, root);
-    ges = findAllGEsWithVar(var_name, root);
+    cnstr = find_all_EQs_with_var(var_name, root);
+    ges = find_all_GEs_with_var(var_name, root);
     cnstr.insert(ges.begin(), ges.end());
     
     set<expr_t *>::iterator e_it;
@@ -1373,11 +1371,11 @@ static void substituteExprForVar(expr_t *exp, const char *var_name, expr_t *root
 }
 
 
-static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relation R){
+static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R){
     set<expr_t *> eqs;
     expr_t *eq_exp, *rslt_exp;
 
-    eqs = findAllEQsWithVar(var_name, exp);
+    eqs = find_all_EQs_with_var(var_name, exp);
     set<expr_t *>::iterator e_it;
     for(e_it=eqs.begin(); e_it!=eqs.end(); e_it++){
         int exp_has_output_vars = 0;
@@ -1390,7 +1388,7 @@ static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relati
   
         for(int i=0; i<R.n_out(); i++){
             const char *ovar = R.output_var(i+1)->char_name();
-            if( treeContainsVar(rslt_exp, ovar) ){
+            if( tree_contains_var(rslt_exp, ovar) ){
                 exp_has_output_vars = 1;
                 break;
             }
@@ -1406,7 +1404,7 @@ static expr_t *solveDirectlySolvableEQ(expr_t *exp, const char *var_name, Relati
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-expr_t *findEQwithVar(const char *var_name, expr_t *exp){
+expr_t *find_EQ_with_var(const char *var_name, expr_t *exp){
     expr_t *tmp_r, *tmp_l;
 
     switch( exp->type ){
@@ -1420,10 +1418,10 @@ expr_t *findEQwithVar(const char *var_name, expr_t *exp){
 
         case L_OR:
             // If you find it in both legs, panic
-            tmp_l = findEQwithVar(var_name, exp->l);
-            tmp_r = findEQwithVar(var_name, exp->r);
+            tmp_l = find_EQ_with_var(var_name, exp->l);
+            tmp_r = find_EQ_with_var(var_name, exp->r);
             if( (NULL != tmp_l) && (NULL != tmp_r) ){
-                fprintf(stderr,"ERROR: findEQwithVar(): variable \"%s\" is not supposed to be in more than one conjuncts.\n",var_name);
+                fprintf(stderr,"ERROR: find_EQ_with_var(): variable \"%s\" is not supposed to be in more than one conjuncts.\n",var_name);
                 exit( -1 );
             }
             // otherwise proceed normaly
@@ -1435,19 +1433,19 @@ expr_t *findEQwithVar(const char *var_name, expr_t *exp){
         case ADD:
         case MUL:
             // If you find it in either leg, return a non-NULL pointer
-            tmp_l = findEQwithVar(var_name, exp->l);
+            tmp_l = find_EQ_with_var(var_name, exp->l);
             if( NULL != tmp_l ) return tmp_l;
 
-            tmp_r = findEQwithVar(var_name, exp->r);
+            tmp_r = find_EQ_with_var(var_name, exp->r);
             if( NULL != tmp_r ) return tmp_r;
 
             return NULL;
 
         case EQ_OP:
             // If you find it in either leg, return this EQ
-            if( NULL != findEQwithVar(var_name, exp->l) )
+            if( NULL != find_EQ_with_var(var_name, exp->l) )
                 return exp;
-            if( NULL != findEQwithVar(var_name, exp->r) )
+            if( NULL != find_EQ_with_var(var_name, exp->r) )
                 return exp;
             return NULL;
 
@@ -1461,19 +1459,19 @@ expr_t *findEQwithVar(const char *var_name, expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static inline set<expr_t *> findAllEQsWithVar(const char *var_name, expr_t *exp){
-    return findAllConstraintsWithVar(var_name, exp, EQ_OP);
+static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp){
+    return find_all_constraints_with_var(var_name, exp, EQ_OP);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static inline set<expr_t *> findAllGEsWithVar(const char *var_name, expr_t *exp){
-    return findAllConstraintsWithVar(var_name, exp, GE);
+static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp){
+    return find_all_constraints_with_var(var_name, exp, GE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp, int constr_type){
+static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type){
     set<expr_t *> eq_set;
     set<expr_t *> tmp_r, tmp_l;
 
@@ -1492,10 +1490,10 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
 
         case L_OR:
             // If you find it in both legs, panic
-            tmp_l = findAllConstraintsWithVar(var_name, exp->l, constr_type);
-            tmp_r = findAllConstraintsWithVar(var_name, exp->r, constr_type);
+            tmp_l = find_all_constraints_with_var(var_name, exp->l, constr_type);
+            tmp_r = find_all_constraints_with_var(var_name, exp->r, constr_type);
             if( !tmp_l.empty() && !tmp_r.empty() ){
-                fprintf(stderr,"\nERROR: findAllConstraintsWithVar(): variable \"%s\" is not supposed to be in more than one conjuncts.\n", var_name);
+                fprintf(stderr,"\nERROR: find_all_constraints_with_var(): variable \"%s\" is not supposed to be in more than one conjuncts.\n", var_name);
                 fprintf(stderr,"exp->l : %s\n",expr_tree_to_str(exp->l));
                 fprintf(stderr,"exp->r : %s\n\n",expr_tree_to_str(exp->r));
                 assert( 0 );
@@ -1507,8 +1505,8 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
 
         case L_AND:
             // Merge the sets of whatever you find in both legs
-            eq_set = findAllConstraintsWithVar(var_name, exp->l, constr_type);
-            tmp_r  = findAllConstraintsWithVar(var_name, exp->r, constr_type);
+            eq_set = find_all_constraints_with_var(var_name, exp->l, constr_type);
+            tmp_r  = find_all_constraints_with_var(var_name, exp->r, constr_type);
             eq_set.insert(tmp_r.begin(), tmp_r.end());
 
             return eq_set;
@@ -1516,10 +1514,10 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
         case ADD:
         case MUL:
             // If you find it in either leg, return a non-empty set
-            tmp_l = findAllConstraintsWithVar(var_name, exp->l, constr_type);
+            tmp_l = find_all_constraints_with_var(var_name, exp->l, constr_type);
             if( !tmp_l.empty() ) return tmp_l;
 
-            tmp_r = findAllConstraintsWithVar(var_name, exp->r, constr_type);
+            tmp_r = find_all_constraints_with_var(var_name, exp->r, constr_type);
             if( !tmp_r.empty() ) return tmp_r;
 
             return eq_set;
@@ -1528,8 +1526,8 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
             // Only look deeper if the caller wants EQs
             if( EQ_OP == constr_type ){
                 // If you find it in either leg, return this EQ
-                tmp_l = findAllConstraintsWithVar(var_name, exp->l, constr_type);
-                tmp_r = findAllConstraintsWithVar(var_name, exp->r, constr_type);
+                tmp_l = find_all_constraints_with_var(var_name, exp->l, constr_type);
+                tmp_r = find_all_constraints_with_var(var_name, exp->r, constr_type);
                 if(  !tmp_l.empty() || !tmp_r.empty() ){
                     eq_set.insert(exp);
                 }
@@ -1540,8 +1538,8 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
             // Only look deeper if the caller wants GEQs
             if( GE == constr_type ){
                 // If you find it in either leg, return this EQ
-                tmp_l = findAllConstraintsWithVar(var_name, exp->l, constr_type);
-                tmp_r = findAllConstraintsWithVar(var_name, exp->r, constr_type);
+                tmp_l = find_all_constraints_with_var(var_name, exp->l, constr_type);
+                tmp_r = find_all_constraints_with_var(var_name, exp->r, constr_type);
                 if(  !tmp_l.empty() || !tmp_r.empty() ){
                     eq_set.insert(exp);
                 }
@@ -1557,7 +1555,7 @@ static set<expr_t *> findAllConstraintsWithVar(const char *var_name, expr_t *exp
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void printActualParameters(dep_t *dep, expr_t *rel_exp, int type){
+void print_actual_parameters(dep_t *dep, expr_t *rel_exp, int type){
     Relation R = *dep->rel;
     set <const char *> vars_in_bounds;
 
@@ -1924,7 +1922,7 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 // WARNING: this function is destructive.  It actually removes nodes from the tree
 // and deletes them altogether. In many cases you will need to pass a copy of the
 // tree to this function.
-static list< pair<expr_t *,Relation> > simplifyConditionsAndSplitDisjunctions(Relation R, Relation S_es){
+static list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es){
     stringstream ss;
     set<expr_t *> simpl_conj;
 
@@ -1955,7 +1953,7 @@ static list< pair<expr_t *,Relation> > simplifyConditionsAndSplitDisjunctions(Re
             // substitute the solution for the variable everywhere in the conjunction.
             expr_t *solution = solveExpressionTreeForVar(cur_exp, ovar, R);
             if( NULL != solution ){
-                substituteExprForVar(solution, ovar, cur_exp);
+                substitute_exp_for_var(solution, ovar, cur_exp);
             }else{
                 // If the variable is in no EQs but it's in GEs, we have to use transitivity
                 // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
@@ -2864,7 +2862,7 @@ printf("========================================================================
             printf("\n");
             print_pseudo_variables(deps, incoming_edges[task_name]);
             printf("\n");
-            list <char *>ptask_list = print_edges(deps, incoming_edges[task_name], S_es, reference_data_element);
+            list <char *>ptask_list = print_edges_and_create_pseudotasks(deps, incoming_edges[task_name], S_es, reference_data_element);
             S_es.Null();
             printf("\n");
 
@@ -2914,7 +2912,7 @@ printf("========================================================================
 
             print_body(src_task->task_node);
 
-            // Print all the pseudo-tasks that were created by print_edges()
+            // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
             list <char *>::iterator ptask_it;
             for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
                 printf("\n/*\n * Pseudo-task\n */\n%s\n",*ptask_it);
@@ -3433,21 +3431,9 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
     char *parent_task_name, *pseudotask_name;
     char *formal_parameters = NULL;
     char *mtrx_name         = tree_to_str(DA_array_base(data_element));
-    char *number;
-    char *ptask_str;
+    char *ptask_str         = NULL;
     Relation newS_es;
-    set <const char *>prev_vars;
-
-    for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
-        if( i )
-            formal_parameters = append_to_string(formal_parameters, ",", NULL, 0);
-        formal_parameters = append_to_string(formal_parameters, parent_task->ind_vars[i], NULL, 0);
-    }
-
-    asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, formal_parameters);
-    asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
-
-    printf("%s %s\n",var_pseudoname, pseudotask_name);
+    set <const char *> prev_vars;
 
     if( !cond.is_null() ){
         newS_es = Intersection(copy(S_es), Domain(copy(cond)));
@@ -3456,17 +3442,23 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
         newS_es = copy(S_es);
     }
 
-    ptask_str = append_to_string(NULL, pseudotask_name, "%s\n", 1+strlen(pseudotask_name)); 
+    // We start with the parameters in order to discover which ones should be included.
     for(int i=0; NULL != parent_task->ind_vars[i]; ++i){
         char *var_name = parent_task->ind_vars[i];
-        ptask_str = append_to_string(ptask_str, var_name, "  %s = ", 5+strlen(var_name)); 
         expr_t *solution = solveExpressionTreeForVar(relation_to_tree(newS_es), var_name, copy(newS_es));
-        if( NULL != solution )
-            ptask_str = append_to_string(ptask_str, expr_tree_to_str(solution), NULL, 0);
-        else
+        // If there is a solution it means that this parameter has a fixed value and not a range.
+        // That means that there is no point in including it as a parameter of the pseudo-task.
+        if( NULL == solution ){
+            ptask_str = append_to_string(ptask_str, var_name, "  %s = ", 5+strlen(var_name)); 
             ptask_str = append_to_string(ptask_str, findBoundsOfVar(relation_to_tree(newS_es), var_name, prev_vars, copy(newS_es)), NULL, 0);
-        ptask_str = append_to_string(ptask_str, "\n", NULL, 0);
-        prev_vars.insert(var_name);
+
+            // the following code is for generating the string for the caller (the real task)
+            if( NULL != formal_parameters )
+                formal_parameters = append_to_string(formal_parameters, ",", NULL, 0);
+            formal_parameters = append_to_string(formal_parameters, parent_task->ind_vars[i], NULL, 0);
+            ptask_str = append_to_string(ptask_str, "\n", NULL, 0);
+            prev_vars.insert(var_name);
+        }
     }
 
     // Delete the "previous variables" set, to clean up some memory
@@ -3474,6 +3466,21 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
         prev_vars.erase(prev_vars.begin());
     }
 
+    // Now that we know which parameters define the execution space of this pseudo-task, we can print the pseudo-task
+    // in the body of the real task, and complete the "header" of the pseudo-task string.
+
+    // create_pseudotask() was called by print_edges_and_create_pseudotasks(), so if we print here
+    // the string will end up at the right place in the body of the real task.
+    asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, formal_parameters);
+    asprintf( &pseudotask_name , "%s_%s_data_%s%d(%s)",parent_task->task_name, inout, mtrx_name, ptask_count, formal_parameters);
+    printf("%s %s\n",var_pseudoname, pseudotask_name);
+
+    // Put the name and parameters of the pseudo-task in the beginning of the string.
+    ptask_str = append_to_string(pseudotask_name, ptask_str, "\n%s", 1+strlen(ptask_str)); 
+
+#if 0
+    // This code generates a predicate expressed as a range, to ensure that tasks are not generated if they are impossible.
+    // This functionality does not seem to be necessary any more, so we removed it.
     if( !cond.is_null() ){
         Relation dom = Relation(Domain(cond));
         // WARNING: This is needed by Omega. If you remove it you get strange
@@ -3482,7 +3489,7 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
         const char *tmp = expr_tree_to_str(relation_to_tree(dom)); 
         ptask_str = append_to_string(ptask_str, tmp, "  /*_dague_pseudotask_predicate = 1..%s*/\n", 40+strlen(tmp));
     }
-
+#endif
              
     char *data_str = tree_to_str(data_element);
     ptask_str = append_to_string(ptask_str, data_str, "\n  : data_%s\n\n",12+strlen(data_str));
@@ -3500,7 +3507,7 @@ char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond, node_
     ptask_str = append_to_string(ptask_str,"BODY\n/* nothing */\nEND\n", NULL, 0);
 
     free(parent_task_name);
-    free(pseudotask_name);
+    //free(pseudotask_name);
     free(mtrx_name);
 
     return ptask_str;
@@ -3548,7 +3555,7 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
+list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation S_es, node_t *reference_data_element){
     int pseudotask_count = 0;
     task_t *this_task;
     set<dep_t *>::iterator dep_it;
@@ -3626,7 +3633,7 @@ list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation 
 
              // If the condition has disjunctions (logical OR operators) then split them so that each one
              // is treated independently.
-             cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, S_es);
+             cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  string cond = expr_tree_to_str(cond_it->first);
                  bool printed_condition = false;
@@ -3662,11 +3669,10 @@ list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation 
                  if( NULL != src_task ){
                      printf("%s ", dep->src->var_symname);
                      printf("%s(",src_task->task_name);
-                     printActualParameters(dep, relation_to_tree(cond_it->second), SOURCE);
+                     print_actual_parameters(dep, relation_to_tree(cond_it->second), SOURCE);
                      printf(") ");
                  }else{ // ENTRY
                      if( need_pseudotask(dep->dst, reference_data_element) ){
-                         //printf("[[ data_%s ]]", tree_to_str(dep->dst));
                          ptask_list.push_back( create_pseudotask(this_task, S_es, cond_it->second, dep->dst, var_pseudoname, pseudotask_count++, "in") );
                      }else{
                          /*
@@ -3721,7 +3727,7 @@ list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation 
 
              // If the condition has disjunctions (logical OR operators) then split them so that each one
              // is treated independently.
-             cond_list = simplifyConditionsAndSplitDisjunctions(*dep->rel, S_es);
+             cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  string cond = expr_tree_to_str(cond_it->first);
                  bool printed_condition = false;
@@ -3767,7 +3773,7 @@ list<char *> print_edges(set<dep_t *>outg_deps, set<dep_t *>incm_deps, Relation 
                      }
                  }else{
                      printf("%s %s(",sink->var_symname, sink->task->task_name);
-                     printActualParameters(dep, relation_to_tree(cond_it->second), SINK);
+                     print_actual_parameters(dep, relation_to_tree(cond_it->second), SINK);
                      printf(") ");
                  }
                  printf("\n");
