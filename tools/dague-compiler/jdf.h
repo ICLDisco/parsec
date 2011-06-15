@@ -57,6 +57,7 @@ typedef struct jdf {
     struct jdf_function_entry *functions;
     struct jdf_data_entry     *data;
     struct jdf_name_list      *datatypes;
+    struct jdf_expr_list      *inline_c_functions;
 } jdf_t;
 
 extern jdf_t current_jdf;
@@ -208,17 +209,20 @@ typedef enum { JDF_EQUAL,
                JDF_TERNARY,
                JDF_VAR,
                JDF_STRING,
-               JDF_CST
+               JDF_CST,
+               JDF_C_CODE
 } jdf_expr_operand_t;
 
 #define JDF_OP_IS_UNARY(op)    ( (op) == JDF_NOT )
 #define JDF_OP_IS_TERNARY(op)  ( (op) == JDF_TERNARY )
 #define JDF_OP_IS_CST(op)      ( (op) == JDF_CST )
 #define JDF_OP_IS_VAR(op)      ( (op) == JDF_VAR )
+#define JDF_OP_IS_C_CODE(op)   ( (op) == JDF_C_CODE )
 #define JDF_OP_IS_BINARY(op)   ( !( JDF_OP_IS_UNARY(op) ||              \
                                     JDF_OP_IS_TERNARY(op) ||            \
                                     JDF_OP_IS_CST(op) ||                \
-                                    JDF_OP_IS_VAR(op)) )
+                                    JDF_OP_IS_VAR(op) ||                \
+                                    JDF_OP_IS_C_CODE(op)) )
 
 typedef struct jdf_expr {
     jdf_expr_operand_t op;
@@ -236,6 +240,12 @@ typedef struct jdf_expr {
             struct jdf_expr *arg;
         } unary;
         char *varname;
+        struct {
+            char *code;
+            int lineno;
+            char *fname;
+            jdf_function_entry_t *function_context;
+        } c_code;
         int   cstval;
     } u;
 } jdf_expr_t;
@@ -248,6 +258,7 @@ typedef struct jdf_expr {
 #define jdf_ta2 u.ternary.arg2
 #define jdf_var u.varname
 #define jdf_cst u.cstval
+#define jdf_c_code u.c_code
 
 char *malloc_and_dump_jdf_expr_list( const jdf_expr_list_t *e );
 

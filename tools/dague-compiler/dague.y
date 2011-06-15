@@ -23,6 +23,8 @@ extern int yylex(void);
 
 extern int current_lineno;
 
+static jdf_expr_list_t *inline_c_functions = NULL;
+
 static void yyerror(const char *str)
 {
     fprintf(stderr, "parse error at line %d: %s\n", current_lineno, str);
@@ -144,7 +146,10 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <property>properties_list
 %type <call>call
 %type <expr_list>expr_list
-%type <expr>expr
+%type <expr_list>expr_list_range
+%type <expr>expr_complete
+%type <expr>expr_range
+%type <expr>expr_simple
 %type <expr>priority
 %type <number>optional_access_type
 %type <external_code>prologue
@@ -205,12 +210,26 @@ epilogue:       EXTERN_DECL
         ;
 jdf:            jdf function
                 {
+                    jdf_expr_list_t *el, *pl;
+
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
+                    if( NULL != inline_c_functions) {
+                        /* Every inline functions declared here where within the context of $2 */
+                        for(el = inline_c_functions; NULL != el; el = el->next) {
+                            pl = el;
+                            el->expr->jdf_c_code.function_context = $2;
+                        }
+                        pl->next = current_jdf.inline_c_functions;
+                        current_jdf.inline_c_functions = inline_c_functions;
+                        inline_c_functions = NULL;
+                    }
                 }
-        |       jdf VAR properties ASSIGNMENT expr 
+        |       jdf VAR properties ASSIGNMENT expr_complete
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
+                    jdf_expr_list_t *el;
+
                     e->next       = NULL;
                     e->name       = $2;
                     e->properties = $3;
@@ -223,10 +242,17 @@ jdf:            jdf function
                             /* nothing */ ;
                         g->next = e;
                     }
+                    if( NULL != inline_c_functions ) {
+                        /* Every inline functions declared here where within the context of globals only (no assignment) */
+                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
+                        current_jdf.inline_c_functions = inline_c_functions;
+                        inline_c_functions = NULL;
+                    }
                 } 
         |       jdf VAR properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
+                    jdf_expr_list_t *el;
                     e->next       = NULL;
                     e->name       = $2;
                     e->properties = $3;
@@ -239,8 +265,23 @@ jdf:            jdf function
                             /* nothing */ ;
                         g->next = e;
                     }                
+                    if( NULL != inline_c_functions ) {
+                        /* Every inline functions declared here where within the context of globals only (no assignment) */
+                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
+                        current_jdf.inline_c_functions = inline_c_functions;
+                        inline_c_functions = NULL;
+                    }
                 }
         |
+                {
+                    jdf_expr_list_t *el;
+                    if( NULL != inline_c_functions ) {
+                        /* Every inline functions declared here where within the context of globals only (no assignment) */
+                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
+                        current_jdf.inline_c_functions = inline_c_functions;
+                        inline_c_functions = NULL;
+                    }
+                }
         ;
 
 properties:   PROPERTIES_ON properties_list PROPERTIES_OFF
@@ -253,7 +294,7 @@ properties:   PROPERTIES_ON properties_list PROPERTIES_OFF
               }
        ;
 
-properties_list: VAR ASSIGNMENT expr properties_list
+properties_list: VAR ASSIGNMENT expr_complete properties_list
               {
                  jdf_def_list_t* assign = new(jdf_def_list_t);
                  assign->next = $4;
@@ -262,7 +303,7 @@ properties_list: VAR ASSIGNMENT expr properties_list
                  assign->lineno = current_lineno;
                  $$ = assign;
               }
-       | VAR ASSIGNMENT expr
+       | VAR ASSIGNMENT expr_complete
              {
                  jdf_def_list_t* assign = new(jdf_def_list_t);
                  assign->next = NULL;
@@ -314,7 +355,7 @@ varlist:        VAR COMMA varlist
          ;
 
 execution_space: 
-                VAR ASSIGNMENT expr execution_space
+                VAR ASSIGNMENT expr_range execution_space
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
                     l->name   = $1;
@@ -324,7 +365,7 @@ execution_space:
 
                     $$ = l;
                 }
-         |      VAR ASSIGNMENT expr 
+         |      VAR ASSIGNMENT expr_range 
                 {
                     jdf_def_list_t *l = new(jdf_def_list_t);
                     l->name   = $1;
@@ -463,7 +504,7 @@ guarded_call: call
                   g->callfalse = NULL;
                   $$ = g;
               }
-       |      expr QUESTION_MARK call
+       |      expr_simple QUESTION_MARK call
               {
                   jdf_guarded_call_t *g = new(jdf_guarded_call_t);
                   g->guard_type = JDF_GUARD_BINARY;
@@ -472,7 +513,25 @@ guarded_call: call
                   g->callfalse = NULL;
                   $$ = g;
               }
-       |      expr QUESTION_MARK call COLON call
+       |      expr_simple QUESTION_MARK call COLON call
+              {
+                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
+                  g->guard_type = JDF_GUARD_TERNARY;
+                  g->guard = $1;
+                  g->calltrue = $3;
+                  g->callfalse = $5;
+                  $$ = g;
+              }
+       |      expr_complete QUESTION_MARK call
+              {
+                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
+                  g->guard_type = JDF_GUARD_BINARY;
+                  g->guard = $1;
+                  g->calltrue = $3;
+                  g->callfalse = NULL;
+                  $$ = g;
+              }
+       |      expr_complete QUESTION_MARK call COLON call
               {
                   jdf_guarded_call_t *g = new(jdf_guarded_call_t);
                   g->guard_type = JDF_GUARD_TERNARY;
@@ -483,7 +542,7 @@ guarded_call: call
               }
        ;
 
-call:         VAR VAR OPEN_PAR expr_list CLOSE_PAR
+call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
                   jdf_call_t *c = new(jdf_call_t);
                   c->var = $1;
@@ -491,7 +550,7 @@ call:         VAR VAR OPEN_PAR expr_list CLOSE_PAR
                   c->parameters = $4;
                   $$ = c;
               }
-       |      VAR OPEN_PAR expr_list CLOSE_PAR
+       |      VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
                   jdf_data_entry_t* data;
                   jdf_call_t *c = new(jdf_call_t);
@@ -516,7 +575,7 @@ call:         VAR VAR OPEN_PAR expr_list CLOSE_PAR
               }
        ;
 
-priority:     SEMICOLON expr
+priority:     SEMICOLON expr_complete
               {
                     $$ = $2;
               }
@@ -525,14 +584,14 @@ priority:     SEMICOLON expr
 
 /* And now, the expressions */
 
-expr_list:    expr COMMA expr_list
+expr_list_range: expr_range COMMA expr_list_range
               {
                   jdf_expr_list_t *l = new(jdf_expr_list_t);
                   l->next = $3;
                   l->expr = $1;
                   $$=l;
               }
-      |       expr
+      |       expr_range
               {
                   jdf_expr_list_t *l = new(jdf_expr_list_t);
                   l->next = NULL;
@@ -541,7 +600,59 @@ expr_list:    expr COMMA expr_list
               }
       ;
 
-expr:         expr EQUAL expr
+expr_list:    expr_simple COMMA expr_list
+              {
+                  jdf_expr_list_t *l = new(jdf_expr_list_t);
+                  l->next = $3;
+                  l->expr = $1;
+                  $$=l;
+              }
+      |       expr_simple
+              {
+                  jdf_expr_list_t *l = new(jdf_expr_list_t);
+                  l->next = NULL;
+                  l->expr = $1;
+                  $$=l;
+              }
+      ;
+
+expr_range: expr_complete RANGE expr_complete
+            {
+                  jdf_expr_t *e = new(jdf_expr_t);
+                  e->op = JDF_RANGE;
+                  e->jdf_ba1 = $1;
+                  e->jdf_ba2 = $3;
+                  $$ = e;
+            }
+          | expr_complete
+            {
+                  $$ = $1;
+            }
+          ;
+
+expr_complete: expr_simple
+               {
+                   $$ = $1;
+               }
+      |        EXTERN_DECL
+               {
+                   jdf_expr_list_t *ne;
+                    $$ = new(jdf_expr_t);
+                    $$->op = JDF_C_CODE;
+                    $$->jdf_c_code.code = $1;
+                    $$->jdf_c_code.lineno = current_lineno;
+                    /* This will  be set by the upper level parsing if necessary */
+                    $$->jdf_c_code.function_context = NULL;
+                    $$->jdf_c_code.fname = NULL;
+
+                    ne = new(jdf_expr_list_t);
+                    ne->expr = $$;
+                    ne->next = inline_c_functions;
+                    inline_c_functions = ne;
+               }
+     ;
+
+expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_EQUAL;
@@ -549,7 +660,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr NOTEQUAL expr
+       |      expr_simple NOTEQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_NOTEQUAL;
@@ -557,7 +668,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr LESS expr
+       |      expr_simple LESS expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_LESS;
@@ -565,7 +676,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr LEQ expr
+       |      expr_simple LEQ expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_LEQ;
@@ -573,7 +684,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr MORE expr
+       |      expr_simple MORE expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MORE;
@@ -581,7 +692,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr MEQ expr
+       |      expr_simple MEQ expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MEQ;
@@ -589,7 +700,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr AND expr
+       |      expr_simple AND expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_AND;
@@ -597,7 +708,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr OR expr
+       |      expr_simple OR expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_OR;
@@ -605,7 +716,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr XOR expr
+       |      expr_simple XOR expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_XOR;
@@ -613,18 +724,18 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      NOT expr
+       |      NOT expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_NOT;
                   e->jdf_ua = $2;
                   $$ = e;
               }      
-       |      OPEN_PAR expr CLOSE_PAR
+       |      OPEN_PAR expr_simple CLOSE_PAR
               {
                   $$ = $2;
               }
-       |      expr PLUS expr
+       |      expr_simple PLUS expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_PLUS;
@@ -632,7 +743,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr MINUS expr
+       |      expr_simple MINUS expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MINUS;
@@ -640,7 +751,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr TIMES expr
+       |      expr_simple TIMES expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_TIMES;
@@ -648,7 +759,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr DIV expr
+       |      expr_simple DIV expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_DIV;
@@ -656,7 +767,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr MODULO expr
+       |      expr_simple MODULO expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MODULO;
@@ -664,7 +775,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr SHL expr
+       |      expr_simple SHL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_SHL;
@@ -672,7 +783,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr SHR expr
+       |      expr_simple SHR expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_SHR;
@@ -680,15 +791,7 @@ expr:         expr EQUAL expr
                   e->jdf_ba2 = $3;
                   $$ = e;
               }
-       |      expr RANGE expr
-              {
-                  jdf_expr_t *e = new(jdf_expr_t);
-                  e->op = JDF_RANGE;
-                  e->jdf_ba1 = $1;
-                  e->jdf_ba2 = $3;
-                  $$ = e;
-              }
-       |      expr QUESTION_MARK expr COLON expr
+       |      expr_simple QUESTION_MARK expr_simple COLON expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_TERNARY;

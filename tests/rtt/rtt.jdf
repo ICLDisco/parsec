@@ -9,7 +9,7 @@ PING(k)
 k = 0 .. NT
 : A(k)
 
-RW T <- (k==0) ? A(k) : I PONG(k-1)
+RW T <- inline_c %{ return k==0 || (NT == -1); %} ? A(k) : I PONG(k-1)
      -> (k==NT) ? A(k) : I PONG(k)
 
 BODY

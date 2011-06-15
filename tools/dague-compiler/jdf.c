@@ -126,6 +126,8 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
         if( jdf_sanity_check_expr_bound_before_global(e->jdf_ua, g1) < 0 )
             rc = -1;
         return rc;
+    case JDF_C_CODE:
+        return 0;
     default:
         if( (NULL != e->jdf_ba1) && (jdf_sanity_check_expr_bound_before_global(e->jdf_ba1, g1) < 0) )
             rc = -1;
@@ -246,6 +248,8 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
         if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ua, f, d) < 0 )
             rc = -1;
         return rc;
+    case JDF_C_CODE:
+        return 0;
     default:
         if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba1, f, d) < 0 )
             rc = -1;
@@ -316,6 +320,8 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
         if( jdf_sanity_check_expr_bound(e->jdf_ua, kind, f) < 0 )
             rc = -1;
         return rc;
+    case JDF_C_CODE:
+        return 0;
     default:
         if( jdf_sanity_check_expr_bound(e->jdf_ba1, kind, f) < 0 )
             rc = -1;

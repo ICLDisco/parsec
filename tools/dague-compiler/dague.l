@@ -29,7 +29,7 @@ static char *extern_code(char *base, int len)
    rp = 0;
    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
      /**
-      * As each BODY in contiguous we only have to set the #line once.
+      * As each BODY is contiguous we only have to set the #line once.
       */
      rp += snprintf(res + rp, rlen - rp, "#line %d \"%s\"\n", current_lineno, yyfilename);
   }
@@ -83,13 +83,20 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))+\%\}          
                           /* Search for the start of the body */
                           for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
                           bstart++;
-                          while( yytext[bstart] != '\n' ) bstart++;
+                          while( yytext[bstart] != '\n' ) bstart++; 
                           bstart++;
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
                           yylval.string = extern_code( yytext + bstart, strlen(yytext)-bstart-2 );
                           return EXTERN_DECL;
+                      }
+inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                                  {
+                          int start;
+                          for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
+			  start++;
+                          yylval.string = extern_code( yytext + start, strlen(yytext)-start-2 );
+			  return EXTERN_DECL;
                       }
 <*>"/*"               { yy_push_state(comment);                            }
 <comment>[^*\n]*      {  /* Eat up non '*'s */                             } 
