@@ -32,12 +32,18 @@ int MAX_QUEUE = 80;
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
+static tiled_matrix_desc_t* UGLY_A;
+static tiled_matrix_desc_t* UGLY_T;
+
 int stsmqr_cuda_init( dague_context_t* dague_context,
                       tiled_matrix_desc_t *tileA,
                       tiled_matrix_desc_t *tileT )
 {
     CUdevice hcuDevice;
     int i, nbdevfound;
+
+    UGLY_A = tileA;
+    UGLY_T = tileT;
 
     ndevices = dague_using_gpu();
 #if DPLASMA_SCHEDULING
@@ -284,9 +290,11 @@ int stsmqr_cuda_fini(dague_context_t* dague_context)
         (OFFSET) += sizeof(float);                                      \
     } while (0)
 
-#include "generated/sgeqrf.h"
-#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->A))
-#define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->T))
+//#include "generated/sgeqrf.h"
+//#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->A))
+//#define ddescT(ec) ((tiled_matrix_desc_t *)(((dague_sgeqrf_object_t*)(ec)->dague_object)->T))
+#define ddescA(ec) (UGLY_A)
+#define ddescT(ec) (UGLY_T)
 
 static inline int
 gpu_stsmqr_internal_push( gpu_device_t* gpu_device,

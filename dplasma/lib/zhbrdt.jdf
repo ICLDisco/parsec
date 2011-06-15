@@ -11,7 +11,7 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/core/generated/core_z.h"
+#include "generated/dplasma_zcores.h"
 
 #include "dplasmajdf.h"
 %}

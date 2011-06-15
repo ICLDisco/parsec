@@ -26,11 +26,12 @@ endif( DPLASMA_GPU_WITH_MAGMA )
 
 include_directories(${PLASMA_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/cores)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(PLASMA_FOUND)
   Add_Subdirectory(include)
-  Add_Subdirectory(core)
+  Add_Subdirectory(cores)
   Add_Subdirectory(lib)
   Add_Subdirectory(testing)
 endif(PLASMA_FOUND)

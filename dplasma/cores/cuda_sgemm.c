@@ -44,12 +44,16 @@ static int OHM_M = 3;
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 
-int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA )
+static tiled_matrix_desc_t* UGLY_A;
+
+int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA )
 {
     CUdevice hcuDevice;
     int i, j;
 
     char *env;
+
+    UGLY_A = tileA;
 
     /**
      * Right now the sgemm function available with DPLASMA can only handle
@@ -105,7 +109,7 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
         env = getenv("DAGUE_CUBIN_PATH");
         snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", 
-                 env?env:"../lib", gpu_device->major, gpu_device->minor);
+                 env?env:"../core", gpu_device->major, gpu_device->minor);
         status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
                                 {
@@ -240,7 +244,7 @@ int spotrf_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA
     return 0;
 }
 
-int spotrf_cuda_fini(dague_context_t* dague_context)
+int sgemm_cuda_fini(dague_context_t* dague_context)
 {
     cudaError_t status;
     gpu_elem_t* gpu_elem;
@@ -397,9 +401,9 @@ int spotrf_cuda_fini(dague_context_t* dague_context)
         (OFFSET) += sizeof(float);                                      \
     } while (0)
 
-#include "generated/spotrf_rl.h"
 
 #if defined(DAGUE_PROF_TRACE)
+#include "../lib/generated/spotrf_rl.h"
 /**
  * This function has benn copied by hand from the generated code. It should be
  * kept in sync with the hash function from there.
@@ -420,9 +424,9 @@ static inline int GEMM_hash(const dague_spotrf_rl_object_t* __dague_object, int 
 }
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-#define ddescA(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
-#define ddescB(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
-#define ddescC(ec) ((tiled_matrix_desc_t *)(((dague_spotrf_rl_object_t*)(ec)->dague_object)->A))
+#define ddescA(ec) (UGLY_A)
+#define ddescB(ec) ddescA(ec)
+#define ddescC(ec) ddescA(ec)
 
 /**
  *  This function schedule the move of all the data required for a

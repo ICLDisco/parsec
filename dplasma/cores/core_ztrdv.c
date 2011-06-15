@@ -7,7 +7,7 @@
  *
  */
 #include "dague_config.h"
-#include "core_z.h"
+#include "dplasma_zcores.h"
 
 #include <stdio.h>
 #ifdef HAVE_LIMITS_H

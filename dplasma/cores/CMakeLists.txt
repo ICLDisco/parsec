@@ -5,10 +5,10 @@ set(generated_headers "")
 
 ### generate the dplasma_cores headers for all possible precisions
 set(HEADERS
-  core_z.h
+  dplasma_zcores.h
 )
 precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}") 
-
+message("${generated_headers}")
 ### Generate the dplasma wrappers for all required precisions 
 set(SOURCES
   core_ztrdv.c
