@@ -10,7 +10,7 @@
 #include <scheduling.h>
 
 #if defined(DAGUE_PROF_TRACE)
-int dague_apply_operator_profiling_array[2] = {-1};
+int dague_map_operator_profiling_array[2] = {-1};
 #define TAKE_TIME(context, key, eid, refdesc, refid) do {   \
    dague_profile_ddesc_info_t info;                         \
    info.desc = (dague_ddesc_t*)refdesc;                     \
@@ -23,25 +23,25 @@ int dague_apply_operator_profiling_array[2] = {-1};
 #define TAKE_TIME(context, key, id, refdesc, refid)
 #endif
 
-typedef struct dague_matrix_operator_object {
+typedef struct dague_map_operator_object {
     dague_object_t       super;
     tiled_matrix_desc_t* A /* data A */;
     volatile uint32_t    next_k;
     dague_operator_t     op;
     void*                op_data;
-} dague_matrix_operator_object_t;
+} dague_map_operator_object_t;
 
-typedef struct __dague_matrix_operator_object {
-    dague_matrix_operator_object_t super;
-} __dague_matrix_operator_object_t;
+typedef struct __dague_map_operator_object {
+    dague_map_operator_object_t super;
+} __dague_map_operator_object_t;
 
 static const param_t param_of_apply;
-static const dague_t dague_matrix_operator;
+static const dague_t dague_map_operator;
 
 #define A(k,n)  (((dague_ddesc_t*)__dague_object->super.A)->data_of((dague_ddesc_t*)__dague_object->super.A, (k), (n)))
 
 #if defined(DAGUE_PROF_TRACE)
-static inline uint32_t apply_op_hash(const __dague_matrix_operator_object_t *o, int k, int n )
+static inline uint32_t apply_op_hash(const __dague_map_operator_object_t *o, int k, int n )
 {
     return o->super.A->mt * k + n;
 }
@@ -49,7 +49,7 @@ static inline uint32_t apply_op_hash(const __dague_matrix_operator_object_t *o, 
 
 static inline int minexpr_of_row_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
-  const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+  const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
   (void)assignments;
   return __dague_object->super.A->i;
 }
@@ -60,7 +60,7 @@ static const expr_t minexpr_of_row = {
 };
 static inline int maxexpr_of_row_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
-  const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+  const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
 
   (void)__dague_object;
   (void)assignments;
@@ -79,7 +79,7 @@ static const symbol_t symb_row = {
 
 static inline int minexpr_of_column_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
     (void)assignments;
     return __dague_object->super.A->j;
 }
@@ -92,7 +92,7 @@ static const expr_t minexpr_of_column = {
 
 static inline int maxexpr_of_column_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
 
     (void)__dague_object;
     (void)assignments;
@@ -112,7 +112,7 @@ static const symbol_t symb_column = {
 static inline int pred_of_apply_all_as_expr_fct(const dague_object_t *__dague_object_parent,
                                                 const assignment_t *assignments)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
 
     /* Silent Warnings: should look into predicate to know what variables are usefull */
     (void)__dague_object;
@@ -130,7 +130,7 @@ static inline int
 expr_of_p1_for_param_of_apply_dep_in_fct(const dague_object_t *__dague_object_parent,
                                          const assignment_t *assignments)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
     int k = assignments[0].value;
 
     (void)__dague_object;
@@ -144,7 +144,7 @@ static const expr_t expr_of_p1_for_param_of_apply_dep_in = {
 };
 static const dep_t param_of_apply_dep_in = {
   .cond = NULL,
-  .dague = &dague_matrix_operator,
+  .dague = &dague_map_operator,
   .param = &param_of_apply,
   .datatype_index = 0,
   .call_params = {
@@ -156,7 +156,7 @@ static inline int
 expr_of_p1_for_param_of_apply_dep_out_fct(const dague_object_t *__dague_object_parent,
                                           const assignment_t *assignments)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)__dague_object_parent;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
     int k = assignments[0].value;
 
     (void)__dague_object;
@@ -170,7 +170,7 @@ static const expr_t expr_of_p1_for_param_of_apply_dep_out = {
 };
 static const dep_t param_of_apply_dep_out = {
     .cond = NULL,
-    .dague = &dague_matrix_operator,
+    .dague = &dague_map_operator,
     .param = &param_of_apply,
     .datatype_index = 0,
     .call_params = {
@@ -213,7 +213,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
                                dague_ontask_function_t *ontask,
                                void *ontask_arg)
 {
-    __dague_matrix_operator_object_t *__dague_object = (__dague_matrix_operator_object_t*)exec_context->dague_object;
+    __dague_map_operator_object_t *__dague_object = (__dague_map_operator_object_t*)exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value+1;
     dague_execution_context_t nc;
@@ -228,7 +228,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
             /* Here we go, one ready local task */
             nc.locals[0].value = k;
             nc.locals[1].value = n;
-            nc.function = &dague_matrix_operator /*this*/;
+            nc.function = &dague_map_operator /*this*/;
             nc.dague_object = exec_context->dague_object;
             nc.priority = 0;
             ontask(eu, &nc, exec_context, 0, 0,
@@ -270,7 +270,7 @@ static int release_deps(dague_execution_unit_t *eu,
 static int hook_of(dague_execution_unit_t *context,
                    dague_execution_context_t *exec_context)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t*)exec_context->dague_object;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     dague_arena_chunk_t* arena = (dague_arena_chunk_t*) A(k,n);
@@ -292,7 +292,7 @@ static int hook_of(dague_execution_unit_t *context,
 static int complete_hook(dague_execution_unit_t *context,
                          dague_execution_context_t *exec_context)
 {
-    const __dague_matrix_operator_object_t *__dague_object = (const __dague_matrix_operator_object_t *)exec_context->dague_object;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t *)exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     (void)k; (void)n; (void)__dague_object;
@@ -311,7 +311,7 @@ static int complete_hook(dague_execution_unit_t *context,
     return 0;
 }
 
-static const dague_t dague_matrix_operator = {
+static const dague_t dague_map_operator = {
     .name = "apply",
     .deps = 0,
     .flags = 0x0,
@@ -331,11 +331,11 @@ static const dague_t dague_matrix_operator = {
     .complete_execution = complete_hook,
 };
 
-static void dague_apply_operator_startup_fn(dague_context_t *context, 
-                                            dague_object_t *dague_object,
-                                            dague_execution_context_t** startup_list)
+static void dague_map_operator_startup_fn(dague_context_t *context, 
+                                          dague_object_t *dague_object,
+                                          dague_execution_context_t** startup_list)
 {
-    __dague_matrix_operator_object_t *__dague_object = (__dague_matrix_operator_object_t*)dague_object;
+    __dague_map_operator_object_t *__dague_object = (__dague_map_operator_object_t*)dague_object;
     dague_execution_context_t fake_context;
     dague_execution_context_t *ready_list;
     int k = 0, n = 0, count = 0;
@@ -355,7 +355,7 @@ static void dague_apply_operator_startup_fn(dague_context_t *context,
             /* Here we go, one ready local task */
             fake_context.locals[0].value = k;
             fake_context.locals[1].value = n;
-            fake_context.function = &dague_matrix_operator /*this*/;
+            fake_context.function = &dague_map_operator /*this*/;
             fake_context.dague_object = dague_object;
             fake_context.priority = 0;
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
@@ -374,33 +374,33 @@ static void dague_apply_operator_startup_fn(dague_context_t *context,
 }
 
 struct dague_object_t*
-dague_apply_operator_New(tiled_matrix_desc_t* A,
-                         dague_operator_t op,
-                         void* op_data)
+dague_map_operator_New(tiled_matrix_desc_t* A,
+                       dague_operator_t op,
+                       void* op_data)
 {
-    __dague_matrix_operator_object_t *res = (__dague_matrix_operator_object_t*)calloc(1, sizeof(__dague_matrix_operator_object_t));
+    __dague_map_operator_object_t *res = (__dague_map_operator_object_t*)calloc(1, sizeof(__dague_map_operator_object_t));
 
     res->super.A = A;
     res->super.op = op;
     res->super.op_data = op_data;
 
 #  if defined(DAGUE_PROF_TRACE)
-    res->super.super.profiling_array = dague_apply_operator_profiling_array;
-    if( -1 == dague_apply_operator_profiling_array[0] ) {
+    res->super.super.profiling_array = dague_map_operator_profiling_array;
+    if( -1 == dague_map_operator_profiling_array[0] ) {
         dague_profiling_add_dictionary_keyword("operator", "fill:CC2828",
                                                sizeof(dague_profile_ddesc_info_t), dague_profile_ddesc_key_to_string,
-                                               (int*)&res->super.super.profiling_array[0 + 2 * dague_matrix_operator.function_id],
-                                               (int*)&res->super.super.profiling_array[1 + 2 * dague_matrix_operator.function_id]);
+                                               (int*)&res->super.super.profiling_array[0 + 2 * dague_map_operator.function_id],
+                                               (int*)&res->super.super.profiling_array[1 + 2 * dague_map_operator.function_id]);
     }
 #  endif /* defined(DAGUE_PROF_TRACE) */
 
     res->super.super.object_id = 1111;
     res->super.super.nb_local_tasks = A->nb_local_tiles;
-    res->super.super.startup_hook = dague_apply_operator_startup_fn;
+    res->super.super.startup_hook = dague_map_operator_startup_fn;
     return (struct dague_object_t*)res;
 }
 
-void dague_apply_operator_Destruct( struct dague_object_t* o )
+void dague_map_operator_Destruct( struct dague_object_t* o )
 {
 #if defined(DAGUE_PROF_TRACE)
     char* filename = NULL;

@@ -20,7 +20,7 @@ precisions_rules(generated_files "+;s;d;c;z" "${precision_files}")
 if (MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC
         matrix.c
-        apply_all.c
+        map_operator.c
         tabular_distribution.c
         grid_2Dcyclic.c
         two_dim_rectangle_cyclic.c
@@ -33,7 +33,7 @@ if (MPI_FOUND)
 else()
     add_library(dague_distribution_matrix STATIC 
         matrix.c 
-        apply_all.c
+        map_operator.c
         precision.c 
         tabular_distribution.c 
         grid_2Dcyclic.c
