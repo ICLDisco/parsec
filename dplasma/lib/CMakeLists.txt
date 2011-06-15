@@ -96,7 +96,7 @@ else (MPI_FOUND)
   add_library(dplasma 
     ${generated_files}
     ${EXTRA_SOURCES})
-  target_link_libraries(dplasma dplasmar_cores)
+  target_link_libraries(dplasma dplasma_cores)
   add_dependencies(dplasma dplasma_includes)
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
 endif (MPI_FOUND)
