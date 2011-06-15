@@ -11,7 +11,7 @@
 #include <dague.h>
 #include <scheduling.h>
 #include "data_dist/matrix/matrix.h"
-#include "dplasma_z.h"
+#include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
 #include "memory_pool.h"

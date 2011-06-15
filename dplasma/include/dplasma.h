@@ -10,6 +10,7 @@
 #define dplasma_error(__func, __msg) fprintf(stderr, "%s: %s\n", (__func), (__msg))
 
 #include "data_dist/matrix/matrix.h"
+ 
 
 #include "generated/dplasma_s.h"
 #include "generated/dplasma_d.h"

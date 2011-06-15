@@ -34,12 +34,6 @@ else()
 endif()
 set(EXTRA_SOURCES ${GPU_KERNEL_SOURCES} memory_pool.c dplasmatypes.c dplasmaaux.c)
 
-### generate the dplasma headers for all possible precisions
-set(HEADERS
-  dplasma_z.h
-)
-precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}") 
-
 ### Generate .c files from .jdf
 set(OLDJDF 
   ${CMAKE_CURRENT_SOURCE_DIR}/TSQR.jdf
@@ -92,22 +86,19 @@ precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}")
 ### Generate the lib 
 if (MPI_FOUND)
   add_library(dplasma-mpi
-    ${generated_headers}
     ${generated_files} 
     ${EXTRA_SOURCES})
   set_target_properties(dplasma-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
   target_link_libraries(dplasma-mpi dplasma-core)
+  add_dependencies(dplasma-mpi dplasma_includes)
   install(TARGETS dplasma-mpi ARCHIVE DESTINATION lib)
 else (MPI_FOUND)
   add_library(dplasma 
-    ${generated_headers}
     ${generated_files}
     ${EXTRA_SOURCES})
   target_link_libraries(dplasma dplasma-core)
-# set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "-DADD_")
+  add_dependencies(dplasma dplasma_includes)
   install(TARGETS dplasma ARCHIVE DESTINATION lib)
 endif (MPI_FOUND)
-install(FILES dplasma.h DESTINATION include)
-foreach(generated_header ${generated_headers})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include)
-endforeach()
+
+
