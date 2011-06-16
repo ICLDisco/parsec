@@ -47,14 +47,14 @@ int main( int argc, char* argv[] )
                                      (size_t)ddescA.super.mtype);
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
-    object = dague_apply_operator_New((tiled_matrix_desc_t*)&ddescA,
+    object = dague_map_operator_New((tiled_matrix_desc_t*)&ddescA,
                                       dague_operator_print_id,
                                       "A");
     dague_enqueue(dague, (dague_object_t*)object);
 
     dague_progress(dague);
 
-    dague_apply_operator_Destruct( object );
+    dague_map_operator_Destruct( object );
 
     dague_fini(&dague);
 
