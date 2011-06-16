@@ -328,7 +328,11 @@ static char * dump_expr(void **elem, void *arg)
         string_arena_add_string(sa, "%s", e->jdf_var);
         break;
     case JDF_C_CODE:
-        assert( NULL != e->jdf_c_code.fname );
+        if (  NULL == e->jdf_c_code.fname ) {
+            fprintf(stderr, "Internal Error: Function for the inline C expression of line %d has not been generated.\n",
+                    e->jdf_c_code.lineno);
+            assert( NULL != e->jdf_c_code.fname );
+        }
         string_arena_add_string(sa, "%s((const dague_object_t*)__dague_object, assignments)", e->jdf_c_code.fname);
         break;
     default:
@@ -3245,9 +3249,9 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     }
 
     jdf_generate_structure(jdf);
+    jdf_generate_inline_c_functions(jdf);
     jdf_generate_hashfunctions(jdf);
     jdf_generate_predeclarations( jdf );
-    jdf_generate_inline_c_functions(jdf);
     jdf_generate_functions_statics(jdf);
     jdf_generate_startup_hook( jdf );
 
