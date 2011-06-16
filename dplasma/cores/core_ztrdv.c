@@ -266,6 +266,7 @@ static void CORE_zhbtelr(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_C
   int    i, IONE, ITWO; 
   IONE=1;
   ITWO=2; 
+  (void)N;
 
   KDM1 = NB-1;
   LDX = LDA1-1;
@@ -446,10 +447,9 @@ static void CORE_zhbtrce(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_C
 static void CORE_zhbtlrx(int N, int NB, Dague_Complex64_t *A1, int LDA1, Dague_Complex64_t *A2, int LDA2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, int st, int ed) {
   int    J1, J2, KDM1, LDX;
   int    len, len1, len2, t1ed, t2st;
-  int    i, IONE, ITWO; 
-  IONE=1;
-  ITWO=2; 
+  int    i;
 
+  (void)N;
   KDM1 = NB-1;
   LDX = LDA1-1;
   LDX = LDA2-1;
@@ -530,6 +530,7 @@ static void TRD_type1bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
   int    i, IONE, ITWO; 
   IONE=1;
   ITWO=2; 
+  (void)NB;
 
   if(ed <= st){
     printf("TRD_type 1bH: ERROR st and ed %d  %d \n",st,ed);
@@ -634,9 +635,8 @@ static void TRD_type2bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
 #define TAU(m)   &(TAU[m-1])
 static void TRD_type3bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int st, int ed) {
   int    J1, J2, len, LDX;
-  int    i, IONE, ITWO; 
-  IONE=1;
-  ITWO=2;
+  int    i;
+  (void)NB;
 
   if(ed <= st){
     printf("TRD_type 3H: ERROR st and ed %d  %d \n",st,ed);
@@ -671,7 +671,7 @@ static void TRD_type3bHL(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Com
 int TRD_seqgralgtype(int N, int NB, Dague_Complex64_t *A, int LDA, Dague_Complex64_t *C, Dague_Complex64_t *S, int i, int j, int m, int grsiz, int BAND) {
   int    k,shift=3;
   int    myid,colpt,stind,edind,blklastind,stepercol;
-
+  (void) BAND;
 
 
   
@@ -807,20 +807,19 @@ void band_to_trd_v8seq(int N, int NB, Dague_Complex64_t *A, int LDA, int INgrsiz
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int blgchase_ztrdv1(int NT, int N, int NB, Dague_Complex64_t *A, Dague_Complex64_t *V, Dague_Complex64_t *TAU, int sweep, int id, int blktile) {
-  int    edloc, stloc, st, ed, KDM1, LDA;
-  int    IONE, ITWO; 
-  IONE=1;
-  ITWO=2; 
+  int    /*edloc,*/ stloc, st, ed, KDM1, LDA;
 
+  (void)NT;
   KDM1   = NB-1;
   LDA    = NB+1;
   /* generate the indiceslocal and global*/
   stloc  = (sweep+1)%NB;
   if(stloc==0) stloc=NB;
-  if(id==NT-1)
+  /*if(id==NT-1)
      edloc = NB-1;
   else
      edloc = stloc + KDM1;
+  */
 
   st = min(id*NB+stloc, N-1);
   ed = min(st+KDM1, N-1);
@@ -888,9 +887,6 @@ void band_to_trd_vmpi1(int N, int NB, Dague_Complex64_t *A, int LDA) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int blgchase_ztrdv2(int NT, int N, int NB, Dague_Complex64_t *A1, Dague_Complex64_t *A2, Dague_Complex64_t *V1, Dague_Complex64_t *TAU1, Dague_Complex64_t *V2, Dague_Complex64_t *TAU2, int sweep, int id, int blktile) {
   int    edloc, stloc, st, ed, KDM1, LDA;
-  int    IONE, ITWO; 
-  IONE=1;
-  ITWO=2; 
 
   KDM1   = NB-1;
   LDA    = NB+1;
