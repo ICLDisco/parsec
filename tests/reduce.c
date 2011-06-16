@@ -67,7 +67,7 @@ int main( int argc, char* argv[] )
 
     dague_progress(dague);
 
-    dague_apply_operator_Destruct( object );
+    dague_map_operator_Destruct( object );
 
     dague_fini(&dague);
 
