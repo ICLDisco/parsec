@@ -3120,7 +3120,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     string_arena_free(sa2);
 }
 
-static void jdf_generate_inline_c_function(const jdf_expr_t *expr)
+static void jdf_generate_inline_c_function(jdf_expr_t *expr)
 {
     static int inline_c_functions = 0;
     string_arena_t *sa1 = string_arena_new(64);
