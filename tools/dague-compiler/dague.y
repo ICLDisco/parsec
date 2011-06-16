@@ -228,7 +228,6 @@ jdf:            jdf function
         |       jdf VAR properties ASSIGNMENT expr_complete
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    jdf_expr_list_t *el;
 
                     e->next       = NULL;
                     e->name       = $2;
@@ -244,7 +243,6 @@ jdf:            jdf function
                     }
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
-                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
@@ -252,7 +250,7 @@ jdf:            jdf function
         |       jdf VAR properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    jdf_expr_list_t *el;
+
                     e->next       = NULL;
                     e->name       = $2;
                     e->properties = $3;
@@ -267,17 +265,14 @@ jdf:            jdf function
                     }                
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
-                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
                 }
         |
                 {
-                    jdf_expr_list_t *el;
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
-                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
