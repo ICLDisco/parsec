@@ -84,7 +84,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
 {
     dague_zgetrf_sd_object_t* object;
     dague_remote_dep_datatype_t tile_ddt, lower_ddt, upper_ddt, pivot_ddt, littlel_pivot_ddt;
-    int pri_change = dplasma_aux_get_priority( "GETRF", ddescA );
+    //int pri_change = dplasma_aux_get_priority( "GETRF", ddescA );
 #if defined(HAVE_MPI)
     MPI_Aint lb = 0, extent = 0;
 #else
