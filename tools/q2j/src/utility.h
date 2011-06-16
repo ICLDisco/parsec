@@ -43,6 +43,7 @@ struct _expr_t{
     
 
 // AST utility functions
+int    DA_is_if(node_t *node);
 int    DA_is_loop(node_t *node);
 int    DA_is_scf(node_t *node);
 int    DA_is_rel(node_t *node);
@@ -57,10 +58,14 @@ int    DA_array_dim_count(node_t *node);
 node_t *DA_loop_induction_variable(node_t *loop);
 node_t *DA_loop_lb(node_t *node);
 node_t *DA_loop_ub(node_t *node);
+node_t *DA_if_condition(node_t *node);
+node_t *DA_if_then_body(node_t *node);
+node_t *DA_if_else_body(node_t *node);
 node_t *DA_create_int_const(int64_t val);
 node_t *DA_create_B_expr(int type, node_t *kid0, node_t *kid1);
 node_t *DA_create_Entry();
 node_t *DA_create_Exit();
+int DA_tree_contains_only_known_vars(node_t *node, char **known_vars);
 #define DA_create_relation(_T_, _K0_, _K1_) DA_create_B_expr(_T_, _K0_, _K1_)
 
 char *quark_tree_to_body(node_t *node);

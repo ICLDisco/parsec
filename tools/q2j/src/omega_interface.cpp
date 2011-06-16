@@ -68,7 +68,10 @@ static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t 
 static bool is_expr_simple(const expr_t *exp);
 static const char *expr_tree_to_str(const expr_t *exp);
 static string _expr_tree_to_str(const expr_t *exp);
-static int tree_contains_var(expr_t *root, const char *var_name);
+static int expr_tree_contains_var(expr_t *root, const char *var_name);
+static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
+static void convert_if_condition_to_Omega_relation(node_t *node, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
+static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
 static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
 static map<string, Free_Var_Decl *> global_vars;
@@ -379,12 +382,113 @@ void process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID
             }
             break;
         default:
-            fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %s\n", DA_type_name(node) );
+            //fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %s\n", DA_type_name(node) );
+            fprintf(stderr,"ERROR: process_end_condition() cannot deal with node of type: %s in: \"%s\"\n", DA_type_name(node),tree_to_str(node) );
             exit(-1);
     }
 
 }
 
+
+void process_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, Relation &R){
+    Variable_ID ivar;
+    GEQ_Handle cond;
+    EQ_Handle econd;
+    F_And *new_and;
+    F_Or  *new_or;
+    F_Not *neg;
+
+    switch( node->type ){
+        case L_AND:
+            new_and = R_root->add_and();
+            process_condition(node->u.kids.kids[0], new_and, ivars, R);
+            process_condition(node->u.kids.kids[1], new_and, ivars, R);
+            break;
+        case L_OR:
+            new_or = R_root->add_or();
+            new_and = new_or->add_and();
+            process_condition(node->u.kids.kids[0], new_and, ivars, R);
+            process_condition(node->u.kids.kids[1], new_and, ivars, R);
+
+            fprintf(stderr,"WARNING: Logical OR in conditions has not been thoroughly tested. Confirm correctness:\n");
+            fprintf(stderr,"Cond: %s\n",tree_to_str(node));
+            fprintf(stderr,"R: ");
+            R.print_with_subs(stderr);
+
+            break;
+        case LT:
+            cond = R_root->add_GEQ();
+            expr_to_Omega_coef(DA_rel_rhs(node), cond, 1, ivars, R);
+            expr_to_Omega_coef(DA_rel_lhs(node), cond, -1, ivars, R);
+            cond.update_const(-1);
+            break;
+        case LE:
+            cond = R_root->add_GEQ();
+            expr_to_Omega_coef(DA_rel_rhs(node), cond, 1, ivars, R);
+            expr_to_Omega_coef(DA_rel_lhs(node), cond, -1, ivars, R);
+            break;
+        case EQ_OP:
+            econd = R_root->add_EQ();
+            expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
+            expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+        case NE_OP:
+            neg = R_root->add_not();
+            new_and = neg->add_and();
+            econd = new_and->add_EQ();
+            expr_to_Omega_coef(DA_rel_rhs(node), econd, 1, ivars, R);
+            expr_to_Omega_coef(DA_rel_lhs(node), econd, -1, ivars, R);
+        default:
+            fprintf(stderr,"ERROR: process_condition() cannot deal with node of type: %s in: \"%s\"\n", DA_type_name(node),tree_to_str(node) );
+            exit(-1);
+    }
+
+}
+
+static void convert_if_condition_to_Omega_relation(node_t *node, F_And *R_root, map<string, Variable_ID> ivars, Relation &R){
+    map<string, Free_Var_Decl *>::iterator g_it;
+    char **known_vars;
+    int count;
+
+    count = 0;
+    for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop )
+        count++;
+    for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ )
+        count++;
+
+    known_vars = (char **)calloc(count+1, sizeof(char *));
+    count = 0;
+
+    // We consider the induction variables of all the loops enclosing the if() to be known
+    for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        const char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
+        known_vars[count++] = strdup(var_name);
+    }
+
+    // We allso consider the global variables to be known.
+    for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ ){
+        known_vars[count++] = strdup((*g_it).first.c_str());
+    }
+
+    // Check if the condition has variables we don't know how to deal with.
+    if( !DA_tree_contains_only_known_vars(DA_if_condition(node), known_vars) ){
+        fprintf(stderr,"WARNING: if statement: \"%s\" contains unknown variables, so it will be ignored\n",tree_to_str(DA_if_condition(node)));
+        fprintf(stderr,"WARNING: known variables are listed below:\n");
+        for(int i=0; i<count; i++)
+            fprintf(stderr,"%s\n",known_vars[i]);
+        exit(-1);
+    }
+
+    // Do some memory clean-up
+    while(count){
+        free(known_vars[--count]);
+    }
+    free(known_vars);
+
+    // Create the actual condition in the Omega relation "R"
+    process_condition(DA_if_condition(node), R_root, ivars, R);
+
+    return;
+}
 
 Relation create_exit_relation(node_t *exit, node_t *def){
     int i, src_var_count, dst_var_count;
@@ -439,6 +543,11 @@ Relation create_exit_relation(node_t *exit, node_t *def){
         process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
     }
 
+    // Take into account all the conditions of all enclosing if() statements.
+    for(tmp=def->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
+        convert_if_condition_to_Omega_relation(tmp, R_root, ivars, R);
+    }
+
     // Add equalities between corresponding input and output array indexes
     int count = DA_array_dim_count(def);
     for(i=0; i<count; i++){
@@ -457,7 +566,6 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
     int i, src_var_count, dst_var_count;
     und_t *und;
     node_t *tmp, *def, *use;
-//    char **def_ind_names;
     char **use_ind_names;
     map<string, Variable_ID> ivars, ovars;
     map<node_t *, Relation> dep_edges;
@@ -515,8 +623,12 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
             expr_to_Omega_coef(DA_loop_lb(tmp), imin, -1, ovars, R);
 
             // Form the Omega expression for the upper bound
-//printf("Form UB: %s\n",tree_to_str(DA_for_econd(tmp)) );
             process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
+        }
+
+        // Take into account all the conditions of all enclosing if() statements.
+        for(tmp=use->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
+            convert_if_condition_to_Omega_relation(tmp, R_root, ovars, R);
         }
 
         // Add equalities between corresponding input and output array indexes
@@ -646,6 +758,11 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
         }
 
+        // Take into account all the conditions of all enclosing if() statements.
+        for(tmp=def->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
+            convert_if_condition_to_Omega_relation(tmp, R_root, ivars, R);
+        }
+
         // Bound all induction variables of the loops enclosing the USE
         // using the loop bounds
         for(tmp=use->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
@@ -660,6 +777,10 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
         }
 
+        // Take into account all the conditions of all enclosing if() statements.
+        for(tmp=use->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
+            convert_if_condition_to_Omega_relation(tmp, R_root, ovars, R);
+        }
 
         // Add inequalities of the form (m'>=m || n'>=n || ...) or the form (m'>m || n'>n || ...) if the DU chain is
         // "normal", or loop carried, respectively. The outermost enclosing loop HAS to be k'>=k, it is not
@@ -681,10 +802,13 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             !( after_def && (def->task != use->task) ) &&
             !( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
 
-            fprintf(stderr,"create_dep_relations(): Destination is before Source and they do not have a common enclosing loop\n");
-            fprintf(stderr,"Destination:%s %s\n", tree_to_str(use), use->task->task_name );
-            fprintf(stderr,"Source:%s %s\n", tree_to_str(def), def->task->task_name);
+            fprintf(stderr,"WARNING: create_dep_relations(): Destination is before Source and they do not have a common enclosing loop\n");
+            fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->task->task_name );
+            fprintf(stderr,"WARNING: Source:%s %s\n", tree_to_str(def), def->task->task_name);
+/*
             exit(-1);
+*/
+            continue;
         }
 
         // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
@@ -803,9 +927,9 @@ long int getVarCoeff(expr_t *root, const char * var_name){
             break; // although control can never reach this point
 
         default:
-            if( tree_contains_var(root->l, var_name) ){
+            if( expr_tree_contains_var(root->l, var_name) ){
                 return getVarCoeff(root->l, var_name);
-            }else if( tree_contains_var(root->r, var_name) ){
+            }else if( expr_tree_contains_var(root->r, var_name) ){
                 return getVarCoeff(root->r, var_name);
             }else{
                 fprintf(stderr,"ERROR: getVarCoeff(): tree: \"%s\" does not contain variable: \"%s\"\n",expr_tree_to_str(root), var_name);
@@ -833,12 +957,12 @@ expr_t *removeVarFromTree(expr_t *root, const char *var_name){
     // we were given the "a*X" part.  In that case, we return NULL and the caller will
     // know what to do.
     if( MUL == root->type ){
-        if( tree_contains_var(root->l, var_name) || tree_contains_var(root->r, var_name) ){
+        if( expr_tree_contains_var(root->l, var_name) || expr_tree_contains_var(root->r, var_name) ){
             return NULL;
         }
     }
 
-    if( tree_contains_var(root->l, var_name) ){
+    if( expr_tree_contains_var(root->l, var_name) ){
         if( MUL == root->l->type ){
             free_tree( root->l );
             return root->r;
@@ -846,7 +970,7 @@ expr_t *removeVarFromTree(expr_t *root, const char *var_name){
             root->l = removeVarFromTree(root->l, var_name);
             return root;
         }
-    }else if( tree_contains_var(root->r, var_name) ){
+    }else if( expr_tree_contains_var(root->r, var_name) ){
         if( MUL == root->r->type ){
             free_tree( root->r );
             return root->l;
@@ -938,10 +1062,10 @@ expr_t *solveConstraintForVar(expr_t *constr_exp, const char *var_name){
 
     assert( (EQ_OP == constr_exp->type) || (GE == constr_exp->type) );
 
-    if( tree_contains_var(constr_exp->l, var_name) ){
+    if( expr_tree_contains_var(constr_exp->l, var_name) ){
         e = copy_tree(constr_exp->l);
         e_other = copy_tree(constr_exp->r);
-    }else if( tree_contains_var(constr_exp->r, var_name) ){
+    }else if( expr_tree_contains_var(constr_exp->r, var_name) ){
         e = copy_tree(constr_exp->r);
         e_other = copy_tree(constr_exp->l);
     }else{
@@ -982,11 +1106,12 @@ expr_t *solveConstraintForVar(expr_t *constr_exp, const char *var_name){
 
 }
 
+
 /*
  * This function returns 1 if the tree passes as first parameter contains
  * only variables in the set passed as second parameter, or no variables at all.
  */
-int treeContainsOnlyVarsInSet(expr_t *root, set<const char *>vars){
+static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars){
     set<const char *>::iterator it;
 
     if( NULL == root )
@@ -1000,9 +1125,9 @@ int treeContainsOnlyVarsInSet(expr_t *root, set<const char *>vars){
             }
             return 0;
         default:
-            if( !treeContainsOnlyVarsInSet(root->l, vars) )
+            if( !expr_tree_contains_only_vars_in_set(root->l, vars) )
                 return 0;
-            if( !treeContainsOnlyVarsInSet(root->r, vars) )
+            if( !expr_tree_contains_only_vars_in_set(root->r, vars) )
                 return 0;
             return 1;
     }
@@ -1014,7 +1139,7 @@ int treeContainsOnlyVarsInSet(expr_t *root, set<const char *>vars){
  * This function returns 1 if the tree passed as first parameter contains the
  * variable passed as second parameter anywhere in the tree.
  */
-int tree_contains_var(expr_t *root, const char *var_name){
+int expr_tree_contains_var(expr_t *root, const char *var_name){
 
     if( NULL == root )
         return 0;
@@ -1025,16 +1150,16 @@ int tree_contains_var(expr_t *root, const char *var_name){
                 return 1;
             return 0;
         default:
-            if( tree_contains_var(root->l, var_name) )
+            if( expr_tree_contains_var(root->l, var_name) )
                 return 1;
-            if( tree_contains_var(root->r, var_name) )
+            if( expr_tree_contains_var(root->r, var_name) )
                 return 1;
             return 0;
     }
     return 0;
 }
 
-const char *findBoundsOfVar(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
+static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
     char *lb = NULL, *ub = NULL;
     stringstream ss;
     set<expr_t *> ges = find_all_GEs_with_var(var_name, exp);
@@ -1059,7 +1184,7 @@ const char *findBoundsOfVar(expr_t *exp, const char *var_name, set<const char *>
         if( !R.is_set() ){
             for(int i=0; i<R.n_out(); i++){
                 const char *ovar = R.output_var(i+1)->char_name();
-                if( tree_contains_var(rslt_exp, ovar) ){
+                if( expr_tree_contains_var(rslt_exp, ovar) ){
                     exp_has_output_vars = 1;
                     break;
                 }
@@ -1067,7 +1192,7 @@ const char *findBoundsOfVar(expr_t *exp, const char *var_name, set<const char *>
         }
 
         // If the expression has output variables, or variables we don't want it to contain, we need to ignore it
-        if( exp_has_output_vars || !treeContainsOnlyVarsInSet(rslt_exp, vars_in_bounds) )
+        if( exp_has_output_vars || !expr_tree_contains_only_vars_in_set(rslt_exp, vars_in_bounds) )
             continue;
 
         if( c > 0 ){ // then lower bound
@@ -1389,7 +1514,7 @@ static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Rel
   
         for(int i=0; i<R.n_out(); i++){
             const char *ovar = R.output_var(i+1)->char_name();
-            if( tree_contains_var(rslt_exp, ovar) ){
+            if( expr_tree_contains_var(rslt_exp, ovar) ){
                 exp_has_output_vars = 1;
                 break;
             }
@@ -1575,7 +1700,7 @@ void print_actual_parameters(dep_t *dep, expr_t *rel_exp, int type){
         if( NULL != solution )
             printf("%s", expr_tree_to_str(solution));
         else
-            printf("%s", findBoundsOfVar(copy_tree(rel_exp), var_name, vars_in_bounds, R));
+            printf("%s", find_bounds_of_var(copy_tree(rel_exp), var_name, vars_in_bounds, R));
         free((void *)var_name);
     }
     return;
@@ -3018,7 +3143,7 @@ static Relation process_and_print_execution_space(node_t *node){
         if( NULL != solution )
             printf("%s\n", expr_tree_to_str(solution));
         else
-            printf("%s\n", findBoundsOfVar(relation_to_tree(S), var_name, prev_vars, S));
+            printf("%s\n", find_bounds_of_var(relation_to_tree(S), var_name, prev_vars, S));
         prev_vars.insert(var_name);
     }
 
@@ -3469,7 +3594,7 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
             parent_formal_parameters = append_to_string(parent_formal_parameters, solution_str, NULL, 0);
         }else{
             ptask_str = append_to_string(ptask_str, var_name, "  %s = ", 5+strlen(var_name)); 
-            ptask_str = append_to_string(ptask_str, findBoundsOfVar(relation_to_tree(newS_es), var_name, prev_vars, copy(newS_es)), NULL, 0);
+            ptask_str = append_to_string(ptask_str, find_bounds_of_var(relation_to_tree(newS_es), var_name, prev_vars, copy(newS_es)), NULL, 0);
 
             // the following code is for generating the string for the caller (the real task)
             if( NULL != formal_parameters )
@@ -3680,7 +3805,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                      if( !cond2.empty() ){
                          if( printed_condition )
                              printf(" & ");
-                         printf("!(%s)",cond2.c_str());
+                         printf("(!(%s))",cond2.c_str());
                          printed_condition = true;
                      }
                  }
@@ -3770,7 +3895,7 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
                      if( !cond2.empty() ){
                          if( printed_condition )
                              printf(" & ");
-                         printf("!(%s)",cond2.c_str());
+                         printf("(!(%s))",cond2.c_str());
                          printed_condition = true;
                      }
                  }

@@ -75,6 +75,7 @@ struct _node{
 
     node_t *parent;
     node_t *enclosing_loop;
+    node_t *enclosing_if;
 
     char *var_symname;
 

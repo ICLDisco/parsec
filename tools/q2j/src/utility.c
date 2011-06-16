@@ -37,6 +37,7 @@ int JDF_NOTATION = 1;
 
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
+static void do_if_parentize(node_t *node, node_t *enclosing_if);
 static int DA_quark_INOUT(node_t *node);
 static int DA_quark_TYPE(node_t *node);
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
@@ -177,6 +178,63 @@ und_t **get_variable_uses_and_defs(node_t *node){
 }
 
 /*********************************************************************************/
+int DA_tree_contains_only_known_vars(node_t *node, char **known_vars){
+    node_t *tmp;
+    char *var_name;
+
+    if( (NULL == node) || (EMPTY == node->type) || (NULL == known_vars) )
+        return 1;
+
+    switch( node->type ){
+        case IDENTIFIER:
+        case S_U_MEMBER:
+            var_name = tree_to_str(node);
+            for (int i=0; NULL != known_vars[i]; i++){
+                if( !strcmp(known_vars[i], var_name) )
+                    return 1;
+            }
+            free(var_name);
+            return 0;
+    }
+
+    if( BLOCK == node->type ){
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            if( !DA_tree_contains_only_known_vars(tmp, known_vars) )
+                return 0;
+        }
+    }else{
+        int i;
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            if( !DA_tree_contains_only_known_vars(node->u.kids.kids[i], known_vars) )
+                return 0;
+        }
+    }
+    return 1;
+}
+
+static void do_if_parentize(node_t *node, node_t *enclosing_if){
+    node_t *tmp;
+
+    if( (NULL == node) || (EMPTY == node->type) )
+        return;
+
+    node->enclosing_if = enclosing_if;
+
+    if( DA_is_if(node) ){
+        enclosing_if = node;
+    }
+
+    if( BLOCK == node->type ){
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            do_if_parentize(tmp, enclosing_if);
+        }
+    }else{
+        int i;
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            do_if_parentize(node->u.kids.kids[i], enclosing_if);
+        }
+    }
+}
 
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop){
     node_t *tmp;
@@ -239,6 +297,7 @@ static void do_parentize(node_t *node, int off){
 void DA_parentize(node_t *node){
     do_parentize(node, 0);
     do_loop_parentize(node, NULL);
+    do_if_parentize(node, NULL);
     node->parent = NULL;
 }
 
@@ -749,6 +808,17 @@ int DA_is_scf(node_t *node){
 }
 
 /*
+ * Is the node an if() node.
+ */
+int DA_is_if(node_t *node){
+    if( IF == node->type ){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+/*
  * Is the node a Loop node.
  */
 int DA_is_loop(node_t *node){
@@ -1196,6 +1266,24 @@ node_t *DA_loop_induction_variable(node_t *loop){
         default:
             return NULL;
     }
+}
+
+node_t *DA_if_condition(node_t *node){
+    if( IF == node->type )
+        return node->u.kids.kids[0];
+    return NULL;
+}
+
+node_t *DA_if_then_body(node_t *node){
+    if( IF == node->type && node->u.kids.kid_count >= 2)
+        return node->u.kids.kids[1];
+    return NULL;
+}
+
+node_t *DA_if_else_body(node_t *node){
+    if( IF == node->type && node->u.kids.kid_count >= 3)
+        return node->u.kids.kids[1];
+    return NULL;
 }
 
 void dump_for(node_t *node){
@@ -1682,8 +1770,12 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
-            char *tmp_str;
-            char *ws = (char *)calloc(_ind_depth+1, sizeof(char));
+            char *tmp_str, *ws;
+
+            if( tmp->type == EMPTY )
+                continue;
+
+            ws = (char *)calloc(_ind_depth+1, sizeof(char));
             sprintf(ws, "%*s", _ind_depth, " ");
             str = append_to_string(str, ws, NULL, 0);
             free(ws);
