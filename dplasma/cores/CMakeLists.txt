@@ -19,6 +19,7 @@ precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}")
 ### Generate the CUDA kernels if necessary
 if(CUDA_FOUND)
     set(CUDA_BUILD_CUBIN ON)
+    set(CUDA_PROPAGATE_HOST_FLAGS OFF)
     set(CUDA_NVCC_FLAGS -maxrregcount 32 -arch sm_11)
     cuda_add_library( sgemm-sm_11 cuda_sgemm_kernel.cu)
     install(TARGETS sgemm-sm_11 ARCHIVE DESTINATION lib)

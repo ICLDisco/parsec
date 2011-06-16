@@ -49,6 +49,7 @@ else
   /opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
   /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
   export CC=icc
+  export CXX=icpc
   export FC=ifort
   echo cmake -G "Unix Makefiles" ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
   cmake -G "Unix Makefiles" ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
