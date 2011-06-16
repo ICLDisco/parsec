@@ -134,8 +134,8 @@ WO                    { yylval.number = JDF_VAR_TYPE_WRITE;
 <*>")"                { return CLOSE_PAR;                                  }
 <*>"=="               { return EQUAL;                                      }
 <*>"\!="              { return NOTEQUAL;                                   }
-<*>"&"                { return AND;                                        }
-<*>"|"                { return OR;                                         }
+<*>\&\&?              { return AND;                                        }
+<*>\|\|?              { return OR;                                         }
 <*>"^"                { return XOR;                                        }
 <*>"<"                { return LESS;                                       }
 <*>"<="               { return LEQ;                                        }
