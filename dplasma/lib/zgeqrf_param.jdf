@@ -43,6 +43,7 @@ extern "C" %{
    return desc->mt;
  }
 
+#define MYMIN(a, b) ((a)<(b)?(a):(b))
 
 %}
 
@@ -137,7 +138,7 @@ BODY
 
   CORE_zunmqr(
       PlasmaLeft, PlasmaConjTrans, 
-      tempmm, tempnn, min(tempmm, tempkn), ib, 
+      tempmm, tempnn, MYMIN(tempmm, tempkn), ib, 
       A /* A(m, k) */, ldam, 
       T /* T(m, k) */, descT.mb, 
       C /* A(m, n) */, ldam, 
@@ -187,9 +188,9 @@ BODY
 
       CORE_zttqrt(
           tempmm, tempkn, ib, 
-          F /* A(p, k) */, A.mb, 
-          G /* A(m, k) */, ldam, 
-          H /* T(m, k) */, descT.mb, 
+          A1 /* A(p, k) */, descA.mb, 
+          A2 /* A(m, k) */, ldam, 
+          T /* T(m, k) */, descT.mb, 
           p_elem_A, p_elem_B );
       );
   dague_private_memory_push( p_tau , p_elem_A );
@@ -241,7 +242,7 @@ BODY
          CORE_zttmqr(
              PlasmaLeft, PlasmaConjTrans, 
              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, 
-             A1 /* A(p, n) */, A.mb, 
+             A1 /* A(p, n) */, descA.mb, 
              A2 /* A(m, n) */, ldam, 
              V  /* A(m, k) */, ldam, 
              T  /* T(m, k) */, descT.mb, 
