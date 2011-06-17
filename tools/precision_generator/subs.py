@@ -137,6 +137,8 @@ subs = {
     ('SGETRF','DGETRF','CGETRF','ZGETRF'),
     ('sgetrs','dgetrs','cgetrs','zgetrs'),
     ('SGETRS','DGETRS','CGETRS','ZGETRS'),
+    ('sgerbb','dgerbb','cgerbb','zgerbb'),
+    ('SGERBB','DGERBB','CGERBB','ZGERBB'),
     ('splrnt','dplrnt','cplrnt','zplrnt'),
     ('splgsy','dplgsy','cplgsy','zplgsy'),
     ('splgsy','dplgsy','cplghe','zplghe'),
