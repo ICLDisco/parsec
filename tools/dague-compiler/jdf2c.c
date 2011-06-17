@@ -3161,7 +3161,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                                      dump_assignments, &ai, "", "  int ", "", ""));
         coutput("%s\n",
                 UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name, 
-                                     dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+                                     dump_string, NULL, "", "  (void)", ";", ";\n"));
     } else {
         coutput("  /* This inline C function was declared in the global context: no variables */\n"
                 "  (void)assignments;\n");
