@@ -40,58 +40,50 @@ int main(int argc, char ** argv)
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
                                     nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
                                     M, N, SMB, SNB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
-        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescTS, 1, 
+        two_dim_block_cyclic, (&ddescTS, matrix_ComplexDouble, 
+                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+                                    MT*IB, N, SMB, SNB, P))
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescTT, 1, 
+        two_dim_block_cyclic, (&ddescTT, matrix_ComplexDouble, 
                                     nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
                                     MT*IB, N, SMB, SNB, P))
 #if defined(DAGUE_PROF_TRACE)
     ddescA.super.super.key = strdup("A");
-    ddescT.super.super.key = strdup("T");
-#endif
-
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    if(iparam[IPARAM_NGPUS] > 0)
-    {
-        if(loud) printf("+++ Load GPU kernel ... ");
-        if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT)) 
-        {
-            fprintf(stderr, "XXX Unable to load GPU kernel.\n");
-            exit(3);
-        }
-        if(loud) printf("Done\n");
-    }
+    ddescTS.super.super.key = strdup("TS");
+    ddescTT.super.super.key = strdup("TT");
 #endif
 
     if(!check) 
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
+        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescTS);
+        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescTT);
+
+        /* dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872); */
+        /* dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS); */
+        /* dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT); */
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param, 
                                   ((tiled_matrix_desc_t*)&ddescA,
-                                   (tiled_matrix_desc_t*)&ddescT,
-                                   (tiled_matrix_desc_t*)&ddescT))
+                                   (tiled_matrix_desc_t*)&ddescTS,
+                                   (tiled_matrix_desc_t*)&ddescTT))
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param)
     }
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    if(iparam[IPARAM_NGPUS] > 0) 
-    {
-        stsmqr_cuda_fini(dague);
-    }
-#endif
-
     dague_data_free(ddescA.mat);
-    dague_data_free(ddescT.mat);
+    dague_data_free(ddescTS.mat);
+    dague_data_free(ddescTT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescTS);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
 
     cleanup_dague(dague, iparam);
 
