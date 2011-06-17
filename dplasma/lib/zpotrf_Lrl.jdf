@@ -10,13 +10,13 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 
 #define PRECISION_z
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "cuda_zgemm.h"
+#include "dplasma/cores/cuda_zgemm.h"
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 %}

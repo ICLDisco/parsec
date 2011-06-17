@@ -7,21 +7,20 @@
  *
  */
 
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
+#include "dplasma/lib/dplasmatypes.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#include "generated/ztrmm_LLN.h"
-#include "generated/ztrmm_LLT.h"
-#include "generated/ztrmm_LUN.h"
-#include "generated/ztrmm_LUT.h"
-#include "generated/ztrmm_RLN.h"
-#include "generated/ztrmm_RLT.h"
-#include "generated/ztrmm_RUN.h"
-#include "generated/ztrmm_RUT.h"
+#include "ztrmm_LLN.h"
+#include "ztrmm_LLT.h"
+#include "ztrmm_LUN.h"
+#include "ztrmm_LUT.h"
+#include "ztrmm_RLN.h"
+#include "ztrmm_RLT.h"
+#include "ztrmm_RUN.h"
+#include "ztrmm_RUT.h"
 
 dague_object_t *
 dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo, 

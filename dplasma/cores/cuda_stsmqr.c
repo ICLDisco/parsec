@@ -28,7 +28,7 @@ int *gpu_load;
 int MAX_QUEUE = 80;
 #endif
 #include "data_dist/matrix/matrix.h"
-#include "memory_pool.h"
+#include "dplasma/lib/memory_pool.h"
 
 static void compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
 

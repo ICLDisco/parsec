@@ -6,9 +6,8 @@
  * @precisions normal z -> s d c
  *
  */
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
 
 int

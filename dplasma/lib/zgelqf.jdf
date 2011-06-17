@@ -9,13 +9,13 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "dague.h"
+#include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasmajdf.h"
 
 #define PRECISION_z
 
-#include "data_distribution.h"
-#include "memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/memory_pool.h"
 
 /* For now dplasma doesn't store matrices as PLASMA => no need for lm1 and BLKLDD */
 /* #define BLKLDD(k) ( ( (k) + Ai/Amb) < Alm1 ? Amb : Alm%Amb )*/

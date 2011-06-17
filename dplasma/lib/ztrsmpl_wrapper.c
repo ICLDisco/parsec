@@ -7,14 +7,13 @@
  *
  */
 
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmaaux.h"
-#include "dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dplasma/lib/dplasmatypes.h"
 
-#include "generated/ztrsmpl.h"
+#include "ztrsmpl.h"
 
 dague_object_t *
 dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L, 

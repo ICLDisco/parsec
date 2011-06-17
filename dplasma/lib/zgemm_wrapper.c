@@ -6,16 +6,15 @@
  * @precisions normal z -> s d c
  *
  */
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
+#include "dplasma/lib/dplasmatypes.h"
 
-#include "generated/zgemm_NN.h"
-#include "generated/zgemm_NT.h"
-#include "generated/zgemm_TN.h"
-#include "generated/zgemm_TT.h"
+#include "zgemm_NN.h"
+#include "zgemm_NT.h"
+#include "zgemm_TN.h"
+#include "zgemm_TT.h"
 
 dague_object_t*
 dplasma_zgemm_New( const int transA, const int transB,

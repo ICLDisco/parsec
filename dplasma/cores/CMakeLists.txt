@@ -4,17 +4,16 @@ set(generated_files "")
 set(generated_headers "")
 
 ### generate the dplasma_cores headers for all possible precisions
-set(HEADERS
-  dplasma_zcores.h
-)
-precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}") 
-message("${generated_headers}")
+precisions_rules(generated_headers
+                 "dplasma_zcores.h"
+                 PRECISIONS "+;s;d;c;z")
 ### Generate the dplasma wrappers for all required precisions 
 set(SOURCES
   core_ztrdv.c
 )
-precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}") 
-
+precisions_rules(generated_files
+                 "${SOURCES}"
+                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
 
 ### Generate the CUDA kernels if necessary
 if(CUDA_FOUND)

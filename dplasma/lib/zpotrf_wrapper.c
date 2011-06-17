@@ -6,16 +6,15 @@
  * @precisions normal z -> s d c
  *
  */
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
-#include "dplasmaaux.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
 
-#include "generated/zpotrf_Url.h"
-#include "generated/zpotrf_Lrl.h"
-#include "generated/zpotrf_ll.h"
+#include "zpotrf_Url.h"
+#include "zpotrf_Lrl.h"
+#include "zpotrf_ll.h"
 
 dague_object_t* 
 dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)

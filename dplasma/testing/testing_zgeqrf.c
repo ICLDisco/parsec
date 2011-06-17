@@ -11,7 +11,7 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "cuda_stsmqr.h"
+#include "dplasma/cores/cuda_stsmqr.h"
 #endif
 
 #define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \

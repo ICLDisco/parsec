@@ -6,16 +6,15 @@
  * @precisions normal z -> s d c
  *
  */
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
-#include "dplasmaaux.h"
-#include "memory_pool.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dplasma/lib/memory_pool.h"
 
-#include "generated/zgetrf.h"
-#include "generated/zgetrf_sd.h"
+#include "zgetrf.h"
+#include "zgetrf_sd.h"
 
 dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* A,
                                    tiled_matrix_desc_t *L,

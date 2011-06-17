@@ -11,7 +11,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 %}
 
 /* Globals

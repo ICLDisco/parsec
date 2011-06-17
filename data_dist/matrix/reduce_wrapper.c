@@ -6,8 +6,8 @@
 
 #include "dague.h"
 #include "data_dist/matrix/matrix.h"
-#include "generated/reduce_col.h"
-#include "generated/reduce_row.h"
+#include "reduce_col.h"
+#include "reduce_row.h"
 
 struct dague_object_t*
 dague_reduce_col_New( tiled_matrix_desc_t* A,

@@ -11,9 +11,8 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
-#include "generated/dplasma_zcores.h"
-
-#include "dplasmajdf.h"
+#include "dplasma/cores/dplasma_zcores.h"
+#include "dplasma/lib/dplasmajdf.h"
 %}
 
 A          [type = "tiled_matrix_desc_t*"]

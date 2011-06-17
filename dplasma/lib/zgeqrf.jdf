@@ -10,16 +10,16 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "memory_pool.h"
-#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #define PRECISION_z
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
 #define BLKLDD(_desc, _k) (_desc).mb
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
-#include "cuda_stsmqr.h"
+#include "dplasma/cores/cuda_stsmqr.h"
 extern int *gpu_counter;
 #endif
 

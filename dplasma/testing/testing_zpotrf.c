@@ -11,7 +11,7 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "cuda_sgemm.h"
+#include "dplasma/cores/cuda_sgemm.h"
 #endif
 
 

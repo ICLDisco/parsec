@@ -7,16 +7,15 @@
  *
  */
 
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "data_dist/matrix/matrix.h"
 #include "dplasma.h"
-#include "dplasmatypes.h"
-#include "dplasmaaux.h"
-#include "memory_pool.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dplasma/lib/memory_pool.h"
 
-#include "generated/zhbrdt.h"
+#include "zhbrdt.h"
 
 dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 {

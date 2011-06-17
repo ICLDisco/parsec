@@ -6,14 +6,13 @@
  * @precisions normal z -> c d s
  *
  */
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
-#include "dplasmaaux.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
 
-#include "generated/zplgsy.h"
+#include "zplgsy.h"
 
 /***************************************************************************//**
  *
