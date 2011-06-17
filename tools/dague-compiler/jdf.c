@@ -181,6 +181,9 @@ static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
             p != NULL && d != NULL;
             p = p->next, d = d->next, pi++) {
             if( strcmp(d->name, p->name) ) {
+                /* Inline functions rely on this check to work,
+                 * because they cannot appear before the last parameter
+                 */
                 jdf_fatal(f->lineno, "%s appears as the %dth parameter of function %s, but the associated definition is not for %s it is for %s\n",
                           p->name, pi, f->fname, p->name, d->name);
                 rc = -1;
