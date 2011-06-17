@@ -2153,34 +2153,42 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     jdf_def_list_t *dl;
     jdf_name_list_t *pl;
     expr_info_t info;
+    int idx;
 
     (void)jdf;
 
-    coutput("static inline int %s_hash(const __dague_%s_internal_object_t *__dague_object, %s)\n"
+    coutput("static inline int %s_hash(const __dague_%s_internal_object_t *__dague_object, const assignment_t *assignments)\n"
             "{\n"
             "  int __h = 0;\n"
             "  (void)__dague_object;\n",
-            f->fname, jdf_basename, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                                         dump_string, NULL, "", "int ", ", ", ""));
+            f->fname, jdf_basename);
 
     info.prefix = "";
     info.sa = sa;
 
     pl = f->parameters;
+    idx = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         string_arena_init(sa);
-        if( dl->expr->op == JDF_RANGE ) {
-            coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info));
-            if( pl->next != NULL ) {
-                coutput("  int %s_range = %s - %s_min + 1;\n", 
-                        dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info), dl->name);
-            }
-        } else {
-            coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr, &info));
-            if( dl->next != NULL ) {
-                coutput("  int %s_range = 1;\n", dl->name);
+        coutput("  int %s = assignments[%d].value;\n",
+                dl->name, idx);
+        idx++;
+
+        if( !strcmp(dl->name, pl->name) ) {
+            if( dl->expr->op == JDF_RANGE ) {
+                coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info));
+                if( pl->next != NULL ) {
+                    coutput("  int %s_range = %s - %s_min + 1;\n", 
+                            dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info), dl->name);
+                }
+            } else {
+                coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr, &info));
+                if( dl->next != NULL ) {
+                    coutput("  int %s_range = 1;\n", dl->name);
+                }
             }
         }
+
         /* Hash functions depends only on the parameters of the function.
          * It is not necessary to define things after the last parameter
          */
@@ -2266,11 +2274,9 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 exit(1);
             }
         }
-        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, %s ));\n"
+        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( __dague_object, assignments ));\n"
                 "%s  g%s = e%s->data[%d];\n",
                 spaces, f->varname, call->func_or_mem, call->func_or_mem, 
-                UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
-                                     dump_expr, &info, "", "", ", ", ""),
                 spaces, f->varname, f->varname, dataindex);
     } else {
         coutput("%s  g%s = (dague_arena_chunk_t*) %s(%s);\n",
@@ -2456,15 +2462,10 @@ static void jdf_generate_code_papi_events_after(const jdf_t *jdf, const jdf_func
 
 static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
-    string_arena_t *sa;
-    sa = string_arena_new(64);
-
     (void)jdf;
 
-    coutput("  dague_prof_grapher_task(exec_context, context->eu_id, %s_hash(__dague_object, %s));\n",
-            f->fname, UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                           dump_string, NULL, "", "", ", ", ""));    
-    string_arena_free(sa);
+    coutput("  dague_prof_grapher_task(exec_context, context->eu_id, %s_hash(__dague_object, assignments));\n",
+            f->fname);
 }
 
 static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -2598,10 +2599,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         sa3 = string_arena_new(64);
         linfo.prefix = "";
         linfo.sa = sa2;
-        coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, %s), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
+        coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, assignments), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
                 f->fname,
-                UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                     dump_string, NULL, "", "", ", ", ""),
                 f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                 UTIL_DUMP_LIST_FIELD(sa3, f->predicate->parameters, next, expr,
                                      dump_expr, &linfo,
@@ -2635,10 +2634,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
     if( profile_on ) {
-        coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, %s ), NULL, 0);\n",
-                f->fname,
-                UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                     dump_string, NULL, "", "", ", ", ""));
+        coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, assignments ), NULL, 0);\n",
+                f->fname);
     }
     jdf_generate_code_papi_events_after(jdf, f);
 
@@ -2772,11 +2769,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                                  dump_string, NULL, "", "  (void)", ";\n", ";\n"));
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
-            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, %s) );\n"
+            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, assignments) );\n"
             "  }\n",
-            f->fname, f->fname, 
-            UTIL_DUMP_LIST_FIELD(sa, f->parameters, next, name,
-                                 dump_string, NULL, "", "", ", ", ""));
+            f->fname, f->fname);
     
     coutput("#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"
