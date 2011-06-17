@@ -14,7 +14,7 @@
 #include "dplasmaaux.h"
 #include "memory_pool.h"
 
-#include "generated/zgeqrf_param.h"
+#include "zgeqrf_param.h"
 
 dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TS,
