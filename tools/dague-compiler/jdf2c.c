@@ -1459,7 +1459,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     jdf_def_list_t *dl;
     int nesting;
     expr_info_t info1, info2;
-    assignment_info_t ai;
+    int idx;
 
     assert( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP );
     (void)jdf;
@@ -1470,12 +1470,18 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("static int %s(dague_context_t *context, const __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
             "  dague_execution_context_t* new_context;\n"
-            "  const assignment_t *assignments = NULL;\n"
+            "  assignment_t *assignments = NULL;\n"
             "%s\n"
-            "  (void)assignments;\n",
+            "  (void)assignments;\n"
+            "  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
+            "  new_context->dague_object = (dague_object_t*)__dague_object;\n"
+            "  new_context->function = (const dague_t*)&%s_%s;\n"
+            "  new_context->data[0].data = NULL;\n"
+            "  assignments = new_context->locals;\n",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "  int32_t ", " ", ",", ";"));
+                                 "  int32_t ", " ", ",", ";"),
+            jdf_basename, f->fname);
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -1486,40 +1492,29 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     info2.sa = sa2;
     info2.prefix = "";
 
-    coutput("  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
-            "  new_context->dague_object = (dague_object_t*)__dague_object;\n"
-            "  new_context->function = (const dague_t*)&%s_%s;\n"
-            "  new_context->data[0].data = NULL;\n",
-            jdf_basename, f->fname);
-
     coutput("  /* Parse all the inputs and generate the ready execution tasks */\n");
 
     nesting = 0;
+    idx = 0;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         if(dl->expr->op == JDF_RANGE) {
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
-                    "%s      %s++) {\n",
+                    "%s      %s++) {\n"
+                    "%s    assignments[%d].value = %s;\n",
                     indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
                     indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
-                    indent(nesting), dl->name);
+                    indent(nesting), dl->name,
+                    indent(nesting), idx, dl->name);
             nesting++;
         } else {
-            coutput("%s  %s = %s;\n", 
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
+            coutput("%s  %s = %s;\n"
+                    "%s  assignments[%d].value = %s;\n", 
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1),
+                    indent(nesting), idx, dl->name);
         }
+        idx++;
     }
-
-    string_arena_init(sa2);
-    ai.sa = sa2;
-    ai.idx = 0;
-    ai.holder = "  new_context->locals";
-    ai.expr = NULL;
-    coutput("%s%s\n"
-            "%s  assignments = new_context->locals;\n",
-            indent(nesting), UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
-                                                  dump_reserve_assignments, &ai, "", "", indent(nesting), ""),
-            indent(nesting));
 
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
@@ -1557,10 +1552,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("%s  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
             "%s  new_context->dague_object = (dague_object_t*)__dague_object;\n"
             "%s  new_context->function = (const dague_t*)&%s_%s;\n"
-            "%s  new_context->data[0].data = NULL;\n",
+            "%s  new_context->data[0].data = NULL;\n"
+            "%s  assignments = new_context->locals;\n",
             indent(nesting),
             indent(nesting),
             indent(nesting), jdf_basename, f->fname,
+            indent(nesting),
             indent(nesting));
 
     for(; nesting > 0; nesting--) {
