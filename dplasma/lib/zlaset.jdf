@@ -114,10 +114,10 @@ BODY
                    tempkm, tempkn, alpha, beta, A, ldak);
                );
 
-        printlog("thread %d laset( %d, %d )\n"
-                 "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
-                 context->eu_id, k, k, lapack_const( uplo ),
-                 tempkm, tempkn, alpha, beta, k, k, ldak);
+   printlog("thread %d laset_diag( %d )\n"
+           "    ( %s, %d, %d, %e, %e, A(%d,%d), %d)\n",
+           context->eu_id, k, plasma_const( uplo ),
+           tempkm, tempkn, alpha, beta, k, k, ldak);
 END
 extern "C" %{
 

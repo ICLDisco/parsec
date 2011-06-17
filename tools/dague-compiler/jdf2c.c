@@ -1578,6 +1578,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 {
     string_arena_t *sa1, *sa2;
     jdf_def_list_t *dl;
+    jdf_name_list_t *pl;
     int nesting;
     const jdf_function_entry_t *pf;
     expr_info_t info1, info2;
@@ -1591,26 +1592,27 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "  int nb_tasks = 0, __foundone = 0;\n"
             "%s",
             fname, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", " ", ",", ";\n"));
     coutput("%s"
             "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_max = 0,", "_max = 0;\n"));
 #if 0
     coutput("%s"
             "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_start,", "_start;\n"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_end,", "_end;\n"));
 #endif
     coutput("  (void)__dague_object;\n"
             "  (void)__foundone;\n");
-    if( NULL != f->definitions->next ) {
-        for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+    /* The first definitions are the parameter definitions, and only those */
+    if( NULL != f->parameters->next ) {
+        for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
             if(dl->expr->op == JDF_RANGE) {
                 coutput("  int32_t %s_start, %s_end;", dl->name, dl->name );
             }
@@ -1629,7 +1631,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("  /* First, find the min and max value for each of the dimensions */\n");
 
     nesting = 0;
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+    for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
         if(dl->expr->op == JDF_RANGE) {
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
@@ -1651,7 +1653,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                                             dump_string, NULL, 
                                                             "", "", ", ", ""),
             indent(nesting));
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+    for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
         coutput("%s  %s_max = dague_imax(%s_max, %s);\n"
                 "%s  %s_min = dague_imin(%s_min, %s);\n",
                 indent(nesting), dl->name, dl->name, dl->name,
@@ -1669,19 +1671,19 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "   * to it. Array dimensions are defined by the (rough) observation above\n"
             "   **/\n");
 
-    if( f->definitions->next == NULL ) {
+    if( f->parameters->next == NULL ) {
         coutput("  if( 0 != nb_tasks ) {\n"
                 "    ALLOCATE_DEP_TRACKING(dep, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n"
                 "  }\n",
-                f->definitions->name, f->definitions->name, f->definitions->name,
-                jdf_basename, f->fname, f->definitions->name);
+                f->parameters->name, f->parameters->name, f->parameters->name,
+                jdf_basename, f->fname, f->parameters->name);
     } else {
         int last_dimension_is_a_range = 0;
 
         coutput("  dep = NULL;\n");
 
         nesting = 0;
-        for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+        for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
             if( dl->next == NULL ) {
                 coutput("%s  __foundone = 0;\n", indent(nesting));
             }
@@ -1710,7 +1712,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
         string_arena_init(sa1);
         string_arena_add_string(sa1, "dep");
-        for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+        for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
             coutput("%s  if( %s == NULL ) {\n"
                     "%s    ALLOCATE_DEP_TRACKING(%s, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
                     "%s  }\n",
@@ -1734,8 +1736,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     /* Quiet the compiler by using the varibales */
-    if( NULL != f->definitions->next ) {
-        for(dl = f->definitions; dl != NULL; dl = dl->next ) {
+    if( NULL != f->parameters->next ) {
+        for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
             if(dl->expr->op == JDF_RANGE) {
                 coutput("  (void)%s_start; (void)%s_end;", dl->name, dl->name );
             }
@@ -2164,11 +2166,12 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     info.prefix = "";
     info.sa = sa;
 
+    pl = f->parameters;
     for(dl = f->definitions; dl != NULL; dl = dl->next) {
         string_arena_init(sa);
         if( dl->expr->op == JDF_RANGE ) {
             coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info));
-            if( dl->next != NULL ) {
+            if( pl->next != NULL ) {
                 coutput("  int %s_range = %s - %s_min + 1;\n", 
                         dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info), dl->name);
             }
@@ -2177,6 +2180,14 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             if( dl->next != NULL ) {
                 coutput("  int %s_range = 1;\n", dl->name);
             }
+        }
+        /* Hash functions depends only on the parameters of the function.
+         * It is not necessary to define things after the last parameter
+         */
+        if( !strcmp(dl->name, pl->name) ) {
+            pl = pl->next;
+            if( NULL == pl )
+                break;
         }
     }
 
@@ -2755,6 +2766,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
+    /* Quiet the unused variable warnings */
+    coutput("%s",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
             "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, %s) );\n"
             "  }\n",
@@ -3148,6 +3164,9 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         coutput("%s\n",
                 UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name, 
                                      dump_assignments, &ai, "", "  int ", "", ""));
+        coutput("%s\n",
+                UTIL_DUMP_LIST_FIELD(sa2, expr->jdf_c_code.function_context->definitions, next, name, 
+                                     dump_string, NULL, "", "  (void)", ";\n", ";\n"));
     } else {
         coutput("  /* This inline C function was declared in the global context: no variables */\n"
                 "  (void)assignments;\n");

@@ -54,10 +54,10 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d plgsy( %d, %d )\n"
-                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
-                 context->eu_id, m, n, tempmm, tempnn, 
-                 bump, m, n, ldam,
+        printlog("thread %d plgsy_l( %d, %d )\n"
+                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
+                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
@@ -85,10 +85,10 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d plgsy( %d, %d )\n"
-                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
-                 context->eu_id, m, n, tempmm, tempnn, 
-                 bump, m, n, ldam,
+        printlog("thread %d plgsy_u( %d, %d )\n"
+                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
+                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
@@ -115,10 +115,10 @@ BODY
                    descA.m, k*descA.mb, k*descA.nb, seed );
                );
 
-        printlog("thread %d plgsy( %d, %d )\n"
-                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
-                 context->eu_id, k, k, tempkm, tempkn, 
-                 bump, k, k, ldak,
+        printlog("thread %d plgsy_diag( %d )\n"
+                 "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
+                 context->eu_id, k, bump, tempkm, tempkn, 
+                 k, k, ldak,
                  descA.m, k*descA.mb, k*descA.nb, seed);
 END
 extern "C" %{

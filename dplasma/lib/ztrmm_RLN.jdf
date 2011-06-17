@@ -158,7 +158,7 @@ BODY
 	       "    ( %s, %s, %d, %d, %d, %f, B(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
 	       context->eu_id, m, n, k, 
                plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
-               tempmm, tempnn, Bmb,
+               tempmm, tempnn, tempkn,
 	       alpha, m, k, A, Bmb, k, n, B, Amb,
 	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END

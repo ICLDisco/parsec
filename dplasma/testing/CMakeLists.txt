@@ -16,6 +16,7 @@ set(TESTS
   testing_zgetrf.c
   testing_zgetrf_sd.c
   testing_zgeqrf.c
+  testing_zgeqrf_param.c
   testing_zgelqf.c
   testing_zherbt.c
   testing_zhbrdt.c
