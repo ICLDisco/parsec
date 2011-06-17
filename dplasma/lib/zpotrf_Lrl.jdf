@@ -59,8 +59,8 @@ BODY
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     int tempkm = k == Amt-1 ? Am - k*Amb : Amb;
-    int iinfo = 0;
     DRYRUN(
+           int iinfo = 0;
         CORE_zpotrf(
             uplo, tempkm, T, Amb,
             &iinfo );

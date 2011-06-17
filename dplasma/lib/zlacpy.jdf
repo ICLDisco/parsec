@@ -61,7 +61,8 @@ BODY
 
         printlog("thread %d lacpy_l( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->eu_id, m, n, tempmm, tempnn, 
+                 context->eu_id, m, n, 
+                 plasma_const(uplo), tempmm, tempnn, 
                  m, n, ldam, m, n, ldbm);
 END
 
@@ -95,7 +96,8 @@ BODY
 
         printlog("thread %d lacpy_u( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->eu_id, m, n, tempmm, tempnn, 
+                 context->eu_id, m, n, 
+                 plasma_const(uplo), tempmm, tempnn, 
                  m, n, ldam, m, n, ldbm);
 END
 
@@ -128,7 +130,8 @@ BODY
 
         printlog("thread %d lacpy_diag( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->eu_id, k, k, tempkm, tempkn, 
+                 context->eu_id, k, k, 
+                 plasma_const(uplo), tempkm, tempkn, 
                  k, k, ldak, k, k, ldbk);
 END
 extern "C" %{

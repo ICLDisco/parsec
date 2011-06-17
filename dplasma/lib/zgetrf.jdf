@@ -97,12 +97,12 @@ zgetrf(k)
 
 BODY
 
-  int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
-  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Bmb);*/
   int iinfo = 0;
-
   DRYRUN(
+         int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
+         int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
+         int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Bmb);*/
+
          CORE_zgetrf(tempkm, tempkn, ib, 
                      A /* A(k,k) */, ldak, 
                      B /* IPIV(k,k) */, &iinfo );
@@ -146,11 +146,11 @@ zgessm(k,n)
 
 BODY
 
-  int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
-  int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
-  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
-
   DRYRUN(
+         int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
+         int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
+         int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+
          CORE_zgessm(tempkm, tempnn, tempkm, ib, 
                      C /* IPIV(k,k) */, 
                      D /* A(k,k) */, ldak, 
@@ -214,12 +214,12 @@ ztstrf(k,m)
 
 BODY
 
-  int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
-  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
-  int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
-
   DRYRUN(
+         int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
+         int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
+         int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+         int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+
          int iinfo;
          PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
 
@@ -308,7 +308,7 @@ BODY
                      M /* A(m,k) */,  ldam, 
                      N /* IPIV(m,k) */ );
          );
-  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(Anb, tempnn, tempmm, tempnn, Anb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
-           context->eu_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M, m, k, N);
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
+           context->eu_id, k, m, n1, Anb, tempnn, tempmm, tempnn, Anb, ib, k, n1, J, ldak, m, n1, K, ldam, m, k, L, Lmb, m, k, M, ldam, m, k, N);
 
 END

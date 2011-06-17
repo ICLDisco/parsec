@@ -25,7 +25,7 @@ seed   [type = "unsigned long long int" ]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
 
-LASET(m, n)
+PLRNT(m, n)
 
 // Execution space
 m = 0 .. descA.mt-1
@@ -50,7 +50,7 @@ BODY
                );
 
         printlog("thread %d plrnt( %d, %d )\n"
-                 "    ( %d, %d, A(%d,%d), %d, %d, %d, %d, %lu)\n",
+                 "    ( %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
                  context->eu_id, m, n, tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);

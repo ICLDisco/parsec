@@ -90,8 +90,6 @@ BODY
    int tempkm   = ( k == (Amt-1) ) ? Am - k * Amb : Amb;
    int tempnn   = ( n == (Bnt-1) ) ? Bn - n * Bnb : Bnb;
    int tempkmin;
-   int ldak     = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
-   int ldbk     = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
 
    if ( Amt < Ant ) {
      tempkmin = (k == Amt-1) ? Am - k * Amb : Amb;
@@ -99,6 +97,9 @@ BODY
      tempkmin = (k == Ant-1) ? An - k * Amb : Amb;
    }
    DRYRUN(
+          int ldak     = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+          int ldbk     = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
+
 	   CORE_zgessm(tempkm, tempnn, tempkmin, ib, 
                        A /* IPIV(k,k) */, 
                        B /* A(k,k) */, ldak, 
@@ -194,7 +195,7 @@ BODY
                      G /* A(m,k) */,  ldam, 
                      H /* IPIV(m,k) */ );
          );
-  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, L(%d,%d)[%p], Lmb, A(%d,%d)[%p], ldam, IPIV(%d,%d)[%p])\n",
-           context->eu_id, Anb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, m, n1, E, m, k, F, m, k, G, m, k, H);
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
+           context->eu_id, Anb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, ldbk, m, n1, E, ldbm, m, k, F, Lmb, m, k, G, ldam, m, k, H);
 
 END
