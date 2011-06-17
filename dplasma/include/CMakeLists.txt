@@ -3,10 +3,10 @@ include(RulesPrecisions)
 set(generated_headers "")
 
 ### generate the dplasma headers for all possible precisions
-set(HEADERS
-  dplasma_z.h
-)
-precisions_rules(generated_headers "+;z;c;d;s" "${HEADERS}")
+precisions_rules(generated_headers
+                 "dplasma_z.h"
+                 PRECISIONS "+;z;c;d;s")
+
 add_custom_target(dplasma_includes ALL DEPENDS dplasma.h SOURCES
     ${generated_headers} )
 

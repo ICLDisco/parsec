@@ -7,12 +7,13 @@ extern "C" %{
    */
 #include <plasma.h>
 #include <core_blas.h>
-#include "data_dist/matrix/matrix.h"
-#include "dplasmajdf.h"
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "memory_pool.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
 /* For now dplasma doesn't store matrices as PLASMA => no need for lm1 and BLKLDD */
 /* #define BLKLDD(k) ( ( (k) + desc_A.i/desc_A.mb) < desc_A.lm1 ? desc_A.mb : desc_A.lm%desc_A.mb )*/
 #define BLKLDD(DESC,k) desc_A.mb

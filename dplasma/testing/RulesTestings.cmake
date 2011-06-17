@@ -26,10 +26,11 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   endif()
 
   set(testings_addexec_GENFILES "")
-  precisions_rules(testings_addexec_GENFILES "${PRECISIONS}" "${ZSOURCES}")
+  precisions_rules(testings_addexec_GENFILES 
+    "${ZSOURCES}"
+    PRECISIONS "${PRECISIONS}")
   foreach(testings_addexec_GENFILE ${testings_addexec_GENFILES})
     string(REGEX REPLACE "\\.[scdz]" "" testings_addexec_EXEC ${testings_addexec_GENFILE})
-    string(REGEX REPLACE "generated/" "" testings_addexec_EXEC ${testings_addexec_EXEC})
 
     add_executable(${testings_addexec_EXEC} ${testings_addexec_GENFILE})
     set_target_properties(${testings_addexec_EXEC} PROPERTIES

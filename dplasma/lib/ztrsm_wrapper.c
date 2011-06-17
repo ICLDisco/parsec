@@ -7,21 +7,20 @@
  *
  */
 
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmaaux.h"
-#include "dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dplasma/lib/dplasmatypes.h"
 
-#include "generated/ztrsm_LLN.h"
-#include "generated/ztrsm_LLT.h"
-#include "generated/ztrsm_LUN.h"
-#include "generated/ztrsm_LUT.h"
-#include "generated/ztrsm_RLN.h"
-#include "generated/ztrsm_RLT.h"
-#include "generated/ztrsm_RUN.h"
-#include "generated/ztrsm_RUT.h"
+#include "ztrsm_LLN.h"
+#include "ztrsm_LLT.h"
+#include "ztrsm_LUN.h"
+#include "ztrsm_LUT.h"
+#include "ztrsm_RLN.h"
+#include "ztrsm_RLT.h"
+#include "ztrsm_RUN.h"
+#include "ztrsm_RUT.h"
 
 dague_object_t *
 dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo, 

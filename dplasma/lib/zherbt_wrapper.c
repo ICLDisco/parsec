@@ -7,15 +7,14 @@
  *
  */
 
+#include "dague.h"
 #include <plasma.h>
-#include <dague.h>
-#include <scheduling.h>
 #include "dplasma.h"
-#include "dplasmatypes.h"
-#include "dplasmaaux.h"
-#include "memory_pool.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dplasma/lib/memory_pool.h"
 
-#include "generated/zherbt_L.h"
+#include "zherbt_L.h"
 
 dague_object_t *
 dplasma_zherbt_New( PLASMA_enum uplo,

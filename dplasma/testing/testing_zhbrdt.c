@@ -7,7 +7,6 @@
  *
  */
 
-#include <plasma.h>
 #include "common.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"

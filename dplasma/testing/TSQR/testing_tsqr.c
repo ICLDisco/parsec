@@ -26,7 +26,7 @@
 #include <plasma.h>
 #include <lapacke.h>
 
-#include "generated/TSQR.h"
+#include "dplasma/lib/TSQR.h"
 
 /* globals and argv set values */
 int nbtasks = -1;

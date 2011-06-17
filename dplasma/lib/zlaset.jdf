@@ -14,8 +14,8 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/dplasmajdf.h"
 
 %}
 

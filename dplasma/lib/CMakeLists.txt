@@ -4,7 +4,6 @@ include(RulesJDF)
 set(generated_files "")
 set(generated_jdf "")
 
-
 set(EXTRA_SOURCES memory_pool.c dplasmatypes.c dplasmaaux.c)
 
 ### Generate .c files from .jdf
@@ -27,7 +26,9 @@ set(JDF
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
 )
-precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JDF}")
+precisions_rules(generated_jdf
+                 "${JDF}"
+                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
 jdf_rules(generated_files "${generated_jdf}")
 
 ### Generate the dplasma wrappers for all required precisions 
@@ -54,7 +55,9 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
 )
-precisions_rules(generated_files "+;${DPLASMA_PRECISIONS}" "${SOURCES}") 
+precisions_rules(generated_files
+                 "${SOURCES}"
+                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
 
 ### Generate the lib 
 if (MPI_FOUND)

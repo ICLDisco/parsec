@@ -10,8 +10,8 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_dist/matrix/matrix.h"
-#include "memory_pool.h"
-#include "dplasmajdf.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
 
 #if (PLASMA_VERSION_MAJOR <= 2) && (PLASMA_VERSION_MINOR <= 2)
 #define CORE_zssssm(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \

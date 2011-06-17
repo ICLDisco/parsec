@@ -2,6 +2,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "dplasma/lib/dplasmajdf.h"
 
 extern int rank;
 
