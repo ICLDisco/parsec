@@ -137,7 +137,7 @@ class Conversion:
       if new_file <> self.file[1] or self.prefix is not None:
         if self.prefix is None:
           """If no prefix is specified, use the file's current folder."""
-          prefix = self.file[0]
+          prefix = ''
           makeprefix = '';
         else:
           """If a prefix is specified, set it up."""

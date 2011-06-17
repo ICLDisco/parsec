@@ -26,11 +26,13 @@ macro(precisions_rules)
   # By default the TARGETDIR is the current binary directory
   if( "${PREC_RULE_TARGETDIR}" STREQUAL "" )
     set(PREC_RULE_TARGETDIR "./")
+    set(PRECISIONPP_prefix "")
   else( "${PREC_RULE_TARGETDIR}" STREQUAL "" )
     if(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
     else(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
       file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
     endif(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
+    set(PRECISIONPP_prefix "-P ${PREC_RULE_TARGETDIR}")
   endif( "${PREC_RULE_TARGETDIR}" STREQUAL "" )
 
   set(precisions_rules_SED 0)
@@ -55,7 +57,7 @@ macro(precisions_rules)
             MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE})
           
         elseif(${precisions_rules_PP})
-          execute_process(COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} -P ${PREC_RULE_TARGETDIR} --out
+          execute_process(COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} ${PRECISIONPP_prefix} --out
             OUTPUT_VARIABLE prec_rules_OSRC)
           string(STRIP "${prec_rules_OSRC}" prec_rules_OSRC)
           string(COMPARE NOTEQUAL "${prec_rules_OSRC}" "" got_file)
@@ -63,7 +65,7 @@ macro(precisions_rules)
           if( ${got_file} )
             add_custom_command(
               OUTPUT ${prec_rules_OSRC}
-              COMMAND ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} -P ${PREC_RULE_TARGETDIR}
+              COMMAND ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} ${PRECISIONPP_prefix}
               MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE}
               DEPENDS ${PRECISIONPP})
           endif()
