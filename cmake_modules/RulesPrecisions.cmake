@@ -52,7 +52,7 @@ macro(precisions_rules)
         set(prec_rules_OSRC "${PREC_RULE_TARGETDIR}${prec_rules_PREC}${prec_rules_BSRC}.${prec_rules_ESRC}")
         
         if(${precisions_rules_SED})
-          #message(STATUS ${prec_rules_SOURCE})
+          message(STATUS ${prec_rules_SOURCE})
           add_custom_command(
             OUTPUT ${prec_rules_OSRC}
             COMMAND sed 's/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${PREC_RULE_TARGETDIR}${prec_rules_OSRC}
@@ -65,7 +65,7 @@ macro(precisions_rules)
           string(COMPARE NOTEQUAL "${prec_rules_OSRC}" "" got_file)
           # We generate a dependency only if a file will be generated
           if( ${got_file} )
-	    MESSAGE(STATUS "prec rule OSRC = ${prec_rules_OSRC}")
+	    #MESSAGE(STATUS "prec rule OSRC = ${prec_rules_OSRC}")
             add_custom_command(
               OUTPUT ${prec_rules_OSRC}
               COMMAND rm -f ${prec_rules_OSRC} && ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} ${PRECISIONPP_arg} ${PRECISIONPP_prefix} && chmod a-w ${prec_rules_OSRC}
