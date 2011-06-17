@@ -52,7 +52,7 @@ macro(precisions_rules)
         set(prec_rules_OSRC "${PREC_RULE_TARGETDIR}${prec_rules_PREC}${prec_rules_BSRC}.${prec_rules_ESRC}")
         
         if(${precisions_rules_SED})
-          message(STATUS ${prec_rules_SOURCE})
+          #message(STATUS ${prec_rules_SOURCE})
           add_custom_command(
             OUTPUT ${prec_rules_OSRC}
             COMMAND sed 's/${prec_rules_BSRC}/${prec_rules_PREC}${prec_rules_BSRC}/g' ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} >${PREC_RULE_TARGETDIR}${prec_rules_OSRC}
