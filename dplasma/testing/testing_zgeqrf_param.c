@@ -10,10 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "cuda_stsmqr.h"
-#endif
-
 #define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
 #define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
