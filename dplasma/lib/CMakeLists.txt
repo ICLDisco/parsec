@@ -26,6 +26,7 @@ set(JDF
   zherbt_L.jdf
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
+  zgeqrf_param.jdf
 )
 precisions_rules(generated_jdf "+;${DPLASMA_PRECISIONS}" "${JDF}")
 jdf_rules(generated_files "${generated_jdf}")
@@ -50,6 +51,7 @@ set(SOURCES
   zgetrs_wrapper.c 
   zgesv_wrapper.c 
   zgeqrf_wrapper.c
+  zgeqrf_param_wrapper.c
   zgelqf_wrapper.c
   zherbt_wrapper.c
   zhbrdt_wrapper.c
