@@ -26,9 +26,11 @@ dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
     {
       int m, n;
       int *ipiv2 = piv;
-      for(n=0; n<A->nt; n++)
-        for (m=0; m<A->mt; m++)
+      for(n=0; n < A->nt; n++) {
+        for (m=0; m < A->mt; m++) {
           *ipiv2 = n; ipiv2++;
+        }
+      }
     }
 
     /* 
