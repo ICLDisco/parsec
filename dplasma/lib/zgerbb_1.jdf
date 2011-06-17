@@ -14,7 +14,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define BLKLDD(_desc, _k) (_desc).mb
+#define BLKLDD(_desc, _k) (_desc)->mb
 %}
 
 desc_A [type = "tiled_matrix_desc_t *"]
@@ -28,13 +28,13 @@ pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*(des
 
 minnt1mt2 [type = int
            hidden = on
-           default = "dague_imin(data_A->nt-1, data_A->mt-2)"]
+           default = "dague_imin(desc_A->nt-1, desc_A->mt-2)"]
 minnt2mt2 [type = int
            hidden = on
-           default = "dague_imin(data_A->nt-2, data_A->mt-2)"]
+           default = "dague_imin(desc_A->nt-2, desc_A->mt-2)"]
 minnt3mt2 [type = int
            hidden = on
-           default = "dague_imin(data_A->nt-3, data_A->mt-2)"]
+           default = "dague_imin(desc_A->nt-3, desc_A->mt-2)"]
 NT        [type = int
            hidden = on
            default = "desc_A->nt"]
@@ -630,7 +630,6 @@ ztsmlq(k,n2,m2)
 
   /*
   The following is a superset of the necessary anti-dependencies:
-
   */
 
 BODY
