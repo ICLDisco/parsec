@@ -10,8 +10,8 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "memory_pool.h"
-#include "dplasmajdf.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #define PRECISION_z
