@@ -72,10 +72,12 @@ int main(int argc, char ** argv)
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param, 
                                   ((tiled_matrix_desc_t*)&ddescA,
                                    (tiled_matrix_desc_t*)&ddescTS,
-                                   (tiled_matrix_desc_t*)&ddescTT))
+                                   (tiled_matrix_desc_t*)&ddescTT));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param)
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param);
+
+        /*dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );*/
     }
 
     dague_data_free(ddescA.mat);

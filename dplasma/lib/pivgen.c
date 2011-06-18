@@ -45,7 +45,7 @@ void dplasma_pivgen( int type, tiled_matrix_desc_t *A, int *ipiv )
                 continue;
             }
              
-            nT[k+1] += height;
+            if (k < minMN-1) nT[k+1] += height;
             start = A->mt - 1 - nZ[k];
             end = start -height;
             nZ[k] += height;
@@ -62,7 +62,28 @@ void dplasma_pivgen( int type, tiled_matrix_desc_t *A, int *ipiv )
     }
     break;
     case DPLASMA_FIBONACCI_TREE :
-    case DPLASMA_BINARY_TREE :
+    {
+        int f0, f1, f2, k, m;
+
+        /* Fill in the first column */
+        f0 = 0;
+        f1 = 1;
+        for (m=1; m < A->mt; ) {
+            for (k=0; (k < f1) && (m < A->mt); k++, m++) {
+                ipiv[m] = m - f1;
+            }
+            f2 = f0 + f1;
+            f0 = f1;
+            f1 = f2;
+        }
+
+        for( k=1; k<minMN; k++) {
+            for(m=k+1; m < A->mt; m++) {
+                ipiv[ k * A->mt + m ] = ipiv[ (k-1) * A->mt + m - 1 ] + 1;
+            }
+        }
+    }
+    break;
     case DPLASMA_FLAT_TREE :
     default:
     {
@@ -77,7 +98,7 @@ void dplasma_pivgen( int type, tiled_matrix_desc_t *A, int *ipiv )
     }
 
 
-#ifdef 0
+#if 0
     {
         int m, k;
         for(m=0; m<A->mt; m++) {
