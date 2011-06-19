@@ -23,13 +23,7 @@ dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
     int *piv = (int*)malloc( A->mt * A->nt * sizeof(int) );
     int ib = TS->mb;
 
-    {
-      int m, n;
-      int *ipiv2 = piv;
-      for(n=0; n<A->nt; n++)
-        for (m=0; m<A->mt; m++)
-          *ipiv2 = n; ipiv2++;
-    }
+    dplasma_pivgen( DPLASMA_GREEDY_TREE, A, piv );
 
     /* 
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,

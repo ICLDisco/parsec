@@ -63,6 +63,7 @@ macro(precisions_rules)
           string(COMPARE NOTEQUAL "${prec_rules_OSRC}" "" got_file)
           # We generate a dependency only if a file will be generated
           if( ${got_file} )
+	    #MESSAGE(STATUS "prec rule OSRC = ${prec_rules_OSRC}")
             add_custom_command(
               OUTPUT ${prec_rules_OSRC}
               COMMAND ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} ${PRECISIONPP_prefix}

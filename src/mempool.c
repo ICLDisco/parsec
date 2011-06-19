@@ -35,6 +35,9 @@ void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_m
     unsigned char *_elt;
     dague_thread_mempool_t **owner;
     DAGUE_LIFO_ELT_ALLOC( elt, thread_mempool->parent->elt_size );
+#ifndef NDEBUG 
+    memset(elt, 0, thread_mempool->parent->elt_size );
+#endif
     _elt = (unsigned char*)elt;
     owner = (dague_thread_mempool_t **)(_elt + thread_mempool->parent->pool_owner_offset);
     *owner = thread_mempool;

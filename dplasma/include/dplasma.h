@@ -18,4 +18,11 @@
 #include "dplasma/include/dplasma_c.h"
 #include "dplasma/include/dplasma_z.h"
 
+#define DPLASMA_FLAT_TREE       0
+#define DPLASMA_GREEDY_TREE     1
+#define DPLASMA_FIBONACCI_TREE  2
+#define DPLASMA_BINARY_TREE     3
+
+void dplasma_pivgen( int type, tiled_matrix_desc_t *A, int *ipiv );
+
 #endif /* _DPLASMA_H_ */

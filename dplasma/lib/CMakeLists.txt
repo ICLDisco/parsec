@@ -4,7 +4,12 @@ include(RulesJDF)
 set(generated_files "")
 set(generated_jdf "")
 
-set(EXTRA_SOURCES memory_pool.c dplasmatypes.c dplasmaaux.c)
+set(EXTRA_SOURCES 
+  memory_pool.c 
+  dplasmatypes.c 
+  dplasmaaux.c
+  pivgen.c
+)
 
 ### Generate .c files from .jdf
 set(OLDJDF 

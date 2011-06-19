@@ -33,5 +33,8 @@ void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrs
     /* computing colRANK and rowRANK */
     grid->rrank = myrank/Q;
     grid->crank = myrank%Q;
+
+    grid->rloc = 0;
+    grid->cloc = 0;
 }
 
