@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _gpu_gemm_h
 #define _gpu_gemm_h
 

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 __device__ void saxpy( float a, float *b, float *c )
 {
 	c[0] += a*b[0];
