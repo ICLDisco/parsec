@@ -10,10 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-#include "dplasma/cores/cuda_stsmqr.h"
-#endif
-
 #define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
 #define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
@@ -29,9 +25,6 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 48, 144, 144);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
