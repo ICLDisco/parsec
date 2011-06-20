@@ -6,8 +6,6 @@ include(RulesPrecisions)
 include(RulesJDF)
 set(generated_files "")
 set(generated_jdf "")
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 jdf_rules(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf")
 
@@ -19,7 +17,11 @@ precisions_rules(generated_files
                  "${precision_files}"
                  PRECISIONS "+;s;d;c;z"
                  TARGETDIR "generated")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)
+if(NOT DAGUE_COMPILE_INPLACE)
+  include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+endif(NOT DAGUE_COMPILE_INPLACE)
 
 if (MPI_FOUND)
     add_library(dague_distribution_matrix-mpi STATIC
