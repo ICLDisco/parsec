@@ -1,4 +1,14 @@
+/*
+ * Copyright (c) 2010-2011 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague_config.h"
 #include "mempool.h"
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
 /** dague_thread_mempool_construct
  *    constructs the thread-specific memory pool.
