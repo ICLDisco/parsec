@@ -18,6 +18,22 @@ extern "C" %{
 #define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
+#define MYMAX(a, b) ((a)>(b)?(a):(b))
+
+#define PRIO_MATHIEU2
+
+#if defined(PRIO_YVES1)
+#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.nt - (__n)) * descA.mt + (__m))
+#elif defined(PRIO_YVES2)
+#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.mt - (__m)) * descA.nt + (__n))
+#elif defined(PRIO_MATHIEU1)
+#define GETPRIO( __m, __n ) (descA.mt + (__n) - (__m)) * descA.nt + (__n)
+#elif defined(PRIO_MATHIEU2)
+#define GETPRIO( __m, __n ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) ) * descA.nt + (__n))
+#else
+#warning running without priority
+#define GETPRIO( __m, __n ) 0
+#endif
 
 %}
 
@@ -41,6 +57,7 @@ zgeqrt(k, m)
 
   : A(m, k)
 
+
   /* A == A(m, k) */
   /* T == T(m, k) */
 
@@ -54,6 +71,8 @@ zgeqrt(k, m)
           -> T(m, k)                                                [type = LITTLE_T]
           -> (descA.nt-1 > k) ? T zunmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
        
+  ; inline_c %{ return GETPRIO(m, k); %}
+
 BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_tau  );
@@ -100,6 +119,8 @@ zunmqr(k, m, n)
           -> ( k == descA.mt-1 ) ? A(m, n)   
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
+
+    ; inline_c %{ return GETPRIO(m, n); %}
 
 BODY
   DRYRUN(
@@ -154,6 +175,9 @@ zttqrt(k, m)
   RW   T  <- T2(m, k)
           -> T2(m, k)
           -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1))
+
+    ; inline_c %{ return GETPRIO(m, k); %}
+
 BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_tau  );
@@ -207,6 +231,8 @@ zttmqr(k, m, n)
           -> ( n != k+1 ) ? C zunmqr( k+1, m, n )
   READ  V <- A2 zttqrt(k, m) 
   READ  T <- T  zttqrt(k, m) 
+
+    ; inline_c %{ return GETPRIO(m, n); %}
 
 BODY
   DRYRUN(
