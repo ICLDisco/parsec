@@ -68,7 +68,7 @@ BODY
                      T /* T(m,k) */, descT.mb, 
                      p_elem_A, p_elem_B );
 
-         dague_private_memory_push( p_work, p_elem_A );
+         dague_private_memory_push( p_tau, p_elem_A );
          dague_private_memory_push( p_work, p_elem_B );
 
          );
