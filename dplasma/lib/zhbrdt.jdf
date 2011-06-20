@@ -128,7 +128,7 @@ BODY
     blgchase_ztrdv2( NT,
                     NT * NB,
                     NB,
-                    A /* A(0, i) */, A /* same */,
+                    A /* A(0, i) */, NULL /* this is never used [supposed to]*/,
                     vi, taui,
                     vi, taui,
                     s1 * NB + s, NT-1, s1);
