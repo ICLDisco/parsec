@@ -1,16 +1,21 @@
-#include "include/dague_config.h"
-#include "include/gpu_data.h"
-#include "include/profiling.h"
+/*
+ * Copyright (c) 2010-2011 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 
 #if defined(HAVE_CUDA)
+#include "dague_config.h"
 #include "dague.h"
+#include "gpu_data.h"
+#include "profiling.h"
 
 static int using_gpu = 0;
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
-#include "include/lifo.h"
-#include "include/gpu_data.h"
+#include "lifo.h"
 
 static CUcontext dague_allocate_on_gpu_context;
 static int dague_gpu_allocation_initialized = 0;
