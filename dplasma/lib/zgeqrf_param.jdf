@@ -13,34 +13,10 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-
+#include "pivgen.h"
+  
 #define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
-#define PIV(_i, _k) piv[(_k)*descA.mt+(_i)]
-
-/* Return the pivot to use for the row m at step k */
- inline static int currpiv( const tiled_matrix_desc_t *desc, const int *ipiv, const int m, const int k ) {
-   return ipiv[ k * desc->mt + m ];
- }
-
-/* Return the last row which has used the row m as a pivot in step k before the row start */
- inline static int prevpiv( const tiled_matrix_desc_t *desc, const int *ipiv, const int p, const int k, const int start ) {
-   int i;
-   for( i=start+1; i<desc->mt; i++ )
-     if ( ipiv[i +  k * desc->mt] == p )
-       return i;
-   return i;
- }
-
-/* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
- inline static int nextpiv( const tiled_matrix_desc_t *desc, const int *ipiv, const int p, const int k, const int start ) {
-   int i;
-   for( i=start-1; i>k; i-- )
-     if ( ipiv[i + k*desc->mt] == p )
-       return i;
-   return desc->mt;
- }
-
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 
 %}
@@ -51,7 +27,7 @@ descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *" aligned=A]
 descT2 [type = "tiled_matrix_desc_t"]
 T2     [type = "dague_ddesc_t *" aligned=A]
-piv    [type = "int*"]
+pivfct [type = "qr_piv_t*"]
 ib     [type = "int"]
 p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descT.nb))"]
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descT.nb))"]
@@ -61,7 +37,7 @@ zgeqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k..descA.mt-1
-  nextm = inline_c %{ return nextpiv(&descA, piv, m, k, descA.mt); %}
+  nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
   : A(m, k)
 
@@ -69,10 +45,7 @@ zgeqrt(k, m)
   /* T == T(m, k) */
 
   RW    A <- ( 0 == k ) ? A(m, k) 
-    /*
-          <- ( (k > 0) & (m == k) ) ? A1 zttmqr(k-1, inline_c %{ return prevpiv(&descA, piv, k, k-1, k-1     ); %}, k ) 
-    */
-  <- ( (k > 0) /*& (m != k)*/ ) ? A2 zttmqr(k-1, m, k ) 
+          <- ( k > 0  ) ? A2 zttmqr(k-1, m, k ) 
           -> (descA.nt-1 > k) ? A zunmqr(k, m, (k+1)..(descA.nt-1)) 
           -> ( k == descA.mt-1 ) ? A(m, k)   
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm)
@@ -100,7 +73,8 @@ BODY
 
          );
                                                                     
-  printlog("thread %d CORE_zgeqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+  printlog("thread %d CORE_zgeqrt(%d, %d)\n"
+           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
            context->eu_id, k, m, m, k, A, m, k, T);
 
 END
@@ -111,7 +85,7 @@ zunmqr(k, m, n)
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
   m = k..descA.mt-1
   n = k+1..descA.nt-1
-  nextm = inline_c %{ return nextpiv(&descA, piv, m, k, descA.mt); %}
+  nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
   : A(m, n)
 
@@ -147,7 +121,9 @@ BODY
          dague_private_memory_push( p_work, p_elem_A );
          );
 
-  printlog("thread %d CORE_zunmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
+  printlog("thread %d CORE_zunmqr(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
+           "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
            context->eu_id, k, m, n, m, k, A, m, k, T, m, n, C);
 
 END
@@ -157,10 +133,10 @@ zttqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
-  p =     inline_c %{ return currpiv(&descA, piv, m, k); %}
-  nextp = inline_c %{ return nextpiv(&descA, piv, p, k, m); %}
-  prevp = inline_c %{ return prevpiv(&descA, piv, p, k, m); %}
-  prevm = inline_c %{ return prevpiv(&descA, piv, m, k, m); %}
+  p =     inline_c %{ return pivfct->currpiv(pivfct, m, k); %}
+  nextp = inline_c %{ return pivfct->nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return pivfct->prevpiv(pivfct, p, k, m); %}
+  prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
 
   : A(m, k)
 
@@ -191,7 +167,7 @@ BODY
                      tempmm, tempkn, ib, 
                      A1 /* A(p, k) */, descA.mb, 
                      A2 /* A(m, k) */, ldam, 
-                     T /* T(m, k) */, descT.mb, 
+                     T  /* T(m, k) */, descT.mb, 
                      p_elem_A, p_elem_B );
 
          dague_private_memory_push( p_tau , p_elem_A );
@@ -199,7 +175,8 @@ BODY
          
          );
 
-  printlog("thread %d CORE_zttqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+  printlog("thread %d CORE_zttqrt(%d, %d)\n"
+           "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
            context->eu_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
 END
@@ -209,10 +186,10 @@ zttmqr(k, m, n)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  p =     inline_c %{ return currpiv(&descA, piv, m, k); %}
-  nextp = inline_c %{ return nextpiv(&descA, piv, p, k, m); %}
-  prevp = inline_c %{ return prevpiv(&descA, piv, p, k, m); %}
-  prevm = inline_c %{ return prevpiv(&descA, piv, m, k, m); %}
+  p =     inline_c %{ return pivfct->currpiv(pivfct, m, k); %}
+  nextp = inline_c %{ return pivfct->nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return pivfct->prevpiv(pivfct, p, k, m); %}
+  prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
 
   : A(m, n)
 
@@ -253,7 +230,9 @@ BODY
          
          );
 
-  printlog("thread %d CORE_zttmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+  printlog("thread %d CORE_zttmqr(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
+           "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
            context->eu_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
 END

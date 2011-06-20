@@ -23,6 +23,4 @@
 #define DPLASMA_FIBONACCI_TREE  2
 #define DPLASMA_BINARY_TREE     3
 
-void dplasma_pivgen( int type, tiled_matrix_desc_t *A, int *ipiv );
-
 #endif /* _DPLASMA_H_ */

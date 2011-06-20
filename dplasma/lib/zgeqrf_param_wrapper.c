@@ -9,6 +9,7 @@
 #include "dague.h"
 #include <plasma.h>
 #include "dplasma.h"
+#include "pivgen.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
@@ -20,10 +21,10 @@ dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TT )
 {
     dague_zgeqrf_param_object_t* object;
-    int *piv = (int*)malloc( A->mt * A->nt * sizeof(int) );
+    qr_piv_t *qrpiv;
     int ib = TS->mb;
 
-    dplasma_pivgen( DPLASMA_GREEDY_TREE, A, piv );
+    qrpiv = dplasma_pivgen_init( DPLASMA_GREEDY_TREE, DPLASMA_FLAT_TREE, A );
 
     /* 
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
@@ -33,7 +34,7 @@ dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
     object = dague_zgeqrf_param_new( *A,  (dague_ddesc_t*)A, 
                                      *TS, (dague_ddesc_t*)TS, 
                                      *TT, (dague_ddesc_t*)TT, 
-                                     piv, ib, NULL, NULL);
+                                     qrpiv, ib, NULL, NULL);
 
     object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( object->p_tau, TS->nb * sizeof(Dague_Complex64_t) );
