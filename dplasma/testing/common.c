@@ -282,7 +282,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         if(iparam[IPARAM_NB] % iparam[IPARAM_IB])
         {
             fprintf(stderr, "xxx IB=%d does not divide NB=%d or MB=%d\n", iparam[IPARAM_IB], iparam[IPARAM_NB], iparam[IPARAM_MB]);
-            exit(2);
+ //           exit(2);
         }
     }
 
