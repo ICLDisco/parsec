@@ -35,13 +35,13 @@ typedef struct __dague_map_operator_object {
     dague_map_operator_object_t super;
 } __dague_map_operator_object_t;
 
-static const param_t param_of_apply;
+static const param_t param_of_map_operator;
 static const dague_t dague_map_operator;
 
 #define A(k,n)  (((dague_ddesc_t*)__dague_object->super.A)->data_of((dague_ddesc_t*)__dague_object->super.A, (k), (n)))
 
 #if defined(DAGUE_PROF_TRACE)
-static inline uint32_t apply_op_hash(const __dague_map_operator_object_t *o, int k, int n )
+static inline uint32_t map_operator_op_hash(const __dague_map_operator_object_t *o, int k, int n )
 {
     return o->super.A->mt * k + n;
 }
@@ -109,7 +109,7 @@ static const symbol_t symb_column = {
     .flags = DAGUE_SYMBOL_IS_STANDALONE
 };
 
-static inline int pred_of_apply_all_as_expr_fct(const dague_object_t *__dague_object_parent,
+static inline int pred_of_map_operator_all_as_expr_fct(const dague_object_t *__dague_object_parent,
                                                 const assignment_t *assignments)
 {
     const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
@@ -120,14 +120,14 @@ static inline int pred_of_apply_all_as_expr_fct(const dague_object_t *__dague_ob
     /* Compute Predicate */
     return 1;
 }
-static const expr_t pred_of_apply_all_as_expr = {
+static const expr_t pred_of_map_operator_all_as_expr = {
     .op = EXPR_OP_INLINE,
     .flags = 0x0,
-    .inline_func = pred_of_apply_all_as_expr_fct
+    .inline_func = pred_of_map_operator_all_as_expr_fct
 };
 
 static inline int
-expr_of_p1_for_param_of_apply_dep_in_fct(const dague_object_t *__dague_object_parent,
+expr_of_p1_for_param_of_map_operator_dep_in_fct(const dague_object_t *__dague_object_parent,
                                          const assignment_t *assignments)
 {
     const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
@@ -137,23 +137,23 @@ expr_of_p1_for_param_of_apply_dep_in_fct(const dague_object_t *__dague_object_pa
     (void)assignments;
     return k;
 }
-static const expr_t expr_of_p1_for_param_of_apply_dep_in = {
+static const expr_t expr_of_p1_for_param_of_map_operator_dep_in = {
     .op = EXPR_OP_INLINE,
     .flags = 0x0,
-    .inline_func = expr_of_p1_for_param_of_apply_dep_in_fct
+    .inline_func = expr_of_p1_for_param_of_map_operator_dep_in_fct
 };
-static const dep_t param_of_apply_dep_in = {
+static const dep_t param_of_map_operator_dep_in = {
   .cond = NULL,
   .dague = &dague_map_operator,
-  .param = &param_of_apply,
+  .param = &param_of_map_operator,
   .datatype_index = 0,
   .call_params = {
-        &expr_of_p1_for_param_of_apply_dep_in
+        &expr_of_p1_for_param_of_map_operator_dep_in
     }
 };
 
 static inline int
-expr_of_p1_for_param_of_apply_dep_out_fct(const dague_object_t *__dague_object_parent,
+expr_of_p1_for_param_of_map_operator_dep_out_fct(const dague_object_t *__dague_object_parent,
                                           const assignment_t *assignments)
 {
     const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)__dague_object_parent;
@@ -163,28 +163,28 @@ expr_of_p1_for_param_of_apply_dep_out_fct(const dague_object_t *__dague_object_p
     (void)assignments;
     return (k + 1);
 }
-static const expr_t expr_of_p1_for_param_of_apply_dep_out = {
+static const expr_t expr_of_p1_for_param_of_map_operator_dep_out = {
     .op = EXPR_OP_INLINE,
     .flags = 0x0,
-    .inline_func = expr_of_p1_for_param_of_apply_dep_out_fct
+    .inline_func = expr_of_p1_for_param_of_map_operator_dep_out_fct
 };
-static const dep_t param_of_apply_dep_out = {
+static const dep_t param_of_map_operator_dep_out = {
     .cond = NULL,
     .dague = &dague_map_operator,
-    .param = &param_of_apply,
+    .param = &param_of_map_operator,
     .datatype_index = 0,
     .call_params = {
-        &expr_of_p1_for_param_of_apply_dep_out
+        &expr_of_p1_for_param_of_map_operator_dep_out
     }
 };
 
-static const param_t param_of_apply = {
+static const param_t param_of_map_operator = {
     .name = "I",
     .sym_type = SYM_INOUT,
     .access_type = ACCESS_RW,
     .param_mask = 0x1,
-    .dep_in  = { &param_of_apply_dep_in },
-    .dep_out = { &param_of_apply_dep_out }
+    .dep_in  = { &param_of_map_operator_dep_in },
+    .dep_out = { &param_of_map_operator_dep_out }
 };
 
 static dague_ontask_iterate_t
@@ -281,7 +281,7 @@ static int hook_of(dague_execution_unit_t *context,
 
 #if !defined(DAGUE_PROF_DRY_BODY)
     TAKE_TIME(context, 2*exec_context->function->function_id,
-              apply_op_hash( __dague_object, k, n ), __dague_object->super.A,
+              map_operator_op_hash( __dague_object, k, n ), __dague_object->super.A,
               ((dague_ddesc_t*)(__dague_object->super.A))->data_key((dague_ddesc_t*)__dague_object->super.A, k, n) );
     __dague_object->super.op( context, data, __dague_object->super.op_data, k, n );
 #endif
@@ -297,7 +297,7 @@ static int complete_hook(dague_execution_unit_t *context,
     int n = exec_context->locals[1].value;
     (void)k; (void)n; (void)__dague_object;
 
-    TAKE_TIME(context, 2*exec_context->function->function_id+1, apply_op_hash( __dague_object, k, n ), NULL, 0);
+    TAKE_TIME(context, 2*exec_context->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
     dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
@@ -312,7 +312,7 @@ static int complete_hook(dague_execution_unit_t *context,
 }
 
 static const dague_t dague_map_operator = {
-    .name = "apply",
+    .name = "map_operator",
     .deps = 0,
     .flags = 0x0,
     .function_id = 0,
@@ -321,10 +321,10 @@ static const dague_t dague_map_operator = {
     .nb_params = 2,
     .params = { &symb_row, &symb_column },
     .locals = { &symb_row, &symb_column },
-    .pred = &pred_of_apply_all_as_expr,
+    .pred = &pred_of_map_operator_all_as_expr,
     .priority = NULL,
-    .in = { &param_of_apply },
-    .out = { &param_of_apply },
+    .in = { &param_of_map_operator },
+    .out = { &param_of_map_operator },
     .iterate_successors = iterate_successors,
     .release_deps = release_deps,
     .hook = hook_of,
