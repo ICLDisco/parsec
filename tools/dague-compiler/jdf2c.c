@@ -433,26 +433,6 @@ static char *dump_assignments(void **elem, void *arg)
 }
 
 /**
- * dump_reverse_assignments:
- *  Takes the pointer to the name of a parameter,
- */
-static char *dump_reserve_assignments(void **elem, void *arg)
-{
-    char *varname = *(char**)elem;
-    assignment_info_t *info = (assignment_info_t*)arg;
-    
-    string_arena_init(info->sa);
-    if( (NULL == info->expr) || jdf_expr_depends_on_symbol(varname, info->expr) ) {
-        string_arena_add_string(info->sa, "%s[%d].value = %s;\n", info->holder, info->idx, varname);
-        info->idx++;
-        return string_arena_get_string(info->sa);
-    } else {
-        info->idx++;
-        return NULL;
-    }
-}
-
-/**
  * dump_dataflow:
  *  Takes the pointer to a jdf_flow, and a pointer to either "IN" or "OUT",
  *  and print the name of the variable for this flow if it's a variable as IN or as OUT
@@ -2260,7 +2240,7 @@ char *malloc_and_dump_jdf_expr_list(const jdf_expr_list_t *el)
 static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
                                                const jdf_t *jdf, const char *name, const jdf_expr_list_t *param)
 {
-  int idx;
+  int idx = 0;
   const jdf_expr_list_t *el;
   expr_info_t info;
   string_arena_t *sa2;
@@ -2622,12 +2602,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
                                  dump_data_declaration, sa2, "", "", "", ""));
-
-    coutput("  /** silence unused variable warnings */\n");
-    coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
-                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
-
 
     coutput("  /** Lookup the input data, and store them in the context */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
