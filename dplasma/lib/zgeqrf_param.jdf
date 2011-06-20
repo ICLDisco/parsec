@@ -5,15 +5,15 @@ extern "C" %{
    * @precisions normal z -> s d c
    *
    */
+#include "dague.h"
 #include <plasma.h>
 #include <core_blas.h>
 
-#include "dague.h"
 #include "data_distribution.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "pivgen.h"
+#include "dplasma/lib/pivgen.h"
   
 #define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb

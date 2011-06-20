@@ -9,7 +9,7 @@
 #include "dague.h"
 #include <plasma.h>
 #include "dplasma.h"
-#include "pivgen.h"
+#include "dplasma/lib/pivgen.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
