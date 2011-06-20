@@ -5,8 +5,9 @@
  */
 
 
-#if defined(HAVE_CUDA)
 #include "dague_config.h"
+
+#if defined(HAVE_CUDA)
 #include "dague.h"
 #include "gpu_data.h"
 #include "profiling.h"
