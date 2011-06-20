@@ -27,12 +27,14 @@ macro(precisions_rules)
   if( "${PREC_RULE_TARGETDIR}" STREQUAL "" )
     set(PREC_RULE_TARGETDIR "./")
     set(PRECISIONPP_prefix "")
+    set(PRECISIONPP_arg "")
   else( "${PREC_RULE_TARGETDIR}" STREQUAL "" )
     if(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
     else(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
       file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
     endif(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${PREC_RULE_TARGETDIR})
-    set(PRECISIONPP_prefix "-P ${PREC_RULE_TARGETDIR}")
+    set(PRECISIONPP_arg "-P")
+    set(PRECISIONPP_prefix "${PREC_RULE_TARGETDIR}")
   endif( "${PREC_RULE_TARGETDIR}" STREQUAL "" )
 
   set(precisions_rules_SED 0)
@@ -57,7 +59,7 @@ macro(precisions_rules)
             MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE})
           
         elseif(${precisions_rules_PP})
-          execute_process(COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} ${PRECISIONPP_prefix} --out
+          execute_process(COMMAND ${PRECISIONPP} --file ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} --prec ${prec_rules_PREC} ${PRECISIONPP_arg} ${PRECISIONPP_prefix} --out
             OUTPUT_VARIABLE prec_rules_OSRC)
           string(STRIP "${prec_rules_OSRC}" prec_rules_OSRC)
           string(COMPARE NOTEQUAL "${prec_rules_OSRC}" "" got_file)
@@ -66,7 +68,7 @@ macro(precisions_rules)
 	    #MESSAGE(STATUS "prec rule OSRC = ${prec_rules_OSRC}")
             add_custom_command(
               OUTPUT ${prec_rules_OSRC}
-              COMMAND ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} ${PRECISIONPP_prefix}
+              COMMAND rm -f ${prec_rules_OSRC} && ${PRECISIONPP} -f ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE} -p ${prec_rules_PREC} ${PRECISIONPP_arg} ${PRECISIONPP_prefix} && chmod a-w ${prec_rules_OSRC}
               MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${prec_rules_SOURCE}
               DEPENDS ${PRECISIONPP})
           endif()
