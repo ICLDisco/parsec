@@ -23,13 +23,13 @@ extern "C" %{
 #define PRIO_MATHIEU2
 
 #if defined(PRIO_YVES1)
-#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.nt - (__n)) * descA.mt + (__m))
+#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
 #elif defined(PRIO_YVES2)
-#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.mt - (__m)) * descA.nt + (__n))
+#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
 #elif defined(PRIO_MATHIEU1)
-#define GETPRIO( __m, __n ) (descA.mt + (__n) - (__m)) * descA.nt + (__n)
+#define GETPRIO( __m, __n ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #elif defined(PRIO_MATHIEU2)
-#define GETPRIO( __m, __n ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) ) * descA.nt + (__n))
+#define GETPRIO( __m, __n ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 5 + (__n))
 #else
 #warning running without priority
 #define GETPRIO( __m, __n ) 0
