@@ -16,7 +16,8 @@
 
 #include "zgeqrf_param.h"
 
-dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
+dague_object_t* dplasma_zgeqrf_param_New( int tree_llvl, int tree_hlvl,
+                                          tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TS,
                                           tiled_matrix_desc_t *TT )
 {
@@ -24,7 +25,7 @@ dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
     qr_piv_t *qrpiv;
     int ib = TS->mb;
 
-    qrpiv = dplasma_pivgen_init( DPLASMA_GREEDY_TREE, DPLASMA_FLAT_TREE, A );
+    qrpiv = dplasma_pivgen_init( tree_llvl, tree_hlvl, A );
 
     /* 
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
@@ -70,13 +71,15 @@ dague_object_t* dplasma_zgeqrf_param_New( tiled_matrix_desc_t *A,
 }
 
 int dplasma_zgeqrf_param( dague_context_t *dague, 
+                          int tree_llvl, int tree_hlvl,
                           tiled_matrix_desc_t *A, 
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT) 
 {
     dague_object_t *dague_zgeqrf_param = NULL;
 
-    dague_zgeqrf_param = dplasma_zgeqrf_param_New(A, TS, TT);
+    dague_zgeqrf_param = dplasma_zgeqrf_param_New(tree_llvl, tree_hlvl,
+                                                  A, TS, TT);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
     dague_progress(dague);
