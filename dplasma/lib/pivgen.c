@@ -57,8 +57,7 @@ int dplasma_flat_currpiv(const qr_piv_t *arg, const int m, const int k)
 
 int dplasma_flat_nextpiv(const qr_piv_t *arg, const int p, const int k, const int start)
 { 
-    (void)p;
-    if (start > k+1 )
+    if ( ( p == k ) && (start > k+1 ) )
         return start-1;
     else
         return arg->desc->mt;
@@ -66,12 +65,10 @@ int dplasma_flat_nextpiv(const qr_piv_t *arg, const int p, const int k, const in
 
 int dplasma_flat_prevpiv(const qr_piv_t *arg, const int p, const int k, const int start)
 { 
-    (void)p;
-    (void)k;
-    if ( start < (arg->desc->mt - 1) ) 
-        return start+1;
+    if ( p == k ) 
+      return start+1;
     else 
-        return arg->desc->mt;
+      return arg->desc->mt;
 };
 
 void dplasma_flat_init(qr_piv_t *arg, tiled_matrix_desc_t *descA){
