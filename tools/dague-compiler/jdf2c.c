@@ -1500,10 +1500,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                     indent(nesting), idx, dl->name);
             nesting++;
         } else {
-            coutput("%s  %s = %s;\n"
-                    "%s  assignments[%d].value = %s;\n", 
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1),
-                    indent(nesting), idx, dl->name);
+            coutput("%s  assignments[%d].value = %s = %s;\n",
+                    indent(nesting), idx, dl->name, dump_expr((void**)&dl->expr, &info1));
         }
     }
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
@@ -1550,7 +1548,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), jdf_basename, f->fname,
             indent(nesting),
             indent(nesting));
-    for(idx = 0, dl = f->definitions; dl != NULL; dl = dl->next, idx++) {
+    /* Dump all assignments except the last one */
+    for(idx = 0, dl = f->definitions; NULL != dl->next; dl = dl->next, idx++) {
         coutput("%s  assignments[%d].value = %s;\n", 
                 indent(nesting), idx, dl->name);
     }
