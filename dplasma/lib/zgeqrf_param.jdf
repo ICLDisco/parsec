@@ -150,6 +150,18 @@ BODY
 END
 
 
+zttqrt_out_A1(k)
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
+  prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
+
+  : A(k, k)
+  
+  RW A <- A1 zttqrt( k, prevp )
+       -> A(k, k)
+BODY
+/* nothing */
+END
+
 zttqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -167,7 +179,7 @@ zttqrt(k, m)
 
   RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, p ) : A1 zttqrt(k, prevp )
           -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )
-          -> ( ( nextp == descA.mt ) & (p == k) ) ? A(p, k)
+          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)
           -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)
   RW   A2 <- (   prevm == descA.mt ) ? A  zgeqrt(k, m ) : A1 zttqrt(k, prevm )
           -> A(m, k)
@@ -205,6 +217,20 @@ BODY
 
 END
 
+
+zttmqr_out_A1(k, n)
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
+  n = k+1..descA.nt-1
+  prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
+
+  : A(k, n)
+  
+  RW A <- A1 zttmqr( k, prevp, n )
+       -> A(k, n)
+BODY
+/* nothing */
+END
+
 zttmqr(k, m, n)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -224,7 +250,7 @@ zttmqr(k, m, n)
 
   RW   A1 <- (   prevp == descA.mt ) ? C  zunmqr( k, p, n ) : A1 zttmqr(k, prevp, n )
           -> (   nextp != descA.mt ) ? A1 zttmqr( k, nextp, n)
-          -> ( ( nextp == descA.mt ) & ( p == k ) ) ? A(p, n)
+          -> ( ( nextp == descA.mt ) & ( p == k ) ) ? A zttmqr_out_A1(p, n)
           -> ( ( nextp == descA.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
   RW   A2 <- (   prevm == descA.mt ) ? C zunmqr(k, m, n) : A1 zttmqr(k, prevm, n )
           -> ( n == k+1 ) ? A zgeqrt( k+1, m ) 
