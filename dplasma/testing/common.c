@@ -83,6 +83,10 @@ void print_usage(void)
             " -S --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -x --check        : verify the results\n"
             "\n"
+            "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
+            "    --treeh        : Tree used for high level reduction between nodes. (specific to xgeqrf_param)\n"
+            "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
+            "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
@@ -130,6 +134,9 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
+
+    {"treel",       required_argument,  0, 'l'},
+    {"treeh",       required_argument,  0, 'L'},
 
     {"dot",         required_argument,  0, '.'},
 
@@ -189,6 +196,9 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'x': iparam[IPARAM_CHECK] = 1; break; 
                 
+            case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
+            case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
+
             case '.': iparam[IPARAM_DOT] = 1; dot_filename = strdup(optarg); break;
 
             case 'v': 

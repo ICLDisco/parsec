@@ -35,27 +35,29 @@
 
 
 enum iparam_t {
-  IPARAM_RANK,       /* Rank                              */
-  IPARAM_NNODES,     /* Number of nodes                   */
-  IPARAM_NCORES,     /* Number of cores                   */
-  IPARAM_NGPUS,      /* Number of GPUs                    */
-  IPARAM_PRIO,       /* Switchpoint for priority DAG      */
-  IPARAM_P,          /* Rows in the process grid          */
-  IPARAM_Q,          /* Columns in the process grid       */
-  IPARAM_M,          /* Number of rows of the matrix      */
-  IPARAM_N,          /* Number of columns of the matrix   */
-  IPARAM_K,          /* RHS or K                          */
-  IPARAM_LDA,        /* Leading dimension of A            */
-  IPARAM_LDB,        /* Leading dimension of B            */
-  IPARAM_LDC,        /* Leading dimension of C            */
-  IPARAM_IB,         /* Inner-blocking size               */
-  IPARAM_NB,         /* Number of columns in a tile       */
-  IPARAM_MB,         /* Number of rows in a tile          */
-  IPARAM_SNB,        /* Number of columns in a super-tile */
-  IPARAM_SMB,        /* Number of rows in a super-tile    */
-  IPARAM_CHECK,      /* Checking activated or not         */
-  IPARAM_VERBOSE,    /* How much noise do we want?        */
-  IPARAM_DOT,        /* Do we require to output the DOT file? */
+  IPARAM_RANK,         /* Rank                              */
+  IPARAM_NNODES,       /* Number of nodes                   */
+  IPARAM_NCORES,       /* Number of cores                   */
+  IPARAM_NGPUS,        /* Number of GPUs                    */
+  IPARAM_PRIO,         /* Switchpoint for priority DAG      */
+  IPARAM_P,            /* Rows in the process grid          */
+  IPARAM_Q,            /* Columns in the process grid       */
+  IPARAM_M,            /* Number of rows of the matrix      */
+  IPARAM_N,            /* Number of columns of the matrix   */
+  IPARAM_K,            /* RHS or K                          */
+  IPARAM_LDA,          /* Leading dimension of A            */
+  IPARAM_LDB,          /* Leading dimension of B            */
+  IPARAM_LDC,          /* Leading dimension of C            */
+  IPARAM_IB,           /* Inner-blocking size               */
+  IPARAM_NB,           /* Number of columns in a tile       */
+  IPARAM_MB,           /* Number of rows in a tile          */
+  IPARAM_SNB,          /* Number of columns in a super-tile */
+  IPARAM_SMB,          /* Number of rows in a super-tile    */
+  IPARAM_CHECK,        /* Checking activated or not         */
+  IPARAM_VERBOSE,      /* How much noise do we want?        */
+  IPARAM_LOWLVL_TREE,  /* Tree used for reduction inside nodes  (specific to xgeqrf_param) */
+  IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
+  IPARAM_DOT,          /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };
 
