@@ -82,8 +82,8 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
 {
     tile_coordinate_t * tiles; /* table of tiles that node will handle */
     int tiles_coord_size;      /* size of the above table */
-    int i;
-    int j;
+    unsigned int c;
+    int i, j;
     int pos = 0;
     pthread_t *threads = NULL;
     pthread_attr_t thread_attr;
@@ -116,19 +116,19 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
     /* have 'pos' tiles to generate, knowing which ones. Now gererating them */
     j = 0;
     info_gen = malloc(sizeof(info_tiles_t) * Mdesc->super.cores);
-    for ( i = 0 ; i < Mdesc->super.cores ; i++ ) {
-        info_gen[i].th_id = i;
-        info_gen[i].tiles = tiles;
-        info_gen[i].Ddesc = Mdesc;
-        info_gen[i].nb_elements = pos / Mdesc->super.cores;
-        info_gen[i].starting_position = j;
-        info_gen[i].seed = sed;
-        j += info_gen[i].nb_elements;
+    for ( c = 0 ; c < Mdesc->super.cores ; c++ ) {
+        info_gen[c].th_id = c;
+        info_gen[c].tiles = tiles;
+        info_gen[c].Ddesc = Mdesc;
+        info_gen[c].nb_elements = pos / Mdesc->super.cores;
+        info_gen[c].starting_position = j;
+        info_gen[c].seed = sed;
+        j += info_gen[c].nb_elements;
         if (mtype == 1) { /* cholesky like generation (symetric, diagonal dominant) */
             if(Mdesc->mtype == matrix_RealFloat) {
-                info_gen[i].gen_fct = matrix_stile_cholesky;
+                info_gen[c].gen_fct = matrix_stile_cholesky;
             } else if (Mdesc->mtype == matrix_RealDouble) {
-                info_gen[i].gen_fct = matrix_dtile_cholesky;
+                info_gen[c].gen_fct = matrix_dtile_cholesky;
             } else { /* unknown type */
                 printf("unknown generation type: aborting generation\n");
                 free (info_gen);
@@ -137,9 +137,9 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
             }
         } else if (mtype == 0) { /* LU like generation */
             if(Mdesc->mtype == matrix_RealFloat) {
-                info_gen[i].gen_fct = matrix_stile;
+                info_gen[c].gen_fct = matrix_stile;
             } else if (Mdesc->mtype == matrix_RealDouble) {
-                info_gen[i].gen_fct = matrix_dtile;
+                info_gen[c].gen_fct = matrix_dtile;
             } else { /* unknown type */
                 printf("unknown generation type: aborting generation\n");
                 free (info_gen);
@@ -147,10 +147,10 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
                 return;
             }
         } else if(mtype == 2) {
-            info_gen[i].gen_fct = create_tile_zero;
+            info_gen[c].gen_fct = create_tile_zero;
         }
     }
-    info_gen[i - 1].nb_elements += pos % Mdesc->super.cores;
+    info_gen[c - 1].nb_elements += pos % Mdesc->super.cores;
 
     if (Mdesc->super.cores > 1) {
         pthread_attr_init(&thread_attr);
@@ -164,19 +164,19 @@ static void rand_dist_matrix(tiled_matrix_desc_t * Mdesc, int mtype, unsigned lo
             exit(-1);
         }
                 
-        for ( i = 1 ; i < Mdesc->super.cores ; i++) {
-            pthread_create( &(threads[i-1]),
+        for ( c = 1 ; c < Mdesc->super.cores ; c++) {
+            pthread_create( &(threads[c-1]),
                             &thread_attr,
                             (void* (*)(void*))rand_dist_tiles,
-                            (void*)&(info_gen[i]));
+                            (void*)&(info_gen[c]));
         }
     }
 
     rand_dist_tiles((void*) &(info_gen[0]));
 
     if (Mdesc->super.cores > 1) {
-        for(i = 0 ; i < Mdesc->super.cores - 1 ; i++)
-            pthread_join(threads[i],NULL);
+        for(c = 0 ; c < Mdesc->super.cores - 1 ; c++)
+            pthread_join(threads[c],NULL);
         free (threads);
     }
     free(info_gen);
