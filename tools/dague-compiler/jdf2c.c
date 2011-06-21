@@ -1488,20 +1488,23 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     nesting = 0;
     idx = 0;
-    for(dl = f->definitions; dl != NULL; dl = dl->next) {
+    for(dl = f->definitions; dl != NULL; dl = dl->next, idx++) {
         if(dl->expr->op == JDF_RANGE) {
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
-                    "%s      %s++) {\n",
+                    "%s      %s++) {\n"
+                    "%s    assignments[%d].value = %s;\n",
                     indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba1, &info1),
                     indent(nesting), dl->name, dump_expr((void**)&dl->expr->jdf_ba2, &info2),
-                    indent(nesting), dl->name);
+                    indent(nesting), dl->name,
+                    indent(nesting), idx, dl->name);
             nesting++;
         } else {
-            coutput("%s  %s = %s;\n",
-                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
+            coutput("%s  %s = %s;\n"
+                    "%s  assignments[%d].value = %s;\n", 
+                    indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1),
+                    indent(nesting), idx, dl->name);
         }
-        idx++;
     }
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
@@ -1517,10 +1520,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
 
-    for(idx = 0, dl = f->definitions; dl != NULL; dl = dl->next, idx++) {
-        coutput("%s  assignments[%d].value = %s;\n", 
-                indent(nesting), idx, dl->name);
-    }
     coutput("%s  DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
             "%s  DAGUE_LIST_ITEM_SINGLETON( new_context );\n",
             indent(nesting),
@@ -1551,6 +1550,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), jdf_basename, f->fname,
             indent(nesting),
             indent(nesting));
+    for(idx = 0, dl = f->definitions; dl != NULL; dl = dl->next, idx++) {
+        coutput("%s  assignments[%d].value = %s;\n", 
+                indent(nesting), idx, dl->name);
+    }
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
