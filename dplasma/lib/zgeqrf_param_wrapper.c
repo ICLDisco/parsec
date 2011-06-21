@@ -98,6 +98,6 @@ dplasma_zgeqrf_param_Destruct( dague_object_t *o )
     free( dague_zgeqrf_param->p_work );
     free( dague_zgeqrf_param->p_tau  );
  
-    dague_zgeqrf_param_destroy(dague_zgeqrf_param);
+    /* dague_zgeqrf_param_destroy(dague_zgeqrf_param); */
 }
 

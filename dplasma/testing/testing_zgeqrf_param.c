@@ -56,17 +56,13 @@ int main(int argc, char ** argv)
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescTS);
-        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescTT);
-
-        /* dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872); */
-        /* dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS); */
-        /* dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT); */
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param, 
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
                                   (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                                    (tiled_matrix_desc_t*)&ddescA,
                                    (tiled_matrix_desc_t*)&ddescTS,
@@ -75,7 +71,7 @@ int main(int argc, char ** argv)
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param);
 
-        /*dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );*/
+        dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );
     }
 
     dague_data_free(ddescA.mat);
