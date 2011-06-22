@@ -241,20 +241,27 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     return 0;
 }
 
-
-dague_atomic_lifo_t remote_deps_freelist;
-uint32_t max_dep_count, max_nodes_number, elem_size;
+dague_remote_dep_context_t dague_remote_dep_context;
+static int dague_remote_dep_inited = 0;
 
 int remote_deps_allocation_init(int np, int max_output_deps)
 { /* compute the maximum size of the dependencies array */
-    max_dep_count = max_output_deps;
-    max_nodes_number = np;
-    elem_size = sizeof(dague_remote_deps_t) +
-                max_dep_count * (sizeof(uint32_t) + sizeof(void*) + 
-                                 sizeof(uint32_t*) + sizeof(dague_remote_dep_datatype_t*) +
-                                 sizeof(uint32_t) * (max_nodes_number + 31)/32) +
-                sizeof(uint32_t) * (max_nodes_number + 31)/32;
-    dague_atomic_lifo_construct(&remote_deps_freelist);
+    if( 0 == dague_remote_dep_inited ) {
+        dague_remote_dep_inited = 1;
+        dague_remote_dep_context.max_dep_count = max_output_deps;
+        dague_remote_dep_context.max_nodes_number = np;
+        dague_remote_dep_context.elem_size = 
+            sizeof(dague_remote_deps_t) +
+            dague_remote_dep_context.max_dep_count * (sizeof(uint32_t) + sizeof(void*) + 
+                                                      sizeof(uint32_t*) + sizeof(dague_remote_dep_datatype_t*) +
+                                                      sizeof(uint32_t*) * (dague_remote_dep_context.max_nodes_number + 31)/32) +
+            sizeof(uint32_t) * (dague_remote_dep_context.max_nodes_number + 31)/32;
+        dague_atomic_lifo_construct(&dague_remote_dep_context.freelist);
+        return 0;
+    }
+
+    assert( dague_remote_dep_context.max_dep_count == max_output_deps );
+    assert(  dague_remote_dep_context.max_nodes_number == np );
     return 0;
 }
 

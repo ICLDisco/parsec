@@ -646,7 +646,7 @@ static int remote_dep_mpi_on(dague_context_t* context)
 
     for(i = 0; i < DEP_NB_CONCURENT; i++)
     {
-        dep_activate_buff[i] = remote_deps_allocation(&remote_deps_freelist);
+        dep_activate_buff[i] = remote_deps_allocation(&dague_remote_dep_context.freelist);
     }
 
 #ifdef DAGUE_PROF_TRACE
@@ -922,7 +922,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
         k = 0;
         count = 0;
         while( count < deps->output_count ) {
-            for(unsigned int a = 0; a < (max_nodes_number + 31)/32; a++)
+            for(unsigned int a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
                 deps->output[k].rank_bits[a] = 0;
             count += deps->output[k].count;
             deps->output[k].count = 0;
@@ -961,7 +961,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
 #endif
     dague_remote_deps_t *saved_deps, *deps = dep_activate_buff[i];
     
-    saved_deps = remote_deps_allocation(&remote_deps_freelist);
+    saved_deps = remote_deps_allocation(&dague_remote_dep_context.freelist);
     DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)saved_deps);
     /* Update the required fields */
     saved_deps->msg = deps->msg;
@@ -986,7 +986,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
         remote_dep_release(eu_context, saved_deps);
         if( saved_deps->msg.which == deps->msg.which ) {  /* all deps satisfied */
             DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)saved_deps);
-            dague_atomic_lifo_push(&remote_deps_freelist, (dague_list_item_t*)saved_deps);
+            dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)saved_deps);
             goto submit_receives;
         }
         saved_deps->msg.deps = deps->msg.which ^ saved_deps->msg.which;
@@ -1092,7 +1092,7 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
     remote_dep_release(eu_context, deps);
     if(deps->msg.which == deps->msg.deps) {
         DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)deps);
-        dague_atomic_lifo_push(&remote_deps_freelist, (dague_list_item_t*)deps);
+        dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
         dep_pending_recv_array[i] = NULL;
         if( !dague_fifo_is_empty(&dague_activations_fifo) ) {
             deps = (dague_remote_deps_t*)dague_fifo_pop(&dague_activations_fifo);

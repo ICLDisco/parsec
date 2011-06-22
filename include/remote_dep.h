@@ -84,8 +84,14 @@ int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
 
 #if defined(DISTRIBUTED)
 
-extern dague_atomic_lifo_t remote_deps_freelist;
-extern uint32_t max_dep_count, max_nodes_number, elem_size;
+typedef struct {
+    dague_atomic_lifo_t freelist;
+    uint32_t            max_dep_count;
+    uint32_t            max_nodes_number;
+    uint32_t            elem_size;
+} dague_remote_dep_context_t;
+
+extern dague_remote_dep_context_t dague_remote_dep_context;
 
 int remote_deps_allocation_init(int np, int max_deps);
 
@@ -95,24 +101,24 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* 
     char *ptr;
     dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_atomic_lifo_pop(lifo);
     if( NULL == remote_deps ) {
-        remote_deps = (dague_remote_deps_t*)calloc(1, elem_size);
+        remote_deps = (dague_remote_deps_t*)calloc(1, dague_remote_dep_context.elem_size);
         remote_deps->origin = lifo;
-        ptr = (char*)(&(remote_deps->output[max_dep_count]));
-        rank_bit_size = sizeof(uint32_t) * ((max_nodes_number + (8 * sizeof(uint32_t) - 1)) / (8*sizeof(uint32_t)));
-        for( i = 0; i < max_dep_count; i++ ) {
+        ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
+        rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);
+        for( i = 0; i < dague_remote_dep_context.max_dep_count; i++ ) {
             remote_deps->output[i].rank_bits = (uint32_t*)ptr;
             ptr += rank_bit_size;
         }
         /* fw_mask immediatly follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
-        assert( (int)(ptr - (char*)remote_deps) <= (int)(elem_size - sizeof(uint32_t) * (max_nodes_number+31)/32) );
+        assert( (int)(ptr - (char*)remote_deps) <= (int)(dague_remote_dep_context.elem_size - sizeof(uint32_t) * (dague_remote_dep_context.max_nodes_number+31)/32) );
     }
     remote_deps->max_priority = 0xffffffff;
     return remote_deps;
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
-        (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocation(&remote_deps_freelist); \
+        (REMOTE_DEPS) = (dague_remote_deps_t*)remote_deps_allocation(&dague_remote_dep_context.freelist); \
     }
 
 
