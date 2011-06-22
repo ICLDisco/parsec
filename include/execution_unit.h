@@ -42,9 +42,13 @@ struct dague_execution_unit {
 #error No scheduler is defined
 #endif
 
-#  if defined(DAGUE_SCHED_CACHE_AWARE)
+#if defined(DAGUE_SCHED_CACHE_AWARE)
     struct cache_t *closest_cache;
-#  endif
+#endif
+
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+    uint32_t sched_nb_tasks_done;
+#endif
 
     dague_context_t*        master_context;
     dague_thread_mempool_t* context_mempool;

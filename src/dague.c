@@ -164,6 +164,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->master_context = startup->master_context;
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+    eu->sched_nb_tasks_done = 0;
+#endif
+
     eu->context_mempool = &(eu->master_context->context_mempool.thread_mempools[eu->eu_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
         eu->datarepo_mempools[pi] = &(eu->master_context->datarepo_mempools[pi].thread_mempools[eu->eu_id]);

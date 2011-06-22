@@ -28,6 +28,17 @@
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
 #endif
 
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+#define DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER 65536
+typedef struct {
+    int      thread_id;
+    int32_t  priority;
+    uint32_t step;
+} sched_priority_trace_t;
+static sched_priority_trace_t sched_priority_trace[DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER];
+static uint32_t sched_priority_trace_counter;
+#endif
+
 static inline int __dague_execute( dague_execution_unit_t* eu_context,
                                    dague_execution_context_t* exec_context )
 {
@@ -297,6 +308,18 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 #if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
         do_some_work:
 #endif
+
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+            {
+                uint32_t my_idx = dague_atomic_inc_32b(&sched_priority_trace_counter);
+                if(my_idx < DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
+                    sched_priority_trace[my_idx].step = eu_context->sched_nb_tasks_done++;
+                    sched_priority_trace[my_idx].thread_id = eu_context->eu_id;
+                    sched_priority_trace[my_idx].priority  = exec_context->priority;
+                }
+            }
+#endif
+
             TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
             /* We're good to go ... */
             if( 0 == __dague_execute( eu_context, exec_context ) ) {
@@ -369,6 +392,23 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
+
+    if( eu_context->eu_id == 0 ) {
+        char  priority_trace_fname[64];
+        FILE *priority_trace = NULL;
+        sprintf(priority_trace_fname, "priority_trace-%d.dat", eu_context->master_context->my_rank);
+        priority_trace = fopen(priority_trace_fname, "w");
+        if( NULL != priority_trace ) {
+            uint32_t my_idx;
+            fprintf(priority_trace, 
+                    "#Step\tPriority\tThread\n"
+                    "#Tasks are ordered in execution order\n");
+            for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
+                fprintf(priority_trace, "%d\t%d\t%d\n", sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority, sched_priority_trace[my_idx].thread_id);
+            }
+            fclose(priority_trace);
+        }
+    }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
     return (void*)(long)nbiterations;
@@ -386,6 +426,11 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
             __dague_schedule( context->execution_units[0], startup_list );
         }
     }
+    
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+    sched_priority_trace_counter = 0;
+#endif
+
     return 0;
 }
 
