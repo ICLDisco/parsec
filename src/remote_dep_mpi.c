@@ -922,7 +922,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
         k = 0;
         count = 0;
         while( count < deps->output_count ) {
-            for(unsigned int a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
+            for(uint32_t a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
                 deps->output[k].rank_bits[a] = 0;
             count += deps->output[k].count;
             deps->output[k].count = 0;

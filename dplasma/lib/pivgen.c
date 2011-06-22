@@ -6,6 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
+#include <math.h>
 #include <plasma.h>
 #include <dague.h>
 #include "dplasma.h"
@@ -75,6 +76,108 @@ void dplasma_flat_init(qr_piv_t *arg, tiled_matrix_desc_t *descA){
     arg->currpiv = dplasma_flat_currpiv;
     arg->nextpiv = dplasma_flat_nextpiv;
     arg->prevpiv = dplasma_flat_prevpiv;
+    arg->desc = descA;
+    arg->ipiv = NULL;
+};
+
+/****************************************************
+ *                 DPLASMA_BINARY_TREE
+ ***************************************************/
+int dplasma_binary_currpiv(const qr_piv_t *arg, const int m, const int k) 
+{ 
+    int tmp1 = m-k;
+    int tmp2 = 1;
+    (void)arg;
+
+    if ( tmp1 == 0) 
+        return 0;
+    while( (tmp1 != 0 ) && (tmp1 % 2 == 0) ) {
+        tmp1 = tmp1 >> 1;
+        tmp2 = tmp2 << 1;
+    }        
+    assert( m - tmp2 >= k );
+    return m - tmp2;
+};
+
+int dplasma_binary_nextpiv(const qr_piv_t *arg, const int p, const int k, const int start)
+{ 
+    int step, tmpp;
+
+#ifndef PRINT_PIVGEN
+    assert( (start == arg->desc->mt) || (dplasma_binary_currpiv( arg, start, k ) == p) );
+#else
+    /* Otherwise, it has just been used as a pivot so the interval should be a power of 2 */
+    if ( start != arg->desc->mt && dplasma_binary_currpiv( arg, start, k ) != p ) 
+        return -1;
+#endif
+
+    if ( start <= p )
+        return arg->desc->mt;
+
+    if (start == arg->desc->mt) {
+        step = 1;
+        tmpp = p - k;
+    } else {
+        step = ( start - p ) << 1;
+        tmpp = ( p     - k ) >> 1;
+    }
+
+    /* Case of the first line */
+    if ( tmpp == 0 )  {
+        if ( p+step <  arg->desc->mt )
+            return p + step;
+        else 
+            return arg->desc->mt;
+    }
+
+    while( (tmpp % 2 == 0) && ( p + step >= arg->desc->mt ) ) {
+        step = step << 1;
+        tmpp = tmpp >> 1;
+    }
+
+    if ( ( tmpp%2 != 0 ) || ( (p - step) == k ) ) 
+        return  arg->desc->mt;
+    else
+        return p + step;
+};
+
+int dplasma_binary_prevpiv(const qr_piv_t *arg, const int p, const int k, const int start)
+{ 
+#ifndef PRINT_PIVGEN
+    assert( start >= p && ( start == p || dplasma_binary_currpiv( arg, start, k ) == p));
+#else
+    /* Otherwise, it has just been used as a pivot so the interval should be a power of 2 */
+    if ( start < p || ( (start > p) && (dplasma_binary_currpiv( arg, start, k ) != p) ) )
+        return -1;
+#endif
+
+    if ( (start == p) && ( (p-k)%2 == 0 ) ) {
+        int i, bit, tmp;
+        if ((p-k) == 0)
+            bit = (int)( log( (double)(arg->desc->mt - k) ) / log( 2. ) );
+        else 
+            bit = (int)( log( (double)(p-k) ) / log( 2. ) );
+
+        for( i=bit; i>-1; i--){
+            tmp = (p-k) | (1 << i);
+            if ( ( (p-k) != tmp ) && ( tmp+k < arg->desc->mt ) )
+                return tmp+k;
+        }                
+        return arg->desc->mt;
+    }
+
+
+    if ( (start - p) > 1 )
+        return p + ( (start-p) >> 1 );
+    else {
+        return arg->desc->mt;
+    }
+};
+
+void dplasma_binary_init(qr_piv_t *arg, tiled_matrix_desc_t *descA){
+    arg->currpiv = dplasma_binary_currpiv;
+    arg->nextpiv = dplasma_binary_nextpiv;
+    arg->prevpiv = dplasma_binary_prevpiv;
     arg->desc = descA;
     arg->ipiv = NULL;
 };
@@ -180,25 +283,66 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
     
     switch( type_llvl ) {
     case DPLASMA_GREEDY_TREE :
+        printf("Low level: Greedy\n");
         dplasma_greedy_init( qrpiv, A );
         break;
     case DPLASMA_FIBONACCI_TREE :
+        printf("Low level: Fibonacci\n");
         dplasma_fibonacci_init( qrpiv, A );
+        break;
+    case DPLASMA_BINARY_TREE :
+        printf("Low level: Binary\n");
+        dplasma_binary_init( qrpiv, A );
         break;
     case DPLASMA_FLAT_TREE :
     default:
+        printf("Low level: Flat\n");
         dplasma_flat_init( qrpiv, A );
     }
 
-#if 0
-    if ( qrpiv->ipiv != NULL )
+#ifdef PRINT_PIVGEN
     {
         int minMN = min(A->mt, A->nt );
         int m, k;
         for(m=0; m<A->mt; m++) {
             printf("%4d | ", m);              
             for (k=0; k<min(minMN, m+1); k++) {
-                printf( "%4d  ", qrpiv->ipiv[k*A->mt + m]);
+                printf( "%4d  ", qrpiv->currpiv(qrpiv, m, k) );
+            }
+            printf("\n");
+        }
+    }
+
+    printf("\n------------ Next --------------\n");
+    {
+        int m, k;
+        printf( "       " );
+        for(k=A->mt; k>0; k--)
+            printf( "%4d  ", k );
+        printf( "\n" );
+        for(m=0; m<A->mt; m++) {
+            printf("%4d | ", m);              
+            for(k=A->mt; k>0; k--) {
+                /*for (k=0; k<min(minMN, m+1); k++) {*/
+                printf( "%4d  ", qrpiv->nextpiv(qrpiv, m, 0, k) );
+            }
+            printf("\n");
+        }
+    }
+
+    printf("\n------------ prev --------------\n");
+    {
+        int m, k;
+        printf( "       " );
+        for(k=A->mt; k>-1; k--)
+            printf( "%4d  ", k );
+        printf( "\n" );
+
+        for(m=0; m<A->mt; m++) {
+            printf("%4d | ", m);              
+            for(k=A->mt; k>-1; k--) {
+                /*for (k=0; k<min(minMN, m+1); k++) {*/
+                printf( "%4d  ", qrpiv->prevpiv(qrpiv, m, 0, k) );
             }
             printf("\n");
         }

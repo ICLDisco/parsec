@@ -51,26 +51,35 @@ typedef struct remote_dep_wire_get_t
     remote_dep_datakey_t tag;
 } remote_dep_wire_get_t;
 
-struct dague_remote_deps_t {
-    dague_list_item_t                       item;
-    struct dague_atomic_lifo_t*             origin;  /**< The memory arena where the data pointer is comming from */
-    remote_dep_wire_activate_t              msg;     /**< A copy of the message control */
-    int                                     root;    /**< The root of the control message */
-    int                                     from;    /**< From whom we received the control */
-    int                                     max_priority;
-    uint32_t                                output_count;
-    uint32_t                                output_sent_count;
-    uint32_t*                               remote_dep_fw_mask;  /**< list of peers already notified about
-                                                                  * the control sequence (only used for control messages) */
-    struct { /** Never change this structure without understanding the 
-              *   "subtle" relation with  remote_deps_allocation_init in remote_dep.c
-              */
-        void*    	                        data;
-        struct dague_arena_t* 	            type;
-        uint32_t*                           rank_bits;
-        uint32_t                            count;
-    } output[1];
+struct remote_dep_output_param {
+/** Never change this structure without understanding the 
+  *   "subtle" relation with  remote_deps_allocation_init in
+  *  remote_dep.c
+  */ 
+    void*                 data;
+    struct dague_arena_t* type;
+    uint32_t*             rank_bits;
+    uint32_t              count;
 };
+
+struct dague_remote_deps_t {
+    dague_list_item_t               item;
+    struct dague_atomic_lifo_t*     origin;  /**< The memory arena where the data pointer is comming from */
+    remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
+    int                             root;    /**< The root of the control message */
+    int                             from;    /**< From whom we received the control */
+    int                             max_priority;
+    uint32_t                        output_count;
+    uint32_t                        output_sent_count;
+    uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
+                                                           * the control sequence (only used for control messages) */
+    struct remote_dep_output_param  output[1];
+};
+/* { item .. remote_dep_fw_mask (points to fw_mask_bitfield), 
+ *   output[0] .. output[max_deps < MAX_PARAM_COUNT], 
+ *   (max_dep_count x (np+31)/32 uint32_t) rank_bits
+ *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
+
 
 
 /* Gives pointers to expr_t allowing for evaluation of GRID predicates, needed 
@@ -97,10 +106,11 @@ int remote_deps_allocation_init(int np, int max_deps);
 
 static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* lifo )
 {
-    uint32_t i, rank_bit_size;
-    char *ptr;
     dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_atomic_lifo_pop(lifo);
+    uint32_t i, rank_bit_size;
+
     if( NULL == remote_deps ) {
+        char *ptr;
         remote_deps = (dague_remote_deps_t*)calloc(1, dague_remote_dep_context.elem_size);
         remote_deps->origin = lifo;
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
@@ -111,7 +121,7 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* 
         }
         /* fw_mask immediatly follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
-        assert( (int)(ptr - (char*)remote_deps) <= (int)(dague_remote_dep_context.elem_size - sizeof(uint32_t) * (dague_remote_dep_context.max_nodes_number+31)/32) );
+        assert( (int)(ptr - (char*)remote_deps) == (int)(dague_remote_dep_context.elem_size - sizeof(uint32_t) * (dague_remote_dep_context.max_nodes_number+31)/32) );
     }
     remote_deps->max_priority = 0xffffffff;
     return remote_deps;
