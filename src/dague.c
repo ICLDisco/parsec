@@ -913,8 +913,17 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
 
-    if( arg->action_mask & (1 << param_index) ) {
+    if( !(arg->action_mask & (1 << param_index)) ) {
+#if defined(DAGUE_DEBUG)
+        char tmp[128];
+        DEBUG(("On task %s param_index %d not on the action_mask %x\n",
+               dague_service_to_string(oldcontext, tmp, 128), param_index, arg->action_mask));
+#endif
+        return DAGUE_ITERATE_CONTINUE;
+    }
+
 #if defined(DISTRIBUTED)
+    if( dst_rank != src_rank ) {
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
             void* data;
 
@@ -945,30 +954,25 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
         }
-#else
-        (void)src_rank;
-        (void)arena;
-#endif
-
-        if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
-            (eu->master_context->my_rank == dst_rank) ) {
-            arg->output_entry->data[param_index] = arg->data[param_index];
-            arg->output_usage++;
-            AREF( arg->output_entry->data[param_index] );
-            arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
-                                                                     eu, oldcontext,
-                                                                     oldcontext->function->out[param_index],
-                                                                     newcontext,
-                                                                     oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
-                                                                     &arg->ready_list);
-        }
-    } else {
-#if defined(DAGUE_DEBUG)
-        char tmp[128];
-        DEBUG(("On task %s param_index %d not on the action_mask %x\n", dague_service_to_string(oldcontext, tmp, 128), param_index, arg->action_mask));
-#endif
     }
+#else
+    (void)src_rank;
+    (void)arena;
+#endif
 
+    if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
+        (eu->master_context->my_rank == dst_rank) ) {
+        arg->output_entry->data[param_index] = arg->data[param_index];
+        arg->output_usage++;
+        AREF( arg->output_entry->data[param_index] );
+        arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
+                                                                 eu, oldcontext,
+                                                                 oldcontext->function->out[param_index],
+                                                                 newcontext,
+                                                                 oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
+                                                                 &arg->ready_list);
+    }
+    
     return DAGUE_ITERATE_CONTINUE;
 }
 
