@@ -37,7 +37,6 @@ dplasma/testing/TSQR/mpi_testing_tsqr
 dplasma/testing/TSQR/testing_tsqr
 tools/dague-compiler/daguepp
 tests/unit/atomics/lifo
-dplasma/testing/psgeqrf/magma_0\.2_64\.tar\.gz
 dplasma/testing/psgeqrf/psgeqrf
 dplasma/testing/psgeqrf/sgeqrf
 tools/grapher
@@ -321,9 +320,6 @@ dplasma/lib/strsmpl\.c
 dplasma/lib/strsmpl\.h
 dplasma/lib/strsmpl\.jdf
 dplasma/lib/strsmpl_wrapper\.c
-dplasma/testing/list
-dplasma/testing/t\.dat
-dplasma/testing/test
 dplasma/testing/testing_dsbrdt
 dplasma/testing/testing_dsbrdt\.c
 dplasma/testing/testing_dsyev
@@ -336,8 +332,6 @@ dplasma/testing/testing_ssyev
 dplasma/testing/testing_ssyev\.c
 dplasma/testing/testing_ssyrbt
 dplasma/testing/testing_ssyrbt\.c
-dplasma/testing/vgcore\.26321
-include/priority_sorted_queue\.h
 tests/operator
 tests/reduce
 tests/rtt/mpi_rtt
