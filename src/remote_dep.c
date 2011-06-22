@@ -260,8 +260,8 @@ int remote_deps_allocation_init(int np, int max_output_deps)
         return 0;
     }
 
-    assert( dague_remote_dep_context.max_dep_count == max_output_deps );
-    assert(  dague_remote_dep_context.max_nodes_number == np );
+    assert( (int)dague_remote_dep_context.max_dep_count == max_output_deps );
+    assert( (int)dague_remote_dep_context.max_nodes_number == np );
     return 0;
 }
 

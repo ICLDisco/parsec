@@ -97,10 +97,11 @@ int remote_deps_allocation_init(int np, int max_deps);
 
 static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* lifo )
 {
-    uint32_t i, rank_bit_size;
-    char *ptr;
     dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_atomic_lifo_pop(lifo);
+    uint32_t i, rank_bit_size;
+
     if( NULL == remote_deps ) {
+        char *ptr;
         remote_deps = (dague_remote_deps_t*)calloc(1, dague_remote_dep_context.elem_size);
         remote_deps->origin = lifo;
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
