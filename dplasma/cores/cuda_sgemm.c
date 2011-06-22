@@ -1195,12 +1195,12 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
     /* a device ... */
  disable_gpu:
-    __dague_schedule( eu_context, exec_context, 0 );
+    __dague_schedule( eu_context, exec_context);
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     while( rc != 0 ) {
         exec_context = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
         if( NULL != exec_context ) {
-            __dague_schedule( eu_context, exec_context, 0 );
+            __dague_schedule( eu_context, exec_context);
             rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
         }
     }

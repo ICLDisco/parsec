@@ -72,7 +72,7 @@ int dague_wait( dague_context_t* );
  * @return -1 If something went wrong.
  */
 int dague_schedule( dague_context_t*, const dague_execution_context_t* );
-int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*, int use_placeholder );
+int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
 int dague_progress(dague_context_t* context);
 void* __dague_progress(dague_execution_unit_t* eu_context);

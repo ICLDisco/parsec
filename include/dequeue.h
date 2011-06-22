@@ -22,6 +22,11 @@ static inline void dague_dequeue_construct( dague_dequeue_t* dequeue )
     dequeue->atomic_lock = 0;
 }
 
+static inline void dague_dequeue_destruct( dague_dequeue_t *dequeue )
+{
+    (void)dequeue;
+}
+
 static inline void dplamsa_dequeue_item_construct( dague_list_item_t *item )
 {
     item->list_prev = item;

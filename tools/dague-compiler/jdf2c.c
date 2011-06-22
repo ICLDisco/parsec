@@ -2820,7 +2820,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
             "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n"
             "    if( NULL != arg.ready_list ) {\n"
-            "      __dague_schedule(eu, arg.ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));\n"
+            "      __dague_schedule(eu, arg.ready_list);\n"
             "      arg.ready_list = NULL;\n"
             "    }\n"
             "  }\n",

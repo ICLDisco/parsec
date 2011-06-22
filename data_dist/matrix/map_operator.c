@@ -253,7 +253,7 @@ static int release_deps(dague_execution_unit_t *eu,
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
         if( NULL != ready_list ) {
-            __dague_schedule(eu, ready_list, !(DAGUE_ACTION_NO_PLACEHOLDER & action_mask));
+            __dague_schedule(eu, ready_list);
             ready_list = NULL;
         }
     }
@@ -361,7 +361,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
                              __dague_object->super.A->super.myrank,
                              __dague_object->super.A->super.myrank, NULL, (void*)&ready_list);
-            __dague_schedule( eu, ready_list, 0 );
+            __dague_schedule( eu, ready_list );
             count++;
             if( count == context->nb_cores ) goto done;
             break;

@@ -20,37 +20,35 @@ typedef struct dague_execution_unit dague_execution_unit_t;
 #include "dequeue.h"
 #include "profiling.h"
 
+struct dague_priority_sorted_list;
+
 struct dague_execution_unit {
     int32_t eu_id;
     pthread_t pthread_id;
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t* eu_profile;
 #endif /* DAGUE_PROF_TRACE */
-#if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
-    dague_atomic_lifo_t* eu_task_queue;
-#elif defined(HAVE_HWLOC)
-    dague_hbbuffer_t   *eu_task_queue;
+
+#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
+    struct dague_priority_sorted_list *eu_task_queue;
+#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
+    dague_hbbuffer_t             *eu_task_queue;
+    dague_hbbuffer_t            **eu_hierarch_queues;
+    uint32_t                      eu_nb_hierarch_queues;
+    dague_dequeue_t              *eu_system_queue;
+#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
+    dague_dequeue_t              *eu_system_queue;
 #else
-    dague_dequeue_t    *eu_task_queue;
-#  if PLACEHOLDER_SIZE
-    struct dague_execution_context_t* placeholder[PLACEHOLDER_SIZE];
-    int placeholder_pop;
-    int placeholder_push;
-#  endif  /* PLACEHOLDER_SIZE */
-#endif  /* DAGUE_USE_LIFO */
+#error No scheduler is defined
+#endif
+
+#  if defined(DAGUE_SCHED_CACHE_AWARE)
+    struct cache_t *closest_cache;
+#  endif
 
     dague_context_t*        master_context;
     dague_thread_mempool_t* context_mempool;
     dague_thread_mempool_t* datarepo_mempools[MAX_PARAM_COUNT+1];
-
-#if defined(HAVE_HWLOC)
-    dague_hbbuffer_t    **eu_hierarch_queues; 
-    uint32_t              eu_nb_hierarch_queues;
-    dague_dequeue_t      *eu_system_queue;
-#  if defined(DAGUE_SCHED_CACHE_AWARE)
-    struct cache_t *closest_cache;
-#  endif
-#endif /* HAVE_HWLOC */
 
     uint32_t* remote_dep_fw_mask;
 };
@@ -60,7 +58,6 @@ struct dague_execution_unit {
 #include "barrier.h"
 #include "profiling.h"
 #include "dague.h"
-
 
 struct dague_context_t {
     volatile int32_t __dague_internal_finalization_in_progress;
