@@ -2332,7 +2332,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
     sa = string_arena_new(64);
     info.sa = sa;
     info.prefix = "";
-    info.assignments = "assignments";
+    info.assignments = "exec_context->locals";
 
     for(dl = f->deps; dl != NULL; dl = dl->next) {
         if( dl->dep->type == JDF_DEP_TYPE_OUT )
@@ -2587,19 +2587,15 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("static int %s(dague_execution_unit_t *context, dague_execution_context_t *exec_context)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)exec_context->dague_object;\n"
-            "  const assignment_t *assignments = exec_context->locals;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
-            "  (void)context;\n"
-            "  (void)__dague_object;\n"
-            "  (void)assignments;\n"
-            "  (void)tass;\n"
+            "  (void)context; (void)__dague_object; (void)tass;\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
                                  dump_assignments, &ai, "", "  int ", "", ""));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
-                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
     coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
             "%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
@@ -2629,9 +2625,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         sa3 = string_arena_new(64);
         linfo.prefix = "";
         linfo.sa = sa2;
-        linfo.assignments = "assignments";
+        linfo.assignments = "exec_context->locals";
 
-        coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, assignments), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
+        coutput("  TAKE_TIME(context, 2*exec_context->function->function_id, %s_hash( __dague_object, exec_context->locals), __dague_object->super.%s, ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s) );\n",
                 f->fname,
                 f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                 UTIL_DUMP_LIST_FIELD(sa3, f->predicate->parameters, next, expr,
@@ -2652,10 +2648,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "static int complete_%s(dague_execution_unit_t *context, dague_execution_context_t *exec_context)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)exec_context->dague_object;\n"
-            "  assignment_t *assignments = exec_context->locals;\n"
-            "  (void)context;\n"
-            "  (void)__dague_object;\n"
-            "  (void)assignments;\n"
+            "  (void)context; (void)__dague_object;\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -2663,10 +2656,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
-                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     if( profile_on ) {
-        coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, assignments ), NULL, 0);\n",
+        coutput("  TAKE_TIME(context,2*exec_context->function->function_id+1, %s_hash( __dague_object, exec_context->locals ), NULL, 0);\n",
                 f->fname);
     }
     jdf_generate_code_papi_events_after(jdf, f);
@@ -2719,7 +2712,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     if( NULL != dep->dep->guard->calltrue->var ) {
                         info.prefix = "";
                         info.sa = sa1;
-                        info.assignments = "assignments";
+                        info.assignments = "context->locals";
 
                         coutput((0 == cond_index ? condition[0] : condition[1]),
                                 dump_expr((void**)&dep->dep->guard->guard, &info));
@@ -2734,7 +2727,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     if( NULL != dep->dep->guard->calltrue->var ) {
                         info.prefix = "";
                         info.sa = sa1;
-                        info.assignments = "assignments";
+                        info.assignments = "context->locals";
                         coutput((0 == cond_index ? condition[0] : condition[1]),
                                 dump_expr((void**)&dep->dep->guard->guard, &info));
                         coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
@@ -2749,7 +2742,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     } else if( NULL != dep->dep->guard->callfalse->var ) {
                         info.prefix = "";
                         info.sa = sa1;
-                        info.assignments = "assignments";
+                        info.assignments = "context->locals";
                         coutput("    if( !(%s) ) {\n"
                                 "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
                                 "      (void)AUNREF(context->data[%d].data);\n",
@@ -2783,29 +2776,26 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, int action_mask, dague_remote_deps_t *deps, dague_arena_chunk_t **data)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
-            "  const assignment_t *assignments = context->locals;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
             "%s"
-            "  (void)__dague_object;\n"
-            "  (void)assignments;\n"
             "  arg.nb_released = 0;\n"
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
             "  arg.data = data;\n"
             "  arg.ready_list = NULL;\n"
-            "\n",
+            "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                        dump_assignments, &ai, "", "  int ", "", ""));
 
     /* Quiet the unused variable warnings */
-    coutput("%s",
+    coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
-                                 dump_string, NULL, "", "  (void)", ";\n", ";\n"));
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
-            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, assignments) );\n"
+            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
             "  }\n",
             f->fname, f->fname);
     
