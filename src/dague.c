@@ -929,7 +929,8 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->deps->output[param_index].type = arena;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
-        if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
+        if( (arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS) && 
+            (eu->master_context->my_rank != dst_rank)) {
             int _array_pos, _array_mask;
 
             _array_pos = dst_rank / (8 * sizeof(uint32_t));
