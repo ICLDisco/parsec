@@ -14,21 +14,21 @@ extern "C" %{
 
 depth      [type = int
             hidden = on
-            default = "(int)ceil(log(A->mt) / log(2.0))"] // height of the reduction tree
+            default = "(int)ceil(log(src->mt) / log(2.0))"] // height of the reduction tree
 MT         [type = int
             hidden = on
-            default="A->mt"]
+            default="src->mt"]
 NT         [type = int
             hidden = on
-            default="A->nt"]
+            default="src->nt"]
 IA         [type = int
             hidden = on
-            default="A->i"]
+            default="src->i"]
 JA         [type = int
             hidden = on
-            default="A->j"]
-A          [type = "tiled_matrix_desc_t*"]
-res        [type = "tiled_matrix_desc_t*" aligned = A]
+            default="src->j"]
+src        [type = "const tiled_matrix_desc_t*"]
+dest       [type = "tiled_matrix_desc_t*" aligned = src]
 operator   [type = dague_operator_t]
 op_data    [type = "void*"]
 
@@ -39,9 +39,9 @@ reduce_in_row( index, column )  [profile = off]
     index = 0 .. (1 << depth) - 1
     column = IA .. NT
 
-    : A( index, 0 )
+    : src( index, 0 )
 
-    READ  Rtop <- A(index, 0)
+    READ  Rtop <- src(index, 0)
                -> ((index % 2) == 0)
                     ? Rtop    reduce_row( 1, index / 2, column )
                     : Rbottom reduce_row( 1, index / 2, column )
@@ -54,7 +54,7 @@ reduce_row( level, index, column )
     index = 0 .. ((1 << (depth - level)) - 1)
     column = IA .. NT
 
-    : A( 2 * index, column )
+    : src( 2 * index, column )
 
     READ     Rbottom <- (level == 1)
                         ? Rtop    reduce_in_row( (2 * index) + 1, column )
@@ -71,7 +71,7 @@ reduce_row( level, index, column )
                         ? Rbottom reduce_row( level + 1, index / 2, column )
 
                      -> (level == depth)
-                        ? res(column)
+                        ? dest(column)
 BODY
     printf( "reduce_row level: %i index: %i\n", level, index );
 END
