@@ -21,6 +21,7 @@ set(TESTS
   testing_zherbt.c
   testing_zhbrdt.c
   testing_zheev.c
+  #testing_zgesvd.c
 )
 testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 

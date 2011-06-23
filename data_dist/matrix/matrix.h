@@ -106,23 +106,24 @@ void matrix_scompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 #endif
 
 struct dague_execution_unit;
-typedef int (*dague_operator_t)( struct dague_execution_unit *eu, void* data, void* op_data, ... );
+typedef int (*dague_operator_t)( struct dague_execution_unit *eu, const void* src, void* dst, void* op_data, ... );
 
 extern struct dague_object_t*
-dague_map_operator_New(tiled_matrix_desc_t* A,
+dague_map_operator_New(const tiled_matrix_desc_t* src,
+                       tiled_matrix_desc_t* dest,
                        dague_operator_t op,
                        void* op_data);
 extern void
 dague_map_operator_Destruct( struct dague_object_t* o );
 extern struct dague_object_t*
-dague_reduce_col_New( tiled_matrix_desc_t* A,
-                      tiled_matrix_desc_t* res,
+dague_reduce_col_New( const tiled_matrix_desc_t* src,
+                      tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
 extern void dague_reduce_col_Destruct( struct dague_object_t *o );
 extern struct dague_object_t*
-dague_reduce_row_New( tiled_matrix_desc_t* A,
-                      tiled_matrix_desc_t* res,
+dague_reduce_row_New( const tiled_matrix_desc_t* src,
+                      tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
 extern void dague_reduce_row_Destruct( struct dague_object_t *o );
