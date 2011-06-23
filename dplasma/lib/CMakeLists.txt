@@ -62,6 +62,7 @@ set(SOURCES
   zgelqf_wrapper.c
   zherbt_wrapper.c
   zhbrdt_wrapper.c
+  zungqr_wrapper.c
 )
 precisions_rules(generated_files
                  "${SOURCES}"

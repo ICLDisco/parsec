@@ -21,10 +21,10 @@ extern "C" %{
 
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
-descQ  [type = "tiled_matrix_desc_t"]
-Q      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *"]
+descQ  [type = "tiled_matrix_desc_t"]
+Q      [type = "dague_ddesc_t *"]
 ib     [type = "int" ]
 p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT.nb)"]
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
