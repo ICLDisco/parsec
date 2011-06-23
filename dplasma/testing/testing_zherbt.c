@@ -348,6 +348,7 @@ int main(int argc, char *argv[])
 
     cleanup_dague(dague, iparam);
    
+    PLASMA_Finalize();
         
     return EXIT_SUCCESS;
 }
@@ -381,7 +382,7 @@ static int check_solution(int N, double *E1, double *E2, double eps)
 
     printf("============\n");
     printf("Checking the eigenvalues of A\n");
-    if (isnan(maxel / eps) || isinf(maxel / eps) || ((maxel / (maxeig*eps)) > 1000.0) ) {
+    if (isnan(maxel / eps) || isinf(maxel / eps) || ((maxel / (maxeig*eps)) > 100.0) ) {
         //printf("isnan: %d %f %e\n", isnan(maxel / eps), maxel, eps );
         //printf("isinf: %d %f %e\n", isinf(maxel / eps), maxel, eps );
         printf("-- The eigenvalues are suspicious ! \n");
