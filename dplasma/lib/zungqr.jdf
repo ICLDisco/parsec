@@ -25,8 +25,8 @@ descQ  [type = "tiled_matrix_desc_t"]
 Q      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *"]
-pool_0 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT.nb)"]
 ib     [type = "int" ]
+p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT.nb)"]
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
 
 ztsmqr(k,m,n)
@@ -53,7 +53,7 @@ ztsmqr(k,m,n)
           -> ( (k+2) <= minMN ) ? B ztsmqr(k+1, m, n) 
           -> ( (k+1) == minMN ) ? Q(descQ.mt-1-m, n)
   READ  C <- C ztsmqr_in_A1(k,m,n)
-  READ  D <- D ztsmqr_in_T2(k,m,n)
+  READ  D <- D ztsmqr_in_T2(k,m,n)       [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -70,7 +70,7 @@ BODY
          int ldam = BLKLDD( descA, descQ.mt-1-m );
          int ldwork = ib;
          
-         void *p_elem_A = dague_private_memory_pop( pool_0 );
+         void *p_elem_A = dague_private_memory_pop( p_work );
          
 #line 23 "zungqr.cpp"
          CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans, 
@@ -81,7 +81,7 @@ BODY
                      D /* T(descQ.mt-1-m, minMN-1-k) */, descT.mb, 
                      p_elem_A, ldwork );
          
-         dague_private_memory_push( pool_0, p_elem_A );
+         dague_private_memory_push( p_work, p_elem_A );
          );
 
    printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
@@ -139,8 +139,8 @@ ztsmqr_in_T2(k,m,n)
 
   : T(descQ.mt-1-m, minMN-1-k)
 
-  RW D <- T(descQ.mt-1-m, minMN-1-k)
-       -> D ztsmqr(k,m,n)
+  RW D <- T(descQ.mt-1-m, minMN-1-k)        [type = LITTLE_T]
+       -> D ztsmqr(k,m,n)                   [type = LITTLE_T]
 BODY
 /* nothing */
 END
@@ -162,7 +162,7 @@ zunmqr(k,n1)
 
   READ  E <- E zunmqr_in_A0(k,n1)
 
-  READ  F <- F zunmqr_in_T1(k,n1)
+  READ  F <- F zunmqr_in_T1(k,n1)        [type = LITTLE_T]
 
   RW    G <- ( (k+descQ.mt) <= minMN   ) ? Q(minMN-1-k,n1)
           <- ( (k+descQ.mt) >= minMN+1 ) ? A ztsmqr(k, descQ.mt - minMN + k - 1, n1)
@@ -186,7 +186,7 @@ BODY
          int ldak = BLKLDD( descA, minMN-1-k );
          int ldqk = BLKLDD( descQ, minMN-1-k );
          
-         void *p_elem_A = dague_private_memory_pop( pool_0 );
+         void *p_elem_A = dague_private_memory_pop( p_work );
          
 #line 28 "zungqr.cpp"
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
@@ -196,7 +196,7 @@ BODY
                      G /* Q((minMN-1)-k,n1) */, ldqk, 
                      p_elem_A, descT.nb );
 
-         dague_private_memory_push( pool_0, p_elem_A );
+         dague_private_memory_push( p_work, p_elem_A );
             );
   printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
   context->eu_id, k, n1, (minMN-1)-k, (minMN-1)-k, E, (minMN-1)-k, (minMN-1)-k, F, (minMN-1)-k, n1, G);
@@ -228,8 +228,8 @@ zunmqr_in_T1(k,n1)
 
   : T( minMN-1-k, minMN-1-k )
 
-  RW F <- T( minMN-1-k, minMN-1-k )
-       -> F zunmqr(k,n1)
+  RW F <- T( minMN-1-k, minMN-1-k )        [type = LITTLE_T]
+       -> F zunmqr(k,n1)                   [type = LITTLE_T]
 BODY
 /* nothing */
 END
