@@ -137,10 +137,10 @@ void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
     if( mymark == NULL )
         return;
 
-    assert(ctx->function->nb_locals < MAX_LOCAL_COUNT);
+    assert(ctx->function->nb_parameters < MAX_LOCAL_COUNT);
     mymark->core = core;
     mymark->u.exe.function = ctx->function;
-    for(i = 0; i < ctx->function->nb_locals; i++)
+    for(i = 0; i < ctx->function->nb_parameters; i++)
         mymark->u.exe.locals[i] = ctx->locals[i];
 }
 
@@ -270,11 +270,11 @@ void debug_mark_display_history(void)
                                 m->u.comm.buffer);
                 f = (dague_t*)m->u.comm.msg.activate.function;
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-                for(j = 0; j < f->nb_locals; j++) {
+                for(j = 0; j < f->nb_parameters; j++) {
                     pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
                                     m->u.comm.msg.activate.locals[j].sym->name,
                                     m->u.comm.msg.activate.locals[j].value,
-                                    (j == f->nb_locals - 1) ? ")\n" : ", ");
+                                    (j == f->nb_parameters - 1) ? ")\n" : ", ");
                 }
                 pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
                                 m->u.comm.msg.activate.which);
@@ -287,11 +287,11 @@ void debug_mark_display_history(void)
                                 m->u.comm.buffer);
                 f = (dague_t*)m->u.comm.msg.activate.function;
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-                for(j = 0; j < f->nb_locals; j++) {
+                for(j = 0; j < f->nb_parameters; j++) {
                     pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
                                     m->u.comm.msg.activate.locals[j].sym->name,
                                     m->u.comm.msg.activate.locals[j].value,
-                                    (j == f->nb_locals - 1) ? ")\n" : ", ");
+                                    (j == f->nb_parameters - 1) ? ")\n" : ", ");
                 }
                 pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
                                 m->u.comm.msg.activate.which);
@@ -360,10 +360,10 @@ void debug_mark_display_history(void)
         } else {
             pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", reali(i), m->core);
             pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
-            for(j = 0; j < m->u.exe.function->nb_locals; j++) {
+            for(j = 0; j < m->u.exe.function->nb_parameters; j++) {
                 pos += snprintf(msg+pos, len-pos, "%s=%d%s",
                                 m->u.exe.locals[j].sym->name, m->u.exe.locals[j].value,
-                                (j == m->u.exe.function->nb_locals-1) ? ")\n" : ", ");
+                                (j == m->u.exe.function->nb_parameters-1) ? ")\n" : ", ");
             }
             fprintf(stderr, "%s", msg);
         }

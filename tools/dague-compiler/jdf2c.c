@@ -1756,8 +1756,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entry_t *f, int dep_index )
 {
     string_arena_t *sa, *sa2;
-    int nbparameters;
-    int nbdataflow;
+    int nbparameters, nbdefinitions;
     int inputmask, nbinput;
     int i, has_in_in_dep, foundin;
     jdf_dataflow_list_t *fl;
@@ -1768,13 +1767,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     sa2 = string_arena_new(64);
 
     JDF_COUNT_LIST_ENTRIES(f->parameters, jdf_name_list_t, next, nbparameters);
+    JDF_COUNT_LIST_ENTRIES(f->definitions, jdf_def_list_t, next, nbdefinitions);
+
     
     inputmask = 0;
     nbinput = 0;
-    nbdataflow = 0;
     has_in_in_dep = 0;
     for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
-        nbdataflow++;
 
         foundin = 0;
         for( dl = fl->flow->deps; NULL != dl; dl = dl->next ) {
@@ -1813,8 +1812,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
 #else
                             "  .dependencies_goal = 0x%x,\n"
 #endif
-                            "  .nb_locals = %d,\n"
-                            "  .nb_params = %d,\n",
+                            "  .nb_parameters = %d,\n"
+                            "  .nb_definitions = %d,\n",
                             jdf_basename, f->fname,
                             f->fname,
                             dep_index,
@@ -1827,7 +1826,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             inputmask,
 #endif
                             nbparameters,
-                            nbdataflow);
+                            nbdefinitions);
 
     prefix = (char*)malloc(strlen(f->fname) + strlen(jdf_basename) + 32);
 
@@ -1926,8 +1925,8 @@ static char *dump_pseudodague(void **elem, void *arg)
                             "  .name = \"%s\",\n"
                             "  .flags = 0x0,\n"
                             "  .dependencies_goal = 0x0,\n"
-                            "  .nb_locals = 0,\n"
-                            "  .nb_params = 0,\n"
+                            "  .nb_parameters = 0,\n"
+                            "  .nb_definitions = 0,\n"
                             "  .params = { NULL, },\n"
                             "  .locals = { NULL, },\n"
                             "  .pred = NULL,\n"
