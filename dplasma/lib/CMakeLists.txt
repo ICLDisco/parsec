@@ -31,6 +31,7 @@ set(JDF
   zhbrdt.jdf
   zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
   zgeqrf_param.jdf
+  zungqr.jdf
 )
 precisions_rules(generated_jdf
                  "${JDF}"
@@ -61,6 +62,7 @@ set(SOURCES
   zgelqf_wrapper.c
   zherbt_wrapper.c
   zhbrdt_wrapper.c
+  zungqr_wrapper.c
 )
 precisions_rules(generated_files
                  "${SOURCES}"

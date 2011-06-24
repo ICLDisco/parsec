@@ -163,9 +163,9 @@ ztsqrt(k,m)
   RW    G <- (0==k) ? A(m, k) : K ztsmqr(k-1, m, k) 
           -> A(m, k)
           -> (descA.nt-1 > k) ? L ztsmqr(k, m, (k+1)..(descA.nt-1)) 
-  RW    H <- T(m, k)
-          -> T(m, k)
-          -> (descA.nt-1 > k) ? M ztsmqr(k, m, (k+1)..(descA.nt-1))
+  RW    H <- T(m, k)                                                  [type = LITTLE_T]
+          -> T(m, k)                                                  [type = LITTLE_T]
+          -> (descA.nt-1 > k) ? M ztsmqr(k, m, (k+1)..(descA.nt-1))   [type = LITTLE_T]
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ | DAGUE_WRITE, k, k );
@@ -235,8 +235,8 @@ ztsmqr(k,m,n1)
           -> ( ( m==(k+1)) & (n1 > m) ) ? E zunmqr(k+1, n1)       /* Next row */
           -> ( (n1==(k+1)) & (m > n1) ) ? G ztsqrt(n1, m)         /* Next column */
           -> ( (n1>(1+k)) & (m>(1+k)) ) ? K ztsmqr(k+1, m, n1)     /* trailing submatrix */
-  READ  L <- G ztsqrt(k, m) 
-  READ  M <- H ztsqrt(k, m) 
+  READ  L <- G ztsqrt(k, m)  
+  READ  M <- H ztsqrt(k, m)   [type = LITTLE_T]
 
 BODY
 

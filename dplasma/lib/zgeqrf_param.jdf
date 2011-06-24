@@ -184,9 +184,9 @@ zttqrt(k, m)
   RW   A2 <- (   prevm == descA.mt ) ? A  zgeqrt(k, m ) : A1 zttqrt(k, prevm )
           -> A(m, k)
           -> (descA.nt-1 > k)? V zttmqr(k, m, (k+1)..(descA.nt-1))
-  RW   T  <- T2(m, k)
-          -> T2(m, k)
-          -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1))
+  RW   T  <- T2(m, k)                                              [type = LITTLE_T]
+          -> T2(m, k)                                              [type = LITTLE_T]
+          -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
     ; inline_c %{ return GETPRIO(m, k); %}
 
@@ -256,7 +256,7 @@ zttmqr(k, m, n)
           -> ( n == k+1 ) ? A zgeqrt( k+1, m ) 
           -> ( n != k+1 ) ? C zunmqr( k+1, m, n )
   READ  V <- A2 zttqrt(k, m) 
-  READ  T <- T  zttqrt(k, m) 
+  READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
     ; inline_c %{ return GETPRIO(m, n); %}
 

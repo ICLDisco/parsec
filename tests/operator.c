@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2011      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,11 @@
 #include "execution_unit.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int dague_operator_print_id( struct dague_execution_unit *eu, void* data, void* op_data, ... )
+static int
+dague_operator_print_id( struct dague_execution_unit *eu,
+                         const void* src,
+                         void* dest,
+                         void* op_data, ... )
 {
     va_list ap;
     int k, n;
@@ -17,8 +21,8 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
     k = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
-    printf( "tile %s(%d, %d) -> %p:%p thread %d\n",
-            (char*)op_data, k, n, data, op_data, eu->eu_id );
+    printf( "tile (%d, %d) -> %p:%p thread %d\n",
+            k, n, src, dest, eu->eu_id );
     return 0;
 }
 
@@ -48,8 +52,9 @@ int main( int argc, char* argv[] )
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
     object = dague_map_operator_New((tiled_matrix_desc_t*)&ddescA,
-                                      dague_operator_print_id,
-                                      "A");
+                                    NULL,
+                                    dague_operator_print_id,
+                                    "A");
     dague_enqueue(dague, (dague_object_t*)object);
 
     dague_progress(dague);
