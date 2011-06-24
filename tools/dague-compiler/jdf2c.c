@@ -3036,7 +3036,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)exec_context->dague_object;\n"
             "  dague_execution_context_t nc;\n"
             "  dague_arena_t* arena = NULL;\n"
-            "  int rank_src = eu->master_context->my_rank, rank_dst = eu->master_context->my_rank;\n"
+            "  int rank_src = 0, rank_dst = 0;\n"
             "%s"
             "  (void)rank_src; (void)rank_dst; (void)__dague_object;\n",
             name,
