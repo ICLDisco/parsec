@@ -6,6 +6,7 @@ extern "C" %{
    *
    */
 #include "dague.h"
+#include <math.h>
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -20,19 +21,29 @@ extern "C" %{
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 #define MYMAX(a, b) ((a)>(b)?(a):(b))
 
-#define PRIO_MATHIEU2
+#define PRIO_YVES1
 
 #if defined(PRIO_YVES1)
-#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
+#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
+#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
 #elif defined(PRIO_YVES2)
-#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
+#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
 #elif defined(PRIO_MATHIEU1)
-#define GETPRIO( __m, __n ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
+#define GETPRIO_PANEL( __m, __n )      (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
+#define GETPRIO_UPDTE( __m, __n, __k ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #elif defined(PRIO_MATHIEU2)
-#define GETPRIO( __m, __n ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 5 + (__n))
+#define GETPRIO_PANEL( __m, __n )      ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#elif defined(PRIO_MATYVES)
+#define FORMULE( __x ) ( ( -1. + sqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
+#define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
+#define GETPRIO_UPDTE( __m, __n, __k ) (int)( (__m) < (__n) ? GETPRIO_PANEL( (__n), (__n) ) - 22. * ( (__m) - (__k) ) - 6. * ( (__n) - (__m) ) \
+                                              :               GETPRIO_PANEL( (__m), (__n) ) - 22. * ( (__n) - (__k) ) )
 #else
 #warning running without priority
-#define GETPRIO( __m, __n ) 0
+#define GETPRIO_PANEL( __m, __n )      0
+#define GETPRIO_UPDTE( __m, __n, __k ) 0
 #endif
 
 %}
@@ -71,7 +82,7 @@ zgeqrt(k, m)
           -> T(m, k)                                                [type = LITTLE_T]
           -> (descA.nt-1 > k) ? T zunmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
        
-  ; inline_c %{ return GETPRIO(m, k); %}
+  ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
   DRYRUN(
@@ -120,7 +131,7 @@ zunmqr(k, m, n)
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
 
-    ; inline_c %{ return GETPRIO(m, n); %}
+    ; inline_c %{ return GETPRIO_UPDTE(m, n, k); %}
 
 BODY
   DRYRUN(
@@ -188,7 +199,7 @@ zttqrt(k, m)
           -> T2(m, k)                                              [type = LITTLE_T]
           -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
-    ; inline_c %{ return GETPRIO(m, k); %}
+    ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
   DRYRUN(
@@ -258,7 +269,7 @@ zttmqr(k, m, n)
   READ  V <- A2 zttqrt(k, m) 
   READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
-    ; inline_c %{ return GETPRIO(m, n); %}
+    ; inline_c %{ return GETPRIO_UPDTE(m, n, k); %}
 
 BODY
   DRYRUN(
