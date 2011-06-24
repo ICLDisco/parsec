@@ -50,15 +50,35 @@ int main(int argc, char *argv[])
 
     generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
 
-    if( check ) {
-        printf( "No check implemented yet.\n" );
-    }
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, 
          ((tiled_matrix_desc_t*)&ddescA));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
 
+    if( check ) {
+        printf( "No check implemented yet.\n" );
+
+        /* Regenerate A, distributed so that the random generators are doing
+         * the same things */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescAcpy, 1, 
+                two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, 
+                    nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
+                    0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
+        generate_tiled_random_mat((tiled_matrix_desc_t*) &ddescAcpy, 100);
+        /* Gather Acpy on rank 0 */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescLAcpy, 1, 
+                two_dim_block_cyclic, (&ddescLAcpy, matrix_ComplexDouble, 
+                    1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
+                    0, 0, MB+1, (NB+2)*NT, 1, 1, 1));
+
+        /* Gather A diagonal and subdiagonal on rank 0 */
+        PASTE_CODE_ALLOCATE_MATRIX(ddescLA, 1, 
+                two_dim_block_cyclic, (&ddescLA, matrix_ComplexDouble, 
+                    1, cores, rank, 2, NB, 2, NB*NT, 
+                    0, 0, 2, NB*NT, 1, 1, 1));
+
+    }
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
