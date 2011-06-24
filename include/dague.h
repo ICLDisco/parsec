@@ -107,8 +107,8 @@ struct dague_t {
     uint16_t                flags;
     uint16_t                function_id;
     dague_dependency_t      dependencies_goal;
-    uint16_t                nb_locals;
-    uint16_t                nb_params;
+    uint16_t                nb_parameters;
+    uint16_t                nb_definitions;
     const symbol_t*         params[MAX_LOCAL_COUNT];
     const symbol_t*         locals[MAX_LOCAL_COUNT];
     const expr_t*           pred;

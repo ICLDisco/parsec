@@ -714,7 +714,7 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
 
     index += snprintf( tmp + index, length - index, "%s", function->name );
     if( index >= length ) return tmp;
-    for( i = 0; i < function->nb_locals; i++ ) {
+    for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "%s%d",
                            (i == 0) ? "(" : ", ",
                            exec_context->locals[i].value );
@@ -752,7 +752,7 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
                     continue;
                 }
             }
-            if( dep->dague->nb_locals == 0 ) {
+            if( dep->dague->nb_parameters == 0 ) {
 #if defined(DAGUE_SCHED_DEPS_MASK)
                 ret |= param->param_mask;
 #else
@@ -775,7 +775,7 @@ static dague_dependencies_t *find_deps(dague_object_t *dague_object,
     deps = dague_object->dependencies_array[exec_context->function->deps];
     assert( NULL != deps );
 
-    for(p = 0; p < exec_context->function->nb_locals - 1; p++) {
+    for(p = 0; p < exec_context->function->nb_parameters - 1; p++) {
         assert( (deps->flags & DAGUE_DEPENDENCIES_FLAG_NEXT) != 0 );
         deps = deps->u.next[exec_context->locals[p].value - deps->min];
         assert( NULL != deps );
@@ -811,7 +811,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
     deps = find_deps(dague_object, exec_context);
     
-    position = CURRENT_DEPS_INDEX(function->nb_locals - 1);
+    position = CURRENT_DEPS_INDEX(function->nb_parameters - 1);
 
 #if !defined(DAGUE_SCHED_DEPS_MASK)
 
