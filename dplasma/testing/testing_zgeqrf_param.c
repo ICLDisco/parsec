@@ -10,6 +10,8 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
+#define DO_UBLE do##uble
+
 #define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
 #define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
@@ -52,26 +54,62 @@ int main(int argc, char ** argv)
     ddescTT.super.super.key = strdup("TT");
 #endif
 
-    if(!check) 
-    {
-        /* matrix generation */
-        if(loud > 2) printf("+++ Generate matrices ... ");
+    if(simul) {
+        /* Cannot use double... Use DO_UBLE... */
+        DO_UBLE tasks_costs[6];
+        dague_execution_context_t *init;
+        dague_object_t *o;
+        DO_UBLE cpath;
+        
+        /* Indices of the tasks_costs are to be found in the generated c file (look for <basename>_functions[]) */
+        tasks_costs[0] = 1.0; /**< zttmqr */
+        tasks_costs[1] = 0.0; /**< zttmqr_out */
+        tasks_costs[2] = 1.0; /**< zttqrt */
+        tasks_costs[3] = 0.0; /**< zttqrt_out */
+        tasks_costs[4] = 1.0; /**< sormqr */
+        tasks_costs[5] = 1.0; /**< zgeqrt */
+
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
-        if(loud > 2) printf("Done\n");
 
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
-                                  (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                                   (tiled_matrix_desc_t*)&ddescA,
-                                   (tiled_matrix_desc_t*)&ddescTS,
-                                   (tiled_matrix_desc_t*)&ddescTT));
-
-        /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param);
-
-        dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );
+        o = dplasma_zgeqrf_param_New(iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                                     (tiled_matrix_desc_t*)&ddescA,
+                                     (tiled_matrix_desc_t*)&ddescTS,
+                                     (tiled_matrix_desc_t*)&ddescTT);
+        init = NULL;
+        o->startup_hook( dague, o, &init );
+        
+        /* We use a single cost of 4.0 for all communications */
+        cpath = dague_compute_critical_path( dague->execution_units[0],
+                                             init,
+                                             tasks_costs,
+                                             4.0,
+                                             3 );
+        
+        printf("Critical Path Length: %g\n", cpath);
+    } else {
+        if(!check) 
+            {
+                /* matrix generation */
+                if(loud > 2) printf("+++ Generate matrices ... ");
+                dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+                dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
+                dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
+                if(loud > 2) printf("Done\n");
+                
+                /* Create DAGuE */
+                PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
+                                          (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                                           (tiled_matrix_desc_t*)&ddescA,
+                                           (tiled_matrix_desc_t*)&ddescTS,
+                                           (tiled_matrix_desc_t*)&ddescTT));
+                
+                /* lets rock! */
+                PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param);
+                
+                dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );
+            }
     }
 
     dague_data_free(ddescA.mat);
