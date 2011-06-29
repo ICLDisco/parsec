@@ -18,8 +18,12 @@
 #define min(__a, __b) ( ( (__a) < (__b) ) ? (__a) : (__b) )
 #endif
 
+#ifndef max
+#define max(__a, __b) ( ( (__a) > (__b) ) ? (__a) : (__b) )
+#endif
+
 #define PIV(_ipiv, _mt, _i, _k) (_piv)[(_k)*(_mt)+(_i)]
-/*#define PRINT_PIVGEN 1*/
+/* #define PRINT_PIVGEN 1 */
 
 #ifdef PRINT_PIVGEN
 #define myassert( test ) if ( ! (test) ) return -1;
@@ -34,6 +38,49 @@ int  dplasma_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, cons
 int  dplasma_binary_currpiv(const qr_subpiv_t *arg, const int m, const int k);
 int  dplasma_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start);
 int  dplasma_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start);
+
+int dplasma_qr_getnbgeqrf( int gmt, int a, int p, int k ) {
+    int nb;
+    nb = gmt - p * (k+1) - ( (p * (k+1))%a )*p;
+    nb = max( nb, 0 );
+    nb = ( nb / ( p * a ) ) * p + k*(p-1) + p + (( gmt - p*(k+1) < gmt%(p*a) ) ? 0 : min( gmt % (p*a), p ));
+    nb = min( nb, gmt - k );
+    return nb;
+}
+
+int dplasma_qr_getm( const int a, const int p, const int k, const int i)
+{
+    int pos1, j;
+    int nb23 = p + k*(p-1);
+    int end2 = (k+1)*p;
+    
+    /* Tile of type 2 or 3 */
+    if ( i < nb23 )
+        return k+i;
+    /* Tile of type 1 */
+    else {
+        pos1 = end2 + (end2%a) * p;
+        j = i - nb23;
+        return pos1 + (j/p) * a * p + j%p ;
+    }
+}
+
+int dplasma_qr_geti( const int a, const int p, const int k, const int m)
+{
+    int pos1, j;
+    int nb23 = p + k*(p-1);
+    int end2 = (k+1)*p;
+    
+    /* Tile of type 2 or 3 */
+    if ( m < end2 )
+        return m-k;
+    /* Tile of type 1 */
+    else {
+        pos1 = end2 + (end2%a) * p;
+        j = m - pos1;
+        return nb23 + (j / (p*a)) * p + j%(p*a) ;
+    }
+}
 
 /****************************************************
  *             Common ipiv
@@ -521,8 +568,8 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const 
  ***************************************************/
 qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t *A )
 {
-    int a = 1;
-    int p = 1;
+    int a = 2;
+    int p = 3;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
     qrpiv->currpiv = dplasma_qr_currpiv;
     qrpiv->nextpiv = dplasma_qr_nextpiv;
@@ -698,6 +745,51 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
         }
     }
 #endif
+
+    printf("\n------------ Nb GEQRT  --------------\n");
+    {
+        int minMN = min(A->mt, A->nt );
+        int m, k, nb, gmt;
+        for (k=0; k<minMN; k++) {
+            printf( "%3d ", k );
+        }
+        printf( "\n" );
+        for (k=0; k<minMN; k++) {
+            nb = 0;
+            for (m=k; m < A->mt; m++) {
+                if ( localize(m, k, qrpiv->p, qrpiv->a, m / qrpiv->p) > 0 )
+                    nb++;
+            }
+            printf( "%3d ", nb );
+        }
+        printf( "\n" );
+        for (k=0; k<minMN; k++) {
+            printf( "%3d ", dplasma_qr_getnbgeqrf( A->mt, a, p, k ) );
+        }
+        printf( "\n" );
+    }
+
+    printf("\n------------ Listes Geqrt  --------------\n");
+    {
+        int minMN = min(A->mt, A->nt );
+        int i, m, k, nb;
+        for (k=0; k<minMN; k++) {
+        }
+        printf( "\n" );
+        for (k=0; k<minMN; k++) {
+            printf( "%3d | ", k );
+
+            for (i=0; i < dplasma_qr_getnbgeqrf( A->mt, a, p, k ); i++) {
+                m = dplasma_qr_getm( a, p, k, i );
+                if ( i == dplasma_qr_geti( a, p, k, m) )
+                    printf( "%3d ", m );
+                else
+                    printf( "x%2d ", dplasma_qr_geti( a, p, k, m) );
+            }
+            printf( "\n" );
+        }
+    }
+
 #endif
 
     return qrpiv;
