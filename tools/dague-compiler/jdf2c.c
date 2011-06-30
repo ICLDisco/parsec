@@ -365,7 +365,7 @@ static char* dump_predicate(void** elem, void *arg)
     string_arena_init(sa);
     string_arena_add_string(sa, "%s_pred(%s) ",
                             f->fname,
-                            UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name,
+                            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name,
                                                  dump_string, NULL, 
                                                  "", "", ", ", ""));
     expr_info.sa = sa3;
@@ -1069,7 +1069,7 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
     string_arena_free(sa3);
 }
 
-static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_name_list_t *context,
+static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t *context,
                                          const char *fname, const char *name)
 {
     string_arena_t *sa = string_arena_new(64);
@@ -1504,7 +1504,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         }
     }
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                                             dump_string, NULL, 
                                                             "", "", ", ", ""));
     {
@@ -1572,7 +1572,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_t *sa1, *sa2;
     jdf_def_list_t *dl;
     jdf_name_list_t *pl;
-    int nesting;
+    int nesting, idx;
     const jdf_function_entry_t *pf;
     expr_info_t info1, info2;
 
@@ -1582,10 +1582,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("static int %s(__dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
             "  dague_dependencies_t *dep = NULL;\n"
+            "  assignment_t assignments[MAX_LOCAL_COUNT];\n"
             "  int nb_tasks = 0, __foundone = 0;\n"
             "%s",
             fname, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
                                  "  int32_t ", " ", ",", ";\n"));
     coutput("%s"
             "%s",
@@ -1624,9 +1625,12 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     coutput("  /* First, find the min and max value for each of the dimensions */\n");
 
+    idx = 0;
     nesting = 0;
-    for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
+    pl = f->parameters;
+    for(dl = f->definitions; dl != NULL; dl = dl->next ) {
         if(dl->expr->op == JDF_RANGE) {
+            assert( pl != NULL );
             coutput("%s  for(%s = %s;\n"
                     "%s      %s <= %s;\n"
                     "%s      %s++) {\n",
@@ -1638,12 +1642,18 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  %s = %s;\n", 
                     indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
         }
+        coutput("%s  assignments[%d].value = %s;\n", 
+                indent(nesting), idx, dl->name);
+        idx++;
+
+        if ( pl != NULL )
+            pl = pl->next;
     }
 
     string_arena_init(sa1);
     coutput("%s  if( !%s_pred(%s) ) continue;\n"
             "%s  nb_tasks++;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name,
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                                             dump_string, NULL, 
                                                             "", "", ", ", ""),
             indent(nesting));
@@ -1677,7 +1687,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  dep = NULL;\n");
 
         nesting = 0;
-        for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
+        idx = 0;
+        for(dl = f->definitions; dl != NULL; dl = dl->next) {
             if( dl->next == NULL ) {
                 coutput("%s  __foundone = 0;\n", indent(nesting));
             }
@@ -1695,11 +1706,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 coutput("%s  %s = %s;\n", 
                         indent(nesting), dl->name, dump_expr((void**)&dl->expr, &info1));
             }
+
+            coutput("%s  assignments[%d].value = %s;\n", 
+                    indent(nesting), idx, dl->name);
+            idx++;
         }
 
         coutput("%s  if( %s_pred(%s) ) {\n"
                 "%s    /* We did find one! Allocate the dependencies array. */\n",
-                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name,
+                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name,
                                                                 dump_string, NULL, 
                                                                 "", "", ", ", ""),
                 indent(nesting));
@@ -1841,7 +1856,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                                                  "", prefix, ", ", ""));
 
     sprintf(prefix, "pred_of_%s_%s_as_expr", jdf_basename, f->fname);
-    jdf_generate_predicate_expr(jdf, f->parameters, f->fname, prefix);
+    jdf_generate_predicate_expr(jdf, f->definitions, f->fname, prefix);
     string_arena_add_string(sa, "  .pred = &%s,\n", prefix);
 
     if( NULL != f->priority ) {
@@ -2869,7 +2884,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     linfo.prefix = p;
     linfo.sa = sa1;
-    linfo.assignments = "assignments";
+    linfo.assignments = "nc.locals";
 
     info.sa = sa2;
     info.prefix = "";
