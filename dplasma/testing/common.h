@@ -58,6 +58,8 @@ enum iparam_t {
   IPARAM_VERBOSE,      /* How much noise do we want?        */
   IPARAM_LOWLVL_TREE,  /* Tree used for reduction inside nodes  (specific to xgeqrf_param) */
   IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
+  IPARAM_QR_TS_SZE,    /* Size of TS domain                     (specific to xgeqrf_param) */
+  IPARAM_QR_HLVL_SZE,  /* Size of the high level tree           (specific to xgeqrf_param) */
   IPARAM_DOT,          /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };

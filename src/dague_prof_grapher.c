@@ -107,7 +107,7 @@ static char *service_to_taskid(const dague_execution_context_t *exec_context, ch
     unsigned int i, index = 0;
 
     index += snprintf( tmp + index, length - index, "%s", function->name );
-    for( i = 0; i < function->nb_locals; i++ ) {
+    for( i = 0; i < function->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
                            exec_context->locals[i].value );
     }

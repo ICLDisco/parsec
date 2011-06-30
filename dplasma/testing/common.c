@@ -84,8 +84,10 @@ void print_usage(void)
             " -x --check        : verify the results\n"
             " -X --cpath        : do a simulation and compute the critical path\n"
             "\n"
+            "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
+            "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
-            "    --treeh        : Tree used for high level reduction between nodes. (specific to xgeqrf_param)\n"
+            "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
@@ -138,6 +140,8 @@ static struct option long_options[] =
     {"cpath",       no_argument,        0, 'X'},
     {"X",           no_argument,        0, 'X'},
 
+    {"qr_a",        required_argument,  0, '0'},
+    {"qr_q",        required_argument,  0, '1'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
@@ -199,7 +203,9 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'x': iparam[IPARAM_CHECK] = 1; break; 
             case 'X': iparam[IPARAM_SIMUL] = 1; break;
-
+                
+            case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
+            case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
 

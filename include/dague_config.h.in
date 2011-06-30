@@ -90,9 +90,9 @@
 #define restrict 
 #endif
 
-#define MAX_LOCAL_COUNT  10
-#define MAX_PRED_COUNT   10
-#define MAX_PARAM_COUNT  10
+#define MAX_LOCAL_COUNT  20
+#define MAX_PRED_COUNT   20
+#define MAX_PARAM_COUNT  20
 
 #include "dague_config_bottom.h"
 
