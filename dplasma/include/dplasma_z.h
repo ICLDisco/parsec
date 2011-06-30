@@ -30,7 +30,7 @@ int dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix
 int dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B ); 
 int dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B ); 
 int dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
-int dplasma_zgeqrf_param( dague_context_t *dague, int tree_llvl, int tree_hlvl, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
+int dplasma_zgeqrf_param( dague_context_t *dague, int tree_llvl, int tree_hlvl, int sze_ts, int sze_hlvl, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
 int dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 int dplasma_zungqr( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 
@@ -57,7 +57,7 @@ dague_object_t* dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_ma
 /* Lapack */
 dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, int* INFO);
 dague_object_t* dplasma_zgeqrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
-dague_object_t* dplasma_zgeqrf_param_New(int tree_llvl, int tree_hlvl, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
+dague_object_t* dplasma_zgeqrf_param_New(int tree_llvl, int tree_hlvl, int sze_ts, int sze_hlvl, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
 dague_object_t* dplasma_zgelqf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 dague_object_t *dplasma_zherbt_New( PLASMA_enum uplo, int ib, PLASMA_desc descA, tiled_matrix_desc_t *A, PLASMA_desc descT, tiled_matrix_desc_t *T);
 dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A);

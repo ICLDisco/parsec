@@ -64,6 +64,7 @@ int main(int argc, char ** argv)
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
                                   (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                                   iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
                                    (tiled_matrix_desc_t*)&ddescA,
                                    (tiled_matrix_desc_t*)&ddescTS,
                                    (tiled_matrix_desc_t*)&ddescTT));
