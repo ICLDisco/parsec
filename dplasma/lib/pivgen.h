@@ -95,13 +95,13 @@ struct qr_subpiv_s {
     int a;       /* Height of the TS domain */
 };
 
-qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t *A );
+qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, int a, int p );
 void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
 
 
-int dplasma_qr_getnbgeqrf( int gmt, int a, int p, int k );
-int dplasma_qr_getm( const int a, const int p, const int k, const int i);
-int dplasma_qr_geti( const int a, const int p, const int k, const int m);
-int dplasma_qr_gettype( const int m, const int k, const int p, const int a, const int lm );
+int dplasma_qr_getnbgeqrf( const int a, const int p, const int k, const int gmt );
+int dplasma_qr_getm(       const int a, const int p, const int k, const int i   );
+int dplasma_qr_geti(       const int a, const int p, const int k, const int m   );
+int dplasma_qr_gettype(    const int a, const int p, const int k, const int m   );
 
 #endif
