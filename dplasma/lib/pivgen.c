@@ -116,7 +116,7 @@ inline static int nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, c
  *      2 - if m is reduced thanks to the bubble tree
  *      3 - if m is reduced in distributed
  */
-inline static int localize( const int m, const int k, const int p, const int a, const int lm ) {
+int dplasma_qr_gettype( const int m, const int k, const int p, const int a, const int lm ) {
     myassert( m >= k );
 
     /* Element to be reduce in distributed */
@@ -152,7 +152,7 @@ int dplasma_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const
         return start-1;
     else
 #else /* FLAT_DOWN */
-    if ( p == (k/arg->a) ) {
+    if ( p == (k/arg->a) && ( arg->ldd - k/arg->a ) > 1 ) {
         if ( start == arg->ldd )
             return p+1;
         else if ( start < arg->ldd )
@@ -169,7 +169,7 @@ int dplasma_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const
       return start+1;
     else 
 #else
-    if ( p == (k/arg->a) ) { 
+      if ( p == (k/arg->a) && ( arg->ldd - k/arg->a ) > 1  ) { 
         if ( start == p )
             return arg->ldd - 1;
         else if ( start > p + 1 )
@@ -426,8 +426,8 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
     int rank = m % p; /* Staring index in this distribution             */
 
     /* TS level common to every case */
-    /*return localize( m, k, p, a, lm );*/
-    switch( localize( m, k, p, a, lm ) ) 
+    /*return dplasma_qr_gettype( m, k, p, a, lm );*/
+    switch( dplasma_qr_gettype( m, k, p, a, lm ) ) 
         {
         case 0:
             return ( (lm / a) == (k / a) ) ? k*p+rank : (lm / a) * a * p + rank;
@@ -463,8 +463,8 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const 
     myassert( start == arg->desc->mt || pivot == dplasma_qr_currpiv( arg, start, k ) );
             
     /* TS level common to every case */
-    ls = (start < arg->desc->mt) ? localize( start, k, p, a, lstart ) : -1;
-    lp = localize( pivot, k, p, a, lpivot );
+    ls = (start < arg->desc->mt) ? dplasma_qr_gettype( start, k, p, a, lstart ) : -1;
+    lp = dplasma_qr_gettype( pivot, k, p, a, lpivot );
 
     if ( lp == 0 ) {
         myassert( start == arg->desc->mt );
@@ -478,10 +478,14 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const 
  
         if ( pivot < nextp ) 
             return nextp; 
-    } 
 
-    /* Get the next pivot for the low level tree */
-    tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, (lstart+a-1) / a);
+        tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, arg->llvl->ldd);
+    } 
+    else {
+      /* Get the next pivot for the low level tree */
+      tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, (lstart+a-1) / a);
+    }
+
     if ( tmp != arg->llvl->ldd )
         return tmp * a * p + rpivot;
     else if ( lp == 1 || ( lp == 2 && lpivot == k) )
@@ -498,7 +502,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const 
         if ( start == pivot + p * a )
             return arg->desc->mt;
     } else {
-        tmp = arg->hlvl->prevpiv( arg->hlvl, lpivot / a, k, lstart / a );
+        tmp = arg->hlvl->nextpiv( arg->hlvl, lpivot / a, k, lstart / a );
         if ( tmp != arg->hlvl->ldd )
             return tmp * a * p + rpivot; /* ToDo: fix */
     }
@@ -519,11 +523,10 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const 
     myassert( start == pivot || pivot == dplasma_qr_currpiv( arg, start, k ) );
             
     /* TS level common to every case */
-    ls = localize( start, k, p, a, lstart );
-    switch( localize( pivot, k, p, a, lpivot ) )
+    ls = dplasma_qr_gettype( start, k, p, a, lstart );
+    switch( dplasma_qr_gettype( pivot, k, p, a, lpivot ) )
         {
         case 0:
-            myassert( start == arg->desc->mt );
             return arg->desc->mt;
             break;
 
@@ -569,7 +572,7 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const 
 qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t *A )
 {
     int a = 2;
-    int p = 3;
+    int p = 1;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
     qrpiv->currpiv = dplasma_qr_currpiv;
     qrpiv->nextpiv = dplasma_qr_nextpiv;
@@ -615,7 +618,7 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
         for(m=0; m<A->mt; m++) {
             printf("%4d | ", m);              
             for (k=0; k<min(minMN, m+1); k++) {
-                printf( "%3d ", localize(m, k, qrpiv->p, qrpiv->a, m / qrpiv->p) );
+                printf( "%3d ", dplasma_qr_gettype(m, k, qrpiv->p, qrpiv->a, m / qrpiv->p) );
             }
             for (k=min(minMN, m+1); k<minMN; k++) {
                 printf( "    " );
@@ -624,7 +627,7 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
             printf("    ");
             printf("%2d,%4d | ", rank, lmg);
             for (k=0; k<min(minMN, lmg+1); k++) {
-                printf( "%3d ", localize(lmg, k, qrpiv->p, qrpiv->a, lmg / qrpiv->p) );
+                printf( "%3d ", dplasma_qr_gettype(lmg, k, qrpiv->p, qrpiv->a, lmg / qrpiv->p) );
             }
             for (k=min(minMN, lmg+1); k<minMN; k++) {
                 printf( "    " );
@@ -674,7 +677,7 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
     }
 
     fflush(stdout);
-#if 0
+
     printf("\n------------ Next (k=0)--------------\n");
     {
         int m, k;
@@ -691,7 +694,7 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
             printf("\n");
         }
     }
-
+#if 0
     printf("\n------------ Next (k = 5)--------------\n");
     {
         int m, k;
@@ -708,7 +711,7 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
             printf("\n");
         }
     }
-
+#endif
     printf("\n------------ prev --------------\n");
     {
         int m, k;
@@ -721,12 +724,12 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
             printf("%4d | ", m);              
             for(k=A->mt; k>-1; k--) {
                 /*for (k=0; k<min(minMN, m+1); k++) {*/
-                printf( "%4d  ", qrpiv->prevpiv(qrpiv, m, 0, k) );
+                printf( "%4d  ", qrpiv->prevpiv(qrpiv, m, 2, k) );
             }
             printf("\n");
         }
     }
-
+#if 0
     printf("\n------------ prev (k = 5)--------------\n");
     {
         int m, k;
@@ -757,7 +760,7 @@ qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t
         for (k=0; k<minMN; k++) {
             nb = 0;
             for (m=k; m < A->mt; m++) {
-                if ( localize(m, k, qrpiv->p, qrpiv->a, m / qrpiv->p) > 0 )
+                if ( dplasma_qr_gettype(m, k, qrpiv->p, qrpiv->a, m / qrpiv->p) > 0 )
                     nb++;
             }
             printf( "%3d ", nb );
