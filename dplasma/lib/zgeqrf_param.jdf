@@ -47,29 +47,31 @@ pivfct [type = "qr_piv_t*"]
 ib     [type = "int"]
 p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descT.nb))"]
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descT.nb))"]
+param_p[type = int default="pivfct->p" hidden=on]
+param_a[type = int default="pivfct->a" hidden=on]
 
 
-zgeqrt(k, m)
+zgeqrt(k, i)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  m = k..descA.mt-1
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
   : A(m, k)
-
 
   /* A == A(m, k) */
   /* T == T(m, k) */
 
   RW    A <- ( 0 == k ) ? A(m, k) 
           <- ( k > 0  ) ? A2 zttmqr(k-1, m, k ) 
-          -> (descA.nt-1 > k) ? A zunmqr(k, m, (k+1)..(descA.nt-1)) 
+          -> (descA.nt-1 > k) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) 
           -> ( k == descA.mt-1 ) ? A(m, k)   
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm)
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  A2 zttqrt(k, m)
   RW    T <- T(m, k)                                                [type = LITTLE_T]
           -> T(m, k)                                                [type = LITTLE_T]
-          -> (descA.nt-1 > k) ? T zunmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
+          -> (descA.nt-1 > k) ? T zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LITTLE_T]
        
   ; inline_c %{ return GETPRIO(m, k); %}
 
@@ -99,11 +101,12 @@ BODY
 END
 
 
-zunmqr(k, m, n)
+zunmqr(k, i, n)
   /* Execution space */
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
-  m = k..descA.mt-1
+     i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
+  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
   : A(m, n)
@@ -112,8 +115,8 @@ zunmqr(k, m, n)
   /* T == T(m,k) */
   /* C == A(m,n) */
 
-  READ  A <- A zgeqrt(k, m) 
-  READ  T <- T zgeqrt(k, m)                                         [type = LITTLE_T]
+  READ  A <- A zgeqrt(k, i) 
+  READ  T <- T zgeqrt(k, i)                                         [type = LITTLE_T]
   RW    C <- ( 0 == k ) ? A(m, n)
           <- ( k >  0 ) ? A2 zttmqr(k-1, m, n) 
           -> ( k == descA.mt-1 ) ? A(m, n)   
@@ -151,7 +154,7 @@ END
 
 
 zttqrt_out_A1(k)
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
+  k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
   prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
 
   : A(k, k)
@@ -170,6 +173,9 @@ zttqrt(k, m)
   nextp = inline_c %{ return pivfct->nextpiv(pivfct, p, k, m); %}
   prevp = inline_c %{ return pivfct->prevpiv(pivfct, p, k, m); %}
   prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
+  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, k, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
+  im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
 
   : A(m, k)
 
@@ -177,11 +183,14 @@ zttqrt(k, m)
   /* A2 == A(m,  k) */
   /* T  == T2(m, k) */
 
-  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, p ) : A1 zttqrt(k, prevp )
+  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp )
           -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )
           -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)
           -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)
-  RW   A2 <- (   prevm == descA.mt ) ? A  zgeqrt(k, m ) : A1 zttqrt(k, prevm )
+  RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, k)
+          <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, k )
+          <- ( (type != 0) && (prevm == descA.mt ) ) ? A  zgeqrt(k, im )
+          <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttqrt(k, prevm )
           -> A(m, k)
           -> (descA.nt-1 > k)? V zttmqr(k, m, (k+1)..(descA.nt-1))
   RW   T  <- T2(m, k)                                              [type = LITTLE_T]
@@ -199,13 +208,21 @@ BODY
          int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
          int ldam = BLKLDD( descA, m );
          
-         CORE_zttqrt(
+         if ( type == 0 ) {
+           CORE_ztsqrt(
                      tempmm, tempkn, ib, 
                      A1 /* A(p, k) */, descA.mb, 
                      A2 /* A(m, k) */, ldam, 
                      T  /* T(m, k) */, descT.mb, 
                      p_elem_A, p_elem_B );
-
+         } else {
+           CORE_zttqrt(
+                     tempmm, tempkn, ib, 
+                     A1 /* A(p, k) */, descA.mb, 
+                     A2 /* A(m, k) */, ldam, 
+                     T  /* T(m, k) */, descT.mb, 
+                     p_elem_A, p_elem_B );
+         }
          dague_private_memory_push( p_tau , p_elem_A );
          dague_private_memory_push( p_work, p_elem_B );
          
@@ -240,6 +257,10 @@ zttmqr(k, m, n)
   nextp = inline_c %{ return pivfct->nextpiv(pivfct, p, k, m); %}
   prevp = inline_c %{ return pivfct->prevpiv(pivfct, p, k, m); %}
   prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
+  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, k, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
+  im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
+  im1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, k+1, m ); %}
 
   : A(m, n)
 
@@ -248,13 +269,20 @@ zttmqr(k, m, n)
   /* A1 == A(p, n) */
   /* A2 == A(m, n) */
 
-  RW   A1 <- (   prevp == descA.mt ) ? C  zunmqr( k, p, n ) : A1 zttmqr(k, prevp, n )
+  RW   A1 <- (   prevp == descA.mt ) ? C  zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
           -> (   nextp != descA.mt ) ? A1 zttmqr( k, nextp, n)
           -> ( ( nextp == descA.mt ) & ( p == k ) ) ? A zttmqr_out_A1(p, n)
           -> ( ( nextp == descA.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
-  RW   A2 <- (   prevm == descA.mt ) ? C zunmqr(k, m, n) : A1 zttmqr(k, prevm, n )
-          -> ( n == k+1 ) ? A zgeqrt( k+1, m ) 
-          -> ( n != k+1 ) ? C zunmqr( k+1, m, n )
+  RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, n)
+          <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
+          <- ( (type != 0) && (prevm == descA.mt ) ) ? C  zunmqr(k, im, n)
+          <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttmqr(k, prevm, n )
+          -> ( (type == 0) && (m/param_p == (k+1)) && (n==(k+1)) ) ? A  zgeqrt( k+1, im1 ) 
+          -> ( (type == 0) && (m/param_p == (k+1)) && (n>  k+1)  ) ? C  zunmqr( k+1, im1, n )
+          -> ( (type == 0) && (m/param_p >  (k+1)) && (n==(k+1)) ) ? A2 zttqrt( k+1, m ) 
+          -> ( (type == 0) && (m/param_p >  (k+1)) && (n> (k+1)) ) ? A2 zttmqr( k+1, m, n ) 
+          -> ( (type != 0) && ( n == k+1 ) ) ? A zgeqrt( k+1, im1 ) 
+          -> ( (type != 0) && ( n >  k+1 ) ) ? C zunmqr( k+1, im1, n )
   READ  V <- A2 zttqrt(k, m) 
   READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
@@ -269,7 +297,8 @@ BODY
          int ldam = BLKLDD( descA, m );
          int ldwork = ib;
          
-         CORE_zttmqr(
+         if ( type == 0 ) {
+           CORE_ztsmqr(
              PlasmaLeft, PlasmaConjTrans, 
              descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, 
              A1 /* A(p, n) */, descA.mb, 
@@ -277,7 +306,16 @@ BODY
              V  /* A(m, k) */, ldam, 
              T  /* T(m, k) */, descT.mb, 
              p_elem_A, ldwork );
-
+         } else {
+           CORE_zttmqr(
+             PlasmaLeft, PlasmaConjTrans, 
+             descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, 
+             A1 /* A(p, n) */, descA.mb, 
+             A2 /* A(m, n) */, ldam, 
+             V  /* A(m, k) */, ldam, 
+             T  /* T(m, k) */, descT.mb, 
+             p_elem_A, ldwork );
+         }
          dague_private_memory_push( p_work, p_elem_A );
          
          );
