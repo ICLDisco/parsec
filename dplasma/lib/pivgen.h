@@ -98,4 +98,10 @@ struct qr_subpiv_s {
 qr_piv_t *dplasma_pivgen_init( int type_llvl, int type_hlvl, tiled_matrix_desc_t *A );
 void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
 
+
+int dplasma_qr_getnbgeqrf( int gmt, int a, int p, int k );
+int dplasma_qr_getm( const int a, const int p, const int k, const int i);
+int dplasma_qr_geti( const int a, const int p, const int k, const int m);
+int dplasma_qr_gettype( const int m, const int k, const int p, const int a, const int lm );
+
 #endif
