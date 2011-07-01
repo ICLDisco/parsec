@@ -5,7 +5,53 @@
  *
  * @precisions normal z -> s d c
  *
- */
+ *
+ * This file contains all the function to describe the dependencies
+ * used in the ageqrf_param.jdf file.  
+ * The QR factorization done with this file relies on three levels: 
+ *     - the first one is using a flat tree with TS kernels. The
+ *       height of this tree is defined by the parameter 'a'. If 'a'
+ *       is set to A->mt, the factorization is identical to the one
+ *       perform by PLASMA_zgeqrf.
+ *       For all subdiagonal "macro-tiles", the line reduced is always the first.
+ *       For all diagonal "macro-tiles", the factorization performed
+ *       is identical to the one performed by PLASMA_zgeqrf.
+ *
+ *     - the third level is using a reduction tree of size 'p'. By
+ *       default, the parameter 'p' should be equal to the number of
+ *       processors used for the computation, but can be set
+ *       differently. (see further example). The type of tree used at
+ *       this level is defined by the hlvl parameter. It can be flat
+ *       or greedy.
+ *       CODE DETAILS: This tree and all the function related to it
+ *       are performing a QR factorization on a band matrix with 'p'
+ *       the size of the band. All the functions take global indices
+ *       as input and return global indices as output.
+ *
+ *     - Finally, a second 'low' level of reduction tree is applied.
+ *       The size of this tree is induced by the parameters 'a' and 'p'
+ *       from the first and third levels and is A->mt / ( p * a ). This
+ *       tree is reproduced p times for each subset of tiles 
+ *       S_k = {i in [0, A->mt-1] \ i%p*a = k } with k in [0, p-1].
+ *       The tree used for the reduction is defined by the llvl
+ *       parameter and can be: flat, greedy, fibonacci or binary.
+ *       CODE DETAILS: For commodity, the size of this tree is always 
+ *       ceil(A->mt / (p * a) ) inducing some extra tests in the code.
+ *       All the functions related to this level of tree take as input
+ *       the local indices in the A->mt / (p*a) matrix and the global
+ *       k. They return the local index. The reductions are so
+ *       performed on a trapezoidal matrices where the step is defined
+ *       by a:
+ *                                    <- min( lhlvl_mt, min( mt, nt ) ) ->
+ *                                     __a__   a     a
+ *                                    |     |_____   
+ *                                    |           |_____
+ *                                    |                 |_____
+ *        lhlvl_mt = ceil(MT/ (a*p))  |                       |_____
+ *                                    |                             |_____
+ *                                    |___________________________________|
+ *
+ */ 
 #include <math.h>
 #include <plasma.h>
 #include <dague.h>
@@ -530,6 +576,48 @@ void dplasma_high_flat_init(qr_subpiv_t *arg, int mt, int a){
     arg->currpiv = dplasma_high_flat_currpiv;
     arg->nextpiv = dplasma_high_flat_nextpiv;
     arg->prevpiv = dplasma_high_flat_prevpiv;
+    arg->ipiv = NULL;
+    arg->ldd  = mt;
+    arg->a    = a;
+};
+
+/****************************************************
+ *                 DPLASMA_HIGH_GREEDY_TREE
+ ***************************************************/
+int dplasma_high_greedy_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
+{ 
+    (void)arg;
+    (void)m;
+    return k;
+};
+
+int dplasma_high_greedy_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+{ 
+    if ( p == k && arg->ldd > 1 ) {
+        if ( start == arg->ldd )
+            return p+1;
+        else if ( start < arg->ldd && (start-k < arg->a-1) )
+            return start+1;
+    }
+    return arg->ldd;
+};
+
+int dplasma_high_greedy_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+{ 
+    assert( arg->a > 1 );
+    if ( p == k && arg->ldd > 1 ) { 
+        if ( start == p && p != arg->ldd-1 )
+            return min( p + arg->a - 1, arg->ldd - 1 );
+        else if ( start > p + 1 && (start-k < arg->a))
+            return start-1;
+    }
+    return arg->ldd;
+};
+
+void dplasma_high_greedy_init(qr_subpiv_t *arg, int mt, int a){
+    arg->currpiv = dplasma_high_greedy_currpiv;
+    arg->nextpiv = dplasma_high_greedy_nextpiv;
+    arg->prevpiv = dplasma_high_greedy_prevpiv;
     arg->ipiv = NULL;
     arg->ldd  = mt;
     arg->a    = a;
