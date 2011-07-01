@@ -187,6 +187,18 @@ int dplasma_qr_gettype( const int a, const int p, const int k, const int m ) {
     } 
 }
 
+int dplasma_qr_getinon0( const int a, const int p, const int k, int i, int mt ) {
+
+    int j;
+    for(j=k; j<mt; j++) {
+        if ( dplasma_qr_gettype( a, p, k, j) != 0 )
+            i--;
+        if ( i == -1 )
+            break;
+    }
+    return j;
+}
+
 /****************************************************
  *                 DPLASMA_LOW_FLAT_TREE
  ***************************************************/
@@ -466,13 +478,7 @@ void dplasma_low_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
         
         free(nT);
         free(nZ);
-    }/*  else { */
-    /*     int j; */
-    /*     for( j=0; j < minMN; j++ ) { */
-    /*         ipiv[ j ] = -1; */
-    /*     } */
-    /* } */        
-
+    }
 #if 0
     {
         int m, k;
@@ -561,75 +567,6 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         }
 };
 
-#if 0
-int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
-{ 
-    int tmp, ls, lp, nextp;
-    int a    = arg->a;
-    int p    = arg->p;
-    int lpivot = pivot / p; /* Local index in the distribution over p domains */
-    int rpivot = pivot % p; /* Staring index in this distribution             */
-    int st = ( start == arg->desc->mt ) ? arg->desc->mt + p - 1 : start ;
-    int lstart = st / p; /* Local index in the distribution over p domains */
-
-    myassert( start > pivot && pivot >= k );
-    myassert( start == arg->desc->mt || pivot == dplasma_qr_currpiv( arg, start, k ) );
-            
-    /* TS level common to every case */
-    ls = (start < arg->desc->mt) ? dplasma_qr_gettype( a, p, k, start ) : -1;
-    lp = dplasma_qr_gettype( a, p, k, pivot );
-
-    if ( lp == 0 ) {
-        myassert( start == arg->desc->mt );
-        return arg->desc->mt;
-    }
-
-    /* First query / Check for use in TS */
-    if ( start == arg->desc->mt || ls == 0 ) {
-        tmp = min( lstart - 1, lpivot + a - 1 - lpivot%a );
-        nextp = tmp * p + rpivot;
- 
-        if ( pivot < nextp && nextp < arg->desc->mt ) 
-            return nextp; 
-
-        tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, arg->llvl->ldd);
-    } 
-    else {
-        /* Get the next pivot for the low level tree */
-        tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, (lstart+a-1) / a);
-    }
-
-    if ( !(rpivot < ( p + arg->desc->mt%(p*a) - 1)%p + 1)
-         && (tmp == arg->llvl->ldd-1) )
-        tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, tmp);
-
-    if ( tmp != arg->llvl->ldd )
-        return tmp * a * p + rpivot;
-    else if ( lp == 1 || ( lp == 2 && lpivot == k) )
-        return arg->desc->mt;
-
-    if ( (start == arg->desc->mt) && 
-         (lpivot < k)             &&
-         (pivot+p < arg->desc->mt) ) {
-        return pivot+p;
-    }
-
-    if( arg->hlvl == NULL ) {
-        if ( start == pivot + p * a )
-            return arg->desc->mt;
-    } else {
-        if ( start < k + p)
-            tmp = arg->hlvl->nextpiv( arg->hlvl, pivot, k, start );
-        else
-            tmp = arg->hlvl->nextpiv( arg->hlvl, pivot, k, arg->desc->mt );
-
-        if ( tmp != arg->desc->mt ) 
-            return tmp;
-    }
-    return arg->desc->mt;
-}
-#endif
-
 int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, int k, int start)
 { 
     int tmp, ls, lp, nextp;
@@ -688,7 +625,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, int k, int start)
             /* Get the next pivot for the low level tree */
             tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, lstart / a );
 
-            if ( !(rpivot < ( p + arg->desc->mt%(p*a) - 1)%p + 1)
+            if ( (tmp * a * p + rpivot >= arg->desc->mt)
                  && (tmp == arg->llvl->ldd-1) )
                 tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, tmp);
             
@@ -791,10 +728,8 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, int k, int start)
                  
             if ( (ls == 1) || (start == pivot) ) {
                 tmp = arg->llvl->prevpiv(arg->llvl, lpivot / a, k, lstart / a);
-                /* if ( tmp != arg->llvl->ldd ) */
-                /*         return tmp * a * p + rpivot; */
 
-                if ( !(rpivot < ( p + arg->desc->mt%(p*a) - 1)%p + 1)
+                if ( (tmp * a * p + rpivot >= arg->desc->mt)
                      && (tmp == arg->llvl->ldd-1) )
                     tmp = arg->llvl->prevpiv(arg->llvl, lpivot / a, k, tmp);
                 
@@ -861,20 +796,33 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
      * Check indices of geqrt 
      */
     {
+        int prevm = -1;
         check = 1;
         for (k=0; k<minMN; k++) {
             /* dplasma_qr_print_geqrt_k( A, qrpiv, k ); */
             nb = dplasma_qr_getnbgeqrf( a, p, k, A->mt );
+            prevm = -1;
             for (i=0; i < nb; i++) {
 
                 m = dplasma_qr_getm( a, p, k, i );
-                if ( m < k ) {
+
+                /* tile before the diagonal are factorized and 
+                 * the m is a growing list
+                 */
+                if ( ( m < k ) || ( m < prevm ) ) {
                     check = 0;
                     printf(" ----------------------------------------------------\n"
                            "  - a = %d, p = %d, M = %d, N = %d\n"
                            "     Check indices of geqrt:\n"
                            "        getm( k=%d, i=%d ) => m = %d", 
                            a, p, A->mt, A->nt, k, i, m);
+                } else if ( m != dplasma_qr_getinon0( a, p, k, i, A->mt ) ) {
+                    check = 0;
+                    printf(" ----------------------------------------------------\n"
+                           "  - a = %d, p = %d, M = %d, N = %d\n"
+                           "     Check indices of geqrt:\n"
+                           "        getm( k=%d, i=%d ) => m = %d but should be %d", 
+                           a, p, A->mt, A->nt, k, i, m, dplasma_qr_getinon0( a, p, k, i, A->mt));
                 } else if ( i != dplasma_qr_geti( a, p, k, m) ) {
                     check = 0;
                     printf(" ----------------------------------------------------\n"
@@ -884,9 +832,72 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
                            a, p, A->mt, A->nt, 
                            k, i, m, k, m, dplasma_qr_geti( a, p, k, m));
                 }
+                prevm = m;
             }
         }
         ENDCHECK( check, 2 );
+    }
+
+    /* 
+     * Check number of exit in next
+     */
+    {
+        int s, nb;
+        check = 1;
+ 
+        for (k=0; k<minMN; k++) {
+            for(m=k; m<A->mt; m++) {
+                nb = 0;
+                for(s=A->mt; s>k; s--) {
+                    if ( qrpiv->nextpiv(qrpiv, m, k, s) == A->mt )
+                        nb++;
+                }
+                if ( nb > 1 ) {
+                    dplasma_qr_print_next_k( A, qrpiv, k);
+                    dplasma_qr_print_prev_k( A, qrpiv, k);
+
+                    printf(" ----------------------------------------------------\n"
+                           "  - a = %d, p = %d, M = %d, N = %d\n"
+                           "     Next of line %d for step %d contains more than one exit:\n",
+                           a, p, A->mt, A->nt, 
+                           m, k);
+                    check = 0;
+                    return 3;
+                }
+            }
+        }
+        ENDCHECK( check, 3 );
+    }
+
+    /* 
+     * Check number of exit in prev
+     */
+    {
+        int s, nb;
+        check = 1;
+ 
+        for (k=0; k<minMN; k++) {
+            for(m=k; m<A->mt; m++) {
+                nb = 0;
+                for(s=k; s<A->mt; s++) {
+                    if ( qrpiv->prevpiv(qrpiv, m, k, s) == A->mt )
+                        nb++;
+                }
+                if ( nb > 1 ) {
+                    dplasma_qr_print_next_k( A, qrpiv, k);
+                    dplasma_qr_print_prev_k( A, qrpiv, k);
+
+                    printf(" ----------------------------------------------------\n"
+                           "  - a = %d, p = %d, M = %d, N = %d\n"
+                           "     Prev of line %d for step %d contains more than one exit:\n",
+                           a, p, A->mt, A->nt, 
+                           m, k);
+                    check = 0;
+                    return 3;
+                }
+            }
+        }
+        ENDCHECK( check, 3 );
     }
 
     /* 
