@@ -141,7 +141,7 @@ static struct option long_options[] =
     {"X",           no_argument,        0, 'X'},
 
     {"qr_a",        required_argument,  0, '0'},
-    {"qr_q",        required_argument,  0, '1'},
+    {"qr_p",        required_argument,  0, '1'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
