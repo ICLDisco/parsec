@@ -734,18 +734,28 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, int k, int start)
             if ( lpivot < k )
                 goto next_2;
                     
-            /* First query / Check for use in TS */
-            if ( start == arg->desc->mt ) {
-                tmp = lpivot + a - 1 - lpivot%a;
-                nextp = tmp * p + rpivot;
+            if ( start == arg->desc->mt )
+                nextp = pivot + p;
+            else
+                nextp = start + p;
+
+            if ( ( nextp < arg->desc->mt ) && 
+                 ( nextp < pivot + a*p ) &&
+                 ( (nextp/p)%a != 0 ) )
+                return nextp;
+            
+            /* /\* First query / Check for use in TS *\/ */
+            /* if ( start == arg->desc->mt ) { */
+            /*     tmp = lpivot + a - 1 - lpivot%a; */
+            /*     nextp = tmp * p + rpivot; */
                 
-                while( pivot < nextp && nextp >= arg->desc->mt ) 
-                    nextp -= p;
-            } else {
-                nextp = (lstart - 1) * p + rpivot;
-            }                
-            if ( pivot < nextp && nextp < arg->desc->mt ) 
-                return nextp; 
+            /*     while( pivot < nextp && nextp >= arg->desc->mt )  */
+            /*         nextp -= p; */
+            /* } else { */
+            /*     nextp = (lstart - 1) * p + rpivot; */
+            /* }                 */
+            /* if ( pivot < nextp && nextp < arg->desc->mt )  */
+            /*     return nextp;  */
 
             /* no next of type 0, we reset start to search the next 1 */
             start = arg->desc->mt;
@@ -805,89 +815,10 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, int k, int start)
             return arg->desc->mt;
         }
 }
-#if 0
-int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, int k, int start)
-{ 
-    int tmp, ls, lp;
-    int a = arg->a;
-    int p = arg->p;
-    int lpivot = pivot / p; /* Local index in the distribution over p domains */
-    int rpivot = pivot % p; /* Staring index in this distribution             */
-    int lstart = start / p; /* Local index in the distribution over p domains */
-
-    myassert( start >= pivot && pivot >= k && start < arg->desc->mt );
-    myassert( start == pivot || pivot == dplasma_qr_currpiv( arg, start, k ) );
-            
-    /* TS level common to every case */
-    ls = dplasma_qr_gettype( a, p, k, start );
-    lp = dplasma_qr_gettype( a, p, k, pivot );
-    switch( lp )
-        {
-        case 0:
-            return arg->desc->mt;
-            break;
-
-        case 3:
-            if ( ( ls !=3  ) && ( pivot < p * k ) )
-                return arg->desc->mt;
-            
-            if( arg->hlvl != NULL ) {
-                tmp = arg->hlvl->prevpiv( arg->hlvl, pivot, k, start );
-                if ( tmp != arg->desc->mt )
-                    return tmp;
-            }
-
-            if ( ls == 3 ) {
-                start = pivot;
-                lstart = pivot / p;
-            }
-
-        case 2:
-            if ( ( lpivot < k ) && ( start == pivot ) &&
-                 (start+p < arg->desc->mt ) )
-                return start+p;
-
-            if ( lp == 2 && lpivot < k)
-                return  arg->desc->mt;
-
-            if ( ls == 2 ) {
-                start = pivot;
-                lstart = pivot / p;
-            }
-            
-            /* If it is the 'local' diagonal block, we go to 1 */
-
-        case 1:
-            if ( lpivot < k )
-                return  arg->desc->mt;
-                 
-            if ( (ls == 1) || (start == pivot) ) {
-                tmp = arg->llvl->prevpiv(arg->llvl, lpivot / a, k, lstart / a);
-
-                if ( (tmp * a * p + rpivot >= arg->desc->mt)
-                     && (tmp == arg->llvl->ldd-1) )
-                    tmp = arg->llvl->prevpiv(arg->llvl, lpivot / a, k, tmp);
-                
-                if ( tmp != arg->llvl->ldd )
-                    return tmp * a * p + rpivot;
-            }
-            
-            if (ls != 0)
-                start = pivot;
-            
-            /* Search for predecessor in TS tree */
-            if ( ( start+p < arg->desc->mt ) && ( (((start+p) / p) % a) != 0 ) )
-                return start + p;
-            
-        default:
-            return arg->desc->mt;
-        }
-};
-#endif
 
 int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, int k, int start)
 { 
-    int tmp, ls, lp;
+    int tmp, ls, lp, nextp;
     int a = arg->a;
     int p = arg->p;
     int lpivot = pivot / p; /* Local index in the distribution over p domains */
@@ -950,10 +881,23 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, int k, int start)
             
         case 0:
             /* Search for predecessor in TS tree */
-            if ( ( start+p < arg->desc->mt ) && 
-                 ( (((start+p) / p) % a) != 0 ) )
-                return start + p;
+            /* if ( ( start+p < arg->desc->mt ) &&  */
+            /*      ( (((start+p) / p) % a) != 0 ) ) */
+            /*     return start + p; */
             
+            if ( start == pivot ) {
+                tmp = lpivot + a - 1 - lpivot%a;
+                nextp = tmp * p + rpivot;
+                
+                while( pivot < nextp && nextp >= arg->desc->mt ) 
+                    nextp -= p;
+            } else {
+                nextp = start - p; /*(lstart - 1) * p + rpivot;*/
+            }                
+            assert(nextp < arg->desc->mt);
+            if ( pivot < nextp ) 
+                return nextp; 
+
         default:
             return arg->desc->mt;
         }
