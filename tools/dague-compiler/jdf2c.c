@@ -1582,7 +1582,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("static int %s(__dague_%s_internal_object_t *__dague_object)\n"
             "{\n"
             "  dague_dependencies_t *dep = NULL;\n"
-            "  assignment_t assignments[MAX_LOCAL_COUNT];\n"
+            "  assignment_t assignments[MAX_LOCAL_COUNT];(void) assignments;\n"
             "  int nb_tasks = 0, __foundone = 0;\n"
             "%s",
             fname, jdf_basename,
