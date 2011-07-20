@@ -422,8 +422,9 @@ void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int mt, int minMN, int a){
     memset(ipiv, 0, mt*minMN*sizeof(int));
    
     {
-        int f0, f1, f2, k, m;
-        
+        int f1, k, m;
+        /* int f0, f2;*/
+
         /* Fill in the first column */
         /* f0 = 1; */
         f1 = 1;
@@ -434,7 +435,7 @@ void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int mt, int minMN, int a){
             /* f2 = f0 + f1; */
             /* f0 = f1; */
             /* f1 = f2; */
-            f1 = f1++ ;
+            f1++;
         }
 
         for( k=1; k<minMN; k++) {
