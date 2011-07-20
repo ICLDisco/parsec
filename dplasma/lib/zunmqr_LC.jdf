@@ -1,0 +1,250 @@
+extern "C" %{
+  /**
+   * PLASMA include for defined and constants.
+   *
+   * @precisions normal z -> s d c
+   *
+   */
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "memory_pool.h"
+
+#define PRECISION_z
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+#define BLKLDD(_desc, _k) (_desc).mb
+
+%}
+
+side   [type = "PLASMA_enum"]
+trans  [type = "PLASMA_enum"]
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
+descB  [type = "tiled_matrix_desc_t"]
+B      [type = "dague_ddesc_t *"]
+descT  [type = "tiled_matrix_desc_t"]
+T      [type = "dague_ddesc_t *"]
+ib     [type = "int"]
+pool_0 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT.nb)"]
+
+minM   [type = "int" hidden=on default="( (descA.m < descA.n) ? descA.m  : descA.n  )" ]
+minMT  [type = "int" hidden=on default="( (descA.m < descA.n) ? descA.mt : descA.nt )" ]
+
+zunmqr(k,n)
+  /* Execution space */
+  k = 0..minMT-1
+  n = 0..descB.nt-1
+
+  : B(k,n)
+
+  /* A == A(k,k)  */
+  /* T == T(k,k)  */
+  /* B == B(k,n)  */
+  /* D == B(k,n1) */
+  /* E == B(m,n1) */
+
+  READ  A <- A zunmqr_in_A(k)  [type = LOWER_TILE]
+
+  READ  T <- T zunmqr_in_T(k)  [type = LITTLE_T]
+
+  RW    B <- (0==k) ? B(k,n)
+          <- !((0==k)) & (k>=1) & (k>=descB.mt) ? B(k,n)
+          <- (descB.mt>=(k+1)) & (k>=1) ? E ztsmqr(k-1, k, n) 
+          -> (descB.mt>=(2+k)) ? D ztsmqr(k, k+1, n) 
+          -> ((k+1)>=descB.mt) ? B(k,n)
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+  ANTI edge from zunmqr:B(k,n) to zunmqr:B(k,n) {[k,n] -> [k,n] : 0 <= k <= descA.nt-1, descA.mt-1 && 0 <= n < descB.nt}
+  ANTI edge from zunmqr:B(k,n) to ztsmqr:B(k,n1) {[k,n] -> [k,m,n] : 0 <= k <= descA.nt-1, descA.mt-1, m-1 && 0 <= n < descB.nt && m < descB.mt}
+
+  */
+
+BODY
+
+  int tempkm   = ((k)==(descB.mt-1)) ? descB.m - k * descB.mb : descB.mb;
+  int tempnn   = ((n)==(descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+  int tempkmin = ((k)==(minMT   -1)) ? minM    - k * descA.nb : descA.nb;
+  int ldak = BLKLDD( descA, k );
+  int ldbk = BLKLDD( descB, k );
+
+  DRYRUN(
+         void *p_elem_A = dague_private_memory_pop( pool_0 );
+
+#line 19 "pzunmqr_LC.cpp"
+         CORE_zunmqr(side, trans, 
+                     tempkm, tempnn, tempkmin, ib, 
+                     A /* A(k,k) */, ldak, 
+                     T /* T(k,k) */, descT.mb, 
+                     B /* B(k,n) */, ldbk, 
+                     p_elem_A, descT.nb );
+         
+         dague_private_memory_push( pool_0, p_elem_A );
+         );
+
+  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(side, trans, tempkm, tempnn, tempkmin, ib, \n"
+           "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, B(%d,%d)[%p], ldbk, p_elem_A, descT.nb)\n",
+  context->eu_id, k, n, k, k, A, k, k, T, k, n, B);
+
+END
+
+/*
+ * Pseudo-task
+ */
+zunmqr_in_A(k)
+  k = 0..(descA.nt-1)
+  /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(1+n)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
+
+  : A(k, k)
+
+  RW A <- A(k,k)                     [type = LOWER_TILE]
+       -> A zunmqr(k,0..descB.nt-1)  [type = LOWER_TILE]
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+zunmqr_in_T(k)
+  k = 0..(descA.nt-1)
+  /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(n+1)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
+
+  : T(k,k)
+
+  RW T <- T(k,k)                       [type = LITTLE_T]
+       -> T zunmqr(k, 0..descB.nt-1)   [type = LITTLE_T]
+BODY
+/* nothing */
+END
+
+
+
+ztsmqr(k,m,n1)
+  /* Execution space */
+  k = 0..minMT-1
+  m = k+1..descB.mt-1
+  n = 0..descB.nt-1
+
+  : B(m, n)
+
+  /* B == B(k,n) */
+  /* D == B(k,n) */
+  /* E == B(m,n) */
+  /* V == A(m,k) */
+  /* T == T(m,k) */
+
+  RW    D <- ((1+k)==m) & (descA.nt>=(k+1)) & (descA.mt>=(1+k)) ? B zunmqr(m-1, n) 
+          <- (m>=(k+2)) ? D ztsmqr(k, m-1, n) 
+          -> (descB.mt>=(2+m)) ? D ztsmqr(k, m+1, n) 
+          -> (descB.mt==(m+1)) ? D ztsmqr_out_B0(k,m,n)
+
+  RW    E <- (k>=1) ? E ztsmqr(k-1, m, n) 
+          <- (0==k) ? B(m,n)
+          -> ((k+1)==m) & (descA.mt>=(k+2)) & (descA.nt>=(2+k)) ? B zunmqr(m, n) 
+          -> (m>=(k+2)) & (descA.nt>=(k+2)) & (descA.mt>=(k+2)) ? E ztsmqr(k+1, m, n) 
+          -> (descA.mt==(k+1)) & (m>=descA.nt) ? B(m,n)
+          -> !((descA.mt==(k+1)) & (m>=descA.nt)) & (descA.nt==(k+1)) & (descA.mt>=(descA.nt+1)) ? B(m,n)
+          -> !((descA.mt==(k+1)) & (m>=descA.nt)) & !((descA.nt==(k+1)) & (descA.mt>=(descA.nt+1))) & (descA.mt==(k+1)) & (descA.nt>=(m+1)) ? B(m,n)
+
+  READ  V <- V ztsmqr_in_V(k, m)
+
+  READ  T <- T ztsmqr_in_T(k, m)   [type = LITTLE_T]
+
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+  ANTI edge from ztsmqr:B(k,n) to ztsmqr:B(k,n) {[k,m,n] -> [k,m,n] : 0 <= k <= m-1, descA.nt-1, descA.mt-1 && 0 <= n < descB.nt && m < descB.mt} union
+ {[k,m,n] -> [k,m',n] : 0 <= k < m < m' < descB.mt && k <= descA.nt-1, descA.mt-1 && 0 <= n < descB.nt}
+  ANTI edge from ztsmqr:B(m,n) to zunmqr:B(k,n) {[k,m,n] -> [m,n] : 0 <= k < m <= descB.mt-1, descA.nt-1, descA.mt-1 && 0 <= n < descB.nt}
+  ANTI edge from ztsmqr:B(m,n) to ztsmqr:B(k,n) {[k,m,n] -> [m,m',n] : 0 <= k < m <= descA.nt-1, descA.mt-1, m'-1 && 0 <= n < descB.nt && m' < descB.mt}
+  ANTI edge from ztsmqr:B(m,n) to ztsmqr:B(m,n) {[k,m,n] -> [k,m,n] : 0 <= k <= m-1, descA.nt-1, descA.mt-1 && 0 <= n < descB.nt && m < descB.mt} union
+ {[k,m,n] -> [k',m,n] : 0 <= k < k' <= descA.mt-1, descA.nt-1, m-1 && 0 <= n < descB.nt && m < descB.mt}
+
+  */
+
+BODY
+
+  int tempnn   = ( n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+  int tempmm   = ( m == (descB.mt-1)) ? descB.m - m * descB.mb : descB.mb;
+  int tempkmin = ( k == (minMT   -1)) ? minM    - k * descA.nb : descA.nb;
+  int ldbk = BLKLDD( descB, k );
+  int ldbm = BLKLDD( descB, m );
+  int ldam = BLKLDD( descA, m );
+  int ldwork = ib;
+
+  DRYRUN(
+         void *p_elem_A = dague_private_memory_pop( pool_0 );
+         
+#line 42 "pzunmqr_LC.cpp"
+         CORE_ztsmqr(side, trans, 
+                     descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, 
+                     D /* B(k,n) */, ldbk, 
+                     E /* B(m,n) */, ldbm, 
+                     V /* A(m,k) */, ldam, 
+                     T /* T(m,k) */, descT.mb, 
+                     p_elem_A, ldwork );
+
+         dague_private_memory_push( pool_0, p_elem_A );
+         );
+
+  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(side, trans, descB.mb, tempnn, tempmm, tempnn, tempkmin, ib, \n"
+           "\tB(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+  context->eu_id, k, m, n, k, n, D, m, n, E, m, k, V, m, k, T);
+
+END
+
+/*
+ * Pseudo-task
+ */
+ztsmqr_out_B0(k, n)
+  k = 0..descA.nt-1
+  n = 0..descB.nt-1
+  /*_dague_pseudotask_predicate = 1..((m+1)==descB.mt) & (n>=0) & (descB.nt>=(n+1)) & (m>=(k+1)) & (descA.nt>=(k+1)) & (k>=0) & (descA.mt>=(k+1))*/
+
+  : B(k, n)
+
+  RW D <- D ztsmqr(k, descB.mt-1, n)
+       -> B(k, n)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+ztsmqr_in_V(k, m)
+  k = 0..descA.mt-1
+  m = k+1..descB.mt-1
+  /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(1+n)) & (m>=(k+1)) & (descB.mt>=(m+1)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
+
+  : A(m,k)
+
+  RW V <- A(m,k)
+       -> V ztsmqr(k, m, 0..descB.nt-1)
+BODY
+/* nothing */
+END
+
+
+/*
+ * Pseudo-task
+ */
+ztsmqr_in_T(k, m)
+  k = 0..descA.nt-1
+  m = k+1..descB.mt-1
+  /*_dague_pseudotask_predicate = 1..(n>=0) & (descB.nt>=(n+1)) & (m>=(k+1)) & (descB.mt>=(m+1)) & (k>=0) & (descA.mt>=(k+1)) & (descA.nt>=(k+1))*/
+
+  : T(m,k)
+
+  RW T <- T(m,k)                         [type = LITTLE_T]
+       -> T ztsmqr(k, m, 0..descB.nt-1)  [type = LITTLE_T]
+BODY
+/* nothing */
+END
+
