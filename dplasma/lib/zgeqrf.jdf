@@ -34,6 +34,20 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(d
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descT.nb))"]
 
 
+zgeqrt_typechange(k)
+  /* Execution space */
+  k = 0..( (descA.mt-1 < descA.nt-1)? descA.mt-1 : descA.nt-1 )
+
+  : A(k,k)
+
+RW A <- A zgeqrt(k)
+     -> (descA.nt>=(2+k)) ? C zunmqr(k, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+     -> A(k, k)                                              [type = LOWER_TILE]
+
+BODY
+ /* Nothing */
+END
+
 zgeqrt(k)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
@@ -48,11 +62,11 @@ zgeqrt(k)
   /* K == A(m,n1) */
 
   RW    A <- (0 == k) ? A(k, k) : K ztsmqr(k-1, k, k)
-          -> (descA.nt>=(k+2)) ? C zunmqr(k, (k+1)..(descA.nt-1)) 
-          -> (descA.mt>=(k+2)) ? F ztsqrt(k, k+1) 
-          -> (descA.mt==(k+1)) ? A(k,k)
-  RW    B <- T(k, k)                                          [type = LITTLE_T]
-          -> T(k, k)                                          [type = LITTLE_T]
+          -> (descA.mt>=(k+2)) ? F ztsqrt(k, k+1)                [type = UPPER_TILE] 
+          -> (descA.mt==(k+1)) ? A(k,k)                          [type = UPPER_TILE]
+          -> A zgeqrt_typechange(k)
+  RW    B <- T(k, k)                                             [type = LITTLE_T]
+          -> T(k, k)                                             [type = LITTLE_T]
           -> (descA.nt-1 > k) ? D zunmqr(k, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
 BODY
@@ -97,7 +111,7 @@ zunmqr(k,n)
   /* J == A(k,n1) */
   /* K == A(m,n1) */
 
-  READ  C <- A zgeqrt(k) 
+  READ  C <- A zgeqrt_typechange(k)                              [type = LOWER_TILE]
   READ  D <- B zgeqrt(k)                                         [type = LITTLE_T]
   RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k-1+1, n) 
           -> (descA.mt==(k+1)) ? A(k, n)
@@ -137,8 +151,8 @@ ztsqrt_out_Ak(k)
     
   : A(k, k)
 
-  RW F <- F ztsqrt(k, descA.mt-1)
-       -> A(k, k)
+  RW F <- F ztsqrt(k, descA.mt-1) [type = UPPER_TILE]
+       -> A(k, k)                 [type = UPPER_TILE]
 BODY
 /* nothing */
 END
@@ -158,8 +172,8 @@ ztsqrt(k,m)
   /* L == A(m,k) */
   /* M == T(m,k) */
 
-  RW    F <- ( m == (k+1) )   ? A zgeqrt(m-1) : F ztsqrt(k, m-1) 
-          -> (descA.mt==(m+1)) ? F ztsqrt_out_Ak(k) : F ztsqrt(k, m+1) 
+  RW    F <- ( m == (k+1) )   ? A zgeqrt(m-1) : F ztsqrt(k, m-1)        [type = UPPER_TILE]
+          -> (descA.mt==(m+1)) ? F ztsqrt_out_Ak(k) : F ztsqrt(k, m+1)  [type = UPPER_TILE]
   RW    G <- (0==k) ? A(m, k) : K ztsmqr(k-1, m, k) 
           -> A(m, k)
           -> (descA.nt-1 > k) ? L ztsmqr(k, m, (k+1)..(descA.nt-1)) 
