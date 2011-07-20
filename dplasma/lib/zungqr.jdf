@@ -160,7 +160,7 @@ zunmqr(k,n1)
   /* F == T((minMN-1)-k,(minMN-1)-k) */
   /* G == Q((minMN-1)-k,n1) */
 
-  READ  E <- E zunmqr_in_A0(k,n1)
+  READ  E <- E zunmqr_in_A0(k,n1)        [type = LOWER_TILE]
 
   READ  F <- F zunmqr_in_T1(k,n1)        [type = LITTLE_T]
 
