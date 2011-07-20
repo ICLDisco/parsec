@@ -10,7 +10,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "memory_pool.h"
+#include "data_dist/matrix/matrix.h"
 
 #define PRECISION_z
 #include "dplasma/lib/memory_pool.h"
@@ -123,8 +123,7 @@ BODY
 END
 
 
-
-ztsmqr(k,m,n1)
+ztsmqr(k, m, n)
   /* Execution space */
   k = 0..minMT-1
   m = k+1..descB.mt-1
@@ -141,7 +140,7 @@ ztsmqr(k,m,n1)
   RW    D <- ((1+k)==m) & (descA.nt>=(k+1)) & (descA.mt>=(1+k)) ? B zunmqr(m-1, n) 
           <- (m>=(k+2)) ? D ztsmqr(k, m-1, n) 
           -> (descB.mt>=(2+m)) ? D ztsmqr(k, m+1, n) 
-          -> (descB.mt==(m+1)) ? D ztsmqr_out_B0(k,m,n)
+          -> (descB.mt==(m+1)) ? D ztsmqr_out_B0(k, n)
 
   RW    E <- (k>=1) ? E ztsmqr(k-1, m, n) 
           <- (0==k) ? B(m,n)
