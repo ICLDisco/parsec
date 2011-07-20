@@ -421,20 +421,19 @@ void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int mt, int minMN, int a){
     ipiv = arg->ipiv;
     memset(ipiv, 0, mt*minMN*sizeof(int));
    
+    /*
+     * Fibonacci of order 1:
+     *    u_(n+1) = u_(n) + 1
+     */
     {
         int f1, k, m;
-        /* int f0, f2;*/
 
         /* Fill in the first column */
-        /* f0 = 1; */
         f1 = 1;
         for (m=1; m < mt; ) {
             for (k=0; (k < f1) && (m < mt); k++, m++) {
                 ipiv[m] = m - f1;
             }
-            /* f2 = f0 + f1; */
-            /* f0 = f1; */
-            /* f1 = f2; */
             f1++;
         }
 
