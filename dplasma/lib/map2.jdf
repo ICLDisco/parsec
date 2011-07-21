@@ -1,0 +1,57 @@
+extern "C" %{
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+typedef struct args_2d_s {
+    int m;
+    int n;
+    void *arg;
+} args_2d_t;
+
+%}
+
+/*
+ * Globals
+ */
+descA    [type = "tiled_matrix_desc_t"]
+descB    [type = "tiled_matrix_desc_t"]
+operator [type = "dague_operator_t" ]
+op_args  [type = "void *" ]
+
+map_in_Amn(m, n)
+m = 0 .. descB.mt-1
+n = 0 .. descB.nt-1
+    
+  : A(m, n)
+
+  RW A <- A(m, n)
+       -> A MAP(m, n)
+BODY
+/* nothing */
+END
+
+MAP(m, n)
+m = 0 .. descB.mt-1
+n = 0 .. descB.nt-1
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+
+READ  A <- A map_in_Amn(m, n)
+RW    B <- B(m, n)
+        -> B(m, n)
+BODY
+  
+  DRYRUN(
+      operator( context, A, B, op_args );
+      );
+
+  printlog("thread %d map( %d, %d )\n",
+           context->eu_id, m, n );
+END
+
