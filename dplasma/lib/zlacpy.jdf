@@ -66,8 +66,8 @@ BODY
 
         DRYRUN(
                LAPACKE_zlacpy_work( 
-                   LAPACK_COL_MAJOR,
-                   lapack_const(uplo), tempmm, tempnn, 
+                   LAPACK_COL_MAJOR, 'A',
+                   tempmm, tempnn, 
                    A, ldam, B, ldbm);
                );
 
@@ -113,8 +113,8 @@ BODY
 
         DRYRUN(
                LAPACKE_zlacpy_work( 
-                   LAPACK_COL_MAJOR,
-                   lapack_const(uplo), tempmm, tempnn, 
+                   LAPACK_COL_MAJOR, 'A',
+                   tempmm, tempnn, 
                    A, ldam, B, ldbm);
                );
 
