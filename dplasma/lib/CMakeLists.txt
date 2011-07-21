@@ -36,6 +36,10 @@ set(JDF
 precisions_rules(generated_jdf
                  "${JDF}"
                  PRECISIONS "+;${DPLASMA_PRECISIONS}")
+
+list(APPEND generated_jdf
+  map2.jdf)
+
 jdf_rules(generated_files "${generated_jdf}")
 
 ### Generate the dplasma wrappers for all required precisions 
@@ -63,6 +67,7 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
+  zlange_wrapper.c
 )
 precisions_rules(generated_files
                  "${SOURCES}"
