@@ -61,6 +61,13 @@ ztsmqr(k,m,n)
   */
 BODY
 
+   printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
+            "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
+            "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
+            "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+            context->eu_id, k, m, n, (minMN-1)-k, n, A, ((descQ.mt)-1)-m, n, B, 
+            ((descQ.mt)-1)-m, (minMN-1)-k, C, ((descQ.mt)-1)-m, (minMN-1)-k, D);
+
   DRYRUN(
          int tempnn  = ( n == descQ.nt-1 ) ? descQ.n - n * descQ.nb : descQ.nb;
          int tempmm  = ( m == 0 )           ? descQ.m - (descQ.mt-1-m) * descQ.mb : descQ.mb;
@@ -83,13 +90,6 @@ BODY
          
          dague_private_memory_push( p_work, p_elem_A );
          );
-
-   printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
-            "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
-            "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
-            "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-            context->eu_id, k, m, n, (minMN-1)-k, n, A, ((descQ.mt)-1)-m, n, B, 
-            ((descQ.mt)-1)-m, (minMN-1)-k, C, ((descQ.mt)-1)-m, (minMN-1)-k, D);
 
 END
 
@@ -177,6 +177,10 @@ zunmqr(k,n1)
 
 BODY
 
+  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
+           "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
+           context->eu_id, k, n1, (minMN-1)-k, (minMN-1)-k, E, (minMN-1)-k, (minMN-1)-k, F, (minMN-1)-k, n1, G);
+
      DRYRUN(
          int tempAkm  = ( minMN-1-k == descA.mt-1 ) ? descA.m - (minMN-1-k) * descA.mb : descA.mb;
          int tempAkn  = ( minMN-1-k == descA.nt-1 ) ? descA.n - (minMN-1-k) * descA.nb : descA.nb;
@@ -198,9 +202,6 @@ BODY
 
          dague_private_memory_push( p_work, p_elem_A );
             );
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
-  context->eu_id, k, n1, (minMN-1)-k, (minMN-1)-k, E, (minMN-1)-k, (minMN-1)-k, F, (minMN-1)-k, n1, G);
-
 END
 
 /*
