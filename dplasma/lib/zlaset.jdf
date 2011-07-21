@@ -51,7 +51,7 @@ BODY
 
         DRYRUN(
                LAPACKE_zlaset_work(
-                   LAPACK_COL_MAJOR, 'L',
+                   LAPACK_COL_MAJOR, 'A',
                    tempmm, tempnn, alpha, alpha, A, ldam);
                );
 
@@ -81,7 +81,7 @@ BODY
 
         DRYRUN(
                LAPACKE_zlaset_work(
-                   LAPACK_COL_MAJOR, 'U',
+                   LAPACK_COL_MAJOR, 'A',
                    tempmm, tempnn, alpha, alpha, A, ldam);
                );
 
