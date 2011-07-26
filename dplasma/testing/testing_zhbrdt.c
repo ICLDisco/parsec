@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     dague_context_t *dague;
     int iparam[IPARAM_SIZEOF];
 
-     /* Set defaults for non argv iparams */
+    /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 144, 144);
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -37,10 +37,10 @@ int main(int argc, char *argv[])
     PLASMA_Init(1);
 
     /*
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-         N, N, P, MatrixLower))
+      PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
+      sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+      nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+      N, N, P, MatrixLower))
     */
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
@@ -52,64 +52,66 @@ int main(int argc, char *argv[])
 
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, 
-         ((tiled_matrix_desc_t*)&ddescA));
+                              ((tiled_matrix_desc_t*)&ddescA));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
 
     if( check ) {
         printf( "No check implemented yet.\n" );
 
+#if defined(DISTRIBUTED)
         /* Regenerate A, distributed so that the random generators are doing
          * the same things */
         PASTE_CODE_ALLOCATE_MATRIX(ddescAcpy, 1, 
-                two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, 
-                    nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
-                    0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
+                                   two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, 
+                                                          nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
+                                                          0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
         generate_tiled_random_mat((tiled_matrix_desc_t*) &ddescAcpy, 100);
         /* Gather Acpy on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLAcpy, 1, 
-                two_dim_block_cyclic, (&ddescLAcpy, matrix_ComplexDouble, 
-                    1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
-                    0, 0, MB+1, (NB+2)*NT, 1, 1, 1));
+                                   two_dim_block_cyclic, (&ddescLAcpy, matrix_ComplexDouble, 
+                                                          1, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
+                                                          0, 0, MB+1, (NB+2)*NT, 1, 1, 1));
 
         /* Gather A diagonal and subdiagonal on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLA, 1, 
-                two_dim_block_cyclic, (&ddescLA, matrix_ComplexDouble, 
-                    1, cores, rank, 2, NB, 2, NB*NT, 
-                    0, 0, 2, NB*NT, 1, 1, 1));
+                                   two_dim_block_cyclic, (&ddescLA, matrix_ComplexDouble, 
+                                                          1, cores, rank, 2, NB, 2, NB*NT, 
+                                                          0, 0, 2, NB*NT, 1, 1, 1));
         if(rank == 0) {
             for(int t = 0; t < NT; t++)
-            {
-                int rsrc = ddescA.super.super.rank_of(0,t);
-                if(rsrc == 0)
                 {
-                    PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
-                    PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
-                    for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++) 
-                    {
-                        dataout[m+n*2] = datain[m+n*(MB+1)];
-                    }
+                    int rsrc = ddescA.super.super.rank_of(0,t);
+                    if(rsrc == 0)
+                        {
+                            PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
+                            PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
+                            for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++) 
+                                                            {
+                                                                dataout[m+n*2] = datain[m+n*(MB+1)];
+                                                            }
+                        }
+                    else
+                        {
+                            PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
+                            MPI_Recv(dataout, 2*NB, MPI_DOUBLE_COMPLEX, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        }
                 }
-                else
-                {
-                    PLASMA_Complex64_t* dataout = ddescLA.super.super.data_of(0,t);
-                    MPI_Recv(dataout, 2*NB, MPI_DOUBLE_COMPLEX, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
-            }
         }
         else
-        {
-            MPI_Datatype bidiagband_dtt; 
-            MPI_Type_vector(NB, 2, MB+1, MPI_DOUBLE_COMPLEX, &bidiagband_dtt); 
+            {
+                MPI_Datatype bidiagband_dtt; 
+                MPI_Type_vector(NB, 2, MB+1, MPI_DOUBLE_COMPLEX, &bidiagband_dtt); 
 
-            for(int t = 0; t < NT; t++) {
-                if(ddescA.super.super.rank_of(0,t) == rank)
-                {
-                    PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
-                    MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
+                for(int t = 0; t < NT; t++) {
+                    if(ddescA.super.super.rank_of(0,t) == rank)
+                        {
+                            PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
+                            MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
+                        }
                 }
             }
-        }
+#endif  /* defined(DISTRIBUTED) */
     }
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
     dague_data_free(ddescA.mat);
