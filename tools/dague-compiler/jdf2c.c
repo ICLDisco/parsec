@@ -2961,9 +2961,13 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     asprintf(&linfo.assignments, "%s.locals", var);
     for(; NULL != def; def = def->next, i++) {
-        string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s;\n", 
-                                prefix, indent(nbopen-1), var, i, 
+        string_arena_add_string(sa_open, "%s%s  const int %s_%s = %s;\n",
+                                prefix, indent(nbopen-1),
+                                t->fname, def->name,
                                 dump_expr((void**)&def->expr, &linfo));
+        string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n", 
+                                prefix, indent(nbopen-1), var, i, 
+                                t->fname, def->name);
     }
     free(linfo.assignments);
     linfo.assignments = NULL;
