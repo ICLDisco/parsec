@@ -162,7 +162,6 @@ double dplasma_zlange( dague_context_t *dague,
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
     case PlasmaInfNorm:
-    case PlasmaMaxNorm:
       fprintf(stderr, "zlange: Only PlasmaMaxNorm is supported\n");
 
     case PlasmaMaxNorm:
