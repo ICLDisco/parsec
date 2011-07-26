@@ -2969,9 +2969,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                 prefix, indent(nbopen-1), var, i, 
                                 t->fname, def->name);
     }
-    free(linfo.assignments);
-    linfo.assignments = NULL;
 
+    /**
+     * If we have to execute code possibly comming from the user then we need to instantiate
+     * the entire stack of the target function, including the local definitions.
+     */
     string_arena_add_string(sa_open, 
                             "#if defined(DISTRIBUTED)\n"
                             "%s%s  rank_dst = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
@@ -2980,6 +2982,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             UTIL_DUMP_LIST_FIELD(sa2, t->predicate->parameters, next, expr,
                                                  dump_expr, &linfo,
                                                  "", "", ", ", ""));
+
     string_arena_add_string(sa_open,
                             "#if defined(DAGUE_DEBUG)\n"
                             "%s%sif( NULL != eu ) {\n"
@@ -2995,6 +2998,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             prefix, indent(nbopen),
                             prefix, indent(nbopen), var,
                             prefix, indent(nbopen));
+    free(linfo.assignments);
+    linfo.assignments = NULL;
     free(p);
     linfo.prefix = NULL;
 
