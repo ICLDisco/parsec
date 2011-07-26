@@ -243,6 +243,10 @@ double dague_compute_critical_path( dague_execution_unit_t *eu_context,
         }
 
         while( (node = (node_t*)dague_fifo_pop(&ready_tasks)) != NULL ) {
+            if( dague_fifo_is_empty( &node->out ) ) {
+                if( curdate + node->cost > maxdate )
+                    maxdate = curdate + node->cost;
+            }
             while( (e = (edge_t*)dague_fifo_pop(&node->out)) != NULL ) {
                 curdate = node->date + node->cost;
                 if( curdate > maxdate )
