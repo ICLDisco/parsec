@@ -62,12 +62,12 @@ int main(int argc, char ** argv)
         DO_UBLE cpath;
         
         /* Indices of the tasks_costs are to be found in the generated c file (look for <basename>_functions[]) */
-        tasks_costs[0] = 1.0; /**< zttmqr */
+        tasks_costs[0] = 6.0; /**< zttmqr */
         tasks_costs[1] = 0.0; /**< zttmqr_out */
-        tasks_costs[2] = 1.0; /**< zttqrt */
+        tasks_costs[2] = 2.0; /**< zttqrt */
         tasks_costs[3] = 0.0; /**< zttqrt_out */
-        tasks_costs[4] = 1.0; /**< sormqr */
-        tasks_costs[5] = 1.0; /**< zgeqrt */
+        tasks_costs[4] = 4.0; /**< sormqr */
+        tasks_costs[5] = 4.0; /**< zgeqrt */
 
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
