@@ -23,8 +23,10 @@ extern "C" %{
 
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
-descT  [type = "tiled_matrix_desc_t"]
-T      [type = "dague_ddesc_t *"]
+descT1 [type = "tiled_matrix_desc_t"]
+T1     [type = "dague_ddesc_t *" aligned=A]
+descT2 [type = "tiled_matrix_desc_t"]
+T2     [type = "dague_ddesc_t *" aligned=A]
 descQ  [type = "tiled_matrix_desc_t"]
 Q      [type = "dague_ddesc_t *"]
 pivfct [type = "qr_piv_t*"]
@@ -164,9 +166,9 @@ zttmqr_in_T(k, m)
   k = 0..minMN-1
   m = k+1..descQ.mt-1
 
-  : T(m, k)
+  : T2(m, k)
 
-  RW T <- T(m, k)
+  RW T <- T2(m, k)
        -> T zttmqr(k, m, 0..descQ.nt-1)
 BODY
 /* nothing */
@@ -251,9 +253,9 @@ zunmqr_in_T(k, i)
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descQ.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   
-  : T( m, k )
+  : T1( m, k )
 
-  RW T <- T( m, k )
+  RW T <- T1( m, k )
        -> T zunmqr(k, i, 0..descQ.nt-1)
 BODY
 /* nothing */
