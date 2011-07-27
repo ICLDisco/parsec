@@ -61,6 +61,22 @@ p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(d
 param_p[type = int default="pivfct->p" hidden=on]
 param_a[type = int default="pivfct->a" hidden=on]
 
+zgeqrt_typechange(k, i)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
+    
+  : A(m, k)
+
+  RW A <- A zgeqrt(k, i)
+       -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+       -> A(m, k)                                                  [type = LOWER_TILE]
+BODY
+ /* Nothing */
+END
+
+
 
 zgeqrt(k, i)
   /* Execution space */
@@ -76,13 +92,14 @@ zgeqrt(k, i)
 
   RW    A <- ( 0 == k ) ? A(m, k) 
           <- ( k > 0  ) ? A2 zttmqr(k-1, m, k ) 
-          -> (descA.nt-1 > k) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) 
-          -> ( k == descA.mt-1 ) ? A(m, k)   
-          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm)
-          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  A2 zttqrt(k, m)
-  RW    T <- T(m, k)                                                [type = LITTLE_T]
-          -> T(m, k)                                                [type = LITTLE_T]
-          -> (descA.nt-1 > k) ? T zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LITTLE_T]
+          -> A zgeqrt_typechange(k, i) 
+          //-> (descA.nt-1 > k) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) 
+          -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
+          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm) [type = UPPER_TILE]
+          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  A2 zttqrt(k, m)     [type = UPPER_TILE]
+  RW    T <- T(m, k)                                                           [type = LITTLE_T]
+          -> T(m, k)                                                           [type = LITTLE_T]
+          -> (descA.nt-1 > k) ? T zunmqr(k, i, (k+1)..(descA.nt-1))            [type = LITTLE_T]
        
   ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
@@ -115,7 +132,7 @@ END
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
-     i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
@@ -126,7 +143,7 @@ zunmqr(k, i, n)
   /* T == T(m,k) */
   /* C == A(m,n) */
 
-  READ  A <- A zgeqrt(k, i) 
+  READ  A <- A zgeqrt_typechange(k, i)                              [type = LOWER_TILE]
   READ  T <- T zgeqrt(k, i)                                         [type = LITTLE_T]
   RW    C <- ( 0 == k ) ? A(m, n)
           <- ( k >  0 ) ? A2 zttmqr(k-1, m, n) 
@@ -170,8 +187,8 @@ zttqrt_out_A1(k)
 
   : A(k, k)
   
-  RW A <- A1 zttqrt( k, prevp )
-       -> A(k, k)
+  RW A <- A1 zttqrt( k, prevp ) [type = UPPER_TILE]
+       -> A(k, k)               [type = UPPER_TILE]
 BODY
 /* nothing */
 END
@@ -194,10 +211,10 @@ zttqrt(k, m)
   /* A2 == A(m,  k) */
   /* T  == T2(m, k) */
 
-  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp )
-          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )
-          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)
-          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)
+  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
+          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )                     [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)             [type = UPPER_TILE]
   RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, k)
           <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, k )
           <- ( (type != 0) && (prevm == descA.mt ) ) ? A  zgeqrt(k, im )
