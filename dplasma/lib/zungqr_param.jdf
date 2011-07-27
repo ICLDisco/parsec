@@ -31,7 +31,7 @@ descQ  [type = "tiled_matrix_desc_t"]
 Q      [type = "dague_ddesc_t *"]
 pivfct [type = "qr_piv_t*"]
 ib     [type = "int" ]
-p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT.nb)"]
+p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descT1.nb)"]
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
 param_p[type = int default="pivfct->p" hidden=on]
 param_a[type = int default="pivfct->a" hidden=on]
@@ -108,7 +108,7 @@ BODY
                  A1 /* Q(p, n) */, ldqk, 
                  A2 /* Q(m, n) */, ldqm, 
                  V  /* A(m, k) */, ldam, 
-                 T  /* T(m, k) */, descT.mb, 
+                 T  /* T(m, k) */, descT2.mb, 
                  p_elem_A, ldwork );
          } else {
              CORE_zttmqr(
@@ -117,7 +117,7 @@ BODY
                  A1 /* Q(p, n) */, ldqk, 
                  A2 /* Q(m, n) */, ldqm, 
                  V  /* A(m, k) */, ldam, 
-                 T  /* T(m, k) */, descT.mb, 
+                 T  /* T(m, k) */, descT2.mb, 
                  p_elem_A, ldwork );
          }
          
@@ -220,9 +220,9 @@ BODY
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
                      tempkm, tempnn, tempkmin, ib, 
                      A /* A(k, k) */, ldak, 
-                     T /* T(k, k) */, descT.mb, 
+                     T /* T(k, k) */, descT1.mb, 
                      C /* Q(k, n) */, ldqk, 
-                     p_elem_A, descT.nb );
+                     p_elem_A, descT1.nb );
 
          dague_private_memory_push( p_work, p_elem_A );
          );
