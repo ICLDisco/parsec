@@ -11,33 +11,36 @@
 
 extern int yyparse (void);
 char *q2j_input_file_name=NULL;
-int q2j_produce_shmem_jdf = 0;
+int _q2j_produce_shmem_jdf = 0;
+int _q2j_verbose_warnings = 0;
 extern FILE *yyin;
 
 void usage(char *pname){
-    fprintf(stderr,"Usage: %s [-shmem] file_name.c\n",pname);
+    fprintf(stderr,"Usage: %s [-shmem] [-v] file_name.c\n",pname);
     exit(1);
 }
 
 int main(int argc, char **argv){
 
-    q2j_input_file_name = argv[1];
-    if( argc == 3 ){
-        if( !strcmp(argv[1],"-shmem") ){
-            q2j_produce_shmem_jdf = 1;
-            q2j_input_file_name = argv[2];
-        }else if( !strcmp(argv[2],"-shmem") ){
-            q2j_produce_shmem_jdf = 1;
-            q2j_input_file_name = argv[1];
+    while(--argc > 0){
+        if( argv[argc][0] == '-' ){
+            if( !strcmp(argv[argc],"-shmem") ){
+                _q2j_produce_shmem_jdf = 1;
+            }else if( !strcmp(argv[argc],"-v") ){
+                _q2j_verbose_warnings = 1;
+            }else{
+                usage(argv[0]);
+            }
         }else{
-            usage(argv[0]);
+            q2j_input_file_name = argv[argc];
         }
-    }
-    if( argc < 2 ){
-        usage(argv[0]);
     }
 
     yyin = fopen(q2j_input_file_name, "r");
+    if( NULL == yyin ){
+        fprintf(stderr,"Cannot open file \"%s\"\n",q2j_input_file_name);
+        return -1;
+    }
     (void)st_init_symtab();
     return yyparse();
     fclose(yyin);
