@@ -240,53 +240,36 @@ static int check_factorization(dague_context_t *dague, tiled_matrix_desc_t *Aori
                                A->mb, A->nb, M, N, 0, 0, 
                                M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
-    PASTE_CODE_ALLOCATE_MATRIX(RL, 1, 
-        two_dim_block_cyclic, (&RL, matrix_ComplexDouble, 
+    PASTE_CODE_ALLOCATE_MATRIX(R, 1, 
+        two_dim_block_cyclic, (&R, matrix_ComplexDouble, 
                                A->super.nodes, A->super.cores, twodA->grid.rank, 
-                               A->mb, A->nb, minMN, minMN, 0, 0, 
-                               minMN, minMN, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
+                               A->mb, A->nb, N, N, 0, 0, 
+                               N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
     /* Extract the L */
     dplasma_zlacpy( dague, PlasmaUpperLower, Aorig, (tiled_matrix_desc_t *)&Residual );
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&R);
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&RL);
-    if (M >= N) {
-        /* Extract the R */
-        dplasma_zlacpy( dague, PlasmaUpper, A, (tiled_matrix_desc_t *)&RL );
+    /* Extract the R */
+    dplasma_zlacpy( dague, PlasmaUpper, A, (tiled_matrix_desc_t *)&R );
         
-        /* Perform Residual = Aorig - Q*R */
-        dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, 
-                       -1.0, Q, (tiled_matrix_desc_t *)&RL, 
-                       1.0, (tiled_matrix_desc_t *)&Residual);
-    } else {
-        /* Extract the L */
-        dplasma_zlacpy( dague, PlasmaLower, A, (tiled_matrix_desc_t *)&RL );
-        
-        /* Perform Residual = Aorig - L*Q */
-        dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, 
-                       -1.0, (tiled_matrix_desc_t *)&RL, Q, 
-                       1.0, (tiled_matrix_desc_t *)&Residual);
-    }
-    
-    /* Free RL */
-    dague_data_free(RL.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&RL);
+    /* Perform Residual = Aorig - Q*R */
+    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, 
+                   -1.0, Q, (tiled_matrix_desc_t *)&R, 
+                    1.0, (tiled_matrix_desc_t *)&Residual);
+
+    /* Free R */
+    dague_data_free(R.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&R);
     
     Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&Residual);
     Anorm = dplasma_zlange(dague, PlasmaMaxNorm, Aorig);
 
     result = Rnorm / ( Anorm * minMN * eps);
 
-    if (M >= N) {
-        printf("============\n");
-        printf("Checking the QR Factorization \n");
-        printf("-- ||A-QR||_oo/(||A||_oo.N.eps) = %e \n", result );
-    }
-    else {
-        printf("============\n");
-        printf("Checking the LQ Factorization \n");
-        printf("-- ||A-LQ||_oo/(||A||_oo.N.eps) = %e \n", result );
-    }
+    printf("============\n");
+    printf("Checking the QR Factorization \n");
+    printf("-- ||A-QR||_oo/(||A||_oo.N.eps) = %e \n", result );
 
     if ( isnan(result) || isinf(result) || (result > 60.0) ) {
         printf("-- Factorization is suspicious ! \n");
