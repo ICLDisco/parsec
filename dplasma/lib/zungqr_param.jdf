@@ -47,7 +47,6 @@ zttmqr(k, m, n)
   prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
   type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, k, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k,   p ); %}
-  ip1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, k+1, p ); %}
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k,   m ); %}
   im1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, k+1, m ); %}
   
@@ -86,8 +85,9 @@ BODY
             "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
             "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
             "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-            context->eu_id, k, m, n, (minMN-1)-k, n, A, ((descQ.mt)-1)-m, n, B, 
-            ((descQ.mt)-1)-m, (minMN-1)-k, C, ((descQ.mt)-1)-m, (minMN-1)-k, D);
+            context->eu_id, k, m, n, 
+            k, n, A1, m, n, A2,
+            m, k, V,  m, k, T);
 
   DRYRUN(
          int tempnn  = ( n == descQ.nt-1 ) ? descQ.n - n * descQ.nb : descQ.nb;
@@ -102,7 +102,7 @@ BODY
          
 #line 23 "zungqr.cpp"
          if ( type == 0 ) {
-             CORE_zttmqr(
+             CORE_ztsmqr(
                  PlasmaLeft, PlasmaNoTrans, 
                  descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, 
                  A1 /* Q(p, n) */, ldqk, 
@@ -131,12 +131,12 @@ END
  */
 zttmqr_in_A1(k, n)
   k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-2 )
-  n = k+1..descQ.nt-1
+  n = 0..descQ.nt-1
   prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
 
   : Q(k, n)
   
-  RW A -> Q(k, n)
+  RW A <- Q(k, n)
        -> A1 zttmqr( k, prevp, n )
 BODY
 /* nothing */
@@ -200,10 +200,10 @@ zunmqr(k, i, n)
   */
 
 BODY
-
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
-           "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
-           context->eu_id, k, n1, (minMN-1)-k, (minMN-1)-k, E, (minMN-1)-k, (minMN-1)-k, F, (minMN-1)-k, n1, G);
+ 
+     printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
+              "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
+              context->eu_id, k, n, k, k, A, k, k, T, k, n, C);
 
      DRYRUN(
          int tempAkm  = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
