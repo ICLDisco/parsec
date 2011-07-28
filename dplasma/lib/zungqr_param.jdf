@@ -64,9 +64,10 @@ zttmqr(k, m, n)
           <- ( ( nextp == descQ.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
           -> (   prevp == descQ.mt ) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
 
-  RW   A2 <- ( (type == 0) && (m/param_p == (k+1)) ) ? C  zunmqr( k+1, im1, n )
-          <- ( (type == 0) && (m/param_p >  (k+1)) ) ? A2 zttmqr( k+1, m, n ) 
-          <- ( (type != 0)  ) ? C zunmqr( k+1, im1, n )
+  RW   A2 <- ( k == minMN-1 ) ? Q(m, n)
+          <- ( (k != minMN-1) & (type == 0) && (m/param_p == (k+1)) ) ? C  zunmqr( k+1, im1, n )
+          <- ( (k != minMN-1) & (type == 0) && (m/param_p >  (k+1)) ) ? A2 zttmqr( k+1, m, n ) 
+          <- ( (k != minMN-1) & (type != 0)  ) ? C zunmqr( k+1, im1, n )
           -> ( (type == 0) && (k     == 0        ) ) ? Q(m, n)
           -> ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
           -> ( (type != 0) && (prevm == descQ.mt ) ) ? C  zunmqr(k, im, n)
@@ -130,7 +131,7 @@ END
  * Pseudo-task
  */
 zttmqr_in_A1(k, n)
-  k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-2 )
+  k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-1 )
   n = 0..descQ.nt-1
   prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
 
@@ -188,9 +189,9 @@ zunmqr(k, i, n)
   READ  A <- A zunmqr_in_A(k, i)        [type = LOWER_TILE]
   READ  T <- T zunmqr_in_T(k, i)        [type = LITTLE_T]
 
-  RW    C <- ( k == minMN-1 ) ? Q(m, n)   
-          <- ( (k < minMN-1) & (nextm != descQ.mt) ) ? A1 zttmqr(k, nextm, n)
-          <- ( (k < minMN-1) & (nextm == descQ.mt) ) ? A2 zttmqr(k, m,     n)
+  RW    C <- ( k == descQ.mt-1 ) ? Q(m, n)   
+          <- ( (k < descQ.mt-1) & (nextm != descQ.mt) ) ? A1 zttmqr(k, nextm, n)
+          <- ( (k < descQ.mt-1) & (nextm == descQ.mt) ) ? A2 zttmqr(k, m,     n)
           -> ( 0 == k ) ? Q(m, n)
           -> ( k >  0 ) ? A2 zttmqr(k-1, m, n) 
 
