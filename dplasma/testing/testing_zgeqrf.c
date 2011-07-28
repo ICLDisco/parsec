@@ -45,12 +45,21 @@ int main(int argc, char ** argv)
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                    M, N, SMB, SNB, P))
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                               M, N, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
-                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
-                                    MT*IB, N, SMB, SNB, P))
+                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+                               MT*IB, N, SMB, SNB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check, 
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                               M, N, SMB, SNB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescQ, check, 
+        two_dim_block_cyclic, (&ddescQ, matrix_ComplexDouble, 
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                               M, N, SMB, SNB, P));
+
 #if defined(DAGUE_PROF_TRACE)
     ddescA.super.super.key = strdup("A");
     ddescT.super.super.key = strdup("T");
@@ -70,60 +79,38 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    if(!check) 
-    {
-        /* matrix generation */
-        if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
-        if(loud > 2) printf("Done\n");
-
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf, 
-                                  ((tiled_matrix_desc_t*)&ddescA,
-                                   (tiled_matrix_desc_t*)&ddescT))
-
-        /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf)
-    }
-    else {
-        int info_ortho, info_facto;
-
-        if(loud > 2) fprintf(stderr, "+++ Allocate extra matrices ... ");
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
-            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                   M, N, SMB, SNB, P));
-
-        PASTE_CODE_ALLOCATE_MATRIX(ddescQ, 1, 
-            two_dim_block_cyclic, (&ddescQ, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                   M, N, SMB, SNB, P));
-        if(loud > 2) fprintf(stderr, "Done\n");
-
-        /* matrix generation */
-        if(loud > 2) fprintf(stderr, "+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+    /* matrix generation */
+    if(loud > 2) printf("+++ Generate matrices ... ");
+    dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
+    if( check )
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
-        if(loud > 2) fprintf(stderr, "Done\n");
-        
-        if(loud > 2) fprintf(stderr, "+++ Factorization ... ");
-        dplasma_zgeqrf( dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT );
-        if(loud > 2) fprintf(stderr, "Done\n");
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
+    if(loud > 2) printf("Done\n");
+    
+    /* Create DAGuE */
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf, 
+                              ((tiled_matrix_desc_t*)&ddescA,
+                               (tiled_matrix_desc_t*)&ddescT));
+    
+    /* lets rock! */
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf);
+
+    if( check ) {
+        int info_ortho, info_facto;
 
         if(loud > 2) fprintf(stderr, "+++ Generate the Q ...");
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
         dplasma_zungqr( dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT, 
                         (tiled_matrix_desc_t *)&ddescQ);
         if(loud > 2) fprintf(stderr, "Done\n");
-        
+
         /* Check the orthogonality, factorization and the solution */
         info_ortho = check_orthogonality(dague, (tiled_matrix_desc_t *)&ddescQ);
         info_facto = check_factorization(dague, (tiled_matrix_desc_t *)&ddescA0, 
                                          (tiled_matrix_desc_t *)&ddescA, 
                                          (tiled_matrix_desc_t *)&ddescQ);
+
 
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
@@ -142,7 +129,7 @@ int main(int argc, char ** argv)
     dague_data_free(ddescT.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
-
+    
     cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;
