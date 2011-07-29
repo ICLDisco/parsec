@@ -47,9 +47,9 @@ ztsmqr(k,m,n)
   RW    A <- (0==m) ? A ztsmqr_in_Q0(k,n) : A ztsmqr(k, m-1, n) 
           -> ((k+descQ.mt)==(minMN+m+1)) & (k>=0) ? G zunmqr(m+minMN+1-descQ.mt, n) 
           -> ((k+descQ.mt)>=(minMN+m+2))          ? A ztsmqr(k, m+1, n) 
-  RW    B <- (0==k) & (descQ.mt   >=(minMN+m+1))                          ? Q(descQ.mt-1-m,n)
+  RW    B <- (0==k) & (descQ.mt   >=(minMN+m+1))                         ? Q(descQ.mt-1-m,n)
           <- (        (descQ.mt+k)==(minMN+m+1)) & ((m+minMN)>=descQ.mt) ? G zunmqr(k-1, n) 
-          <- (        (descQ.mt+k)>=(minMN+m+2)) & (k>=1)                 ? B ztsmqr(k-1, m, n) 
+          <- (        (descQ.mt+k)>=(minMN+m+2)) & (k>=1)                ? B ztsmqr(k-1, m, n) 
           -> ( (k+2) <= minMN ) ? B ztsmqr(k+1, m, n) 
           -> ( (k+1) == minMN ) ? Q(descQ.mt-1-m, n)
   READ  C <- C ztsmqr_in_A1(k,m,n)
@@ -149,7 +149,7 @@ END
 
 zunmqr(k,n1)
   /* Execution space */
-  k = 0..(minMN-1)
+  k  = 0..(minMN-1)
   n1 = 0..(descQ.nt-1)
 
   : Q(minMN-1-k,n1)
@@ -161,7 +161,6 @@ zunmqr(k,n1)
   /* G == Q((minMN-1)-k,n1) */
 
   READ  E <- E zunmqr_in_A0(k,n1)        [type = LOWER_TILE]
-
   READ  F <- F zunmqr_in_T1(k,n1)        [type = LITTLE_T]
 
   RW    G <- ( (k+descQ.mt) <= minMN   ) ? Q(minMN-1-k,n1)
@@ -213,8 +212,8 @@ zunmqr_in_A0(k,n1)
 
   : A( minMN-1-k, minMN-1-k )
 
-  RW E <- A( minMN-1-k, minMN-1-k )
-       -> E zunmqr(k,n1)
+  RW E <- A( minMN-1-k, minMN-1-k ) [type = LOWER_TILE]
+       -> E zunmqr(k,n1)            [type = LOWER_TILE]
 BODY
 /* nothing */
 END
@@ -229,8 +228,8 @@ zunmqr_in_T1(k,n1)
 
   : T( minMN-1-k, minMN-1-k )
 
-  RW F <- T( minMN-1-k, minMN-1-k )        [type = LITTLE_T]
-       -> F zunmqr(k,n1)                   [type = LITTLE_T]
+  RW F <- T( minMN-1-k, minMN-1-k ) [type = LITTLE_T]
+       -> F zunmqr(k,n1)            [type = LITTLE_T]
 BODY
 /* nothing */
 END

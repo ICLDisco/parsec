@@ -169,8 +169,8 @@ zttmqr_in_T(k, m)
 
   : T2(m, k)
 
-  RW T <- T2(m, k)
-       -> T zttmqr(k, m, 0..descQ.nt-1)
+  RW T <- T2(m, k)                       [type = LITTLE_T]
+       -> T zttmqr(k, m, 0..descQ.nt-1)  [type = LITTLE_T]
 BODY
 /* nothing */
 END
@@ -239,8 +239,8 @@ zunmqr_in_A(k, i)
   
   : A( m, k )
 
-  RW A <- A( m, k )
-       -> A zunmqr(k, i, 0..descQ.nt-1)
+  RW A <- A( m, k )                       [type = LOWER_TILE]
+       -> A zunmqr(k, i, 0..descQ.nt-1)   [type = LOWER_TILE]
 BODY
 /* nothing */
 END
@@ -256,8 +256,8 @@ zunmqr_in_T(k, i)
   
   : T1( m, k )
 
-  RW T <- T1( m, k )
-       -> T zunmqr(k, i, 0..descQ.nt-1)
+  RW T <- T1( m, k )                      [type = LITTLE_T]
+       -> T zunmqr(k, i, 0..descQ.nt-1)   [type = LITTLE_T]
 BODY
 /* nothing */
 END
