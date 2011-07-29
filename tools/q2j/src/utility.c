@@ -23,6 +23,9 @@
 #define QUARK_FIRST_VAR 5
 #define QUARK_ELEMS_PER_LINE 3
 
+#define TASK_IN  0
+#define TASK_OUT 1
+
 extern char *q2j_input_file_name;
 
 static dague_linked_list_t _dague_pool_list;
@@ -35,6 +38,14 @@ static int _task_count=0;
 // we might want to set it to false.
 int JDF_NOTATION = 1;
 
+typedef struct matrix_variable matrix_variable_t;
+
+struct matrix_variable{
+    char *matrix_name;
+    int matrix_rank;
+    matrix_variable_t *next;
+};
+
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static void do_if_parentize(node_t *node, node_t *enclosing_if);
@@ -46,16 +57,10 @@ static char *size_to_pool_name(char *size_str);
 static int isArrayLocal(node_t *task_node, int index);
 static int isArrayOut(node_t *task_node, int index);
 static int isArrayIn(node_t *task_node, int index);
-
-typedef struct matrix_variable matrix_variable_t;
-
-struct matrix_variable{
-    char *matrix_name;
-    int matrix_rank;
-    matrix_variable_t *next;
-};
+static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type);
+static void add_entry_task_loops(matrix_variable_t *list, node_t *node);
+static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
 static matrix_variable_t *quark_find_all_matrices(node_t *node);
-
 
 //#if 0
 void dump_und(und_t *und){
@@ -492,100 +497,128 @@ void analyze_deps(node_t *node){
     interrogate_omega(node, var_head);
 }
 
-void add_entry_task_loops(matrix_variable_t *list, node_t *node, int off){
-    int dim;
-    // FIXME: This will create variables with names like A.nt, but in the "real" code, these will be structure members. Is that ok?
-    char *ub_vars[2] = {"desc_A.mt","desc_A.nt"};
-    node_t *ind_vars[2];
 
-
-    if( BLOCK == node->type ){
-        matrix_variable_t *curr;
-        assert( NULL != list );
-
-        for(curr = list; NULL != curr; curr = curr->next){
-            char *curr_matrix = curr->matrix_name;
-            node_t *block, *enclosing_loop = NULL;
-
-            if( !off ){
-                  char *tmp_str;
-
-                  block = node;
-                  for(dim=0; dim<2; dim++){ // FIXME: change "2" to a rank dynamically discovered from "list".
-                      char *ind_var_name;
-                      node_t *new_node, *scond, *econd, *incr, *body;
-
-                      // Create the induction variable.
-                      asprintf(&ind_var_name,"%c",'i'+dim); //
-                      ind_vars[dim] = DA_create_ID(ind_var_name);
-                      free(ind_var_name); // DA_create_ID() will copy the string anyway.
-
-                      // Create the assignment of the lower bound to the induction variable (start condition, scond).
-                      scond = DA_create_B_expr( ASSIGN, ind_vars[dim], DA_create_Int_const(0) );
-
-                      // Create the comparison of the induction variable against the upper bound (end condition, econd).
-                      econd = DA_create_B_expr( LT, ind_vars[dim], DA_create_ID(ub_vars[dim]) );
-
-                      // Create the incement (i++).
-                      incr = DA_create_B_expr( EXPR, ind_vars[dim], DA_create_Unary(INC_OP) );
-
-                      // Create an empty body.
-                      body = DA_create_Block();
-
-                      // Create the FOR.
-                      new_node = DA_create_For(scond, econd, incr, body);
-
-                      // Put the newly created FOR into the parent BLOCK,
-                      // and make the body of the for by the parent BLOCK for the next iteration.
-                      DA_insert_first(block, new_node);
-                      block = body;
-                  }
-
-                  // Create a call like this:
-                  // QUARK_Insert_Task( phony, phony, phony,
-                  //                    phony, A(k,k), INOUT, 0 )
-
-                  // Create a phony variable.
-                  node_t *phony_var = DA_create_ID("phony");
-
-                  // Create a variable to hold the task name in QUARK specific format.
-                  asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
-                  node_t *task_name_var = DA_create_ID(tmp_str);
-                  free(tmp_str);
-
-                  // Create the access to the matrix element.
-                  node_t *matrix_element = DA_create_ArrayAccess(curr_matrix, ind_vars[0], ind_vars[1], NULL);
-
-                  // Create the function-call.
-                  node_t *f_call = DA_create_Fcall("QUARK_Insert_Task", phony_var, task_name_var, phony_var,
-                                                   phony_var, matrix_element, DA_create_ID("INOUT"),
-                                                   DA_create_Int_const(0), NULL);
-                  f_call->enclosing_loop = enclosing_loop;
-
-                  // Put the newly created FCALL into the BLOCK of the inner-most loop.
-                  DA_insert_first(block, f_call);
-            }
-        }
-    }else{
-        int i;
-        for(i=0; i< DA_kid_count(node); ++i){
-            add_entry_task_loops(list, DA_kid(node,i), off+4 );
-        }
-    }
-    return;
+static void add_entry_task_loops(matrix_variable_t *list, node_t *node){
+    add_phony_INOUT_task_loops(list, node, TASK_IN);
 }
 
-static void add_exit_task_loops(matrix_variable_t *list, node_t *node, int off){
+static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
+    add_phony_INOUT_task_loops(list, node, TASK_OUT);
+}
+        
+
+static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type){
+    int i, dim;
+    // FIXME: This will create variables with names like A.nt, but in the "real" code, these will be structure members. Is that ok?
+    char *ub_vars[2] = {"desc_A.mt","desc_A.nt"};
+    node_t *container_block, *ind_vars[2];
+    matrix_variable_t *curr;
+
+    assert( NULL != list );
+
+    container_block = NULL;
+    if( BLOCK == node->type ){
+        container_block = node;
+    }else{
+        for(i=0; i< DA_kid_count(node); ++i){
+            if( BLOCK == DA_kid(node,i)->type ){
+                container_block = DA_kid(node,i);
+                break;
+            }
+        }
+    }
+    assert( NULL != container_block);
+
+    for(curr = list; NULL != curr; curr = curr->next){
+        char *curr_matrix = curr->matrix_name;
+        char *tmp_str;
+        node_t *new_block, *tmp_block, *enclosing_loop = NULL;
+
+        // Create a block to contain the loop nest.
+        new_block = DA_create_Block();
+        tmp_block = new_block;
+
+        for(dim=0; dim<2; dim++){ // FIXME: change "2" to a rank dynamically discovered from "list".
+            char *ind_var_name;
+            node_t *new_node, *scond, *econd, *incr, *body;
+
+            // Create the induction variable.
+            asprintf(&ind_var_name,"%c",'i'+dim); //
+            ind_vars[dim] = DA_create_ID(ind_var_name);
+            free(ind_var_name); // DA_create_ID() will copy the string anyway.
+
+            // Create the assignment of the lower bound to the induction variable (start condition, scond).
+            scond = DA_create_B_expr( ASSIGN, ind_vars[dim], DA_create_Int_const(0) );
+
+            // Create the comparison of the induction variable against the upper bound (end condition, econd).
+            econd = DA_create_B_expr( LT, ind_vars[dim], DA_create_ID(ub_vars[dim]) );
+
+            // Create the incement (i++).
+            incr = DA_create_B_expr( EXPR, ind_vars[dim], DA_create_Unary(INC_OP) );
+
+            // Create an empty body.
+            body = DA_create_Block();
+
+            // Create the FOR.
+            new_node = DA_create_For(scond, econd, incr, body);
+
+            // Put the newly created FOR into the parent BLOCK,
+            // and make the body of the for by the parent BLOCK for the next iteration.
+            DA_insert_first(tmp_block, new_node);
+            tmp_block = body;
+        }
+
+        // Create a call like this:
+        // QUARK_Insert_Task( phony, CORE_TaskName_quark, phony,
+        //                    phony, A(k,k), INOUT, 0 )
+
+        // Create a phony variable.
+        node_t *phony_var = DA_create_ID("phony");
+
+        // Create a variable to hold the task name in QUARK specific format.
+        if( TASK_IN == task_type ){
+            asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
+        }else if( TASK_OUT == task_type ){
+            asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
+        }else{
+            assert(0);
+        }
+        node_t *task_name_var = DA_create_ID(tmp_str);
+        free(tmp_str);
+
+        // Create the access to the matrix element.
+        node_t *matrix_element = DA_create_ArrayAccess(curr_matrix, ind_vars[0], ind_vars[1], NULL);
+
+        // Create the function-call.
+        node_t *f_call = DA_create_Fcall("QUARK_Insert_Task", phony_var, task_name_var, phony_var,
+                                         phony_var, matrix_element, DA_create_ID("INOUT"),
+                                         DA_create_Int_const(0), NULL);
+        f_call->enclosing_loop = enclosing_loop;
+
+        // Put the newly created FCALL into the BLOCK of the inner-most loop.
+        DA_insert_first(tmp_block, f_call);
+
+        // Put the block with the loop nest at the beginning (or the end of the container block)
+        if( TASK_IN == task_type ){
+            DA_insert_first(container_block, new_block);
+        }else if( TASK_OUT == task_type ){
+            DA_insert_last(container_block, new_block);
+        }else{
+            assert(0);
+        }
+    }
+
+    return;
 }
 
 void add_entry_and_exit_task_loops(node_t *node){
     matrix_variable_t *list;
 
     list = quark_find_all_matrices(node);
-    add_entry_task_loops(list, node, 0);
+    add_entry_task_loops(list, node);
+    add_exit_task_loops(list, node);
     DA_parentize(node);
 //printf("%s\n\n",tree_to_str(node));
-    add_exit_task_loops(list, node, 0);
 }
 
 static int is_var_repeating(char *iv_str, char **iv_names){
@@ -1030,11 +1063,38 @@ node_t *DA_create_Fcall(char *funcName, ...){
 
 void DA_insert_first(node_t *block, node_t *new_node){
     node_t *tmp = block->u.block.first;
+    if( NULL == tmp ){
+        assert( NULL == block->u.block.last );
+        block->u.block.first = new_node;
+        block->u.block.last = new_node;
+        return;
+    }
     block->u.block.first = new_node;
     new_node->next = tmp;
+    tmp->prev = new_node;
+/*
     if( NULL == block->u.block.last ){
         block->u.block.last = new_node;
     }
+*/
+    assert( NULL != block->u.block.last );
+    return;
+}
+
+void DA_insert_last(node_t *block, node_t *new_node){
+    node_t *tmp = block->u.block.last;
+    if( NULL == tmp ){
+        assert( NULL == block->u.block.first );
+        block->u.block.last = new_node;
+        block->u.block.first = new_node;
+        return;
+    }
+
+    block->u.block.last = new_node;
+    new_node->prev = tmp;
+    tmp->next = new_node;
+
+    assert( NULL != block->u.block.first );
     return;
 }
 

@@ -71,6 +71,7 @@ node_t *DA_create_Block(void);
 node_t *DA_create_For(node_t *scond, node_t *econd, node_t *incr, node_t *body);
 node_t *DA_create_Complex(uint32_t type, char *arrayName, ...);
 void DA_insert_first(node_t *block, node_t *new_node);
+void DA_insert_last(node_t *block, node_t *new_node);
 node_t *DA_create_Entry();
 node_t *DA_create_Exit();
 
@@ -78,7 +79,6 @@ int DA_tree_contains_only_known_vars(node_t *node, char **known_vars);
 #define DA_create_relation(_T_, _K0_, _K1_) DA_create_B_expr(_T_, _K0_, _K1_)
 #define DA_create_ArrayAccess(name, ...) DA_create_Complex(ARRAY, name, __VA_ARGS__)
 #define DA_create_Fcall(name, ...) DA_create_Complex(FCALL, name, __VA_ARGS__)
-
 
 void convert_OUTPUT_to_INOUT(node_t *node);
 void add_entry_and_exit_task_loops(node_t *node);
