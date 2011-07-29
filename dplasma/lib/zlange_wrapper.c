@@ -152,7 +152,7 @@ double dplasma_zlange( dague_context_t *dague,
                     PLASMA_enum ntype,
                     tiled_matrix_desc_t *A) 
 {
-    dague_object_t *dague_zlange = NULL;
+    struct dague_object_t *dague_zlange = NULL;
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
@@ -202,23 +202,22 @@ double dplasma_zlange( dague_context_t *dague,
 
     args.ntype = ntype;
     args.desc = A;
-    
+
     /* First reduction by tile */
-    dague_zlange = (dague_object_t*) dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
-                                                    *A, workD.super, 
+    dague_zlange = (dague_object_t*) dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A,
+                                                    *A, workD.super,
                                                     op, (void *)&args);
     dague_enqueue( dague, (dague_object_t*)dague_zlange);
     dague_progress(dague);
     dague_map2_destroy( (dague_map2_object_t*)dague_zlange );
 
     /* Second one with on element (one double or one vector )  per tile */
-    two_dim_block_cyclic_init(&workS, matrix_RealDouble, workD.super.super.nodes, workD.super.super.cores, workD.super.super.myrank,
-                              1, 1, workD.super.mt, workD.super.nt, 0, 0, workD.super.mt, workD.super.nt, workD.super.mt, workD.super.nt, 1);
+    two_dim_block_cyclic_init(&workS, matrix_RealDouble, 1, workD.super.super.cores, workD.super.super.myrank,
+                              1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 1, 1, 1);
     workS.mat = dague_data_allocate((size_t)workS.super.nb_local_tiles * 
                                     (size_t)workS.super.bsiz * 
                                     (size_t)workS.super.mtype);
 
-    
     dplasma_zlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
 
     if ( workS.super.super.myrank == 0 ) {
