@@ -9,6 +9,8 @@
 #include <dague.h>
 #include "dplasma.h"
 
+#define dplasma_comm MPI_COMM_WORLD
+
 #if defined(HAVE_MPI)
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
                                        unsigned int tile_mb,
@@ -24,6 +26,7 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
 int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
+
 #else
 # define MPI_DOUBLE_COMPLEX NULL
 # define MPI_COMPLEX        NULL
