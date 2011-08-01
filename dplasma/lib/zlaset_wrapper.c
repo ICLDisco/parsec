@@ -66,7 +66,7 @@ int dplasma_zlaset( dague_context_t *dague,
     dague_zlaset = dplasma_zlaset_New(uplo, alpha, beta, A);
 
     dague_enqueue(dague, (dague_object_t*)dague_zlaset);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zlaset_Destruct( dague_zlaset );
     return 0;

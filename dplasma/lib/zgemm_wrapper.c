@@ -119,7 +119,7 @@ dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
     if ( dague_zgemm != NULL )
     {
         dague_enqueue( dague, (dague_object_t*)dague_zgemm);
-        dague_progress(dague);
+        dplasma_progress(dague);
         dplasma_zgemm_Destruct( dague_zgemm );
     }
 }

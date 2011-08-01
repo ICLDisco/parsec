@@ -181,7 +181,7 @@ dplasma_ztrmm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
     if ( dague_ztrmm != NULL )
     {
       dague_enqueue( dague, (dague_object_t*)dague_ztrmm);
-      dague_progress(dague);
+      dplasma_progress(dague);
       
       dplasma_ztrmm_Destruct( dague_ztrmm );
     }

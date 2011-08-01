@@ -85,7 +85,7 @@ int dplasma_zungqr_param( dague_context_t *dague,
                                                   A, TS, TT, Q);
 
     dague_enqueue(dague, (dague_object_t*)dague_zungqr_param);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zungqr_param_Destruct( dague_zungqr_param );
     return 0;

@@ -85,7 +85,7 @@ int dplasma_zgeqrf_param( dague_context_t *dague,
                                                   A, TS, TT);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zgeqrf_param_Destruct( dague_zgeqrf_param );
     return 0;

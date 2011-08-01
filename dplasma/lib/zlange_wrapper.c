@@ -208,7 +208,7 @@ double dplasma_zlange( dague_context_t *dague,
                                                     *A, workD.super, 
                                                     op, (void *)&args);
     dague_enqueue( dague, (dague_object_t*)dague_zlange);
-    dague_progress(dague);
+    dplasma_progress(dague);
     dague_map2_destroy( (dague_map2_object_t*)dague_zlange );
 
     /* Second one with on element (one double or one vector )  per tile */

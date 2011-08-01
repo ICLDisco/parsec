@@ -68,7 +68,7 @@ int dplasma_zungqr( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix
     dague_zungqr = dplasma_zungqr_New(A, T, Q);
 
     dague_enqueue(dague, (dague_object_t*)dague_zungqr);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zungqr_Destruct( dague_zungqr );
     return 0;

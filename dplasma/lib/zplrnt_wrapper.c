@@ -54,7 +54,7 @@ int dplasma_zplrnt( dague_context_t *dague,
     dague_zplrnt = dplasma_zplrnt_New(A, seed);
 
     dague_enqueue(dague, (dague_object_t*)dague_zplrnt);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zplrnt_Destruct( dague_zplrnt );
     return 0;

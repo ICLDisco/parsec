@@ -65,7 +65,7 @@ dplasma_ztrsmpl( dague_context_t *dague,
     if ( dague_ztrsmpl != NULL )
     {
         dague_enqueue( dague, dague_ztrsmpl );
-        dague_progress( dague );
+        dplasma_progress( dague );
         
         dplasma_ztrsmpl_Destruct( dague_ztrsmpl );
     }
