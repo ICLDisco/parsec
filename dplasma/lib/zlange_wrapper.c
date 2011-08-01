@@ -235,6 +235,10 @@ double dplasma_zlange( dague_context_t *dague,
     if ( work != NULL )
         free(work);
     
+#if defined(HAVE_MPI)
+    MPI_Bcast(&result, 1, MPI_DOUBLE, 0, dplasma_comm);
+#endif
+
     return result;
 }
 
