@@ -72,7 +72,6 @@ BODY
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 23 "zungqr.cpp"
          CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans, 
                      descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, 
                      A /* Q(minMN-1-k,     n        ) */, ldqk, 
@@ -188,7 +187,6 @@ BODY
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 28 "zungqr.cpp"
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
                      tempkm, tempnn, tempkmin, ib, 
                      E /* A((minMN-1)-k,(minMN-1)-k) */, ldak, 
@@ -196,8 +194,8 @@ BODY
                      G /* Q((minMN-1)-k,n1) */, ldqk, 
                      p_elem_A, descT.nb );
 
-         dague_private_memory_push( p_work, p_elem_A );
-            );
+                     dague_private_memory_push( p_work, p_elem_A );
+                   );
   printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
   context->eu_id, k, n1, (minMN-1)-k, (minMN-1)-k, E, (minMN-1)-k, (minMN-1)-k, F, (minMN-1)-k, n1, G);
 

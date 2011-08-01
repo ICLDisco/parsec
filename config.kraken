@@ -1,7 +1,8 @@
 #!/bin/sh
 rm -rf CMakeCache.txt CMakeFiles
-export CC=cc
-export FC=ftn
+export CC="cc -DADD_"
+export CXX="CC -DADD_"
+export FC="ftn"
 
-cmake . -DDAGUE_CUDA=OFF -DMPI_PREFIX_PATH="/opt/cray/mpt/5.0.0/xt/seastar/mpich2-pgi64" -DBLAS_LIBRARIES="/opt/xt-libsci/10.4.6/pgi/lib/libsci_istanbul.a" -DPLASMA_DIR=$HOME/.local/plasma  
+cmake . -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_COLLECTIVES=ON -DHWLOC_DIR=$HOME/.local/ -DMPI_INCLUDE_PATH="$MPICH_DIR/include" -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl" -DPLASMA_DIR=$HOME/dague/plasma  
 
