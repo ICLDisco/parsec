@@ -1,10 +1,14 @@
 /** Freely inspired from http://xmlsoft.org/examples/ */
 
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <string.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
+
+#include <GTG.h>
 
 #ifdef LIBXML_TREE_ENABLED
 
@@ -33,6 +37,30 @@ static xmlChar *xmlGetFirstNodeChildContentWithName(xmlNodePtr parent, const xml
     return p->children->content;
 }
 
+static char *getMPIContainerIdentifier( const char *fileid ) {
+    char *t = strdup(fileid);
+    char *r = t + strlen(t) - 8;
+    char *ret;
+    *r = '\0';
+    while ( *r != '.' )
+        r--;
+
+    asprintf( &ret, "P%s", r+1 );
+    free( t );
+    return ret;
+}
+
+static char *getThreadContainerIdentifier( const char *prefix, const char *identifier ) {
+    const char *r = identifier + strlen(identifier) - 1;
+    char *ret;
+
+    while (*r != ' ' )
+        r--;
+
+    asprintf( &ret, "%sT%s", prefix, r+1);
+    return ret;
+}
+
 int main(int argc, char **argv)
 {
     xmlDoc *doc = NULL;
@@ -42,11 +70,21 @@ int main(int argc, char **argv)
     xmlXPathObjectPtr xpathObj_CONT;
     xmlNodePtr tmp;
     xmlChar *dico_id, *dico_name, *dico_attr;
-    xmlChar *cont_mpi_name, *cont_thread_name;
+    xmlChar *app_name;
+    char *cont_mpi_name, *cont_thread_name, *name;
     int i;
 
     if (argc != 2)
         return(1);
+
+    /* Init GTG */
+    setTraceType(PAJE);
+    initTrace ("out", 0, GTG_FLAG_NONE);
+    addContType ("CT_Appli", "0", "Application");
+    addContType ("CT_P", "CT_Appli", "Process");
+    addContType ("CT_T", "CT_P", "Thread");
+    addStateType("ST_TS", "CT_T", "Thread State");
+    addEntityValue ("Wait", "ST_TS", "Waiting", GTG_LIGHTGREY);
 
     /*
      * this initialize the library and check potential ABI mismatches
@@ -68,6 +106,9 @@ int main(int argc, char **argv)
         xmlFreeDoc(doc); 
         return(-1);
     }
+
+    app_name = xmlGetFirstNodeChildContentWithName( xmlDocGetRootElement( doc ), (xmlChar*)"IDENTIFIER" );
+    addContainer (0.00000, "Appli", "CT_Appli", "0", (char*)app_name, "");
 
     xpathObj_INFOS = xmlXPathEvalExpression((xmlChar*)"//INFOS/INFO", xpathCtx);
     if(xpathObj_INFOS == NULL) {
@@ -100,70 +141,98 @@ int main(int argc, char **argv)
             return -143;
         }
 
-        printf("KEY ID %s: NAME=%s, ATTRIBUTES=%s\n", dico_id, dico_name, dico_attr);
+        addEntityValue ((char*)dico_id, "ST_TS", (char*)dico_name, GTG_BLACK);
+        /*printf("KEY ID %s: NAME=%s, ATTRIBUTES=%s\n", dico_id, dico_name, dico_attr);*/
     }
 
     /* Iterate on each container */
-    xpathObj_CONT = xmlXPathEvalExpression((xmlChar*)"//DISTRIBUTED_PROFILE/NODE/PROFILES/THREAD", xpathCtx);
-     if(xpathObj_CONT == NULL || xpathObj_CONT->nodesetval == NULL) {
-        fprintf(stderr,"Error: unable to find any //DISTRIBUTED_PROFILE/NODE/PROFILES/THREAD in this profiles\n");
+    xpathObj_CONT = xmlXPathEvalExpression((xmlChar*)"//DISTRIBUTED_PROFILE/NODE", xpathCtx);
+    if(xpathObj_CONT == NULL || xpathObj_CONT->nodesetval == NULL) {
+        fprintf(stderr,"Error: unable to find any //DISTRIBUTED_PROFILE/NODE in this profiles\n");
         xmlXPathFreeContext(xpathCtx);
         xmlXPathFreeObject(xpathObj_INFOS);
         xmlXPathFreeObject(xpathObj_DICO);
         xmlFreeDoc(doc); 
         return(-1);
-     }
-     for(i = 0; i < xpathObj_CONT->nodesetval->nodeNr; i++) {
-         xmlNodePtr ct;
+    }
+
+    for(i = 0; i < xpathObj_CONT->nodesetval->nodeNr; i++) {
+        xmlNodePtr cn, ct;
+        xmlChar *fileid;
          
-         ct = xpathObj_CONT->nodesetval->nodeTab[i];
+        cn = xpathObj_CONT->nodesetval->nodeTab[i];
 
-         cont_mpi_name = xmlGetProp( ct->parent->parent, (xmlChar*)"FILEID");
-         cont_thread_name = xmlGetFirstNodeChildContentWithName(ct, (xmlChar*)"IDENTIFIER");
+        fileid = xmlGetProp( cn, (xmlChar*)"FILEID");
+        if( NULL == fileid ) {
+            fprintf(stderr, "Malformed profiles file for reason 2a\n");
+            return -144;
+        }
 
-         if( NULL == cont_mpi_name ||
-             NULL == cont_thread_name ) {
-             fprintf(stderr, "Malformed profiles file for reason 2: %s is NULL\n",
-                     NULL == cont_mpi_name ? "cont_mpi_name" : "cont_thread_name");
-             return -144;
-         }
-         printf("MPI container: %s\n", cont_mpi_name);
-         printf("Thread container: %s\n", cont_thread_name);
+        /*printf("MPI container: %s\n", cont_mpi_name);*/
+        cont_mpi_name = getMPIContainerIdentifier( (char*)fileid );
+        asprintf( &name, "MPI-%s", cont_mpi_name+1 );
+        addContainer (0.00000, cont_mpi_name, "CT_P", "Appli", name, cont_mpi_name);
+        free(name);
 
-         for(tmp = xmlGetFirstNodeWithName( ct, (xmlChar*)"KEY" );
-             tmp;
-             tmp = tmp->next) {
-             xmlNodePtr e;
-             xmlChar *id, *start, *end, *info;
-             xmlChar *keyid;
+        for(ct = xmlGetFirstNodeWithName( cn, (xmlChar*)"THREAD" );
+            ct;
+            ct = ct->next) {
+            xmlChar *identifier;
 
-             if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
+            if( !xmlStrEqual(ct->name, (xmlChar*)"THREAD") ) continue;
+            identifier = xmlGetFirstNodeChildContentWithName(ct, (xmlChar*)"IDENTIFIER");
 
-             keyid = xmlGetProp(tmp, (xmlChar*)"ID");
+            if( NULL == identifier ) {
+                fprintf(stderr, "Malformed profiles file for reason 2b\n");
+                return -144;
+            }
+            /*printf("Thread container: %s\n", cont_thread_name);*/
+            cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, (char*)identifier );
+            addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, (char*)(identifier)+6, cont_thread_name);
 
-             for(e = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
-                 e;
-                 e = e->next) {
-                 if( !xmlStrEqual(e->name, (xmlChar*)"EVENT") ) continue;
+            for(tmp = xmlGetFirstNodeWithName( ct, (xmlChar*)"KEY" );
+                tmp;
+                tmp = tmp->next) {
+                xmlNodePtr e;
+                xmlChar *id, *start, *end, *info;
+                xmlChar *keyid;
+
+                if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
+
+                keyid = xmlGetProp(tmp, (xmlChar*)"ID");
+
+                for(e = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
+                    e;
+                    e = e->next) {
+                    if( !xmlStrEqual(e->name, (xmlChar*)"EVENT") ) continue;
                  
-                 id = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID" );
-                 start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
-                 end = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"END" );
-                 info = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"INFO" );
+                    id = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID" );
+                    start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
+                    end = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"END" );
+                    info = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"INFO" );
 
-                 if( NULL == id ||
-                     NULL == start ||
-                     NULL == end ||
-                     NULL == info ) {
-                     fprintf(stderr, "Malformed profiles file for reason 3\n");
-                     return -145;
-                 }
+                    if( NULL == id ||
+                        NULL == start ||
+                        NULL == end ||
+                        NULL == info ) {
+                        fprintf(stderr, "Malformed profiles file for reason 3\n");
+                        return -145;
+                    }
 
-                 printf("  %s %s %s %s %s\n", keyid, id, start, end, info);
-             }
-         }
-     }
-     
+#if 0
+                    pushState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
+                    popState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name);
+#else
+                    setState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
+                    setState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait" );
+#endif
+                    /*printf("  %s %s %s %s %s\n", keyid, id, start, end, info);*/
+                }
+            }
+        }
+    }     
+
+    endTrace();
 
     /*free the document */
     xmlXPathFreeContext(xpathCtx);
