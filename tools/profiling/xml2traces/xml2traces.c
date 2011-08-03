@@ -72,7 +72,8 @@ int main(int argc, char **argv)
     xmlChar *dico_id, *dico_name, *dico_attr;
     xmlChar *app_name;
     char *cont_mpi_name, *cont_thread_name, *name;
-    int i;
+    int i, nbkeys;
+    xmlNodePtr *key_heads;
 
     if (argc != 2)
         return(1);
@@ -190,45 +191,90 @@ int main(int argc, char **argv)
             cont_thread_name = getThreadContainerIdentifier( cont_mpi_name, (char*)identifier );
             addContainer (0.00000, cont_thread_name, "CT_T", cont_mpi_name, (char*)(identifier)+6, cont_thread_name);
 
+            nbkeys = 0;
             for(tmp = xmlGetFirstNodeWithName( ct, (xmlChar*)"KEY" );
                 tmp;
                 tmp = tmp->next) {
+
+                if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
+                nbkeys++;
+            }
+            key_heads = (xmlNodePtr*)malloc(nbkeys * sizeof(xmlNodePtr));
+            nbkeys = 0;
+            for(tmp = xmlGetFirstNodeWithName( ct, (xmlChar*)"KEY" );
+                tmp;
+                tmp = tmp->next) {
+
+                if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
+                key_heads[nbkeys++] = tmp;
+            }
+
+            do {
                 xmlNodePtr e;
                 xmlChar *id, *start, *end, *info;
                 xmlChar *keyid;
+                long long int sd, best_sd;
+                int best;
 
-                if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
+                /* Find the key with the smallest start date.
+                 * Assumes that for a given key, events are ordered. */
+                best = -1;
+                for(i = 0; i < nbkeys; i++) {
+                    if( key_heads[i] == NULL )
+                        continue;
 
-                keyid = xmlGetProp(tmp, (xmlChar*)"ID");
-
-                for(e = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
-                    e;
-                    e = e->next) {
-                    if( !xmlStrEqual(e->name, (xmlChar*)"EVENT") ) continue;
-                 
-                    id = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID" );
+                    e = xmlGetFirstNodeWithName( key_heads[i], (xmlChar*)"EVENT" );
+                    if( e == NULL ) {
+                        key_heads[i] = NULL;
+                        continue;
+                    }
                     start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
-                    end = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"END" );
-                    info = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"INFO" );
-
-                    if( NULL == id ||
-                        NULL == start ||
-                        NULL == end ||
-                        NULL == info ) {
-                        fprintf(stderr, "Malformed profiles file for reason 3\n");
+                    if( start == NULL ) {
+                        fprintf(stderr, "Malformed profiles file for reason 3a\n");
                         return -145;
                     }
+                    sd = strtoll((char*)start, NULL, 0);
+                    if( (best==-1) || (sd < best_sd) ) {
+                        best = i;
+                        best_sd = sd;
+                    }
+                }
+                /* best is the index of the best key head */
+                if( best == -1 )
+                    break;
+                /* store in into tmp and consume this head */
+                tmp = key_heads[best];
+                key_heads[best] = tmp->next;
+
+                keyid = xmlGetProp(tmp, (xmlChar*)"ID");
+                e = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
+                 
+                id = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID" );
+                start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
+                end = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"END" );
+                info = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"INFO" );
+
+                if( NULL == id ||
+                    NULL == start ||
+                    NULL == end ||
+                    NULL == info ) {
+                    fprintf(stderr, "Malformed profiles file for reason 3\n");
+                    return -145;
+                }
 
 #if 0
-                    pushState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
-                    popState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name);
+                pushState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
+                popState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name);
 #else
-                    setState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
-                    setState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait" );
+                setState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
+                setState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait" );
 #endif
-                    /*printf("  %s %s %s %s %s\n", keyid, id, start, end, info);*/
-                }
-            }
+                /*printf("  %s %s %s %s %s\n", keyid, id, start, end, info);*/
+            } while(1);
+
+            nbkeys = 0;
+            free(key_heads);
+            key_heads = NULL;
         }
     }     
 
