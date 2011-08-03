@@ -3,6 +3,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
@@ -206,7 +207,9 @@ int main(int argc, char **argv)
                 tmp = tmp->next) {
 
                 if( !xmlStrEqual(tmp->name, (xmlChar*)"KEY") ) continue;
-                key_heads[nbkeys++] = tmp;
+                key_heads[nbkeys] = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
+                assert( key_heads[nbkeys] != NULL);
+                nbkeys++;
             }
 
             do {
@@ -223,9 +226,8 @@ int main(int argc, char **argv)
                     if( key_heads[i] == NULL )
                         continue;
 
-                    e = xmlGetFirstNodeWithName( key_heads[i], (xmlChar*)"EVENT" );
+                    e = key_heads[i];
                     if( e == NULL ) {
-                        key_heads[i] = NULL;
                         continue;
                     }
                     start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
@@ -243,11 +245,11 @@ int main(int argc, char **argv)
                 if( best == -1 )
                     break;
                 /* store in into tmp and consume this head */
-                tmp = key_heads[best];
-                key_heads[best] = tmp->next;
+                e = key_heads[best];
+                key_heads[best] = e->next;
+                assert( key_heads[best] == NULL || xmlStrEqual( key_heads[best]->name, (xmlChar*)"EVENT") );
 
-                keyid = xmlGetProp(tmp, (xmlChar*)"ID");
-                e = xmlGetFirstNodeWithName( tmp, (xmlChar*)"EVENT" );
+                keyid = xmlGetProp(e->parent, (xmlChar*)"ID");
                  
                 id = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID" );
                 start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
