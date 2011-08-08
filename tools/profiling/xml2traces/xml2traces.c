@@ -10,6 +10,7 @@
 #include <libxml/xpathInternals.h>
 
 #include <GTG.h>
+#include <GTGPaje.h>
 
 #ifdef LIBXML_TREE_ENABLED
 
@@ -17,6 +18,47 @@
  *To compile this file using gcc you can type
  *gcc $(xml2-config --cflags --libs) -o xml2traces xml2traces.c
  */
+FILE *pajeGetProcFile();
+
+trace_return_t pajeSetState2(varPrec time, const char* type,
+                             const char *cont, const char* val, 
+                             const int x, const int y) 
+{
+    FILE *procFile = pajeGetProcFile();
+    if (procFile){
+        fprintf (procFile, "10 %.13e \"%s\" \"%s\" \"%s\" %d %d\n", 
+                 time, type, cont, val, x, y);
+        return TRACE_SUCCESS;
+    }
+    return TRACE_ERR_WRITE;
+}
+
+trace_return_t pajePushState2(varPrec time, const char* type,
+                              const char*  cont, const char* val, 
+                              const int x, const int y)
+{
+    FILE *procFile = pajeGetProcFile();
+    if (procFile){
+        fprintf (procFile, "11 %.13e \"%s\" \"%s\" \"%s\" %d %d\n", 
+                 time, type, cont, val, x, y);
+        return TRACE_SUCCESS;
+    }
+    return TRACE_ERR_WRITE;
+}
+
+trace_return_t pajePopState2(varPrec time, const char* type,
+                             const char*  cont, 
+                             const int x, const int y)
+{
+    FILE *procFile = pajeGetProcFile();
+    if (procFile){
+        fprintf (procFile, "12 %.13e \"%s\" \"%s\" %d %d\n", 
+                 time, type, cont, x, y);
+        return TRACE_SUCCESS;
+    }
+    return TRACE_ERR_WRITE;
+}
+
 
 static xmlNodePtr xmlGetFirstNodeWithName(xmlNodePtr parent, const xmlChar *name)
 {
@@ -55,7 +97,7 @@ static char *getThreadContainerIdentifier( const char *prefix, const char *ident
     const char *r = identifier + strlen(identifier) - 1;
     char *ret;
 
-    while (*r != ' ' )
+    while ( *r != ' ' )
         r--;
 
     asprintf( &ret, "%sT%s", prefix, r+1);
@@ -73,15 +115,27 @@ int main(int argc, char **argv)
     xmlChar *dico_id, *dico_name, *dico_attr;
     xmlChar *app_name;
     char *cont_mpi_name, *cont_thread_name, *name;
+    int x, y;
     int i, nbkeys;
     xmlNodePtr *key_heads;
+    gtg_color_t color;
+    unsigned long int color_code;
+    traceType_t fmt = PAJE;
 
     if (argc != 2)
         return(1);
 
     /* Init GTG */
-    setTraceType(PAJE);
+    setTraceType(fmt);
     initTrace ("out", 0, GTG_FLAG_NONE);
+    if( fmt == PAJE || fmt == VITE ) {
+        pajeEventDefAddParam( GTG_PAJE_EVTDEF_SetState,  "CoordX", GTG_PAJE_FIELDTYPE_Int );
+        pajeEventDefAddParam( GTG_PAJE_EVTDEF_SetState,  "CoordY", GTG_PAJE_FIELDTYPE_Int );
+        pajeEventDefAddParam( GTG_PAJE_EVTDEF_PushState, "CoordX", GTG_PAJE_FIELDTYPE_Int );
+        pajeEventDefAddParam( GTG_PAJE_EVTDEF_PushState, "CoordY", GTG_PAJE_FIELDTYPE_Int );
+        pajeEventDefAddParam( GTG_PAJE_EVTDEF_PopState,  "CoordX", GTG_PAJE_FIELDTYPE_Int );
+        pajeEventDefAddParam( GTG_PAJE_EVTDEF_PopState,  "CoordY", GTG_PAJE_FIELDTYPE_Int );
+    }
     addContType ("CT_Appli", "0", "Application");
     addContType ("CT_P", "CT_Appli", "Process");
     addContType ("CT_T", "CT_P", "Thread");
@@ -143,7 +197,13 @@ int main(int argc, char **argv)
             return -143;
         }
 
-        addEntityValue ((char*)dico_id, "ST_TS", (char*)dico_name, GTG_BLACK);
+        color_code = strtoul( (char*)dico_attr + strlen((char*)dico_attr) - 6, NULL, 0);
+        color = gtg_color_create((char*)dico_name, 
+                                 GTG_COLOR_GET_RED(color_code),
+                                 GTG_COLOR_GET_GREEN(color_code),
+                                 GTG_COLOR_GET_BLUE(color_code));
+        addEntityValue ((char*)dico_id, "ST_TS", (char*)dico_name, color);
+        gtg_color_free(color);
         /*printf("KEY ID %s: NAME=%s, ATTRIBUTES=%s\n", dico_id, dico_name, dico_attr);*/
     }
 
@@ -251,10 +311,10 @@ int main(int argc, char **argv)
 
                 keyid = xmlGetProp(e->parent, (xmlChar*)"ID");
                  
-                id = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID" );
+                id    = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"ID"    );
                 start = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"START" );
-                end = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"END" );
-                info = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"INFO" );
+                end   = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"END"   );
+                info  = xmlGetFirstNodeChildContentWithName( e, (xmlChar*)"INFO"  );
 
                 if( NULL == id ||
                     NULL == start ||
@@ -264,12 +324,23 @@ int main(int argc, char **argv)
                     return -145;
                 }
 
+                sscanf((const char *)info, "(null)(%d, %d)", &x, &y);
 #if 0
-                pushState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
-                popState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name);
+                if( fmt == PAJE || fmt == VITE ) {
+                    pajePushState2( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid, x, y);
+                    pajePopState2(  strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name, x, y);
+                } else {
+                    pushState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
+                    popState(  strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name);
+                }
 #else
-                setState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
-                setState( strtoll((char*)end, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait" );
+                if( fmt == PAJE || fmt == VITE ) {
+                    pajeSetState2( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid, x, y);
+                    pajeSetState2( strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait", x, y );
+                } else {
+                    setState( strtoll((char*)start, NULL, 0) * 1e-3, "ST_TS", cont_thread_name, (char*)keyid);
+                    setState( strtoll((char*)end,   NULL, 0) * 1e-3, "ST_TS", cont_thread_name, "Wait" );
+                }
 #endif
                 /*printf("  %s %s %s %s %s\n", keyid, id, start, end, info);*/
             } while(1);
