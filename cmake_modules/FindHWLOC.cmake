@@ -23,17 +23,17 @@ if( HWLOC_DIR )
   if( NOT HWLOC_INCLUDE_DIR )
     set(HWLOC_INCLUDE_DIR "${HWLOC_DIR}/include")
   endif( NOT HWLOC_INCLUDE_DIR )
-  if( NOT HWLOC_LIBRARIES )
-    set(HWLOC_LIBRARIES "${HWLOC_DIR}/lib")
-  endif( NOT HWLOC_LIBRARIES )
+  if( NOT HWLOC_LIBRARY_DIR )
+    set(HWLOC_LIBRARY_DIR "${HWLOC_DIR}/lib")
+  endif( NOT HWLOC_LIBRARY_DIR )
 endif( HWLOC_DIR )
 
 if( NOT HWLOC_INCLUDE_DIR )
   set(HWLOC_INCLUDE_DIR)
 endif( NOT HWLOC_INCLUDE_DIR )
-if( NOT HWLOC_LIBRARIES )
-  set(HWLOC_LIBRARIES)
-endif( NOT HWLOC_LIBRARIES )
+if( NOT HWLOC_LIBRARY_DIR )
+  set(HWLOC_LIBRARY_DIR)
+endif( NOT HWLOC_LIBRARY_DIR )
 if( NOT HWLOC_LINKER_FLAGS )
   set(HWLOC_LINKER_FLAGS)
 endif( NOT HWLOC_LINKER_FLAGS )
@@ -44,12 +44,12 @@ list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
 check_include_file(hwloc.h FOUND_HWLOC_INCLUDE)
 if(FOUND_HWLOC_INCLUDE)
   find_library(HWLOC_LIB hwloc
-    PATHS ${HWLOC_LIBRARIES}
+    PATHS ${HWLOC_LIBRARY_DIR}
     DOC "Where the HWLOC libraries are"
     NO_DEFAULT_PATH)
   if( NOT HWLOC_LIB )
     find_library(HWLOC_LIB hwloc
-      PATHS ${HWLOC_LIBRARIES}
+        PATHS ${HWLOC_LIBRARY_DIR}
       DOC "Where the HWLOC  libraries are")
   endif( NOT HWLOC_LIB )
 endif(FOUND_HWLOC_INCLUDE)
@@ -61,6 +61,7 @@ if(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
     int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" HAVE_HWLOC_OBJ_PU)
   check_library_exists(${HWLOC_LIB} hwloc_bitmap_free "" HAVE_HWLOC_BITMAP)
   set(HWLOC_FOUND TRUE)
+
 else(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
   set(HWLOC_FOUND FALSE)
 endif(FOUND_HWLOC_INCLUDE AND HWLOC_LIB)
@@ -69,8 +70,8 @@ if(NOT HWLOC_FIND_QUIETLY)
   if(HWLOC_FOUND)
     message(STATUS "A library with HWLOC API found.")
     include(FindPackageMessage)
-    find_package_message(HWLOC "Found HWLOC: ${HWLOC_LIBRARIES}"
-      "[${HWLOC_INCLUDE_DIR}][${HWLOC_LIBRARIES}]")
+    find_package_message(HWLOC "Found HWLOC: ${HWLOC_LIBRARY_DIR}"
+      "[${HWLOC_INCLUDE_DIR}][${HWLOC_LIB}]")
 #    include_directories( ${HWLOC_INCLUDE_DIR} )
   else(HWLOC_FOUND)
     if(HWLOC_FIND_REQUIRED)
