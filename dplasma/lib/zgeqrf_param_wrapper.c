@@ -96,6 +96,7 @@ dplasma_zgeqrf_param_Destruct( dague_object_t *o )
 {
     dague_zgeqrf_param_object_t *dague_zgeqrf_param = (dague_zgeqrf_param_object_t *)o;
 
+    dplasma_pivgen_finalize( dague_zgeqrf_param->pivfct );
     dague_private_memory_fini( dague_zgeqrf_param->p_work );
     dague_private_memory_fini( dague_zgeqrf_param->p_tau  );
     free( dague_zgeqrf_param->p_work );
