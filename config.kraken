@@ -4,5 +4,5 @@ export CC="cc -DADD_"
 export CXX="CC -DADD_"
 export FC="ftn"
 
-cmake . -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_COLLECTIVES=ON -DHWLOC_DIR=$HOME/.local/ -DMPI_INCLUDE_PATH="$MPICH_DIR/include" -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl" -DPLASMA_DIR=$HOME/dague/plasma  
+cmake . -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_COLLECTIVES=ON -DHWLOC_DIR="$HOME/.local" -DMPI_INCLUDE_PATH="$MPICH_DIR/include" -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl" -DPLASMA_DIR=$HOME/.local/plasma  
 
