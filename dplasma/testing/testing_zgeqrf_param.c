@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
         tasks_costs[1] = 0.0; /**< zttmqr_out */
         tasks_costs[2] = 2.0; /**< zttqrt */
         tasks_costs[3] = 0.0; /**< zttqrt_out */
-        tasks_costs[4] = 4.0; /**< sormqr */
+        tasks_costs[4] = 6.0; /**< sormqr */
         tasks_costs[5] = 4.0; /**< zgeqrt */
 
         o = dplasma_zgeqrf_param_New(iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
