@@ -102,7 +102,8 @@ typedef struct {
 
 extern dague_remote_dep_context_t dague_remote_dep_context;
 
-int remote_deps_allocation_init(int np, int max_deps);
+void remote_deps_allocation_init(int np, int max_deps);
+void remote_deps_allocation_fini(void);
 
 static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* lifo )
 {
@@ -121,7 +122,7 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* 
         }
         /* fw_mask immediatly follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
-        assert( (int)(ptr - (char*)remote_deps) == (int)(dague_remote_dep_context.elem_size - sizeof(uint32_t) * (dague_remote_dep_context.max_nodes_number+31)/32) );
+        assert( (int)(ptr - (char*)remote_deps) == (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     remote_deps->max_priority = 0xffffffff;
     return remote_deps;
