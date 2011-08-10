@@ -109,7 +109,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
         env = getenv("DAGUE_CUBIN_PATH");
         snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", 
-                 env?env:"../core", gpu_device->major, gpu_device->minor);
+                 env?env:"../cores", gpu_device->major, gpu_device->minor);
         status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
                                 {
