@@ -23,6 +23,9 @@
 #define QUARK_FIRST_VAR 5
 #define QUARK_ELEMS_PER_LINE 3
 
+#define TASK_IN  0
+#define TASK_OUT 1
+
 extern char *q2j_input_file_name;
 
 static dague_linked_list_t _dague_pool_list;
@@ -35,6 +38,14 @@ static int _task_count=0;
 // we might want to set it to false.
 int JDF_NOTATION = 1;
 
+typedef struct matrix_variable matrix_variable_t;
+
+struct matrix_variable{
+    char *matrix_name;
+    int matrix_rank;
+    matrix_variable_t *next;
+};
+
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
 static void do_if_parentize(node_t *node, node_t *enclosing_if);
@@ -43,7 +54,13 @@ static int DA_quark_TYPE(node_t *node);
 static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar);
 static int is_var_repeating(char *iv_str, char **iv_names);
 static char *size_to_pool_name(char *size_str);
-
+static int isArrayLocal(node_t *task_node, int index);
+static int isArrayOut(node_t *task_node, int index);
+static int isArrayIn(node_t *task_node, int index);
+static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type);
+static void add_entry_task_loops(matrix_variable_t *list, node_t *node);
+static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
+static matrix_variable_t *quark_find_all_matrices(node_t *node);
 
 //#if 0
 void dump_und(und_t *und){
@@ -415,10 +432,193 @@ static void quark_record_uses_defs_and_pools(node_t *node){
 
 }
 
+
+static matrix_variable_t *quark_find_all_matrices(node_t *node){
+    static matrix_variable_t *matrix_variable_list_head = NULL;
+    int i;
+
+    if( FCALL == node->type ){
+        if( strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
+            return NULL;
+        }
+
+        for(i=1; i<DA_kid_count(node); ++i){
+            int already_in = 0;
+            matrix_variable_t *curr = NULL;
+            node_t *tmp = DA_kid(node,i);
+            char *tmp_name = DA_var_name( DA_array_base(tmp) );
+
+            if( ARRAY == tmp->type ){
+                if(NULL == matrix_variable_list_head){
+                    matrix_variable_list_head = (matrix_variable_t *)calloc(1, sizeof(matrix_variable_t));
+                    curr = matrix_variable_list_head;
+                }else{
+                    // go to the end of the list and check that the matrix does not exist already in the list.
+                    for(curr = matrix_variable_list_head; NULL != curr->next; curr = curr->next){
+                        if( !strcmp(curr->matrix_name, tmp_name) ){
+                            already_in = 1;
+                            break;
+                        }
+                    }
+                    if( !strcmp(curr->matrix_name, tmp_name) ){
+                        already_in = 1;
+                    }
+                    if( !already_in ){
+                        curr->next = (matrix_variable_t *)calloc(1, sizeof(matrix_variable_t));
+                        curr = curr->next;
+                    }
+                }
+                if( !already_in ){
+                    curr->matrix_name = tmp_name;
+                    curr->matrix_rank = DA_array_dim_count(tmp);
+                    curr->next = NULL; /* just being paranoid */
+                }
+            }
+        }
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            (void)quark_find_all_matrices(tmp);
+        }
+    }else{
+        for(i=0; i< DA_kid_count(node); ++i){
+            (void)quark_find_all_matrices( DA_kid(node,i) );
+        }
+    }
+
+    return matrix_variable_list_head;
+}
+
 void analyze_deps(node_t *node){
     quark_record_uses_defs_and_pools(node);
     //dump_all_unds();
     interrogate_omega(node, var_head);
+}
+
+
+static void add_entry_task_loops(matrix_variable_t *list, node_t *node){
+    add_phony_INOUT_task_loops(list, node, TASK_IN);
+}
+
+static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
+    add_phony_INOUT_task_loops(list, node, TASK_OUT);
+}
+        
+
+static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type){
+    int i, dim;
+    // FIXME: This will create variables with names like A.nt, but in the "real" code, these will be structure members. Is that ok?
+    char *ub_vars[2] = {"desc_A.mt","desc_A.nt"};
+    node_t *container_block, *ind_vars[2];
+    matrix_variable_t *curr;
+
+    assert( NULL != list );
+
+    container_block = NULL;
+    if( BLOCK == node->type ){
+        container_block = node;
+    }else{
+        for(i=0; i< DA_kid_count(node); ++i){
+            if( BLOCK == DA_kid(node,i)->type ){
+                container_block = DA_kid(node,i);
+                break;
+            }
+        }
+    }
+    assert( NULL != container_block);
+
+    for(curr = list; NULL != curr; curr = curr->next){
+        char *curr_matrix = curr->matrix_name;
+        char *tmp_str;
+        node_t *new_block, *tmp_block, *enclosing_loop = NULL;
+
+        // Create a block to contain the loop nest.
+        new_block = DA_create_Block();
+        tmp_block = new_block;
+
+        for(dim=0; dim<2; dim++){ // FIXME: change "2" to a rank dynamically discovered from "list".
+            char *ind_var_name;
+            node_t *new_node, *scond, *econd, *incr, *body;
+
+            // Create the induction variable.
+            asprintf(&ind_var_name,"%c",'i'+dim); //
+            ind_vars[dim] = DA_create_ID(ind_var_name);
+            free(ind_var_name); // DA_create_ID() will copy the string anyway.
+
+            // Create the assignment of the lower bound to the induction variable (start condition, scond).
+            scond = DA_create_B_expr( ASSIGN, ind_vars[dim], DA_create_Int_const(0) );
+
+            // Create the comparison of the induction variable against the upper bound (end condition, econd).
+            econd = DA_create_B_expr( LT, ind_vars[dim], DA_create_ID(ub_vars[dim]) );
+
+            // Create the incement (i++).
+            incr = DA_create_B_expr( EXPR, ind_vars[dim], DA_create_Unary(INC_OP) );
+
+            // Create an empty body.
+            body = DA_create_Block();
+
+            // Create the FOR.
+            new_node = DA_create_For(scond, econd, incr, body);
+
+            // Put the newly created FOR into the parent BLOCK,
+            // and make the body of the for by the parent BLOCK for the next iteration.
+            DA_insert_first(tmp_block, new_node);
+            tmp_block = body;
+        }
+
+        // Create a call like this:
+        // QUARK_Insert_Task( phony, CORE_TaskName_quark, phony,
+        //                    phony, A(k,k), INOUT, 0 )
+
+        // Create a phony variable.
+        node_t *phony_var = DA_create_ID("phony");
+
+        // Create a variable to hold the task name in QUARK specific format.
+        if( TASK_IN == task_type ){
+            asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
+        }else if( TASK_OUT == task_type ){
+            asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
+        }else{
+            assert(0);
+        }
+        node_t *task_name_var = DA_create_ID(tmp_str);
+        free(tmp_str);
+
+        // Create the access to the matrix element.
+        node_t *matrix_element = DA_create_ArrayAccess(curr_matrix, ind_vars[0], ind_vars[1], NULL);
+
+        // Create the function-call.
+        node_t *f_call = DA_create_Fcall("QUARK_Insert_Task", phony_var, task_name_var, phony_var,
+                                         phony_var, matrix_element, DA_create_ID("INOUT"),
+                                         DA_create_Int_const(0), NULL);
+        f_call->enclosing_loop = enclosing_loop;
+
+        // Put the newly created FCALL into the BLOCK of the inner-most loop.
+        DA_insert_first(tmp_block, f_call);
+
+        // Put the block with the loop nest at the beginning (or the end of the container block)
+        if( TASK_IN == task_type ){
+            DA_insert_first(container_block, new_block);
+        }else if( TASK_OUT == task_type ){
+            DA_insert_last(container_block, new_block);
+        }else{
+            assert(0);
+        }
+    }
+
+    return;
+}
+
+void add_entry_and_exit_task_loops(node_t *node){
+    matrix_variable_t *list;
+
+    list = quark_find_all_matrices(node);
+    add_entry_task_loops(list, node);
+    add_exit_task_loops(list, node);
+    DA_parentize(node);
+//printf("%s\n\n",tree_to_str(node));
 }
 
 static int is_var_repeating(char *iv_str, char **iv_names){
@@ -576,6 +776,39 @@ void rename_induction_variables(node_t *node){
     }
 }
 
+/*
+ * The following is a necessary optimization only because DAGUE does not (currently)
+ * support tiles that do not originite in user's memory, and therefore there cannot
+ * be a tile that is only OUTPUT without being IN (and therefore without being read
+ * from a preallocated memory region).
+ */
+void convert_OUTPUT_to_INOUT(node_t *node){
+    int i;
+
+    if( FCALL == node->type ){
+        for(i=QUARK_FIRST_VAR; i<node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+            if( isArrayOut(node, i) && !isArrayIn(node, i) ){
+                node_t *flag = node->u.kids.kids[i+1];
+                flag = DA_create_B_expr(B_OR, flag, DA_create_ID("INPUT"));
+                node->u.kids.kids[i+1] = flag;
+            }
+        }
+        return;
+    }
+
+    if( BLOCK == node->type ){
+        node_t *tmp;
+        for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
+            convert_OUTPUT_to_INOUT(tmp);
+        }
+    }else{
+        int i;
+        for(i=0; i<node->u.kids.kid_count; ++i){
+            convert_OUTPUT_to_INOUT(node->u.kids.kids[i]);
+        }
+    }
+}
+
 
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length){
     size_t len_str;
@@ -621,12 +854,12 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
                 return node;
 
             case LE:  // add one to the RHS and convert LE to LT
-                tmp = DA_create_B_expr(ADD, DA_rel_rhs(node), DA_create_int_const(1));
+                tmp = DA_create_B_expr(ADD, DA_rel_rhs(node), DA_create_Int_const(1));
                 tmp = DA_create_relation(LT, DA_rel_lhs(node), tmp);
                 return tmp;
 
             case GE:  // subtract one from the RHS and convert GE to GT
-                tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_int_const(1));
+                tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_Int_const(1));
                 tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
                 // call myself again to flip the GT to LT
                 tmp = _DA_canonicalize_for_econd(tmp, ivar);
@@ -702,11 +935,6 @@ int DA_canonicalize_for(node_t *node){
     return 1;
 }
 
-//#define DA_for_body(_N_) DA_kid((_N_), 3)
-//#define DA_for_scond(_N_) DA_kid((_N_), 0)
-//#define DA_for_econd(_N_) DA_kid((_N_), 1)
-//#define DA_for_incrm(_N_) DA_kid((_N_), 2)
-
 node_t *DA_loop_lb(node_t *node){
    node_t *scond = DA_for_scond(node);
    if( (NULL == scond) || (ASSIGN != scond->type) ){
@@ -723,8 +951,17 @@ node_t *DA_loop_ub(node_t *node){
    return DA_rel_rhs(econd);
 }
 
+node_t *DA_create_ID(char *name){
+    node_t *node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = IDENTIFIER;
+    node->u.var_name = strdup(name);
+    // TODO: should this variable be in the symbol table?
+    return node;
+}
+
 node_t *DA_create_B_expr(int type, node_t *kid0, node_t *kid1){
     node_t rslt;
+    memset(&rslt, 0, sizeof(node_t));
     rslt.type = type;
     rslt.u.kids.kid_count = 2;
     rslt.u.kids.kids = (node_t **)calloc(2,sizeof(node_t *));
@@ -733,25 +970,145 @@ node_t *DA_create_B_expr(int type, node_t *kid0, node_t *kid1){
     return node_to_ptr(rslt);
 }
 
-node_t *DA_create_int_const(int64_t val){
+node_t *DA_create_Int_const(int64_t val){
     node_t rslt;
+    memset(&rslt, 0, sizeof(node_t));
     rslt.type = INTCONSTANT;
     rslt.u.kids.kid_count = 0;
     rslt.const_val.i64_value = val;
     return node_to_ptr(rslt);
 }
 
+node_t *DA_create_Unary(uint32_t type){
+    node_t *rslt = (node_t *)calloc(1,sizeof(node_t));
+    rslt->type = type;
+    return rslt;
+}
+
+node_t *DA_create_Block(void){
+    node_t *node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = BLOCK;
+    return node;
+}
+
+node_t *DA_create_For(node_t *scond, node_t *econd, node_t *incr, node_t *body){
+    node_t *node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = FOR;
+    node->u.kids.kids = (node_t **)calloc(4, sizeof(node_t *));
+    node->u.kids.kid_count = 4;
+    node->u.kids.kids[0] = scond;
+    node->u.kids.kids[1] = econd;
+    node->u.kids.kids[2] = incr;
+    node->u.kids.kids[3] = body;
+    return node;
+}
+
+node_t *DA_create_Complex(uint32_t type, char *name, ...){
+    va_list argp;
+    node_t *node, *indx;
+    int i, count=0;
+
+    // Count the number of arguments passed (except for the terminating NULL).
+    va_start(argp, name);
+    while( NULL != va_arg(argp, node_t *) ){
+        count++;
+    }
+    va_end(argp);
+
+    node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = type;
+    node->u.kids.kid_count = count+1;
+    node->u.kids.kids = (node_t **)calloc(count+1, sizeof(node_t *));
+    node->u.kids.kids[0] = DA_create_ID(name);
+
+    va_start(argp, name);
+    for(i=1; NULL != (indx = va_arg(argp, node_t *)); i++){
+        node->u.kids.kids[i] = indx;
+    }
+    va_end(argp);
+
+    return node;
+}
+
+
+/*
+node_t *DA_create_Fcall(char *funcName, ...){
+    va_list argp;
+    node_t *node, *indx;
+    int i, count=0;
+
+    // Count the number of arguments passed (except for the terminating NULL).
+    va_start(argp, funcName);
+    while( NULL != va_arg(argp, node_t *) ){
+        count++;
+    }
+    va_end(argp);
+
+    node = (node_t *)calloc(1,sizeof(node_t));
+    node->type = FCALL;
+    node->u.kids.kid_count = count+1;
+    node->u.kids.kids = (node_t **)calloc(count+1, sizeof(node_t *));
+    node->u.kids.kids[0] = DA_create_ID(funcName);
+
+    va_start(argp, funcName);
+    for(i=1; NULL != (indx = va_arg(argp, node_t *)); i++){
+        node->u.kids.kids[i] = indx;
+    }
+    va_end(argp);
+
+    return node;
+}
+*/
+
+
+void DA_insert_first(node_t *block, node_t *new_node){
+    node_t *tmp = block->u.block.first;
+    if( NULL == tmp ){
+        assert( NULL == block->u.block.last );
+        block->u.block.first = new_node;
+        block->u.block.last = new_node;
+        return;
+    }
+    block->u.block.first = new_node;
+    new_node->next = tmp;
+    tmp->prev = new_node;
+/*
+    if( NULL == block->u.block.last ){
+        block->u.block.last = new_node;
+    }
+*/
+    assert( NULL != block->u.block.last );
+    return;
+}
+
+void DA_insert_last(node_t *block, node_t *new_node){
+    node_t *tmp = block->u.block.last;
+    if( NULL == tmp ){
+        assert( NULL == block->u.block.first );
+        block->u.block.last = new_node;
+        block->u.block.first = new_node;
+        return;
+    }
+
+    block->u.block.last = new_node;
+    new_node->prev = tmp;
+    tmp->next = new_node;
+
+    assert( NULL != block->u.block.first );
+    return;
+}
+
 node_t *DA_create_Entry(){
     node_t rslt;
     memset(&rslt, 0, sizeof(node_t));
     rslt.type = ENTRY;
-//    rslt.task = NULL;
     rslt.u.kids.kid_count = 0;
     return node_to_ptr(rslt);
 }
 
 node_t *DA_create_Exit(){
     node_t rslt;
+    memset(&rslt, 0, sizeof(node_t));
     rslt.type = EXIT;
     rslt.u.kids.kid_count = 0;
     return node_to_ptr(rslt);
@@ -1396,6 +1753,16 @@ static int isArrayOut(node_t *task_node, int index){
     if( index+1 < task_node->u.kids.kid_count ){
         node_t *flag = task_node->u.kids.kids[index+1];
         if( (UND_WRITE & DA_quark_INOUT(flag)) != 0 ){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int isArrayIn(node_t *task_node, int index){
+    if( index+1 < task_node->u.kids.kid_count ){
+        node_t *flag = task_node->u.kids.kids[index+1];
+        if( (UND_READ & DA_quark_INOUT(flag)) != 0 ){
             return 1;
         }
     }

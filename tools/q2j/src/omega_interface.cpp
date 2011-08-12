@@ -50,7 +50,8 @@ struct synch_edge_graph_t{
 #define SOURCE  0x0
 #define SINK    0x1
 
-extern int q2j_produce_shmem_jdf;
+extern int _q2j_produce_shmem_jdf;
+extern int _q2j_verbose_warnings;
 
 #if 0
 extern void dump_und(und_t *und);
@@ -802,12 +803,12 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             !( after_def && (def->task != use->task) ) &&
             !( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
 
-            fprintf(stderr,"WARNING: create_dep_relations(): Destination is before Source and they do not have a common enclosing loop\n");
-            fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->task->task_name );
-            fprintf(stderr,"WARNING: Source:%s %s\n", tree_to_str(def), def->task->task_name);
-/*
-            exit(-1);
-*/
+            if( _q2j_verbose_warnings ){
+                fprintf(stderr,"WARNING: In create_dep_relations() ");
+                fprintf(stderr,"Destination is before Source and they do not have a common enclosing loop:\n");
+                fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->task->task_name );
+                fprintf(stderr,"WARNING: Source:%s %s\n", tree_to_str(def), def->task->task_name);
+            }
             continue;
         }
 
@@ -1170,7 +1171,6 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
         vars_in_bounds.insert( strdup((*g_it).first.c_str()) );
     }
 
-    //FIXME: If there are multiple bounds for a variable (k<A.mt && k<A.nt) this loop will keep only the last one.
     set<expr_t *>::iterator e_it;
     for(e_it=ges.begin(); e_it!=ges.end(); e_it++){
         int exp_has_output_vars = 0;
@@ -1196,15 +1196,19 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
             continue;
 
         if( c > 0 ){ // then lower bound
-            assert( NULL == lb );
-            is_lb_simple = is_expr_simple(rslt_exp);
-            lb = strdup( expr_tree_to_str(rslt_exp) );
+            if( NULL == lb ){
+                is_lb_simple = is_expr_simple(rslt_exp);
+                lb = strdup( expr_tree_to_str(rslt_exp) );
+            }else{
+                is_lb_simple = true;
+                asprintf(&lb, "MAX(%s,%s)",strdup(lb),expr_tree_to_str(rslt_exp));
+            }
         }else{ // else upper bound
             if( NULL == ub ){
                 is_ub_simple = is_expr_simple(rslt_exp);
                 ub = strdup( expr_tree_to_str(rslt_exp) );
             }else{
-                is_ub_simple = false;
+                is_ub_simple = true;
                 asprintf(&ub, "MIN(%s,%s)",strdup(ub),expr_tree_to_str(rslt_exp));
             }
         }
@@ -3669,7 +3673,7 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     bool need_ptask = false;
     char *comm_mtrx, *refr_mtrx;
 
-    if( q2j_produce_shmem_jdf )
+    if( _q2j_produce_shmem_jdf )
         return false;
 
     comm_mtrx = tree_to_str(DA_array_base(ref1));

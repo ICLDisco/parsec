@@ -121,7 +121,7 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
 
   check_c_source_compiles(
     "int main(int argc, char* argv[]) {
-       PLASMA_zgeqrf(); return 0;
+       PLASMA_dgeqrf(); return 0;
      }"
     PLASMA_C_COMPILE_SUCCESS
     )
@@ -130,7 +130,7 @@ if(PLASMA_INCLUDE_DIRS AND (PLASMA_LDFLAGS OR PLASMA_LIBRARIES))
     list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
     check_c_source_compiles(
       "int main(int argc, char* argv[]) {
-       PLASMA_zgeqrf(); return 0;
+       PLASMA_dgeqrf(); return 0;
      }"
      PLASMA_F_COMPILE_SUCCESS
     )
