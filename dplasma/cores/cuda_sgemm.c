@@ -119,8 +119,9 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
                                     gpu_devices[i] = NULL;
                                     continue;
                                  } );
-                    
-        status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, "sgemmNT" );
+        snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);         
+        printf("CUDA %s\n", module_path);
+        status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, module_path );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
                                 {
                                     cuCtxDestroy( gpu_device->ctx );
