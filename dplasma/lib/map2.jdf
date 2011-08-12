@@ -48,7 +48,7 @@ RW    B <- B(m, n)
 BODY
   
   DRYRUN(
-      operator( context, A, B, op_args );
+         operator( context, A, B, op_args, m, n );
       );
 
   printlog("thread %d map( %d, %d )\n",
