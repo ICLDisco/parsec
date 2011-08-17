@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-__device__ void saxpy( float a, float *b, float *c )
+static __device__ void saxpy( float a, float *b, float *c )
 {
 	c[0] += a*b[0];
 	c[1] += a*b[1];
@@ -24,7 +24,14 @@ __device__ void saxpy( float a, float *b, float *c )
 	c[15] += a*b[15];
 }
 
-extern "C" __global__ void sgemmNT( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
+#if (CUDA_SM_VERSION != 11) && (CUDA_SM_VERSION != 12) && (CUDA_SM_VERSION != 13)
+  #error "CUDA_SM_VERSION must be defined to 11, 12 or 13 for this kernel"
+#endif
+#define GENERATE_SM_VERSION_NAME_I(func, version) func##_SM##version
+#define GENERATE_SM_VERSION_NAME_I2(func, version) GENERATE_SM_VERSION_NAME_I(func, version)
+#define GENERATE_SM_VERSION_NAME(func) GENERATE_SM_VERSION_NAME_I2(func, CUDA_SM_VERSION)
+
+extern "C" __global__ void GENERATE_SM_VERSION_NAME(sgemmNT) ( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
 {
 	const int inx = threadIdx.x;
 	const int iny = threadIdx.y;
@@ -83,7 +90,7 @@ extern "C" __global__ void sgemmNT( const float *A, int lda, const float *B, int
 		C[0] = alpha*c[i] + beta*C[0];
 }	
 
-extern "C" __global__ void sgemmNN( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
+extern "C" __global__ void GENERATE_SM_VERSION_NAME(sgemmNN) ( const float *A, int lda, const float *B, int ldb, float* C, int ldc, int k, float alpha, float beta )
 {
 	const int inx = threadIdx.x;
 	const int iny = threadIdx.y;

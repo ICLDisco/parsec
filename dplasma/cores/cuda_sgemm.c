@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <cublas.h>
+#include <dlfcn.h>
 
 #include "data_distribution.h"
 
@@ -107,27 +108,44 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
-        env = getenv("DAGUE_CUBIN_PATH");
-        snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", 
-                 env?env:"../core", gpu_device->major, gpu_device->minor);
-        status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
-        DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
-                                {
-                                    fprintf(stderr, "*** unable to load `%s'\n", module_path);
-                                    cuCtxDestroy( gpu_device->ctx );
-                                    free(gpu_device);
-                                    gpu_devices[i] = NULL;
-                                    continue;
-                                 } );
-                    
-        status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, "sgemmNT" );
-        DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
-                                {
-                                    cuCtxDestroy( gpu_device->ctx );
-                                    free(gpu_device);
-                                    gpu_devices[i] = NULL;
-                                    continue;
-                                } );
+        
+        /* If not disallowed by env, load from static linked kernels */
+        gpu_device->hcuFunction = NULL;
+        env = getenv("DAGUE_CUBIN_NOSTATIC");
+        if(!env || (('1' != env[0]) && ('y' != env[0])))
+        {
+            void* dlh;
+            snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);
+            dlh = dlopen(NULL, 0);
+            gpu_device->hcuFunction = dlsym(dlh, module_path);
+        }
+        
+        /* If not found statically, cuload it */
+        if(NULL == gpu_device->hcuFunction)
+        {
+            env = getenv("DAGUE_CUBIN_PATH");
+            snprintf(module_path, FILENAME_MAX, "%s/sgemm-sm_%1d%1d.cubin", 
+                     env?env:"../cores", gpu_device->major, gpu_device->minor);
+            status = cuModuleLoad(&(gpu_device->hcuModule), module_path);
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleLoad ", status,
+                                    {
+                                        fprintf(stderr, "*** unable to load `%s'\n", module_path);
+                                        cuCtxDestroy( gpu_device->ctx );
+                                        free(gpu_device);
+                                        gpu_devices[i] = NULL;
+                                        continue;
+                                    } );
+            snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);         
+            printf("CUDA MODULE %s\n", module_path);
+            status = cuModuleGetFunction( &(gpu_device->hcuFunction), gpu_device->hcuModule, module_path );
+            DAGUE_CUDA_CHECK_ERROR( "(INIT) cuModuleGetFunction ", status,
+                                    {
+                                        cuCtxDestroy( gpu_device->ctx );
+                                        free(gpu_device);
+                                        gpu_devices[i] = NULL;
+                                        continue;
+                                    } );
+        }
         if( 1 == gpu_device->major ) {
             cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
         } else {

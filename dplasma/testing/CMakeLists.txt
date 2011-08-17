@@ -34,3 +34,7 @@ testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 
 Add_Subdirectory(TSQR)
 
+add_test(dgeqrf ./testing_dgeqrf -N 4000 -x)
+add_test(dgemm  ./testing_dgemm -N 1500 -x)
+add_test(mpi_test mpirun -np 8 -hostfile /etc/hostfile /bin/true)
+add_test(mpi_dgeqrf mpirun -np 8 -hostfile /etc/hostfile ./testing_dgeqrf -N 4000 -p 4 -x)

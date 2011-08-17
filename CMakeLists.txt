@@ -4,6 +4,12 @@ project (DAGUE C CXX Fortran)
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
 
+# CTest system
+SET(DART_TESTING_TIMEOUT 120)
+enable_testing()
+include(CTest)
+enable_testing()
+
 #####
 # ccmake tunable parameters
 #####
@@ -421,4 +427,5 @@ set (CPACK_RESOURCE_FILE_LICENSE
 set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 include (CPack)
+
 
