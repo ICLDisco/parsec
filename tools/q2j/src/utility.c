@@ -802,7 +802,6 @@ void convert_OUTPUT_to_INOUT(node_t *node){
             convert_OUTPUT_to_INOUT(tmp);
         }
     }else{
-        int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             convert_OUTPUT_to_INOUT(node->u.kids.kids[i]);
         }
