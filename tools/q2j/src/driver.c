@@ -15,6 +15,8 @@ int _q2j_produce_shmem_jdf = 0;
 int _q2j_verbose_warnings = 0;
 extern FILE *yyin;
 
+void usage(char *pname);
+
 void usage(char *pname){
     fprintf(stderr,"Usage: %s [-shmem] [-v] file_name.c\n",pname);
     exit(1);
