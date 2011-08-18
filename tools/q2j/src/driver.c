@@ -45,5 +45,4 @@ int main(int argc, char **argv){
     }
     (void)st_init_symtab();
     return yyparse();
-    fclose(yyin);
 }
