@@ -44,6 +44,7 @@ int stsmqr_cuda_init( dague_context_t* dague_context,
 
     UGLY_A = tileA;
     UGLY_T = tileT;
+    (void)UGLY_T;
 
     ndevices = dague_using_gpu();
 #if DPLASMA_SCHEDULING
@@ -674,7 +675,7 @@ static memory_elem_t** data_mapT = NULL;
 static memory_elem_t** data_mapA = NULL;
 extern int ndevices;
 
-int gpu_qr_mark_data_usage( int matrixIsT, tiled_matrix_desc_t* data, int type, int col, int row )
+int gpu_qr_mark_data_usage( int matrixIsT, const tiled_matrix_desc_t* data, int type, int col, int row )
 {
     memory_elem_t* this_data;
     memory_elem_t** data_map;

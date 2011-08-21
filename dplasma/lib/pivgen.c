@@ -484,7 +484,7 @@ void dplasma_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
 /****************************************************
  *       DPLASMA_FLAT_TREE / DPLASMA_FLAT_TREE
  ***************************************************/
-int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
+static int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
 { 
     int tmp;
     int a    = arg->a;
@@ -515,7 +515,7 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         }
 };
 
-int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
+static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
 { 
     int tmp, ls, lp, nextp;
     int a    = arg->a;
@@ -575,7 +575,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const 
     return arg->desc->mt;
 }
 
-int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
+static int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
 { 
     int tmp, ls;
     int a    = arg->a;
@@ -950,7 +950,6 @@ void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
 
 void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
 {
-    int minMN = min(A->mt, A->nt );
     int i, m, nb;
 
     printf( "k=%3d: ", k );
