@@ -415,6 +415,7 @@ handle_now:
         remote_dep_dec_flying_messages(eu_context->master_context);
         break;
     default:
+        assert(0 && item->action); /* Not a valid action */
         break;
     }
     free(item);
