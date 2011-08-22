@@ -322,6 +322,9 @@ void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Vari
     count = DA_array_dim_count(def);
     if( DA_array_dim_count(use) != count ){
         fprintf(stderr,"add_array_subscript_equalities(): ERROR: Arrays in USE and DEF do not have the same number of subscripts.");
+        fprintf(stderr,"USE: %s\n",tree_to_str(use));
+        fprintf(stderr,"DEF: %s\n",tree_to_str(def));
+        assert(0);
     }
 
     for(i=0; i<count; i++){
@@ -1165,6 +1168,7 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
     stringstream ss;
     set<expr_t *> ges = find_all_GEs_with_var(var_name, exp);
     bool is_lb_simple = false, is_ub_simple = false;
+    bool is_lb_C = false, is_ub_C = false;
 
     map<string, Free_Var_Decl *>::iterator g_it;
     for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ ){
@@ -1201,7 +1205,8 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
                 lb = strdup( expr_tree_to_str(rslt_exp) );
             }else{
                 is_lb_simple = true;
-                asprintf(&lb, "MAX(%s,%s)",strdup(lb),expr_tree_to_str(rslt_exp));
+                is_lb_C = true;
+                asprintf(&lb, "MAX((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
             }
         }else{ // else upper bound
             if( NULL == ub ){
@@ -1209,10 +1214,18 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
                 ub = strdup( expr_tree_to_str(rslt_exp) );
             }else{
                 is_ub_simple = true;
-                asprintf(&ub, "MIN(%s,%s)",strdup(ub),expr_tree_to_str(rslt_exp));
+                is_ub_C = true;
+                asprintf(&ub, "MIN((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
             }
         }
 
+    }
+
+    if( is_lb_C ){
+        asprintf(&lb, "inline_c %%{ return %s; %%}",lb);
+    }
+    if( is_ub_C ){
+        asprintf(&ub, "inline_c %%{ return %s; %%}",ub);
     }
 
     if( NULL != lb ){
@@ -1225,6 +1238,7 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
     }else{
         ss << "??";
     }
+
 
     ss << "..";
 
