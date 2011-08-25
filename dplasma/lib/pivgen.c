@@ -233,7 +233,7 @@ int dplasma_qr_gettype( const int a, const int p, const int k, const int m ) {
     } 
 }
 
-int dplasma_qr_getinon0( const int a, const int p, const int k, int i, int mt ) {
+static int dplasma_qr_getinon0( const int a, const int p, const int k, int i, int mt ) {
 
     int j;
     for(j=k; j<mt; j++) {
@@ -248,13 +248,13 @@ int dplasma_qr_getinon0( const int a, const int p, const int k, int i, int mt ) 
 /****************************************************
  *                 DPLASMA_LOW_FLAT_TREE
  ***************************************************/
-int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
+static int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
     (void)m;
     return k / arg->a;
 };
 
-int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
 #ifdef FLAT_UP
     if ( ( p == (k/arg->a) ) && (start > (k/arg->a)+1 ) )
@@ -274,7 +274,7 @@ int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, c
     return arg->ldd;
 };
 
-int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
 #ifdef FLAT_UP
     if ( p == (k/arg->a) && (start+1 < arg->ldd) )
@@ -291,7 +291,7 @@ int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, c
     return arg->ldd;
 };
 
-void dplasma_low_flat_init(qr_subpiv_t *arg, int mt, int a){
+static void dplasma_low_flat_init(qr_subpiv_t *arg, int mt, int a){
     arg->currpiv = dplasma_low_flat_currpiv;
     arg->nextpiv = dplasma_low_flat_nextpiv;
     arg->prevpiv = dplasma_low_flat_prevpiv;
@@ -303,7 +303,7 @@ void dplasma_low_flat_init(qr_subpiv_t *arg, int mt, int a){
 /****************************************************
  *                 DPLASMA_LOW_BINARY_TREE
  ***************************************************/
-int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
+static int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
     int tmp1 = m - (k / arg->a);
     int tmp2 = 1;
@@ -319,7 +319,7 @@ int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const int k)
     return m - tmp2;
 };
 
-int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
     int tmpp, bit;
     int lk = (k / arg->a);
@@ -344,7 +344,7 @@ int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k,
         return arg->ldd;
 };
 
-int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
     int lk = (k / arg->a);
     myassert( start >= p && ( start == p || dplasma_low_binary_currpiv( arg, start, k ) == p) );
@@ -374,7 +374,7 @@ int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k,
     }
 };
 
-void dplasma_low_binary_init(qr_subpiv_t *arg, int mt, int a){
+static void dplasma_low_binary_init(qr_subpiv_t *arg, int mt, int a){
     arg->currpiv = dplasma_low_binary_currpiv;
     arg->nextpiv = dplasma_low_binary_nextpiv;
     arg->prevpiv = dplasma_low_binary_prevpiv;
@@ -409,7 +409,7 @@ inline static int dplasma_low_fibonacci_nextpiv( const qr_subpiv_t *qrpiv, const
     return (qrpiv->ldd);
 }
 
-void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int mt, int minMN, int a){
+static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int mt, int minMN, int a){
     int *ipiv;
 
     arg->currpiv = dplasma_low_fibonacci_currpiv;
@@ -471,7 +471,7 @@ inline static int nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, c
     return (qrpiv->ldd);
 }
 
-void dplasma_low_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
+static void dplasma_low_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
     int *ipiv;
     
     minMN = min( minMN, mt*a );
@@ -543,14 +543,14 @@ void dplasma_low_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
 /****************************************************
  *                 DPLASMA_HIGH_FLAT_TREE
  ***************************************************/
-int dplasma_high_flat_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
+static int dplasma_high_flat_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
     (void)arg;
     (void)m;
     return k;
 };
 
-int dplasma_high_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_high_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
     if ( p == k && arg->ldd > 1 ) {
         if ( start == arg->ldd )
@@ -561,7 +561,7 @@ int dplasma_high_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, 
     return arg->ldd;
 };
 
-int dplasma_high_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_high_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
     assert( arg->a > 1 );
     if ( p == k && arg->ldd > 1 ) { 
@@ -573,7 +573,7 @@ int dplasma_high_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, 
     return arg->ldd;
 };
 
-void dplasma_high_flat_init(qr_subpiv_t *arg, int mt, int a){
+static void dplasma_high_flat_init(qr_subpiv_t *arg, int mt, int a){
     arg->currpiv = dplasma_high_flat_currpiv;
     arg->nextpiv = dplasma_high_flat_nextpiv;
     arg->prevpiv = dplasma_high_flat_prevpiv;
@@ -585,13 +585,13 @@ void dplasma_high_flat_init(qr_subpiv_t *arg, int mt, int a){
 /****************************************************
  *                 DPLASMA_HIGH_GREEDY_TREE
  ***************************************************/
-int dplasma_high_greedy_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
+static int dplasma_high_greedy_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
     myassert( m >= k && m < k+arg->a );
     return (arg->ipiv)[ k * (arg->a) + (m - k) ];
 };
 
-int dplasma_high_greedy_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_high_greedy_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
     int i;
     myassert( (start >= k && start < k+arg->a) || start == arg->ldd );
@@ -601,7 +601,7 @@ int dplasma_high_greedy_nextpiv(const qr_subpiv_t *arg, const int p, const int k
     return (arg->ldd);
 };
 
-int dplasma_high_greedy_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_high_greedy_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
 { 
     int i;
     myassert( (start >= k && start < k+arg->a) || start == p );
@@ -611,7 +611,7 @@ int dplasma_high_greedy_prevpiv(const qr_subpiv_t *arg, const int p, const int k
     return arg->ldd;
 };
 
-void dplasma_high_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
+static void dplasma_high_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
     int *ipiv;
 
     arg->currpiv = dplasma_high_greedy_currpiv;
@@ -703,7 +703,7 @@ static int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         }
 };
 
-static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
+static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
 { 
     int tmp, ls, lp, nextp;
     int a    = arg->a;
@@ -817,11 +817,7 @@ static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k,
         }
 }
 
-<<<<<<< local
-int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, int k, int start)
-=======
-static int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
->>>>>>> other
+static int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
 { 
     int tmp, ls, lp, nextp;
     int a = arg->a;
@@ -1001,7 +997,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
      * Check number of exit in next
      */
     {
-        int s, nb;
+        int s;
         check = 1;
  
         for (k=0; k<minMN; k++) {
@@ -1032,7 +1028,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
      * Check number of exit in prev
      */
     {
-        int s, nb;
+        int s;
         check = 1;
  
         for (k=0; k<minMN; k++) {
