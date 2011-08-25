@@ -674,7 +674,7 @@ void dplasma_high_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
 /****************************************************
  *       DPLASMA_LOW_TREE / DPLASMA_HIGH_TREE
  ***************************************************/
-int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
+static int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
 { 
     int tmp;
     int a    = arg->a;
@@ -703,7 +703,7 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         }
 };
 
-int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, int k, int start)
+static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
 { 
     int tmp, ls, lp, nextp;
     int a    = arg->a;
@@ -817,7 +817,11 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, int pivot, int k, int start)
         }
 }
 
+<<<<<<< local
 int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, int k, int start)
+=======
+static int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, const int start)
+>>>>>>> other
 { 
     int tmp, ls, lp, nextp;
     int a = arg->a;

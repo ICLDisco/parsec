@@ -22,7 +22,7 @@ elif [ "x$USER" = "xYOURSELF" ]; then
   CUDA=SOMEWHERE
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=SOMEWHERE"
 else
-  PLASMADIR="/home/bosilca/opt/plasma/intel/"
+  PLASMADIR="/opt/plasma"
   # for dplasma rev < #2640
   #PLASMADIR="/opt/plasma/"
   #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
