@@ -109,6 +109,7 @@ typedef struct dague_dep_wire_get_fifo_elem_t {
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i);
 static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, int k, MPI_Status* status);
+static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg);
 static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
 static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k);
@@ -125,7 +126,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 
     index += snprintf( str + index, len - index, "%s", function->name );
     if( index >= len ) return str;
-    for( i = 0; i < function->nb_locals; i++ ) {
+    for( i = 0; i < function->nb_definitions; i++ ) {
         index += snprintf( str + index, len - index, "_%d",
                            origin->locals[i].value );
         if( index >= len ) return str;
@@ -734,6 +735,11 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     }
 #endif
 
+    if(RDEP_MSG_EAGER(msg))
+    {
+       remote_dep_mpi_put_eager(eu_context, rank, msg); 
+    }
+
     return 1;
 }
 
@@ -847,6 +853,47 @@ static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, 
             break;
         }
     }
+}
+
+static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg)
+{
+    dague_remote_deps_t* deps = (dague_remote_deps_t*) (uintptr_t) msg->deps;
+    remote_dep_datakey_t which = msg->which & ~(1<<sizeof(remote_dep_datakey_t));
+    for(int k = 0; which>>k; k++) {
+        assert(k < MAX_PARAM_COUNT);
+        if(!((1<<k) & which)) continue;
+        void* data = ADATA(deps->output[k].data);
+        MPI_Datatype dtt = deps->output[k].type->opaque_dtt;
+        int tag = msg->deps+k;
+#ifdef DAGUE_DEBUG
+        char type_name[MPI_MAX_OBJECT_NAME]; int len;
+        MPI_Type_get_name(dtt, type_name, &len);
+        DEBUG(("MPI:\tTO\t%d\tPut EAGER\tunknown \tj=NA,k=%d\twith datakey %lx at %p type %s\t(tag=%d)\n",
+               rank, k, msg->deps, data, type_name, tag));
+#endif
+
+
+#if defined(DAGUE_STATS)
+        {
+            MPI_Aint lb, size;
+            MPI_Type_get_extent(dtt, &lb, &size);
+            DAGUE_STATACC_ACCUMULATE(counter_data_messages_sent, 1);
+            DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, size);
+        }
+#endif
+
+#if defined(DAGUE_PROF_TRACE)
+        TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
+                            eu_context->master_context->my_rank, rank, msg);
+#else
+        (void) eu_context;
+#endif /* DAGUE_PROF_TRACE */
+        MPI_Send(data, 1, dtt, rank, tag, dep_comm); 
+        DEBUG_MARK_DTA_MSG_START_SEND(rank, data, tag);
+
+    }
+    remote_dep_dec_flying_messages(eu_context->master_context);
+    /* TODO: IMPORT THE CLEANUP CODE FROM PUT_END */
 }
 
 static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i)
