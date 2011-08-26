@@ -1020,16 +1020,23 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
      * been dropped, force their release.
      */
     remote_dep_get_datatypes(saved_deps);
-
     assert( deps->msg.which == saved_deps->msg.which );  /* we do not support RO dep backtracking, make sure it doesn't happen yet */
+    
+    /* Check if we have eager deps to satisfy quickly */
+    if(RDEP_MSG_EAGER(&deps->msg))
+    {
+        RDEP_MSG_EAGER_CLR(&saved_deps->msg);
+        remote_dep_mpi_get_eager(eu_context, saved_deps, i);
+    }
+
     if(deps->msg.which != saved_deps->msg.which) {  /* some deps are considered as satisfied because they are RO */
         saved_deps->msg.which = deps->msg.which ^ saved_deps->msg.which;
         saved_deps->msg.deps = saved_deps->msg.which;
 #ifdef DAGUE_DEBUG
         for(int k = 0; saved_deps->msg.which>>k; k++) 
             if((1<<k) & saved_deps->msg.which)
-                DEBUG(("MPI:\tTO\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=%d)\n",
-                       saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data), NEXT_TAG+k));
+                DEBUG(("MPI:\tTO\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=NA)\n",
+                       saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data) ));
 #endif
         remote_dep_release(eu_context, saved_deps);
         if( saved_deps->msg.which == deps->msg.which ) {  /* all deps satisfied */
@@ -1051,6 +1058,20 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
             break;
         }
     }
+}
+
+static void remote_dep_mpi_get_eager(dague_execution_unit_t* eu_context, dague_remote_deps_t* saved_deps, int i)
+{
+#ifdef DAGUE_DEBUG
+    char tmp[128];
+#endif
+    for(int k = 0; saved_deps->msg.which>>k; k++) 
+        if((1<<k) & saved_deps->msg.which)
+        {
+            DEBUG(("MPI:\tTO\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith data %lx at %p\t(tag=%d)\n",
+                   saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data), saved_deps->msg.deps+k));
+            MPI_Recv(ADATA(saved_deps->output[k].data), 1, saved_deps->output[k].type->opaque_dtt, saved_deps->from, saved_deps->msg.deps+k, dep_comm, MPI_STATUS_IGNORE);
+        }
 }
 
 static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i)
