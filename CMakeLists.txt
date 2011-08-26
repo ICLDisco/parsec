@@ -391,10 +391,6 @@ add_definitions(-DHAVE_CONFIG_H)
 
 set(SRCS 
   src/dague.c 
-  src/symbol.c 
-  src/expr.c 
-  src/params.c 
-  src/dep.c 
   src/arena.c
   src/scheduling.c 
   src/stats.c 
