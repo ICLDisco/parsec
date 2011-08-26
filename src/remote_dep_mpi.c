@@ -452,7 +452,7 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
     remote_dep_wire_activate_t msg = deps->msg;
 
 
-    msg.which = 0;
+    msg.which = RDEP_MSG_EAGER(&deps->msg);
     for( k = 0; output_count; k++ ) {
         output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
@@ -858,7 +858,7 @@ static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, 
 static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int rank, remote_dep_wire_activate_t* msg)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*) (uintptr_t) msg->deps;
-    remote_dep_datakey_t which = msg->which & ~(1<<sizeof(remote_dep_datakey_t));
+    remote_dep_datakey_t which = RDEP_MSG_EAGER_CLR(msg);
     for(int k = 0; which>>k; k++) {
         assert(k < MAX_PARAM_COUNT);
         if(!((1<<k) & which)) continue;
