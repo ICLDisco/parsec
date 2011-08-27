@@ -747,7 +747,7 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
             dep = param->dep_in[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
-                assert( dep->cond->op == EXPR_OP_BINARY_RANGE );
+                assert( dep->cond->op == EXPR_OP_INLINE );
                 value = dep->cond->inline_func(dague_object, exec_context->locals);
                 if( 0 == value ) {
                     continue;
