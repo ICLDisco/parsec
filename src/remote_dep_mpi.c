@@ -113,6 +113,7 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
 static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
 static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k);
+static void remote_dep_mpi_get_eager(dague_execution_unit_t* eu_context, dague_remote_deps_t* saved_deps, int i);
 
 #ifdef DAGUE_DEBUG
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
