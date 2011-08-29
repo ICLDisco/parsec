@@ -8,18 +8,12 @@
  */
 
 #include "common.h"
+#include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "dplasma/cores/cuda_sgemm.h"
 #endif
-
-
-#define FMULS_POTRF(N) ((N) * (1.0 / 6.0 * (N) + 0.5) * (N))
-#define FADDS_POTRF(N) ((N) * (1.0 / 6.0 * (N)      ) * (N))
-
-#define FMULS_POTRS(N, NRHS) ( (NRHS) * ( (N) * ((N) + 1.) ) )
-#define FADDS_POTRS(N, NRHS) ( (NRHS) * ( (N) * ((N) - 1.) ) )
 
 static int check_solution( dague_context_t *dague, PLASMA_enum uplo, 
                            tiled_matrix_desc_t *ddescA, tiled_matrix_desc_t *ddescB, tiled_matrix_desc_t *ddescX );
@@ -57,7 +51,7 @@ int main(int argc, char ** argv)
                                        nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
                                        N, N, P, uplo));
 
-        PASTE_CODE_FLOPS_COUNT(FADDS_POTRF, FMULS_POTRF, ((DagDouble_t)N));
+        PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
 
         /* load the GPU kernel */
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
