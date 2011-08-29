@@ -35,15 +35,19 @@ dague_operator_zlange_max( struct dague_execution_unit *eu,
 {
     va_list ap;
     lange_args_t *args = (lange_args_t*)op_data;
+    PLASMA_enum uplo;
     int m, n;
     int tempmm, tempnn, ldam;
     tiled_matrix_desc_t *descA;
 
     (void)eu;
     va_start(ap, op_data);
+    uplo = va_arg(ap, PLASMA_enum);
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
+
+    (void)uplo;
 
     descA = args->desc;
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
@@ -207,7 +211,8 @@ double dplasma_zlange( dague_context_t *dague,
     
     /* First reduction by tile */
     dague_zlange = (dague_object_t*) dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
-                                                    *A, workD.super, 
+                                                    PlasmaUpperLower,
+						    *A, workD.super, 
                                                     op, (void *)&args);
     dague_enqueue( dague, (dague_object_t*)dague_zlange);
     dplasma_progress(dague);

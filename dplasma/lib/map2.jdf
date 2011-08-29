@@ -1,57 +1,132 @@
 extern "C" %{
 
+#include <plasma.h>
+
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
-
-typedef struct args_2d_s {
-    int m;
-    int n;
-    void *arg;
-} args_2d_t;
 
 %}
 
 /*
  * Globals
  */
+uplo     [type = PLASMA_enum]
 descA    [type = "tiled_matrix_desc_t"]
 descB    [type = "tiled_matrix_desc_t"]
 operator [type = "dague_operator_t" ]
 op_args  [type = "void *" ]
 
-map_in_Amn(m, n)
-m = 0 .. descB.mt-1
-n = 0 .. descB.nt-1
+plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
+plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
+
+map_l_in_Amn(m, n)
+m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
+n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
     
   : A(m, n)
 
   RW A <- A(m, n)
-       -> A MAP(m, n)
+       -> A MAP_L(m, n)
 BODY
 /* nothing */
 END
 
-MAP(m, n)
-m = 0 .. descB.mt-1
-n = 0 .. descB.nt-1
+MAP_L(m, n)
+// Execution space
+m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
+n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
 
 // Parallel partitioning
 : B(m, n)
 
 // Parameters
 
-READ  A <- A map_in_Amn(m, n)
+READ  A <- A map_l_in_Amn(m, n)
 RW    B <- B(m, n)
         -> B(m, n)
 BODY
   
   DRYRUN(
-         operator( context, A, B, op_args, m, n );
+         operator( context, A, B, op_args, PlasmaUpperLower, m, n );
       );
 
-  printlog("thread %d map( %d, %d )\n",
+  printlog("thread %d map_l( %d, %d )\n",
            context->eu_id, m, n );
 END
+
+map_u_in_Amn(m, n)
+m = 0   .. descA.mt-1
+n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
+    
+  : A(m, n)
+
+  RW A <- A(m, n)
+       -> A MAP_U(m, n)
+BODY
+/* nothing */
+END
+
+MAP_U(m, n)
+
+// Execution space
+m = 0   .. descA.mt-1
+n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+
+READ  A <- A map_u_in_Amn(m, n)
+RW    B <- B(m, n)
+        -> B(m, n)
+BODY
+
+  DRYRUN(
+         operator( context, A, B, op_args, PlasmaUpperLower, m, n );
+      );
+
+  printlog("thread %d map_u( %d, %d )\n",
+           context->eu_id, m, n );
+
+END
+
+map_diag_in_Akk(k)
+     k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+    
+  : A(k, k)
+
+  RW A <- A(k, k)
+       -> A MAP_DIAG(k)
+BODY
+/* nothing */
+END
+
+MAP_DIAG(k)
+
+// Execution space
+k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+
+// Parallel partitioning
+: B(k, k)
+
+// Parameters
+
+READ  A <- A map_diag_in_Akk(k)
+RW    B <- B(k, k)
+        -> B(k, k)
+BODY
+
+  DRYRUN(
+         operator( context, A, B, op_args, uplo, k, k );
+      );
+
+  printlog("thread %d map_diag( %d, %d )\n",
+           context->eu_id, k, k );
+END
+extern "C" %{
+
+%}
 
