@@ -125,7 +125,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 
     index += snprintf( str + index, len - index, "%s", function->name );
     if( index >= len ) return str;
-    for( i = 0; i < function->nb_locals; i++ ) {
+    for( i = 0; i < function->nb_definitions; i++ ) {
         index += snprintf( str + index, len - index, "_%d",
                            origin->locals[i].value );
         if( index >= len ) return str;
