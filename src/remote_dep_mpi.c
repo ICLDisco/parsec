@@ -1047,18 +1047,20 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
             deps->output[k].data = data;
         }
 #ifdef DAGUE_PROF_DRY_DEP
+        (void)dtt;
+        (void)dep_put_rcv_req;
         msg.which &= ~(1<<k);
         remote_dep_mpi_get_end(eu_context, deps, i, k);
 #else
-#ifdef DAGUE_DEBUG
+#  ifdef DAGUE_DEBUG
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
-#endif
+#  endif
         /*printf("%s:%d Allocate new TILE at %p\n", __FILE__, __LINE__, (void*)GC_DATA(deps->output[k].data));*/
-#if defined(DAGUE_PROF_TRACE)
+#  if defined(DAGUE_PROF_TRACE)
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->master_context->my_rank, deps->msg);
-#endif /* defined(DAGUE_PROF_TRACE) */
+#  endif /* defined(DAGUE_PROF_TRACE) */
         MPI_Irecv(ADATA(data), 1, 
                   dtt, from, NEXT_TAG + k, dep_comm, 
                   &dep_put_rcv_req[i*MAX_PARAM_COUNT+k]);
