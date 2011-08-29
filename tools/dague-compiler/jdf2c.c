@@ -1772,6 +1772,8 @@ static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_functio
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
 
+    (void)jdf;
+
     ai.sa = sa;
     ai.idx = 0;
     ai.holder = "exec_context->locals";
