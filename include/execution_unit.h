@@ -50,6 +50,10 @@ struct dague_execution_unit {
     uint32_t sched_nb_tasks_done;
 #endif
 
+#if defined(DAGUE_SIM)
+    int largest_simulation_date;
+#endif
+
     dague_context_t*        master_context;
     dague_thread_mempool_t* context_mempool;
     dague_thread_mempool_t* datarepo_mempools[MAX_PARAM_COUNT+1];

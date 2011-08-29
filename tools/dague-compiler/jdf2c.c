@@ -1765,6 +1765,45 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             nesting);
 }
 
+static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix)
+{
+    assignment_info_t ai;
+    expr_info_t info;
+    string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa1 = string_arena_new(64);
+
+    ai.sa = sa;
+    ai.idx = 0;
+    ai.holder = "exec_context->locals";
+    ai.expr = NULL;
+
+    coutput("#if defined(DAGUE_SIM)\n"
+            "static int %s(const dague_execution_context_t *exec_context)\n"
+            "{\n"
+            "  const dague_object_t *__dague_object = (const dague_object_t*)exec_context->dague_object;\n"
+            "%s"
+            "  (void)__dague_object;\n",
+            prefix, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
+                                         dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
+    
+    string_arena_init(sa);
+    coutput("%s",
+            UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+
+    string_arena_init(sa);
+    info.prefix = "";
+    info.sa = sa;
+    info.assignments = "exec_context->locals";
+    coutput("  return %s;\n", dump_expr((void**)&f->simcost, &info));
+    coutput("}\n"
+            "#endif\n"
+            "\n");
+
+    string_arena_free(sa);
+    string_arena_free(sa1);
+}
+
 static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entry_t *f, int dep_index )
 {
     string_arena_t *sa, *sa2;
@@ -1888,6 +1927,20 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_generate_code_hook(jdf, f, prefix);
     string_arena_add_string(sa, "  .hook = %s,\n", prefix);
     string_arena_add_string(sa, "  .complete_execution = complete_%s,\n", prefix);
+    
+    if( NULL != f->simcost ) {
+        sprintf(prefix, "simulation_cost_of_%s_%s", jdf_basename, f->fname);
+        jdf_generate_simulation_cost_fct(jdf, f, prefix);
+        string_arena_add_string(sa, 
+                                "#if defined(DAGUE_SIM)\n"
+                                "  .sim_cost_fct = %s,\n"
+                                "#endif\n", prefix);
+    } else {
+        string_arena_add_string(sa, 
+                                "#if defined(DAGUE_SIM)\n"
+                                "  .sim_cost_fct = NULL,\n"
+                                "#endif\n");
+    }
 
     sprintf(prefix, "%s_%s_internal_init", jdf_basename, f->fname);
     jdf_generate_internal_init(jdf, f, prefix);
@@ -2598,6 +2651,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)exec_context->dague_object;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];\n"
             "  (void)context; (void)__dague_object; (void)tass;\n"
+            "#if defined(DAGUE_SIM)\n"
+            "  int __dague_simulation_date = 0;\n"
+            "#endif\n"
             "%s\n",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -2623,7 +2679,23 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                 "  exec_context->data[%d].data_repo = e%s;\n",
                 di, fl->flow->varname,
                 di, fl->flow->varname);
+        coutput("#if defined(DAGUE_SIM)\n"
+                "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
+                "    __dague_simulation_date =  e%s->sim_exec_date;\n"
+                "#endif\n",
+                fl->flow->varname,
+                fl->flow->varname,
+                fl->flow->varname);
     }
+    coutput("#if defined(DAGUE_SIM)\n"
+            "  if( exec_context->function->sim_cost_fct != NULL ) {\n"
+            "    exec_context->sim_exec_date = __dague_simulation_date + exec_context->function->sim_cost_fct(exec_context);\n"
+            "  } else {\n"
+            "    exec_context->sim_exec_date = __dague_simulation_date;\n"
+            "  }\n"
+            "  if( context->largest_simulation_date < exec_context->sim_exec_date )\n"
+            "    context->largest_simulation_date = exec_context->sim_exec_date;\n"
+            "#endif\n");
 
     jdf_generate_code_papi_events_before(jdf, f);
     jdf_generate_code_cache_awareness_update(jdf, f);
@@ -2807,6 +2879,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
             "  }\n",
             f->fname, f->fname);
+
+    coutput("#if defined(DAGUE_SIM)\n"
+            "  assert(arg.output_entry->sim_exec_date == 0);\n"
+            "  arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
+            "#endif\n");
     
     coutput("#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"

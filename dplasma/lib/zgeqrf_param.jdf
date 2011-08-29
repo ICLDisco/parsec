@@ -85,6 +85,8 @@ zgeqrt(k, i)
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
+  SIMCOST 4
+
   : A(m, k)
 
   /* A == A(m, k) */
@@ -136,6 +138,8 @@ zunmqr(k, i, n)
   n = k+1..descA.nt-1
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
+
+  SIMCOST 6
 
   : A(m, n)
 
@@ -203,6 +207,8 @@ zttqrt(k, m)
   type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, k, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
+
+  SIMCOST inline_c %{ return type == 0 ? 4 : 2; %}
 
   : A(m, k)
 
@@ -288,6 +294,8 @@ zttmqr(k, m, n)
   ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
   im1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, k+1, m ); %}
+
+  SIMCOST inline_c %{ return type == 0 ? 12 : 6; %}
 
   : A(m, n)
 

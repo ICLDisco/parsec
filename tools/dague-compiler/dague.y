@@ -151,6 +151,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <expr>expr_range
 %type <expr>expr_simple
 %type <expr>priority
+%type <expr>simulation_cost
 %type <number>optional_access_type
 %type <external_code>prologue
 %type <external_code>epilogue
@@ -165,7 +166,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <number>INT
 %type <number>DEPENDENCY_TYPE
 
-%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY STRING
+%token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF 
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE 
@@ -318,17 +319,18 @@ properties_list: VAR ASSIGNMENT expr_complete properties_list
              }
        ;
 
-function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space partitioning dataflow_list priority BODY
+function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority BODY
                 {
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
                     e->fname = $1;
                     e->parameters = $3;
                     e->properties = $5;
                     e->definitions = $6;
-                    e->predicate = $7;
-                    e->dataflow = $8;
-                    e->priority = $9;
-                    e->body = $10;
+                    e->simcost = $7;
+                    e->predicate = $8;
+                    e->dataflow = $9;
+                    e->priority = $10;
+                    e->body = $11;
 
                     e->lineno  = current_lineno;
 
@@ -380,6 +382,14 @@ execution_space:
                     $$ = l;
                 }
          ;
+
+simulation_cost:
+                SIMCOST expr_complete
+                {
+                    $$ = $2;
+                }
+             |  {   $$ = NULL; }
+             ;
 
 partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
               {

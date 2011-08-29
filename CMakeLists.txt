@@ -90,6 +90,10 @@ option(DAGUE_DEBUG_BUILD_UNIT_TESTS
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
 
+### Simulating Options
+option(DAGUE_SIM
+  "Enable the computation of the critical path, through simulation" OFF)
+
 ### Profiling options
 option(DAGUE_PROF_TRACE
   "Enable the generation of the profiling information during execution" OFF)

@@ -333,6 +333,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     }
 #endif /* DAGUE_SCHED_CACHE_AWARE */
 
+#if defined(DAGUE_SIM)
+    eu->largest_simulation_date = 0;
+#endif
+
     /* The main thread will go back to the user level */
     if( 0 == eu->eu_id )
         return NULL;

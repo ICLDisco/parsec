@@ -81,13 +81,16 @@ typedef struct data_repo       data_repo_t;
 #define data_repo_next_entry     data_repo_next_item.list_next
 
 struct data_repo_entry {
-    dague_list_item_t data_repo_next_item;
+    dague_list_item_t       data_repo_next_item;
     dague_thread_mempool_t* data_repo_mempool_owner;
-    volatile uint32_t usagecnt;
-    volatile uint32_t usagelmt;
-    volatile uint32_t retained;
-    long int key;
-    dague_arena_chunk_t *data[1];
+    volatile uint32_t       usagecnt;
+    volatile uint32_t       usagelmt;
+    volatile uint32_t       retained;
+    long int                key;
+#if defined(DAGUE_SIM)
+    int                     sim_exec_date;
+#endif
+    dague_arena_chunk_t    *data[1];
 };
 
 struct data_repo_head {
@@ -148,6 +151,9 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_executi
 
     n = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
     n->key = key;
+#if defined(DAGUE_SIM)
+    n->sim_exec_date = 0;
+#endif
     n->usagelmt = 0;
     n->usagecnt = 0;
     n->retained = 1; /* Until we update the usage limit */
