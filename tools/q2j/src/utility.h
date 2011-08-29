@@ -8,6 +8,7 @@
 #define _DA_UTILITY_H_
 #include "dague_config.h"
 #include <stdlib.h>
+#include <stdarg.h>
 #include "node_struct.h"
 
 BEGIN_C_DECLS
@@ -61,12 +62,26 @@ node_t *DA_loop_ub(node_t *node);
 node_t *DA_if_condition(node_t *node);
 node_t *DA_if_then_body(node_t *node);
 node_t *DA_if_else_body(node_t *node);
-node_t *DA_create_int_const(int64_t val);
+
+node_t *DA_create_ID(char *name);
+node_t *DA_create_Int_const(int64_t val);
 node_t *DA_create_B_expr(int type, node_t *kid0, node_t *kid1);
+node_t *DA_create_Unary(uint32_t type);
+node_t *DA_create_Block(void);
+node_t *DA_create_For(node_t *scond, node_t *econd, node_t *incr, node_t *body);
+node_t *DA_create_Complex(uint32_t type, char *arrayName, ...);
+void DA_insert_first(node_t *block, node_t *new_node);
+void DA_insert_last(node_t *block, node_t *new_node);
 node_t *DA_create_Entry();
 node_t *DA_create_Exit();
+
 int DA_tree_contains_only_known_vars(node_t *node, char **known_vars);
 #define DA_create_relation(_T_, _K0_, _K1_) DA_create_B_expr(_T_, _K0_, _K1_)
+#define DA_create_ArrayAccess(name, ...) DA_create_Complex(ARRAY, name, __VA_ARGS__)
+#define DA_create_Fcall(name, ...) DA_create_Complex(FCALL, name, __VA_ARGS__)
+
+void convert_OUTPUT_to_INOUT(node_t *node);
+void add_entry_and_exit_task_loops(node_t *node);
 
 char *quark_tree_to_body(node_t *node);
 node_t *print_default_task_placement(node_t *task_node);
@@ -96,6 +111,7 @@ void dump_all_unds(void);
 void dump_und(und_t *und);
 
 #define DA_kid(_N_, _X_)   ((_N_)->u.kids.kids[(_X_)])
+#define DA_kid_count(_N_)   ((_N_)->u.kids.kid_count)
 #define DA_assgn_lhs(_N_)  DA_kid((_N_), 0)
 #define DA_assgn_rhs(_N_)  DA_kid((_N_), 1)
 #define DA_rel_lhs(_N_)    DA_kid((_N_), 0)

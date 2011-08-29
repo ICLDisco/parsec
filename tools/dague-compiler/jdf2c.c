@@ -1031,7 +1031,6 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
 
         coutput("static const expr_t %s = {\n"
                 "  .op = EXPR_OP_BINARY_RANGE,\n"
-                "  .flags = 0x0,\n"
                 "  .u_expr.binary = {\n"
                 "    .op1 = &rangemin_of_%s,\n"
                 "    .op2 = &rangemax_of_%s\n"
@@ -1059,7 +1058,6 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
 
         coutput("static const expr_t %s = {\n"
                 "  .op = EXPR_OP_INLINE,\n"
-                "  .flags = 0x0,\n"
                 "  .inline_func = %s_fct\n"
                 "};\n", name, name);
     }
@@ -1110,7 +1108,6 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
 
     coutput("static const expr_t %s = {\n"
             "  .op = EXPR_OP_INLINE,\n"
-            "  .flags = 0x0,\n"
             "  .inline_func = %s_fct\n"
             "};\n", name, name);
 }

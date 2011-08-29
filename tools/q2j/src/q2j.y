@@ -1306,6 +1306,8 @@ external_declaration
 	: function_definition
           {
               rename_induction_variables(&($1));
+              convert_OUTPUT_to_INOUT(&($1));
+              add_entry_and_exit_task_loops(&($1));
               //printf("%s\n",tree_to_str(&($1)));
               analyze_deps(&($1));
           }

@@ -96,6 +96,10 @@ void dump_st(symtab_t *scope){
 char *st_type_of_variable(char *var, symtab_t *scope){
     symbol_t *sym;
 
+    if( NULL == scope ){
+        return NULL;
+    }
+
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
             if( !strcmp(sym->var_name,var) ){

@@ -7,6 +7,12 @@ include(CMakeDependentOption)
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
 
+# CTest system
+SET(DART_TESTING_TIMEOUT 120)
+enable_testing()
+include(CTest)
+enable_testing()
+
 #####
 # ccmake tunable parameters
 #####
@@ -385,10 +391,6 @@ add_definitions(-DHAVE_CONFIG_H)
 
 set(SRCS 
   src/dague.c 
-  src/symbol.c 
-  src/expr.c 
-  src/params.c 
-  src/dep.c 
   src/arena.c
   src/scheduling.c 
   src/stats.c 
@@ -447,4 +449,5 @@ set (CPACK_RESOURCE_FILE_LICENSE
 set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 include (CPack)
+
 
