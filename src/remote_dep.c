@@ -60,6 +60,12 @@ static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
 
 #endif
 
+#ifndef RDEP_MSG_EAGER_LIMIT
+#define RDEP_MSG_EAGER_LIMIT    (0*128*1024)
+#endif
+#define RDEP_MSG_EAGER_SET(msg) ((msg)->which |= (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
+#define RDEP_MSG_EAGER_CLR(msg) ((msg)->which &= ~(((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
+#define RDEP_MSG_EAGER(msg)     ((msg)->which & (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
 
 #ifdef HAVE_MPI
 #include "remote_dep_mpi.c" 
@@ -104,6 +110,7 @@ int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 {
     return remote_dep_progress(eu_context);
 }
+
 
 #ifdef DAGUE_DIST_COLLECTIVES
 #define DAGUE_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
@@ -225,6 +232,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         {
                             continue;
                         }
+                        if(remote_deps->output[i].type->elem_size <= RDEP_MSG_EAGER_LIMIT) 
+                            RDEP_MSG_EAGER_SET(&remote_deps->msg);
+                        else
+                            RDEP_MSG_EAGER_CLR(&remote_deps->msg);
+                        DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n", dague_service_to_string(exec_context, tmp, 128), i, remote_deps->output[i].type->elem_size, RDEP_MSG_EAGER(&remote_deps->msg)));
                         remote_dep_inc_flying_messages(eu_context->master_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
