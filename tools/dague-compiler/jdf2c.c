@@ -1458,7 +1458,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  dague_execution_context_t* new_context;\n"
             "  assignment_t *assignments = NULL;\n"
             "%s\n"
-            "  (void)assignments;\n"
+            "%s\n"
             "  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
             "  new_context->dague_object = (dague_object_t*)__dague_object;\n"
             "  new_context->function = (const dague_t*)&%s_%s;\n"
@@ -1466,7 +1466,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  assignments = new_context->locals;\n",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
-                                 "  int32_t ", " ", ",", ";"),
+                                 "  int32_t ", " ", " = -1,", " = -1;"),
+            UTIL_DUMP_LIST_FIELD(sa2, f->definitions, next, name, dump_string, NULL, 
+				 "  ", "(void)", "; ", ";"),
             jdf_basename, f->fname);
 
     string_arena_init(sa1);
