@@ -27,6 +27,8 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
 
+int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
+
 #define dplasma_progress( object )              \
   MPI_Barrier(dplasma_comm);                    \
   dague_progress( object );
@@ -43,6 +45,7 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
 # define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
 # define dplasma_datatype_define_upper(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_lower(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
+# define dplasma_datatype_undefine_type( type ) ( *(type) = NULL )
 
 #define dplasma_progress( object )              \
   dague_progress( object );
