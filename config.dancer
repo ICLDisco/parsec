@@ -16,6 +16,12 @@ elif [ "x$USER" = "xherault" ]; then
   CUDA="/opt/cuda"
   MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
+elif [ "x$USER" = "xmfaverge" ]; then
+  HWLOC="/opt/hwloc"
+  PLASMADIR="/home/mfaverge/opt/plasma-intel/"
+  #CUDA="/opt/cuda"
+  MPI="-DMPI_COMPILER=/usr/bin/mpicc -DDAGUE_GPU_WITH_CUDA=OFF"
+  DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
 elif [ "x$USER" = "xYOURSELF" ]; then
   HWLOC=SOMEWHERE
   PLASMADIR=SOMEWHERE
