@@ -802,7 +802,6 @@ void convert_OUTPUT_to_INOUT(node_t *node){
             convert_OUTPUT_to_INOUT(tmp);
         }
     }else{
-        int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             convert_OUTPUT_to_INOUT(node->u.kids.kids[i]);
         }
@@ -1029,36 +1028,6 @@ node_t *DA_create_Complex(uint32_t type, char *name, ...){
 
     return node;
 }
-
-
-/*
-node_t *DA_create_Fcall(char *funcName, ...){
-    va_list argp;
-    node_t *node, *indx;
-    int i, count=0;
-
-    // Count the number of arguments passed (except for the terminating NULL).
-    va_start(argp, funcName);
-    while( NULL != va_arg(argp, node_t *) ){
-        count++;
-    }
-    va_end(argp);
-
-    node = (node_t *)calloc(1,sizeof(node_t));
-    node->type = FCALL;
-    node->u.kids.kid_count = count+1;
-    node->u.kids.kids = (node_t **)calloc(count+1, sizeof(node_t *));
-    node->u.kids.kids[0] = DA_create_ID(funcName);
-
-    va_start(argp, funcName);
-    for(i=1; NULL != (indx = va_arg(argp, node_t *)); i++){
-        node->u.kids.kids[i] = indx;
-    }
-    va_end(argp);
-
-    return node;
-}
-*/
 
 
 void DA_insert_first(node_t *block, node_t *new_node){

@@ -108,16 +108,19 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
         status = cuCtxPushCurrent( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(INIT) cuCtxPushCurrent ", status,
                                 {free(gpu_device); gpu_devices[i] = NULL; continue; } );
-        
+       
         /* If not disallowed by env, load from static linked kernels */
+        /* This is non functional, as the ptr is not a CuFunction. */
         gpu_device->hcuFunction = NULL;
         env = getenv("DAGUE_CUBIN_NOSTATIC");
         if(!env || (('1' != env[0]) && ('y' != env[0])))
         {
             void* dlh;
             snprintf(module_path, FILENAME_MAX, "sgemmNT_SM%d%d", gpu_device->major, gpu_device->minor);
-            dlh = dlopen(NULL, 0);
+            dlh = dlopen(NULL, RTLD_NOW);
+            if(NULL == dlh) printf("Error parsing static libs: %s\n", dlerror());
             gpu_device->hcuFunction = dlsym(dlh, module_path);
+            dlclose(dlh);
         }
         
         /* If not found statically, cuload it */
@@ -146,6 +149,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
                                         continue;
                                     } );
         }
+        if(NULL == gpu_device->hcuFunction) return -1;
         if( 1 == gpu_device->major ) {
             cuFuncSetBlockShape( gpu_device->hcuFunction, 16, 4, 1 );
         } else {

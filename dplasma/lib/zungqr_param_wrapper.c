@@ -97,9 +97,15 @@ dplasma_zungqr_param_Destruct( dague_object_t *o )
     dague_zungqr_param_object_t *dague_zungqr_param = (dague_zungqr_param_object_t *)o;
 
     dplasma_pivgen_finalize( dague_zungqr_param->pivfct );
+    free( dague_zungqr_param->pivfct );
+
+    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LITTLE_T_ARENA  ]->opaque_dtt) );
+      
     dague_private_memory_fini( dague_zungqr_param->p_work );
     free( dague_zungqr_param->p_work );
  
-    /* dague_zungqr_param_destroy(dague_zungqr_param); */
+    dague_zungqr_param_destroy(dague_zungqr_param);
 }
 

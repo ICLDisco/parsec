@@ -40,6 +40,9 @@
 #cmakedefine DAGUE_PROF_DRY_BODY
 #cmakedefine DAGUE_PROF_DRY_DEP
 
+/* Simulating */
+#cmakedefine DAGUE_SIM
+
 /* system */
 #cmakedefine HAVE_PTHREAD
 #cmakedefine HAVE_SCHED_SETAFFINITY

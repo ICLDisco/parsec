@@ -333,6 +333,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     }
 #endif /* DAGUE_SCHED_CACHE_AWARE */
 
+#if defined(DAGUE_SIM)
+    eu->largest_simulation_date = 0;
+#endif
+
     /* The main thread will go back to the user level */
     if( 0 == eu->eu_id )
         return NULL;
@@ -747,7 +751,8 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
             dep = param->dep_in[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
-                (void)expr_eval( dague_object, dep->cond, exec_context->locals, MAX_LOCAL_COUNT, &value );
+                assert( dep->cond->op == EXPR_OP_INLINE );
+                value = dep->cond->inline_func(dague_object, exec_context->locals);
                 if( 0 == value ) {
                     continue;
                 }

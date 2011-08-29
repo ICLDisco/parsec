@@ -379,6 +379,19 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     /* We're all done ? */
     dague_barrier_wait( &(master_context->barrier) );
 
+#if defined(DAGUE_SIM)
+    if( 0 == eu_context->eu_id ) {
+        uint32_t my_idx;
+        int largest_date = 0;
+        for(my_idx = 0; my_idx < master_context->nb_cores; my_idx++) {
+            if( master_context->execution_units[my_idx]->largest_simulation_date > largest_date )
+                largest_date = master_context->execution_units[my_idx]->largest_simulation_date;
+        }
+        printf("Simulated Time: %d\n", largest_date);
+    }
+    dague_barrier_wait( &(master_context->barrier) );
+#endif
+
     if( 0 != eu_context->eu_id ) {
         my_barrier_counter++;
         goto wait_for_the_next_round;

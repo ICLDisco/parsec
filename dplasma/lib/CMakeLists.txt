@@ -38,7 +38,7 @@ precisions_rules(generated_jdf
                  PRECISIONS "+;${DPLASMA_PRECISIONS}")
 
 list(APPEND generated_jdf
-  map2.jdf)
+  "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")
 
 jdf_rules(generated_files "${generated_jdf}")
 
