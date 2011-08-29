@@ -1729,7 +1729,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     indent(nesting), string_arena_get_string(sa1), dl->name, dl->name, dl->name, 
                                    jdf_basename, f->fname, dl->name,
                                    dl == f->definitions ? "NULL" : string_arena_get_string(sa2),
-                                   dl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
+                                   pl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
                     indent(nesting));
             string_arena_init(sa2);
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
