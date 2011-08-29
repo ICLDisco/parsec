@@ -239,7 +239,10 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         
         pthread_join(dep_thread_id, (void**) &ret);
         assert(ret == context);
+
     }
+    free( dep_pending_put_array );
+    free( dep_pending_recv_array );
     return 0;
 }
 
