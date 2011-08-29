@@ -85,7 +85,7 @@ int vasprintf(char **ptr, const char *fmt, va_list ap)
 #if defined(DAGUE_DEBUG_HISTORY)
 
 typedef struct {
-    dague_t *function;
+    const dague_t *function;
     assignment_t locals[MAX_LOCAL_COUNT];
 } execution_mark_t;
 
@@ -253,7 +253,8 @@ void debug_mark_display_history(void)
     mark_t  *m;
     char msg[512];
     int pos, len = 512;
-    dague_t *f;
+    const dague_t *f;
+    const dague_object_t* object;
 
     current_mark = current_mark > MAX_MARKS ? MAX_MARKS : current_mark;
     for(i = nextmark % MAX_MARKS; i != (nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
@@ -265,104 +266,107 @@ void debug_mark_display_history(void)
             switch( m->u.comm.type ) {
             case TYPE_SEND_ACTIVATE:
                 pos += snprintf(msg+pos, len-pos, "mark %d: emission of an activate message to %d\n", 
-                                reali(i), m->u.comm.fromto);
+                                (int)reali(i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n",
                                 m->u.comm.buffer);
-                f = (dague_t*)m->u.comm.msg.activate.function;
+                object = dague_object_lookup( m->u.comm.msg.activate.object_id );
+                f = object->functions_array[m->u.comm.msg.activate.function_id];
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_parameters; j++) {
-                    pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
-                                    m->u.comm.msg.activate.locals[j].sym->name,
+                    pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s", 
+                                    j,
                                     m->u.comm.msg.activate.locals[j].value,
                                     (j == f->nb_parameters - 1) ? ")\n" : ", ");
                 }
                 pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
-                                m->u.comm.msg.activate.which);
+                                (uint32_t)m->u.comm.msg.activate.which);
                 break;
 
             case TYPE_RECV_ACTIVATE:
                 pos += snprintf(msg+pos, len-pos, "mark %d: reception of an activate message from %d\n", 
-                                reali(i), m->u.comm.fromto);
+                                (int)reali(i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
-                f = (dague_t*)m->u.comm.msg.activate.function;
+                object = dague_object_lookup( m->u.comm.msg.activate.object_id );
+                f = object->functions_array[m->u.comm.msg.activate.function_id];
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_parameters; j++) {
-                    pos += snprintf(msg+pos, len-pos, "%s=%d%s", 
-                                    m->u.comm.msg.activate.locals[j].sym->name,
+                    pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s", 
+                                    j,
                                     m->u.comm.msg.activate.locals[j].value,
                                     (j == f->nb_parameters - 1) ? ")\n" : ", ");
                 }
                 pos += snprintf(msg+pos, len-pos, "\t      which = 0x%08x\n", 
-                                m->u.comm.msg.activate.which);
+                                (uint32_t)m->u.comm.msg.activate.which);
                 pos += snprintf(msg+pos, len-pos, "\t      deps = 0x%X\n",
-                                m->u.comm.msg.activate.deps);
+                                (uint32_t)m->u.comm.msg.activate.deps);
                 break;
 
             case TYPE_SEND_GET:
                 pos += snprintf(msg+pos, len-pos, "mark %d: emission of a Get control message to %d\n", 
-                                reali(i), m->u.comm.fromto);
+                                (int)reali(i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emission\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      deps requested = 0x%X\n",
-                                m->u.comm.msg.get.deps);
+                                (uint32_t)m->u.comm.msg.get.deps);
                 pos += snprintf(msg+pos, len-pos, "\t      which requested = 0x%08x\n",
-                                m->u.comm.msg.get.which);
+                                (uint32_t)m->u.comm.msg.get.which);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the reception of data = %d\n",
-                                m->u.comm.msg.get.tag);
+                                (int)m->u.comm.msg.get.tag);
                 break;
 
             case TYPE_RECV_GET:
                 pos += snprintf(msg+pos, len-pos, "mark %d: reception of a Get control message from %d\n", 
-                                reali(i), m->u.comm.fromto);
+                                (int)reali(i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      deps requested = 0x%X\n",
-                                m->u.comm.msg.get.deps);
+                                (uint32_t)m->u.comm.msg.get.deps);
                 pos += snprintf(msg+pos, len-pos, "\t      which requested = 0x%08x\n",
-                                m->u.comm.msg.get.which);
+                                (uint32_t)m->u.comm.msg.get.which);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the reception of data = %d\n",
-                                m->u.comm.msg.get.tag);
+                                (int)m->u.comm.msg.get.tag);
                 break;
 
             case TYPE_SEND_START_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Start emitting data to %d\n", 
-                                reali(i), m->u.comm.fromto);
+                                (int)reali(i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emission\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the emission of data = %d\n",
-                                m->u.comm.msg.tag);
+                                (int)m->u.comm.msg.tag);
                 break;
 
             case TYPE_SEND_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done sending data of tag %d\n", 
-                                reali(i), m->u.comm.msg.tag);
+                                (int)reali(i), (int)m->u.comm.msg.tag);
                 break;
 
             case TYPE_RECV_START_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Start receiving data from %d\n", 
-                                reali(i), m->u.comm.fromto);
+                                (int)reali(i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the reception of data = %d\n",
-                                m->u.comm.msg.tag);
+                                (int)m->u.comm.msg.tag);
                  break;
 
             case TYPE_RECV_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done receiving data with tag %d\n", 
-                                reali(i), m->u.comm.msg.tag);
+                                (int)reali(i), (int)m->u.comm.msg.tag);
                 break;
             default: 
-                pos += snprintf(msg+pos, len-pos, "mark %d: WAT? type %d\n", reali(i), m->u.comm.type);
+                pos += snprintf(msg+pos, len-pos, "mark %d: WAT? type %d\n", 
+                                (int)reali(i), (int)m->u.comm.type);
                 break;
             }
             fprintf(stderr, "%s", msg);
         } else {
-            pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", reali(i), m->core);
+            pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", (int)reali(i), (int)m->core);
             pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
             for(j = 0; j < m->u.exe.function->nb_parameters; j++) {
-                pos += snprintf(msg+pos, len-pos, "%s=%d%s",
-                                m->u.exe.locals[j].sym->name, m->u.exe.locals[j].value,
+                pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s",
+                                j, m->u.exe.locals[j].value,
                                 (j == m->u.exe.function->nb_parameters-1) ? ")\n" : ", ");
             }
             fprintf(stderr, "%s", msg);
