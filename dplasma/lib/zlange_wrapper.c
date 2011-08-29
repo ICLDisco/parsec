@@ -56,6 +56,7 @@ dague_operator_zlange_max( struct dague_execution_unit *eu,
     return 0;
 }
 
+#if 0
 static int
 dague_operator_zlange_one( struct dague_execution_unit *eu,
                            const void* src,
@@ -115,6 +116,7 @@ dague_operator_zlange_inf( struct dague_execution_unit *eu,
          tempmm, tempnn, (PLASMA_Complex64_t*)src, ldam, (double*)dest );
     return 0;
 }
+#endif
 
 /***************************************************************************/
 /**
