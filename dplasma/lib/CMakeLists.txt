@@ -29,7 +29,7 @@ set(JDF
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
-  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
+  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf zaxpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
 )
@@ -49,12 +49,15 @@ set(SOURCES
   ztrsm_wrapper.c 
   ztrmm_wrapper.c 
   ztrsmpl_wrapper.c   
-  # Lapack
+  # Lapack Auxiliary 
+  zaxpy_wrapper.c
   zlacpy_wrapper.c
   zlaset_wrapper.c
   zplrnt_wrapper.c
   zplghe_wrapper.c
   zplgsy_wrapper.c
+  zlange_wrapper.c
+  # Lapack 
   zpotrf_wrapper.c 
   zpotrs_wrapper.c 
   zposv_wrapper.c 
@@ -68,7 +71,6 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
-  zlange_wrapper.c
 )
 precisions_rules(generated_files
                  "${SOURCES}"
