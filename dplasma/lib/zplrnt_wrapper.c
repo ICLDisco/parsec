@@ -64,6 +64,7 @@ void
 dplasma_zplrnt_Destruct( dague_object_t *o )
 {
     dague_zplrnt_object_t *dague_zplrnt = (dague_zplrnt_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zplrnt->arenas[DAGUE_zplrnt_DEFAULT_ARENA   ]->opaque_dtt) );
     dague_zplrnt_destroy(dague_zplrnt);
 }
 

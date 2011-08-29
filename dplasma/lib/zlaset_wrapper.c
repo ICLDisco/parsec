@@ -76,6 +76,7 @@ void
 dplasma_zlaset_Destruct( dague_object_t *o )
 {
     dague_zlaset_object_t *dague_zlaset = (dague_zlaset_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zlaset->arenas[DAGUE_zlaset_DEFAULT_ARENA   ]->opaque_dtt) );
     dague_zlaset_destroy(dague_zlaset);
 }
 

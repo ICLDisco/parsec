@@ -90,6 +90,8 @@ dplasma_zgemm_Destruct( dague_object_t *o )
     int transA = ((dague_zgemm_NN_object_t *)o)->transA;
     int transB = ((dague_zgemm_NN_object_t *)o)->transB;
 
+    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_object_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
+
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
             dague_zgemm_NN_destroy((dague_zgemm_NN_object_t *)o);
