@@ -30,6 +30,7 @@ int main(int argc, char ** argv)
     int info = 0;
     int u, t1, t2;
     int info_solve, info_facto;
+    int ret = 0;
         
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -141,6 +142,7 @@ int main(int argc, char ** argv)
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOSV (%s) ... FAILED !\n", uplostr[u]);
+                ret |= 1;
             }
             else {
                 printf(" ----- TESTING ZPOSV (%s) ....... PASSED !\n", uplostr[u]);
@@ -186,6 +188,7 @@ int main(int argc, char ** argv)
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOTRF + ZPOTRS (%s) ... FAILED !\n", uplostr[u]);
+                ret |= 1;
             }
             else {
                 printf(" ----- TESTING ZPOTRF + ZPOTRS (%s) ....... PASSED !\n", uplostr[u]);
@@ -233,6 +236,7 @@ int main(int argc, char ** argv)
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOTRF + ZTRSM + ZTRSM (%s) ... FAILED !\n", uplostr[u]);
+                ret |= 1;
             }
             else {
                 printf(" ----- TESTING ZPOTRF + ZTRSM + ZTRSM (%s) ....... PASSED !\n", uplostr[u]);
@@ -252,7 +256,7 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
 
     cleanup_dague(dague, iparam);
-    return EXIT_SUCCESS;
+    return ret;
 }
 
 static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo, 

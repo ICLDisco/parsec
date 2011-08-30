@@ -24,6 +24,7 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
+    int info_ortho = 0, info_facto = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -104,12 +105,12 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
         
         /* Check the orthogonality, factorization and the solution */
-        (void)check_orthogonality(dague, (rank == 0) ? loud : 0,
-                                  (tiled_matrix_desc_t *)&ddescQ);
-        (void)check_factorization(dague, (rank == 0) ? loud : 0,
-                                  (tiled_matrix_desc_t *)&ddescA0, 
-                                  (tiled_matrix_desc_t *)&ddescA, 
-                                  (tiled_matrix_desc_t *)&ddescQ);
+        info_ortho = check_orthogonality(dague, (rank == 0) ? loud : 0,
+                                         (tiled_matrix_desc_t *)&ddescQ);
+        info_facto = check_factorization(dague, (rank == 0) ? loud : 0,
+                                         (tiled_matrix_desc_t *)&ddescA0, 
+                                         (tiled_matrix_desc_t *)&ddescA, 
+                                         (tiled_matrix_desc_t *)&ddescQ);
         
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
@@ -126,7 +127,7 @@ int main(int argc, char ** argv)
     
     cleanup_dague(dague, iparam);
     
-    return EXIT_SUCCESS;
+    return info_ortho || info_facto;
 }
 
 /*-------------------------------------------------------------------

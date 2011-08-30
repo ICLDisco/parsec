@@ -21,6 +21,7 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
+    int info_solution = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
@@ -84,14 +85,10 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
         dague_data_free(ddescB.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
-    }
-    else
-    { 
-        if ( iparam[IPARAM_NNODES] > 1 ) {
-            fprintf(stderr, "Checking doesn't work in distributed\n");
-            return EXIT_FAILURE;
-        }
-
+    } else if ( iparam[IPARAM_NNODES] > 1 ) {
+        fprintf(stderr, "Checking doesn't work in distributed\n");
+        info_solution = 1;
+    } else {
         int Am, An, Bm, Bn;
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
@@ -153,9 +150,9 @@ int main(int argc, char ** argv)
                 if(loud) printf("Done\n");
                 
                 /* Check the solution */
-                int info_solution = check_solution( trans[tA], trans[tB], 
-                                                    alpha, &ddescA,  &ddescB, 
-                                                    beta,  &ddescC2, &ddescC);
+                info_solution = check_solution( trans[tA], trans[tB], 
+                                                alpha, &ddescA,  &ddescB, 
+                                                beta,  &ddescC2, &ddescC);
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
                         printf(" ---- TESTING DGEMM (%s, %s) ...... PASSED !\n",
@@ -184,10 +181,8 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    return 0;
+    return info_solution;
 }
-
-
 
 
 /**********************************
