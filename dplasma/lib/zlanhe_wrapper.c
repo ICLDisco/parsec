@@ -100,12 +100,12 @@ double dplasma_zlanhe( dague_context_t *dague,
 		       PLASMA_enum uplo,
 		       tiled_matrix_desc_t *A) 
 {
-    dague_object_t *dague_zlanhe = NULL;
+    dague_map2_object_t *dague_zlanhe = NULL;
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
     lanhe_args_t args;
-    double result;
+    double result = -1.0;
 
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
@@ -154,12 +154,12 @@ double dplasma_zlanhe( dague_context_t *dague,
     args.desc = A;
     
     /* First reduction by tile */
-    dague_zlanhe = (dague_object_t*) dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
-                                                    uplo, *A, workD.super, 
-                                                    op, (void *)&args);
+    dague_zlanhe = dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
+				  uplo, *A, workD.super, 
+				  op, (void *)&args);
     dague_enqueue( dague, (dague_object_t*)dague_zlanhe);
     dplasma_progress(dague);
-    dague_map2_destroy( (dague_map2_object_t*)dague_zlanhe );
+    dague_map2_destroy( dague_zlanhe );
 
     /* Second one with on element (one double or one vector )  per tile */
     two_dim_block_cyclic_init(&workS, matrix_RealDouble, workD.super.super.nodes, workD.super.super.cores, workD.super.super.myrank,

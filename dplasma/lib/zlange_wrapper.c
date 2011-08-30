@@ -155,15 +155,15 @@ dague_object_t* dplasma_zlange_New( PLASMA_enum ntype,
 #endif
 
 double dplasma_zlange( dague_context_t *dague, 
-                    PLASMA_enum ntype,
-                    tiled_matrix_desc_t *A) 
+		       PLASMA_enum ntype,
+		       tiled_matrix_desc_t *A) 
 {
     dague_map2_object_t *dague_zlange = NULL;
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
     lange_args_t args;
-    double result;
+    double result = -1.0;
 
     switch( ntype ) {
     case PlasmaFrobeniusNorm:
@@ -199,7 +199,7 @@ double dplasma_zlange( dague_context_t *dague,
     /*     work = (double *)malloc( max(A->nt, A->m) * sizeof(double) );  */
     /*     break; */
     default:
-        return -1;
+        return -1.0;
     }
 
     workD.mat = dague_data_allocate((size_t)workD.super.nb_local_tiles * 
@@ -211,9 +211,8 @@ double dplasma_zlange( dague_context_t *dague,
 
     /* First reduction by tile */
     dague_zlange = dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
-                                  PlasmaUpperLower,
-                                  *A, workD.super, 
-                                  op, (void *)&args);
+				  PlasmaUpperLower, *A, workD.super, 
+				  op, (void *)&args);
     dague_enqueue( dague, (dague_object_t*)dague_zlange);
     dplasma_progress(dague);
     dague_map2_destroy( dague_zlange );
