@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -262,7 +262,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 {
     /* First, if we have already allocated the list but it is now too tight,
      * lets redo it at the right size */
-    if( dague_remote_dep_inited && (max_output_deps > dague_remote_dep_context.max_dep_count) )
+    if( dague_remote_dep_inited && (max_output_deps > (int)dague_remote_dep_context.max_dep_count) )
     {
         remote_deps_allocation_fini();
     }

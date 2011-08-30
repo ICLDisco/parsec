@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -201,8 +201,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
 
         {
-            int queue_size = startup->master_context->nb_cores * 4;
-            int nq = 0;
+            uint32_t queue_size = startup->master_context->nb_cores * 4;
+            uint32_t nq = 0;
 
             eu->eu_nb_hierarch_queues = startup->master_context->nb_cores;    
             eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
