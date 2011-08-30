@@ -115,13 +115,13 @@ static void parse_args(int argc, char *argv[])
             break;
         case 0:
             if( wmasked ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_MASKED_GLOBALS;
+                JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MASKED_GLOBALS;
             }
             if( wmutexinput ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
+                JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
             }
             if( wremoteref ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask ^= ~JDF_WARN_REMOTE_MEM_REFERENCE;
+                JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_REMOTE_MEM_REFERENCE;
             }
             if( print_jdf_line ) {
                 JDF_COMPILER_GLOBAL_ARGS.noline = 1;
