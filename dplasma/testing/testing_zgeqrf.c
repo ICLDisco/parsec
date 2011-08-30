@@ -100,8 +100,6 @@ int main(int argc, char ** argv)
     dplasma_zgeqrf_Destruct( DAGUE_zgeqrf );
     
     if( check ) {
-        int info_ortho, info_facto;
-
         if(loud > 2) printf("+++ Generate the Q ...");
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
         dplasma_zungqr( dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT, 
@@ -109,12 +107,12 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
 
         /* Check the orthogonality, factorization and the solution */
-        info_ortho = check_orthogonality(dague, (rank == 0) ? loud : 0,
-                                         (tiled_matrix_desc_t *)&ddescQ);
-        info_facto = check_factorization(dague, (rank == 0) ? loud : 0,
-                                         (tiled_matrix_desc_t *)&ddescA0,
-                                         (tiled_matrix_desc_t *)&ddescA,
-                                         (tiled_matrix_desc_t *)&ddescQ);
+        (void)check_orthogonality(dague, (rank == 0) ? loud : 0,
+                                  (tiled_matrix_desc_t *)&ddescQ);
+        (void)check_factorization(dague, (rank == 0) ? loud : 0,
+                                  (tiled_matrix_desc_t *)&ddescA0,
+                                  (tiled_matrix_desc_t *)&ddescA,
+                                  (tiled_matrix_desc_t *)&ddescQ);
 
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
