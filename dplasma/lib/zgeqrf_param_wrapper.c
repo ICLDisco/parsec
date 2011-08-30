@@ -85,7 +85,7 @@ int dplasma_zgeqrf_param( dague_context_t *dague,
                                                   A, TS, TT);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zgeqrf_param_Destruct( dague_zgeqrf_param );
     return 0;
@@ -96,11 +96,19 @@ dplasma_zgeqrf_param_Destruct( dague_object_t *o )
 {
     dague_zgeqrf_param_object_t *dague_zgeqrf_param = (dague_zgeqrf_param_object_t *)o;
 
+    dplasma_pivgen_finalize( dague_zgeqrf_param->pivfct );
+    free( dague_zgeqrf_param->pivfct );
+
+    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LITTLE_T_ARENA  ]->opaque_dtt) );
+      
     dague_private_memory_fini( dague_zgeqrf_param->p_work );
     dague_private_memory_fini( dague_zgeqrf_param->p_tau  );
     free( dague_zgeqrf_param->p_work );
     free( dague_zgeqrf_param->p_tau  );
  
-    /* dague_zgeqrf_param_destroy(dague_zgeqrf_param); */
+    dague_zgeqrf_param_destroy(dague_zgeqrf_param);
 }
 

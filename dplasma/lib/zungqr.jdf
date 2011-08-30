@@ -31,29 +31,29 @@ minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : des
 
 ztsmqr(k,m,n)
   /* Execution space */
-/*k = MAX(0,minMN+1-descQ.mt)..minMN-1*/
-  k = 0..minMN-1
-  m = 0..(descQ.mt-minMN+k-1)
+  k = 0..(minMN-1)
+  m = k+1..(descQ.mt-1)
   n = 0..(descQ.nt-1)
 
-  : Q(descQ.mt-1-m,n)
+  : Q(m, n)
 
-  /* A == Q(minMN-1-k,     n        ) */
-  /* B == Q(descQ.mt-1-m, n        ) */
-  /* C == A(descQ.mt-1-m, minMN-1-k) */
-  /* D == T(descQ.mt-1-m, minMN-1-k) */
-  /* G == Q(minMN-1-k,     n1       ) */
+  /* A1 == Q(k, n ) */
+  /* A2 == Q(m, n ) */
+  /* V == A(m, k) */
+  /* T == T(m, k) */
 
-  RW    A <- (0==m) ? A ztsmqr_in_Q0(k,n) : A ztsmqr(k, m-1, n) 
-          -> ((k+descQ.mt)==(minMN+m+1)) & (k>=0) ? G zunmqr(m+minMN+1-descQ.mt, n) 
-          -> ((k+descQ.mt)>=(minMN+m+2))          ? A ztsmqr(k, m+1, n) 
-  RW    B <- (0==k) & (descQ.mt   >=(minMN+m+1))                         ? Q(descQ.mt-1-m,n)
-          <- (        (descQ.mt+k)==(minMN+m+1)) & ((m+minMN)>=descQ.mt) ? G zunmqr(k-1, n) 
-          <- (        (descQ.mt+k)>=(minMN+m+2)) & (k>=1)                ? B ztsmqr(k-1, m, n) 
-          -> ( (k+2) <= minMN ) ? B ztsmqr(k+1, m, n) 
-          -> ( (k+1) == minMN ) ? Q(descQ.mt-1-m, n)
-  READ  C <- C ztsmqr_in_A1(k,m,n)
-  READ  D <- D ztsmqr_in_T2(k,m,n)       [type = LITTLE_T]
+  RW   A1 <- ( m == descQ.mt-1 ) ? A ztsmqr_in_A1(k, n) : A1 ztsmqr(k, m+1, n) 
+          -> ( m == k+1 ) ? C zunmqr( k, n )
+          -> ( m >  k+1 ) ? A1 ztsmqr(k, m-1, n) 
+
+  RW   A2 <- ( k == minMN-1 ) ? Q(m, n)
+          <- ( k <  minMN-1 ) & (k+1 == m) ? C zunmqr(k+1, n)
+          <- ( k <  minMN-1 ) & (k+1 <  m) ? A2 ztsmqr(k+1, m, n)
+          -> ( k >  0 ) ? A2 ztsmqr(k-1, m, n)
+          -> ( k == 0 ) ? Q(m, n)
+
+  READ  V <- V ztsmqr_in_V(k, m)
+  READ  T <- T ztsmqr_in_T(k, m)       [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -65,27 +65,27 @@ BODY
             "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
             "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
             "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-            context->eu_id, k, m, n, (minMN-1)-k, n, A, ((descQ.mt)-1)-m, n, B, 
-            ((descQ.mt)-1)-m, (minMN-1)-k, C, ((descQ.mt)-1)-m, (minMN-1)-k, D);
+            context->eu_id, k, m, n, 
+            k, n, A1, m, n, A2, 
+            m, k, V, m, k, T);
 
   DRYRUN(
          int tempnn  = ( n == descQ.nt-1 ) ? descQ.n - n * descQ.nb : descQ.nb;
-         int tempmm  = ( m == 0 )           ? descQ.m - (descQ.mt-1-m) * descQ.mb : descQ.mb;
-         int tempAkn = ( minMN-1-k == descA.nt-1 ) ? descA.n - (minMN-1-k) * descA.nb : descA.nb;
-         int ldqk = BLKLDD( descQ, minMN-1-k );
-         int ldqm = BLKLDD( descQ, descQ.mt-1-m );
-         int ldam = BLKLDD( descA, descQ.mt-1-m );
+         int tempmm  = ( m == descQ.mt-1 ) ? descQ.m - m * descQ.mb : descQ.mb;
+         int tempAkn = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
+         int ldqk = BLKLDD( descQ, k );
+         int ldqm = BLKLDD( descQ, m );
+         int ldam = BLKLDD( descA, m );
          int ldwork = ib;
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 23 "zungqr.cpp"
          CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans, 
                      descQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, 
-                     A /* Q(minMN-1-k,     n        ) */, ldqk, 
-                     B /* Q(descQ.mt-1-m, n        ) */, ldqm, 
-                     C /* A(descQ.mt-1-m, minMN-1-k) */, ldam, 
-                     D /* T(descQ.mt-1-m, minMN-1-k) */, descT.mb, 
+                     A1 /* Q(k, n) */, ldqk, 
+                     A2 /* Q(m, n) */, ldqm, 
+                     V  /* A(m, k) */, ldam, 
+                     T  /* T(m, k) */, descT.mb, 
                      p_elem_A, ldwork );
          
          dague_private_memory_push( p_work, p_elem_A );
@@ -96,15 +96,14 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_Q0(k,n)
-/*k = MAX(0,minMN+1-descQ.mt)..minMN-1*/
-  k = 0..minMN-1
+ztsmqr_in_A1(k,n)
+  k = 0..( (descQ.mt < descQ.nt) ? descQ.mt-2 : descQ.nt-1 )
   n = 0..(descQ.nt-1)
 
-  : Q(minMN-1-k,n)
+  : Q(k, n)
 
-  RW A <- Q(minMN-1-k,n)
-       -> A ztsmqr(k,0,n)
+  RW A <- Q(k, n)
+       -> A1 ztsmqr(k, descQ.mt-1, n)
 BODY
 /* nothing */
 END
@@ -113,16 +112,14 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_A1(k,m,n)
-  /* k = MAX(0,minMN+1-descQ.mt)..(minMN-1) */
-  k = 0..minMN-1
-  m = 0..(descQ.mt-minMN+k-1)
-  n = 0..(descQ.nt-1)
+ztsmqr_in_V(k, m)
+  k = 0..(minMN-1)
+  m = k+1..(descQ.mt-1)
 
-  : A(descQ.mt-1-m, minMN-1-k)
+  : A(m, k)
 
-  RW C <- A(descQ.mt-1-m, minMN-1-k)
-       -> C ztsmqr(k,m,n)
+  RW V <- A(m, k)
+       -> V ztsmqr(k, m, 0..descQ.nt-1)
 BODY
 /* nothing */
 END
@@ -131,43 +128,38 @@ END
 /*
  * Pseudo-task
  */
-ztsmqr_in_T2(k,m,n)
-  /* k = MAX(0,minMN+1-descQ.mt)..(minMN-1) */
-  k = 0..minMN-1
-  m = 0..(descQ.mt-minMN+k-1)
-  n = 0..(descQ.nt-1)
+ztsmqr_in_T(k, m)
+  k = 0..(minMN-1)
+  m = k+1..(descQ.mt-1)
 
-  : T(descQ.mt-1-m, minMN-1-k)
+  : T(m, k)
 
-  RW D <- T(descQ.mt-1-m, minMN-1-k)        [type = LITTLE_T]
-       -> D ztsmqr(k,m,n)                   [type = LITTLE_T]
+  RW T <- T(m, k)                        [type = LITTLE_T]
+       -> T ztsmqr(k, m, 0..descQ.nt-1)  [type = LITTLE_T]
 BODY
 /* nothing */
 END
 
 
 
-zunmqr(k,n1)
+zunmqr(k, n)
   /* Execution space */
-  k  = 0..(minMN-1)
-  n1 = 0..(descQ.nt-1)
+  k = 0..(minMN-1)
+  n = 0..(descQ.nt-1)
 
-  : Q(minMN-1-k,n1)
+  : Q(k, n)
 
-  /* A == Q((minMN-1)-k,n) */
-  /* B == Q(((descQ.mt)-1)-m,n) */
-  /* E == A((minMN-1)-k,(minMN-1)-k) */
-  /* F == T((minMN-1)-k,(minMN-1)-k) */
-  /* G == Q((minMN-1)-k,n1) */
+  /* A == A(k, k) */
+  /* T == T(k, k) */
+  /* C == Q(k, n) */
 
-  READ  E <- E zunmqr_in_A0(k,n1)        [type = LOWER_TILE]
-  READ  F <- F zunmqr_in_T1(k,n1)        [type = LITTLE_T]
+  READ  A <- A zunmqr_in_A(k) [type = LOWER_TILE]
+  READ  T <- T zunmqr_in_T(k) [type = LITTLE_T]
 
-  RW    G <- ( (k+descQ.mt) <= minMN   ) ? Q(minMN-1-k,n1)
-          <- ( (k+descQ.mt) >= minMN+1 ) ? A ztsmqr(k, descQ.mt - minMN + k - 1, n1)
-          -> (  minMN==(k+1) ) ? Q( minMN-1-k, n1)
-          -> (  minMN>=(k+2) ) & (minMN >= (descQ.mt+k+1)) ? Q(minMN-1-k,n1)
-          -> (  minMN>=(k+2) ) & (minMN <= (descQ.mt+k  )) ? B ztsmqr(k+1, k-minMN+descQ.mt, n1) 
+  RW    C <- ( k == descQ.mt-1 ) ? Q(k, n)
+          <- ( k != descQ.mt-1 ) ? A1 ztsmqr(k, k+1, n)
+          -> ( k == 0 ) ? Q(k, n)
+          -> ( k >  0 ) ? A2 ztsmqr(k-1, k, n)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -178,25 +170,24 @@ BODY
 
   printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
            "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
-           context->eu_id, k, n1, (minMN-1)-k, (minMN-1)-k, E, (minMN-1)-k, (minMN-1)-k, F, (minMN-1)-k, n1, G);
+           context->eu_id, k, n, k, k, A, k, k, T, k, n, C);
 
      DRYRUN(
-         int tempAkm  = ( minMN-1-k == descA.mt-1 ) ? descA.m - (minMN-1-k) * descA.mb : descA.mb;
-         int tempAkn  = ( minMN-1-k == descA.nt-1 ) ? descA.n - (minMN-1-k) * descA.nb : descA.nb;
-         int tempkm   = ( minMN-1-k == descQ.mt-1 ) ? descQ.m - (minMN-1-k) * descQ.mb : descQ.mb;
-         int tempnn   = ( n1        == descQ.nt-1 ) ? descQ.n -  n1         * descQ.nb : descQ.nb;
+         int tempAkm  = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
+         int tempAkn  = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
+         int tempkm   = ( k == descQ.mt-1 ) ? descQ.m - k * descQ.mb : descQ.mb;
+         int tempnn   = ( n == descQ.nt-1 ) ? descQ.n - n * descQ.nb : descQ.nb;
          int tempkmin = ( tempAkn < tempAkm ) ? tempAkn : tempAkm ;
-         int ldak = BLKLDD( descA, minMN-1-k );
-         int ldqk = BLKLDD( descQ, minMN-1-k );
+         int ldak = BLKLDD( descA, k );
+         int ldqk = BLKLDD( descQ, k );
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 28 "zungqr.cpp"
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
                      tempkm, tempnn, tempkmin, ib, 
-                     E /* A((minMN-1)-k,(minMN-1)-k) */, ldak, 
-                     F /* T((minMN-1)-k,(minMN-1)-k) */, descT.mb, 
-                     G /* Q((minMN-1)-k,n1) */, ldqk, 
+                     A /* A(k, k) */, ldak, 
+                     T /* T(k, k) */, descT.mb, 
+                     C /* Q(k, n) */, ldqk, 
                      p_elem_A, descT.nb );
 
          dague_private_memory_push( p_work, p_elem_A );
@@ -206,14 +197,13 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_A0(k,n1)
+zunmqr_in_A(k)
   k = 0..(minMN-1)
-  n1 = 0..(descQ.nt-1)
 
-  : A( minMN-1-k, minMN-1-k )
+  : A( k, k )
 
-  RW E <- A( minMN-1-k, minMN-1-k ) [type = LOWER_TILE]
-       -> E zunmqr(k,n1)            [type = LOWER_TILE]
+  RW A <- A( k, k )                   [type = LOWER_TILE]
+       -> A zunmqr(k, 0..descQ.nt-1)  [type = LOWER_TILE]
 BODY
 /* nothing */
 END
@@ -222,14 +212,13 @@ END
 /*
  * Pseudo-task
  */
-zunmqr_in_T1(k,n1)
+zunmqr_in_T(k)
   k = 0..(minMN-1)
-  n1 = 0..(descQ.nt-1)
 
-  : T( minMN-1-k, minMN-1-k )
+  : T( k, k )
 
-  RW F <- T( minMN-1-k, minMN-1-k ) [type = LITTLE_T]
-       -> F zunmqr(k,n1)            [type = LITTLE_T]
+  RW T <- T( k, k )                  [type = LITTLE_T]
+       -> T zunmqr(k, 0..descQ.nt-1) [type = LITTLE_T]
 BODY
 /* nothing */
 END

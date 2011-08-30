@@ -98,6 +98,7 @@ inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}                                      
                           yylval.string = extern_code( yytext + start, strlen(yytext)-start-2 );
 			  return EXTERN_DECL;
                       }
+SIMCOST               { return SIMCOST; }
 <*>"/*"               { yy_push_state(comment);                            }
 <comment>[^*\n]*      {  /* Eat up non '*'s */                             } 
 <comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }

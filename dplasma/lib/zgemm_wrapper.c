@@ -90,6 +90,8 @@ dplasma_zgemm_Destruct( dague_object_t *o )
     int transA = ((dague_zgemm_NN_object_t *)o)->transA;
     int transB = ((dague_zgemm_NN_object_t *)o)->transB;
 
+    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_object_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
+
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
             dague_zgemm_NN_destroy((dague_zgemm_NN_object_t *)o);
@@ -119,7 +121,7 @@ dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
     if ( dague_zgemm != NULL )
     {
         dague_enqueue( dague, (dague_object_t*)dague_zgemm);
-        dague_progress(dague);
+        dplasma_progress(dague);
         dplasma_zgemm_Destruct( dague_zgemm );
     }
 }

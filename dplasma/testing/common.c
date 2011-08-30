@@ -201,7 +201,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'T': iparam[IPARAM_MB] = atoi(optarg); break;
             case 's': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
-            case 'x': iparam[IPARAM_CHECK] = 1; break; 
+            case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break; 
             case 'X': iparam[IPARAM_SIMUL] = 1; break;
                 
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;

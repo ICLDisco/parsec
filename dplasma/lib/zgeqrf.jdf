@@ -256,6 +256,14 @@ BODY
 
   void *p_elem_A;
 
+  DRYRUN(
+         int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
+         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+         int ldak = BLKLDD( descA, k );
+         int ldam = BLKLDD( descA, m );
+         int ldwork = ib;
+         );
+
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_qr_mark_data_usage( 0, &descA, DAGUE_READ, m, k );
     gpu_qr_mark_data_usage( 1, &descT, DAGUE_READ, m, k );
@@ -282,11 +290,6 @@ BODY
 #line 151 "pzgeqrf.c"
   p_elem_A = dague_private_memory_pop( p_work );
   DRYRUN(
-         int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
-         int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
-         int ldak = BLKLDD( descA, k );
-         int ldam = BLKLDD( descA, m );
-         int ldwork = ib;
          CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, descA.mb, 
                      tempnn, tempmm, tempnn, descA.nb, ib, 
                      J /* A(k,n1) */, ldak, 
@@ -297,8 +300,12 @@ BODY
          );
   dague_private_memory_push( p_work, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M);
+  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n"
+           "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, \n"
+           "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+           context->eu_id, k, m, n1, 
+           k, n1, J, m, n1, K, 
+           m, k,  L, m, k,  M);
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 FIN:

@@ -122,9 +122,15 @@ void dague_prof_grapher_task(const dague_execution_context_t *context, int threa
     if( NULL != grapher_file ) {
         dague_service_to_string(context, tmp, 128);
         service_to_taskid(context, nmp, 128);
+#if defined(DAGUE_SIM)
+        fprintf(grapher_file,
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s [%d]\",tooltip=\"%s%d\"];\n",
+                nmp, colors[thread_id % nbthreads], tmp, context->sim_exec_date, context->function->name, task_hash);
+#else
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"%s\",tooltip=\"%s%d\"];\n",
                 nmp, colors[thread_id % nbthreads], tmp, context->function->name, task_hash);
+#endif
         fflush(grapher_file);
     }
 }

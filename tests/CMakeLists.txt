@@ -3,8 +3,6 @@
 Add_Subdirectory(rtt)
 if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
   Add_Subdirectory(unit)
-#  Add_Subdirectory(debug)
-#  Add_Subdirectory(syn)
 endif(DAGUE_DEBUG_BUILD_UNIT_TESTS )
 
 add_executable(operator operator.c)

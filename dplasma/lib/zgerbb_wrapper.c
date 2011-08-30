@@ -76,7 +76,7 @@ int dplasma_zgerbb( dague_context_t *dague,
     dague_zgerbb = dplasma_zgerbb_New(A, TS, TT);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgerbb);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zgerbb_Destruct( dague_zgerbb );
     return 0;

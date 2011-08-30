@@ -80,7 +80,7 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
     if ( dague_zpotrf != NULL )
     {
         dague_enqueue( dague, (dague_object_t*)dague_zpotrf);
-        dague_progress(dague);
+        dplasma_progress(dague);
         dplasma_zpotrf_Destruct( dague_zpotrf );
     }
     return info;

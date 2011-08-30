@@ -57,7 +57,6 @@ static inline int minexpr_of_row_fct(const dague_object_t *__dague_object_parent
 }
 static const expr_t minexpr_of_row = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = minexpr_of_row_fct
 };
 static inline int maxexpr_of_row_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments)
@@ -70,7 +69,6 @@ static inline int maxexpr_of_row_fct(const dague_object_t *__dague_object_parent
 }
 static const expr_t maxexpr_of_row = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = maxexpr_of_row_fct
 };
 static const symbol_t symb_row = {
@@ -88,7 +86,6 @@ static inline int minexpr_of_column_fct(const dague_object_t *__dague_object_par
 
 static const expr_t minexpr_of_column = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = minexpr_of_column_fct
 };
 
@@ -102,7 +99,6 @@ static inline int maxexpr_of_column_fct(const dague_object_t *__dague_object_par
 }
 static const expr_t maxexpr_of_column = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = maxexpr_of_column_fct
 };
 static const symbol_t symb_column = {
@@ -124,7 +120,6 @@ static inline int pred_of_map_operator_all_as_expr_fct(const dague_object_t *__d
 }
 static const expr_t pred_of_map_operator_all_as_expr = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = pred_of_map_operator_all_as_expr_fct
 };
 
@@ -137,7 +132,6 @@ expr_of_p1_for_param_of_map_operator_dep_in_fct(const dague_object_t *__dague_ob
 }
 static const expr_t expr_of_p1_for_param_of_map_operator_dep_in = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = expr_of_p1_for_param_of_map_operator_dep_in_fct
 };
 static const dep_t param_of_map_operator_dep_in = {
@@ -159,7 +153,6 @@ expr_of_p1_for_param_of_map_operator_dep_out_fct(const dague_object_t *__dague_o
 }
 static const expr_t expr_of_p1_for_param_of_map_operator_dep_out = {
     .op = EXPR_OP_INLINE,
-    .flags = 0x0,
     .inline_func = expr_of_p1_for_param_of_map_operator_dep_out_fct
 };
 static const dep_t param_of_map_operator_dep_out = {
@@ -267,19 +260,17 @@ static int hook_of(dague_execution_unit_t *context,
     const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)exec_context->dague_object;
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
-    dague_arena_chunk_t *asrc, *adest;
+    dague_arena_chunk_t *asrc = NULL, *adest;
     const void* src_data = NULL;
-    void* dest_data = NULL;
+    void* dest_data;
 
     if( NULL != __dague_object->super.src ) {
         adest = (dague_arena_chunk_t*) src(k,n);
         dest_data = ADATA(asrc);
-    } else {
-        if( NULL != __dague_object->super.dest ) {
-            adest = (dague_arena_chunk_t*) dest(k,n);
-            dest_data = ADATA(adest);
-        }
     }
+    adest = (dague_arena_chunk_t*) dest(k,n);
+    dest_data = ADATA(adest);
+
     exec_context->data[0].data = asrc;
     exec_context->data[0].data_repo = NULL;
     exec_context->data[1].data = adest;

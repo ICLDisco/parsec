@@ -50,7 +50,8 @@ struct synch_edge_graph_t{
 #define SOURCE  0x0
 #define SINK    0x1
 
-extern int q2j_produce_shmem_jdf;
+extern int _q2j_produce_shmem_jdf;
+extern int _q2j_verbose_warnings;
 
 #if 0
 extern void dump_und(und_t *und);
@@ -321,6 +322,9 @@ void add_array_subscript_equalities(Relation &R, F_And *R_root, map<string, Vari
     count = DA_array_dim_count(def);
     if( DA_array_dim_count(use) != count ){
         fprintf(stderr,"add_array_subscript_equalities(): ERROR: Arrays in USE and DEF do not have the same number of subscripts.");
+        fprintf(stderr,"USE: %s\n",tree_to_str(use));
+        fprintf(stderr,"DEF: %s\n",tree_to_str(def));
+        assert(0);
     }
 
     for(i=0; i<count; i++){
@@ -802,12 +806,12 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             !( after_def && (def->task != use->task) ) &&
             !( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
 
-            fprintf(stderr,"WARNING: create_dep_relations(): Destination is before Source and they do not have a common enclosing loop\n");
-            fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->task->task_name );
-            fprintf(stderr,"WARNING: Source:%s %s\n", tree_to_str(def), def->task->task_name);
-/*
-            exit(-1);
-*/
+            if( _q2j_verbose_warnings ){
+                fprintf(stderr,"WARNING: In create_dep_relations() ");
+                fprintf(stderr,"Destination is before Source and they do not have a common enclosing loop:\n");
+                fprintf(stderr,"WARNING: Destination:%s %s\n", tree_to_str(use), use->task->task_name );
+                fprintf(stderr,"WARNING: Source:%s %s\n", tree_to_str(def), def->task->task_name);
+            }
             continue;
         }
 
@@ -1164,13 +1168,13 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
     stringstream ss;
     set<expr_t *> ges = find_all_GEs_with_var(var_name, exp);
     bool is_lb_simple = false, is_ub_simple = false;
+    bool is_lb_C = false, is_ub_C = false;
 
     map<string, Free_Var_Decl *>::iterator g_it;
     for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ ){
         vars_in_bounds.insert( strdup((*g_it).first.c_str()) );
     }
 
-    //FIXME: If there are multiple bounds for a variable (k<A.mt && k<A.nt) this loop will keep only the last one.
     set<expr_t *>::iterator e_it;
     for(e_it=ges.begin(); e_it!=ges.end(); e_it++){
         int exp_has_output_vars = 0;
@@ -1196,19 +1200,32 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
             continue;
 
         if( c > 0 ){ // then lower bound
-            assert( NULL == lb );
-            is_lb_simple = is_expr_simple(rslt_exp);
-            lb = strdup( expr_tree_to_str(rslt_exp) );
+            if( NULL == lb ){
+                is_lb_simple = is_expr_simple(rslt_exp);
+                lb = strdup( expr_tree_to_str(rslt_exp) );
+            }else{
+                is_lb_simple = true;
+                is_lb_C = true;
+                asprintf(&lb, "MAX((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
+            }
         }else{ // else upper bound
             if( NULL == ub ){
                 is_ub_simple = is_expr_simple(rslt_exp);
                 ub = strdup( expr_tree_to_str(rslt_exp) );
             }else{
-                is_ub_simple = false;
-                asprintf(&ub, "MIN(%s,%s)",strdup(ub),expr_tree_to_str(rslt_exp));
+                is_ub_simple = true;
+                is_ub_C = true;
+                asprintf(&ub, "MIN((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
             }
         }
 
+    }
+
+    if( is_lb_C ){
+        asprintf(&lb, "inline_c %%{ return %s; %%}",lb);
+    }
+    if( is_ub_C ){
+        asprintf(&ub, "inline_c %%{ return %s; %%}",ub);
     }
 
     if( NULL != lb ){
@@ -1221,6 +1238,7 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
     }else{
         ss << "??";
     }
+
 
     ss << "..";
 
@@ -3669,7 +3687,7 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     bool need_ptask = false;
     char *comm_mtrx, *refr_mtrx;
 
-    if( q2j_produce_shmem_jdf )
+    if( _q2j_produce_shmem_jdf )
         return false;
 
     comm_mtrx = tree_to_str(DA_array_base(ref1));

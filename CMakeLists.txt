@@ -7,6 +7,12 @@ include(CMakeDependentOption)
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
 
+# CTest system
+SET(DART_TESTING_TIMEOUT 120)
+enable_testing()
+include(CTest)
+enable_testing()
+
 #####
 # ccmake tunable parameters
 #####
@@ -83,6 +89,10 @@ option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
+
+### Simulating Options
+option(DAGUE_SIM
+  "Enable the computation of the critical path, through simulation" OFF)
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
@@ -385,10 +395,6 @@ add_definitions(-DHAVE_CONFIG_H)
 
 set(SRCS 
   src/dague.c 
-  src/symbol.c 
-  src/expr.c 
-  src/params.c 
-  src/dep.c 
   src/arena.c
   src/scheduling.c 
   src/stats.c 
@@ -447,4 +453,5 @@ set (CPACK_RESOURCE_FILE_LICENSE
 set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
 include (CPack)
+
 

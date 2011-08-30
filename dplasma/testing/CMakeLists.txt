@@ -1,9 +1,9 @@
 if(MPI_FOUND)
-  add_library(common-mpi common.c common_timing.h)
+  add_library(common-mpi common.c common_timing.h flops.h)
   set_target_properties(common-mpi PROPERTIES COMPILE_FLAGS
       "${MPI_COMPILE_FLAGS}")
 else()
-  add_library(common common.c common_timing.h)
+  add_library(common common.c common_timing.h flops.h)
 endif()
   
 include(RulesTestings.cmake)
@@ -34,3 +34,7 @@ testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 
 Add_Subdirectory(TSQR)
 
+add_test(dgeqrf ./testing_dgeqrf -N 4000 -x)
+add_test(dgemm  ./testing_dgemm -N 1500 -x)
+add_test(mpi_test mpirun -np 8 -hostfile /etc/hostfile /bin/true)
+add_test(mpi_dgeqrf mpirun -x LD_LIBRARY_PATH -np 8 -hostfile /etc/hostfile ./testing_dgeqrf -N 4000 -p 4 -x)

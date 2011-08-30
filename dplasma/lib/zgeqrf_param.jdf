@@ -85,6 +85,8 @@ zgeqrt(k, i)
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
+  SIMCOST 4
+
   : A(m, k)
 
   /* A == A(m, k) */
@@ -137,6 +139,8 @@ zunmqr(k, i, n)
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
+  SIMCOST 6
+
   : A(m, n)
 
   /* A == A(m,k) */
@@ -157,14 +161,13 @@ BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-         int tempkn = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
          int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
          int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
          int ldam = BLKLDD( descA, m );
 
          CORE_zunmqr(
                      PlasmaLeft, PlasmaConjTrans, 
-                     tempmm, tempnn, MYMIN(tempmm, tempkn), ib, 
+                     tempmm, tempnn, tempmm, ib, 
                      A /* A(m, k) */, ldam, 
                      T /* T(m, k) */, descT.mb, 
                      C /* A(m, n) */, ldam, 
@@ -204,6 +207,8 @@ zttqrt(k, m)
   type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, k, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
+
+  SIMCOST inline_c %{ return type == 0 ? 4 : 2; %}
 
   : A(m, k)
 
@@ -289,6 +294,8 @@ zttmqr(k, m, n)
   ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
   im1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, k+1, m ); %}
+
+  SIMCOST inline_c %{ return type == 0 ? 12 : 6; %}
 
   : A(m, n)
 

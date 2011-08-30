@@ -19,8 +19,8 @@
 #define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
                                        : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + (N))))
 
-static int check_orthogonality(dague_context_t *dague, tiled_matrix_desc_t *Q);
-static int check_factorization(dague_context_t *dague, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q);
+static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_desc_t *Q);
+static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q);
 
 int main(int argc, char ** argv)
 {
@@ -74,7 +74,7 @@ int main(int argc, char ** argv)
         if(loud) printf("+++ Load GPU kernel ... ");
         if(0 != stsmqr_cuda_init(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT)) 
         {
-            fprintf(stderr, "XXX Unable to load GPU kernel.\n");
+            printf("XXX Unable to load GPU kernel.\n");
             exit(3);
         }
         if(loud) printf("Done\n");
@@ -102,18 +102,19 @@ int main(int argc, char ** argv)
     if( check ) {
         int info_ortho, info_facto;
 
-        if(loud > 2) fprintf(stderr, "+++ Generate the Q ...");
+        if(loud > 2) printf("+++ Generate the Q ...");
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
         dplasma_zungqr( dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescT, 
                         (tiled_matrix_desc_t *)&ddescQ);
-        if(loud > 2) fprintf(stderr, "Done\n");
+        if(loud > 2) printf("Done\n");
 
         /* Check the orthogonality, factorization and the solution */
-        info_ortho = check_orthogonality(dague, (tiled_matrix_desc_t *)&ddescQ);
-        info_facto = check_factorization(dague, (tiled_matrix_desc_t *)&ddescA0, 
-                                         (tiled_matrix_desc_t *)&ddescA, 
+        info_ortho = check_orthogonality(dague, (rank == 0) ? loud : 0,
                                          (tiled_matrix_desc_t *)&ddescQ);
-
+        info_facto = check_factorization(dague, (rank == 0) ? loud : 0,
+                                         (tiled_matrix_desc_t *)&ddescA0,
+                                         (tiled_matrix_desc_t *)&ddescA,
+                                         (tiled_matrix_desc_t *)&ddescQ);
 
         dague_data_free(ddescA0.mat);
         dague_data_free(ddescQ.mat);
@@ -142,7 +143,7 @@ int main(int argc, char ** argv)
  * Check the orthogonality of Q
  */
 
-static int check_orthogonality(dague_context_t *dague, tiled_matrix_desc_t *Q)
+static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_desc_t *Q)
 {
     two_dim_block_cyclic_t *twodQ = (two_dim_block_cyclic_t *)Q;
     double normQ = 999999.0;
@@ -173,16 +174,18 @@ static int check_orthogonality(dague_context_t *dague, tiled_matrix_desc_t *Q)
     normQ = dplasma_zlange(dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&Id);
 
     result = normQ / (minMN * eps);
-    printf("============\n");
-    printf("Checking the orthogonality of Q \n");
-    printf("||Id-Q'*Q||_oo / (N*eps) = %e \n", result);
+    if ( loud ) {
+      printf("============\n");
+      printf("Checking the orthogonality of Q \n");
+      printf("||Id-Q'*Q||_oo / (N*eps) = %e \n", result);
+    }
 
     if ( isnan(result) || isinf(result) || (result > 60.0) ) {
-        printf("-- Orthogonality is suspicious ! \n");
+        if ( loud ) printf("-- Orthogonality is suspicious ! \n");
         info_ortho=1;
     }
     else {
-        printf("-- Orthogonality is CORRECT ! \n");
+        if ( loud ) printf("-- Orthogonality is CORRECT ! \n");
         info_ortho=0;
     }
 
@@ -195,7 +198,7 @@ static int check_orthogonality(dague_context_t *dague, tiled_matrix_desc_t *Q)
  * Check the orthogonality of Q
  */
 
-static int check_factorization(dague_context_t *dague, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q)
+static int check_factorization(dague_context_t *dague, int loud, tiled_matrix_desc_t *Aorig, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Q)
 {
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     double Anorm, Rnorm;
@@ -218,19 +221,18 @@ static int check_factorization(dague_context_t *dague, tiled_matrix_desc_t *Aori
                                A->mb, A->nb, N, N, 0, 0, 
                                N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
-    /* Extract the L */
+    /* Copy the original A in Residual */
     dplasma_zlacpy( dague, PlasmaUpperLower, Aorig, (tiled_matrix_desc_t *)&Residual );
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&R);
-
     /* Extract the R */
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&R);
     dplasma_zlacpy( dague, PlasmaUpper, A, (tiled_matrix_desc_t *)&R );
     
     /* Perform Residual = Aorig - Q*R */
     dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, 
                    -1.0, Q, (tiled_matrix_desc_t *)&R, 
                    1.0, (tiled_matrix_desc_t *)&Residual);
-    
+
     /* Free R */
     dague_data_free(R.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&R);
@@ -240,16 +242,18 @@ static int check_factorization(dague_context_t *dague, tiled_matrix_desc_t *Aori
 
     result = Rnorm / ( Anorm * minMN * eps);
 
-    printf("============\n");
-    printf("Checking the QR Factorization \n");
-    printf("-- ||A-QR||_oo/(||A||_oo.N.eps) = %e \n", result );
+    if ( loud ) {
+        printf("============\n");
+        printf("Checking the QR Factorization \n");
+        printf("-- ||A-QR||_oo/(||A||_oo.N.eps) = %e \n", result );
+    }
 
     if ( isnan(result) || isinf(result) || (result > 60.0) ) {
-        printf("-- Factorization is suspicious ! \n");
+        if ( loud ) printf("-- Factorization is suspicious ! \n");
         info_factorization = 1;
     }
     else {
-        printf("-- Factorization is CORRECT ! \n");
+        if ( loud ) printf("-- Factorization is CORRECT ! \n");
         info_factorization = 0;
     }
 

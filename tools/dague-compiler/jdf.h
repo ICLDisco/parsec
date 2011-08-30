@@ -100,6 +100,7 @@ typedef struct jdf_function_entry {
     struct jdf_call           *predicate;
     struct jdf_dataflow_list  *dataflow;
     struct jdf_expr           *priority;
+    struct jdf_expr           *simcost;
     struct jdf_def_list       *properties;
     char                      *body;
     int                        lineno;

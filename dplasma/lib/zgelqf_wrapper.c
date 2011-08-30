@@ -69,7 +69,7 @@ int dplasma_zgelqf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix
     dague_zgelqf = dplasma_zgelqf_New(A, T);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgelqf);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zgelqf_Destruct( dague_zgelqf );
     return 0;

@@ -29,7 +29,7 @@ set(JDF
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
-  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf
+  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf zaxpy.jdf
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
 )
@@ -38,7 +38,7 @@ precisions_rules(generated_jdf
                  PRECISIONS "+;${DPLASMA_PRECISIONS}")
 
 list(APPEND generated_jdf
-  map2.jdf)
+  "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")
 
 jdf_rules(generated_files "${generated_jdf}")
 
@@ -49,12 +49,16 @@ set(SOURCES
   ztrsm_wrapper.c 
   ztrmm_wrapper.c 
   ztrsmpl_wrapper.c   
-  # Lapack
+  # Lapack Auxiliary 
+  zaxpy_wrapper.c
   zlacpy_wrapper.c
   zlaset_wrapper.c
   zplrnt_wrapper.c
   zplghe_wrapper.c
   zplgsy_wrapper.c
+  zlange_wrapper.c
+  zlanhe_wrapper.c
+  # Lapack 
   zpotrf_wrapper.c 
   zpotrs_wrapper.c 
   zposv_wrapper.c 
@@ -68,7 +72,6 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
-  zlange_wrapper.c
 )
 precisions_rules(generated_files
                  "${SOURCES}"

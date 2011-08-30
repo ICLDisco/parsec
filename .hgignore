@@ -15,11 +15,11 @@ CMakeCache.txt
 CMakeScripts
 CMakeFiles
 _CPack_Packages
-CPackConfig.cmake
-CPackSourceConfig.cmake
+CPackConfig\.cmake
+CPackSourceConfig\.cmake
 \.\#.*
 .*Makefile
-.*cmake_install.cmake
+.*cmake_install\.cmake
 install_manifest.txt
 .*/generated/.*
 dplasma/testing/testing_[zcds]gemm
@@ -48,6 +48,9 @@ tools/q2j/q2j\.l\.c
 tools/q2j/q2j\.y\.c
 tools/q2j/q2j\.y\.h
 tools/precision_generator/subs\.pyc
+CTestTestfile\.cmake
+Testing/
+DartConfiguration\.tcl
 data_dist/matrix/diag_band_to_rect\.c
 data_dist/matrix/diag_band_to_rect\.h
 data_dist/matrix/reduce\.c
@@ -108,6 +111,10 @@ dplasma/lib/dlaset\.c
 dplasma/lib/dlaset\.h
 dplasma/lib/dlaset\.jdf
 dplasma/lib/dlaset_wrapper\.c
+dplasma/lib/dorgqr\.c
+dplasma/lib/dorgqr\.h
+dplasma/lib/dorgqr\.jdf
+dplasma/lib/dorgqr_wrapper\.c
 dplasma/lib/dplgsy\.c
 dplasma/lib/dplgsy\.h
 dplasma/lib/dplgsy\.jdf
@@ -235,6 +242,10 @@ dplasma/lib/slaset\.c
 dplasma/lib/slaset\.h
 dplasma/lib/slaset\.jdf
 dplasma/lib/slaset_wrapper\.c
+dplasma/lib/sorgqr\.c
+dplasma/lib/sorgqr\.h
+dplasma/lib/sorgqr\.jdf
+dplasma/lib/sorgqr_wrapper\.c
 dplasma/lib/splgsy\.c
 dplasma/lib/splgsy\.h
 dplasma/lib/splgsy\.jdf
@@ -320,6 +331,7 @@ dplasma/lib/strsmpl\.c
 dplasma/lib/strsmpl\.h
 dplasma/lib/strsmpl\.jdf
 dplasma/lib/strsmpl_wrapper\.c
+dplasma/testing/perftest
 dplasma/testing/testing_dsbrdt
 dplasma/testing/testing_dsbrdt\.c
 dplasma/testing/testing_dsyev

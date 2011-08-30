@@ -34,7 +34,7 @@ dplasma_zpotrs(dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc
     dague_enqueue( dague, dague_ztrsm1 );
     dague_enqueue( dague, dague_ztrsm2 );
 
-    dague_progress( dague );
+    dplasma_progress( dague );
 
     dplasma_ztrsm_Destruct( dague_ztrsm1 );
     dplasma_ztrsm_Destruct( dague_ztrsm2 );

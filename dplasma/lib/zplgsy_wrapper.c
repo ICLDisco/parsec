@@ -66,7 +66,7 @@ int dplasma_zplgsy( dague_context_t *dague,
     dague_zplgsy = dplasma_zplgsy_New(bump, uplo, A, seed);
 
     dague_enqueue(dague, (dague_object_t*)dague_zplgsy);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zplgsy_Destruct( dague_zplgsy );
     return 0;

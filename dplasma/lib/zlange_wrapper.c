@@ -35,15 +35,19 @@ dague_operator_zlange_max( struct dague_execution_unit *eu,
 {
     va_list ap;
     lange_args_t *args = (lange_args_t*)op_data;
+    PLASMA_enum uplo;
     int m, n;
     int tempmm, tempnn, ldam;
     tiled_matrix_desc_t *descA;
 
     (void)eu;
     va_start(ap, op_data);
+    uplo = va_arg(ap, PLASMA_enum);
     m = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
+
+    (void)uplo;
 
     descA = args->desc;
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
@@ -56,6 +60,7 @@ dague_operator_zlange_max( struct dague_execution_unit *eu,
     return 0;
 }
 
+#if 0
 static int
 dague_operator_zlange_one( struct dague_execution_unit *eu,
                            const void* src,
@@ -115,6 +120,7 @@ dague_operator_zlange_inf( struct dague_execution_unit *eu,
          tempmm, tempnn, (PLASMA_Complex64_t*)src, ldam, (double*)dest );
     return 0;
 }
+#endif
 
 /***************************************************************************/
 /**
@@ -152,7 +158,7 @@ double dplasma_zlange( dague_context_t *dague,
                     PLASMA_enum ntype,
                     tiled_matrix_desc_t *A) 
 {
-    struct dague_object_t *dague_zlange = NULL;
+    dague_map2_object_t *dague_zlange = NULL;
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
@@ -204,12 +210,13 @@ double dplasma_zlange( dague_context_t *dague,
     args.desc = A;
 
     /* First reduction by tile */
-    dague_zlange = (dague_object_t*) dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A,
-                                                    *A, workD.super,
-                                                    op, (void *)&args);
+    dague_zlange = dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
+                                  PlasmaUpperLower,
+                                  *A, workD.super, 
+                                  op, (void *)&args);
     dague_enqueue( dague, (dague_object_t*)dague_zlange);
-    dague_progress(dague);
-    dague_map2_destroy( (dague_map2_object_t*)dague_zlange );
+    dplasma_progress(dague);
+    dague_map2_destroy( dague_zlange );
 
     /* Second one with on element (one double or one vector )  per tile */
     two_dim_block_cyclic_init(&workS, matrix_RealDouble, 1, workD.super.super.cores, workD.super.super.myrank,
@@ -234,6 +241,10 @@ double dplasma_zlange( dague_context_t *dague,
     if ( work != NULL )
         free(work);
     
+#if defined(HAVE_MPI)
+    MPI_Bcast(&result, 1, MPI_DOUBLE, 0, dplasma_comm);
+#endif
+
     return result;
 }
 

@@ -40,7 +40,7 @@ dplasma_zposv( dague_context_t *dague, const PLASMA_enum uplo,
     dague_enqueue( dague, dague_ztrsm1 );
     dague_enqueue( dague, dague_ztrsm2 );
 
-    dague_progress( dague );
+    dplasma_progress( dague );
 
     dplasma_zpotrf_Destruct( dague_zpotrf );
     dplasma_ztrsm_Destruct( dague_ztrsm1 );

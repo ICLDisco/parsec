@@ -54,7 +54,7 @@ int dplasma_zplrnt( dague_context_t *dague,
     dague_zplrnt = dplasma_zplrnt_New(A, seed);
 
     dague_enqueue(dague, (dague_object_t*)dague_zplrnt);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zplrnt_Destruct( dague_zplrnt );
     return 0;
@@ -64,6 +64,7 @@ void
 dplasma_zplrnt_Destruct( dague_object_t *o )
 {
     dague_zplrnt_object_t *dague_zplrnt = (dague_zplrnt_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zplrnt->arenas[DAGUE_zplrnt_DEFAULT_ARENA   ]->opaque_dtt) );
     dague_zplrnt_destroy(dague_zplrnt);
 }
 
