@@ -54,23 +54,19 @@ dague_operator_zaxpy( struct dague_execution_unit *eu,
 
     switch ( uplo ) {
     case PlasmaLower:
-      for (j = 0; j < tempnn; j++, tempmm--) {
-	cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), &A[j*ldam+j], 1, &B[j*ldbm+j], 1);
+      for (j = 0; j < tempnn; j++, tempmm--, A+=ldam+1, B+=ldbm+1) {
+	cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), A, 1, B, 1);
       }
       break;
     case PlasmaUpper:
-      for (j = 0; j < tempnn; j++) {
-	cblas_zaxpy(j+1, CBLAS_SADDR(args->alpha), &A[j*ldam], 1, &B[j*ldbm], 1);
+      for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
+	cblas_zaxpy(j+1, CBLAS_SADDR(args->alpha), A, 1, B, 1);
       }
       break;
     case PlasmaUpperLower:
     default:
-      fprintf(stderr, "m = %d, n = %d, A = %p, lda = %d, B = %p, ldb = %d\n",
-	      tempmm, tempnn, A, ldam, B, ldbm);
-      for (j = 0; j < tempnn; j++) {
-	cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), &A[j*ldam], 1, &B[j*ldbm], 1);
-	fprintf(stderr, "m = %d, n = %d, A = %p, lda = %d, B = %p, ldb = %d\n",
-		tempmm, tempnn, &A[j*ldam], ldam, &B[j*ldbm], ldbm);
+      for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
+	cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), A, 1, B, 1);
       }
 /*       CORE_zaxpy( tempmm, tempnn, args->alpha, */
 /* 		  A, ldam, B, ldbm); */
