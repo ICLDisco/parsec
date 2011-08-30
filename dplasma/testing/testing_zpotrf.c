@@ -15,20 +15,6 @@
 #include "dplasma/cores/cuda_sgemm.h"
 #endif
 
-
-/* void printMat(char *name, int tempmm, int tempnn, void *A, int ldam) { */
-
-/*   /\* fprintf(stderr, "--------- Tile (%d, %d, %d) --------------\n", k, m, n); *\/ */
-/*   fprintf(stderr, "--------- Matrix %s --------------\n", name); */
-/*   int ii, jj; */
-/*   for(ii=0; ii<tempmm; ii++) { */
-/*     for(jj=0; jj<tempnn; jj++) { */
-/*       fprintf(stderr, " %e", ((PLASMA_Complex64_t*)A)[jj*ldam + ii]); */
-/*     } */
-/*     fprintf(stderr, "\n");  */
-/*   } */
-/* } */
-
 static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo, 
 				tiled_matrix_desc_t *A, 
 				tiled_matrix_desc_t *A0 );
@@ -63,14 +49,14 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-	two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+	sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
 				   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-				   N, N, SMB, SNB, P));
+				   N, N, P, uplo));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-	two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
+	sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
 				   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-				   N, N, SMB, SNB, P));
+				   N, N, P, uplo));
     
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check, 
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
@@ -182,16 +168,11 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     PLASMA_enum side;
     (void)A0;
     
-/*     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,  */
-/*         sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,  */
-/* 				   A->super.nodes, A->super.cores, twodA->grid.rank,  */
-/* 				   A->mb, A->nb, M, N, 0, 0,  */
-/* 				   M, N, twodA->grid.rows, uplo)); */
-    PASTE_CODE_ALLOCATE_MATRIX(L1, 1, 
-        two_dim_block_cyclic, (&L1, matrix_ComplexDouble, 
-			       A->super.nodes, A->super.cores, twodA->grid.rank, 
-			       A->mb, A->nb, M, N, 0, 0, 
-			       M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
+    PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
+        sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
+				   A->super.nodes, A->super.cores, twodA->grid.rank,
+				   A->mb, A->nb, M, N, 0, 0,
+				   M, N, twodA->grid.rows, uplo));
     PASTE_CODE_ALLOCATE_MATRIX(L2, 1, 
         two_dim_block_cyclic, (&L2, matrix_ComplexDouble, 
 			       A->super.nodes, A->super.cores, twodA->grid.rank, 
@@ -246,6 +227,11 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
         info_factorization = 0;
     }
     
+    dague_data_free(L1.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&L1);
+    dague_data_free(L2.mat);
+    dague_ddesc_destroy( (dague_ddesc_t*)&L2);
+
     return info_factorization;
 }
 
