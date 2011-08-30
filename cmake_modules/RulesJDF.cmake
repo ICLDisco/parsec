@@ -18,9 +18,10 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
     string(REGEX REPLACE ".jdf" "" jdf_rules_SRC ${jdf_rules_SOURCE}) 
     string(REGEX REPLACE "^(.*/)*(.+)\\.*.*" "\\2" jdf_rules_BSRC ${jdf_rules_SRC})
     set(jdf_rules_OSRC "${jdf_rules_BSRC}")
+    GET_PROPERTY(ADDITIONAL_DAGUEPP_CFLAGS SOURCE ${jdf_rules_SOURCE} PROPERTY ADDITIONAL_DAGUEPP_CFLAGS)
     add_custom_command(
       OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-      COMMAND ${DAGUEPP} ${DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+      COMMAND ${DAGUEPP} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
       MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
       DEPENDS ${DAGUEPP})
     #   add_custom_target(${jdf_rules_BSRC} DEPENDS ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c)
