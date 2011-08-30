@@ -120,10 +120,13 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo,
 void
 dplasma_ztrsm_Destruct( dague_object_t *o )
 {
+    dague_ztrsm_LLN_object_t *otrsm = (dague_ztrsm_LLN_object_t *)o;
     int side  = ((dague_ztrsm_LLN_object_t *)o)->side;
     int uplo  = ((dague_ztrsm_LLN_object_t *)o)->uplo;
     int trans = ((dague_ztrsm_LLN_object_t *)o)->trans;
 
+    dplasma_datatype_undefine_type( &(otrsm->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA]->opaque_dtt) );
+    
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {

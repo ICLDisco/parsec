@@ -52,9 +52,12 @@ dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
 void
 dplasma_zpotrf_Destruct( dague_object_t *o )
 {
+    dague_zpotrf_Url_object_t *opotrf = (dague_zpotrf_Url_object_t *)o;
     int uplo    = ((dague_zpotrf_Url_object_t *)o)->uplo;
     int looking = PlasmaRight; /*((dague_zpotrf_Url_object_t *)o)->uplo;*/
     
+    dplasma_datatype_undefine_type( &(opotrf->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA]->opaque_dtt) );
+
     if (looking == PlasmaRight ) {
         if ( uplo == PlasmaUpper ) {
             dague_zpotrf_Url_destroy((dague_zpotrf_Url_object_t *)o);

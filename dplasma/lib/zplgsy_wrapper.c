@@ -76,6 +76,7 @@ void
 dplasma_zplgsy_Destruct( dague_object_t *o )
 {
     dague_zplgsy_object_t *dague_zplgsy = (dague_zplgsy_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zplgsy->arenas[DAGUE_zplgsy_DEFAULT_ARENA]->opaque_dtt) );
     dague_zplgsy_destroy(dague_zplgsy);
 }
 

@@ -113,7 +113,7 @@ dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo,
                            A->mb*A->nb*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
-#if 0
+#if 1
     dplasma_add2arena_tile(((dague_ztrmm_LLN_object_t*)dague_trmm)->arenas[DAGUE_ztrmm_LLN_CONTROL_ARENA], 
                            sizeof(int),
                            DAGUE_ARENA_ALIGNMENT_SSE,
@@ -128,10 +128,14 @@ dplasma_ztrmm_New( const PLASMA_enum side, const PLASMA_enum uplo,
 void
 dplasma_ztrmm_Destruct( dague_object_t *o )
 {
+    dague_ztrmm_LLN_object_t *otrmm = (dague_ztrmm_LLN_object_t *)o;
     int side  = ((dague_ztrmm_LLN_object_t *)o)->side;
     int uplo  = ((dague_ztrmm_LLN_object_t *)o)->uplo;
     int trans = ((dague_ztrmm_LLN_object_t *)o)->trans;
 
+    dplasma_datatype_undefine_type( &(otrmm->arenas[DAGUE_ztrmm_LLN_DEFAULT_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(otrmm->arenas[DAGUE_ztrmm_LLN_CONTROL_ARENA]->opaque_dtt) );
+    
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
