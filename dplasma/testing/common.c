@@ -82,7 +82,6 @@ void print_usage(void)
             " -s --SNB          : columns of tiles in a supertile (default: 1)\n"
             " -S --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -x --check        : verify the results\n"
-            " -X --cpath        : do a simulation and compute the critical path\n"
             "\n"
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
@@ -97,7 +96,7 @@ void print_usage(void)
            );
 }
 
-#define GETOPT_STRING "c:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xXv::h"
+#define GETOPT_STRING "c:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::h"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -137,9 +136,6 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
-    {"cpath",       no_argument,        0, 'X'},
-    {"X",           no_argument,        0, 'X'},
-
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
     {"treel",       required_argument,  0, 'l'},
@@ -202,8 +198,6 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 's': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break; 
-            case 'X': iparam[IPARAM_SIMUL] = 1; break;
-                
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;

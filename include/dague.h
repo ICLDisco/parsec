@@ -271,31 +271,4 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
 void dague_dump_object( dague_object_t* object );
 void dague_dump_execution_context( dague_execution_context_t* exec_context );
 
-/** JDF developers helper: compute the length of the critical path
- *  @param eu_context [IN]    A single thread should enter this function
- *                          eu_context is the context of this thread.
- *  @param initial_tasks [IN] a circular list of initial tasks. All tasks
- *                          must come from the same dague object. The
- *                          dague_object must be initialized. This is
- *                          is compatible with the result of the startup_hook call
- *  @param tasks_costs [IN] an array of double, which represents the cost of
- *                          the different tasks in the simulation. Each task is
- *                          indexed in this array as the functions array of the 
- *                          dague object.
- *  @param comm_cost [IN] the overhead cost for a communication
- *  @param delay_between_displays [IN] number of seconds between each display
- *                                     on stderr of a progress line. If 0 or negative,
- *                                     will display at each iteration, or not at all
- *                                     respectfully.
- *  @return the sum of costs of the critical path for this DAG.
- * 
- *  Remark: the internal algorithm unrolls the DAG locally. This is a costly operation
- *          provided to users to tune and improve their algorithms.
- */
-double dague_compute_critical_path( dague_execution_unit_t *eu_context,
-                                    dague_execution_context_t *initial_tasks,
-                                    double *tasks_costs,
-                                    double  comm_cost,
-                                    int      delay_between_displays );
-
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

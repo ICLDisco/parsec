@@ -37,8 +37,6 @@ int main(int argc, char ** argv)
     PASTE_CODE_FLOPS_COUNT(FADDS_GEQRF, FMULS_GEQRF, ((DagDouble_t)M,(DagDouble_t)N))
       
     LDA = max(M, LDA);
-    /* Deactivate check if simulation is activated */
-    check = simul ? 0 : check;
 
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
@@ -81,76 +79,42 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     if(loud > 2) printf("Done\n");
     
-    if(simul) {
-        /* Cannot use double... Use DO_UBLE... */
-        DO_UBLE tasks_costs[6];
-        dague_execution_context_t *init;
-        dague_object_t *o;
-        DO_UBLE cpath;
+    /* Create DAGuE */
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
+                              (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                               iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
+                               (tiled_matrix_desc_t*)&ddescA,
+                               (tiled_matrix_desc_t*)&ddescTS,
+                               (tiled_matrix_desc_t*)&ddescTT));
+    
+    /* lets rock! */
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param);
+    dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );
+    
+    if( check ) {
+        if(loud > 2) printf("+++ Generate the Q ...");
+        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
+        dplasma_zungqr_param( dague, 
+                              iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                              iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
+                              (tiled_matrix_desc_t *)&ddescA, 
+                              (tiled_matrix_desc_t *)&ddescTS, 
+                              (tiled_matrix_desc_t *)&ddescTT, 
+                              (tiled_matrix_desc_t *)&ddescQ);
+        if(loud > 2) printf("Done\n");
         
-        /* Indices of the tasks_costs are to be found in the generated c file (look for <basename>_functions[]) */
-        tasks_costs[0] = 6.0; /**< zttmqr */
-        tasks_costs[1] = 0.0; /**< zttmqr_out */
-        tasks_costs[2] = 2.0; /**< zttqrt */
-        tasks_costs[3] = 0.0; /**< zttqrt_out */
-        tasks_costs[4] = 6.0; /**< sormqr */
-        tasks_costs[5] = 4.0; /**< zgeqrt */
-
-        o = dplasma_zgeqrf_param_New(iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                                     iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                     (tiled_matrix_desc_t*)&ddescA,
-                                     (tiled_matrix_desc_t*)&ddescTS,
-                                     (tiled_matrix_desc_t*)&ddescTT);
-        init = NULL;
-        o->startup_hook( dague, o, &init );
-        
-        /* We use a single cost of 4.0 for all communications */
-        cpath = dague_compute_critical_path( dague->execution_units[0],
-                                             init,
-                                             tasks_costs,
-                                             4.0,
-                                             3 );
-        
-        printf("Critical Path Length: %g\n", cpath);
-    } else {
-
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
-                                  (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                                   iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                   (tiled_matrix_desc_t*)&ddescA,
-                                   (tiled_matrix_desc_t*)&ddescTS,
-                                   (tiled_matrix_desc_t*)&ddescTT));
-      
-        /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_param);
-        dplasma_zgeqrf_param_Destruct( DAGUE_zgeqrf_param );
-
-        if( check ) {
-            if(loud > 2) printf("+++ Generate the Q ...");
-            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
-            dplasma_zungqr_param( dague, 
-                                  iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                                  iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                  (tiled_matrix_desc_t *)&ddescA, 
-                                  (tiled_matrix_desc_t *)&ddescTS, 
-                                  (tiled_matrix_desc_t *)&ddescTT, 
+        /* Check the orthogonality, factorization and the solution */
+        (void)check_orthogonality(dague, (rank == 0) ? loud : 0,
                                   (tiled_matrix_desc_t *)&ddescQ);
-            if(loud > 2) printf("Done\n");
-          
-            /* Check the orthogonality, factorization and the solution */
-            (void)check_orthogonality(dague, (rank == 0) ? loud : 0,
-                                      (tiled_matrix_desc_t *)&ddescQ);
-            (void)check_factorization(dague, (rank == 0) ? loud : 0,
-                                      (tiled_matrix_desc_t *)&ddescA0, 
-                                      (tiled_matrix_desc_t *)&ddescA, 
-                                      (tiled_matrix_desc_t *)&ddescQ);
-                    
-            dague_data_free(ddescA0.mat);
-            dague_data_free(ddescQ.mat);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
-        }
+        (void)check_factorization(dague, (rank == 0) ? loud : 0,
+                                  (tiled_matrix_desc_t *)&ddescA0, 
+                                  (tiled_matrix_desc_t *)&ddescA, 
+                                  (tiled_matrix_desc_t *)&ddescQ);
+        
+        dague_data_free(ddescA0.mat);
+        dague_data_free(ddescQ.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescA0);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
     }
     
     dague_data_free(ddescA.mat);

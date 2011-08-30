@@ -54,7 +54,6 @@ enum iparam_t {
   IPARAM_SNB,          /* Number of columns in a super-tile */
   IPARAM_SMB,          /* Number of rows in a super-tile    */
   IPARAM_CHECK,        /* Checking activated or not         */
-  IPARAM_SIMUL,        /* Simulation (critical path) activated or not */
   IPARAM_VERBOSE,      /* How much noise do we want?        */
   IPARAM_LOWLVL_TREE,  /* Tree used for reduction inside nodes  (specific to xgeqrf_param) */
   IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
@@ -92,10 +91,9 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int MT    = (M%MB==0) ? (M/MB) : (M/MB+1); \
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
   int check = iparam[IPARAM_CHECK];\
-  int simul = iparam[IPARAM_SIMUL];\
   int loud  = iparam[IPARAM_VERBOSE];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
-  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)simul;(void)loud;
+  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
