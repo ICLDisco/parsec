@@ -29,7 +29,7 @@ static int ndevices = 0;
 #if DPLASMA_SCHEDULING
 uint32_t *gpu_set;
 int *gpu_load;
-int MAX_QUEUE = 55;
+const uint32_t MAX_QUEUE = 55;
 #endif
 #include "data_dist/matrix/matrix.h"
 
@@ -92,7 +92,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
 #else
         size_t total_mem, free_mem;
 #endif  /* CUDA_VERSION < 3020 */
-        unsigned int nb_allocations = 0;
+        uint32_t nb_allocations = 0;
         gpu_device_t* gpu_device;
         CUresult status;
         int major, minor;
@@ -172,7 +172,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
             gpu_elem_t* gpu_elem;
             cudaError_t cuda_status;
 
-            if( nb_allocations > ((tileA->mt * tileA->nt) >> 1) )
+            if( nb_allocations > (uint32_t)((tileA->mt * tileA->nt) >> 1) )
                 break;
             gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
             dague_linked_list_item_construct( (dague_list_item_t*)gpu_elem );
