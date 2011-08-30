@@ -157,7 +157,7 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
 				tiled_matrix_desc_t *A, 
 				tiled_matrix_desc_t *A0 )
 {
-    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
+    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A0;
     int info_factorization;
     double Rnorm = 0.0;
     double Anorm = 0.0;
@@ -166,7 +166,6 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     int N = A->n;
     double eps = LAPACKE_dlamch_work('e');
     PLASMA_enum side;
-    (void)A0;
     
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
         sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
@@ -195,7 +194,6 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
 		   (tiled_matrix_desc_t*)&L2);
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);
-    Rnorm = -20;
     Rnorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo,
 			   (tiled_matrix_desc_t*)&L2);
 
