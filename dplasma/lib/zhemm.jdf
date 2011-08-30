@@ -5,7 +5,6 @@ extern "C" %{
    * @precisions normal z -> c d s
    *
    */
-#include <lapacke.h>
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -16,7 +15,6 @@ extern "C" %{
 #include "data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
-
 %}
 
 /*
@@ -96,7 +94,8 @@ BODY
     Dague_Complex64_t zbeta = (k == 0) ? beta : (Dague_Complex64_t)1.0;
     int tempmm = ( m == descC.mt-1 ) ? descC.m - m * descC.mb : descC.mb;
     int tempnn = ( n == descC.nt-1 ) ? descC.n - n * descC.nb : descC.nb;
-    
+    int ldcm   = BLKLDD( descC, m );
+
     DRYRUN(
         if (side == PlasmaLeft && k == m) {
             int ldam = BLKLDD( descA, m );
@@ -126,9 +125,9 @@ BODY
                 :                              (( k == descC.nt-1 ) ? descC.n - k * descC.nb : descC.nb);
             
             int lda = (side == PlasmaRight) ? BLKLDD(descB, m) 
-                : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDD(descA, k) : BLKLDD(descA, m) )
+                : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDD(descA, k) : BLKLDD(descA, m) );
             int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k) 
-                : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDD(descA, n) : BLKLDD(descA, k) )
+                : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDD(descA, n) : BLKLDD(descA, k) );
 
             CORE_zgemm(
                 transl, transr,
