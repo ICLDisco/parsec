@@ -14,13 +14,11 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
                           two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC );
 
-#define FADDS(side, M, N) ( side == PlasmaLeft ? (0.5 * (N) * (M) * ((M)-1)) : (0.5 * (M) * (N) * ((N)-1)) )
-#define FMULS(side, M, N) ( side == PlasmaLeft ? (0.5 * (N) * (M) * ((M)+1)) : (0.5 * (M) * (N) * ((N)+1)) )
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
+    int ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
@@ -51,7 +49,7 @@ int main(int argc, char ** argv)
         PLASMA_enum trans = PlasmaNoTrans;
         PLASMA_enum diag  = PlasmaUnit;
 
-        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (side, (DagDouble_t)M, (DagDouble_t)NRHS));
+        PASTE_CODE_FLOPS(FLOPS_ZTRMM, (side, (DagDouble_t)M, (DagDouble_t)NRHS));
 
         MT = ddescB.super.mt;
         NT = ddescB.super.nt;
@@ -139,6 +137,7 @@ int main(int argc, char ** argv)
                             else {
                                 printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
                                        sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                                ret |= 1;
                             }
                             printf("***************************************************\n");
                         }
@@ -160,7 +159,7 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    return 0;
+    return ret;
 }
 
 

@@ -14,9 +14,6 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
                           Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal);
 
-#   define FADDS(M, N, K) ((M) * (N) * (K))
-#   define FMULS(M, N, K) ((M) * (N) * (K))
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -33,7 +30,7 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
-    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
+    PASTE_CODE_FLOPS(FLOPS_ZGEMM, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
 
     int tA = PlasmaNoTrans;
     int tB = PlasmaNoTrans;

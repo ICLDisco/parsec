@@ -88,9 +88,9 @@ int main(int argc, char ** argv)
         }   
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-                                   sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                                              nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
-                                                              N, N, P, uplo[u]));
+            sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
+                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+                                       N, N, P, uplo[u]));
 #if defined(DAGUE_PROF_TRACE)
         ddescA.super.super.key  = strdup("A");
 #endif
