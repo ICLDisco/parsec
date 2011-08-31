@@ -49,17 +49,17 @@ int main(int argc, char ** argv)
     SMB = 1;
     SNB = 1;
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
                                two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                       N, N, SMB, SNB, P));
     
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, check, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
                                two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                                       N, NRHS, SMB, SNB, P));
     
-    PASTE_CODE_ALLOCATE_MATRIX(ddescX, check, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
                                two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                                       N, NRHS, SMB, SNB, P));
