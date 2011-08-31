@@ -1059,7 +1059,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
     for( i = 0; i < DEP_NB_CONCURENT; i++ ) {
         if( NULL == dep_pending_recv_array[i] ) {
             deps = (dague_remote_deps_t*)dague_fifo_pop(&dague_activations_fifo);
-            remote_dep_mpi_get_start(eu_context, deps, i );
+            if(deps) remote_dep_mpi_get_start(eu_context, deps, i );
             break;
         }
     }
