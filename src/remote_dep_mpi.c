@@ -299,6 +299,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     int ret, i;
     
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
+    assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
     for( i = 0; i < exec_context.function->nb_definitions; i++)
         exec_context.locals[i] = origin->msg.locals[i];
@@ -865,11 +866,11 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
         if(!((1<<k) & which)) continue;
         void* data = ADATA(deps->output[k].data);
         MPI_Datatype dtt = deps->output[k].type->opaque_dtt;
-        int tag = msg->deps+k;
+        int tag = REMOTE_DEP_MAX_CTRL_TAG+k;
 #ifdef DAGUE_DEBUG
         char type_name[MPI_MAX_OBJECT_NAME]; int len;
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG(("MPI:\tTO\t%d\tPut EAGER\tunknown \tj=NA,k=%d\twith datakey %lx at %p type %s\t(tag=%d)\n",
+        DEBUG(("MPI:\tTO\t%d\tPut EAGER\tunknown \tj=X,k=%d\twith datakey %lx at %p type %s\t(tag=%d)\n",
                rank, k, msg->deps, data, type_name, tag));
 #endif
 
@@ -1027,25 +1028,28 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
     if(RDEP_MSG_EAGER(&deps->msg))
     {
         RDEP_MSG_EAGER_CLR(&saved_deps->msg);
+        RDEP_MSG_EAGER_CLR(&deps->msg);
         remote_dep_mpi_get_eager(eu_context, saved_deps, i);
     }
 
-    if(deps->msg.which != saved_deps->msg.which) {  /* some deps are considered as satisfied because they are RO */
+    if(deps->msg.which != saved_deps->msg.which) {  /* some deps are considered as satisfied RO or Eager */
         saved_deps->msg.which = deps->msg.which ^ saved_deps->msg.which;
         saved_deps->msg.deps = saved_deps->msg.which;
+        remote_dep_datakey_t cleared_deps = saved_deps->msg.which;
 #ifdef DAGUE_DEBUG
         for(int k = 0; saved_deps->msg.which>>k; k++) 
             if((1<<k) & saved_deps->msg.which)
-                DEBUG(("MPI:\tTO\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith data %lx at %p IS LOCAL\t(tag=NA)\n",
+                DEBUG(("MPI:\tFROM\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith rdep %lx at %p IS LOCAL\t(tag=NA)\n",
                        saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data) ));
 #endif
         remote_dep_release(eu_context, saved_deps);
-        if( saved_deps->msg.which == deps->msg.which ) {  /* all deps satisfied */
+        if( cleared_deps == deps->msg.which ) {  /* all deps satisfied */
+            DEBUG(("MPI:\tFROM\t%d\tGet FINISH\t% -8s\ti=%d\twith rdep %lx ALL COMPLETED\n", saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, saved_deps));
             DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)saved_deps);
             dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)saved_deps);
             goto submit_receives;
         }
-        saved_deps->msg.deps = deps->msg.which ^ saved_deps->msg.which;
+        saved_deps->msg.deps = deps->msg.which ^ cleared_deps;
         saved_deps->msg.which = saved_deps->msg.deps;
     }
     dague_fifo_push_ordered( &dague_activations_fifo, (dague_list_item_t*)saved_deps );
@@ -1066,13 +1070,30 @@ static void remote_dep_mpi_get_eager(dague_execution_unit_t* eu_context, dague_r
 #ifdef DAGUE_DEBUG
     char tmp[128];
 #endif
-    for(int k = 0; saved_deps->msg.which>>k; k++) 
-        if((1<<k) & saved_deps->msg.which)
+    remote_dep_datakey_t owhich = saved_deps->msg.which;
+    remote_dep_datakey_t odeps = saved_deps->msg.deps;
+    for(int k = 0; owhich>>k; k++) 
+        if((1<<k) & owhich)
         {
-            DEBUG(("MPI:\tTO\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith data %lx at %p\t(tag=%d)\n",
-                   saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, saved_deps, ADATA(saved_deps->output[k].data), saved_deps->msg.deps+k));
-            MPI_Recv(ADATA(saved_deps->output[k].data), 1, saved_deps->output[k].type->opaque_dtt, saved_deps->from, saved_deps->msg.deps+k, dep_comm, MPI_STATUS_IGNORE);
+            if(NULL == saved_deps->output[k].type) {
+                DEBUG(("MPI:\tTO\t%d\tGet NONE\t% -8s\ti=%d,k=%d\twith datakey %lx at <NA> type CONTROL extent 0\t(tag=%d)\n", saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg,tmp,128), i, k, odeps, REMOTE_DEP_MAX_CTRL_TAG+k));
+                saved_deps->output[k].data = (void*)2; /* the first non zero even value */
+                owhich &= ~(1<<k);
+                continue;
+            }
+            assert(NULL == saved_deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+            if(NULL == saved_deps->output[k].data) {
+                saved_deps->output[k].data = dague_arena_get(saved_deps->output[k].type);
+                DEBUG(("MPI:\tMalloc new remote tile %p size %zu\n", saved_deps->output[k].data, saved_deps->output[k].type->elem_size));
+                assert(saved_deps->output[k].data != NULL);
+            }
+            DEBUG(("MPI:\tFROM\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
+                   saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, odeps, ADATA(saved_deps->output[k].data), REMOTE_DEP_MAX_CTRL_TAG+k));
+            MPI_Recv(ADATA(saved_deps->output[k].data), 1, saved_deps->output[k].type->opaque_dtt, saved_deps->from, REMOTE_DEP_MAX_CTRL_TAG+k, dep_comm, MPI_STATUS_IGNORE);
+            owhich &= ~(1<<k);
         }
+    /* restore saved_deps for further get_start processing */
+    saved_deps->msg.which = owhich;
 }
 
 static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i)

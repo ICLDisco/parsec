@@ -61,7 +61,7 @@ static inline void remote_dep_dec_flying_messages(dague_context_t* ctx)
 #endif
 
 #ifndef RDEP_MSG_EAGER_LIMIT
-#define RDEP_MSG_EAGER_LIMIT    (0*128*1024)
+#define RDEP_MSG_EAGER_LIMIT    (0*64*1024)
 #endif
 #define RDEP_MSG_EAGER_SET(msg) ((msg)->which |= (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
 #define RDEP_MSG_EAGER_CLR(msg) ((msg)->which &= ~(((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
