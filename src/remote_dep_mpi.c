@@ -1103,6 +1103,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
     int from = deps->from;
     void* data;
 
+    (void)eu_context;
     DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, (void*)task, task);
 
     msg.which = task->which;
