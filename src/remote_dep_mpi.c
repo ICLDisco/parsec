@@ -1068,7 +1068,6 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
 
     /* Store the request in the rdv queue if any unsatisfied dep exist at this
      * point */
-    DEBUG(("Ws=%lx Wo=%lx, Ds=%lx Do=%lx\n", saved_deps->msg.which, deps->msg.which, saved_deps->msg.deps, deps->msg.deps));
     if(saved_deps->msg.which) {
         saved_deps->msg.deps = deps->msg.deps;
         dague_fifo_push_ordered( &dague_activations_fifo, (dague_list_item_t*)saved_deps );
