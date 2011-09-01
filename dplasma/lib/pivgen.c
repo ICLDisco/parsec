@@ -1125,20 +1125,20 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
 
     switch( type_llvl ) {
     case DPLASMA_GREEDY_TREE :
-        printf("Low level: Greedy");
+        //printf("Low evel: Greedy");
         dplasma_low_greedy_init(qrpiv->llvl, low_mt, minMN, a);
         break;
     case DPLASMA_FIBONACCI_TREE :
-        printf("Low level: Fibonacci");
+        //printf("Low level: Fibonacci");
         dplasma_low_fibonacci_init(qrpiv->llvl, low_mt, minMN, a);
         break;
     case DPLASMA_BINARY_TREE :
-        printf("Low level: Binary");
+        //printf("Low level: Binary");
         dplasma_low_binary_init(qrpiv->llvl, low_mt, a);
         break;
     case DPLASMA_FLAT_TREE :
     default:
-        printf("Low level: Flat");
+        //printf("Low level: Flat");
         dplasma_low_flat_init(qrpiv->llvl, low_mt, a);
     }
 
@@ -1146,7 +1146,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
         qrpiv->hlvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
         switch( type_hlvl ) {
         case DPLASMA_GREEDY_TREE :
-            printf(" / High level: Greedy\n");
+            //printf(" / High level: Greedy\n");
             dplasma_high_greedy_init(qrpiv->hlvl, A->mt, minMN, p);
             break;
         /* case DPLASMA_FIBONACCI_TREE : */
@@ -1159,11 +1159,11 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
         /*     break; */
         case DPLASMA_FLAT_TREE :
         default:
-            printf(" / High level: Flat\n");
+            //printf(" / High level: Flat\n");
             dplasma_high_flat_init(qrpiv->hlvl, A->mt, p);
         }
     } else {
-        printf(" / High level: None\n");
+        //printf(" / High level: None\n");
     }
       
     /* if ( dplasma_qr_check( A, qrpiv ) != 0 ) */
