@@ -178,6 +178,11 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
     return 0;
 }
 
+int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type)
+{
+    return MPI_Type_free(type);
+}
+
 #else /* HAVE_MPI */
 
 int dplasma_add2arena_rectangle( dague_arena_t *arena, 

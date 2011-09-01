@@ -10,17 +10,15 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
                           two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC );
-
-#define FADDS(side, M, N) ( side == PlasmaLeft ? (0.5 * (N) * (M) * ((M)-1)) : (0.5 * (M) * (N) * ((N)-1)) )
-#define FMULS(side, M, N) ( side == PlasmaLeft ? (0.5 * (N) * (M) * ((M)+1)) : (0.5 * (M) * (N) * ((N)+1)) )
 
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
+    int ret = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
@@ -51,7 +49,7 @@ int main(int argc, char ** argv)
         PLASMA_enum trans = PlasmaNoTrans;
         PLASMA_enum diag  = PlasmaUnit;
 
-        PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, (side, (DagDouble_t)M, (DagDouble_t)NRHS));
+        PASTE_CODE_FLOPS(FLOPS_ZTRMM, (side, (DagDouble_t)M, (DagDouble_t)NRHS));
 
         MT = ddescB.super.mt;
         NT = ddescB.super.nt;
@@ -129,7 +127,8 @@ int main(int argc, char ** argv)
                         printf("Done\n");
 
                         /* Check the solution */
-                        info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
+                        info_solution = check_solution(rank == 0 ? loud : 0,
+                                                       side[s], uplo[u], trans[t], diag[d],
                                                        alpha, &ddescA, &ddescB, &ddescC);
                         if ( rank == 0 ) {
                             if (info_solution == 0) {
@@ -139,6 +138,7 @@ int main(int argc, char ** argv)
                             else {
                                 printf(" ---- TESTING ZTRMM (%s, %s, %s, %s) ... FAILED !\n",
                                        sidestr[s], uplostr[u], transstr[t], diagstr[d]);
+                                ret |= 1;
                             }
                             printf("***************************************************\n");
                         }
@@ -160,7 +160,7 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    return 0;
+    return ret;
 }
 
 
@@ -171,7 +171,7 @@ int main(int argc, char ** argv)
 /*------------------------------------------------------------------------
  *  Check the accuracy of the solution
  */
-static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC )
 {
     int info_solution;
@@ -215,7 +215,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), C, 1, B, 1);
     Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    if (getenv("DPLASMA_TESTING_VERBOSE"))
+    if ( loud > 2 )
         printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
                Rnorm, Anorm, Binitnorm, Bdaguenorm, Blapacknorm);
 

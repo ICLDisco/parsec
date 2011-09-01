@@ -102,6 +102,10 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 #define DAGUE_HAS_IN_STRONG_DEPENDENCIES 0x0004
 #define DAGUE_HIGH_PRIORITY_TASK         0x0008
 
+#if defined(DAGUE_SIM)
+typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
+#endif
+
 struct dague_t {
     const char*             name;
     uint16_t                flags;
@@ -116,6 +120,9 @@ struct dague_t {
     const param_t*          out[MAX_PARAM_COUNT];
     const expr_t*           priority;
     int                     deps;                  /**< This is the index of the dependency array in the __DAGUE_object_t */
+#if defined(DAGUE_SIM)
+    dague_sim_cost_fct_t    *sim_cost_fct;
+#endif
 #if defined(DAGUE_SCHED_CACHE_AWARE)
     dague_cache_rank_function_t *cache_rank_function;
 #endif
@@ -136,10 +143,13 @@ struct dague_data_pair_t {
 
 struct dague_execution_context_t {
     dague_list_item_t       list_item;
-    dague_thread_mempool_t *mempool_owner;  /* Why do we need this? */
+    dague_thread_mempool_t *mempool_owner;
     dague_object_t         *dague_object;
     const  dague_t         *function;
-    int32_t                 priority;    
+    int32_t                 priority; 
+#if defined(DAGUE_SIM)
+    int                     sim_exec_date;
+#endif
     dague_data_pair_t       data[MAX_PARAM_COUNT];
     assignment_t            locals[MAX_LOCAL_COUNT];
 };

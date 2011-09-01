@@ -136,9 +136,8 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
-
     {"qr_a",        required_argument,  0, '0'},
-    {"qr_q",        required_argument,  0, '1'},
+    {"qr_p",        required_argument,  0, '1'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
@@ -198,8 +197,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'T': iparam[IPARAM_MB] = atoi(optarg); break;
             case 's': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
-            case 'x': iparam[IPARAM_CHECK] = 1; break; 
-                
+            case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break; 
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;

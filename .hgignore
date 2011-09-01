@@ -37,7 +37,6 @@ dplasma/testing/TSQR/mpi_testing_tsqr
 dplasma/testing/TSQR/testing_tsqr
 tools/dague-compiler/daguepp
 tests/unit/atomics/lifo
-dplasma/testing/psgeqrf/magma_0\.2_64\.tar\.gz
 dplasma/testing/psgeqrf/psgeqrf
 dplasma/testing/psgeqrf/sgeqrf
 tools/grapher
@@ -348,5 +347,6 @@ dplasma/testing/testing_ssyrbt\.c
 tests/operator
 tests/reduce
 tests/rtt/mpi_rtt
+tests/rtt/rtt
 tests/rtt/rtt\.c
 tests/rtt/rtt\.h

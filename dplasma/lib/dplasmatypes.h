@@ -9,6 +9,8 @@
 #include <dague.h>
 #include "dplasma.h"
 
+#define dplasma_comm MPI_COMM_WORLD
+
 #if defined(HAVE_MPI)
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
                                        unsigned int tile_mb,
@@ -24,6 +26,13 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
 int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_remote_dep_datatype_t* newtype );
+
+int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
+
+#define dplasma_progress( object )              \
+  MPI_Barrier(dplasma_comm);                    \
+  dague_progress( object );
+
 #else
 # define MPI_DOUBLE_COMPLEX NULL
 # define MPI_COMPLEX        NULL
@@ -36,6 +45,11 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
 # define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
 # define dplasma_datatype_define_upper(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
 # define dplasma_datatype_define_lower(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
+# define dplasma_datatype_undefine_type( type ) ( *(type) = NULL )
+
+#define dplasma_progress( object )              \
+  dague_progress( object );
+
 #endif
 
 int dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,

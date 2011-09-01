@@ -14,13 +14,11 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
                           Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal);
 
-#   define FADDS(M, N, K) ((M) * (N) * (K))
-#   define FMULS(M, N, K) ((M) * (N) * (K))
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
+    int info_solution = 0;
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
@@ -32,7 +30,7 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
-    PASTE_CODE_FLOPS_COUNT(FADDS, FMULS, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
+    PASTE_CODE_FLOPS(FLOPS_ZGEMM, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
 
     int tA = PlasmaNoTrans;
     int tB = PlasmaNoTrans;
@@ -84,14 +82,10 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
         dague_data_free(ddescB.mat);
         dague_ddesc_destroy((dague_ddesc_t*)&ddescB);
-    }
-    else
-    { 
-        if ( iparam[IPARAM_NNODES] > 1 ) {
-            fprintf(stderr, "Checking doesn't work in distributed\n");
-            return EXIT_FAILURE;
-        }
-
+    } else if ( iparam[IPARAM_NNODES] > 1 ) {
+        fprintf(stderr, "Checking doesn't work in distributed\n");
+        info_solution = 1;
+    } else {
         int Am, An, Bm, Bn;
         PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
             two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
@@ -153,9 +147,9 @@ int main(int argc, char ** argv)
                 if(loud) printf("Done\n");
                 
                 /* Check the solution */
-                int info_solution = check_solution( trans[tA], trans[tB], 
-                                                    alpha, &ddescA,  &ddescB, 
-                                                    beta,  &ddescC2, &ddescC);
+                info_solution = check_solution( trans[tA], trans[tB], 
+                                                alpha, &ddescA,  &ddescB, 
+                                                beta,  &ddescC2, &ddescC);
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
                         printf(" ---- TESTING DGEMM (%s, %s) ...... PASSED !\n",
@@ -184,10 +178,8 @@ int main(int argc, char ** argv)
 
     cleanup_dague(dague, iparam);
 
-    return 0;
+    return info_solution;
 }
-
-
 
 
 /**********************************

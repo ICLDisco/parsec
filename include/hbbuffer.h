@@ -61,7 +61,7 @@ static inline dague_hbbuffer_t *dague_hbbuffer_new(size_t size,  size_t ideal_fi
     return n;
 }
 
-static inline void dague_hbbuffer_destroy(dague_hbbuffer_t *b)
+static inline void dague_hbbuffer_destruct(dague_hbbuffer_t *b)
 {
     free(b);
 }

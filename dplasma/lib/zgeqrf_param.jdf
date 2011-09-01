@@ -6,6 +6,7 @@ extern "C" %{
    *
    */
 #include "dague.h"
+#include <math.h>
 #include <plasma.h>
 #include <core_blas.h>
 
@@ -20,19 +21,29 @@ extern "C" %{
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 #define MYMAX(a, b) ((a)>(b)?(a):(b))
 
-#define PRIO_MATHIEU2
+//#define PRIO_YVES1
 
 #if defined(PRIO_YVES1)
-#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
+#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
+#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
 #elif defined(PRIO_YVES2)
-#define GETPRIO( __m, __n ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
+#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
 #elif defined(PRIO_MATHIEU1)
-#define GETPRIO( __m, __n ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
+#define GETPRIO_PANEL( __m, __n )      (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
+#define GETPRIO_UPDTE( __m, __n, __k ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #elif defined(PRIO_MATHIEU2)
-#define GETPRIO( __m, __n ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 5 + (__n))
+#define GETPRIO_PANEL( __m, __n )      ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) ((MYMAX(descA.mt, descA.nt) - MYMAX( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#elif defined(PRIO_MATYVES)
+#define FORMULE( __x ) ( ( -1. + sqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
+#define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
+#define GETPRIO_UPDTE( __m, __n, __k ) (int)( (__m) < (__n) ? GETPRIO_PANEL( (__n), (__n) ) - 22. * ( (__m) - (__k) ) - 6. * ( (__n) - (__m) ) \
+                                              :               GETPRIO_PANEL( (__m), (__n) ) - 22. * ( (__n) - (__k) ) )
 #else
 #warning running without priority
-#define GETPRIO( __m, __n ) 0
+#define GETPRIO_PANEL( __m, __n )      0
+#define GETPRIO_UPDTE( __m, __n, __k ) 0
 #endif
 
 %}
@@ -50,6 +61,22 @@ p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(d
 param_p[type = int default="pivfct->p" hidden=on]
 param_a[type = int default="pivfct->a" hidden=on]
 
+zgeqrt_typechange(k, i)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
+    
+  : A(m, k)
+
+  RW A <- A zgeqrt(k, i)
+       -> ( descA.nt-1 > k ) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
+       -> A(m, k)                                                  [type = LOWER_TILE]
+BODY
+ /* Nothing */
+END
+
+
 
 zgeqrt(k, i)
   /* Execution space */
@@ -58,6 +85,8 @@ zgeqrt(k, i)
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
 
+  SIMCOST 4
+
   : A(m, k)
 
   /* A == A(m, k) */
@@ -65,15 +94,16 @@ zgeqrt(k, i)
 
   RW    A <- ( 0 == k ) ? A(m, k) 
           <- ( k > 0  ) ? A2 zttmqr(k-1, m, k ) 
-          -> (descA.nt-1 > k) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) 
-          -> ( k == descA.mt-1 ) ? A(m, k)   
-          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm)
-          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  A2 zttqrt(k, m)
-  RW    T <- T(m, k)                                                [type = LITTLE_T]
-          -> T(m, k)                                                [type = LITTLE_T]
-          -> (descA.nt-1 > k) ? T zunmqr(k, i, (k+1)..(descA.nt-1)) [type = LITTLE_T]
+          -> A zgeqrt_typechange(k, i) 
+          //-> (descA.nt-1 > k) ? A zunmqr(k, i, (k+1)..(descA.nt-1)) 
+          -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
+          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm) [type = UPPER_TILE]
+          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  A2 zttqrt(k, m)     [type = UPPER_TILE]
+  RW    T <- T(m, k)                                                           [type = LITTLE_T]
+          -> T(m, k)                                                           [type = LITTLE_T]
+          -> (descA.nt-1 > k) ? T zunmqr(k, i, (k+1)..(descA.nt-1))            [type = LITTLE_T]
        
-  ; inline_c %{ return GETPRIO(m, k); %}
+  ; inline_c %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
   DRYRUN(
@@ -104,10 +134,12 @@ END
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
-     i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, k, i); %}
   nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
+
+  SIMCOST 6
 
   : A(m, n)
 
@@ -115,7 +147,7 @@ zunmqr(k, i, n)
   /* T == T(m,k) */
   /* C == A(m,n) */
 
-  READ  A <- A zgeqrt(k, i) 
+  READ  A <- A zgeqrt_typechange(k, i)                              [type = LOWER_TILE]
   READ  T <- T zgeqrt(k, i)                                         [type = LITTLE_T]
   RW    C <- ( 0 == k ) ? A(m, n)
           <- ( k >  0 ) ? A2 zttmqr(k-1, m, n) 
@@ -123,20 +155,19 @@ zunmqr(k, i, n)
           -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
           -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
 
-    ; inline_c %{ return GETPRIO(m, n); %}
+    ; inline_c %{ return GETPRIO_UPDTE(m, n, k); %}
 
 BODY
   DRYRUN(
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-         int tempkn = ((k)==((descA.mt)-1)) ? ((descA.m)-(k*(descA.mb))) : (descA.mb);
          int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
          int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
          int ldam = BLKLDD( descA, m );
 
          CORE_zunmqr(
                      PlasmaLeft, PlasmaConjTrans, 
-                     tempmm, tempnn, MYMIN(tempmm, tempkn), ib, 
+                     tempmm, tempnn, tempmm, ib, 
                      A /* A(m, k) */, ldam, 
                      T /* T(m, k) */, descT.mb, 
                      C /* A(m, n) */, ldam, 
@@ -159,8 +190,8 @@ zttqrt_out_A1(k)
 
   : A(k, k)
   
-  RW A <- A1 zttqrt( k, prevp )
-       -> A(k, k)
+  RW A <- A1 zttqrt( k, prevp ) [type = UPPER_TILE]
+       -> A(k, k)               [type = UPPER_TILE]
 BODY
 /* nothing */
 END
@@ -177,16 +208,18 @@ zttqrt(k, m)
   ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
 
+  SIMCOST inline_c %{ return type == 0 ? 4 : 2; %}
+
   : A(m, k)
 
   /* A1 == A(p,  k) */
   /* A2 == A(m,  k) */
   /* T  == T2(m, k) */
 
-  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp )
-          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )
-          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)
-          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)
+  RW   A1 <- (   prevp == descA.mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
+          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )                     [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)             [type = UPPER_TILE]
   RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, k)
           <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, k )
           <- ( (type != 0) && (prevm == descA.mt ) ) ? A  zgeqrt(k, im )
@@ -197,7 +230,7 @@ zttqrt(k, m)
           -> T2(m, k)                                              [type = LITTLE_T]
           -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
-    ; inline_c %{ return GETPRIO(m, k); %}
+ ; inline_c %{ return type == 0 ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
   DRYRUN(
@@ -262,6 +295,8 @@ zttmqr(k, m, n)
   im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, k, m ); %}
   im1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, k+1, m ); %}
 
+  SIMCOST inline_c %{ return type == 0 ? 12 : 6; %}
+
   : A(m, n)
 
   /* V  == A(m, k) */
@@ -286,7 +321,7 @@ zttmqr(k, m, n)
   READ  V <- A2 zttqrt(k, m) 
   READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
-    ; inline_c %{ return GETPRIO(m, n); %}
+    ; inline_c %{ return type == 0 ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
   DRYRUN(

@@ -66,7 +66,7 @@ int dplasma_zplghe( dague_context_t *dague,
     dague_zplghe = dplasma_zplghe_New(bump, uplo, A, seed);
 
     dague_enqueue(dague, (dague_object_t*)dague_zplghe);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     dplasma_zplghe_Destruct( dague_zplghe );
     return 0;
@@ -76,6 +76,7 @@ void
 dplasma_zplghe_Destruct( dague_object_t *o )
 {
     dague_zplghe_object_t *dague_zplghe = (dague_zplghe_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zplghe->arenas[DAGUE_zplghe_DEFAULT_ARENA]->opaque_dtt) );
     dague_zplghe_destroy(dague_zplghe);
 }
 

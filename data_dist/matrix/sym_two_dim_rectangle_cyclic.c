@@ -45,6 +45,7 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     m += ((tiled_matrix_desc_t *)desc)->i;
     n += ((tiled_matrix_desc_t *)desc)->j;
     
+    assert( ( Ddesc->uplo == MatrixLower && m>=n) || (Ddesc->uplo == MatrixUpper && n>=m) );
     if ( ((Ddesc->uplo == MatrixLower) && (m < n)) ||  ((Ddesc->uplo == MatrixUpper) && (m > n)) )
         {
             //        printf("Tried to get rank for tile (%d,%d)\n", m,n);
@@ -168,7 +169,7 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int lm, int ln, int i, int j, int m, int n, int process_GridRows, int uplo )
 {
-    int nb_elem, nb_elem_col, column, total;
+    int nb_elem, total;
 
     // Filling matrix description woth user parameter
     Ddesc->super.super.nodes = nodes ;
@@ -200,22 +201,38 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     /* find the number of tiles this process will handle */
 
     total = 0; /* number of tiles handled by the process */
-    column = Ddesc->grid.crank; /* tile column considered */
-    nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
-    if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
-        nb_elem_col++;
-    
-    while(column < Ddesc->super.lnt) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-        {
-            nb_elem = column / (Ddesc->grid.rows);
-            if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
-                nb_elem++;
-
-            total += (nb_elem_col - nb_elem);
-            column += Ddesc->grid.cols;
-        }
-
-    
+    if ( uplo == MatrixLower ) {
+        int column = Ddesc->grid.crank; /* tile column considered */
+        int nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
+        if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
+            nb_elem_col++;
+        
+        while(column < Ddesc->super.lnt) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+            {
+                nb_elem = column / (Ddesc->grid.rows);
+                if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
+                    nb_elem++;
+                
+                total += (nb_elem_col - nb_elem);
+                column += Ddesc->grid.cols;
+            }
+    } else { /* Upper */
+        int row = Ddesc->grid.rrank; /* tile row considered */
+        int nb_elem_row = (Ddesc->super.lnt) / (Ddesc->grid.cols); //nb of tile associated to that proc in a full row
+        if( (Ddesc->super.lnt) % (Ddesc->grid.cols) > Ddesc->grid.crank )
+            nb_elem_row++;
+        
+        while(row < Ddesc->super.lmt) /* for each row of tiles in memory before searched element, compute the number of tile for displacement */
+            {
+                nb_elem = row / (Ddesc->grid.cols);
+                if ( (row % (Ddesc->grid.cols)) > Ddesc->grid.crank)
+                    nb_elem++;
+                
+                total += (nb_elem_row - nb_elem);
+                row += Ddesc->grid.rows;
+            }
+    }
+        
     /*  printf("process %d(%d,%d) handles %d x %d tiles\n",
         Ddesc->mpi_rank, Ddesc->grid.rrank, Ddesc->grid.crank, Ddesc->nb_elem_r, Ddesc->nb_elem_c);*/
 

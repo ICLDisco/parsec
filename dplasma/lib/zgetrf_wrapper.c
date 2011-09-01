@@ -72,7 +72,7 @@ int dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t *A,
     dague_zgetrf = dplasma_zgetrf_New(A, L, IPIV, &info);
 
     dague_enqueue( dague, (dague_object_t*)dague_zgetrf);
-    dague_progress(dague);
+    dplasma_progress(dague);
 
     return info;
 }

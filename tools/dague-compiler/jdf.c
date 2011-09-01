@@ -709,8 +709,9 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
 
     DO_CHECK( jdf_sanity_check_global_redefinitions() );
     DO_CHECK( jdf_sanity_check_global_unbound() );
-    if( mask & JDF_WARN_MASKED_GLOBALS )
+    if( mask & JDF_WARN_MASKED_GLOBALS ) {
         DO_CHECK( jdf_sanity_check_global_masked() );
+    }
 
     DO_CHECK( jdf_sanity_check_function_redefinitions() );
     DO_CHECK( jdf_sanity_check_parameters_are_consistent_with_definitions() );
@@ -722,8 +723,9 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
     DO_CHECK( jdf_sanity_check_dataflow_naming_collisions() );
     DO_CHECK( jdf_sanity_check_dataflow_unexisting_data() );
 
-    if( mask & JDF_WARN_REMOTE_MEM_REFERENCE )
+    if( mask & JDF_WARN_REMOTE_MEM_REFERENCE ) {
         DO_CHECK( jdf_sanity_check_remote_memory_references() );
+    }
 
 #undef DO_CHECK
 

@@ -1,5 +1,8 @@
 cmake_minimum_required (VERSION 2.8)
 project (DAGUE C CXX Fortran)
+
+include(CMakeDependentOption)
+
 # The current version number
 set (DAGUE_VERSION_MAJOR 0)
 set (DAGUE_VERSION_MINOR 1)
@@ -15,18 +18,40 @@ enable_testing()
 #####
 
 ## Multicore scheduler parameters
-mark_as_advanced(DAGUE_SCHED_HIERARCHICAL_QUEUES DAGUE_SCHED_CACHE_AWARE
-    DAGUE_SCHED_DEPS_MASK)
-option(DAGUE_SCHED_HIERARCHICAL_QUEUES
-  "Use the hierarchical queues to favor locality (requires HWLOC, conflicts DAGUE_SCHED_CACHE_AWARE)" OFF)
-option(DAGUE_SCHED_CACHE_AWARE 
-  "Activate the cache awareness support (requires HWLOC, conflicts DAGUE_HIERARCHICAL_QUEUES)" OFF)
-if(DAGUE_SCHED_CACHE_AWARE AND DAGUE_SCHED_HIERARCHICAL_QUEUES)
-  message(FATAL_ERROR "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES are mutually exclusive options, please select only one")
+string(COMPARE EQUAL "${SCHEDULER}" "" NOSCHED)
+if( NOSCHED )
+  SET(SCHEDULER "LOCAL_FLAT_QUEUES")
 endif()
+
+SET(SCHEDULER "${SCHEDULER}" CACHE STRING 
+  "Choose the type of scheduler, options are: ABSOLUTE_PRIORITIES LOCAL_FLAT_QUEUES LOCAL_HIER_QUEUES GLOBAL_DEQUEUE" FORCE )
+SET_PROPERTY(CACHE SCHEDULER PROPERTY STRINGS "ABSOLUTE_PRIORITIES" "LOCAL_FLAT_QUEUES" "LOCAL_HIER_QUEUES" "GLOBAL_DEQUEUE")
+
+string(COMPARE EQUAL "${SCHEDULER}" "ABSOLUTE_PRIORITIES" SCHED1)
+string(COMPARE EQUAL "${SCHEDULER}" "LOCAL_FLAT_QUEUES" SCHED2)
+string(COMPARE EQUAL "${SCHEDULER}" "LOCAL_HIER_QUEUES" SCHED3)
+string(COMPARE EQUAL "${SCHEDULER}" "GLOBAL_DEQUEUE" SCHED4)
+
+if ( NOT (SCHED1 OR SCHED2 OR SCHED3 OR SCHED4) )
+  message(FATAL_ERROR "You must choose a valid scheduler. Add
+  -DSCHEDULER= one of ABSOLUTE_PRIORITIES, LOCAL_FLAT_QUEUES,
+  LOCAL_HIER_QUEUES or GLOBAL_DEQUEUE")
+endif()
+
+SET(DAGUE_SCHEDULER "DAGUE_SCHEDULER_${SCHEDULER}")
+message(STATUS "Using the scheduler ${DAGUE_SCHEDULER}")
+
+mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
+option(DAGUE_SCHED_REPORT_STATISTICS
+  "Display statistics on the scheduling at the end of the run")
+
+mark_as_advanced(DAGUE_SCHED_CACHE_AWARE)
+cmake_dependent_option(DAGUE_SCHED_CACHE_AWARE 
+  "Activate the cache awareness support (requires HWLOC)" OFF "HAVE_HWLOC" OFF)
+
+mark_as_advanced(DAGUE_SCHED_DEPS_MASK)
 option(DAGUE_SCHED_DEPS_MASK 
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
-
 
 ### Distributed engine parameters
 mark_as_advanced(DAGUE_DIST_THREAD DAGUE_DIST_PRIORITIES)
@@ -66,6 +91,10 @@ option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
+
+### Simulating Options
+option(DAGUE_SIM
+  "Enable the computation of the critical path, through simulation" OFF)
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
@@ -313,7 +342,9 @@ endif (DAGUE_DIST_WITH_MPI)
 if( DAGUE_GPU_WITH_CUDA )
   find_package(CUDA)
   if (CUDA_FOUND)
-    set(CUDA_HOST_COMPILATION_CPP OFF)
+    if(CUDA_VERSION VERSION_LESS "3.0")
+        set(CUDA_HOST_COMPILATION_CPP OFF)
+    endif(CUDA_VERSION VERSION_LESS "3.0")
     set(CUDA_BUILD_EMULATION OFF)
     include_directories(${CUDA_INCLUDE_DIRS})
     list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
@@ -368,10 +399,6 @@ add_definitions(-DHAVE_CONFIG_H)
 
 set(SRCS 
   src/dague.c 
-  src/symbol.c 
-  src/expr.c 
-  src/params.c 
-  src/dep.c 
   src/arena.c
   src/scheduling.c 
   src/stats.c 
@@ -382,7 +409,7 @@ set(SRCS
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
-  ${EXTRA_SOURCES} 
+ ${EXTRA_SOURCES} 
 )
 
 #

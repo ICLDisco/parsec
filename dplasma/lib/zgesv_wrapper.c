@@ -25,7 +25,7 @@ dplasma_zgesv( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc
     dague_enqueue( dague, dague_ztrsmpl );
     dague_enqueue( dague, dague_ztrsm   );
 
-    dague_progress( dague );
+    dplasma_progress( dague );
 
     dplasma_zgetrf_Destruct( dague_zgetrf  );
     dplasma_ztrsmpl_Destruct( dague_ztrsmpl );
