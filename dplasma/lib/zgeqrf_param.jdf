@@ -21,7 +21,7 @@ extern "C" %{
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 #define MYMAX(a, b) ((a)>(b)?(a):(b))
 
-#define PRIO_YVES1
+//#define PRIO_YVES1
 
 #if defined(PRIO_YVES1)
 #define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
