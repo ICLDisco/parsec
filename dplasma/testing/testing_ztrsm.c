@@ -10,19 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-
-static void printMat(char *name, int M, int N, Dague_Complex64_t *A, int lda)
-{
-
-  fprintf(stderr, "------------ %s ---------------\n", name);
-  for (int i=0; i<M; i++) {
-    for (int j=0; j<N; j++) {
-        fprintf(stderr, "%e ", (double)A[j*lda+i]);
-      }
-    fprintf(stderr, "\n");
-  }
-}
-
 static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
                           two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescX );
@@ -122,18 +109,11 @@ int main(int argc, char ** argv)
                                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
                         printf("Done\n");
 
-
-                        printMat("A", M, M,    (Dague_Complex64_t*)ddescA.mat, LDA);
-                        printMat("B", M, NRHS, (Dague_Complex64_t*)ddescB.mat, LDB);
-                        printMat("X", M, NRHS, (Dague_Complex64_t*)ddescX.mat, LDB);
-
                         /* Compute */
                         printf("Compute ... ... ");
                         dplasma_ztrsm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
                                       (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
                         printf("Done\n");
-
-                        printMat("X after trsm", M, NRHS, (Dague_Complex64_t*)ddescX.mat, LDB);
 
                         /* Check the solution */
                         info_solution = check_solution(rank == 0 ? loud : 0,
@@ -209,10 +189,6 @@ static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_e
     twoDBC_ztolapack( ddescB, B, LDB );
     twoDBC_ztolapack( ddescX, X, LDB );
     
-    printMat("A Lapack", Am, Am, A, LDA);
-    printMat("B Lapack", M, N, B, LDB);
-    printMat("X Lapack", M, N, X, LDB);
-    
     /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
     //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );
     Anorm      = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), Am, A, LDA, work );
@@ -222,8 +198,6 @@ static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_e
     cblas_ztrsm(CblasColMajor,
                 (CBLAS_SIDE)side, (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
                 M, N, CBLAS_SADDR(alpha), A, LDA, B, LDB);
-
-    printMat("X Lapack after trsm", M, N, B, LDB);
 
     Blapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
