@@ -10,7 +10,7 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
                           two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC );
 
@@ -127,7 +127,8 @@ int main(int argc, char ** argv)
                         printf("Done\n");
 
                         /* Check the solution */
-                        info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
+                        info_solution = check_solution(rank == 0 ? loud : 0,
+                                                       side[s], uplo[u], trans[t], diag[d],
                                                        alpha, &ddescA, &ddescB, &ddescC);
                         if ( rank == 0 ) {
                             if (info_solution == 0) {
@@ -170,7 +171,7 @@ int main(int argc, char ** argv)
 /*------------------------------------------------------------------------
  *  Check the accuracy of the solution
  */
-static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC )
 {
     int info_solution;
@@ -214,7 +215,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), C, 1, B, 1);
     Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    if (getenv("DPLASMA_TESTING_VERBOSE"))
+    if ( loud > 2 )
         printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
                Rnorm, Anorm, Binitnorm, Bdaguenorm, Blapacknorm);
 

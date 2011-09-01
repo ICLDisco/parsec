@@ -10,9 +10,22 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+
+static void printMat(char *name, int M, int N, Dague_Complex64_t *A, int lda)
+{
+
+  fprintf(stderr, "------------ %s ---------------\n", name);
+  for (int i=0; i<M; i++) {
+    for (int j=0; j<N; j++) {
+        fprintf(stderr, "%e ", (double)A[j*lda+i]);
+      }
+    fprintf(stderr, "\n");
+  }
+}
+
+static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
                           Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
-                          two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC );
+                          two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescX );
 
 int main(int argc, char ** argv)
 {
@@ -80,22 +93,22 @@ int main(int argc, char ** argv)
         int info_solution;
         Dague_Complex64_t alpha = 3.5;
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
-            two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
+            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    M, NRHS, SMB, SNB, P));
 
-        dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 1358);
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 5676);
 
-        for (s=0; s<2; s++) {
-            for (u=0; u<2; u++) {
+        for (s=0; s<1; s++) {
+            for (u=0; u<1; u++) {
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
                 for (t=0; t<3; t++) {
 #else
-                for (t=0; t<2; t++) {
+                for (t=0; t<1; t++) {
 #endif
-                    for (d=0; d<2; d++) {
+                    for (d=0; d<1; d++) {
 
                         if ( rank == 0 ) {
                             printf("***************************************************\n");
@@ -106,18 +119,26 @@ int main(int argc, char ** argv)
                         /* matrix generation */
                         printf("Generate matrices ... ");
                         dplasma_zlacpy( dague, PlasmaUpperLower,
-                                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescC );
+                                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
                         printf("Done\n");
+
+
+                        printMat("A", M, M,    (Dague_Complex64_t*)ddescA.mat, LDA);
+                        printMat("B", M, NRHS, (Dague_Complex64_t*)ddescB.mat, LDB);
+                        printMat("X", M, NRHS, (Dague_Complex64_t*)ddescX.mat, LDB);
 
                         /* Compute */
                         printf("Compute ... ... ");
                         dplasma_ztrsm(dague, side[s], uplo[u], trans[t], diag[d], (Dague_Complex64_t)alpha,
-                                      (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescC);
+                                      (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
                         printf("Done\n");
 
+                        printMat("X after trsm", M, NRHS, (Dague_Complex64_t*)ddescX.mat, LDB);
+
                         /* Check the solution */
-                        info_solution = check_solution(side[s], uplo[u], trans[t], diag[d],
-                                                       alpha, &ddescA, &ddescB, &ddescC);
+                        info_solution = check_solution(rank == 0 ? loud : 0,
+                                                       side[s], uplo[u], trans[t], diag[d],
+                                                       alpha, &ddescA, &ddescB, &ddescX);
                         if ( rank == 0 ) {
                             if (info_solution == 0) {
                                 printf(" ---- TESTING ZTRSM (%s, %s, %s, %s) ...... PASSED !\n",
@@ -137,8 +158,8 @@ int main(int argc, char ** argv)
 #endif
             }
         }
-        dague_data_free(ddescC.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+        dague_data_free(ddescX.mat);
+        dague_ddesc_destroy((dague_ddesc_t*)&ddescX);
     }
 
     dague_data_free(ddescA.mat);
@@ -159,12 +180,12 @@ int main(int argc, char ** argv)
 /*------------------------------------------------------------------------
  *  Check the accuracy of the solution
  */
-static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
-                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescC )
+static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
+                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescX )
 {
     int info_solution;
     double Anorm, Binitnorm, Bdaguenorm, Blapacknorm, Rnorm, result;
-    Dague_Complex64_t *A, *B, *C;
+    Dague_Complex64_t *A, *B, *X;
     int M   = ddescB->super.m;
     int N   = ddescB->super.n;
     int LDA = ddescA->super.lm;
@@ -182,28 +203,34 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
 
     A = (Dague_Complex64_t *)malloc((ddescA->super.lm)*(ddescA->super.n)*sizeof(Dague_Complex64_t));
     B = (Dague_Complex64_t *)malloc((ddescB->super.lm)*(ddescB->super.n)*sizeof(Dague_Complex64_t));
-    C = (Dague_Complex64_t *)malloc((ddescC->super.lm)*(ddescC->super.n)*sizeof(Dague_Complex64_t));
+    X = (Dague_Complex64_t *)malloc((ddescX->super.lm)*(ddescX->super.n)*sizeof(Dague_Complex64_t));
 
     twoDBC_ztolapack( ddescA, A, LDA );
     twoDBC_ztolapack( ddescB, B, LDB );
-    twoDBC_ztolapack( ddescC, C, LDB );
+    twoDBC_ztolapack( ddescX, X, LDB );
+    
+    printMat("A Lapack", Am, Am, A, LDA);
+    printMat("B Lapack", M, N, B, LDB);
+    printMat("X Lapack", M, N, X, LDB);
     
     /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
     //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );
     Anorm      = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), Am, A, LDA, work );
     Binitnorm  = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  B, LDB, work );
-    Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  C, LDB, work );
+    Bdaguenorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', M,  N,  X, LDB, work );
 
     cblas_ztrsm(CblasColMajor,
                 (CBLAS_SIDE)side, (CBLAS_UPLO)uplo, (CBLAS_TRANSPOSE)trans, (CBLAS_DIAG)diag,
                 M, N, CBLAS_SADDR(alpha), A, LDA, B, LDB);
 
+    printMat("X Lapack after trsm", M, N, B, LDB);
+
     Blapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), C, 1, B, 1);
+    cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), X, 1, B, 1);
     Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
-    if (getenv("DPLASMA_TESTING_VERBOSE"))
+    if ( loud > 2 )
         printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
                Rnorm, Anorm, Binitnorm, Bdaguenorm, Blapacknorm);
 
@@ -218,7 +245,7 @@ static int check_solution(PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans,
     free(work);
     free(A);
     free(B);
-    free(C);
+    free(X);
 
     return info_solution;
 }
