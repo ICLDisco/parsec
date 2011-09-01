@@ -17,178 +17,11 @@
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
 #define FMULS_ZHEEV(__n) (((__n) * (-1.0 / 6.0 + (__n) * (5.0 / 2.0 + 2.0 / 3.0 * (__n)))) - 15.0)
 
-
-enum blas_order_type {
-            blas_rowmajor = 101,
-            blas_colmajor = 102 };
-
-enum blas_uplo_type  {
-            blas_upper = 121,
-            blas_lower = 122 };
-
-enum blas_cmach_type {
-            blas_base      = 151,
-            blas_t         = 152,
-            blas_rnd       = 153,
-            blas_ieee      = 154,
-            blas_emin      = 155,
-            blas_emax      = 156,
-            blas_eps       = 157,
-            blas_prec      = 158,
-            blas_underflow = 159,
-            blas_overflow  = 160,
-            blas_sfmin     = 161};
-
-enum blas_norm_type {
-            blas_one_norm       = 171,
-            blas_real_one_norm  = 172,
-            blas_two_norm       = 173,
-            blas_frobenius_norm = 174,
-            blas_inf_norm       = 175,
-            blas_real_inf_norm  = 176,
-            blas_max_norm       = 177,
-            blas_real_max_norm  = 178 };
-
-static void
-BLAS_error(char *rname, int err, int val, int x) {
-  fprintf( stderr, "%s %d %d %d\n", rname, err, val, x );
-  abort();
-}
-
-static
-void
-BLAS_zsy_norm(enum blas_order_type order, enum blas_norm_type norm,
-  enum blas_uplo_type uplo, int n, const PLASMA_Complex64_t *a, int lda, double *res) {
-  int i, j; double anorm, v;
-  char rname[] = "BLAS_zsy_norm";
-
-  if (order != blas_colmajor) BLAS_error( rname, -1, order, 0 );
-
-  if (norm == blas_inf_norm) {
-    anorm = 0.0;
-    if (blas_upper == uplo) {
-      for (i = 0; i < n; ++i) {
-        v = 0.0;
-        for (j = 0; j < i; ++j) {
-          v += cabs( a[j + i * lda] );
-        }
-        for (j = i; j < n; ++j) {
-          v += cabs( a[i + j * lda] );
-        }
-        if (v > anorm)
-          anorm = v;
-      }
-    } else {
-      BLAS_error( rname, -3, norm, 0 );
-      return;
-    }
-  } else {
-    BLAS_error( rname, -2, norm, 0 );
-    return;
-  }
-
-  if (res) *res = anorm;
-}
-
-static
-void
-BLAS_zge_norm(enum blas_order_type order, enum blas_norm_type norm,
-  int m, int n, const PLASMA_Complex64_t *a, int lda, double *res)
-{
-  int i, j;
-  double anorm, v;
-  char rname[] = "BLAS_zge_norm";
-
-  if (order != blas_colmajor) BLAS_error( rname, -1, order, 0 );
-
-  if (norm == blas_frobenius_norm) {
-    anorm = 0.0;
-    for (j = n; j; --j) {
-      for (i = m; i; --i) {
-        v = a[0];
-        anorm += v * v;
-        a++;
-      }
-      a += lda - m;
-    }
-    anorm = csqrt( anorm );
-  } else if (norm == blas_inf_norm) {
-    anorm = 0.0;
-    for (i = 0; i < m; ++i) {
-      v = 0.0;
-      for (j = 0; j < n; ++j) {
-        v += cabs( a[i + j * lda] );
-      }
-      if (v > anorm)
-        anorm = v;
-    }
-  } else {
-    BLAS_error( rname, -2, norm, 0 );
-    return;
-  }
-
-  if (res) *res = anorm;
-}
-
-static
-double
-BLAS_dpow_di(double x, int n) {
-  double rv = 1.0;
-
-  if (n < 0) {
-    n = -n;
-    x = (double)1.0 / x;
-  }
-
-  for (; n; n >>= 1, x *= x) {
-    if (n & 1)
-      rv *= x;
-  }
-
-  return rv;
-}
-
-static
-double
-BLAS_dfpinfo(enum blas_cmach_type cmach) {
-  double eps = 1.0, r = 1.0, o = 1.0, b = 2.0;
-  int t = 53, l = 1024, m = -1021;
-  char rname[] = "BLAS_dfpinfo";
-
-  if ((sizeof eps) == sizeof(float)) {
-    t = 24;
-    l = 128;
-    m = -125;
-  } else {
-    t = 53;
-    l = 1024;
-    m = -1021;
-  }
-
-  /* for (i = 0; i < t; ++i) eps *= half; */
-  eps = BLAS_dpow_di( b, -t );
-  /* for (i = 0; i >= m; --i) r *= half; */
-  r = BLAS_dpow_di( b, m-1 );
-
-  o -= eps;
-  /* for (i = 0; i < l; ++i) o *= b; */
-  o = (o * BLAS_dpow_di( b, l-1 )) * b;
-
-  switch (cmach) {
-    case blas_eps: return eps;
-    case blas_sfmin: return r;
-    default:
-      BLAS_error( rname, -1, cmach, 0 );
-      break;
-  }
-  return 0.0;
-}
-
 static int check_solution(int, double*, double*, double);
 
 int main(int argc, char *argv[])
 {
-    int i, j, k;
+    int i, j;
     dague_context_t *dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
@@ -216,7 +49,6 @@ int main(int argc, char *argv[])
     double *W2             = (double *)malloc(N*sizeof(double));
     double *D             = (double *)malloc(N*sizeof(double));
     double *E             = (double *)malloc(N*sizeof(double));
-    int sizearena = (NB+1)*(NB+2);
     int INFO;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
@@ -251,7 +83,6 @@ int main(int argc, char *argv[])
          ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
          ddescT.super.m, ddescT.super.n);
 
-    //generate_tiled_random_sym_pos_mat((tiled_matrix_desc_t *) &ddescA, 100);
     dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
 
     if( check ) {
@@ -303,19 +134,22 @@ int main(int argc, char *argv[])
     if( check ) {
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
 #if 0
-        /* store resulting diag and lower diag D and E*/
-        for (k=0;k<NT-1;k++) {
-          for (j=0;j<NB;j++) {
-                D[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j];
-                E[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j+1];
+        {
+          int k, sizearena = (NB+1)*(NB+2);
+          /* store resulting diag and lower diag D and E*/
+          for (k=0;k<NT-1;k++) {
+            for (j=0;j<NB;j++) {
+              D[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j];
+              E[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j+1];
+            }
           }
+          k=NT-1;
+          for (j=0;j<NB-1;j++) {
+            D[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j];
+            E[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j+1];
+          }
+          D[(k*NB)+(NB-1)] = ddescBAND.mat[(k*sizearena)+ LDA*(NB-1)];
         }
-        k=NT-1;
-        for (j=0;j<NB-1;j++) {
-                D[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j];
-                E[(k*NB)+j] = ddescBAND.mat[(k*sizearena)+ LDA*j+1];
-        }
-        D[(k*NB)+(NB-1)] = ddescBAND.mat[(k*sizearena)+ LDA*(NB-1)];
 #endif
 
         /* call eigensolver */
@@ -347,7 +181,7 @@ int main(int argc, char *argv[])
         }
         printf("\n");
 
-        double eps = BLAS_dfpinfo( blas_eps );
+        double eps = LAPACKE_dlamch_work('e');
         printf("\n");
         printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
         printf("        Size of the Matrix %d by %d\n", N, N);

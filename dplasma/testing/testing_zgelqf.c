@@ -10,13 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#define FMULS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)) + (M))) \
-                                       : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + 2.*(N))))
-#define FADDS_GEQRF(M, N) (((M) > (N)) ? ((N) * ((N) * (  0.5-(1./3.) * (N) + (M)))) \
-                                       : ((M) * ((M) * ( -0.5-(1./3.) * (M) + (N)) + (N))))
-#define FMULS_GELQF(__m, __n) FMULS_GEQRF(__m, __n)
-#define FADDS_GELQF(__m, __n) FADDS_GEQRF(__m, __n)
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -31,7 +24,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS_COUNT(FADDS_GELQF, FMULS_GELQF, ((DagDouble_t)M,(DagDouble_t)N))
+    PASTE_CODE_FLOPS(FLOPS_ZGELQF, ((DagDouble_t)M,(DagDouble_t)N))
       
     LDA = max(M, LDA);
     /* initializing matrix structure */

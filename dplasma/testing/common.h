@@ -31,8 +31,7 @@
 #include "vt_user.h"
 #endif
 
-
-
+#include "flops.h"
 
 enum iparam_t {
   IPARAM_RANK,         /* Rank                              */

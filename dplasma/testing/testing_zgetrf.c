@@ -10,9 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#define FMULS_GETRF(M, N) (0.5 * (N) * ((N) * ((M) - (1./3.) * (N)) - (N)))
-#define FADDS_GETRF(M, N) (0.5 * (N) * ((N) * ((M) - (1./3.) * (N))))
-
 static int check_solution( dague_context_t *dague, tiled_matrix_desc_t *ddescA, 
                            tiled_matrix_desc_t *ddescB, tiled_matrix_desc_t *ddescX );
 
@@ -32,7 +29,7 @@ int main(int argc, char ** argv)
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS_COUNT(FADDS_GETRF, FMULS_GETRF, ((DagDouble_t)M,(DagDouble_t)N))
+    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M,(DagDouble_t)N))
     /* initializing matrix structure */
     int info = 0;
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
