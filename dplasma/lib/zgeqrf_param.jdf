@@ -41,7 +41,7 @@ extern "C" %{
 #define GETPRIO_UPDTE( __m, __n, __k ) (int)( (__m) < (__n) ? GETPRIO_PANEL( (__n), (__n) ) - 22. * ( (__m) - (__k) ) - 6. * ( (__n) - (__m) ) \
                                               :               GETPRIO_PANEL( (__m), (__n) ) - 22. * ( (__n) - (__k) ) )
 #else
-#warning running without priority
+  /*#warning running without priority*/
 #define GETPRIO_PANEL( __m, __n )      0
 #define GETPRIO_UPDTE( __m, __n, __k ) 0
 #endif
