@@ -53,8 +53,8 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplghe( dague, 0., uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
-        dplasma_zplrnt( dague,           (tiled_matrix_desc_t *)&ddescB, 5676);
+        dplasma_zplghe( dague, 2., uplo, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplrnt( dague,            (tiled_matrix_desc_t *)&ddescB, 5676);
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
@@ -85,17 +85,17 @@ int main(int argc, char ** argv)
                                    nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                    M, NRHS, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 1358);
+        dplasma_zplghe( dague, 2., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, 1358);
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 5676);
 
-        for (s=0; s<1; s++) {
-            for (u=0; u<1; u++) {
+        for (s=0; s<2; s++) {
+            for (u=0; u<2; u++) {
 #if defined(PRECISIONS_z) || defined(PRECISIONS_c)
                 for (t=0; t<3; t++) {
 #else
-                for (t=0; t<1; t++) {
+                for (t=0; t<2; t++) {
 #endif
-                    for (d=0; d<1; d++) {
+                    for (d=0; d<2; d++) {
 
                         if ( rank == 0 ) {
                             printf("***************************************************\n");
@@ -202,7 +202,7 @@ static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_e
     Blapacknorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
 
     cblas_zaxpy(LDB * N, CBLAS_SADDR(mzone), X, 1, B, 1);
-    Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'i', M, N, B, LDB, work);
+    Rnorm = LAPACKE_zlange_work(LAPACK_COL_MAJOR, 'm', M, N, B, LDB, work);
 
     if ( loud > 2 )
         printf("Rnorm %e, Anorm %e, Binitnorm %e, Bdaguenorm %e, Blapacknorm %e\n",
