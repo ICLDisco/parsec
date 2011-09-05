@@ -15,7 +15,7 @@
 #define FADDS_ZHBRDT(__n) (-1)
 #define FMULS_ZHBRDT(__n) (-1)
 
-static int check_solution(int, double*, double*, double);
+/* static int check_solution(int, double*, double*, double); */
 
 int main(int argc, char *argv[])
 {
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 /*--------------------------------------------------------------
  * Check the solution
  */
-
+#if 0
 static int check_solution(int N, double *E1, double *E2, double eps)
 {
     int info_solution, i;
@@ -165,3 +165,4 @@ static int check_solution(int N, double *E1, double *E2, double eps)
     free(Residual);
     return info_solution;
 }
+#endif
