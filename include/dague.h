@@ -19,6 +19,9 @@
 #if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
 typedef uint32_t dague_dependency_t;
 #else
+/**
+ * Should be large enough to support MAX_PARAM_COUNT values.
+ */
 typedef uint32_t dague_dependency_t;
 #endif
 
@@ -141,17 +144,31 @@ struct dague_data_pair_t {
 #endif  /* defined(HAVE_CUDA) */
 };
 
+/**
+ * The minimal execution context contains only the smallest amount of information
+ * required to be able to flow through the execution graph, by following data-flow
+ * from one task to another. As an example, it contains the local variables but
+ * not the data pairs. We need this in order to be able to only copy the minimal
+ * amount of information when a new task is constructed.
+ */
+#define DAGUE_MINIMAL_EXECUTION_CONTEXT                 \
+    dague_list_item_t       list_item;                  \
+    dague_thread_mempool_t *mempool_owner;              \
+    dague_object_t         *dague_object;               \
+    const  dague_t         *function;                   \
+    int32_t                 priority;                   \
+    assignment_t            locals[MAX_LOCAL_COUNT];
+
+struct dague_minimal_execution_context_t {
+    DAGUE_MINIMAL_EXECUTION_CONTEXT
+} dague_minimal_execution_context_t;
+
 struct dague_execution_context_t {
-    dague_list_item_t       list_item;
-    dague_thread_mempool_t *mempool_owner;
-    dague_object_t         *dague_object;
-    const  dague_t         *function;
-    int32_t                 priority; 
+    DAGUE_MINIMAL_EXECUTION_CONTEXT
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;
 #endif
     dague_data_pair_t       data[MAX_PARAM_COUNT];
-    assignment_t            locals[MAX_LOCAL_COUNT];
 };
 
 #if defined(DAGUE_PROF_TRACE)
@@ -194,13 +211,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_context_t* restrict exec_context,
                                           const param_t* restrict dest_param,
                                           dague_execution_context_t** pready_list );
-int dague_release_OUT_dependencies( const dague_object_t *dague_object,
-                                    dague_execution_unit_t* eu_context,
-                                    const dague_execution_context_t* restrict origin,
-                                    const param_t* restrict origin_param,
-                                    dague_execution_context_t* restrict exec_context,
-                                    const param_t* restrict dest_param,
-                                    int forward_remote );
 
 const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);

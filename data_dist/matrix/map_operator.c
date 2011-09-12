@@ -169,7 +169,7 @@ static const param_t param_of_map_operator = {
     .name = "I",
     .sym_type = SYM_INOUT,
     .access_type = ACCESS_RW,
-    .param_mask = 0x1,
+    .param_index = 0,
     .dep_in  = { &param_of_map_operator_dep_in },
     .dep_out = { &param_of_map_operator_dep_out }
 };

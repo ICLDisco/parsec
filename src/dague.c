@@ -759,7 +759,7 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
             }
             if( dep->dague->nb_parameters == 0 ) {
 #if defined(DAGUE_SCHED_DEPS_MASK)
-                ret |= param->param_mask;
+                ret |= (1 << param->param_index);
 #else
                 ret += 1;
 #endif
@@ -843,19 +843,19 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #else  /* defined(DAGUE_SCHED_DEPS_MASK) */
 
 #   if defined(DAGUE_DEBUG)
-    if( deps->u.dependencies[position] & dest_param->param_mask ) {
+    if( deps->u.dependencies[position] & (1 << dest_param->param_index) ) {
         char tmp2[128];
         DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
-               dest_param->param_mask, dague_service_to_string(origin, tmp, 128), origin_param->name,
+               dest_param->param_index, dague_service_to_string(origin, tmp, 128), origin_param->name,
                deps->u.dependencies[position],
                dague_service_to_string(exec_context, tmp2, 128),  dest_param->name ));
     }
-    assert( 0 == (deps->u.dependencies[position] & dest_param->param_mask) );
+    assert( 0 == (deps->u.dependencies[position] & (1 << dest_param->param_index)) );
 #   else
     (void) origin; (void) origin_param;
 #   endif 
 
-    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | dest_param->param_mask;
+    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_param->param_index);
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[position]) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
@@ -902,9 +902,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
-            mpool = new_context->mempool_owner;
+            mpool = new_context->mempool_owner;  /* this should not be copied over from the old execution context */
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
-            memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
+            memcpy( new_context, exec_context, sizeof(dague_minimal_execution_context_t) );
             new_context->mempool_owner = mpool;
 
             DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
