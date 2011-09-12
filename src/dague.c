@@ -800,6 +800,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           const param_t* restrict origin_param,
                                           dague_execution_context_t* restrict exec_context,
                                           const param_t* restrict dest_param,
+                                          data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list )
 {
     const dague_t* function = exec_context->function;
@@ -1011,6 +1012,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                                                  oldcontext->function->out[param_index],
                                                                  newcontext,
                                                                  oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
+                                                                 arg->output_entry,
                                                                  &arg->ready_list);
     }
     

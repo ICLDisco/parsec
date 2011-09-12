@@ -2377,13 +2377,14 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
                 UTIL_DUMP_LIST_FIELD(sa, call->parameters, next, expr,
                                      dump_expr, &info, "", "", ", ", ""));
     }
-    coutput("%s  %s = ADATA(g%s);\n", spaces, f->varname, f->varname);
 
     string_arena_free(sa);
     string_arena_free(sa2);
 }
 
-static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *fname, const jdf_dataflow_t *f)
+static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
+                                                  const char *fname,
+                                                  const jdf_dataflow_t *f)
 {
     jdf_dep_list_t *dl;
     expr_info_t info;
@@ -2417,7 +2418,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf, const char *
             break;
         case JDF_GUARD_TERNARY:
             coutput( (0 == cond_index ? condition[0] : condition[1]),
-                    dump_expr((void**)&dl->dep->guard->guard, &info));
+                     dump_expr((void**)&dl->dep->guard->guard, &info));
             jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "  " );
             coutput("  } else {\n");
             jdf_generate_code_call_initialization( jdf, dl->dep->guard->callfalse, f->lineno, fname, f, "  " );
@@ -2676,9 +2677,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         }
         jdf_generate_code_flow_initialization(jdf, f->fname, fl->flow);
         coutput("  exec_context->data[%d].data = g%s;\n"
-                "  exec_context->data[%d].data_repo = e%s;\n",
+                "  exec_context->data[%d].data_repo = e%s;\n"
+                "  %s = ADATA(g%s);\n",
                 di, fl->flow->varname,
-                di, fl->flow->varname);
+                di, fl->flow->varname,
+                fl->flow->varname, fl->flow->varname);
         coutput("#if defined(DAGUE_SIM)\n"
                 "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
                 "    __dague_simulation_date =  e%s->sim_exec_date;\n"
