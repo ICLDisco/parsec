@@ -205,6 +205,9 @@ static void iterate_successors(dague_execution_unit_t *eu,
     int n = exec_context->locals[1].value+1;
     dague_execution_context_t nc;
 
+    nc.priority = 0;
+    nc.data[0].data_repo = NULL;
+    nc.data[0].data_repo = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.src->nt; n = 0) {
         for( ; n < (int)__dague_object->super.src->mt; n++ ) {
@@ -217,7 +220,8 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.locals[1].value = n;
             nc.function = &dague_map_operator /*this*/;
             nc.dague_object = exec_context->dague_object;
-            nc.priority = 0;
+            nc.data[0].data = exec_context->data[0].data;
+            nc.data[1].data = exec_context->data[1].data;
             ontask(eu, &nc, exec_context, 0, 0,
                    __dague_object->super.src->super.myrank,
                    __dague_object->super.src->super.myrank, NULL, ontask_arg);
@@ -265,8 +269,8 @@ static int hook_of(dague_execution_unit_t *context,
     void* dest_data;
 
     if( NULL != __dague_object->super.src ) {
-        adest = (dague_arena_chunk_t*) src(k,n);
-        dest_data = ADATA(asrc);
+        asrc = (dague_arena_chunk_t*) src(k,n);
+        src_data = ADATA(asrc);
     }
     adest = (dague_arena_chunk_t*) dest(k,n);
     dest_data = ADATA(adest);
@@ -342,6 +346,13 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
     dague_execution_unit_t* eu;
 
     *startup_list = NULL;
+    fake_context.function = &dague_map_operator /*this*/;
+    fake_context.dague_object = dague_object;
+    fake_context.priority = 0;
+    fake_context.data[0].data_repo = NULL;
+    fake_context.data[0].data      = NULL;
+    fake_context.data[1].data_repo = NULL;
+    fake_context.data[1].data      = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.src->nt; n = 0) {
         eu = context->execution_units[count];
@@ -355,9 +366,6 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
             /* Here we go, one ready local task */
             fake_context.locals[0].value = k;
             fake_context.locals[1].value = n;
-            fake_context.function = &dague_map_operator /*this*/;
-            fake_context.dague_object = dague_object;
-            fake_context.priority = 0;
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
                              __dague_object->super.src->super.myrank,
                              __dague_object->super.src->super.myrank, NULL, (void*)&ready_list);
