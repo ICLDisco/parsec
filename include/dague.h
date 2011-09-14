@@ -9,20 +9,14 @@
 
 #include "dague_config.h"
 
-#include <stdint.h>
 #include <stddef.h>
 
 #include "debug.h"
 #ifdef HAVE_HWLOC
 #include "dague_hwloc.h"
 #endif
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
-typedef uint32_t dague_dependency_t;
-#else
-typedef uint32_t dague_dependency_t;
-#endif
 
-typedef struct dague_t                   dague_t;
+typedef struct dague_function            dague_function_t;
 typedef struct dague_object              dague_object_t;
 typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
@@ -38,10 +32,7 @@ extern dague_free_data_t     dague_data_free;
 #define MAX_EVENTS 3
 #endif
 
-#include "symbol.h"
-#include "expr.h"
-#include "params.h"
-#include "dep.h"
+#include "dague_description_structures.h"
 #include "execution_unit.h"
 #include "mempool.h"
 #include "arena.h"
@@ -77,7 +68,7 @@ struct dague_dependencies_t {
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
-typedef int (dague_release_deps_t)(struct dague_execution_unit*, dague_execution_context_t*, int, struct dague_remote_deps_t *, dague_arena_chunk_t **data);
+typedef int (dague_release_deps_t)(struct dague_execution_unit*, dague_execution_context_t*, int, struct dague_remote_deps_t *);
 
 typedef enum  {
     DAGUE_ITERATE_STOP,
@@ -106,13 +97,13 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
 
-struct dague_t {
+struct dague_function {
     const char*             name;
     uint16_t                flags;
     uint16_t                function_id;
+    uint8_t                 nb_parameters;
+    uint8_t                 nb_definitions;
     dague_dependency_t      dependencies_goal;
-    uint16_t                nb_parameters;
-    uint16_t                nb_definitions;
     const symbol_t*         params[MAX_LOCAL_COUNT];
     const symbol_t*         locals[MAX_LOCAL_COUNT];
     const expr_t*           pred;
@@ -141,17 +132,31 @@ struct dague_data_pair_t {
 #endif  /* defined(HAVE_CUDA) */
 };
 
+/**
+ * The minimal execution context contains only the smallest amount of information
+ * required to be able to flow through the execution graph, by following data-flow
+ * from one task to another. As an example, it contains the local variables but
+ * not the data pairs. We need this in order to be able to only copy the minimal
+ * amount of information when a new task is constructed.
+ */
+#define DAGUE_MINIMAL_EXECUTION_CONTEXT                  \
+    dague_list_item_t        list_item;                  \
+    dague_thread_mempool_t  *mempool_owner;              \
+    dague_object_t          *dague_object;               \
+    const  dague_function_t *function;                   \
+    int32_t                  priority;                   \
+    assignment_t             locals[MAX_LOCAL_COUNT];
+
+struct dague_minimal_execution_context_t {
+    DAGUE_MINIMAL_EXECUTION_CONTEXT
+} dague_minimal_execution_context_t;
+
 struct dague_execution_context_t {
-    dague_list_item_t       list_item;
-    dague_thread_mempool_t *mempool_owner;
-    dague_object_t         *dague_object;
-    const  dague_t         *function;
-    int32_t                 priority; 
+    DAGUE_MINIMAL_EXECUTION_CONTEXT
 #if defined(DAGUE_SIM)
     int                     sim_exec_date;
 #endif
     dague_data_pair_t       data[MAX_PARAM_COUNT];
-    assignment_t            locals[MAX_LOCAL_COUNT];
 };
 
 #if defined(DAGUE_PROF_TRACE)
@@ -170,7 +175,7 @@ struct dague_object {
     uint32_t                   nb_local_tasks;
     uint32_t                   nb_functions;
     dague_startup_fn_t         startup_hook;
-    const dague_t**            functions_array;
+    const dague_function_t**   functions_array;
 #if defined(DAGUE_PROF_TRACE)
     const int*                 profiling_array;
 #endif  /* defined(DAGUE_PROF_TRACE) */
@@ -193,16 +198,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           const param_t* restrict origin_param,
                                           dague_execution_context_t* restrict exec_context,
                                           const param_t* restrict dest_param,
+                                          data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
-int dague_release_OUT_dependencies( const dague_object_t *dague_object,
-                                    dague_execution_unit_t* eu_context,
-                                    const dague_execution_context_t* restrict origin,
-                                    const param_t* restrict origin_param,
-                                    dague_execution_context_t* restrict exec_context,
-                                    const param_t* restrict dest_param,
-                                    int forward_remote );
 
-const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
+const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname);
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
 int dague_enqueue( dague_context_t* context, dague_object_t* object);
@@ -220,7 +219,6 @@ typedef struct {
     data_repo_entry_t *output_entry;
     int action_mask;
     dague_remote_deps_t *deps;
-    dague_arena_chunk_t **data;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;

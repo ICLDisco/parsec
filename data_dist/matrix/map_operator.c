@@ -37,7 +37,7 @@ typedef struct __dague_map_operator_object {
 } __dague_map_operator_object_t;
 
 static const param_t param_of_map_operator;
-static const dague_t dague_map_operator;
+static const dague_function_t dague_map_operator;
 
 #define src(k,n)  (((dague_ddesc_t*)__dague_object->super.src)->data_of((dague_ddesc_t*)__dague_object->super.src, (k), (n)))
 #define dest(k,n)  (((dague_ddesc_t*)__dague_object->super.dest)->data_of((dague_ddesc_t*)__dague_object->super.dest, (k), (n)))
@@ -169,7 +169,7 @@ static const param_t param_of_map_operator = {
     .name = "I",
     .sym_type = SYM_INOUT,
     .access_type = ACCESS_RW,
-    .param_mask = 0x1,
+    .param_index = 0,
     .dep_in  = { &param_of_map_operator_dep_in },
     .dep_out = { &param_of_map_operator_dep_out }
 };
@@ -205,6 +205,9 @@ static void iterate_successors(dague_execution_unit_t *eu,
     int n = exec_context->locals[1].value+1;
     dague_execution_context_t nc;
 
+    nc.priority = 0;
+    nc.data[0].data_repo = NULL;
+    nc.data[0].data_repo = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.src->nt; n = 0) {
         for( ; n < (int)__dague_object->super.src->mt; n++ ) {
@@ -217,7 +220,8 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.locals[1].value = n;
             nc.function = &dague_map_operator /*this*/;
             nc.dague_object = exec_context->dague_object;
-            nc.priority = 0;
+            nc.data[0].data = exec_context->data[0].data;
+            nc.data[1].data = exec_context->data[1].data;
             ontask(eu, &nc, exec_context, 0, 0,
                    __dague_object->super.src->super.myrank,
                    __dague_object->super.src->super.myrank, NULL, ontask_arg);
@@ -231,8 +235,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
 static int release_deps(dague_execution_unit_t *eu,
                         dague_execution_context_t *exec_context,
                         int action_mask,
-                        dague_remote_deps_t *deps,
-                        dague_arena_chunk_t **data)
+                        dague_remote_deps_t *deps)
 {
     dague_execution_context_t* ready_list = NULL;
 
@@ -250,7 +253,7 @@ static int release_deps(dague_execution_unit_t *eu,
     }
 
     assert( NULL == ready_list );
-    (void)deps; (void)data;
+    (void)deps;
     return 1;
 }
 
@@ -265,8 +268,8 @@ static int hook_of(dague_execution_unit_t *context,
     void* dest_data;
 
     if( NULL != __dague_object->super.src ) {
-        adest = (dague_arena_chunk_t*) src(k,n);
-        dest_data = ADATA(asrc);
+        asrc = (dague_arena_chunk_t*) src(k,n);
+        src_data = ADATA(asrc);
     }
     adest = (dague_arena_chunk_t*) dest(k,n);
     dest_data = ADATA(adest);
@@ -293,25 +296,22 @@ static int complete_hook(dague_execution_unit_t *context,
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     (void)k; (void)n; (void)__dague_object;
-    dague_arena_chunk_t *data[2];
 
     TAKE_TIME(context, 2*exec_context->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
     dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
-    data[0] = exec_context->data[0].data;
-    data[1] = exec_context->data[1].data;
     release_deps(context, exec_context,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_REFS |
                   DAGUE_ACTION_DEPS_MASK),
-                 NULL, data);
+                 NULL);
 
     return 0;
 }
 
-static const dague_t dague_map_operator = {
+static const dague_function_t dague_map_operator = {
     .name = "map_operator",
     .deps = 0,
     .flags = 0x0,
@@ -342,6 +342,13 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
     dague_execution_unit_t* eu;
 
     *startup_list = NULL;
+    fake_context.function = &dague_map_operator /*this*/;
+    fake_context.dague_object = dague_object;
+    fake_context.priority = 0;
+    fake_context.data[0].data_repo = NULL;
+    fake_context.data[0].data      = NULL;
+    fake_context.data[1].data_repo = NULL;
+    fake_context.data[1].data      = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.src->nt; n = 0) {
         eu = context->execution_units[count];
@@ -355,9 +362,6 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
             /* Here we go, one ready local task */
             fake_context.locals[0].value = k;
             fake_context.locals[1].value = n;
-            fake_context.function = &dague_map_operator /*this*/;
-            fake_context.dague_object = dague_object;
-            fake_context.priority = 0;
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
                              __dague_object->super.src->super.myrank,
                              __dague_object->super.src->super.myrank, NULL, (void*)&ready_list);
