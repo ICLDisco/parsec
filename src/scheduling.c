@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -45,9 +45,21 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
     int rc = 0;
     const dague_t* function = exec_context->function;
 #if defined(DAGUE_DEBUG)
-    char tmp[128]; 
-    DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
-#endif
+    {
+        const struct param* param;
+        int set_parameters, i;
+        char tmp[128];
+
+        DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
+        for( i = set_parameters = 0; NULL != (param = exec_context->function->in[i]); i++ ) {
+            if( NULL != exec_context->data[param->param_index].data_repo ) {
+                set_parameters++;
+                assert( NULL != exec_context->data[param->param_index].data );
+            }
+        }
+        assert( set_parameters <= 1 );
+    }
+# endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
@@ -76,14 +88,30 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
 #if defined(DAGUE_DEBUG)
     {
+        dague_execution_context_t* context = new_context;
+        const struct param* param;
+        int set_parameters, i;
         char tmp[128];
-        dague_list_item_t* item = (dague_list_item_t*)new_context, *next;
 
         do {
-            next = (dague_list_item_t*)item->list_next;
-            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string((dague_execution_context_t*)item, tmp, 128)));
-            item = next;
-        } while ( item != (dague_list_item_t*)new_context );
+            for( i = set_parameters = 0; NULL != (param = context->function->in[i]); i++ ) {
+                if( NULL != context->data[param->param_index].data_repo ) {
+                    set_parameters++;
+                    if( NULL == context->data[param->param_index].data ) {
+                        DEBUG(( "Task %s has parameters %d data_repo != NULL but a data == NULL (%s:%d)\n",
+                                dague_service_to_string(context, tmp, 128), param->param_index, __FILE__, __LINE__));
+                        assert( NULL == context->data[param->param_index].data );
+                    }
+                }
+            }
+            if( set_parameters > 1 ) {
+                DEBUG(( "Task %s has more than one parameter set (impossible)!! (%s:%d)\n",
+                        dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
+                assert( set_parameters > 1 );
+            }
+            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
+            context = (dague_execution_context_t*)context->list_item.list_next;
+        } while ( context != new_context );
     }
 # endif
 
@@ -252,8 +280,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
     while( !all_tasks_done(master_context) ) {
 #if defined(DISTRIBUTED)
-        if( eu_context->eu_id == 0)
-        {
+        if( eu_context->eu_id == 0) {
             int ret;
             /* check for remote deps completion */
             while((ret = dague_remote_dep_progress(eu_context)) > 0)  {
