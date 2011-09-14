@@ -2402,12 +2402,12 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     char* condition[] = {"  if( %s ) {\n", "  else if( %s ) {\n"};
 
     if( JDF_VAR_TYPE_CTL == flow->access_type ) {
-        coutput("  exec_context->data[%d].data = NULL;\n"
-                "  exec_context->data[%d].data_repo = NULL;\n", flow_index, flow_index);
+        coutput("  exec_context->data[%u].data = NULL;\n"
+                "  exec_context->data[%u].data_repo = NULL;\n", flow_index, flow_index);
         return;
     }
-    coutput( "  e%s = exec_context->data[%d].data_repo;\n"
-             "  g%s = exec_context->data[%d].data;\n"
+    coutput( "  e%s = exec_context->data[%u].data_repo;\n"
+             "  g%s = exec_context->data[%u].data;\n"
              "  if( NULL == g%s ) {\n",
              flow->varname, flow_index,
              flow->varname, flow_index,
@@ -2448,8 +2448,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     }
 
  done_with_input:
-    coutput("    exec_context->data[%d].data = g%s;\n"
-            "    exec_context->data[%d].data_repo = e%s;\n"
+    coutput("    exec_context->data[%u].data = g%s;\n"
+            "    exec_context->data[%u].data_repo = e%s;\n"
             "  }\n"
             "  %s = ADATA(g%s);\n",
             flow_index, flow->varname,
