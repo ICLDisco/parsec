@@ -737,7 +737,7 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
                              const dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
-    int i, j, value;
+    int i, j, value, active;
     const param_t* param;
     const dep_t* dep;
     dague_dependency_t ret = 0;
@@ -748,7 +748,12 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
         param = function->in[i];
-
+        /* this param has no dependency condition satisfied */
+#if defined(DAGUE_SCHED_DEPS_MASK)
+        active = (1 << param->param_index);
+#else
+        active = 1;
+#endif
         for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
             dep = param->dep_in[j];
             if( NULL != dep->cond ) {
@@ -759,14 +764,19 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
                     continue;
                 }
             }
-            if( dep->dague->nb_parameters == 0 ) {
-#if defined(DAGUE_SCHED_DEPS_MASK)
-                ret |= (1 << param->param_index);
-#else
-                ret += 1;
-#endif
+            if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
+                goto dep_resolved;
+            }
+            if( ACCESS_NONE == param->access_type ) {
+                active = 0;
+                goto dep_resolved;
             }
         }
+        if( ACCESS_NONE != param->access_type ) {
+            active = 0;
+        }
+    dep_resolved:
+        ret += active;
     }
     return ret;
 }

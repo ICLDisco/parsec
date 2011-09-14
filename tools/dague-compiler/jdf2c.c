@@ -495,6 +495,7 @@ static char *dump_dataflow_varname(void **elem, void *_)
 {
     (void)_;
     jdf_dataflow_t *f = *(jdf_dataflow_t **)elem;
+    if( f->access_type == JDF_VAR_TYPE_CTL ) return NULL;
     return f->varname;
 }
 
@@ -1837,17 +1838,21 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
         for( dl = fl->flow->deps; NULL != dl; dl = dl->next ) {
             if( dl->dep->type & JDF_DEP_TYPE_IN ) {
                 
-                switch( dl->dep->guard->guard_type ) {
-                case JDF_GUARD_TERNARY:
-                    if( NULL == dl->dep->guard->callfalse->var )
+                if( JDF_VAR_TYPE_CTL == fl->flow->access_type ) {
+                    if( JDF_GUARD_BINARY == dl->dep->guard->guard_type )
                         has_in_in_dep = 1;
+                } else {
+                    switch( dl->dep->guard->guard_type ) {
+                    case JDF_GUARD_TERNARY:
+                        if( NULL == dl->dep->guard->callfalse->var )
+                            has_in_in_dep = 1;
 
-                case JDF_GUARD_UNCONDITIONAL:
-                case JDF_GUARD_BINARY:
-                    if( NULL == dl->dep->guard->calltrue->var )
-                        has_in_in_dep = 1;
+                    case JDF_GUARD_UNCONDITIONAL:
+                    case JDF_GUARD_BINARY:
+                        if( NULL == dl->dep->guard->calltrue->var )
+                            has_in_in_dep = 1;
+                    }
                 }
-
                 if( foundin == 0 ) {
                     inputmask |= (1 << nbinput);
                     nbinput++;
@@ -2073,12 +2078,14 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 
     coutput("static void %s_startup(dague_context_t *context, dague_object_t *dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
-            "%s\n"
-            "}\n"
-            "\n",
+            "%s\n",
             jdf_basename, 
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_startup_call, sa2,
                             "  ", jdf_basename, "\n  ", "") );
+    coutput("#if defined(DISTRIBUTED)\n"
+            "  remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
+            "#endif  /* defined(DISTRIBUTED) */\n"
+            "}\n");
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -2199,14 +2206,11 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
                             "", "", "\n", "\n"));
 
-    coutput("  _res->super.super.startup_hook = %s_startup;\n", jdf_basename);
-
-    coutput("#if defined(DISTRIBUTED)\n"
-            "  remote_deps_allocation_init(((dague_ddesc_t*)%s)->nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
-            "#endif  /* defined(DISTRIBUTED) */\n"
+    coutput("  _res->super.super.startup_hook = %s_startup;\n"
             "  (void)dague_object_register((dague_object_t*)_res);\n"
             "  return (dague_%s_object_t*)_res;\n"
-            "}\n\n", jdf->data[0].dname,jdf_basename);
+            "}\n\n",
+            jdf_basename, jdf_basename);
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -2597,15 +2601,16 @@ static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf
     sa = string_arena_new(64);
     
     (void)jdf;
-    
-    coutput("  /** Cache Awareness Accounting */\n"
-            "#if defined(DAGUE_CACHE_AWARENESS)\n"
-            "%s"
-            "#endif /* DAGUE_CACHE_AWARENESS */\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
-                                 dump_dataflow_varname, NULL, 
-                                 "", "  cache_buf_referenced(context->closest_cache, ", ");\n", ");\n"));
-    
+    UTIL_DUMP_LIST_FIELD(sa, f->dataflow, next, flow,
+                         dump_dataflow_varname, NULL, 
+                         "", "  cache_buf_referenced(context->closest_cache, ", ");\n", "");
+    if( strlen(string_arena_get_string(sa)) ) {
+            coutput("  /** Cache Awareness Accounting */\n"
+                    "#if defined(DAGUE_CACHE_AWARENESS)\n"
+                    "%s);\n"
+                    "#endif /* DAGUE_CACHE_AWARENESS */\n",
+                    string_arena_get_string(sa));
+    }
     string_arena_free(sa);
 }
 
@@ -3163,10 +3168,16 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
         depnb = 0;
         for(dl = fl->flow->deps; dl != NULL; dl = dl->next) {
             if( dl->dep->type & JDF_DEP_TYPE_OUT )  {
+                string_arena_init(sa);
+                if( JDF_VAR_TYPE_CTL == fl->flow->access_type ) {
+                    string_arena_add_string(sa, "NULL");
+                } else {
+                    string_arena_add_string(sa, "__dague_object->super.arenas[DAGUE_%s_%s_ARENA]",
+                                            jdf_basename, dl->dep->datatype_name);
+                }
                 coutput("#if defined(DISTRIBUTED)\n"
-                        "  arena = __dague_object->super.arenas[DAGUE_%s_%s_ARENA];\n"
-                        "#endif  /* defined(DISTRIBUTED) */\n",
-                        jdf_basename, dl->dep->datatype_name);
+                        "  arena = %s;\n"
+                        "#endif  /* defined(DISTRIBUTED) */\n", string_arena_get_string(sa));
                 string_arena_init(sa);
                 string_arena_add_string(sa, "ontask(eu, &nc, exec_context, %d, %d, rank_src, rank_dst, arena, ontask_arg)",
                                         flownb, depnb);

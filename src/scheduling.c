@@ -52,7 +52,8 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
 
         DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
         for( i = set_parameters = 0; NULL != (param = exec_context->function->in[i]); i++ ) {
-            if( NULL != exec_context->data[param->param_index].data_repo ) {
+            if( (NULL != exec_context->data[param->param_index].data_repo) &&
+                (ACCESS_NONE != param->access_type)) {
                 set_parameters++;
                 assert( NULL != exec_context->data[param->param_index].data );
             }
