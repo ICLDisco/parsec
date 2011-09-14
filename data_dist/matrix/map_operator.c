@@ -235,8 +235,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
 static int release_deps(dague_execution_unit_t *eu,
                         dague_execution_context_t *exec_context,
                         int action_mask,
-                        dague_remote_deps_t *deps,
-                        dague_arena_chunk_t **data)
+                        dague_remote_deps_t *deps)
 {
     dague_execution_context_t* ready_list = NULL;
 
@@ -254,7 +253,7 @@ static int release_deps(dague_execution_unit_t *eu,
     }
 
     assert( NULL == ready_list );
-    (void)deps; (void)data;
+    (void)deps;
     return 1;
 }
 
@@ -297,20 +296,17 @@ static int complete_hook(dague_execution_unit_t *context,
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     (void)k; (void)n; (void)__dague_object;
-    dague_arena_chunk_t *data[2];
 
     TAKE_TIME(context, 2*exec_context->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
     dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
-    data[0] = exec_context->data[0].data;
-    data[1] = exec_context->data[1].data;
     release_deps(context, exec_context,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_REFS |
                   DAGUE_ACTION_DEPS_MASK),
-                 NULL, data);
+                 NULL);
 
     return 0;
 }
