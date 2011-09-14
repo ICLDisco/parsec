@@ -44,3 +44,13 @@
 # define DAGUE_PROF_DRY_DEP
 #endif
 
+#include <stdint.h>
+#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+typedef uint32_t dague_dependency_t;
+#else
+/**
+ * Should be large enough to support MAX_PARAM_COUNT values.
+ */
+typedef uint32_t dague_dependency_t;
+#endif
+ 

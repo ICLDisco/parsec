@@ -940,7 +940,6 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("#include <dague.h>\n"
             "#include <scheduling.h>\n"
-            "#include <assignment.h>\n"
             "#include <remote_dep.h>\n"
             "#if defined(HAVE_PAPI)\n"
             "#include <papime.h>\n"

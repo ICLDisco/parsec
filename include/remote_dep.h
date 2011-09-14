@@ -19,7 +19,7 @@ typedef MPI_Datatype dague_remote_dep_datatype_t;
 typedef void* dague_remote_dep_datatype_t;
 #endif
 
-#include "assignment.h"
+#include "dague_description_structures.h"
 #include "lifo.h"
 #include "execution_unit.h"
 #include "dague.h"

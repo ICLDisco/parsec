@@ -9,23 +9,14 @@
 
 #include "dague_config.h"
 
-#include <stdint.h>
 #include <stddef.h>
 
 #include "debug.h"
 #ifdef HAVE_HWLOC
 #include "dague_hwloc.h"
 #endif
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
-typedef uint32_t dague_dependency_t;
-#else
-/**
- * Should be large enough to support MAX_PARAM_COUNT values.
- */
-typedef uint32_t dague_dependency_t;
-#endif
 
-typedef struct dague_function_t          dague_function_t;
+typedef struct dague_function            dague_function_t;
 typedef struct dague_object              dague_object_t;
 typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
@@ -41,10 +32,7 @@ extern dague_free_data_t     dague_data_free;
 #define MAX_EVENTS 3
 #endif
 
-#include "symbol.h"
-#include "expr.h"
-#include "params.h"
-#include "dep.h"
+#include "dague_description_structures.h"
 #include "execution_unit.h"
 #include "mempool.h"
 #include "arena.h"
@@ -109,7 +97,7 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
 
-struct dague_function_t {
+struct dague_function {
     const char*             name;
     uint16_t                flags;
     uint16_t                function_id;
