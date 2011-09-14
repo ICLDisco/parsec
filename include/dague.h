@@ -80,7 +80,7 @@ struct dague_dependencies_t {
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
-typedef int (dague_release_deps_t)(struct dague_execution_unit*, dague_execution_context_t*, int, struct dague_remote_deps_t *, dague_arena_chunk_t **data);
+typedef int (dague_release_deps_t)(struct dague_execution_unit*, dague_execution_context_t*, int, struct dague_remote_deps_t *);
 
 typedef enum  {
     DAGUE_ITERATE_STOP,
@@ -113,9 +113,9 @@ struct dague_t {
     const char*             name;
     uint16_t                flags;
     uint16_t                function_id;
+    uint8_t                 nb_parameters;
+    uint8_t                 nb_definitions;
     dague_dependency_t      dependencies_goal;
-    uint16_t                nb_parameters;
-    uint16_t                nb_definitions;
     const symbol_t*         params[MAX_LOCAL_COUNT];
     const symbol_t*         locals[MAX_LOCAL_COUNT];
     const expr_t*           pred;
@@ -231,7 +231,6 @@ typedef struct {
     data_repo_entry_t *output_entry;
     int action_mask;
     dague_remote_deps_t *deps;
-    dague_arena_chunk_t **data;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;

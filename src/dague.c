@@ -732,7 +732,9 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
 /**
  * Resolve all IN() dependencies for this particular instance of execution.
  */
-static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dague_object, const dague_execution_context_t* exec_context )
+static dague_dependency_t
+dague_check_IN_dependencies( const dague_object_t *dague_object,
+                             const dague_execution_context_t* exec_context )
 {
     const dague_t* function = exec_context->function;
     int i, j, value;
@@ -954,6 +956,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
+    const param_t* target = oldcontext->function->out[param_index];
 
     if( !(arg->action_mask & (1 << param_index)) ) {
 #if defined(DAGUE_DEBUG)
@@ -989,7 +992,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[param_index].type = arena;
-                arg->remote_deps->output[param_index].data = arg->data[param_index];
+                arg->remote_deps->output[param_index].data = oldcontext->data[target->param_index].data;
                 arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[param_index].count++;
                 arg->remote_deps_count++;
@@ -1004,7 +1007,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        arg->output_entry->data[param_index] = arg->data[param_index];
+        arg->output_entry->data[param_index] = oldcontext->data[target->param_index].data;
         arg->output_usage++;
         AREF( arg->output_entry->data[param_index] );
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,

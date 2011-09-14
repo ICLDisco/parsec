@@ -2583,37 +2583,19 @@ static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf
     string_arena_free(sa);
 }
 
-static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const jdf_function_entry_t *f)
+static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const jdf_function_entry_t *flow)
 {
-    string_arena_t *sa;
-    int nboutput = 0;
-    jdf_dataflow_list_t *dl;
-    int di;
-
     (void)jdf;
 
-    sa = string_arena_new(64);
-
-    for(di = 0, dl = f->dataflow; dl != NULL; dl = dl->next, di++) {
-        if( jdf_dataflow_type(dl->flow) & JDF_DEP_TYPE_OUT ) {
-            string_arena_add_string(sa, "    data[%d] = exec_context->data[%d].data;\n", nboutput, di);
-            nboutput++;
-        }
-    }
-
     coutput("  {\n"
-            "    dague_arena_chunk_t *data[%d];\n"
-            "%s"
             "    release_deps_of_%s_%s(context, exec_context,\n"
             "        DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
             "        DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
             "        DAGUE_ACTION_RELEASE_LOCAL_REFS |\n"
             "        DAGUE_ACTION_DEPS_MASK,\n"
-            "        NULL, data);\n"
+            "        NULL);\n"
             "  }\n",
-            nboutput, string_arena_get_string(sa), jdf_basename, f->fname);
-
-    string_arena_free(sa);
+            jdf_basename, flow->fname);
 }
 
 static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found )
@@ -2857,7 +2839,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     ai.holder = "context->locals";
     ai.expr = NULL;
 
-    coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, int action_mask, dague_remote_deps_t *deps, dague_arena_chunk_t **data)\n"
+    coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, int action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
@@ -2866,7 +2848,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
-            "  arg.data = data;\n"
             "  arg.ready_list = NULL;\n"
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename,
