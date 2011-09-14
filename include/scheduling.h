@@ -71,7 +71,6 @@ int dague_wait( dague_context_t* );
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int dague_schedule( dague_context_t*, const dague_execution_context_t* );
 int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
 int dague_progress(dague_context_t* context);
@@ -79,29 +78,18 @@ void* __dague_progress(dague_execution_unit_t* eu_context);
 
 void dague_register_nb_tasks(dague_context_t* context, int32_t n);
 
-
-
-//#ifdef DEPRECATED
 /**
  * Signal the termination of the execution context to all dependencies of 
  * its dependencies.  
  * 
- * @param [IN]  The exeuction context of the finished task.
- * @param [IN]  when forward_remote is 0, only local (in the sense of the 
- *              process grid predicates) dependencies are satisfied.
+ * @param [IN]  The execution context of the finished task.
+ * @param [IN]  The task to be completed
  *
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong. 
  */
-int dague_trigger_dependencies( const struct dague_object *dague_object,
-                                dague_execution_unit_t*,
-                                const dague_execution_context_t*,
-                                int forward_remote );
-
 int dague_complete_execution( dague_execution_unit_t *eu_context,
                               dague_execution_context_t *exec_context );
-
-//#endif /* DEPRECATED */
 
 #endif  /* _DAGUE_scheduling_h */
 

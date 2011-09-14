@@ -71,32 +71,6 @@ static inline void done_task(dague_context_t* context)
     dague_atomic_dec_32b( &(context->taskstodo) );
 }
 
-/**
- * Schedule the instance of the service based on the values of the
- * local variables stored in the execution context, by calling the
- * attached hook if any. At the end of the execution the dependencies
- * are released.
- */
-int dague_schedule( dague_context_t* context, const dague_execution_context_t* exec_context )
-{
-    dague_execution_context_t* new_context;
-    dague_execution_unit_t* eu_context;
-    dague_thread_mempool_t *mpool;
-
-    eu_context = context->execution_units[0];
-
-    new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
-    mpool = new_context->mempool_owner;
-    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
-    memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
-    new_context->mempool_owner = mpool;
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-    new_context->data[1] = NULL;
-#endif
-    DAGUE_LIST_ITEM_SINGLETON( new_context );
-    return __dague_schedule( eu_context, new_context);
-}
-
 int __dague_schedule( dague_execution_unit_t* eu_context,
                       dague_execution_context_t* new_context )
 {
