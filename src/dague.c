@@ -919,7 +919,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_SCHED_CACHE_AWARE)
             new_context->data[0].gc_data = NULL;
 #endif
-
+            /* TODO: change this to the real number of input dependencies */
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
+            assert( dest_param->param_index <= MAX_PARAM_COUNT );
+            /**
+             * Save the data_repo and the pointer to the data for later use. This will prevent the
+             * engine from atomically locking the hash table for at least one of the parameter
+             * for each execution context.
+             */
+            new_context->data[(int)dest_param->param_index].data_repo = dest_repo_entry;
+            new_context->data[(int)dest_param->param_index].data      = origin->data[(int)origin_param->param_index].data;
             dague_list_add_single_elem_by_priority( pready_list, new_context );
         }
 

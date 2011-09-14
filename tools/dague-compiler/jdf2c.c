@@ -1528,6 +1528,14 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     } else {
         coutput("%s  new_context->priority = 0;\n", indent(nesting));
     }
+    {
+        struct jdf_dataflow_list *dataflow = f->dataflow;
+        for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
+            coutput("  new_context->data[%d].data_repo = NULL;\n"
+                    "  new_context->data[%d].data      = NULL;\n",
+                    idx, idx);
+        }
+    }
     coutput("#if defined(DAGUE_DEBUG)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
@@ -2384,7 +2392,8 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
 
 static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                                                   const char *fname,
-                                                  const jdf_dataflow_t *f)
+                                                  const jdf_dataflow_t *flow,
+                                                  uint32_t flow_index)
 {
     jdf_dep_list_t *dl;
     expr_info_t info;
@@ -2392,12 +2401,23 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     int cond_index = 0;
     char* condition[] = {"  if( %s ) {\n", "  else if( %s ) {\n"};
 
+    if( JDF_VAR_TYPE_CTL == flow->access_type ) {
+        coutput("  exec_context->data[%d].data = NULL;\n"
+                "  exec_context->data[%d].data_repo = NULL;\n", flow_index, flow_index);
+        return;
+    }
+    coutput( "  e%s = exec_context->data[%d].data_repo;\n"
+             "  g%s = exec_context->data[%d].data;\n"
+             "  if( NULL == g%s ) {\n",
+             flow->varname, flow_index,
+             flow->varname, flow_index,
+             flow->varname);
     sa = string_arena_new(64);
     info.sa = sa;
     info.prefix = "";
     info.assignments = "exec_context->locals";
 
-    for(dl = f->deps; dl != NULL; dl = dl->next) {
+    for(dl = flow->deps; dl != NULL; dl = dl->next) {
         if( dl->dep->type == JDF_DEP_TYPE_OUT )
             /** No initialization for output-only flows */
             continue;
@@ -2405,29 +2425,36 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         switch( dl->dep->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
             if( 0 != cond_index ) coutput("  else {\n");
-            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f,
+            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, flow->lineno, fname, flow,
                                                    (0 != cond_index ? "  " : "") );
             if( 0 != cond_index ) coutput("  }\n");
             goto done_with_input;
         case JDF_GUARD_BINARY:
             coutput( (0 == cond_index ? condition[0] : condition[1]),
                      dump_expr((void**)&dl->dep->guard->guard, &info));
-            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "  " );
+            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, flow->lineno, fname, flow, "  " );
             coutput("  }\n");
             cond_index++;
             break;
         case JDF_GUARD_TERNARY:
             coutput( (0 == cond_index ? condition[0] : condition[1]),
                      dump_expr((void**)&dl->dep->guard->guard, &info));
-            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, f->lineno, fname, f, "  " );
+            jdf_generate_code_call_initialization( jdf, dl->dep->guard->calltrue, flow->lineno, fname, flow, "  " );
             coutput("  } else {\n");
-            jdf_generate_code_call_initialization( jdf, dl->dep->guard->callfalse, f->lineno, fname, f, "  " );
+            jdf_generate_code_call_initialization( jdf, dl->dep->guard->callfalse, flow->lineno, fname, flow, "  " );
             coutput("  }\n");
             goto done_with_input;
         }
     }
 
  done_with_input:
+    coutput("    exec_context->data[%d].data = g%s;\n"
+            "    exec_context->data[%d].data_repo = e%s;\n"
+            "  }\n"
+            "  %s = ADATA(g%s);\n",
+            flow_index, flow->varname,
+            flow_index, flow->varname,
+            flow->varname, flow->varname);
     string_arena_free(sa);
 }
 
@@ -2583,7 +2610,7 @@ static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf
     string_arena_free(sa);
 }
 
-static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const jdf_function_entry_t *flow)
+static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const jdf_function_entry_t *function)
 {
     (void)jdf;
 
@@ -2595,7 +2622,7 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf, const 
             "        DAGUE_ACTION_DEPS_MASK,\n"
             "        NULL);\n"
             "  }\n",
-            jdf_basename, flow->fname);
+            jdf_basename, function->fname);
 }
 
 static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found )
@@ -2651,26 +2678,17 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
     coutput("  /** Lookup the input data, and store them in the context */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
-        if(fl->flow->access_type == JDF_VAR_TYPE_CTL) 
-        {
-            coutput("  exec_context->data[%d].data = NULL;\n"
-                    "  exec_context->data[%d].data_repo = NULL;\n", di, di);
-            continue;
-        }
-        jdf_generate_code_flow_initialization(jdf, f->fname, fl->flow);
-        coutput("  exec_context->data[%d].data = g%s;\n"
-                "  exec_context->data[%d].data_repo = e%s;\n"
-                "  %s = ADATA(g%s);\n",
-                di, fl->flow->varname,
-                di, fl->flow->varname,
-                fl->flow->varname, fl->flow->varname);
-        coutput("#if defined(DAGUE_SIM)\n"
-                "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                "    __dague_simulation_date =  e%s->sim_exec_date;\n"
-                "#endif\n",
-                fl->flow->varname,
-                fl->flow->varname,
-                fl->flow->varname);
+
+        jdf_generate_code_flow_initialization(jdf, f->fname, fl->flow, di);
+
+        if(fl->flow->access_type != JDF_VAR_TYPE_CTL) 
+            coutput("#if defined(DAGUE_SIM)\n"
+                    "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
+                    "    __dague_simulation_date =  e%s->sim_exec_date;\n"
+                    "#endif\n",
+                    fl->flow->varname,
+                    fl->flow->varname,
+                    fl->flow->varname);
     }
     coutput("#if defined(DAGUE_SIM)\n"
             "  if( exec_context->function->sim_cost_fct != NULL ) {\n"
