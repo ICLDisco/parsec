@@ -1178,7 +1178,7 @@ static void jdf_generate_dependency( const jdf_t *jdf, const char* datatype_name
 
     if( call->var != NULL ) {
             string_arena_add_string(sa, 
-                                    "  .param = &param_of_%s_%s_for_%s,\n",
+                                    "  .flow = &flow_of_%s_%s_for_%s,\n",
                                     jdf_basename, call->func_or_mem, call->var);
     }
     string_arena_add_string(sa, 
@@ -1303,11 +1303,11 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     }
 
     string_arena_add_string(sa, 
-                            "static const param_t %s%s = {\n"
+                            "static const dague_flow_t %s%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .sym_type = %s,\n"
                             "  .access_type = %s,\n"
-                            "  .param_index = %u,\n"
+                            "  .flow_index = %u,\n"
                             "  .dep_in  = { %s },\n"
                             "  .dep_out = { %s }\n"
                             "};\n\n", 
@@ -1915,11 +1915,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
         string_arena_add_string(sa, "  .priority = NULL,\n");
     }
 
-    sprintf(prefix, "param_of_%s_%s_for_", jdf_basename, f->fname);
+    sprintf(prefix, "flow_of_%s_%s_for_", jdf_basename, f->fname);
     for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
         jdf_generate_dataflow(jdf, f->definitions, fl->flow, prefix, (uint32_t)i);
     }
-    sprintf(prefix, "&param_of_%s_%s_for_", jdf_basename, f->fname);
+    sprintf(prefix, "&flow_of_%s_%s_for_", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .in = { %s },\n",
                             UTIL_DUMP_LIST_FIELD(sa2, f->dataflow, next, flow, dump_dataflow, "IN",
                                                  "", prefix, ", ", ""));
@@ -2052,17 +2052,17 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
                 if( (dl->dep->guard->guard_type == JDF_GUARD_UNCONDITIONAL) ||
                     (dl->dep->guard->guard_type == JDF_GUARD_BINARY) ) {
                     if( dl->dep->guard->calltrue->var != NULL ) {
-                        coutput("static const param_t param_of_%s_%s_for_%s;\n", 
+                        coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
                                 jdf_basename, dl->dep->guard->calltrue->func_or_mem, dl->dep->guard->calltrue->var);
                     } 
                 } else {
                     /* dl->dep->guard->guard_type == JDF_GUARD_TERNARY */
                     if( dl->dep->guard->calltrue->var != NULL ) {
-                        coutput("static const param_t param_of_%s_%s_for_%s;\n", 
+                        coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
                                 jdf_basename, dl->dep->guard->calltrue->func_or_mem, dl->dep->guard->calltrue->var);
                     } 
                     if( dl->dep->guard->callfalse->var != NULL ) {
-                        coutput("static const param_t param_of_%s_%s_for_%s;\n", 
+                        coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
                                 jdf_basename, dl->dep->guard->callfalse->func_or_mem, dl->dep->guard->callfalse->var);
                     }
                 }

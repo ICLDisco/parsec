@@ -738,7 +738,7 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
 {
     const dague_function_t* function = exec_context->function;
     int i, j, value, active;
-    const param_t* param;
+    const dague_flow_t* flow;
     const dep_t* dep;
     dague_dependency_t ret = 0;
 
@@ -747,15 +747,15 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
     }
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
-        param = function->in[i];
+        flow = function->in[i];
         /* this param has no dependency condition satisfied */
 #if defined(DAGUE_SCHED_DEPS_MASK)
-        active = (1 << param->param_index);
+        active = (1 << flow->flow_index);
 #else
         active = 1;
 #endif
-        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
-            dep = param->dep_in[j];
+        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+            dep = flow->dep_in[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
                 assert( dep->cond->op == EXPR_OP_INLINE );
@@ -767,12 +767,12 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
             if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
                 goto dep_resolved;
             }
-            if( ACCESS_NONE == param->access_type ) {
+            if( ACCESS_NONE == flow->access_type ) {
                 active = 0;
                 goto dep_resolved;
             }
         }
-        if( ACCESS_NONE != param->access_type ) {
+        if( ACCESS_NONE != flow->access_type ) {
             active = 0;
         }
     dep_resolved:
@@ -809,9 +809,9 @@ static dague_dependencies_t *find_deps(dague_object_t *dague_object,
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
                                           const dague_execution_context_t* restrict origin,
-                                          const param_t* restrict origin_param,
+                                          const dague_flow_t* restrict origin_flow,
                                           dague_execution_context_t* restrict exec_context,
-                                          const param_t* restrict dest_param,
+                                          const dague_flow_t* restrict dest_flow,
                                           data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list )
 {
@@ -856,19 +856,19 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #else  /* defined(DAGUE_SCHED_DEPS_MASK) */
 
 #   if defined(DAGUE_DEBUG)
-    if( deps->u.dependencies[position] & (1 << dest_param->param_index) ) {
+    if( deps->u.dependencies[position] & (1 << dest_flow->flow_index) ) {
         char tmp2[128];
-        DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
-               dest_param->param_index, dague_service_to_string(origin, tmp, 128), origin_param->name,
+        DEBUG(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
+               dest_flow->flow_index, dague_service_to_string(origin, tmp, 128), origin_flow->name,
                deps->u.dependencies[position],
-               dague_service_to_string(exec_context, tmp2, 128),  dest_param->name ));
+               dague_service_to_string(exec_context, tmp2, 128),  dest_flow->name ));
     }
-    assert( 0 == (deps->u.dependencies[position] & (1 << dest_param->param_index)) );
+    assert( 0 == (deps->u.dependencies[position] & (1 << dest_flow->flow_index)) );
 #   else
-    (void) origin; (void) origin_param;
+    (void) origin; (void) origin_flow;
 #   endif 
 
-    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_param->param_index);
+    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[position]) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
@@ -885,7 +885,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #endif /* defined(DAGUE_SCHED_DEPS_MASK) */
 
-        dague_prof_grapher_dep(origin, exec_context, 1, origin_param, dest_param);
+        dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
 
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
@@ -931,14 +931,14 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #endif
             /* TODO: change this to the real number of input dependencies */
             memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
-            assert( dest_param->param_index <= MAX_PARAM_COUNT );
+            assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
             /**
              * Save the data_repo and the pointer to the data for later use. This will prevent the
-             * engine from atomically locking the hash table for at least one of the parameter
+             * engine from atomically locking the hash table for at least one of the flow
              * for each execution context.
              */
-            new_context->data[(int)dest_param->param_index].data_repo = dest_repo_entry;
-            new_context->data[(int)dest_param->param_index].data      = origin->data[(int)origin_param->param_index].data;
+            new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
+            new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
             dague_list_add_single_elem_by_priority( pready_list, new_context );
         }
 
@@ -946,7 +946,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     } else { /* Service not ready */
 
-        dague_prof_grapher_dep(origin, exec_context, 0, origin_param, dest_param);
+        dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
 
 #if defined(DAGUE_SCHED_DEPS_MASK)
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
@@ -963,25 +963,25 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     return 0;
 }
 
-#define is_inplace(ctx,param,dep) NULL
-#define is_read_only(ctx,param,dep) NULL
+#define is_inplace(ctx,flow,dep) NULL
+#define is_read_only(ctx,flow,dep) NULL
 
 dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
-                                             int param_index, int outdep_index, 
+                                             int flow_index, int outdep_index, 
                                              int src_rank, int dst_rank,
                                              dague_arena_t* arena,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
-    const param_t* target = oldcontext->function->out[param_index];
+    const dague_flow_t* target = oldcontext->function->out[flow_index];
 
-    if( !(arg->action_mask & (1 << param_index)) ) {
+    if( !(arg->action_mask & (1 << flow_index)) ) {
 #if defined(DAGUE_DEBUG)
         char tmp[128];
-        DEBUG(("On task %s param_index %d not on the action_mask %x\n",
-               dague_service_to_string(oldcontext, tmp, 128), param_index, arg->action_mask));
+        DEBUG(("On task %s flow_index %d not on the action_mask %x\n",
+               dague_service_to_string(oldcontext, tmp, 128), flow_index, arg->action_mask));
 #endif
         return DAGUE_ITERATE_CONTINUE;
     }
@@ -991,15 +991,15 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
             void* data;
 
-            data = is_read_only(oldcontext, param_index, outdep_index);
+            data = is_read_only(oldcontext, flow_index, outdep_index);
             if(NULL != data) {
-                arg->deps->msg.which &= ~(1 << param_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->msg.which &= ~(1 << flow_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.which |= (1 << param_index); /* mark all data that are not RO */
-                data = is_inplace(oldcontext, param_index, outdep_index);  /* Can we do it inplace */
+                arg->deps->msg.which |= (1 << flow_index); /* mark all data that are not RO */
+                data = is_inplace(oldcontext, flow_index, outdep_index);  /* Can we do it inplace */
             }
-            arg->deps->output[param_index].data = data; /* if still NULL allocate it */
-            arg->deps->output[param_index].type = arena;
+            arg->deps->output[flow_index].data = data; /* if still NULL allocate it */
+            arg->deps->output[flow_index].type = arena;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -1009,11 +1009,11 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             arg->remote_deps->root = src_rank;
-            if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[param_index].type = arena;
-                arg->remote_deps->output[param_index].data = oldcontext->data[target->param_index].data;
-                arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[param_index].count++;
+            if( !(arg->remote_deps->output[flow_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[flow_index].type = arena;
+                arg->remote_deps->output[flow_index].data = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[flow_index].rank_bits[_array_pos] |= _array_mask;
+                arg->remote_deps->output[flow_index].count++;
                 arg->remote_deps_count++;
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
@@ -1026,14 +1026,14 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        arg->output_entry->data[param_index] = oldcontext->data[target->param_index].data;
+        arg->output_entry->data[flow_index] = oldcontext->data[target->flow_index].data;
         arg->output_usage++;
-        AREF( arg->output_entry->data[param_index] );
+        AREF( arg->output_entry->data[flow_index] );
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,
-                                                                 oldcontext->function->out[param_index],
+                                                                 oldcontext->function->out[flow_index],
                                                                  newcontext,
-                                                                 oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
+                                                                 oldcontext->function->out[flow_index]->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
                                                                  &arg->ready_list);
     }

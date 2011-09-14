@@ -78,7 +78,7 @@ typedef enum  {
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu, 
                                                          dague_execution_context_t *newcontext, 
                                                          dague_execution_context_t *oldcontext, 
-                                                         int param_index, int outdep_index, 
+                                                         int flow_index, int outdep_index, 
                                                          int rank_src, int rank_dst,
                                                          dague_arena_t* arena,
                                                          void *param);
@@ -107,8 +107,8 @@ struct dague_function {
     const symbol_t*         params[MAX_LOCAL_COUNT];
     const symbol_t*         locals[MAX_LOCAL_COUNT];
     const expr_t*           pred;
-    const param_t*          in[MAX_PARAM_COUNT];
-    const param_t*          out[MAX_PARAM_COUNT];
+    const dague_flow_t*     in[MAX_PARAM_COUNT];
+    const dague_flow_t*     out[MAX_PARAM_COUNT];
     const expr_t*           priority;
     int                     deps;                  /**< This is the index of the dependency array in the __DAGUE_object_t */
 #if defined(DAGUE_SIM)
@@ -195,9 +195,9 @@ void dague_destruct_dependencies(dague_dependencies_t* d);
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
                                           const dague_execution_context_t* restrict origin,
-                                          const param_t* restrict origin_param,
+                                          const dague_flow_t* restrict origin_flow,
                                           dague_execution_context_t* restrict exec_context,
-                                          const param_t* restrict dest_param,
+                                          const dague_flow_t* restrict dest_flow,
                                           data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
 
@@ -229,7 +229,7 @@ typedef struct {
 dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
-                                             int param_index, int outdep_index, 
+                                             int flow_index, int outdep_index, 
                                              int rank_src, int rank_dst,
                                              dague_arena_t* arena,
                                              void *param);

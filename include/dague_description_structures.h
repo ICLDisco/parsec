@@ -11,7 +11,7 @@
 
 typedef struct assignment assignment_t;
 typedef struct expr expr_t;
-typedef struct param param_t;
+typedef struct dague_flow dague_flow_t;
 typedef struct dep dep_t;
 typedef struct symbol symbol_t;
 
@@ -49,7 +49,7 @@ struct expr {
 #define inline_func u_expr.inline_func
  
 /**
- * Parameters
+ * Flows (data or control)
  */
 /**< Remark: (sym_type == SYM_INOUT) if (sym_type & SYM_IN) && (sym_type & SYM_OUT) */
 #define SYM_IN     0x01
@@ -64,11 +64,11 @@ struct expr {
 #define MAX_DEP_IN_COUNT  10
 #define MAX_DEP_OUT_COUNT 10
   
-struct param {
+struct dague_flow {
     char               *name;
     unsigned char       sym_type;
     unsigned char       access_type;
-    dague_dependency_t  param_index;
+    dague_dependency_t  flow_index;
     const dep_t        *dep_in[MAX_DEP_IN_COUNT];
     const dep_t        *dep_out[MAX_DEP_OUT_COUNT];
 };
@@ -82,7 +82,7 @@ struct dep {
     const expr_t                *cond;
     const struct dague_function *dague;
     const expr_t                *call_params[MAX_CALL_PARAM_COUNT];
-    const param_t               *param;
+    const dague_flow_t          *flow;
     int                          datatype_index;
 };
   
