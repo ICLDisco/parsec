@@ -1167,6 +1167,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
     
     qrpiv->a = a;
     qrpiv->p = p;
+    qrpiv->domino = 1;
     (void)type_hlvl;
 
     qrpiv->llvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
