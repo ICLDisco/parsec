@@ -172,7 +172,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               dague_remote_deps_t* remote_deps,
                               uint32_t remote_deps_count )
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     int i, me, him, current_mask;
     unsigned int array_index, count, bit_index;
     

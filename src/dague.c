@@ -109,10 +109,10 @@ static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
 
-const dague_t* dague_find(const dague_object_t *dague_object, const char *fname)
+const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
     unsigned int i;
-    const dague_t* object;
+    const dague_function_t* object;
 
     for( i = 0; i < dague_object->nb_functions; i++ ) {
         object = dague_object->functions_array[i];
@@ -713,7 +713,7 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                  char* tmp,
                                  size_t length )
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
 
     index += snprintf( tmp + index, length - index, "%s", function->name );
@@ -736,7 +736,7 @@ static dague_dependency_t
 dague_check_IN_dependencies( const dague_object_t *dague_object,
                              const dague_execution_context_t* exec_context )
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     int i, j, value;
     const param_t* param;
     const dep_t* dep;
@@ -805,7 +805,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list )
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     dague_dependencies_t *deps;
     int position;
     dague_dependency_t dep_new_value, dep_cur_value;

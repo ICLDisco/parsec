@@ -103,7 +103,7 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
 
 static char *service_to_taskid(const dague_execution_context_t *exec_context, char *tmp, int length)
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
 
     index += snprintf( tmp + index, length - index, "%s", function->name );

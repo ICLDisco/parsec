@@ -1519,7 +1519,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting));
     coutput("%s  new_context->dague_object = (dague_object_t*)__dague_object;\n"
-            "%s  new_context->function = (const dague_t*)&%s_%s;\n",
+            "%s  new_context->function = (const dague_function_t*)&%s_%s;\n",
             indent(nesting),
             indent(nesting), jdf_basename, f->fname);
     if( NULL != f->priority ) {
@@ -1861,7 +1861,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
     jdf_coutput_prettycomment('*', "%s", f->fname);
     
     string_arena_add_string(sa, 
-                            "static const dague_t %s_%s = {\n"
+                            "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .deps = %d,\n"
                             "  .flags = %s%s,\n"
@@ -1975,7 +1975,7 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     int i;
 
     sa = string_arena_new(64);
-    string_arena_add_string(sa, "static const dague_t *%s_functions[] = {\n",
+    string_arena_add_string(sa, "static const dague_function_t *%s_functions[] = {\n",
                             jdf_basename);
     for(i = 0, f = jdf->functions; NULL != f; f = f->next, i++) {
         jdf_generate_one_function(jdf, f, i);
@@ -1994,7 +1994,7 @@ static char *dump_pseudodague(void **elem, void *arg)
     char *name = *(char**)elem;
     string_arena_init(sa);
     string_arena_add_string(sa,
-                            "static const dague_t %s_%s = {\n"
+                            "static const dague_function_t %s_%s = {\n"
                             "  .name = \"%s\",\n"
                             "  .flags = 0x0,\n"
                             "  .dependencies_goal = 0x0,\n"
@@ -2027,15 +2027,15 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    coutput("/** Predeclarations of the dague_t objects */\n");
+    coutput("/** Predeclarations of the dague_function_t objects */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        coutput("static const dague_t %s_%s;\n", jdf_basename, f->fname);
+        coutput("static const dague_function_t %s_%s;\n", jdf_basename, f->fname);
         if( NULL != f->priority ) {
             coutput("static inline int priority_of_%s_%s_as_expr_fct(const dague_object_t *__dague_object_parent, const assignment_t *assignments);\n", 
                     jdf_basename, f->fname);
         }
     }
-    coutput("/** Declarations of the pseudo-dague_t objects for data */\n"
+    coutput("/** Declarations of the pseudo-dague_function_t objects for data */\n"
             "%s\n",
             UTIL_DUMP_LIST_FIELD(sa2, jdf->data, next, dname,
                                  dump_pseudodague, sa, "", "", "", ""));
@@ -2160,12 +2160,12 @@ static void jdf_generate_constructor( const jdf_t* jdf )
                                   dump_string, NULL, "", "  int ", "_nblocal_tasks;\n", "_nblocal_tasks;\n") );
 
     coutput("  _res->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
-    coutput("  _res->super.super.functions_array = (const dague_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
+    coutput("  _res->super.super.functions_array = (const dague_function_t**)malloc(DAGUE_%s_NB_FUNCTIONS * sizeof(dague_function_t*));\n",
             jdf_basename);
     coutput("  _res->super.super.dependencies_array = (dague_dependencies_t **)\n"
             "              calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",
             jdf_basename);
-    coutput("  memcpy(_res->super.super.functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_t*));\n",
+    coutput("  memcpy(_res->super.super.functions_array, %s_functions, DAGUE_%s_NB_FUNCTIONS * sizeof(dague_function_t*));\n",
             jdf_basename, jdf_basename);
     {
         struct jdf_name_list* g;
@@ -2970,7 +2970,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     nbopen = 0;
 
-    string_arena_add_string(sa_open, "%s%s%s.function = (const dague_t*)&%s_%s;\n",
+    string_arena_add_string(sa_open, "%s%s%s.function = (const dague_function_t*)&%s_%s;\n",
                             prefix, indent(nbopen), var, jdf_basename, targetf->fname);
     for(el = call->parameters, nl = targetf->parameters, i = 0, def = targetf->definitions; 
         el != NULL && nl != NULL; 

@@ -119,7 +119,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 {
     unsigned int i, index = 0;
     dague_object_t* object;
-    const dague_t* function;
+    const dague_function_t* function;
     
     object = dague_object_lookup( origin->object_id );
     function = object->functions_array[origin->function_id];

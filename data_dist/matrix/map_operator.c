@@ -37,7 +37,7 @@ typedef struct __dague_map_operator_object {
 } __dague_map_operator_object_t;
 
 static const param_t param_of_map_operator;
-static const dague_t dague_map_operator;
+static const dague_function_t dague_map_operator;
 
 #define src(k,n)  (((dague_ddesc_t*)__dague_object->super.src)->data_of((dague_ddesc_t*)__dague_object->super.src, (k), (n)))
 #define dest(k,n)  (((dague_ddesc_t*)__dague_object->super.dest)->data_of((dague_ddesc_t*)__dague_object->super.dest, (k), (n)))
@@ -311,7 +311,7 @@ static int complete_hook(dague_execution_unit_t *context,
     return 0;
 }
 
-static const dague_t dague_map_operator = {
+static const dague_function_t dague_map_operator = {
     .name = "map_operator",
     .deps = 0,
     .flags = 0x0,

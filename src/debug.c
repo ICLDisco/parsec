@@ -85,8 +85,8 @@ int vasprintf(char **ptr, const char *fmt, va_list ap)
 #if defined(DAGUE_DEBUG_HISTORY)
 
 typedef struct {
-    const dague_t *function;
-    assignment_t locals[MAX_LOCAL_COUNT];
+    const dague_function_t *function;
+    assignment_t            locals[MAX_LOCAL_COUNT];
 } execution_mark_t;
 
 #define TYPE_SEND_ACTIVATE        1
@@ -253,7 +253,7 @@ void debug_mark_display_history(void)
     mark_t  *m;
     char msg[512];
     int pos, len = 512;
-    const dague_t *f;
+    const dague_function_t *f;
     const dague_object_t* object;
 
     current_mark = current_mark > MAX_MARKS ? MAX_MARKS : current_mark;

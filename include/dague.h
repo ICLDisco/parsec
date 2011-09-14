@@ -25,7 +25,7 @@ typedef uint32_t dague_dependency_t;
 typedef uint32_t dague_dependency_t;
 #endif
 
-typedef struct dague_t                   dague_t;
+typedef struct dague_function_t          dague_function_t;
 typedef struct dague_object              dague_object_t;
 typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
@@ -109,7 +109,7 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
 
-struct dague_t {
+struct dague_function_t {
     const char*             name;
     uint16_t                flags;
     uint16_t                function_id;
@@ -151,13 +151,13 @@ struct dague_data_pair_t {
  * not the data pairs. We need this in order to be able to only copy the minimal
  * amount of information when a new task is constructed.
  */
-#define DAGUE_MINIMAL_EXECUTION_CONTEXT                 \
-    dague_list_item_t       list_item;                  \
-    dague_thread_mempool_t *mempool_owner;              \
-    dague_object_t         *dague_object;               \
-    const  dague_t         *function;                   \
-    int32_t                 priority;                   \
-    assignment_t            locals[MAX_LOCAL_COUNT];
+#define DAGUE_MINIMAL_EXECUTION_CONTEXT                  \
+    dague_list_item_t        list_item;                  \
+    dague_thread_mempool_t  *mempool_owner;              \
+    dague_object_t          *dague_object;               \
+    const  dague_function_t *function;                   \
+    int32_t                  priority;                   \
+    assignment_t             locals[MAX_LOCAL_COUNT];
 
 struct dague_minimal_execution_context_t {
     DAGUE_MINIMAL_EXECUTION_CONTEXT
@@ -187,7 +187,7 @@ struct dague_object {
     uint32_t                   nb_local_tasks;
     uint32_t                   nb_functions;
     dague_startup_fn_t         startup_hook;
-    const dague_t**            functions_array;
+    const dague_function_t**   functions_array;
 #if defined(DAGUE_PROF_TRACE)
     const int*                 profiling_array;
 #endif  /* defined(DAGUE_PROF_TRACE) */
@@ -213,7 +213,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
 
-const dague_t* dague_find(const dague_object_t *dague_object, const char *fname);
+const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname);
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 int dague_fini( dague_context_t** pcontext );
 int dague_enqueue( dague_context_t* context, dague_object_t* object);
