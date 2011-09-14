@@ -47,7 +47,7 @@
  *                                    |     |_____   
  *                                    |           |_____
  *                                    |                 |_____
- *        lhlvl_mt = ceil(MT/ (a*p))  |                       |_____
+ *        llvl_mt = ceil(MT/ (a*p))   |                       |_____
  *                                    |                             |_____
  *                                    |___________________________________|
  *
@@ -117,10 +117,10 @@ void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
 /*
  * Subtree for low-level
  */
-static void dplasma_low_flat_init(     qr_subpiv_t *arg, const int mt, const int a);
-static void dplasma_low_greedy_init(   qr_subpiv_t *arg, const int mt, const int minMN, const int a);
-static void dplasma_low_binary_init(   qr_subpiv_t *arg, const int mt, const int a);
-static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, const int mt, const int minMN, const int a);
+static void dplasma_low_flat_init(     qr_subpiv_t *arg);
+static void dplasma_low_greedy_init(   qr_subpiv_t *arg, const int minMN);
+static void dplasma_low_binary_init(   qr_subpiv_t *arg);
+static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, const int minMN);
 
 
 /****************************************************
@@ -289,11 +289,20 @@ static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const i
     if ( start <= p )
         return arg->ldd;
 
-    if ( p == (k/arg->a) && ( arg->ldd - k/arg->a ) > 1 ) {
-        if ( start == arg->ldd )
-            return p+1;
-        else if ( start < arg->ldd )
-            return start+1;
+    if ( arg->domino ) {
+      if ( p == (k/arg->a) && ( arg->ldd - k/arg->a ) > 1 ) {
+          if ( start == arg->ldd )
+              return p+1;
+          else if ( start < arg->ldd )
+              return start+1;
+      }
+    } else {
+        if ( (k <= p)  && (p < k + arg->p ) && ( arg->ldd - k/arg->a ) > 1 ) {
+          if ( start == arg->ldd )
+              return p+1;
+          else if ( start < arg->ldd )
+              return start+1;
+      }
     }
 #endif
     return arg->ldd;
@@ -316,13 +325,11 @@ static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const i
     return arg->ldd;
 };
 
-static void dplasma_low_flat_init(qr_subpiv_t *arg, int mt, int a){
+static void dplasma_low_flat_init(qr_subpiv_t *arg){
     arg->currpiv = dplasma_low_flat_currpiv;
     arg->nextpiv = dplasma_low_flat_nextpiv;
     arg->prevpiv = dplasma_low_flat_prevpiv;
     arg->ipiv = NULL;
-    arg->ldd  = mt;
-    arg->a    = a;
 };
 
 /****************************************************
@@ -399,13 +406,11 @@ static int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const
     }
 };
 
-static void dplasma_low_binary_init(qr_subpiv_t *arg, int mt, int a){
+static void dplasma_low_binary_init(qr_subpiv_t *arg){
     arg->currpiv = dplasma_low_binary_currpiv;
     arg->nextpiv = dplasma_low_binary_nextpiv;
     arg->prevpiv = dplasma_low_binary_prevpiv;
     arg->ipiv = NULL;
-    arg->ldd  = mt;
-    arg->a    = a;
 };
 
 /****************************************************
@@ -434,15 +439,20 @@ inline static int dplasma_low_fibonacci_nextpiv( const qr_subpiv_t *qrpiv, const
     return (qrpiv->ldd);
 }
 
-static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int mt, int minMN, int a){
+static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int minMN){
     int *ipiv;
+    int mt, a, p, domino;
 
     arg->currpiv = dplasma_low_fibonacci_currpiv;
     arg->nextpiv = dplasma_low_fibonacci_nextpiv;
     arg->prevpiv = dplasma_low_fibonacci_prevpiv;
+    
+    mt = arg->ldd;
+    a = arg->a;
+    p = arg->p;
+    domino = arg->domino;
+
     arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
-    arg->ldd  = mt;
-    arg->a    = a;
     ipiv = arg->ipiv;
     memset(ipiv, 0, mt*minMN*sizeof(int));
    
@@ -496,16 +506,21 @@ inline static int dplasma_low_greedy_nextpiv( const qr_subpiv_t *qrpiv, const in
     return (qrpiv->ldd);
 }
 
-static void dplasma_low_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
+static void dplasma_low_greedy_init(qr_subpiv_t *arg, int minMN){
     int *ipiv;
+    int mt, a, p, domino;
     
-    minMN = min( minMN, mt*a );
     arg->currpiv = dplasma_low_greedy_currpiv;
     arg->nextpiv = dplasma_low_greedy_nextpiv;
     arg->prevpiv = dplasma_low_greedy_prevpiv;
+
+    mt = arg->ldd;
+    a = arg->a;
+    p = arg->p;
+    domino = arg->domino;
+
+    minMN = min( minMN, mt*a );
     arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
-    arg->ldd  = mt;
-    arg->a    = a;
     ipiv = arg->ipiv;
     memset(ipiv, 0, mt*minMN*sizeof(int));
   
@@ -598,13 +613,11 @@ static int dplasma_high_flat_prevpiv(const qr_subpiv_t *arg, const int p, const 
     return arg->ldd;
 };
 
-static void dplasma_high_flat_init(qr_subpiv_t *arg, int mt, int a){
+static void dplasma_high_flat_init(qr_subpiv_t *arg){
     arg->currpiv = dplasma_high_flat_currpiv;
     arg->nextpiv = dplasma_high_flat_nextpiv;
     arg->prevpiv = dplasma_high_flat_prevpiv;
     arg->ipiv = NULL;
-    arg->ldd  = mt;
-    arg->a    = a;
 };
 
 /****************************************************
@@ -636,15 +649,20 @@ static int dplasma_high_greedy_prevpiv(const qr_subpiv_t *arg, const int p, cons
     return arg->ldd;
 };
 
-static void dplasma_high_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a){
+static void dplasma_high_greedy_init(qr_subpiv_t *arg, int minMN){
     int *ipiv;
+    int mt, a, p, domino;
 
     arg->currpiv = dplasma_high_greedy_currpiv;
     arg->nextpiv = dplasma_high_greedy_nextpiv;
     arg->prevpiv = dplasma_high_greedy_prevpiv;
+
+    mt = arg->ldd;
+    a = arg->a;
+    p = arg->p;
+    domino = arg->domino;
+
     arg->ipiv = (int*)malloc( a * minMN * sizeof(int) );
-    arg->ldd  = mt;
-    arg->a    = a;
     ipiv = arg->ipiv;
     memset(ipiv, 0, a*minMN*sizeof(int));
   
@@ -699,7 +717,7 @@ static void dplasma_high_greedy_init(qr_subpiv_t *arg, int mt, int minMN, int a)
 /****************************************************
  *       DPLASMA_LOW_TREE / DPLASMA_HIGH_TREE
  ***************************************************/
-static int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
+int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
 { 
     int tmp;
     int a    = arg->a;
@@ -729,7 +747,7 @@ static int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         }
 };
 
-static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
+int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
 { 
     int tmp, ls, lp, nextp;
     int a    = arg->a;
@@ -844,7 +862,7 @@ static int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k,
         }
 }
 
-static int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
+int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
 { 
     int tmp, ls, lp, nextp;
     int a = arg->a;
@@ -1033,7 +1051,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
             for(m=k; m<A->mt; m++) {
                 nb = 0;
                 for(s=A->mt; s>k; s--) {
-                    if ( qrpiv->nextpiv(qrpiv, m, k, s) == A->mt )
+                    if ( dplasma_qr_nextpiv(qrpiv, m, k, s) == A->mt )
                         nb++;
                 }
                 if ( nb > 1 ) {
@@ -1076,7 +1094,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
             for(m=k; m<A->mt; m++) {
                 nb = 0;
                 for(s=k; s<A->mt; s++) {
-                    if ( qrpiv->prevpiv(qrpiv, m, k, s) == A->mt )
+                    if ( dplasma_qr_prevpiv(qrpiv, m, k, s) == A->mt )
                         nb++;
                 }
                 if ( nb > 1 ) {
@@ -1123,11 +1141,11 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
             for(m=k; m<A->mt; m++) {
 
                 do {
-                    next = qrpiv->nextpiv(qrpiv, m, k, start);
+                    next = dplasma_qr_nextpiv(qrpiv, m, k, start);
                     if ( next == A->mt ) 
-                        prev = qrpiv->prevpiv(qrpiv, m, k, m);
+                        prev = dplasma_qr_prevpiv(qrpiv, m, k, m);
                     else 
-                        prev = qrpiv->prevpiv(qrpiv, m, k, next);
+                        prev = dplasma_qr_prevpiv(qrpiv, m, k, next);
                     
                     if ( start != prev ) {
                         dplasma_qr_print_next_k( A, qrpiv, k);
@@ -1157,51 +1175,53 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
 {
     int low_mt, minMN;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
-    qrpiv->currpiv = dplasma_qr_currpiv;
-    qrpiv->nextpiv = dplasma_qr_nextpiv;
-    qrpiv->prevpiv = dplasma_qr_prevpiv;
-    qrpiv->desc = A;
 
     a = max( a, 1 );
     p = max( p, 1 );
-    
+    int domino = 1;
+
+    qrpiv->desc = A;
     qrpiv->a = a;
     qrpiv->p = p;
-    qrpiv->domino = 1;
-    (void)type_hlvl;
+    qrpiv->domino = domino;
 
     qrpiv->llvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
     qrpiv->hlvl = NULL;
 
     minMN = min(A->mt, A->nt);
     low_mt = (A->mt + p * a - 1) / ( p * a );
-    /*printf("Super tiles : %d\n", low_mt);*/
+
+    qrpiv->llvl->ldd    = low_mt;
+    qrpiv->llvl->a      = a;
+    qrpiv->llvl->p      = p;
+    qrpiv->llvl->domino = domino;
 
     switch( type_llvl ) {
     case DPLASMA_GREEDY_TREE :
-        //printf("Low evel: Greedy");
-        dplasma_low_greedy_init(qrpiv->llvl, low_mt, minMN, a);
+        dplasma_low_greedy_init(qrpiv->llvl, minMN);
         break;
     case DPLASMA_FIBONACCI_TREE :
-        //printf("Low level: Fibonacci");
-        dplasma_low_fibonacci_init(qrpiv->llvl, low_mt, minMN, a);
+        dplasma_low_fibonacci_init(qrpiv->llvl, minMN);
         break;
     case DPLASMA_BINARY_TREE :
-        //printf("Low level: Binary");
-        dplasma_low_binary_init(qrpiv->llvl, low_mt, a);
+        dplasma_low_binary_init(qrpiv->llvl);
         break;
     case DPLASMA_FLAT_TREE :
     default:
-        //printf("Low level: Flat");
-        dplasma_low_flat_init(qrpiv->llvl, low_mt, a);
+        dplasma_low_flat_init(qrpiv->llvl);
     }
 
     if ( p > 1 ) {
         qrpiv->hlvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
+
+        qrpiv->hlvl->ldd    = A->mt;
+        qrpiv->hlvl->a      = p;
+        qrpiv->hlvl->p      = p;
+        qrpiv->hlvl->domino = domino;
+
         switch( type_hlvl ) {
         case DPLASMA_GREEDY_TREE :
-            //printf(" / High level: Greedy\n");
-            dplasma_high_greedy_init(qrpiv->hlvl, A->mt, minMN, p);
+            dplasma_high_greedy_init(qrpiv->hlvl, minMN);
             break;
         /* case DPLASMA_FIBONACCI_TREE : */
         /*     printf("High level: Fibonacci\n"); */
@@ -1213,15 +1233,9 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
         /*     break; */
         case DPLASMA_FLAT_TREE :
         default:
-            //printf(" / High level: Flat\n");
-            dplasma_high_flat_init(qrpiv->hlvl, A->mt, p);
+            dplasma_high_flat_init(qrpiv->hlvl);
         }
-    } else {
-        //printf(" / High level: None\n");
-    }
-      
-    /* if ( dplasma_qr_check( A, qrpiv ) != 0 ) */
-    /*     exit(-1); */
+    } 
 
     return qrpiv;
 }
@@ -1289,7 +1303,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     for(m=0; m<A->mt; m++) {
         printf("%4d | ", m);              
         for (k=0; k<min(minMN, m+1); k++) {
-            printf( "%3d ", qrpiv->currpiv(qrpiv, m, k) );
+            printf( "%3d ", dplasma_qr_currpiv(qrpiv, m, k) );
         }
         for (k=min(minMN, m+1); k<minMN; k++) {
             printf( "    " );
@@ -1298,7 +1312,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
         printf("    ");
         printf("%2d,%4d | ", rank, lmg);
         for (k=0; k<min(minMN, lmg+1); k++) {
-            printf( "%3d ", qrpiv->currpiv(qrpiv, lmg, k) );
+            printf( "%3d ", dplasma_qr_currpiv(qrpiv, lmg, k) );
         }
         for (k=min(minMN, lmg+1); k<minMN; k++) {
             printf( "    " );
@@ -1326,7 +1340,7 @@ void dplasma_qr_print_next_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     for(m=0; m<A->mt; m++) {
         printf("%4d | ", m);              
         for(s=A->mt; s>0; s--) {
-            printf( "%4d  ", qrpiv->nextpiv(qrpiv, m, k, s) );
+            printf( "%4d  ", dplasma_qr_nextpiv(qrpiv, m, k, s) );
         }
         printf("\n");
     }
@@ -1345,7 +1359,7 @@ void dplasma_qr_print_prev_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     for(m=0; m<A->mt; m++) {
         printf("%4d | ", m);              
         for(s=A->mt; s>-1; s--) {
-            printf( "%4d  ", qrpiv->prevpiv(qrpiv, m, k, s) );
+            printf( "%4d  ", dplasma_qr_prevpiv(qrpiv, m, k, s) );
         }
         printf("\n");
     }

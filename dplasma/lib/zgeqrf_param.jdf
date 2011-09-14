@@ -84,7 +84,7 @@ zgeqrt(k, i)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descA.mt ) - 1; %}
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
-  nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
+  nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descA.mt); %}
 
   SIMCOST 4
 
@@ -138,7 +138,7 @@ zunmqr(k, i, n)
   i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
   m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
-  nextm = inline_c %{ return pivfct->nextpiv( pivfct, m, k, descA.mt); %}
+  nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descA.mt); %}
 
   SIMCOST 6
 
@@ -187,7 +187,7 @@ END
 
 zttqrt_out_A1(k)
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
-  prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
   : A(k, k)
   
@@ -201,10 +201,10 @@ zttqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
-  p =     inline_c %{ return pivfct->currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return pivfct->nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return pivfct->prevpiv(pivfct, p, k, m); %}
-  prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
+  p =     inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
+  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
+  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
   type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k, m ); %}
@@ -272,7 +272,7 @@ END
 zttmqr_out_A1(k, n)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n = k+1..descA.nt-1
-  prevp = inline_c %{ return pivfct->prevpiv(pivfct, k, k, k); %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
   : A(k, n)
   
@@ -287,10 +287,10 @@ zttmqr(k, m, n)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  p =     inline_c %{ return pivfct->currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return pivfct->nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return pivfct->prevpiv(pivfct, p, k, m); %}
-  prevm = inline_c %{ return pivfct->prevpiv(pivfct, m, k, m); %}
+  p =     inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
+  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
+  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
   type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k,   m ); %}
   ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   p ); %}
   im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   m ); %}
