@@ -226,7 +226,7 @@ static int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, int process_grid_rows, i
 void tile_to_block_double(scalapack_info_t * info, int row, int col)
 {
     int x, y, dec, GRIDcols, GRIDrows;
-    int src, dest;
+    uint32_t src, dest;
     double *bdl, *lapack;
     int il, jl, max_mb, max_nb;
     MPI_Status status;
@@ -237,77 +237,56 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
     if (INT_MAX == src)
         return;
    
-    if(src == dest) /* local operation */
-        {
-            if(src == info->Ddesc->super.myrank)
-                {
-                    GRIDrows = info->process_grid_rows;
-                    GRIDcols = info->Ddesc->super.nodes / GRIDrows;
-                    //rr = info->Ddesc->super.myrank / GRIDcols;
-                    //cr = info->Ddesc->super.myrank % GRIDcols;
+    if(src == dest) {  /* local operation */
+        if(src == info->Ddesc->super.myrank) {
+            GRIDrows = info->process_grid_rows;
+            GRIDcols = info->Ddesc->super.nodes / GRIDrows;
+            //rr = info->Ddesc->super.myrank / GRIDcols;
+            //cr = info->Ddesc->super.myrank % GRIDcols;
                     
-                    max_mb = ((info->Ddesc->mb * (row + 1)) <=  info->Ddesc->m) ? info->Ddesc->mb :  (info->Ddesc->m - ((info->Ddesc->mb * row)));
-                    max_nb = ((info->Ddesc->nb * (col + 1)) <=  info->Ddesc->n) ? info->Ddesc->nb :  (info->Ddesc->n - ((info->Ddesc->nb * col)));
+            max_mb = ((info->Ddesc->mb * (row + 1)) <=  info->Ddesc->m) ? info->Ddesc->mb :  (info->Ddesc->m - ((info->Ddesc->mb * row)));
+            max_nb = ((info->Ddesc->nb * (col + 1)) <=  info->Ddesc->n) ? info->Ddesc->nb :  (info->Ddesc->n - ((info->Ddesc->nb * col)));
                     
-                    il = row / GRIDrows;
-                    jl = col / GRIDcols;
-                    dec = (info->Ddesc->nb * (int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
+            il = row / GRIDrows;
+            jl = col / GRIDcols;
+            dec = (info->Ddesc->nb * (int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
                     
-                    bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
-                    lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
-                    
-                    for (y = 0; y < max_nb; y++)
-                        for (x = 0; x < max_mb ; x++)
-                            lapack[info->sca_desc[8] * y + x] = bdl[(info->Ddesc->mb)*y + x];
-                }
-        }
-    else if ( src == info->Ddesc->super.myrank ) /* process have the tile to send */
-        {
-            printf("weird\n");
             bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
-            if (row + 1 == info->Ddesc->mt)
-                {
-                    if( col + 1 == info->Ddesc->nt)
-                        {
-                            MPI_Send(bdl, 1, info->MPI_Dague_last_block, dest, 0, MPI_COMM_WORLD );
-                        }
-                    else
-                        {
-                            MPI_Send(bdl, 1, info->MPI_Dague_last_row, dest, 0, MPI_COMM_WORLD );
-                        }
-                }
-            else if (col + 1 == info->Ddesc->nt)
-                {
-                    MPI_Send(bdl, 1, info->MPI_Dague_last_col, dest, 0, MPI_COMM_WORLD );
-                }
-            else
-                {
-                    MPI_Send(bdl, 1, info->MPI_Dague_full_block, dest, 0, MPI_COMM_WORLD );
-                }
+            lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
+                    
+            for (y = 0; y < max_nb; y++)
+                for (x = 0; x < max_mb ; x++)
+                    lapack[info->sca_desc[8] * y + x] = bdl[(info->Ddesc->mb)*y + x];
         }
-    else if (dest == info->Ddesc->super.myrank) /* process have to receive the block */
-        {
-	  lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
-            if (row + 1 == info->Ddesc->mt)
-                {
-                    if( col + 1 == info->Ddesc->nt)
-                        {
-                            MPI_Recv(lapack, 1, info->MPI_Sca_last_block, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-                        }
-                    else
-                        {
-                            MPI_Recv(lapack, 1, info->MPI_Sca_last_row, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-                        }
-                }
-            else if (col + 1 == info->Ddesc->nt)
-                {
-                    MPI_Recv(lapack, 1, info->MPI_Sca_last_row, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-                }
-            else
-                {
-                    MPI_Recv(lapack, 1, info->MPI_Sca_full_block, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-                }
+    }
+    else if ( src == info->Ddesc->super.myrank ) {  /* process have the tile to send */
+        printf("weird\n");
+        bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
+        if (row + 1 == info->Ddesc->mt) {
+            if( col + 1 == info->Ddesc->nt) {
+                MPI_Send(bdl, 1, info->MPI_Dague_last_block, dest, 0, MPI_COMM_WORLD );
+            } else {
+                MPI_Send(bdl, 1, info->MPI_Dague_last_row, dest, 0, MPI_COMM_WORLD );
+            }
+        } else if (col + 1 == info->Ddesc->nt) {
+            MPI_Send(bdl, 1, info->MPI_Dague_last_col, dest, 0, MPI_COMM_WORLD );
+        } else {
+            MPI_Send(bdl, 1, info->MPI_Dague_full_block, dest, 0, MPI_COMM_WORLD );
         }
+    } else if (dest == info->Ddesc->super.myrank) {  /* process have to receive the block */
+        lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
+        if (row + 1 == info->Ddesc->mt) {
+            if( col + 1 == info->Ddesc->nt) {
+                MPI_Recv(lapack, 1, info->MPI_Sca_last_block, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            } else {
+                MPI_Recv(lapack, 1, info->MPI_Sca_last_row, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            }
+        } else if (col + 1 == info->Ddesc->nt) {
+            MPI_Recv(lapack, 1, info->MPI_Sca_last_row, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        } else {
+            MPI_Recv(lapack, 1, info->MPI_Sca_full_block, src, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        }
+    }
     return;
 }
 
