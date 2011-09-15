@@ -3,6 +3,7 @@
 #include "priority_sorted_queue.h"
 #include "scheduling.h"
 #include "schedulers.h"
+#include "debug.h"
 
 /*********************************************************************/
 /************************ Global Dequeue *****************************/
@@ -129,6 +130,11 @@ static int init_local_flat_queues(  dague_context_t *master )
         } else {
             sched_obj->system_queue = LOCAL_QUEUES_OBJECT(master->execution_units[0])->system_queue;
         }
+    }
+
+    for(i = 0; i < master->nb_cores; i++) {
+        eu = master->execution_units[i];
+        sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
         sched_obj->nb_hierarch_queues = master->nb_cores;    
         sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
@@ -141,7 +147,7 @@ static int init_local_flat_queues(  dague_context_t *master )
 
     for(i = 0; i < master->nb_cores; i++) {
         eu = master->execution_units[i];
-        sched_obj = (local_queues_scheduler_object_t*)eu->scheduler_object;
+        sched_obj = LOCAL_QUEUES_OBJECT(eu);
         
         /* Then, they know about all other queues, from the closest to the farthest */
 #if defined(HAVE_HWLOC)
@@ -262,23 +268,23 @@ static unsigned int ranking_function_bypriority(dague_list_item_t *elt, void *_)
 
 static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_t *eu_context )
 {
+    unsigned int i;
     dague_execution_context_t *exec_context = NULL;
     exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
                                                                        ranking_function_bypriority,
                                                                        NULL);
-
-    if( NULL == exec_context ) {
-        unsigned int i;
+    if( NULL != exec_context ) 
+        return exec_context;
                                 
-        for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
-            exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
-                                                                               ranking_function_bypriority,
-                                                                               NULL);
-            if( NULL != exec_context )
-                break;
-        }
+    for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
+        exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
+                                                                           ranking_function_bypriority,
+                                                                           NULL);
+        if( NULL != exec_context )
+            return exec_context;
     }
 
+    exec_context = (dague_execution_context_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     return exec_context;
 }
 
