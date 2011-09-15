@@ -68,7 +68,10 @@ struct dague_dependencies_t {
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
-typedef int (dague_release_deps_t)(struct dague_execution_unit*, dague_execution_context_t*, int, struct dague_remote_deps_t *);
+typedef int (dague_release_deps_t)(struct dague_execution_unit*,
+                                   dague_execution_context_t*,
+                                   uint32_t,
+                                   struct dague_remote_deps_t *);
 
 typedef enum  {
     DAGUE_ITERATE_STOP,
@@ -82,7 +85,11 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          int rank_src, int rank_dst,
                                                          dague_arena_t* arena,
                                                          void *param);
-typedef void (dague_traverse_function_t)(struct dague_execution_unit *, dague_execution_context_t *, dague_ontask_function_t *, void *);
+typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
+                                         dague_execution_context_t *,
+                                         uint32_t,
+                                         dague_ontask_function_t *,
+                                         void *);
 
 #if defined(DAGUE_SCHED_CACHE_AWARE)
 typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *exec_context, const struct cache_t *cache, unsigned int reward);
@@ -98,30 +105,30 @@ typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context
 #endif
 
 struct dague_function {
-    const char*             name;
-    uint16_t                flags;
-    uint16_t                function_id;
-    uint8_t                 nb_parameters;
-    uint8_t                 nb_definitions;
-    dague_dependency_t      dependencies_goal;
-    const symbol_t*         params[MAX_LOCAL_COUNT];
-    const symbol_t*         locals[MAX_LOCAL_COUNT];
-    const expr_t*           pred;
-    const dague_flow_t*     in[MAX_PARAM_COUNT];
-    const dague_flow_t*     out[MAX_PARAM_COUNT];
-    const expr_t*           priority;
-    int                     deps;                  /**< This is the index of the dependency array in the __DAGUE_object_t */
+    const char                  *name;
+    uint16_t                     flags;
+    uint16_t                     function_id;
+    uint8_t                      nb_parameters;
+    uint8_t                      nb_definitions;
+    dague_dependency_t           dependencies_goal;
+    const symbol_t              *params[MAX_LOCAL_COUNT];
+    const symbol_t              *locals[MAX_LOCAL_COUNT];
+    const expr_t                *pred;
+    const dague_flow_t          *in[MAX_PARAM_COUNT];
+    const dague_flow_t          *out[MAX_PARAM_COUNT];
+    const expr_t                *priority;
+    int                          deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
 #if defined(DAGUE_SIM)
-    dague_sim_cost_fct_t    *sim_cost_fct;
+    dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
 #if defined(DAGUE_SCHED_CACHE_AWARE)
     dague_cache_rank_function_t *cache_rank_function;
 #endif
-    dague_hook_t*             hook;
-    dague_hook_t*             complete_execution;
-    dague_traverse_function_t *iterate_successors;
-    dague_release_deps_t      *release_deps;
-    char*                     body;
+    dague_hook_t                *hook;
+    dague_hook_t                *complete_execution;
+    dague_traverse_function_t   *iterate_successors;
+    dague_release_deps_t        *release_deps;
+    char                        *body;
 };
 
 struct dague_data_pair_t {

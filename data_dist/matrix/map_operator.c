@@ -197,6 +197,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
 
 static void iterate_successors(dague_execution_unit_t *eu,
                                dague_execution_context_t *exec_context,
+                               uint32_t action_mask,
                                dague_ontask_function_t *ontask,
                                void *ontask_arg)
 {
@@ -230,16 +231,17 @@ static void iterate_successors(dague_execution_unit_t *eu,
         /* Go to the next row ... atomically */
         k = dague_atomic_inc_32b( &__dague_object->super.next_k );
     }
+    (void)action_mask;
 }
 
 static int release_deps(dague_execution_unit_t *eu,
                         dague_execution_context_t *exec_context,
-                        int action_mask,
+                        uint32_t action_mask,
                         dague_remote_deps_t *deps)
 {
     dague_execution_context_t* ready_list = NULL;
 
-    iterate_successors(eu, exec_context, add_task_to_list, &ready_list);
+    iterate_successors(eu, exec_context, action_mask, add_task_to_list, &ready_list);
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
         if( NULL != ready_list ) {

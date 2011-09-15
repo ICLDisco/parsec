@@ -2861,7 +2861,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     ai.holder = "context->locals";
     ai.expr = NULL;
 
-    coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, int action_mask, dague_remote_deps_t *deps)\n"
+    coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, uint32_t action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
@@ -2895,7 +2895,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.remote_deps_count = 0;\n"
             "  arg.remote_deps = NULL;\n"
             "#endif\n"
-            "  iterate_successors_of_%s_%s(eu, context, dague_release_dep_fct, &arg);\n"
+            "  iterate_successors_of_%s_%s(eu, context, action_mask, dague_release_dep_fct, &arg);\n"
             "\n",
             jdf_basename, f->fname);
 
@@ -3134,7 +3134,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     ai.expr = NULL;
     coutput("static void\n"
             "%s(dague_execution_unit_t *eu, dague_execution_context_t *exec_context,\n"
-            "               dague_ontask_function_t *ontask, void *ontask_arg)\n"
+            "               uint32_t action_mask, dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)exec_context->dague_object;\n"
             "  dague_execution_context_t nc;\n"
@@ -3162,9 +3162,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     flownb = 0;
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         coutput("  /* Flow of Data %s */\n", fl->flow->varname);
+        coutput("  if( action_mask & (1 << %d) ) {\n", flownb);
         flowempty = 1;
         flowtomem = 0;
-
         depnb = 0;
         for(dl = fl->flow->deps; dl != NULL; dl = dl->next) {
             if( dl->dep->type & JDF_DEP_TYPE_OUT )  {
@@ -3254,7 +3254,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 depnb++;
             }
         }
-
+        coutput("}\n");
         if( (1 == flowempty) && (0 == flowtomem) ) {
             coutput("  /* This flow has only IN dependencies */\n");
         } else if( 1 == flowempty ) {
