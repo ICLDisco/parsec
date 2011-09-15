@@ -215,7 +215,7 @@ int dplasma_qr_geti( const int a, const int p, const int domino, const int k, co
     int pos1, j, pa = p * a;
     int nbextra1 = nbextra1_formula;
     int nb23 = p + ( domino ? k*(p-1) : nbextra1 );
-    int end2 = p + ( domino ? k*p     : nbextra1 );
+    int end2 = p + ( domino ? k*p     : k + nbextra1 );
 
     /* Tile of type 2 or 3 or the 1 between the diagonal and the multiple after the diagonal */
     if ( m < end2 )
@@ -999,7 +999,6 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         ENDCHECK( check, 1 );
     }
 
-#if 0
     /* 
      * Check indices of geqrt 
      */
@@ -1046,6 +1045,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         ENDCHECK( check, 2 );
     }
 
+#if 0
     /* 
      * Check number of exit in next
      */
