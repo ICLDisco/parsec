@@ -77,7 +77,7 @@ int main(int argc, char ** argv)
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA, 
                                  iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                                  iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                 1 );
+                                 iparam[IPARAM_QR_DOMINO] );
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,

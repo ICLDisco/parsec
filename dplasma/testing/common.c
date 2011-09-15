@@ -85,6 +85,7 @@ void print_usage(void)
             "\n"
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
+            " -d --domino       : Enable/Disable the domino between upper and lower trees. (specific to xgeqrf_param) (default: 1)\n"
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
@@ -96,7 +97,7 @@ void print_usage(void)
            );
 }
 
-#define GETOPT_STRING "c:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::h"
+#define GETOPT_STRING "c:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -138,6 +139,7 @@ static struct option long_options[] =
     {"x",           no_argument,        0, 'x'},
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
+    {"domino",      required_argument,  0, 'd'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
@@ -200,6 +202,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break; 
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
+            case 'd': iparam[IPARAM_QR_DOMINO] = atoi(optarg) ? 1 : 0; break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
 
@@ -339,6 +342,7 @@ static void iparam_default(int* iparam)
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int)); 
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
+    iparam[IPARAM_QR_DOMINO] = 1;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)

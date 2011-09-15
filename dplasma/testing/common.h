@@ -58,6 +58,7 @@ enum iparam_t {
   IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
   IPARAM_QR_TS_SZE,    /* Size of TS domain                     (specific to xgeqrf_param) */
   IPARAM_QR_HLVL_SZE,  /* Size of the high level tree           (specific to xgeqrf_param) */
+  IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_DOT,          /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };
