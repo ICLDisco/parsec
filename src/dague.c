@@ -969,19 +969,19 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
-                                             int flow_index, int outdep_index, 
+                                             int out_index, int outdep_index, 
                                              int src_rank, int dst_rank,
                                              dague_arena_t* arena,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
-    const dague_flow_t* target = oldcontext->function->out[flow_index];
+    const dague_flow_t* target = oldcontext->function->out[out_index];
 
-    if( !(arg->action_mask & (1 << flow_index)) ) {
+    if( !(arg->action_mask & (1 << out_index)) ) {
 #if defined(DAGUE_DEBUG)
         char tmp[128];
-        DEBUG(("On task %s flow_index %d not on the action_mask %x\n",
-               dague_service_to_string(oldcontext, tmp, 128), flow_index, arg->action_mask));
+        DEBUG(("On task %s out_index %d not on the action_mask %x\n",
+               dague_service_to_string(oldcontext, tmp, 128), out_index, arg->action_mask));
 #endif
         return DAGUE_ITERATE_CONTINUE;
     }
@@ -991,15 +991,15 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
             void* data;
 
-            data = is_read_only(oldcontext, flow_index, outdep_index);
+            data = is_read_only(oldcontext, out_index, outdep_index);
             if(NULL != data) {
-                arg->deps->msg.which &= ~(1 << flow_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.which |= (1 << flow_index); /* mark all data that are not RO */
-                data = is_inplace(oldcontext, flow_index, outdep_index);  /* Can we do it inplace */
+                arg->deps->msg.which |= (1 << out_index); /* mark all data that are not RO */
+                data = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
             }
-            arg->deps->output[flow_index].data = data; /* if still NULL allocate it */
-            arg->deps->output[flow_index].type = arena;
+            arg->deps->output[out_index].data = data; /* if still NULL allocate it */
+            arg->deps->output[out_index].type = arena;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -1009,11 +1009,11 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             arg->remote_deps->root = src_rank;
-            if( !(arg->remote_deps->output[flow_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[flow_index].type = arena;
-                arg->remote_deps->output[flow_index].data = oldcontext->data[target->flow_index].data;
-                arg->remote_deps->output[flow_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[flow_index].count++;
+            if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[out_index].type = arena;
+                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
+                arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
@@ -1026,14 +1026,14 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        arg->output_entry->data[flow_index] = oldcontext->data[target->flow_index].data;
+        arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
         arg->output_usage++;
-        AREF( arg->output_entry->data[flow_index] );
+        AREF( arg->output_entry->data[out_index] );
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,
-                                                                 oldcontext->function->out[flow_index],
+                                                                 oldcontext->function->out[out_index],
                                                                  newcontext,
-                                                                 oldcontext->function->out[flow_index]->dep_out[outdep_index]->flow,
+                                                                 oldcontext->function->out[out_index]->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
                                                                  &arg->ready_list);
     }
