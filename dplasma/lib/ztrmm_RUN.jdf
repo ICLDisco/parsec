@@ -133,8 +133,8 @@ k = 0..n-1
 : B(m, n)
 
 // Parameters
-READ  A   <- B GEMM_INB(m, k)
-READ  B   <- A GEMM_INA(k, n) 
+READ  B   <- B GEMM_INB(m, k)
+READ  A   <- A GEMM_INA(k, n) 
 RW    C   <- (k == n-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
           -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
 CTL   ctl -> ctl2 GOK(m, n, k)
@@ -145,8 +145,8 @@ BODY
             CORE_zgemm(
 		  PlasmaNoTrans, trans,
                   tempmm, tempnn, Bmb,
-		  alpha, A, Bmb,
-		         B, Amb,
+		  alpha, B, Bmb,
+		         A, Amb,
 		  (Dague_Complex64_t)1.0, C, Bmb)
 	   );
 
@@ -155,7 +155,7 @@ BODY
 	       context->eu_id, m, n, k, 
                plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
                tempmm, tempnn, Bmb,
-	       alpha, m, k, A, Bmb, k, n, B, Amb,
+	       alpha, m, k, B, Bmb, k, n, A, Amb,
 	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
 
