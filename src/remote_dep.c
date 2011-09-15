@@ -240,16 +240,17 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         } else {
                             RDEP_MSG_EAGER_CLR(&remote_deps->msg);
                         }
-                        DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n", dague_service_to_string(exec_context, tmp, 128), i, remote_deps->output[i].type->elem_size, RDEP_MSG_EAGER(&remote_deps->msg)));
+                        DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n",
+                               dague_service_to_string(exec_context, tmp, 128), i,
+                               (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), RDEP_MSG_EAGER(&remote_deps->msg)));
                         remote_dep_inc_flying_messages(eu_context->master_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
+                    } else {
+                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n",
+                               dague_service_to_string(exec_context, tmp, 128), remote_deps->root,
+                               eu_context->master_context->my_rank, me, rank, him));
                     }
-#ifdef DAGUE_DEBUG
-                    else {
-                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
-                    }
-#endif
                 }
             }
         }
