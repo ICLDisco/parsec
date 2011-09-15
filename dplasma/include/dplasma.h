@@ -13,6 +13,9 @@
 
 #include "data_dist/matrix/matrix.h"
 
+/* Functions specific to QR */
+#include "dplasma_qr_pivgen.h"
+
 #include "dplasma/include/dplasma_s.h"
 #include "dplasma/include/dplasma_d.h"
 #include "dplasma/include/dplasma_c.h"

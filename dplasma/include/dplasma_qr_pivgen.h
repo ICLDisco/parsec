@@ -6,8 +6,8 @@
  * @precisions normal z -> s d c
  *
  */
-#ifndef _PIVGEN_H_
-#define _PIVGEN_H_
+#ifndef _DPLASMA_QR_PIVGEN_H_
+#define _DPLASMA_QR_PIVGEN_H_
 
 struct qr_piv_s;
 typedef struct qr_piv_s qr_piv_t;
@@ -65,7 +65,8 @@ struct qr_subpiv_s {
     int domino;
 };
 
-qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, int a, int p );
+qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, 
+                               int a, int p, int domino );
 void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
 
 int dplasma_qr_getnbgeqrf( const int a, const int p, const int domino, const int k, const int gmt );
@@ -107,5 +108,4 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int p, const int k, const int 
  */
 int dplasma_qr_prevpiv(const qr_piv_t *arg, const int p, const int k, const int m);
 
-
-#endif
+#endif /* _DPLASMA_QR_PIVGEN_H_ */
