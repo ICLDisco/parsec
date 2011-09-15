@@ -37,6 +37,7 @@ enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
   IPARAM_NNODES,       /* Number of nodes                   */
   IPARAM_NCORES,       /* Number of cores                   */
+  IPARAM_SCHEDULER,    /* What scheduler do we choose */
   IPARAM_NGPUS,        /* Number of GPUs                    */
   IPARAM_PRIO,         /* Switchpoint for priority DAG      */
   IPARAM_P,            /* Rows in the process grid          */
@@ -91,8 +92,10 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
+  int scheduler = iparam[IPARAM_SCHEDULER];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
-  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;
+  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
+  (void)scheduler;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;

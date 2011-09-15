@@ -130,24 +130,6 @@ typedef struct __dague_temporary_thread_initialization_t {
     int bindto;
 } __dague_temporary_thread_initialization_t;
 
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
-{
-    /* Store is a lifo or a dequeue */
-    dague_dequeue_push_back( (dague_dequeue_t*)store, elt );
-}
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-/** In case of hierarchical bounded buffer, define
- *  the wrappers to functions
- */
-static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
-{ 
-    /* Store is a hbbbuffer */
-    dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );
-}
-#endif
-#endif
-
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
     dague_execution_unit_t* eu;
@@ -162,6 +144,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     }
     eu->eu_id          = startup->th_id;
     eu->master_context = startup->master_context;
+    eu->scheduler_object = NULL;
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -175,163 +158,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #ifdef DAGUE_PROF_TRACE
     eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d", eu->eu_id );
 #endif
-
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-
-    if( eu->eu_id == 0 ) {
-        eu->eu_task_queue = (dague_priority_sorted_list_t*)malloc(sizeof(dague_priority_sorted_list_t));
-        dague_priority_sorted_list_construct( eu->eu_task_queue );
-        dague_barrier_wait( &startup->master_context->barrier );
-    } else {
-        dague_barrier_wait( &startup->master_context->barrier );
-        eu->eu_task_queue = startup->master_context->execution_units[0]->eu_task_queue;
-    }
-
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-    
-    if( eu->eu_id == 0 ) {
-        eu->eu_system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-        dague_dequeue_construct( eu->eu_system_queue );
-        dague_barrier_wait( &startup->master_context->barrier );
-    } else {
-        dague_barrier_wait( &startup->master_context->barrier );
-        eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
-    }
-
-#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-
-        {
-            uint32_t queue_size = startup->master_context->nb_cores * 4;
-            uint32_t nq = 0;
-
-            eu->eu_nb_hierarch_queues = startup->master_context->nb_cores;    
-            eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
-
-            /* Each thread creates its own "local" queue, connected to the shared dequeue */
-            eu->eu_task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
-                                                    (void*)eu->eu_system_queue);
-            eu->eu_hierarch_queues[0] =  eu->eu_task_queue;
-
-            dague_barrier_wait( &startup->master_context->barrier );
-
-            /* Then, they know about all other queues, from the closest to the farthest */
-#if defined(HAVE_HWLOC)
-            nq = 1;
-            for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
-                for(int id = (eu->eu_id + 1) % startup->master_context->nb_cores; 
-                    id != eu->eu_id; 
-                    id = (id + 1) %  startup->master_context->nb_cores) {
-                    int d;
-
-                    d = dague_hwloc_distance(eu->eu_id, id);
-                    if( d == 2*level || d == 2*level + 1 ) {
-                        eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
-                        DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
-                               eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]));
-                        nq++;
-                        if( nq == eu->eu_nb_hierarch_queues )
-                            break;
-                    }
-                    if( nq == eu->eu_nb_hierarch_queues )
-                        break;
-                }
-            }
-            assert( nq == eu->eu_nb_hierarch_queues );
-#else
-            for(nq = 1; nq < eu->eu_nb_hierarch_queues; nq++) {
-                eu->eu_hierarch_queues[nq] =
-                    startup->master_context->execution_units[(eu->eu_id + nq) % startup->master_context->nb_cores]->eu_task_queue;
-            }
-#endif
-        }
-
-#  else /* DAGUE_SCHEDULER_LOCAL_HIER_QUEUES */
-
-#    if !defined(HAVE_HWLOC)
-#      error Cannot use Hierarchical queues if HWLOC is not available
-#    endif
-
-    eu->eu_nb_hierarch_queues = dague_hwloc_nb_levels();
-    eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
-
-    for(int level = 0; level < eu->eu_nb_hierarch_queues; level++) {
-        int idx = eu->eu_nb_hierarch_queues - 1 - level;
-        int master = dague_hwloc_master_id(level, eu->eu_id);
-        if( eu->eu_id == master ) {
-            int nbcores = dague_hwloc_nb_cores(level, master);
-            int queue_size = 96 * (level+1) / nbcores;
-            if( queue_size < nbcores ) queue_size = nbcores;
-            
-            /* The master(s) create the shared queues */               
-            eu->eu_hierarch_queues[idx] = dague_hbbuffer_new( queue_size, nbcores,
-                                                              level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
-                                                              level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
-            DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
-                   eu->eu_id, queue_size, nbcores,
-                   level, idx, eu->eu_hierarch_queues[idx],
-                   level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1],
-                   level == 0 ? "System queue" : "upper level hhbuffer"));
-            
-            /* The master(s) unblock all waiting slaves */
-            dague_barrier_wait( &startup->master_context->barrier );
-        } else {
-            /* Be a slave: wait that the master(s) unblock me */
-            dague_barrier_wait( &startup->master_context->barrier );
-            
-            DEBUG(("%d takes the buffer of %d at level %d stored in %d: %p\n",
-                   eu->eu_id, master, level, idx, startup->master_context->execution_units[master]->eu_hierarch_queues[idx]));
-            /* The slaves take their queue for this level from their master */
-            eu->eu_hierarch_queues[idx] = startup->master_context->execution_units[master]->eu_hierarch_queues[idx];
-        }
-    }
-    eu->eu_task_queue = eu->eu_hierarch_queues[0];
-#  endif
-
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-
-    if( eu->eu_id == 0 ) {
-        eu->eu_system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-        dague_dequeue_construct( eu->eu_system_queue );
-        dague_barrier_wait( &startup->master_context->barrier );
-    } else {
-        dague_barrier_wait( &startup->master_context->barrier );
-        eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
-    }
-
-#else
-#error DAGUE_SCHEDULER is not defined`
-#endif
-
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-    eu->closest_cache = NULL;
-#error "The DAGUE_SCHED_CACHE_AWARE code depends on obsolete global TILE_SIZE. Please disable this option (in ccmake toggle DAGUE_SCHED_CACHE_AWARE to off)."
-#define TILE_SIZE (120*120*sizeof(double))
-    for(level = 0; level < dague_hwloc_nb_levels(); level++) {
-        int master = dague_hwloc_master_id(level, eu->eu_id);
-        if( eu->eu_id == master ) {
-            int nbtiles = (dague_hwloc_cache_size(level, master) / TILE_SIZE)-1;
-            int nbcores = dague_hwloc_nb_cores(level, master);
-            
-            /* The master(s) create the cache explorer, using their current closest cache as its father */
-            eu->closest_cache = cache_create( nbcores, eu->closest_cache, nbtiles);
-            DEBUG(("%d creates cache of size %d for level %d: %p (parent: %p)\n",
-                   eu->eu_id, nbtiles,
-                   level, eu->closest_cache,
-                   eu->closest_cache != NULL ? eu->closest_cache->parent : NULL));
-            
-            /* The master(s) unblock all waiting slaves */
-            dague_barrier_wait( &startup->master_context->barrier );
-        } else {
-            /* Be a slave: wait that the master(s) unblock me */
-            dague_barrier_wait( &startup->master_context->barrier );
-            
-            /* The closest cache has been created by my master. Thank you, master */
-            eu->closest_cache = startup->master_context->execution_units[master]->closest_cache;
-            DEBUG(("%d takes the closest cache of %d at level %d: %p\n",
-                   eu->eu_id, master, level,  eu->closest_cache));
-        }
-    }
-#endif /* DAGUE_SCHED_CACHE_AWARE */
 
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
@@ -603,63 +429,7 @@ int dague_fini( dague_context_t** pcontext )
 
     (void) dague_remote_dep_fini( context );
 
-#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-
-    dague_priority_sorted_list_destruct( context->execution_units[0]->eu_task_queue );
-    free(context->execution_units[0]->eu_task_queue);
-    for(i = 0; i < context->nb_cores; i++)
-        context->execution_units[i]->eu_task_queue = NULL;
-
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) 
-
-#    if !defined(HAVE_HWLOC)
-#      error Cannot use Hierarchical queues if HWLOC is not available
-#    endif
-
-    for(i = 0; i < context->nb_cores; i++) {
-        dague_execution_unit_t *eu = context->execution_units[i];
-
-        for(int level = 0; level < eu->eu_nb_hierarch_queues; level++) {
-            int idx = eu->eu_nb_hierarch_queues - 1 - level;
-            int master = dague_hwloc_master_id(level, eu->eu_id);
-            if( eu->eu_id == master ) {
-                int nbcores = dague_hwloc_nb_cores(level, master);
-
-                dague_hbbuffer_destruct(eu->eu_hierarch_queues[idx]);
-                eu->eu_hierarch_queues[idx] = NULL;
-            } else {
-                eu->eu_hierarch_queues[idx] = NULL;
-            }
-        }
-    }
-    for(i = 0; i < context->nb_cores; i++)
-        context->execution_units[i]->eu_task_queue = NULL;
-
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
- 
-    dague_dequeue_destruct( context->execution_units[0]->eu_system_queue );
-    free( context->execution_units[0]->eu_system_queue );
-    for(i = 0; i < context->nb_cores; i++) {
-        context->execution_units[i]->eu_system_queue = NULL;
-
-        dague_hbbuffer_destruct( context->execution_units[i]->eu_task_queue );
-        context->execution_units[i]->eu_task_queue = NULL;
-
-        free(context->execution_units[i]->eu_hierarch_queues);
-        context->execution_units[i]->eu_hierarch_queues = NULL;
-    }
-
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-
-    dague_dequeue_destruct( context->execution_units[0]->eu_system_queue );
-    free( context->execution_units[0]->eu_system_queue );
-    for(i = 0; i < context->nb_cores; i++) {
-        context->execution_units[i]->eu_system_queue = NULL;
-    }
-
-#  else
-#    error No scheduler is defined
-#  endif
+    dague_set_scheduler( context, NULL );
 
     for(i = 0; i < context->nb_cores; i++) {
         free(context->execution_units[i]);

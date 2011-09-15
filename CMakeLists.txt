@@ -18,29 +18,6 @@ enable_testing()
 #####
 
 ## Multicore scheduler parameters
-string(COMPARE EQUAL "${SCHEDULER}" "" NOSCHED)
-if( NOSCHED )
-  SET(SCHEDULER "LOCAL_FLAT_QUEUES")
-endif()
-
-SET(SCHEDULER "${SCHEDULER}" CACHE STRING 
-  "Choose the type of scheduler, options are: ABSOLUTE_PRIORITIES LOCAL_FLAT_QUEUES LOCAL_HIER_QUEUES GLOBAL_DEQUEUE" FORCE )
-SET_PROPERTY(CACHE SCHEDULER PROPERTY STRINGS "ABSOLUTE_PRIORITIES" "LOCAL_FLAT_QUEUES" "LOCAL_HIER_QUEUES" "GLOBAL_DEQUEUE")
-
-string(COMPARE EQUAL "${SCHEDULER}" "ABSOLUTE_PRIORITIES" SCHED1)
-string(COMPARE EQUAL "${SCHEDULER}" "LOCAL_FLAT_QUEUES" SCHED2)
-string(COMPARE EQUAL "${SCHEDULER}" "LOCAL_HIER_QUEUES" SCHED3)
-string(COMPARE EQUAL "${SCHEDULER}" "GLOBAL_DEQUEUE" SCHED4)
-
-if ( NOT (SCHED1 OR SCHED2 OR SCHED3 OR SCHED4) )
-  message(FATAL_ERROR "You must choose a valid scheduler. Add
-  -DSCHEDULER= one of ABSOLUTE_PRIORITIES, LOCAL_FLAT_QUEUES,
-  LOCAL_HIER_QUEUES or GLOBAL_DEQUEUE")
-endif()
-
-SET(DAGUE_SCHEDULER "DAGUE_SCHEDULER_${SCHEDULER}")
-message(STATUS "Using the scheduler ${DAGUE_SCHEDULER}")
-
 mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
   "Display statistics on the scheduling at the end of the run")
@@ -400,7 +377,8 @@ add_definitions(-DHAVE_CONFIG_H)
 set(SRCS 
   src/dague.c 
   src/arena.c
-  src/scheduling.c 
+  src/scheduling.c
+  src/schedulers.c 
   src/stats.c 
   src/remote_dep.c 
   src/barrier.c 
