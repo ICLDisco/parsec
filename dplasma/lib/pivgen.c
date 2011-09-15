@@ -278,50 +278,59 @@ static int dplasma_qr_getinon0( const int a, const int p, const int domino, cons
 static int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
     (void)m;
-    return k / arg->a;
+    if ( arg->domino )
+        return k / arg->a;
+    else
+        return k - m%(arg->p) ;
 };
 
-static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
+    int k_a = k / arg->a;
+    int p_pa = (p / arg->p ) / arg->a;
+
 #ifdef FLAT_UP
-    if ( ( p == (k/arg->a) ) && (start > (k/arg->a)+1 ) )
-        return start-1;
+    if ( ( p_pa == k_a ) && (start_pa > k_a+1 ) )
+        return start_pa-1;
     else
 #else /* FLAT_DOWN */
-    if ( start <= p )
+    if ( start_pa <= p_pa )
         return arg->ldd;
 
     if ( arg->domino ) {
-      if ( p == (k/arg->a) && ( arg->ldd - k/arg->a ) > 1 ) {
-          if ( start == arg->ldd )
-              return p+1;
-          else if ( start < arg->ldd )
-              return start+1;
+      if ( p_pa == k_a && ( arg->ldd - k_a ) > 1 ) {
+          if ( start_pa == arg->ldd )
+              return p_pa+1;
+          else if ( start_pa < arg->ldd )
+              return start_pa+1;
       }
     } else {
-        if ( (k <= p)  && (p < k + arg->p ) && ( arg->ldd - k/arg->a ) > 1 ) {
-          if ( start == arg->ldd )
-              return p+1;
-          else if ( start < arg->ldd )
-              return start+1;
+        if ( (k <= p_pa)  && (p_pa < k + arg->p ) && ( arg->ldd - k_a ) > 1 ) {
+          if ( start_pa == arg->ldd )
+              return p_pa+1;
+          else if ( start_pa < arg->ldd )
+              return start_pa+1;
       }
     }
 #endif
     return arg->ldd;
 };
 
-static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
+    int k_a = k / arg->a;
+    int p_pa = (p / arg->p ) / arg->a;
+
 #ifdef FLAT_UP
-    if ( p == (k/arg->a) && (start+1 < arg->ldd) )
-      return start+1;
+    if ( p_pa == k_a && (start_pa+1 < arg->ldd) )
+      return start_pa+1;
     else 
 #else
-      if ( p == (k/arg->a) && ( arg->ldd - k/arg->a ) > 1  ) { 
-        if ( start == p )
+      if ( p_pa == k_a && ( arg->ldd - k_a ) > 1  ) { 
+        if ( start_pa == p_pa )
             return arg->ldd - 1;
-        else if ( start > p + 1 )
-            return start-1;
+        else if ( start_pa > p_pa + 1 )
+            return start_pa-1;
     }
 #endif
     return arg->ldd;
@@ -339,7 +348,10 @@ static void dplasma_low_flat_init(qr_subpiv_t *arg){
  ***************************************************/
 static int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
-    int tmp1 = m - (k / arg->a);
+    int k_a = k / arg->a;
+    int m_pa = (m / arg->p ) / arg->a;
+
+    int tmp1 = m_pa - k_a;
     int tmp2 = 1;
     (void)arg;
 
@@ -349,45 +361,48 @@ static int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const
         tmp1 = tmp1 >> 1;
         tmp2 = tmp2 << 1;
     }        
-    assert( m - tmp2 >= (k / arg->a) );
-    return m - tmp2;
+    assert( m_pa - tmp2 >= k_a );
+    return m_pa - tmp2;
 };
 
-static int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
-    int tmpp, bit;
-    int lk = (k / arg->a);
+    int k_a = k / arg->a;
+    int p_pa = (p / arg->p ) / arg->a;
 
-    myassert( (start == arg->ldd) || (dplasma_low_binary_currpiv( arg, start, k ) == p) );
+    int tmpp, bit; 
+    myassert( (start_pa == arg->ldd) || (dplasma_low_binary_currpiv( arg, start_pa*arg->a*arg->p, k ) == p_pa) );
 
-    if ( start <= p )
+    if ( start_pa <= p_pa )
         return arg->ldd;
     
-    int offset = p-lk;
+    int offset = p_pa-k_a;
     bit = 0;
-    if (start != arg->ldd) {
-        while( ( (start-lk) & (1 << bit ) ) == 0 )
+    if (start_pa != arg->ldd) {
+        while( ( (start_pa-k_a) & (1 << bit ) ) == 0 )
             bit++;
         bit++;
     }
     
     tmpp = offset | (1 << bit);
-    if ( ( tmpp != offset ) && ( tmpp+lk < arg->ldd ) )
-        return tmpp + lk;
+    if ( ( tmpp != offset ) && ( tmpp+k_a < arg->ldd ) )
+        return tmpp + k_a;
     else
         return arg->ldd;
 };
 
-static int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start)
+static int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
-    int lk = (k / arg->a);
-    myassert( start >= p && ( start == p || dplasma_low_binary_currpiv( arg, start, k ) == p) );
+    int k_a = k / arg->a;
+    int p_pa = (p / arg->p ) / arg->a;
+    int offset = p_pa - k_a;
 
-    int offset = p-lk;
-    if ( (start == p) && ( offset%2 == 0 ) ) {
+    myassert( start_pa >= p_pa && ( start_pa == p_pa || dplasma_low_binary_currpiv( arg, start_pa*arg->a*arg->p, k ) == p_pa) );
+
+    if ( (start_pa == p_pa) && ( offset%2 == 0 ) ) {
         int i, bit, tmp;
-        if ((p-lk) == 0)
-            bit = (int)( log( (double)(arg->ldd - lk) ) / log( 2. ) );
+        if ((p_pa - k_a) == 0)
+            bit = (int)( log( (double)(arg->ldd - k_a) ) / log( 2. ) );
         else {
             bit = 0;
             while( (offset & (1 << bit )) == 0 )
@@ -395,14 +410,14 @@ static int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const
         }
         for( i=bit; i>-1; i--){
             tmp = offset | (1 << i);
-            if ( ( offset != tmp ) && ( tmp+lk < arg->ldd ) )
-                return tmp+lk;
+            if ( ( offset != tmp ) && ( tmp+k_a < arg->ldd ) )
+                return tmp+k_a;
         }                
         return arg->ldd;
     }
 
-    if ( (start - p) > 1 )
-        return p + ( (start-p) >> 1 );
+    if ( (start_pa - p_pa) > 1 )
+        return p_pa + ( (start_pa - p_pa) >> 1 );
     else {
         return arg->ldd;
     }
@@ -420,23 +435,29 @@ static void dplasma_low_binary_init(qr_subpiv_t *arg){
  ***************************************************/
 /* Return the pivot to use for the row m at step k */
 inline static int dplasma_low_fibonacci_currpiv( const qr_subpiv_t *qrpiv, const int m, const int k ) {
-    return (qrpiv->ipiv)[ (k/qrpiv->a) * (qrpiv->ldd) + m ];
+    return (qrpiv->ipiv)[ (k/qrpiv->a) * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
 }
 
 /* Return the last row which has used the row m as a pivot in step k before the row start */
-inline static int dplasma_low_fibonacci_prevpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start ) {
+inline static int dplasma_low_fibonacci_prevpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    for( i=start+1; i<(qrpiv->ldd); i++ )
-        if ( (qrpiv->ipiv)[i +  (k/qrpiv->a) * (qrpiv->ldd)] == p )
+    int k_a = k / qrpiv->a;
+    int p_pa = (p / qrpiv->p ) / qrpiv->a;
+
+    for( i=start_pa+1; i<(qrpiv->ldd); i++ )
+        if ( (qrpiv->ipiv)[i +  k_a * (qrpiv->ldd)] == p_pa )
             return i;
     return i;
  }
 
 /* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
-inline static int dplasma_low_fibonacci_nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start ) {
+inline static int dplasma_low_fibonacci_nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    for( i=start-1; i>(k/qrpiv->a); i-- )
-        if ( (qrpiv->ipiv)[i + (k/qrpiv->a) * (qrpiv->ldd)] == p )
+    int k_a = k / qrpiv->a;
+    int p_pa = (p / qrpiv->p ) / qrpiv->a;
+
+    for( i=start_pa-1; i>k_a; i-- )
+        if ( (qrpiv->ipiv)[i + k_a * (qrpiv->ldd)] == p_pa )
             return i;
     return (qrpiv->ldd);
 }
@@ -487,23 +508,28 @@ static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int minMN){
  ***************************************************/
 /* Return the pivot to use for the row m at step k */
 inline static int dplasma_low_greedy_currpiv( const qr_subpiv_t *qrpiv, const int m, const int k ) {
-    return (qrpiv->ipiv)[ k * (qrpiv->ldd) + m ];
+    return (qrpiv->ipiv)[ k * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
 }
 
 /* Return the last row which has used the row m as a pivot in step k before the row start */
-inline static int dplasma_low_greedy_prevpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start ) {
+inline static int dplasma_low_greedy_prevpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    for( i=start+1; i<(qrpiv->ldd); i++ )
-        if ( (qrpiv->ipiv)[i +  k * (qrpiv->ldd)] == p )
+    int p_pa = (p / qrpiv->p ) / qrpiv->a;
+
+    for( i=start_pa+1; i<(qrpiv->ldd); i++ )
+        if ( (qrpiv->ipiv)[i +  k * (qrpiv->ldd)] == p_pa )
             return i;
     return i;
  }
 
 /* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
-inline static int dplasma_low_greedy_nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start ) {
+inline static int dplasma_low_greedy_nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    for( i=start-1; i>(k/qrpiv->a); i-- )
-        if ( (qrpiv->ipiv)[i + k* (qrpiv->ldd)] == p )
+    int k_a  = k / qrpiv->a;
+    int p_pa = (p / qrpiv->p ) / qrpiv->a;
+
+    for( i=start_pa-1; i> k_a; i-- )
+        if ( (qrpiv->ipiv)[i + k* (qrpiv->ldd)] == p_pa )
             return i;
     return (qrpiv->ldd);
 }
@@ -732,11 +758,11 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
     switch( dplasma_qr_gettype( a, p, domino, k, m ) ) 
         {
         case 0:
-            return ( (lm / a) == (k / a) ) ? k*p+rank : (lm / a) * a * p + rank;
+            return ( (lm / a) == (k / a) ) ? k * p + rank : (lm / a) * a * p + rank;
             break;
         case 1:
-            tmp = arg->llvl->currpiv(arg->llvl, lm / a, k);
-            return ( (k / a) == tmp ) ? k * p + rank : tmp * a * p + rank;
+            tmp = arg->llvl->currpiv(arg->llvl, m, k);
+            return ( tmp      == (k / a) ) ? k * p + rank :  tmp     * a * p + rank;
             break;
         case 2:
             return m - p;
@@ -816,11 +842,11 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
                 goto next_2;
                     
             /* Get the next pivot for the low level tree */
-            tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, lstart / a );
+            tmp = arg->llvl->nextpiv(arg->llvl, pivot, k, lstart / a );
 
             if ( (tmp * a * p + rpivot >= arg->desc->mt)
                  && (tmp == arg->llvl->ldd-1) )
-                tmp = arg->llvl->nextpiv(arg->llvl, lpivot / a, k, tmp);
+                tmp = arg->llvl->nextpiv(arg->llvl, pivot, k, tmp);
             
             if ( tmp != arg->llvl->ldd )
                 return tmp * a * p + rpivot;
@@ -917,11 +943,11 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int st
             if ( lpivot < k )
                 return  arg->desc->mt;
                  
-            tmp = arg->llvl->prevpiv(arg->llvl, lpivot / a, k, lstart / a);
+            tmp = arg->llvl->prevpiv(arg->llvl, pivot, k, lstart / a);
 
             if ( (tmp * a * p + rpivot >= arg->desc->mt)
                  && (tmp == arg->llvl->ldd-1) )
-                tmp = arg->llvl->prevpiv(arg->llvl, lpivot / a, k, tmp);
+                tmp = arg->llvl->prevpiv(arg->llvl, pivot, k, tmp);
                 
             if ( tmp != arg->llvl->ldd )
                 return tmp * a * p + rpivot;
@@ -1045,7 +1071,6 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         ENDCHECK( check, 2 );
     }
 
-#if 0
     /* 
      * Check number of exit in next
      */
@@ -1172,7 +1197,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         }
         ENDCHECK( check, 3 );
     }
-#endif
+
     return 0;
 }
 
