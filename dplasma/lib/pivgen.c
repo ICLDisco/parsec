@@ -76,7 +76,7 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
-#include "pivgen.h"
+#include "dplasma_qr_pivgen.h"
 
 #ifndef min
 #define min(__a, __b) ( ( (__a) < (__b) ) ? (__a) : (__b) )
@@ -134,6 +134,8 @@ static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, const int minMN);
  *
  */
 
+#define nbextra1_formula ( (k % pa) > (pa - p) ) ? (-k)%pa + pa : 0
+
 /*
  * Extra parameter:
  *    gmt - Global number of tiles in a column of the complete distributed matrix
@@ -157,7 +159,7 @@ int dplasma_qr_getnbgeqrf( const int a, const int p, const int domino, const int
     }
     else {
       /* Number of extra tile of type 1 between the the tile of type 3 and the first of nb11 */
-      nb_2 = ( (k+p) / p ) % a ==  0 ? p - (p+k)%pa : 0;
+      nb_2 = nbextra1_formula;
 
       /* First multiple of p*a under the diagonal of step 1 */
       nb_11 = ( (k + p + pa - 1 ) / pa ) * pa;
@@ -184,7 +186,7 @@ int dplasma_qr_getnbgeqrf( const int a, const int p, const int domino, const int
 int dplasma_qr_getm( const int a, const int p, const int domino, const int k, const int i)
 {
     int pos1, j, pa = p * a;
-    int nbextra1 = ( (k+p) / p ) % a ==  0 ? p - (p+k)%pa : 0;
+    int nbextra1 = nbextra1_formula;
     int nb23 = p + (domino ? k*(p-1) : nbextra1 );
 
     /* Tile of type 2 or 3 or the 1 between the diagonal and the multiple after the diagonal */
@@ -211,7 +213,7 @@ int dplasma_qr_getm( const int a, const int p, const int domino, const int k, co
 int dplasma_qr_geti( const int a, const int p, const int domino, const int k, const int m)
 {
     int pos1, j, pa = p * a;
-    int nbextra1 = ( (k+p) / p ) % a ==  0 ? p - (p+k)%pa : 0;
+    int nbextra1 = nbextra1_formula;
     int nb23 = p + ( domino ? k*(p-1) : nbextra1 );
     int end2 = p + ( domino ? k*p     : nbextra1 );
 
@@ -952,10 +954,13 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int st
 
 /****************************************************
  ***************************************************/
+/* #define ENDCHECK( test, ret )                   \ */
+/*     if ( !test )                                \ */
+/*         exit( -1 ); */
+
 #define ENDCHECK( test, ret )                   \
     if ( !test )                                \
-        exit( -1 );
-
+        return ret;
 
 int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
 {
@@ -994,6 +999,7 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         ENDCHECK( check, 1 );
     }
 
+#if 0
     /* 
      * Check indices of geqrt 
      */
@@ -1166,19 +1172,19 @@ int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
         }
         ENDCHECK( check, 3 );
     }
-
+#endif
     return 0;
 }
 
 
-qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, int a, int p )
+qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, int a, int p, int domino )
 {
     int low_mt, minMN;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
 
     a = max( a, 1 );
     p = max( p, 1 );
-    int domino = 1;
+    domino = domino ? 1 : 0;
 
     qrpiv->desc = A;
     qrpiv->a = a;
