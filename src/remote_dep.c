@@ -234,10 +234,12 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         {
                             continue;
                         }
-                        if(remote_deps->output[i].type->elem_size <= RDEP_MSG_EAGER_LIMIT) 
+                        if( (ACCESS_NONE != exec_context->function->in[i]->access_type) &&  /* controls never take the eager path */ 
+                            (remote_deps->output[i].type->elem_size <= RDEP_MSG_EAGER_LIMIT) ) {
                             RDEP_MSG_EAGER_SET(&remote_deps->msg);
-                        else
+                        } else {
                             RDEP_MSG_EAGER_CLR(&remote_deps->msg);
+                        }
                         DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n", dague_service_to_string(exec_context, tmp, 128), i, remote_deps->output[i].type->elem_size, RDEP_MSG_EAGER(&remote_deps->msg)));
                         remote_dep_inc_flying_messages(eu_context->master_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);

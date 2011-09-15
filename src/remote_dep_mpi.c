@@ -297,7 +297,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
 {
     int actions = DAGUE_ACTION_NO_PLACEHOLDER | DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
     dague_execution_context_t exec_context;
-    const param_t* target;
+    const dague_flow_t* target;
     int ret, i, whereto;
     
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
@@ -307,7 +307,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
         exec_context.locals[i] = origin->msg.locals[i];
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
-        whereto = target->param_index;
+        whereto = target->flow_index;
         exec_context.data[whereto].data_repo = NULL;
         exec_context.data[whereto].data      = NULL;
         if(origin->msg.deps & (1 << i)) {

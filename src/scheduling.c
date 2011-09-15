@@ -46,15 +46,16 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
     const dague_function_t* function = exec_context->function;
 #if defined(DAGUE_DEBUG)
     {
-        const struct param* param;
+        const struct dague_flow* flow;
         int set_parameters, i;
         char tmp[128];
 
         DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
-        for( i = set_parameters = 0; NULL != (param = exec_context->function->in[i]); i++ ) {
-            if( NULL != exec_context->data[param->param_index].data_repo ) {
+        for( i = set_parameters = 0; NULL != (flow = exec_context->function->in[i]); i++ ) {
+            if( (NULL != exec_context->data[flow->flow_index].data_repo) &&
+                (ACCESS_NONE != flow->access_type)) {
                 set_parameters++;
-                assert( NULL != exec_context->data[param->param_index].data );
+                assert( NULL != exec_context->data[flow->flow_index].data );
             }
         }
         assert( set_parameters <= 1 );
@@ -89,23 +90,23 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 #if defined(DAGUE_DEBUG)
     {
         dague_execution_context_t* context = new_context;
-        const struct param* param;
+        const struct dague_flow* flow;
         int set_parameters, i;
         char tmp[128];
 
         do {
-            for( i = set_parameters = 0; NULL != (param = context->function->in[i]); i++ ) {
-                if( NULL != context->data[param->param_index].data_repo ) {
+            for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
+                if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
-                    if( NULL == context->data[param->param_index].data ) {
-                        DEBUG(( "Task %s has parameters %d data_repo != NULL but a data == NULL (%s:%d)\n",
-                                dague_service_to_string(context, tmp, 128), param->param_index, __FILE__, __LINE__));
-                        assert( NULL == context->data[param->param_index].data );
+                    if( NULL == context->data[flow->flow_index].data ) {
+                        DEBUG(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
+                                dague_service_to_string(context, tmp, 128), flow->flow_index, __FILE__, __LINE__));
+                        assert( NULL == context->data[flow->flow_index].data );
                     }
                 }
             }
             if( set_parameters > 1 ) {
-                DEBUG(( "Task %s has more than one parameter set (impossible)!! (%s:%d)\n",
+                DEBUG(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
                 assert( set_parameters > 1 );
             }

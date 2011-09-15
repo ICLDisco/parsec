@@ -124,7 +124,7 @@ static edge_list_t *lookup_create_edge(const vertex_list_t *from, const vertex_l
 static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu, 
                                               dague_execution_context_t *newcontext, 
                                               dague_execution_context_t *oldcontext, 
-                                              int param_index, int outdep_index, 
+                                              int flow_index, int outdep_index, 
                                               int rank_src, int rank_dst,
                                               void *param)
 {
@@ -134,7 +134,7 @@ static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu,
     vertex_list_t *to;
 
     (void)eu;
-    (void)param_index;
+    (void)flow_index;
     (void)outdep_index;
     (void)rank_src;
     (void)rank_dst;

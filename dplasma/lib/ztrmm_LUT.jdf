@@ -17,8 +17,6 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-ctl[aligned = B]
-
 side [type = int]
 uplo [type = int]
 trans[type = int]
@@ -69,7 +67,7 @@ n = 0..Bnt-1
 READ  A   <- A TRMM_IN(m)
 RW    B   <- B(m, n)
           -> (m == 0)     ? B(m, n)   : C GEMM(m, n, m-1)
-CTL   ctl <- (m == Bmt-1) ? ctl(m, n) : ctl1 GOK(m+1, n, m)
+CTL   ctl <- (m != Bmt-1) ? ctl1 GOK(m+1, n, m)
 
 BODY
      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
@@ -139,8 +137,7 @@ READ  A   <- A GEMM_INA(m, k) /* Read A(k, m) */
 READ  B   <- B GEMM_INB(k, n) 
 RW    C   <- (k == m-1) ? B TRMM(m, n) : C GEMM(m, n, k+1)
           -> (k == 0)   ? B(m, n)      : C GEMM(m, n, k-1)
-CTL   ctl <- ctl(m, n)
-          -> ctl2 GOK(m, n, k)
+CTL   ctl -> ctl2 GOK(m, n, k)
 BODY
      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
      int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
@@ -177,7 +174,7 @@ k = 0..m-1
 : B(m, n)
 
 // Parameters
-CTL   ctl1 <- (m == Bmt-1) ? ctl(m, n)      : ctl1 GOK(m+1, n, k)
+CTL   ctl1 <- (m != Bmt-1) ? ctl1 GOK(m+1, n, k)
            -> (m-1 == k)   ? ctl TRMM(k, n) : ctl1 GOK(m-1, n, k)
 CTL   ctl2 <- ctl GEMM(m, n, k)
 BODY
