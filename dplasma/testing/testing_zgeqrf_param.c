@@ -18,6 +18,7 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     int info_ortho = 0, info_facto = 0;
+    qr_piv_t *qrpiv;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -73,10 +74,14 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     if(loud > 2) printf("Done\n");
     
+    qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA, 
+                                 iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
+                                 iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
+                                 1 );
+
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
-                              (iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                               iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
+                              (qrpiv,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescTS,
                                (tiled_matrix_desc_t*)&ddescTT));
@@ -112,9 +117,7 @@ int main(int argc, char ** argv)
     if( check ) {
         if(loud > 2) printf("+++ Generate the Q ...");
         dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
-        dplasma_zungqr_param( dague, 
-                              iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
-                              iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
+        dplasma_zungqr_param( dague, qrpiv,
                               (tiled_matrix_desc_t *)&ddescA, 
                               (tiled_matrix_desc_t *)&ddescTS, 
                               (tiled_matrix_desc_t *)&ddescTT, 
@@ -135,6 +138,9 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
     }
     
+    dplasma_pivgen_finalize( qrpiv );
+    free( qrpiv );
+
     dague_data_free(ddescA.mat);
     dague_data_free(ddescTS.mat);
     dague_data_free(ddescTT.mat);
