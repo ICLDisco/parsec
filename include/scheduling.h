@@ -91,5 +91,21 @@ void dague_register_nb_tasks(dague_context_t* context, int32_t n);
 int dague_complete_execution( dague_execution_unit_t *eu_context,
                               dague_execution_context_t *exec_context );
 
+typedef struct {
+    int(*init)(dague_context_t* master);
+    int(*schedule_task)(dague_execution_unit_t* eu_context, dague_execution_context_t* new_context);
+    dague_execution_context_t *(*select_task)( dague_execution_unit_t *eu_context );
+    void(*display_stats)(dague_execution_unit_t* eu_context);
+    void(*finalize)(dague_context_t *master);
+} dague_scheduler_t;
+
+/**
+ * Changes the scheduler.
+ * You better not call this while some computation is in progress,
+ *  i.e. it should be safe to call this when the main thread is not yet inside dague_progress,
+ *  but *before* any call to dague_progress...
+ */
+void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *scheduler );
+
 #endif  /* _DAGUE_scheduling_h */
 
