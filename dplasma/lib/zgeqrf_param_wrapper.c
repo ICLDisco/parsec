@@ -9,24 +9,19 @@
 #include "dague.h"
 #include <plasma.h>
 #include "dplasma.h"
-#include "dplasma/lib/pivgen.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
 
 #include "zgeqrf_param.h"
 
-dague_object_t* dplasma_zgeqrf_param_New( int tree_llvl, int tree_hlvl,
-                                          int sze_ts, int sze_hlvl,
+dague_object_t* dplasma_zgeqrf_param_New( qr_piv_t *qrpiv,
                                           tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TS,
                                           tiled_matrix_desc_t *TT )
 {
     dague_zgeqrf_param_object_t* object;
-    qr_piv_t *qrpiv;
     int ib = TS->mb;
-
-    qrpiv = dplasma_pivgen_init( A, tree_llvl, tree_hlvl, sze_ts, sze_hlvl );
 
     /* 
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
@@ -72,17 +67,14 @@ dague_object_t* dplasma_zgeqrf_param_New( int tree_llvl, int tree_hlvl,
 }
 
 int dplasma_zgeqrf_param( dague_context_t *dague, 
-                          int tree_llvl, int tree_hlvl,
-                          int sze_ts, int sze_hlvl,
+                          qr_piv_t *qrpiv,
                           tiled_matrix_desc_t *A, 
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT) 
 {
     dague_object_t *dague_zgeqrf_param = NULL;
 
-    dague_zgeqrf_param = dplasma_zgeqrf_param_New(tree_llvl, tree_hlvl,
-                                                  sze_ts, sze_hlvl,
-                                                  A, TS, TT);
+    dague_zgeqrf_param = dplasma_zgeqrf_param_New(qrpiv, A, TS, TT);
 
     dague_enqueue(dague, (dague_object_t*)dague_zgeqrf_param);
     dplasma_progress(dague);
@@ -95,9 +87,6 @@ void
 dplasma_zgeqrf_param_Destruct( dague_object_t *o )
 {
     dague_zgeqrf_param_object_t *dague_zgeqrf_param = (dague_zgeqrf_param_object_t *)o;
-
-    dplasma_pivgen_finalize( dague_zgeqrf_param->pivfct );
-    free( dague_zgeqrf_param->pivfct );
 
     dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA]->opaque_dtt) );

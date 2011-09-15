@@ -9,25 +9,20 @@
 #include "dague.h"
 #include <plasma.h>
 #include "dplasma.h"
-#include "dplasma/lib/pivgen.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/memory_pool.h"
 
 #include "zungqr_param.h"
 
-dague_object_t* dplasma_zungqr_param_New( int tree_llvl, int tree_hlvl,
-                                          int sze_ts, int sze_hlvl,
+dague_object_t* dplasma_zungqr_param_New( qr_piv_t *qrpiv,
                                           tiled_matrix_desc_t *A,
                                           tiled_matrix_desc_t *TS,
                                           tiled_matrix_desc_t *TT,
                                           tiled_matrix_desc_t *Q)
 {
     dague_zungqr_param_object_t* object;
-    qr_piv_t *qrpiv;
     int ib = TS->mb;
-
-    qrpiv = dplasma_pivgen_init( Q, tree_llvl, tree_hlvl, sze_ts, sze_hlvl );
 
     /* 
      * TODO: We consider ib is T->mb but can be incorrect for some tricks with GPU,
@@ -71,8 +66,7 @@ dague_object_t* dplasma_zungqr_param_New( int tree_llvl, int tree_hlvl,
 }
 
 int dplasma_zungqr_param( dague_context_t *dague, 
-                          int tree_llvl, int tree_hlvl,
-                          int sze_ts, int sze_hlvl,
+                          qr_piv_t *qrpiv,
                           tiled_matrix_desc_t *A, 
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT,
@@ -80,9 +74,7 @@ int dplasma_zungqr_param( dague_context_t *dague,
 {
     dague_object_t *dague_zungqr_param = NULL;
 
-    dague_zungqr_param = dplasma_zungqr_param_New(tree_llvl, tree_hlvl,
-                                                  sze_ts, sze_hlvl,
-                                                  A, TS, TT, Q);
+    dague_zungqr_param = dplasma_zungqr_param_New(qrpiv, A, TS, TT, Q);
 
     dague_enqueue(dague, (dague_object_t*)dague_zungqr_param);
     dplasma_progress(dague);
@@ -95,9 +87,6 @@ void
 dplasma_zungqr_param_Destruct( dague_object_t *o )
 {
     dague_zungqr_param_object_t *dague_zungqr_param = (dague_zungqr_param_object_t *)o;
-
-    dplasma_pivgen_finalize( dague_zungqr_param->pivfct );
-    free( dague_zungqr_param->pivfct );
 
     dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_zungqr_param->arenas[DAGUE_zungqr_param_LOWER_TILE_ARENA]->opaque_dtt) );

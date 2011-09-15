@@ -14,7 +14,7 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/pivgen.h"
+#include "dplasma_qr_pivgen.h"
 
 #define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
