@@ -84,7 +84,7 @@ static inline void done_task(dague_context_t* context)
 }
 
 
-static dague_scheduler_t scheduler = { NULL, };
+static dague_scheduler_t scheduler = { NULL, NULL, NULL, NULL, NULL };
 
 void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s ) {
     if( NULL != scheduler.finalize ) {
@@ -334,7 +334,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
-    return (void*)nbiterations;
+    return (void*)((long)nbiterations);
 }
 
 int dague_enqueue( dague_context_t* context, dague_object_t* object)

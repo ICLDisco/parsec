@@ -105,10 +105,9 @@ static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
 
 static int init_local_flat_queues(  dague_context_t *master )
 {
-    int i;
+    int i, nq = 1;
     dague_execution_unit_t *eu;
     uint32_t queue_size = master->nb_cores * 4;
-    uint32_t nq = 0;
     local_queues_scheduler_object_t *sched_obj = NULL;
 
     for(i = 0; i < master->nb_cores; i++) {
@@ -151,7 +150,6 @@ static int init_local_flat_queues(  dague_context_t *master )
         
         /* Then, they know about all other queues, from the closest to the farthest */
 #if defined(HAVE_HWLOC)
-        nq = 1;
         for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
             for(int id = (eu->eu_id + 1) % master->nb_cores; 
                 id != eu->eu_id; 
@@ -173,7 +171,7 @@ static int init_local_flat_queues(  dague_context_t *master )
         }
         assert( nq == sched_obj->nb_hierarch_queues );
 #else
-        for(nq = 1; nq < sched_obj->nb_hierarch_queues; nq++) {
+        for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
             sched_obj->hierarch_queues[nq] =
                 LOCAL_QUEUES_OBJECT(master->execution_units[(eu->eu_id + nq) % master->nb_cores])->task_queue;
         }
@@ -268,8 +266,9 @@ static unsigned int ranking_function_bypriority(dague_list_item_t *elt, void *_)
 
 static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_t *eu_context )
 {
-    unsigned int i;
     dague_execution_context_t *exec_context = NULL;
+    int i;
+
     exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
                                                                        ranking_function_bypriority,
                                                                        NULL);
