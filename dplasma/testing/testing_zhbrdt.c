@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
                 MPI_Type_vector(NB, 2, MB+1, MPI_DOUBLE_COMPLEX, &bidiagband_dtt); 
 
                 for(int t = 0; t < NT; t++) {
-                    if(ddescA.super.super.rank_of(0,t) == rank)
+                    if(ddescA.super.super.rank_of(0,t) == (uint32_t)rank)
                         {
                             PLASMA_Complex64_t* datain = ddescA.super.super.data_of(0,t);
                             MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
