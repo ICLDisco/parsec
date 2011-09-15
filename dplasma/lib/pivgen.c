@@ -281,12 +281,12 @@ static int dplasma_low_flat_currpiv(const qr_subpiv_t *arg, const int m, const i
     if ( arg->domino )
         return k / arg->a;
     else
-        return k - m%(arg->p) ;
+        return (k + arg->p - 1 - m%(arg->p)) / arg->p / arg->a ;
 };
 
 static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
-    int k_a = k / arg->a;
+    int k_a = arg->domino ? k / arg->a :  (k + arg->p - 1 - p%(arg->p)) / arg->p / arg->a;
     int p_pa = (p / arg->p ) / arg->a;
 
 #ifdef FLAT_UP
@@ -297,20 +297,11 @@ static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const i
     if ( start_pa <= p_pa )
         return arg->ldd;
 
-    if ( arg->domino ) {
-      if ( p_pa == k_a && ( arg->ldd - k_a ) > 1 ) {
-          if ( start_pa == arg->ldd )
-              return p_pa+1;
-          else if ( start_pa < arg->ldd )
-              return start_pa+1;
-      }
-    } else {
-        if ( (k <= p_pa)  && (p_pa < k + arg->p ) && ( arg->ldd - k_a ) > 1 ) {
-          if ( start_pa == arg->ldd )
-              return p_pa+1;
-          else if ( start_pa < arg->ldd )
-              return start_pa+1;
-      }
+    if ( p_pa == k_a && ( arg->ldd - k_a ) > 1 ) {
+        if ( start_pa == arg->ldd )
+            return p_pa+1;
+        else if ( start_pa < arg->ldd )
+            return start_pa+1;
     }
 #endif
     return arg->ldd;
@@ -318,7 +309,7 @@ static int dplasma_low_flat_nextpiv(const qr_subpiv_t *arg, const int p, const i
 
 static int dplasma_low_flat_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
-    int k_a = k / arg->a;
+    int k_a = arg->domino ? k / arg->a :  (k + arg->p - 1 - p%(arg->p)) / arg->p / arg->a;
     int p_pa = (p / arg->p ) / arg->a;
 
 #ifdef FLAT_UP
@@ -747,7 +738,7 @@ static void dplasma_high_greedy_init(qr_subpiv_t *arg, int minMN){
  ***************************************************/
 int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
 { 
-    int tmp;
+    int tmp, tmpk;
     int a    = arg->a;
     int p    = arg->p;
     int domino = arg->domino;
@@ -755,14 +746,16 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
     int rank = m % p; /* Staring index in this distribution             */
 
     /* TS level common to every case */
-    switch( dplasma_qr_gettype( a, p, domino, k, m ) ) 
+    if ( domino ) {
+        switch( dplasma_qr_gettype( a, p, domino, k, m ) ) 
         {
         case 0:
-            return ( (lm / a) == (k / a) ) ? k * p + rank : (lm / a) * a * p + rank;
+            tmp = lm / a;
+            return ( tmp == k / arg->a ) ? k * p + rank : tmp * a * p + rank;
             break;
         case 1:
             tmp = arg->llvl->currpiv(arg->llvl, m, k);
-            return ( tmp      == (k / a) ) ? k * p + rank :  tmp     * a * p + rank;
+            return ( tmp == k / arg->a ) ? k * p + rank : tmp * a * p + rank;
             break;
         case 2:
             return m - p;
@@ -773,6 +766,30 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         default:
             return arg->desc->mt;
         }
+    }
+    else {
+        switch( dplasma_qr_gettype( a, p, domino, k, m ) ) 
+        {
+        case 0:
+            tmp = lm / a;
+            tmpk = k / (p * a);
+            return ( tmp == tmpk ) ? k + (m-k)%p : tmp * a * p + rank;
+            break;
+        case 1:
+            tmp = arg->llvl->currpiv(arg->llvl, m, k);
+            tmpk = k / (p * a);
+            return ( tmp == tmpk ) ? k + (m-k)%p : tmp * a * p + rank;
+            break;
+        case 2:
+            return m - p;
+            break;
+        case 3:
+            if ( arg->hlvl != NULL )
+                return arg->hlvl->currpiv(arg->hlvl, m, k);
+        default:
+            return arg->desc->mt;
+        }
+    }
 };
 
 int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int start)
@@ -805,7 +822,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
         case 0:
 
             /* If the tile is over the diagonal of step k, skip directly to type 2 */
-            if ( lpivot < k )
+            if ( arg->domino && lpivot < k )
                 goto next_2;
                     
             if ( start == arg->desc->mt )
@@ -818,27 +835,14 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
                  ( (nextp/p)%a != 0 ) )
                 return nextp;
             
-            /* /\* First query / Check for use in TS *\/ */
-            /* if ( start == arg->desc->mt ) { */
-            /*     tmp = lpivot + a - 1 - lpivot%a; */
-            /*     nextp = tmp * p + rpivot; */
-                
-            /*     while( pivot < nextp && nextp >= arg->desc->mt )  */
-            /*         nextp -= p; */
-            /* } else { */
-            /*     nextp = (lstart - 1) * p + rpivot; */
-            /* }                 */
-            /* if ( pivot < nextp && nextp < arg->desc->mt )  */
-            /*     return nextp;  */
-
-            /* no next of type 0, we reset start to search the next 1 */
+           /* no next of type 0, we reset start to search the next 1 */
             start = arg->desc->mt;
             lstart = arg->llvl->ldd * a;
                 
         case 1:
 
             /* If the tile is over the diagonal of step k, skip directly to type 2 */
-            if ( lpivot < k )
+            if ( arg->domino && lpivot < k )
                 goto next_2;
                     
             /* Get the next pivot for the low level tree */
@@ -863,7 +867,8 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
             }
 
             /* Type 2 are killed only once if they are strictly in the band */
-            if ( (start == arg->desc->mt) && 
+            if ( arg->domino && 
+                 (start == arg->desc->mt) && 
                  (lpivot < k)             &&
                  (pivot+p < arg->desc->mt) ) {
                 return pivot+p;
@@ -924,7 +929,8 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int st
             lstart = pivot / p;
 
         case 2:
-            if ( lpivot < k ) {
+            /* If the tile is over the diagonal of step k, process it as type 2 */
+            if ( arg->domino && lpivot < k ) {
                 
                 if ( ( start == pivot ) &&
                      (start+p < arg->desc->mt ) )
@@ -940,7 +946,9 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int st
             /* If it is the 'local' diagonal block, we go to 1 */
 
         case 1:
-            if ( lpivot < k )
+            /* If the tile is over the diagonal of step k and is of type 2,
+               it cannot annihilate type 0 or 1 */
+            if ( arg->domino && lpivot < k )
                 return  arg->desc->mt;
                  
             tmp = arg->llvl->prevpiv(arg->llvl, pivot, k, lstart / a);
