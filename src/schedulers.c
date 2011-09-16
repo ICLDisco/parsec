@@ -145,9 +145,10 @@ static int init_local_flat_queues(  dague_context_t *master )
     }
 
     for(i = 0; i < master->nb_cores; i++) {
+        nq = 1;
         eu = master->execution_units[i];
         sched_obj = LOCAL_QUEUES_OBJECT(eu);
-        
+ 
         /* Then, they know about all other queues, from the closest to the farthest */
 #if defined(HAVE_HWLOC)
         for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
@@ -165,9 +166,9 @@ static int init_local_flat_queues(  dague_context_t *master )
                     if( nq == sched_obj->nb_hierarch_queues )
                         break;
                 }
-                if( nq == sched_obj->nb_hierarch_queues )
-                    break;
             }
+            if( nq == sched_obj->nb_hierarch_queues )
+                break;
         }
         assert( nq == sched_obj->nb_hierarch_queues );
 #else
