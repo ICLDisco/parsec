@@ -339,7 +339,7 @@ static void dplasma_low_flat_init(qr_subpiv_t *arg){
  ***************************************************/
 static int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
 { 
-    int k_a = k / arg->a;
+    int k_a = arg->domino ? k / arg->a :  (k + arg->p - 1 - m%(arg->p)) / arg->p / arg->a;
     int m_pa = (m / arg->p ) / arg->a;
 
     int tmp1 = m_pa - k_a;
@@ -358,11 +358,11 @@ static int dplasma_low_binary_currpiv(const qr_subpiv_t *arg, const int m, const
 
 static int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
-    int k_a = k / arg->a;
+    int k_a = arg->domino ? k / arg->a :  (k + arg->p - 1 - p%(arg->p)) / arg->p / arg->a;
     int p_pa = (p / arg->p ) / arg->a;
 
     int tmpp, bit; 
-    myassert( (start_pa == arg->ldd) || (dplasma_low_binary_currpiv( arg, start_pa*arg->a*arg->p, k ) == p_pa) );
+    myassert( (start_pa == arg->ldd) || (dplasma_low_binary_currpiv( arg, start_pa*arg->a*arg->p, k ) == p_pa || !arg->domino) );
 
     if ( start_pa <= p_pa )
         return arg->ldd;
@@ -384,11 +384,12 @@ static int dplasma_low_binary_nextpiv(const qr_subpiv_t *arg, const int p, const
 
 static int dplasma_low_binary_prevpiv(const qr_subpiv_t *arg, const int p, const int k, const int start_pa)
 { 
-    int k_a = k / arg->a;
+    int k_a = arg->domino ? k / arg->a :  (k + arg->p - 1 - p%(arg->p)) / arg->p / arg->a;
     int p_pa = (p / arg->p ) / arg->a;
     int offset = p_pa - k_a;
 
-    myassert( start_pa >= p_pa && ( start_pa == p_pa || dplasma_low_binary_currpiv( arg, start_pa*arg->a*arg->p, k ) == p_pa) );
+    myassert( start_pa >= p_pa && ( start_pa == p_pa || !arg->domino ||
+                                    dplasma_low_binary_currpiv( arg, start_pa*arg->a*arg->p, k ) == p_pa ) );
 
     if ( (start_pa == p_pa) && ( offset%2 == 0 ) ) {
         int i, bit, tmp;
