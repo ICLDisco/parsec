@@ -139,7 +139,6 @@ int main(int argc, char ** argv)
     }
     
     dplasma_pivgen_finalize( qrpiv );
-    free( qrpiv );
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescTS.mat);
