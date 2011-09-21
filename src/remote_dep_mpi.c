@@ -508,6 +508,7 @@ enum {
 #ifdef DAGUE_PROF_TRACE
 static dague_thread_profiling_t* MPIctl_prof;
 static dague_thread_profiling_t* MPIsnd_prof[DEP_NB_CONCURENT];
+static dague_thread_profiling_t* MPIsnd_eager;
 static dague_thread_profiling_t* MPIrcv_prof[DEP_NB_CONCURENT];
 static unsigned long act = 0;
 static int MPI_Activate_sk, MPI_Activate_ek;
@@ -552,6 +553,7 @@ static void remote_dep_mpi_profiling_init(void)
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
     MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
+    MPIsnd_eager = dague_profiling_thread_init( 2*1024*1024, "MPI send()");
     for(i = 0; i < DEP_NB_CONCURENT; i++) {
         MPIsnd_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI isend(req=%d)", i);
         MPIrcv_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI irecv(req=%d)", i);
@@ -889,14 +891,18 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
 #endif
 
 #if defined(DAGUE_PROF_TRACE)
-        TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
-                            eu_context->master_context->my_rank, rank, msg);
+        TAKE_TIME_WITH_INFO(MPIsnd_eager, MPI_Data_plds_sk, 0,
+                            eu_context->master_context->my_rank, rank, (*msg));
 #else
         (void) eu_context;
 #endif /* DAGUE_PROF_TRACE */
 #ifndef DAGUE_PROF_DRY_DEP
         MPI_Send(data, 1, dtt, rank, tag, dep_comm); 
 #endif
+#if defined(DAGUE_PROF_TRACE)
+        TAKE_TIME_WITH_INFO(MPIsnd_eager, MPI_Data_plds_ek, 0,
+                            eu_context->master_context->my_rank, rank, (*msg));
+#endif /* DAGUE_PROF_TRACE */
         DEBUG_MARK_DTA_MSG_START_SEND(rank, data, tag);
 
     }
