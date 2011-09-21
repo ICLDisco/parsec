@@ -46,10 +46,11 @@ zttmqr(k, m, n)
   nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
   prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
-  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti( param_a, param_p, param_d, k,   p ); %}
-  im    = inline_c %{ return dplasma_qr_geti( param_a, param_p, param_d, k,   m ); %}
-  im1   = inline_c %{ return dplasma_qr_geti( param_a, param_p, param_d, k+1, m ); %}
+  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k,   m ); %}
+  type1 = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k+1, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   p ); %}
+  im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   m ); %}
+  im1   = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k+1, m ); %}
   
   : Q(m, n)
   /* Execution space */
@@ -65,10 +66,9 @@ zttmqr(k, m, n)
           <- ( ( nextp == descQ.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
           -> (   prevp == descQ.mt ) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
 
-  RW   A2 <- ( k == minMN-1 ) ? Q(m, n)
-          <- ( (k != minMN-1) & (type == 0) && (m/param_p == (k+1)) ) ? C  zunmqr( k+1, im1, n )
-          <- ( (k != minMN-1) & (type == 0) && (m/param_p >  (k+1)) ) ? A2 zttmqr( k+1, m, n ) 
-          <- ( (k != minMN-1) & (type != 0)  ) ? C zunmqr( k+1, im1, n )
+  RW   A2 <- (  k == minMN-1 ) ? Q(m, n)
+          <- ( (k != minMN-1) & (type1 == 0) ) ? A2 zttmqr( k+1, m, n ) 
+          <- ( (k != minMN-1) & (type1 != 0) ) ? C zunmqr( k+1, im1, n )
           -> ( (type == 0) && (k     == 0        ) ) ? Q(m, n)
           -> ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
           -> ( (type != 0) && (prevm == descQ.mt ) ) ? C  zunmqr(k, im, n)

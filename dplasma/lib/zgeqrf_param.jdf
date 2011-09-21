@@ -292,6 +292,7 @@ zttmqr(k, m, n)
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
   prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
   type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k,   m ); %}
+  type1 = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k+1, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   p ); %}
   im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   m ); %}
   im1   = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k+1, m ); %}
@@ -313,12 +314,11 @@ zttmqr(k, m, n)
           <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
           <- ( (type != 0) && (prevm == descA.mt ) ) ? C  zunmqr(k, im, n)
           <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttmqr(k, prevm, n )
-          -> ( (type == 0) && (m/param_p == (k+1)) && (n==(k+1)) ) ? A  zgeqrt( k+1, im1 ) 
-          -> ( (type == 0) && (m/param_p == (k+1)) && (n>  k+1)  ) ? C  zunmqr( k+1, im1, n )
-          -> ( (type == 0) && (m/param_p >  (k+1)) && (n==(k+1)) ) ? A2 zttqrt( k+1, m ) 
-          -> ( (type == 0) && (m/param_p >  (k+1)) && (n> (k+1)) ) ? A2 zttmqr( k+1, m, n ) 
-          -> ( (type != 0) && ( n == k+1 ) ) ? A zgeqrt( k+1, im1 ) 
-          -> ( (type != 0) && ( n >  k+1 ) ) ? C zunmqr( k+1, im1, n )
+          -> ( (type1 != 0 ) && (n==(k+1)) ) ? A  zgeqrt( k+1, im1 )
+          -> ( (type1 != 0 ) && (n>  k+1)  ) ? C  zunmqr( k+1, im1, n )
+          -> ( (type1 == 0 ) && (n==(k+1)) ) ? A2 zttqrt( k+1, m )
+          -> ( (type1 == 0 ) && (n> (k+1)) ) ? A2 zttmqr( k+1, m, n )
+
   READ  V <- A2 zttqrt(k, m) 
   READ  T <- T  zttqrt(k, m) [type = LITTLE_T]
 
