@@ -500,16 +500,21 @@ static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int minMN){
  ***************************************************/
 /* Return the pivot to use for the row m at step k */
 inline static int dplasma_low_greedy_currpiv( const qr_subpiv_t *qrpiv, const int m, const int k ) {
-    return (qrpiv->ipiv)[ k * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
+    if (qrpiv->domino)
+        return (qrpiv->ipiv)[ k * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
+    else 
+        return (qrpiv->ipiv)[ ( (m%qrpiv->p) * qrpiv->minMN + k ) * (qrpiv->ldd) 
+                              + ( ( m  / qrpiv->p ) / qrpiv->a ) ];
 }
 
 /* Return the last row which has used the row m as a pivot in step k before the row start */
 inline static int dplasma_low_greedy_prevpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    int p_pa = (p / qrpiv->p ) / qrpiv->a;
+    int p_pa = p / qrpiv->p / qrpiv->a;
+    int *ipiv = qrpiv->domino ? qrpiv->ipiv : qrpiv->ipiv + p%qrpiv->p * qrpiv->minMN *qrpiv->ldd;
 
     for( i=start_pa+1; i<(qrpiv->ldd); i++ )
-        if ( (qrpiv->ipiv)[i +  k * (qrpiv->ldd)] == p_pa )
+        if ( ipiv[i +  k * (qrpiv->ldd)] == p_pa )
             return i;
     return i;
  }
@@ -517,18 +522,21 @@ inline static int dplasma_low_greedy_prevpiv( const qr_subpiv_t *qrpiv, const in
 /* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
 inline static int dplasma_low_greedy_nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    int k_a  = k / qrpiv->a;
-    int p_pa = (p / qrpiv->p ) / qrpiv->a;
+    int pa = qrpiv->p * qrpiv->a;
+    int k_a = qrpiv->domino ? k / qrpiv->a :  (k + qrpiv->p - 1 - p%(qrpiv->p)) / qrpiv->p / qrpiv->a;
+    int p_pa = p / pa;
+    int *ipiv = qrpiv->domino ? qrpiv->ipiv : qrpiv->ipiv + p%qrpiv->p * qrpiv->minMN *qrpiv->ldd;
 
     for( i=start_pa-1; i> k_a; i-- )
-        if ( (qrpiv->ipiv)[i + k* (qrpiv->ldd)] == p_pa )
+        if ( ipiv[i + k * (qrpiv->ldd)] == p_pa )
             return i;
+    
     return (qrpiv->ldd);
 }
 
 static void dplasma_low_greedy_init(qr_subpiv_t *arg, int minMN){
     int *ipiv;
-    int mt, a, p, domino;
+    int mt, a, p, pa, domino;
     
     arg->currpiv = dplasma_low_greedy_currpiv;
     arg->nextpiv = dplasma_low_greedy_nextpiv;
@@ -537,19 +545,27 @@ static void dplasma_low_greedy_init(qr_subpiv_t *arg, int minMN){
     mt = arg->ldd;
     a = arg->a;
     p = arg->p;
+    pa = p * a;
     domino = arg->domino;
 
-    minMN = min( minMN, mt*a );
-    arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
-    ipiv = arg->ipiv;
-    memset(ipiv, 0, mt*minMN*sizeof(int));
-  
+    if ( domino )
     {
         int j, k, height, start, end, firstk = 0;
-        int *nT = (int*)malloc(minMN*sizeof(int));
-        int *nZ = (int*)malloc(minMN*sizeof(int));
+        int *nT, *nZ;
+        
+        arg->minMN =  min( minMN, mt*a );
+        minMN = arg->minMN;
+
+        arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
+        ipiv = arg->ipiv;
+        memset(ipiv, 0, mt*minMN*sizeof(int));
+        
+        nT = (int*)malloc(minMN*sizeof(int));
+        nZ = (int*)malloc(minMN*sizeof(int));
+
         memset( nT, 0, minMN*sizeof(int));
         memset( nZ, 0, minMN*sizeof(int));
+
         nT[0] = mt;
         
         k = 0;
@@ -586,15 +602,99 @@ static void dplasma_low_greedy_init(qr_subpiv_t *arg, int minMN){
         free(nT);
         free(nZ);
     }
+    else
+    {
+        int j, k, myrank, height, start, end, firstk = 0;
+        int *nT2DO = (int*)malloc(minMN*sizeof(int));
+        int *nT = (int*)malloc(minMN*sizeof(int));
+        int *nZ = (int*)malloc(minMN*sizeof(int));
+
+        arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) * p );
+        ipiv = arg->ipiv;
+
+        memset( ipiv,  0, minMN*sizeof(int)*mt*p);
+
+        for ( myrank=0; myrank<p; myrank++ ) {
+            int lminMN = minMN;
+
+            memset( nT2DO, 0, minMN*sizeof(int));
+            memset( nT,    0, minMN*sizeof(int));
+            memset( nZ,    0, minMN*sizeof(int));
+            
+            nT[0] = mt;
+        
+            for(k=0; k<lminMN; k++) {
+                nT2DO[k] = max( mt - ((k + p - 1 - myrank) / pa), 0 );
+                if ( nT2DO[k] == 0 ) {
+                    lminMN = k;
+                    break;
+                }
+            }
+
+            k = 0; firstk = 0;
+            while ( (!( ( nT[lminMN-1] == nT2DO[lminMN-1] ) &&
+                        ( nZ[lminMN-1]+1 == nT[lminMN-1] ) ) )
+                    && ( firstk < lminMN ) ) {
+                height = (nT[k] - nZ[k]) / 2;
+                if ( height == 0 ) {
+                    while ( (firstk < lminMN) &&
+                            ( nT[firstk] == nT2DO[firstk] ) &&
+                            ( nZ[firstk]+1 == nT[firstk] ) ) {
+                        if (  ( firstk < lminMN-1 )  &&
+                              (( (firstk) % pa) != ((a-1)*p+myrank) ) )
+                            nT[firstk+1]++;
+                        firstk++;
+                    }
+                    k = firstk;
+                    continue;
+                }
+                
+                if (k < lminMN-1) nT[k+1] += height;
+                start = mt - nZ[k] - 1;
+                end = start - height;
+                nZ[k] += height;
+                
+                for( j=start; j > end; j-- ) {
+                    ipiv[ myrank*mt*minMN + k*mt + j ] = (j - height);
+                }
+                
+                k++;
+                if (k > lminMN-1) k = firstk;
+            }
+        }
+
+        free(nT2DO);
+        free(nT);
+        free(nZ);
+    }
+
 #if 0
     {
         int m, k;
         for(m=0; m<mt; m++) {
-            printf("%4d | ", m);              
+            printf("%3d | ", m);    
             for (k=0; k<minMN; k++) {
                 printf( "%3d ", ipiv[k*mt + m] );
             }
             printf("\n");
+        }
+    }
+    if (!arg->domino) {
+        int m, k, myrank;
+        for ( myrank=1; myrank<p; myrank++ ) {
+            ipiv += mt*minMN;
+            printf("-------- rank %d ---------\n", myrank ); 
+            for(m=0; m<mt; m++) {
+                printf("%3d | ", m);              
+                for (k=0; k<minMN; k++) {
+                  int k_a = (k + p - 1 - myrank) / p / a;
+                  if ( m >= k_a ) 
+                    printf( "%3d ", ipiv[k*mt + m] );
+                  else 
+                    printf( "--- " );
+                }
+                printf("\n");
+            }
         }
     }
 #endif
@@ -773,11 +873,13 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         {
         case 0:
             tmp = lm / a;
+            /* tmpk = (k + p - 1 - m%p) / p / a;  */
             tmpk = k / (p * a);
             return ( tmp == tmpk ) ? k + (m-k)%p : tmp * a * p + rank;
             break;
         case 1:
             tmp = arg->llvl->currpiv(arg->llvl, m, k);
+            /* tmpk = (k + p - 1 - m%p) / p / a; */
             tmpk = k / (p * a);
             return ( tmp == tmpk ) ? k + (m-k)%p : tmp * a * p + rank;
             break;
@@ -836,7 +938,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
                  ( (nextp/p)%a != 0 ) )
                 return nextp;
             
-           /* no next of type 0, we reset start to search the next 1 */
+            /* no next of type 0, we reset start to search the next 1 */
             start = arg->desc->mt;
             lstart = arg->llvl->ldd * a;
                 
@@ -1231,6 +1333,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
     minMN = min(A->mt, A->nt);
     low_mt = (A->mt + p * a - 1) / ( p * a );
 
+    qrpiv->llvl->minMN  = minMN;
     qrpiv->llvl->ldd    = low_mt;
     qrpiv->llvl->a      = a;
     qrpiv->llvl->p      = p;
@@ -1254,6 +1357,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
     if ( p > 1 ) {
         qrpiv->hlvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
 
+        qrpiv->llvl->minMN  = minMN;
         qrpiv->hlvl->ldd    = A->mt;
         qrpiv->hlvl->a      = p;
         qrpiv->hlvl->p      = p;
@@ -1306,7 +1410,7 @@ void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
 
     printf("\n------------ Localization = Type of pivot --------------\n");
     for(m=0; m<A->mt; m++) {
-        printf("%4d | ", m);              
+        printf("%3d | ", m);              
         for (k=0; k<min(minMN, m+1); k++) {
             printf( "%3d ", dplasma_qr_gettype( qrpiv->a, qrpiv->p, domino, k, m ) );
         }
@@ -1315,7 +1419,7 @@ void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
         }
       
         printf("    ");
-        printf("%2d,%4d | ", rank, lmg);
+        printf("%2d,%3d | ", rank, lmg);
         for (k=0; k<min(minMN, lmg+1); k++) {
             printf( "%3d ", dplasma_qr_gettype( qrpiv->a, qrpiv->p, domino, k, lmg) );
         }
@@ -1341,7 +1445,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     int rank = 0;
     printf("\n------------ Current Pivot--------------\n");
     for(m=0; m<A->mt; m++) {
-        printf("%4d | ", m);              
+        printf("%3d | ", m);              
         for (k=0; k<min(minMN, m+1); k++) {
             printf( "%3d ", dplasma_qr_currpiv(qrpiv, m, k) );
         }
@@ -1350,7 +1454,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
         }
             
         printf("    ");
-        printf("%2d,%4d | ", rank, lmg);
+        printf("%2d,%3d | ", rank, lmg);
         for (k=0; k<min(minMN, lmg+1); k++) {
             printf( "%3d ", dplasma_qr_currpiv(qrpiv, lmg, k) );
         }
@@ -1372,15 +1476,15 @@ void dplasma_qr_print_next_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     int m, s;
     printf("\n------------ Next (k = %d)--------------\n", k);
 
-    printf( "       " );
+    printf( "      " );
     for(s=A->mt; s>0; s--)
-        printf( "%4d  ", s );
+        printf( "%3d ", s );
     printf( "\n" );
 
     for(m=0; m<A->mt; m++) {
-        printf("%4d | ", m);              
+        printf("%3d | ", m);              
         for(s=A->mt; s>0; s--) {
-            printf( "%4d  ", dplasma_qr_nextpiv(qrpiv, m, k, s) );
+            printf( "%3d ", dplasma_qr_nextpiv(qrpiv, m, k, s) );
         }
         printf("\n");
     }
@@ -1391,15 +1495,15 @@ void dplasma_qr_print_prev_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
     int m, s;
     printf("\n------------ Prev (k = %d)--------------\n", k);
 
-    printf( "       " );
+    printf( "      " );
     for(s=A->mt; s>-1; s--)
-        printf( "%4d  ", s );
+        printf( "%3d ", s );
     printf( "\n" );
 
     for(m=0; m<A->mt; m++) {
-        printf("%4d | ", m);              
+        printf("%3d | ", m);              
         for(s=A->mt; s>-1; s--) {
-            printf( "%4d  ", dplasma_qr_prevpiv(qrpiv, m, k, s) );
+            printf( "%3d ", dplasma_qr_prevpiv(qrpiv, m, k, s) );
         }
         printf("\n");
     }
