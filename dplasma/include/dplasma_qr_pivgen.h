@@ -59,6 +59,7 @@ struct qr_subpiv_s {
      */
     int (*prevpiv)(const qr_subpiv_t *arg, const int p, const int k, const int m);
     int *ipiv;
+    int minMN;
     int ldd;
     int a;
     int p;
