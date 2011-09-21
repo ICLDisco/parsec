@@ -427,13 +427,14 @@ static void dplasma_low_binary_init(qr_subpiv_t *arg){
  ***************************************************/
 /* Return the pivot to use for the row m at step k */
 inline static int dplasma_low_fibonacci_currpiv( const qr_subpiv_t *qrpiv, const int m, const int k ) {
-    return (qrpiv->ipiv)[ (k/qrpiv->a) * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
+    int k_a = qrpiv->domino ? k / qrpiv->a :  (k + qrpiv->p - 1 - m%(qrpiv->p)) / qrpiv->p / qrpiv->a;
+    return (qrpiv->ipiv)[ k_a * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
 }
 
 /* Return the last row which has used the row m as a pivot in step k before the row start */
 inline static int dplasma_low_fibonacci_prevpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    int k_a = k / qrpiv->a;
+    int k_a = qrpiv->domino ? k / qrpiv->a :  (k + qrpiv->p - 1 - p%(qrpiv->p)) / qrpiv->p / qrpiv->a;
     int p_pa = (p / qrpiv->p ) / qrpiv->a;
 
     for( i=start_pa+1; i<(qrpiv->ldd); i++ )
@@ -445,7 +446,7 @@ inline static int dplasma_low_fibonacci_prevpiv( const qr_subpiv_t *qrpiv, const
 /* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
 inline static int dplasma_low_fibonacci_nextpiv( const qr_subpiv_t *qrpiv, const int p, const int k, const int start_pa ) {
     int i;
-    int k_a = k / qrpiv->a;
+    int k_a = qrpiv->domino ? k / qrpiv->a :  (k + qrpiv->p - 1 - p%(qrpiv->p)) / qrpiv->p / qrpiv->a;
     int p_pa = (p / qrpiv->p ) / qrpiv->a;
 
     for( i=start_pa-1; i>k_a; i-- )
