@@ -336,17 +336,16 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
 
 static int jdf_sanity_check_predicates_unbound(void)
 {
-    int rc = 0;
+    int rc = 0, i;
     jdf_function_entry_t *f;
-    jdf_expr_list_t *e;
-    int i;
+    jdf_expr_t *e;
     char kind[64];
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         i = 0;
         for(e = f->predicate->parameters; e != NULL; e = e->next) {
             snprintf(kind, 64, "Parameter number %d of predicate", i);
-            if( jdf_sanity_check_expr_bound(e->expr, kind, f) < 0 )
+            if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                 rc = -1;
             i++;
         }
@@ -358,42 +357,42 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
 {
     int rc = 0;
     jdf_function_entry_t *f;
-    jdf_dataflow_list_t *d;
-    jdf_expr_list_t *e;
-    jdf_dep_list_t *dep;
+    jdf_dataflow_t *flow;
+    jdf_expr_t *e;
+    jdf_dep_t *dep;
     int i, j, k;
     char kind[128];
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         i = 1;
-        for(d = f->dataflow; d != NULL; d = d->next) {
+        for(flow = f->dataflow; flow != NULL; flow = flow->next) {
             j =  1;
-            for(dep = d->flow->deps; dep != NULL; dep = dep->next) {
+            for(dep = flow->deps; dep != NULL; dep = dep->next) {
                 snprintf(kind, 128, 
                          "Guard of dependency %d\n"
                          "  of dataflow number %d (variable %s) at line %d", 
-                         j, i,  d->flow->varname, d->flow->lineno);
-                if( (dep->dep->guard->guard_type != JDF_GUARD_UNCONDITIONAL) && 
-                    (jdf_sanity_check_expr_bound(dep->dep->guard->guard, kind, f) < 0) )
+                         j, i,  flow->varname, flow->lineno);
+                if( (dep->guard->guard_type != JDF_GUARD_UNCONDITIONAL) && 
+                    (jdf_sanity_check_expr_bound(dep->guard->guard, kind, f) < 0) )
                     rc = -1;
                 k = 1;
-                for(e = dep->dep->guard->calltrue->parameters; e != NULL; e = e->next) {
+                for(e = dep->guard->calltrue->parameters; e != NULL; e = e->next) {
                     snprintf(kind, 128, 
                              "Parameter %d of dependency %d\n"
                              "  of dataflow number %d (variable %s) at line %d", 
-                             k, j, i, d->flow->varname, d->flow->lineno);
-                    if( jdf_sanity_check_expr_bound(e->expr, kind, f) < 0 )
+                             k, j, i, flow->varname, flow->lineno);
+                    if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                         rc = -1;
                     k++;
                 }
-                if( dep->dep->guard->guard_type == JDF_GUARD_TERNARY ) {
+                if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
                     k = 1;
-                    for(e = dep->dep->guard->callfalse->parameters; e != NULL; e = e->next) {
+                    for(e = dep->guard->callfalse->parameters; e != NULL; e = e->next) {
                         snprintf(kind, 128, 
                                  "Parameter %d of dependency %d (when guard false)\n"
                                  "  of dataflow number %d (variable %s) at line %d", 
-                                 k, j, i,  d->flow->varname, d->flow->lineno);
-                        if( jdf_sanity_check_expr_bound(e->expr, kind, f) < 0 )
+                                 k, j, i,  flow->varname, flow->lineno);
+                        if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
                             rc = -1;
                         k++;
                     }
@@ -410,25 +409,25 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
 {
     int rc = 0;
     jdf_function_entry_t *f1, *f2;
-    jdf_dataflow_list_t *d;
-    jdf_dep_list_t *dep;
+    jdf_dataflow_t *flow;
+    jdf_dep_t *dep;
 
     for(f1 = current_jdf.functions; f1 != NULL; f1 = f1->next) {
         for(f2 = current_jdf.functions; f2 != NULL; f2 = f2->next) {
-            for(d = f2->dataflow; d != NULL; d = d->next) {
-                for(dep = d->flow->deps; dep != NULL; dep = dep->next) {
-                    if( !strcmp(dep->dep->guard->calltrue->func_or_mem, f1->fname) &&
-                        (dep->dep->guard->calltrue->var == NULL) ) {
-                        jdf_fatal(dep->dep->lineno, 
+            for(flow = f2->dataflow; flow != NULL; flow = flow->next) {
+                for(dep = flow->deps; dep != NULL; dep = dep->next) {
+                    if( !strcmp(dep->guard->calltrue->func_or_mem, f1->fname) &&
+                        (dep->guard->calltrue->var == NULL) ) {
+                        jdf_fatal(dep->lineno, 
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
                                   f1->fname, f1->lineno, f2->fname);
                         rc = -1;
                     }
-                    if( dep->dep->guard->guard_type == JDF_GUARD_TERNARY &&
-                        !strcmp(dep->dep->guard->callfalse->func_or_mem, f1->fname) &&
-                        (dep->dep->guard->callfalse->var == NULL) ) {
-                        jdf_fatal(dep->dep->lineno, 
+                    if( dep->guard->guard_type == JDF_GUARD_TERNARY &&
+                        !strcmp(dep->guard->callfalse->func_or_mem, f1->fname) &&
+                        (dep->guard->callfalse->var == NULL) ) {
+                        jdf_fatal(dep->lineno, 
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
                                   f1->fname, f1->lineno, f2->fname);
@@ -442,87 +441,87 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
 }
 
 static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
-                                               jdf_dataflow_list_t* flowout,
+                                               jdf_dataflow_t* flowout,
                                                jdf_call_t* callout)
 {
     jdf_function_entry_t* fin;
-    jdf_dataflow_list_t*  flowin;
-    jdf_dep_list_t *depin;
+    jdf_dataflow_t*  flowin;
+    jdf_dep_t *depin;
     int matched = 0;
 
-    /*printf("Investigate flow %s:%s -> %s:%s\n", fout->fname, flowout->flow->varname,
+    /*printf("Investigate flow %s:%s -> %s:%s\n", fout->fname, flowout->varname,
       callout->var, callout->func_or_mem);*/
     for(fin = current_jdf.functions; fin != NULL; fin = fin->next) {
         if( strcmp(fin->fname, callout->func_or_mem) ) continue;
 
         /* found the function, let's find the data */
         for(flowin = fin->dataflow; flowin != NULL; flowin = flowin->next) {
-            if( !strcmp(flowin->flow->varname, callout->var) ) {
+            if( !strcmp(flowin->varname, callout->var) ) {
                 break;
             }
         }
 
         /* Did we found the right out dependency? */
         if( NULL == flowin ) {
-            jdf_fatal(flowout->flow->lineno, 
+            jdf_fatal(flowout->lineno, 
                       "Function %s has no data named %s,\n"
                       "  but dependency %s:%s (line %d) references it\n",
-                      fin->fname, callout->var, fout->fname, flowout->flow->varname, flowout->flow->lineno);
+                      fin->fname, callout->var, fout->fname, flowout->varname, flowout->lineno);
             return -1;
         }
 
-        for( depin = flowin->flow->deps; depin != NULL; depin = depin->next ) {
-            if( (depin->dep->guard->calltrue->var != NULL) &&
-                (0 == strcmp(depin->dep->guard->calltrue->func_or_mem, fout->fname)) ) {
+        for( depin = flowin->deps; depin != NULL; depin = depin->next ) {
+            if( (depin->guard->calltrue->var != NULL) &&
+                (0 == strcmp(depin->guard->calltrue->func_or_mem, fout->fname)) ) {
                 matched = 1;
                 break;
             }
-            if( (depin->dep->guard->guard_type == JDF_GUARD_TERNARY) &&
-                (depin->dep->guard->callfalse->var != NULL) &&
-                (0 == strcmp(depin->dep->guard->callfalse->func_or_mem, fout->fname)) ) {
+            if( (depin->guard->guard_type == JDF_GUARD_TERNARY) &&
+                (depin->guard->callfalse->var != NULL) &&
+                (0 == strcmp(depin->guard->callfalse->func_or_mem, fout->fname)) ) {
                 matched = 1;
                 break;
             }
         }
         if( matched ) return 0;  /* we found it */
-        jdf_fatal(flowout->flow->lineno,
+        jdf_fatal(flowout->lineno,
                   "Function %s dependency %s toward %s:%s not matched on the %s side\n",
-                  fout->fname, flowout->flow->varname, fin->fname, callout->var, fin->fname);
+                  fout->fname, flowout->varname, fin->fname, callout->var, fin->fname);
         return -1;
     }
-    jdf_fatal(flowout->flow->lineno, 
+    jdf_fatal(flowout->lineno, 
               "There is no function named %s,\n"
               "  but dependency %s:%s (lineno %d) references it\n",
-              callout->func_or_mem, fout->fname, flowout->flow->varname, flowout->flow->lineno );
+              callout->func_or_mem, fout->fname, flowout->varname, flowout->lineno );
     return -1;
 }
 
-/*static*/ int jdf_sanity_check_dataflow_unexisting_data(void)
+static int jdf_sanity_check_dataflow_unexisting_data(void)
 {
     int rc = 0, matched;
     jdf_function_entry_t *f1;
-    jdf_dataflow_list_t *d1;
-    jdf_dep_list_t *dep;
+    jdf_dataflow_t *flow1;
+    jdf_dep_t *dep;
     jdf_call_t* call;
     int i, j;
 
     for(f1 = current_jdf.functions; f1 != NULL; f1 = f1->next) {
         i = 1;
-        for(d1 = f1->dataflow; d1 != NULL; d1 = d1->next) {
+        for(flow1 = f1->dataflow; flow1 != NULL; flow1 = flow1->next) {
             j = 1;
             matched = 0;
-            for( dep = d1->flow->deps; dep != NULL; dep = dep->next ) {
-                if( (dep->dep->guard->calltrue->var != NULL) ) {
-                    call = dep->dep->guard->calltrue;
-                    matched = jdf_sanity_check_in_out_flow_match( f1, d1, call );
+            for( dep = flow1->deps; dep != NULL; dep = dep->next ) {
+                if( (dep->guard->calltrue->var != NULL) ) {
+                    call = dep->guard->calltrue;
+                    matched = jdf_sanity_check_in_out_flow_match( f1, flow1, call );
                     if( matched )
                         break;
                 }
 
-                if( (dep->dep->guard->guard_type == JDF_GUARD_TERNARY) && 
-                    (dep->dep->guard->callfalse->var != NULL) ) {
-                    call = dep->dep->guard->callfalse;
-                    matched = jdf_sanity_check_in_out_flow_match( f1, d1, call );
+                if( (dep->guard->guard_type == JDF_GUARD_TERNARY) && 
+                    (dep->guard->callfalse->var != NULL) ) {
+                    call = dep->guard->callfalse;
+                    matched = jdf_sanity_check_in_out_flow_match( f1, flow1, call );
                     if( matched )
                         break;
                 }                
@@ -536,7 +535,7 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
     return rc;
 }
 
-static int compute_canonical_data_location(const char *name, const jdf_expr_list_t *p, char **_str, char **_canon)
+static int compute_canonical_data_location(const char *name, const jdf_expr_t *p, char **_str, char **_canon)
 {
     jdf_global_entry_t *g;
     char *str;
@@ -545,7 +544,7 @@ static int compute_canonical_data_location(const char *name, const jdf_expr_list
     char *canon_base;
     jdf_expr_t *align;
     int ret;
-    jdf_expr_list_t pseudo;
+    jdf_expr_t pseudo;
 
     params = malloc_and_dump_jdf_expr_list(p);
 
@@ -570,7 +569,7 @@ static int compute_canonical_data_location(const char *name, const jdf_expr_list
                          name);
             } else {
                 ret = 0;
-                pseudo.expr = align;
+                pseudo = *align;
                 pseudo.next = NULL;
                 canon_base = malloc_and_dump_jdf_expr_list( &pseudo );
                 canon = (char*)malloc(strlen(canon_base) + strlen(params) + 4);
@@ -602,7 +601,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
     int ret;
     char *cstr, *dstr;
     char *ccanon, *dcanon;
-    jdf_expr_list_t plist;
+    jdf_expr_t plist;
     int ciscanon, discanon;
     char *condstr;
 
@@ -619,7 +618,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
          *  on expression evaluations, etc...
          */
         if( cond ) {
-            plist.expr = (jdf_expr_t *)cond;
+            plist = *(jdf_expr_t *)cond;
             plist.next = NULL;
             condstr = malloc_and_dump_jdf_expr_list(&plist);
 
@@ -661,47 +660,47 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
     return ret;
 }
 
-    static int jdf_sanity_check_remote_memory_references(void)
-    {
-        int rc = 0;
-        jdf_function_entry_t *f;
-        jdf_call_t *c;
-        jdf_dataflow_list_t *dl;
-        jdf_dep_list_t *dep;
-        jdf_guarded_call_t *g;
-        jdf_expr_t not;
+static int jdf_sanity_check_remote_memory_references(void)
+{
+    int rc = 0;
+    jdf_function_entry_t *f;
+    jdf_call_t *c;
+    jdf_dataflow_t *dl;
+    jdf_dep_t *dep;
+    jdf_guarded_call_t *g;
+    jdf_expr_t not;
 
-        not.op = JDF_NOT;
+    not.op = JDF_NOT;
 
-        for( f = current_jdf.functions; f != NULL; f = f->next) {
-            c = f->predicate;
+    for( f = current_jdf.functions; f != NULL; f = f->next) {
+        c = f->predicate;
 
-            /* Now, iterate on each of the dependencies of f,
-             * and each of the calls of these dependencies,
-             * and try to assert whether c is compatible...
-             */
-            for(dl = f->dataflow; dl != NULL; dl = dl->next) {
-                for(dep = dl->flow->deps; dep != NULL; dep = dep->next) {
-                    g = dep->dep->guard;
-                    switch( g->guard_type ) {
-                    case JDF_GUARD_UNCONDITIONAL:
-                    case JDF_GUARD_BINARY:
-                        if( jdf_sanity_check_call_compatible(c, dep->dep, g->calltrue, g->guard, f) ) 
-                            rc++;
-                        break;
-                    case JDF_GUARD_TERNARY:
-                        if( jdf_sanity_check_call_compatible(c, dep->dep, g->calltrue, g->guard, f) )
-                            rc++;
-                        not.jdf_ua = g->guard;
-                        if( jdf_sanity_check_call_compatible(c, dep->dep, g->callfalse, &not, f) ) 
-                            rc++;
-                        break;
-                    }
+        /* Now, iterate on each of the dependencies of f,
+         * and each of the calls of these dependencies,
+         * and try to assert whether c is compatible...
+         */
+        for(dl = f->dataflow; dl != NULL; dl = dl->next) {
+            for(dep = dl->deps; dep != NULL; dep = dep->next) {
+                g = dep->guard;
+                switch( g->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                case JDF_GUARD_BINARY:
+                    if( jdf_sanity_check_call_compatible(c, dep, g->calltrue, g->guard, f) ) 
+                        rc++;
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( jdf_sanity_check_call_compatible(c, dep, g->calltrue, g->guard, f) )
+                        rc++;
+                    not.jdf_ua = g->guard;
+                    if( jdf_sanity_check_call_compatible(c, dep, g->callfalse, &not, f) ) 
+                        rc++;
+                    break;
                 }
             }
         }
-        return rc;
     }
+    return rc;
+}
 
 int jdf_sanity_checks( jdf_warning_mask_t mask )
 {

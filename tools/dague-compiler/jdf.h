@@ -57,7 +57,7 @@ typedef struct jdf {
     struct jdf_function_entry *functions;
     struct jdf_data_entry     *data;
     struct jdf_name_list      *datatypes;
-    struct jdf_expr_list      *inline_c_functions;
+    struct jdf_expr           *inline_c_functions;
 } jdf_t;
 
 extern jdf_t current_jdf;
@@ -98,7 +98,7 @@ typedef struct jdf_function_entry {
     jdf_flags_t                flags;
     struct jdf_def_list       *definitions;
     struct jdf_call           *predicate;
-    struct jdf_dataflow_list  *dataflow;
+    struct jdf_dataflow       *dataflow;
     struct jdf_expr           *priority;
     struct jdf_expr           *simcost;
     struct jdf_def_list       *properties;
@@ -130,37 +130,31 @@ typedef struct jdf_def_list {
     int                  lineno;
 } jdf_def_list_t;
 
-typedef struct jdf_dataflow_list {
-    struct jdf_dataflow_list *next;
-    struct jdf_dataflow      *flow;
-} jdf_dataflow_list_t;
-
+typedef struct jdf_dataflow jdf_dataflow_t;
+typedef struct jdf_dep jdf_dep_t;
 typedef unsigned int jdf_access_type_t;
 #define JDF_VAR_TYPE_CTL   ((jdf_access_type_t)0)
 #define JDF_VAR_TYPE_READ  ((jdf_access_type_t)(1<<0))
 #define JDF_VAR_TYPE_WRITE ((jdf_access_type_t)(1<<1))
-typedef struct jdf_dataflow {
+struct jdf_dataflow {
+    jdf_dataflow_t           *next;
     char                     *varname;
-    struct jdf_dep_list      *deps;
+    struct jdf_dep           *deps;
     jdf_access_type_t         access_type;
     int                       lineno;
-} jdf_dataflow_t;
-
-typedef struct jdf_dep_list {
-    struct jdf_dep_list *next;
-    struct jdf_dep      *dep;
-} jdf_dep_list_t;
+};
 
 typedef unsigned int jdf_dep_type_t;
 #define JDF_DEP_TYPE_IN  ((jdf_dep_type_t)(1<<0))
 #define JDF_DEP_TYPE_OUT ((jdf_dep_type_t)(1<<1))
 
-typedef struct jdf_dep {
+struct jdf_dep {
+    jdf_dep_t               *next;
     jdf_dep_type_t           type;
     struct jdf_guarded_call *guard;
     char*                    datatype_name;
     int                      lineno;
-} jdf_dep_t;
+};
 
 typedef enum { JDF_GUARD_UNCONDITIONAL,
                JDF_GUARD_BINARY,
@@ -177,17 +171,12 @@ typedef struct jdf_guarded_call {
 typedef struct jdf_call {
     char                     *var;
     char                     *func_or_mem;
-    struct jdf_expr_list     *parameters;
+    struct jdf_expr          *parameters;
 } jdf_call_t;
 
 /*******************************************************************/
 /*             Expressions (and list of expressions)              */
 /*******************************************************************/
-
-typedef struct jdf_expr_list {
-    struct jdf_expr_list *next;
-    struct jdf_expr      *expr;
-} jdf_expr_list_t;
 
 typedef enum { JDF_EQUAL,
                JDF_NOTEQUAL,
@@ -226,28 +215,29 @@ typedef enum { JDF_EQUAL,
                                     JDF_OP_IS_C_CODE(op)) )
 
 typedef struct jdf_expr {
-    jdf_expr_operand_t op;
+    struct jdf_expr              *next;
+    jdf_expr_operand_t            op;
     union {
         struct {
-            struct jdf_expr *test;
-            struct jdf_expr *arg1;
-            struct jdf_expr *arg2;
+            struct jdf_expr      *test;
+            struct jdf_expr      *arg1;
+            struct jdf_expr      *arg2;
         } ternary;
         struct {
-            struct jdf_expr *arg1;
-            struct jdf_expr *arg2;
+            struct jdf_expr      *arg1;
+            struct jdf_expr      *arg2;
         } binary;
         struct {
-            struct jdf_expr *arg;
+            struct jdf_expr      *arg;
         } unary;
-        char *varname;
+        char                     *varname;
         struct {
-            char *code;
-            int lineno;
-            char *fname;
+            char                 *code;
+            int                   lineno;
+            char                 *fname;
             jdf_function_entry_t *function_context;
         } c_code;
-        int   cstval;
+        int                       cstval;
     } u;
 } jdf_expr_t;
 
@@ -261,7 +251,7 @@ typedef struct jdf_expr {
 #define jdf_cst u.cstval
 #define jdf_c_code u.c_code
 
-char *malloc_and_dump_jdf_expr_list( const jdf_expr_list_t *e );
+char *malloc_and_dump_jdf_expr_list( const jdf_expr_t *e );
 
 #define JDF_COUNT_LIST_ENTRIES(LIST, TYPEOF, NEXT, COUNT)    \
     do {                                                     \
