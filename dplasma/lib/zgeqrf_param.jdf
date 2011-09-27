@@ -209,7 +209,7 @@ zttqrt(k, m)
   ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k, p ); %}
   im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k, m ); %}
 
-  SIMCOST inline_c %{ return type == 0 ? 4 : 2; %}
+  SIMCOST inline_c %{ return type == 0 ? 6 : 2; %}
 
   : A(m, k)
 
