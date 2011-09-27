@@ -3115,6 +3115,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
+    string_arena_t *sa_coutput = string_arena_new(1024);
     int flownb, depnb;
     assignment_info_t ai;
     expr_info_t info;
@@ -3156,11 +3157,10 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
     flownb = 0;
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
-        coutput("  /* Flow of Data %s */\n", fl->varname);
-        coutput("  if( action_mask & (1 << %d) ) {\n", flownb);
         flowempty = 1;
         flowtomem = 0;
         depnb = 0;
+        string_arena_init(sa_coutput);
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( dl->type & JDF_DEP_TYPE_OUT )  {
                 string_arena_init(sa);
@@ -3170,9 +3170,10 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     string_arena_add_string(sa, "__dague_object->super.arenas[DAGUE_%s_%s_ARENA]",
                                             jdf_basename, dl->datatype_name);
                 }
-                coutput("#if defined(DISTRIBUTED)\n"
-                        "  arena = %s;\n"
-                        "#endif  /* defined(DISTRIBUTED) */\n", string_arena_get_string(sa));
+                string_arena_add_string(sa_coutput,
+                                        "#if defined(DISTRIBUTED)\n"
+                                        "    arena = %s;\n"
+                                        "#endif  /* defined(DISTRIBUTED) */\n", string_arena_get_string(sa));
                 string_arena_init(sa);
                 string_arena_add_string(sa, "ontask(eu, &nc, exec_context, %d, %d, rank_src, rank_dst, arena, ontask_arg)",
                                         flownb, depnb);
@@ -3182,9 +3183,10 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     if( NULL != dl->guard->calltrue->var) {
                         flowempty = 0;
                         
-                        coutput("%s",
-                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
-                                                            "  ", "nc") );
+                        string_arena_add_string(sa_coutput,
+                                                "%s",
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
+                                                                            "    ", "nc") );
                     } else {
                         flowtomem = 1;
                     }
@@ -3192,12 +3194,13 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 case JDF_GUARD_BINARY:
                     if( NULL != dl->guard->calltrue->var ) {
                         flowempty = 0;
-                        coutput("  if( %s ) {\n"
-                                "%s"
-                                "  }\n",
-                                dump_expr((void**)dl->guard->guard, &info),
-                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
-                                                            "    ", "nc") );
+                        string_arena_add_string(sa_coutput,
+                                                "    if( %s ) {\n"
+                                                "%s"
+                                                "    }\n",
+                                                dump_expr((void**)dl->guard->guard, &info),
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
+                                                                            "      ", "nc") );
                     } else {
                         flowtomem = 1;
                     }
@@ -3205,12 +3208,13 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 case JDF_GUARD_TERNARY:
                     if( NULL != dl->guard->calltrue->var ) {
                         flowempty = 0;
-                        coutput("  if( %s ) {\n"
-                                "%s"
-                                "  }",
-                                dump_expr((void**)dl->guard->guard, &info),
-                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
-                                                            "    ", "nc"));
+                        string_arena_add_string(sa_coutput,
+                                                "    if( %s ) {\n"
+                                                "%s"
+                                                "    }",
+                                                dump_expr((void**)dl->guard->guard, &info),
+                                                jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->calltrue, dl->lineno, 
+                                                                            "      ", "nc"));
 
                         depnb++;
                         string_arena_init(sa);
@@ -3218,13 +3222,15 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                                 flownb, depnb);
 
                         if( NULL != dl->guard->callfalse->var ) {
-                            coutput(" else {\n"
-                                    "%s"
-                                    "  }\n",
-                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, dl->lineno, 
-                                                                "    ", "nc") );
+                            string_arena_add_string(sa_coutput,
+                                                    " else {\n"
+                                                    "%s"
+                                                    "    }\n",
+                                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, dl->lineno, 
+                                                                                "      ", "nc") );
                         } else {
-                            coutput("\n");
+                            string_arena_add_string(sa_coutput,
+                                                    "\n");
                         }
                     } else {
                         depnb++;
@@ -3234,12 +3240,13 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
                         if( NULL != dl->guard->callfalse->var ) {
                             flowempty = 0;
-                            coutput("  if( !(%s) ) {\n"
-                                    "%s"
-                                    "  }\n",
-                                    dump_expr((void**)dl->guard->guard, &info),
-                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, dl->lineno, 
-                                                                "    ", "nc") );
+                            string_arena_add_string(sa_coutput,
+                                                    "    if( !(%s) ) {\n"
+                                                    "%s"
+                                                    "    }\n",
+                                                    dump_expr((void**)dl->guard->guard, &info),
+                                                    jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa), dl->guard->callfalse, dl->lineno, 
+                                                                                "      ", "nc") );
                         } else {
                             flowtomem = 1;
                         }
@@ -3249,24 +3256,27 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 depnb++;
             }
         }
-        coutput("}\n");
         if( (1 == flowempty) && (0 == flowtomem) ) {
-            coutput("  /* This flow has only IN dependencies */\n");
+            coutput("  /* Flow of data %s has only IN dependencies */\n", fl->varname);
         } else if( 1 == flowempty ) {
-            coutput("  /* This flow has only OUTPUT dependencies to Memory */\n");
+            coutput("  /* Flow of data %s has only OUTPUT dependencies to Memory */\n", fl->varname);
             flownb++;
         } else {
+            coutput("  /* Flow of Data %s */\n"
+                    "  if( action_mask & (1 << %d) ) {\n"
+                    "%s"
+                    "  }\n",
+                    fl->varname, flownb, string_arena_get_string(sa_coutput));
             flownb++;
         }
-        coutput("\n");
     }
     coutput("  (void)nc;(void)arena;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;\n");
-    coutput("}\n"
-            "\n");
+    coutput("}\n\n");
 
     string_arena_free(sa);
     string_arena_free(sa1);
     string_arena_free(sa2);
+    string_arena_free(sa_coutput);
 }
 
 static void jdf_generate_inline_c_function(jdf_expr_t *expr)
