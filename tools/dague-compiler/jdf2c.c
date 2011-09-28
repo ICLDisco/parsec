@@ -2769,11 +2769,26 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     jdf_dataflow_t *dl;
     jdf_dep_t *dep;
     expr_info_t info;
+    string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
     int i, cond_index;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
+    assignment_info_t ai;
 
-    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n");
+    ai.sa = sa;
+    ai.idx = 0;
+    ai.holder = "context->locals";
+    ai.expr = NULL;
+
+    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n"
+            "%s",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
+                                 dump_assignments, &ai, "", "    int ", ";\n", ";\n"));
+    /* Quiet the unused variable warnings */
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
+                                 dump_string, NULL, "   ", " (void)", ";", ";\n"));
+
     for( dl = f->dataflow; dl != NULL; dl = dl->next ) {
         if(dl->access_type == JDF_VAR_TYPE_CTL) continue;
         cond_index = 0;
@@ -2842,39 +2857,23 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     }
     coutput("  }\n");
 
+    string_arena_free(sa);
     string_arena_free(sa1);
 }
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    string_arena_t *sa = string_arena_new(64);
-    string_arena_t *sa1 = string_arena_new(64);
-    assignment_info_t ai;
-
-    ai.sa = sa;
-    ai.idx = 0;
-    ai.holder = "context->locals";
-    ai.expr = NULL;
-
     coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, uint32_t action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
-            "%s"
             "  arg.nb_released = 0;\n"
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
             "  arg.ready_list = NULL;\n"
             "  (void)__dague_object;\n",
-            name, jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
-                                       dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
-
-    /* Quiet the unused variable warnings */
-    coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+            name, jdf_basename, jdf_basename);
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
             "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
@@ -2884,9 +2883,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     coutput("#if defined(DAGUE_SIM)\n"
             "  assert(arg.output_entry->sim_exec_date == 0);\n"
             "  arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
-            "#endif\n");
-    
-    coutput("#if defined(DISTRIBUTED)\n"
+            "#endif\n"
+            "#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"
             "  arg.remote_deps = NULL;\n"
             "#endif\n"
@@ -2900,14 +2898,14 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "      __dague_schedule(eu, arg.ready_list);\n"
             "      arg.ready_list = NULL;\n"
             "    }\n"
-            "  }\n",
-            f->fname);
-
-    coutput("#if defined(DISTRIBUTED)\n"
+            "  }\n"
+            "#if defined(DISTRIBUTED)\n"
             "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && arg.remote_deps_count ) {\n"
             "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
             "  }\n"
-            "#endif\n");
+            "#endif\n",
+            f->fname);
+
 
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
@@ -2915,9 +2913,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  return arg.nb_released;\n"
             "}\n"
             "\n");
-
-    string_arena_free(sa);
-    string_arena_free(sa1);
 }
 
 static char *jdf_dump_context_assignment(string_arena_t *sa_open,
@@ -3270,7 +3265,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             flownb++;
         }
     }
-    coutput("  (void)nc;(void)arena;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;\n");
+    coutput("  (void)nc;(void)arena;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;(void)action_mask;\n");
     coutput("}\n\n");
 
     string_arena_free(sa);
