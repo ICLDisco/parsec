@@ -30,6 +30,7 @@
 #endif
 
 #include "dague_prof_grapher.h"
+#include "schedulers.h"
 
 /*******************************
  * globals and argv set values *
@@ -64,6 +65,13 @@ void print_usage(void)
             "Optional arguments:\n"
             " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
             " -g --gpus         : number of GPU (default: 0)\n"
+            " -o --scheduler    : select the scheduler (default: LFQ)\n"
+            "                     Accepted values:\n"
+            "                       LFQ -- Local Flat Queues\n"
+            "                       GD  -- Global Dequeue\n"
+            "                       LHQ -- Local Hierarchical Queues\n"
+            "                       AP  -- Absolute Priorities\n"
+            "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
             " -k --prio-switch  : activate prioritized DAG k steps before the end (default: 0)\n"
@@ -97,13 +105,15 @@ void print_usage(void)
            );
 }
 
-#define GETOPT_STRING "c:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
 {
     {"cores",       required_argument,  0, 'c'},
     {"c",           required_argument,  0, 'c'},
+    {"o",           required_argument,  0, 'o'},
+    {"scheduler",   required_argument,  0, 'o'},
     {"gpus",        required_argument,  0, 'g'},
     {"g",           required_argument,  0, 'g'},
     {"grid-rows",   required_argument,  0, 'p'},
@@ -172,6 +182,22 @@ static void parse_arguments(int argc, char** argv, int* iparam)
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
+            case 'o': 
+                if( !strcmp(optarg, "LFQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                else if( !strcmp(optarg, "AP") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
+                else if( !strcmp(optarg, "LHQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
+                else if( !strcmp(optarg, "GD") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
+                else {
+                    fprintf(stderr, "malformed scheduler value %s (accepted: LFQ AP LHQ GD). Reverting to default LFQ\n",
+                            optarg);
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                }
+                break;
+
             case 'g':
                 if(iparam[IPARAM_NGPUS] == -1)
                 {
@@ -430,6 +456,8 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
                 "************************************************************************************************\n");
     }
 #endif
+
+    dague_set_scheduler( ctx, dague_schedulers_array[ iparam[IPARAM_SCHEDULER] ] );  
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
     return ctx;

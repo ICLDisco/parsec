@@ -53,10 +53,6 @@ int main(int argc, char ** argv)
 
         MT = ddescB.super.mt;
         NT = ddescB.super.nt;
-        PASTE_CODE_ALLOCATE_MATRIX(work, 1, 
-            two_dim_block_cyclic, (&work, matrix_Integer, 
-                                   nodes, cores, rank, 1, 1, MT, NT, 0, 0, 
-                                   MT, NT, 1, 1, P));
           
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
@@ -69,16 +65,13 @@ int main(int argc, char ** argv)
                                   (side, uplo, trans, diag,
                                    (Dague_Complex64_t)1.0, 
                                    (tiled_matrix_desc_t *)&ddescA, 
-                                   (tiled_matrix_desc_t *)&ddescB, 
-                                   (tiled_matrix_desc_t *)&work));
+                                   (tiled_matrix_desc_t *)&ddescB));
  
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(dague, ztrmm);
             
         dplasma_ztrmm_Destruct( DAGUE_ztrmm );
 
-        dague_data_free(work.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&work);
     }
     else
     { 

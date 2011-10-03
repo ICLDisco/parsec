@@ -36,8 +36,8 @@ typedef struct __dague_map_operator_object {
     dague_map_operator_object_t super;
 } __dague_map_operator_object_t;
 
-static const param_t param_of_map_operator;
-static const dague_t dague_map_operator;
+static const dague_flow_t flow_of_map_operator;
+static const dague_function_t dague_map_operator;
 
 #define src(k,n)  (((dague_ddesc_t*)__dague_object->super.src)->data_of((dague_ddesc_t*)__dague_object->super.src, (k), (n)))
 #define dest(k,n)  (((dague_ddesc_t*)__dague_object->super.dest)->data_of((dague_ddesc_t*)__dague_object->super.dest, (k), (n)))
@@ -124,66 +124,66 @@ static const expr_t pred_of_map_operator_all_as_expr = {
 };
 
 static inline int
-expr_of_p1_for_param_of_map_operator_dep_in_fct(const dague_object_t *__dague_object_parent,
+expr_of_p1_for_flow_of_map_operator_dep_in_fct(const dague_object_t *__dague_object_parent,
                                                 const assignment_t *assignments)
 {
     (void)__dague_object_parent;
     return assignments[0].value;
 }
-static const expr_t expr_of_p1_for_param_of_map_operator_dep_in = {
+static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
     .op = EXPR_OP_INLINE,
-    .inline_func = expr_of_p1_for_param_of_map_operator_dep_in_fct
+    .inline_func = expr_of_p1_for_flow_of_map_operator_dep_in_fct
 };
-static const dep_t param_of_map_operator_dep_in = {
+static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .dague = &dague_map_operator,
-    .param = &param_of_map_operator,
+    .flow = &flow_of_map_operator,
     .datatype_index = 0,
     .call_params = {
-        &expr_of_p1_for_param_of_map_operator_dep_in
+        &expr_of_p1_for_flow_of_map_operator_dep_in
     }
 };
 
 static inline int
-expr_of_p1_for_param_of_map_operator_dep_out_fct(const dague_object_t *__dague_object_parent,
+expr_of_p1_for_flow_of_map_operator_dep_out_fct(const dague_object_t *__dague_object_parent,
                                                  const assignment_t *assignments)
 {
     (void)__dague_object_parent;
     return (assignments[0].value + 1);
 }
-static const expr_t expr_of_p1_for_param_of_map_operator_dep_out = {
+static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
     .op = EXPR_OP_INLINE,
-    .inline_func = expr_of_p1_for_param_of_map_operator_dep_out_fct
+    .inline_func = expr_of_p1_for_flow_of_map_operator_dep_out_fct
 };
-static const dep_t param_of_map_operator_dep_out = {
+static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .dague = &dague_map_operator,
-    .param = &param_of_map_operator,
+    .flow = &flow_of_map_operator,
     .datatype_index = 0,
     .call_params = {
-        &expr_of_p1_for_param_of_map_operator_dep_out
+        &expr_of_p1_for_flow_of_map_operator_dep_out
     }
 };
 
-static const param_t param_of_map_operator = {
+static const dague_flow_t flow_of_map_operator = {
     .name = "I",
     .sym_type = SYM_INOUT,
     .access_type = ACCESS_RW,
-    .param_index = 0,
-    .dep_in  = { &param_of_map_operator_dep_in },
-    .dep_out = { &param_of_map_operator_dep_out }
+    .flow_index = 0,
+    .dep_in  = { &flow_of_map_operator_dep_in },
+    .dep_out = { &flow_of_map_operator_dep_out }
 };
 
 static dague_ontask_iterate_t
 add_task_to_list(struct dague_execution_unit *eu_context,
                  dague_execution_context_t *newcontext,
                  dague_execution_context_t *oldcontext,
-                 int param_index, int outdep_index,
+                 int flow_index, int outdep_index,
                  int rank_src, int rank_dst,
                  dague_arena_t* arena,
-                 void *param)
+                 void *flow)
 {
-    dague_execution_context_t** pready_list = (dague_execution_context_t**)param;
+    dague_execution_context_t** pready_list = (dague_execution_context_t**)flow;
     dague_execution_context_t* new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
     dague_thread_mempool_t* mpool = new_context->mempool_owner;
 
@@ -191,12 +191,13 @@ add_task_to_list(struct dague_execution_unit *eu_context,
     new_context->mempool_owner = mpool;
 
     dague_list_add_single_elem_by_priority( pready_list, new_context );
-    (void)arena; (void)oldcontext; (void)param_index; (void)outdep_index; (void)rank_src; (void)rank_dst;
+    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst;
     return DAGUE_ITERATE_STOP;
 }
 
 static void iterate_successors(dague_execution_unit_t *eu,
                                dague_execution_context_t *exec_context,
+                               uint32_t action_mask,
                                dague_ontask_function_t *ontask,
                                void *ontask_arg)
 {
@@ -230,17 +231,17 @@ static void iterate_successors(dague_execution_unit_t *eu,
         /* Go to the next row ... atomically */
         k = dague_atomic_inc_32b( &__dague_object->super.next_k );
     }
+    (void)action_mask;
 }
 
 static int release_deps(dague_execution_unit_t *eu,
                         dague_execution_context_t *exec_context,
-                        int action_mask,
-                        dague_remote_deps_t *deps,
-                        dague_arena_chunk_t **data)
+                        uint32_t action_mask,
+                        dague_remote_deps_t *deps)
 {
     dague_execution_context_t* ready_list = NULL;
 
-    iterate_successors(eu, exec_context, add_task_to_list, &ready_list);
+    iterate_successors(eu, exec_context, action_mask, add_task_to_list, &ready_list);
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
         if( NULL != ready_list ) {
@@ -254,7 +255,7 @@ static int release_deps(dague_execution_unit_t *eu,
     }
 
     assert( NULL == ready_list );
-    (void)deps; (void)data;
+    (void)deps;
     return 1;
 }
 
@@ -297,25 +298,22 @@ static int complete_hook(dague_execution_unit_t *context,
     int k = exec_context->locals[0].value;
     int n = exec_context->locals[1].value;
     (void)k; (void)n; (void)__dague_object;
-    dague_arena_chunk_t *data[2];
 
     TAKE_TIME(context, 2*exec_context->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
     dague_prof_grapher_task(exec_context, context->eu_id, k+n);
 
-    data[0] = exec_context->data[0].data;
-    data[1] = exec_context->data[1].data;
     release_deps(context, exec_context,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_REFS |
                   DAGUE_ACTION_DEPS_MASK),
-                 NULL, data);
+                 NULL);
 
     return 0;
 }
 
-static const dague_t dague_map_operator = {
+static const dague_function_t dague_map_operator = {
     .name = "map_operator",
     .deps = 0,
     .flags = 0x0,
@@ -327,8 +325,8 @@ static const dague_t dague_map_operator = {
     .locals = { &symb_row, &symb_column },
     .pred = &pred_of_map_operator_all_as_expr,
     .priority = NULL,
-    .in = { &param_of_map_operator },
-    .out = { &param_of_map_operator },
+    .in = { &flow_of_map_operator },
+    .out = { &flow_of_map_operator },
     .iterate_successors = iterate_successors,
     .release_deps = release_deps,
     .hook = hook_of,
@@ -385,7 +383,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
  * Apply the operator op on all tiles of the src matrix. The src matrix is const, the
  * result is supposed to be pushed on the dest matrix. However, any of the two matrices
  * can be NULL, and then the data is reported as NULL in the corresponding op
- * parameter.
+ * floweter.
  */
 struct dague_object_t*
 dague_map_operator_New(const tiled_matrix_desc_t* src,

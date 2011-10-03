@@ -17,8 +17,6 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-ctl[aligned = B]
-
 side [type = int]
 uplo [type = int]
 trans[type = int]
@@ -69,7 +67,7 @@ n = 0..Bnt-1
 READ  A   <- A TRMM_IN(n)
 RW    B   <- B(m, n)
           -> (n == Bnt-1) ? B(m, n) : C GEMM(m, n, n+1)
-READ  ctl <- (n == 0) ? ctl(m, n) : ctl1 GOK(m, n-1, n)              [type = CONTROL]
+CTL   ctl <- (n != 0) ? ctl1 GOK(m, n-1, n)
 
 BODY
      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
@@ -135,12 +133,11 @@ k = (n+1)..Bnt-1
 : B(m, n)
 
 // Parameters
-READ  A <- B GEMM_INB(m, k)
-READ  B <- A GEMM_INA(n, k)
-RW    C <- (k == n+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
-        -> (k == Bnt-1) ? B(m, n)      : C GEMM(m, n, k+1)
-RW    ctl <- ctl(m, n)                                          [type = CONTROL]
-          -> ctl2 GOK(m, n, k)                                  [type = CONTROL]
+READ  B   <- B GEMM_INB(m, k)
+READ  A   <- A GEMM_INA(n, k)
+RW    C   <- (k == n+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
+          -> (k == Bnt-1) ? B(m, n)      : C GEMM(m, n, k+1)
+CTL   ctl -> ctl2 GOK(m, n, k)
 BODY
      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
      int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
@@ -149,8 +146,8 @@ BODY
             CORE_zgemm(
 		  PlasmaNoTrans, trans,
                   tempmm, tempnn, tempkn,
-		  alpha, A, Bmb,
-		         B, Amb,
+		  alpha, B, Bmb,
+		         A, Amb,
 		  (Dague_Complex64_t)1.0, C, Bmb)
 	   );
 
@@ -159,7 +156,7 @@ BODY
 	       context->eu_id, m, n, k, 
                plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
                tempmm, tempnn, tempkn,
-	       alpha, m, k, A, Bmb, n, k, B, Amb,
+	       alpha, m, k, B, Bmb, n, k, A, Amb,
 	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
 
@@ -178,9 +175,9 @@ k = (n+1)..Bnt-1
 : B(m, n)
 
 // Parameters
-RW    ctl1 <- (n == 0)   ? ctl(m, n)      : ctl1 GOK(m, n-1, k)    [type = CONTROL]
-           -> (n+1 == k) ? ctl TRMM(m, k) : ctl1 GOK(m, n+1, k)    [type = CONTROL]
-READ  ctl2 <- ctl GEMM(m, n, k)                                    [type = CONTROL]
+CTL   ctl1 <- (n != 0)   ? ctl1 GOK(m, n-1, k)
+           -> (n+1 == k) ? ctl TRMM(m, k) : ctl1 GOK(m, n+1, k)
+CTL   ctl2 <- ctl GEMM(m, n, k)
 BODY
       /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
      printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, m, n, k);

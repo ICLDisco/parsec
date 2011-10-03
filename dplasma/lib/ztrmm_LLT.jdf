@@ -17,8 +17,6 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-ctl[aligned = B]
-
 side [type = int]
 uplo [type = int]
 trans[type = int]
@@ -69,7 +67,7 @@ n = 0..Bnt-1
 READ  A   <- A TRMM_IN(m)
 RW    B   <- B(m, n)
           -> (m == Bmt-1) ? B(m, n) : C GEMM(m, n, m+1)
-READ  ctl <- (m == 0) ? ctl(m, n) : ctl1 GOK(m-1, n, m)              [type = CONTROL]
+CTL   ctl <- (m != 0) ? ctl1 GOK(m-1, n, m)
 
 BODY
      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
@@ -139,8 +137,7 @@ READ  A   <- A GEMM_INA(k, m)
 READ  B   <- B GEMM_INB(k, n)
 RW    C   <- (k == m+1)   ? B TRMM(m, n) : C GEMM(m, n, k-1)
           -> (k == Bmt-1) ? B(m, n)      : C GEMM(m, n, k+1)
-RW    ctl <- ctl(m, n)                                          [type = CONTROL]
-          -> ctl2 GOK(m, n, k)                                  [type = CONTROL]
+CTL   ctl -> ctl2 GOK(m, n, k)
 BODY
      int tempmm = m == Bmt-1 ? Bm - m * Bmb : Bmb;
      int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
@@ -178,9 +175,9 @@ k = (m+1)..Bmt-1
 : B(m, n)
 
 // Parameters
-RW    ctl1 <- (m == 0)   ? ctl(m, n)      : ctl1 GOK(m-1, n, k)    [type = CONTROL]
-           -> (m+1 == k) ? ctl TRMM(k, n) : ctl1 GOK(m+1, n, k)    [type = CONTROL]
-READ  ctl2 <- ctl GEMM(m, n, k)                                    [type = CONTROL]
+CTL   ctl1 <- (m != 0)   ? ctl1 GOK(m-1, n, k)
+           -> (m+1 == k) ? ctl TRMM(k, n) : ctl1 GOK(m+1, n, k)
+CTL   ctl2 <- ctl GEMM(m, n, k)
 BODY
       /* Fake task to guaranty the end of all gemm using B(m, n) before to start TRMM */
      printlog("thread %d gok( %d, %d, %d )\n", context->eu_id, m, n, k);

@@ -15,14 +15,15 @@ else
 	PLASMA_DIR=$HOME/dague/plasma-2.4.1
 	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_GPU_WITH_CUDA=OFF"
 fi
-
 elif [ "x$USER" == "xherault" ]; then
 	PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma
 	MY_OPTS="-DHWLOC_DIR=/opt/local"
 
 elif [ "x$USER" == "xbosilca" ]; then 
-	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt -DDPLASMA_SCHED_HWLOC=1"
+	HWLOC_OPTS="-DHWLOC_DIR=/Users/bosilca/opt"
 	PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
+	MY_OPTS="-DBUILD_64bits=ON -DDAGUE_GPU_WITH_CUDA=OFF ${HWLOC_OPTS}"
 fi
 
+echo cmake ${LOCATION} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}
 cmake ${LOCATION} -Wdev -DPLASMA_DIR=${PLASMA_DIR} ${MY_OPTS}

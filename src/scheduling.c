@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
 #include "scheduling.h"
-#include "dequeue.h"
 #include "profiling.h"
 #include "remote_dep.h"
 #include "dague.h"
 #include "stats.h"
-#include "priority_sorted_queue.h"
 
+#include <signal.h>
 #include <string.h>
 #include <sched.h>
 #include <sys/types.h>
@@ -43,11 +42,24 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
                                    dague_execution_context_t* exec_context )
 {
     int rc = 0;
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
 #if defined(DAGUE_DEBUG)
-    char tmp[128]; 
-    DEBUG(( "Execute %s\n", dague_service_to_string(exec_context, tmp, 128)));
-#endif
+    {
+        const struct dague_flow* flow;
+        int set_parameters, i;
+        char tmp[128];
+
+        DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
+        for( i = set_parameters = 0; NULL != (flow = exec_context->function->in[i]); i++ ) {
+            if( (NULL != exec_context->data[flow->flow_index].data_repo) &&
+                (ACCESS_NONE != flow->access_type)) {
+                set_parameters++;
+                assert( NULL != exec_context->data[flow->flow_index].data );
+            }
+        }
+        assert( set_parameters <= 1 );
+    }
+# endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
@@ -71,67 +83,61 @@ static inline void done_task(dague_context_t* context)
     dague_atomic_dec_32b( &(context->taskstodo) );
 }
 
-/**
- * Schedule the instance of the service based on the values of the
- * local variables stored in the execution context, by calling the
- * attached hook if any. At the end of the execution the dependencies
- * are released.
- */
-int dague_schedule( dague_context_t* context, const dague_execution_context_t* exec_context )
-{
-    dague_execution_context_t* new_context;
-    dague_execution_unit_t* eu_context;
-    dague_thread_mempool_t *mpool;
 
-    eu_context = context->execution_units[0];
+static dague_scheduler_t scheduler = { NULL, NULL, NULL, NULL, NULL };
 
-    new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
-    mpool = new_context->mempool_owner;
-    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
-    memcpy( new_context, exec_context, sizeof(dague_execution_context_t) );
-    new_context->mempool_owner = mpool;
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-    new_context->data[1] = NULL;
-#endif
-    DAGUE_LIST_ITEM_SINGLETON( new_context );
-    return __dague_schedule( eu_context, new_context);
+void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *s ) {
+    if( NULL != scheduler.finalize ) {
+            scheduler.finalize( dague );
+    }
+    if( NULL != s ) {
+        memcpy( &scheduler, s, sizeof(dague_scheduler_t) );
+        scheduler.init( dague );
+    } else {
+        memset( &scheduler, 0, sizeof(dague_scheduler_t) );
+    }
 }
 
 int __dague_schedule( dague_execution_unit_t* eu_context,
                       dague_execution_context_t* new_context )
 {
+    int ret;
+
 #if defined(DAGUE_DEBUG)
     {
+        dague_execution_context_t* context = new_context;
+        const struct dague_flow* flow;
+        int set_parameters, i;
         char tmp[128];
-        dague_list_item_t* item = (dague_list_item_t*)new_context, *next;
 
         do {
-            next = (dague_list_item_t*)item->list_next;
-            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string((dague_execution_context_t*)item, tmp, 128)));
-            item = next;
-        } while ( item != (dague_list_item_t*)new_context );
+            for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
+                if( ACCESS_NONE == flow->access_type ) continue;
+                if( NULL != context->data[flow->flow_index].data_repo ) {
+                    set_parameters++;
+                    if( NULL == context->data[flow->flow_index].data ) {
+                        DEBUG(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
+                                dague_service_to_string(context, tmp, 128), flow->flow_index, __FILE__, __LINE__));
+                        assert( NULL == context->data[flow->flow_index].data );
+                    }
+                }
+            }
+            if( set_parameters > 1 ) {
+                DEBUG(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
+                        dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
+                assert( set_parameters > 1 );
+            }
+            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
+            context = (dague_execution_context_t*)context->list_item.list_next;
+        } while ( context != new_context );
     }
 # endif
 
     TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
-
-#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-    dague_priority_sorted_list_merge( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-    dague_hbbuffer_push_all( eu_context->eu_task_queue, (dague_list_item_t*)new_context );
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-    if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
-        dague_dequeue_push_front( eu_context->eu_system_queue, (dague_list_item_t*)new_context);
-    } else {
-        dague_dequeue_push_back( eu_context->eu_system_queue, (dague_list_item_t*)new_context);
-    }
-#  else
-#    error No scheduler is defined
-#  endif
-
+    ret = scheduler.schedule_task(eu_context, new_context);
     TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
 
-    return 0;
+    return ret;
 }
 
 void dague_register_nb_tasks(dague_context_t* context, int n)
@@ -172,53 +178,6 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-static  unsigned int ranking_function_bycache(dague_list_item_t *elt, void *param)
-{
-    unsigned int value;
-    cache_t *cache = (cache_t*)param;
-    dague_execution_context_t *exec = (dague_execution_context_t*)elt;
-    
-    /* TODO: fix this, depends on the depth */
-    value = exec->function->cache_rank_function(exec, cache, 128);
-    DEBUG(("maxvalue of this choice is %u\n", value));
-    return value;
-}
-#  else
-static  unsigned int ranking_function_bypriority(dague_list_item_t *elt, void *_)
-{
-    dague_execution_context_t *exec = (dague_execution_context_t*)elt;
-    (void)_;
-    return (~(unsigned int)0) - exec->priority;
-}
-#  endif
-#endif
-
-static inline dague_execution_context_t *choose_local_job( dague_execution_unit_t *eu_context )
-{
-    dague_execution_context_t *exec_context = NULL;
-
-#if   (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-    exec_context = (dague_execution_context_t*)dague_priority_sorted_list_pop_front(eu_context->eu_task_queue);
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-#  if defined(DAGUE_SCHED_CACHE_AWARE)
-    exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(eu_context->eu_task_queue,
-                                                                       ranking_function_bycache,
-                                                                       eu_context->closest_cache);
-#  else  /* DAGUE_SCHED_CACHE_AWARE */
-    exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(eu_context->eu_task_queue,
-                                                                       ranking_function_bypriority,
-                                                                       NULL);
-#  endif /* DAGUE_SCHED_CACHE_AWARE */
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-    exec_context = (dague_execution_context_t*)dague_dequeue_pop_front( eu_context->eu_system_queue );
-#else
-#error DAGUE_SCHEDULER is not defined
-#endif
-    
-    return exec_context;
-}
 
 inline int dague_complete_execution( dague_execution_unit_t *eu_context,
                                      dague_execution_context_t *exec_context )
@@ -241,7 +200,6 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
 
 void* __dague_progress( dague_execution_unit_t* eu_context )
 {
-    uint64_t found_local, miss_local, found_victim, miss_victim, found_remote, system_victim;
     uint64_t misses_in_a_row;
     dague_context_t* master_context = eu_context->master_context;
     int32_t my_barrier_counter = master_context->__dague_internal_finalization_counter;
@@ -250,7 +208,6 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
-    found_local = miss_local = found_victim = miss_victim = found_remote = system_victim = 0;
     misses_in_a_row = 1;
     
     if( 0 != eu_context->eu_id ) {
@@ -276,19 +233,20 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         goto finalize_progress;
     }
 
+    if( NULL == scheduler.select_task ||
+        NULL == scheduler.schedule_task ) {
+        fprintf(stderr, "DAGuE: Main thread entered dague_progress, while scheduler is not selected yet!\n");
+        return (void *)-1;
+    }
+
     while( !all_tasks_done(master_context) ) {
 #if defined(DISTRIBUTED)
-        if( eu_context->eu_id == 0)
-        {
-            int ret;
+        if( eu_context->eu_id == 0) {
             /* check for remote deps completion */
-            while((ret = dague_remote_dep_progress(eu_context)) > 0)  {
-                found_remote += ret;
+            while(dague_remote_dep_progress(eu_context) > 0)  {
                 misses_in_a_row = 0;
             }
         }
-#else
-        (void) found_remote;
 #endif /* DISTRIBUTED */
         
         if( misses_in_a_row > 1 ) {
@@ -300,14 +258,11 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         }
         
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
-        exec_context = choose_local_job(eu_context);
+        exec_context = scheduler.select_task(eu_context);
+        TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
 
         if( exec_context != NULL ) {
             misses_in_a_row = 0;
-            found_local++;
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-        do_some_work:
-#endif
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
             {
@@ -320,62 +275,17 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
             /* We're good to go ... */
             if( 0 == __dague_execute( eu_context, exec_context ) ) {
                 dague_complete_execution( eu_context, exec_context );
             }
             nbiterations++;
-        } else {
-            miss_local++;
 
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-            /* Work stealing from the other workers */
-            {
-                unsigned int i;
-                                
-                for(i = 0; i <  eu_context->eu_nb_hierarch_queues; i++ ) {
-#  if defined(DAGUE_SCHED_CACHE_AWARE)
-                    exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(eu_context->eu_hierarch_queues[i],
-                                                                                       ranking_function_bycache,
-                                                                                       eu_context->closest_cache);
-#  else  /* DAGUE_SCHED_CACHE_AWARE */
-                    exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(eu_context->eu_hierarch_queues[i],
-                                                                                       ranking_function_bypriority,
-                                                                                       NULL);
-#  endif /* DAGUE_SCHED_CACHE_AWARE */
-                    if( NULL != exec_context ) {
-                        misses_in_a_row = 0;
-                        found_victim++;
-                        goto do_some_work;
-                    }
-                    miss_victim++;
-                }
-                exec_context = (dague_execution_context_t *)dague_dequeue_pop_front(eu_context->eu_system_queue);
-                if( NULL != exec_context ) {
-                    misses_in_a_row = 0;
-                    system_victim++;
-                    goto do_some_work;
-                }
-                miss_victim++;
-            }
-#endif
+        } else {
             misses_in_a_row++;
-            TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
         }
     }
     
-#if   (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-    assert( dague_priority_sorted_list_empty(eu_context->eu_task_queue) );
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-    assert( dague_hbbuffer_is_empty( eu_context->eu_task_queue ) );
-    assert( dague_dequeue_is_empty( eu_context->eu_system_queue ) );
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-    assert( dague_dequeue_is_empty( eu_context->eu_system_queue ) );
-#else
-#error DAGUE_SCHEDULER is not defined
-#endif
-
     /* We're all done ? */
     dague_barrier_wait( &(master_context->barrier) );
 
@@ -424,12 +334,17 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
-    return (void*)(long)nbiterations;
+    return (void*)((long)nbiterations);
 }
 
 int dague_enqueue( dague_context_t* context, dague_object_t* object)
 {
     dague_execution_context_t *startup_list = NULL;
+
+    if( NULL == scheduler.schedule_task ) {
+        fprintf(stderr, "DAGuE: error -- You cannot enqueue a task without selecting a scheduler first.\n");
+        return -1;
+    }
 
     context->taskstodo += object->nb_local_tasks;
     if( NULL != object->startup_hook ) {

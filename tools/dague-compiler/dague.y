@@ -23,7 +23,7 @@ extern int yylex(void);
 
 extern int current_lineno;
 
-static jdf_expr_list_t *inline_c_functions = NULL;
+static jdf_expr_t *inline_c_functions = NULL;
 
 static void yyerror(const char *str)
 {
@@ -122,14 +122,11 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     jdf_def_list_t       *property;
     jdf_name_list_t      *name_list;
     jdf_def_list_t       *def_list;
-    jdf_dataflow_list_t  *dataflow_list;
     jdf_dataflow_t       *dataflow;
-    jdf_dep_list_t       *dep_list;
     jdf_dep_t            *dep;
     jdf_dep_type_t        dep_type;
     jdf_guarded_call_t   *guarded_call;
     jdf_call_t           *call;
-    jdf_expr_list_t      *expr_list;
     jdf_expr_t           *expr;
 };
 
@@ -137,16 +134,16 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <name_list>varlist
 %type <def_list>execution_space
 %type <call>partitioning
-%type <dataflow_list>dataflow_list
+%type <dataflow>dataflow_list
 %type <dataflow>dataflow
-%type <dep_list>dependencies
+%type <dep>dependencies
 %type <dep>dependency
 %type <guarded_call>guarded_call
 %type <property>properties
 %type <property>properties_list
 %type <call>call
-%type <expr_list>expr_list
-%type <expr_list>expr_list_range
+%type <expr>expr_list
+%type <expr>expr_list_range
 %type <expr>expr_complete
 %type <expr>expr_range
 %type <expr>expr_simple
@@ -211,7 +208,7 @@ epilogue:       EXTERN_DECL
         ;
 jdf:            jdf function
                 {
-                    jdf_expr_list_t *el, *pl;
+                    jdf_expr_t *el, *pl;
 
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;
@@ -219,7 +216,7 @@ jdf:            jdf function
                         /* Every inline functions declared here where within the context of $2 */
                         for(el = inline_c_functions; NULL != el; el = el->next) {
                             pl = el;
-                            el->expr->jdf_c_code.function_context = $2;
+                            el->jdf_c_code.function_context = $2;
                         }
                         pl->next = current_jdf.inline_c_functions;
                         current_jdf.inline_c_functions = inline_c_functions;
@@ -229,7 +226,7 @@ jdf:            jdf function
         |       jdf VAR properties ASSIGNMENT expr_complete
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    jdf_expr_list_t *el;
+                    jdf_expr_t *el;
 
                     e->next       = NULL;
                     e->name       = $2;
@@ -254,7 +251,7 @@ jdf:            jdf function
         |       jdf VAR properties
                 {
                     jdf_global_entry_t *g, *e = new(jdf_global_entry_t);
-                    jdf_expr_list_t *el;
+                    jdf_expr_t *el;
 
                     e->next       = NULL;
                     e->name       = $2;
@@ -278,7 +275,7 @@ jdf:            jdf function
                 }
         |
                 {
-                    jdf_expr_list_t *el;
+                    jdf_expr_t *el;
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
                         for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
@@ -401,7 +398,7 @@ partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
                   c->func_or_mem = $2;
                   data = jdf_find_or_create_data(&current_jdf, $2);
                   c->parameters = $4;
-                  JDF_COUNT_LIST_ENTRIES($4, jdf_expr_list_t, next, nbparams);
+                  JDF_COUNT_LIST_ENTRIES($4, jdf_expr_t, next, nbparams);
                   if( data->nbparams != -1 ) {
                       if( data->nbparams != nbparams ) {
                           jdf_fatal(current_lineno, "Data %s used with %d parameters at line %d while used with %d parameters line %d\n",
@@ -418,10 +415,8 @@ partitioning:   COLON VAR OPEN_PAR expr_list CLOSE_PAR
 
 dataflow_list:  dataflow dataflow_list 
                 {
-                    jdf_dataflow_list_t *l = new(jdf_dataflow_list_t);
-                    l->flow = $1;
-                    l->next = $2;
-                    $$ = l;
+                    $1->next = $2;
+                    $$ = $1;
                 }
          |
                 {
@@ -440,11 +435,6 @@ optional_access_type :
 dataflow:       optional_access_type VAR dependencies
                 {
                     jdf_dataflow_t *flow = new(jdf_dataflow_t);
-                    if($1 == JDF_VAR_TYPE_CTL) {
-                        jdf_data_entry_t* var;
-                        var = jdf_find_or_create_data(&current_jdf, $2);
-                        var->global->properties = jdf_create_properties_list( "hidden", 0, "on", var->global->properties);
-                    }
                     flow->access_type = $1;
                     flow->varname     = $2;
                     flow->deps        = $3;
@@ -456,10 +446,8 @@ dataflow:       optional_access_type VAR dependencies
 
 dependencies:  dependency dependencies
                {
-                   jdf_dep_list_t *l = new(jdf_dep_list_t);
-                   l->next = $2;
-                   l->dep = $1;
-                   $$ = l;
+                   $1->next = $2;
+                   $$ = $1;
                }
         | 
                {
@@ -575,7 +563,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   c->parameters = $3;
                   $$ = c;                  
                   data = jdf_find_or_create_data(&current_jdf, $1);
-                  JDF_COUNT_LIST_ENTRIES($3, jdf_expr_list_t, next, nbparams);
+                  JDF_COUNT_LIST_ENTRIES($3, jdf_expr_t, next, nbparams);
                   if( data->nbparams != -1 ) {
                       if( data->nbparams != nbparams ) {
                           jdf_fatal(current_lineno, "Data %s used with %d parameters at line %d while used with %d parameters line %d\n",
@@ -600,33 +588,25 @@ priority:     SEMICOLON expr_complete
 
 expr_list_range: expr_range COMMA expr_list_range
               {
-                  jdf_expr_list_t *l = new(jdf_expr_list_t);
-                  l->next = $3;
-                  l->expr = $1;
-                  $$=l;
+                  $1->next = $3;
+                  $$=$1;
               }
       |       expr_range
               {
-                  jdf_expr_list_t *l = new(jdf_expr_list_t);
-                  l->next = NULL;
-                  l->expr = $1;
-                  $$=l;
+                  $1->next = NULL;
+                  $$=$1;
               }
       ;
 
 expr_list:    expr_simple COMMA expr_list
               {
-                  jdf_expr_list_t *l = new(jdf_expr_list_t);
-                  l->next = $3;
-                  l->expr = $1;
-                  $$=l;
+                  $1->next = $3;
+                  $$=$1;
               }
       |       expr_simple
               {
-                  jdf_expr_list_t *l = new(jdf_expr_list_t);
-                  l->next = NULL;
-                  l->expr = $1;
-                  $$=l;
+                  $1->next = NULL;
+                  $$=$1;
               }
       ;
 
@@ -650,19 +630,17 @@ expr_complete: expr_simple
                }
       |        EXTERN_DECL
                {
-                   jdf_expr_list_t *ne;
-                    $$ = new(jdf_expr_t);
-                    $$->op = JDF_C_CODE;
-                    $$->jdf_c_code.code = $1;
-                    $$->jdf_c_code.lineno = current_lineno;
-                    /* This will  be set by the upper level parsing if necessary */
-                    $$->jdf_c_code.function_context = NULL;
-                    $$->jdf_c_code.fname = NULL;
+                   jdf_expr_t *ne;
+                   $$ = new(jdf_expr_t);
+                   $$->op = JDF_C_CODE;
+                   $$->jdf_c_code.code = $1;
+                   $$->jdf_c_code.lineno = current_lineno;
+                   /* This will  be set by the upper level parsing if necessary */
+                   $$->jdf_c_code.function_context = NULL;
+                   $$->jdf_c_code.fname = NULL;
 
-                    ne = new(jdf_expr_list_t);
-                    ne->expr = $$;
-                    ne->next = inline_c_functions;
-                    inline_c_functions = ne;
+                   $$->next = inline_c_functions;
+                   inline_c_functions = $$;
                }
      ;
 

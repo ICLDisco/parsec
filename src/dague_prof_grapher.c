@@ -103,7 +103,7 @@ void dague_prof_grapher_init(const char *base_filename, int rank, int size, int 
 
 static char *service_to_taskid(const dague_execution_context_t *exec_context, char *tmp, int length)
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
 
     index += snprintf( tmp + index, length - index, "%s", function->name );
@@ -137,7 +137,7 @@ void dague_prof_grapher_task(const dague_execution_context_t *context, int threa
 
 void dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_execution_context_t* to,
                             int dependency_activates_task,
-                            const param_t* origin_param, const param_t* dest_param)
+                            const dague_flow_t* origin_flow, const dague_flow_t* dest_flow)
 {    
     char tmp[128];
     int index = 0;
@@ -149,7 +149,7 @@ void dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_e
         service_to_taskid( to, tmp + index, 128 - index - 4 );
         fprintf(grapher_file, 
                 "%s [label=\"%s=>%s\" color=\"#%s\" style=\"solid\"]\n", 
-                tmp, origin_param->name, dest_param->name,
+                tmp, origin_flow->name, dest_flow->name,
                 dependency_activates_task ? "00FF00" : "FF0000");
         fflush(grapher_file);
     }

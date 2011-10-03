@@ -109,10 +109,10 @@ static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
 
-const dague_t* dague_find(const dague_object_t *dague_object, const char *fname)
+const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
     unsigned int i;
-    const dague_t* object;
+    const dague_function_t* object;
 
     for( i = 0; i < dague_object->nb_functions; i++ ) {
         object = dague_object->functions_array[i];
@@ -130,24 +130,6 @@ typedef struct __dague_temporary_thread_initialization_t {
     int bindto;
 } __dague_temporary_thread_initialization_t;
 
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
-{
-    /* Store is a lifo or a dequeue */
-    dague_dequeue_push_back( (dague_dequeue_t*)store, elt );
-}
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-/** In case of hierarchical bounded buffer, define
- *  the wrappers to functions
- */
-static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
-{ 
-    /* Store is a hbbbuffer */
-    dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );
-}
-#endif
-#endif
-
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
     dague_execution_unit_t* eu;
@@ -162,6 +144,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     }
     eu->eu_id          = startup->th_id;
     eu->master_context = startup->master_context;
+    eu->scheduler_object = NULL;
     (startup->master_context)->execution_units[startup->th_id] = eu;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -175,163 +158,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #ifdef DAGUE_PROF_TRACE
     eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d", eu->eu_id );
 #endif
-
-#if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-
-    if( eu->eu_id == 0 ) {
-        eu->eu_task_queue = (dague_priority_sorted_list_t*)malloc(sizeof(dague_priority_sorted_list_t));
-        dague_priority_sorted_list_construct( eu->eu_task_queue );
-        dague_barrier_wait( &startup->master_context->barrier );
-    } else {
-        dague_barrier_wait( &startup->master_context->barrier );
-        eu->eu_task_queue = startup->master_context->execution_units[0]->eu_task_queue;
-    }
-
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES)
-    
-    if( eu->eu_id == 0 ) {
-        eu->eu_system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-        dague_dequeue_construct( eu->eu_system_queue );
-        dague_barrier_wait( &startup->master_context->barrier );
-    } else {
-        dague_barrier_wait( &startup->master_context->barrier );
-        eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
-    }
-
-#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-
-        {
-            uint32_t queue_size = startup->master_context->nb_cores * 4;
-            uint32_t nq = 0;
-
-            eu->eu_nb_hierarch_queues = startup->master_context->nb_cores;    
-            eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
-
-            /* Each thread creates its own "local" queue, connected to the shared dequeue */
-            eu->eu_task_queue = dague_hbbuffer_new( queue_size, 1, push_in_queue_wrapper, 
-                                                    (void*)eu->eu_system_queue);
-            eu->eu_hierarch_queues[0] =  eu->eu_task_queue;
-
-            dague_barrier_wait( &startup->master_context->barrier );
-
-            /* Then, they know about all other queues, from the closest to the farthest */
-#if defined(HAVE_HWLOC)
-            nq = 1;
-            for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
-                for(int id = (eu->eu_id + 1) % startup->master_context->nb_cores; 
-                    id != eu->eu_id; 
-                    id = (id + 1) %  startup->master_context->nb_cores) {
-                    int d;
-
-                    d = dague_hwloc_distance(eu->eu_id, id);
-                    if( d == 2*level || d == 2*level + 1 ) {
-                        eu->eu_hierarch_queues[nq] = startup->master_context->execution_units[id]->eu_task_queue;
-                        DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
-                               eu->eu_id, nq, id, eu->eu_hierarch_queues[nq]));
-                        nq++;
-                        if( nq == eu->eu_nb_hierarch_queues )
-                            break;
-                    }
-                    if( nq == eu->eu_nb_hierarch_queues )
-                        break;
-                }
-            }
-            assert( nq == eu->eu_nb_hierarch_queues );
-#else
-            for(nq = 1; nq < eu->eu_nb_hierarch_queues; nq++) {
-                eu->eu_hierarch_queues[nq] =
-                    startup->master_context->execution_units[(eu->eu_id + nq) % startup->master_context->nb_cores]->eu_task_queue;
-            }
-#endif
-        }
-
-#  else /* DAGUE_SCHEDULER_LOCAL_HIER_QUEUES */
-
-#    if !defined(HAVE_HWLOC)
-#      error Cannot use Hierarchical queues if HWLOC is not available
-#    endif
-
-    eu->eu_nb_hierarch_queues = dague_hwloc_nb_levels();
-    eu->eu_hierarch_queues = (dague_hbbuffer_t **)malloc(eu->eu_nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
-
-    for(int level = 0; level < eu->eu_nb_hierarch_queues; level++) {
-        int idx = eu->eu_nb_hierarch_queues - 1 - level;
-        int master = dague_hwloc_master_id(level, eu->eu_id);
-        if( eu->eu_id == master ) {
-            int nbcores = dague_hwloc_nb_cores(level, master);
-            int queue_size = 96 * (level+1) / nbcores;
-            if( queue_size < nbcores ) queue_size = nbcores;
-            
-            /* The master(s) create the shared queues */               
-            eu->eu_hierarch_queues[idx] = dague_hbbuffer_new( queue_size, nbcores,
-                                                              level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
-                                                              level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1]);
-            DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
-                   eu->eu_id, queue_size, nbcores,
-                   level, idx, eu->eu_hierarch_queues[idx],
-                   level == 0 ? (void*)eu->eu_system_queue : (void*)eu->eu_hierarch_queues[idx+1],
-                   level == 0 ? "System queue" : "upper level hhbuffer"));
-            
-            /* The master(s) unblock all waiting slaves */
-            dague_barrier_wait( &startup->master_context->barrier );
-        } else {
-            /* Be a slave: wait that the master(s) unblock me */
-            dague_barrier_wait( &startup->master_context->barrier );
-            
-            DEBUG(("%d takes the buffer of %d at level %d stored in %d: %p\n",
-                   eu->eu_id, master, level, idx, startup->master_context->execution_units[master]->eu_hierarch_queues[idx]));
-            /* The slaves take their queue for this level from their master */
-            eu->eu_hierarch_queues[idx] = startup->master_context->execution_units[master]->eu_hierarch_queues[idx];
-        }
-    }
-    eu->eu_task_queue = eu->eu_hierarch_queues[0];
-#  endif
-
-#elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-
-    if( eu->eu_id == 0 ) {
-        eu->eu_system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-        dague_dequeue_construct( eu->eu_system_queue );
-        dague_barrier_wait( &startup->master_context->barrier );
-    } else {
-        dague_barrier_wait( &startup->master_context->barrier );
-        eu->eu_system_queue = startup->master_context->execution_units[0]->eu_system_queue;
-    }
-
-#else
-#error DAGUE_SCHEDULER is not defined`
-#endif
-
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-    eu->closest_cache = NULL;
-#error "The DAGUE_SCHED_CACHE_AWARE code depends on obsolete global TILE_SIZE. Please disable this option (in ccmake toggle DAGUE_SCHED_CACHE_AWARE to off)."
-#define TILE_SIZE (120*120*sizeof(double))
-    for(level = 0; level < dague_hwloc_nb_levels(); level++) {
-        int master = dague_hwloc_master_id(level, eu->eu_id);
-        if( eu->eu_id == master ) {
-            int nbtiles = (dague_hwloc_cache_size(level, master) / TILE_SIZE)-1;
-            int nbcores = dague_hwloc_nb_cores(level, master);
-            
-            /* The master(s) create the cache explorer, using their current closest cache as its father */
-            eu->closest_cache = cache_create( nbcores, eu->closest_cache, nbtiles);
-            DEBUG(("%d creates cache of size %d for level %d: %p (parent: %p)\n",
-                   eu->eu_id, nbtiles,
-                   level, eu->closest_cache,
-                   eu->closest_cache != NULL ? eu->closest_cache->parent : NULL));
-            
-            /* The master(s) unblock all waiting slaves */
-            dague_barrier_wait( &startup->master_context->barrier );
-        } else {
-            /* Be a slave: wait that the master(s) unblock me */
-            dague_barrier_wait( &startup->master_context->barrier );
-            
-            /* The closest cache has been created by my master. Thank you, master */
-            eu->closest_cache = startup->master_context->execution_units[master]->closest_cache;
-            DEBUG(("%d takes the closest cache of %d at level %d: %p\n",
-                   eu->eu_id, master, level,  eu->closest_cache));
-        }
-    }
-#endif /* DAGUE_SCHED_CACHE_AWARE */
 
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
@@ -603,63 +429,7 @@ int dague_fini( dague_context_t** pcontext )
 
     (void) dague_remote_dep_fini( context );
 
-#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-
-    dague_priority_sorted_list_destruct( context->execution_units[0]->eu_task_queue );
-    free(context->execution_units[0]->eu_task_queue);
-    for(i = 0; i < context->nb_cores; i++)
-        context->execution_units[i]->eu_task_queue = NULL;
-
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) 
-
-#    if !defined(HAVE_HWLOC)
-#      error Cannot use Hierarchical queues if HWLOC is not available
-#    endif
-
-    for(i = 0; i < context->nb_cores; i++) {
-        dague_execution_unit_t *eu = context->execution_units[i];
-
-        for(int level = 0; level < eu->eu_nb_hierarch_queues; level++) {
-            int idx = eu->eu_nb_hierarch_queues - 1 - level;
-            int master = dague_hwloc_master_id(level, eu->eu_id);
-            if( eu->eu_id == master ) {
-                int nbcores = dague_hwloc_nb_cores(level, master);
-
-                dague_hbbuffer_destruct(eu->eu_hierarch_queues[idx]);
-                eu->eu_hierarch_queues[idx] = NULL;
-            } else {
-                eu->eu_hierarch_queues[idx] = NULL;
-            }
-        }
-    }
-    for(i = 0; i < context->nb_cores; i++)
-        context->execution_units[i]->eu_task_queue = NULL;
-
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
- 
-    dague_dequeue_destruct( context->execution_units[0]->eu_system_queue );
-    free( context->execution_units[0]->eu_system_queue );
-    for(i = 0; i < context->nb_cores; i++) {
-        context->execution_units[i]->eu_system_queue = NULL;
-
-        dague_hbbuffer_destruct( context->execution_units[i]->eu_task_queue );
-        context->execution_units[i]->eu_task_queue = NULL;
-
-        free(context->execution_units[i]->eu_hierarch_queues);
-        context->execution_units[i]->eu_hierarch_queues = NULL;
-    }
-
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-
-    dague_dequeue_destruct( context->execution_units[0]->eu_system_queue );
-    free( context->execution_units[0]->eu_system_queue );
-    for(i = 0; i < context->nb_cores; i++) {
-        context->execution_units[i]->eu_system_queue = NULL;
-    }
-
-#  else
-#    error No scheduler is defined
-#  endif
+    dague_set_scheduler( context, NULL );
 
     for(i = 0; i < context->nb_cores; i++) {
         free(context->execution_units[i]);
@@ -713,7 +483,7 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
                                  char* tmp,
                                  size_t length )
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
 
     index += snprintf( tmp + index, length - index, "%s", function->name );
@@ -732,11 +502,13 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
 /**
  * Resolve all IN() dependencies for this particular instance of execution.
  */
-static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dague_object, const dague_execution_context_t* exec_context )
+static dague_dependency_t
+dague_check_IN_dependencies( const dague_object_t *dague_object,
+                             const dague_execution_context_t* exec_context )
 {
-    const dague_t* function = exec_context->function;
-    int i, j, value;
-    const param_t* param;
+    const dague_function_t* function = exec_context->function;
+    int i, j, value, active;
+    const dague_flow_t* flow;
     const dep_t* dep;
     dague_dependency_t ret = 0;
 
@@ -745,10 +517,15 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
     }
 
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
-        param = function->in[i];
-
-        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != param->dep_in[j]); j++ ) {
-            dep = param->dep_in[j];
+        flow = function->in[i];
+        /* this param has no dependency condition satisfied */
+#if defined(DAGUE_SCHED_DEPS_MASK)
+        active = (1 << flow->flow_index);
+#else
+        active = 1;
+#endif
+        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+            dep = flow->dep_in[j];
             if( NULL != dep->cond ) {
                 /* Check if the condition apply on the current setting */
                 assert( dep->cond->op == EXPR_OP_INLINE );
@@ -757,14 +534,19 @@ static dague_dependency_t dague_check_IN_dependencies( const dague_object_t *dag
                     continue;
                 }
             }
-            if( dep->dague->nb_parameters == 0 ) {
-#if defined(DAGUE_SCHED_DEPS_MASK)
-                ret |= (1 << param->param_index);
-#else
-                ret += 1;
-#endif
+            if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
+                goto dep_resolved;
+            }
+            if( ACCESS_NONE == flow->access_type ) {
+                active = 0;
+                goto dep_resolved;
             }
         }
+        if( ACCESS_NONE != flow->access_type ) {
+            active = 0;
+        }
+    dep_resolved:
+        ret += active;
     }
     return ret;
 }
@@ -797,13 +579,13 @@ static dague_dependencies_t *find_deps(dague_object_t *dague_object,
 int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           dague_execution_unit_t* eu_context,
                                           const dague_execution_context_t* restrict origin,
-                                          const param_t* restrict origin_param,
+                                          const dague_flow_t* restrict origin_flow,
                                           dague_execution_context_t* restrict exec_context,
-                                          const param_t* restrict dest_param,
+                                          const dague_flow_t* restrict dest_flow,
                                           data_repo_entry_t* dest_repo_entry,
                                           dague_execution_context_t** pready_list )
 {
-    const dague_t* function = exec_context->function;
+    const dague_function_t* function = exec_context->function;
     dague_dependencies_t *deps;
     int position;
     dague_dependency_t dep_new_value, dep_cur_value;
@@ -844,19 +626,19 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #else  /* defined(DAGUE_SCHED_DEPS_MASK) */
 
 #   if defined(DAGUE_DEBUG)
-    if( deps->u.dependencies[position] & (1 << dest_param->param_index) ) {
+    if( deps->u.dependencies[position] & (1 << dest_flow->flow_index) ) {
         char tmp2[128];
-        DEBUG(("Output dependencies 0x%x from %s (param %s) activate an already existing dependency 0x%x on %s (param %s)\n",
-               dest_param->param_index, dague_service_to_string(origin, tmp, 128), origin_param->name,
+        DEBUG(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
+               dest_flow->flow_index, dague_service_to_string(origin, tmp, 128), origin_flow->name,
                deps->u.dependencies[position],
-               dague_service_to_string(exec_context, tmp2, 128),  dest_param->name ));
+               dague_service_to_string(exec_context, tmp2, 128),  dest_flow->name ));
     }
-    assert( 0 == (deps->u.dependencies[position] & (1 << dest_param->param_index)) );
+    assert( 0 == (deps->u.dependencies[position] & (1 << dest_flow->flow_index)) );
 #   else
-    (void) origin; (void) origin_param;
+    (void) origin; (void) origin_flow;
 #   endif 
 
-    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_param->param_index);
+    dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & deps->u.dependencies[position]) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
@@ -873,7 +655,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #endif /* defined(DAGUE_SCHED_DEPS_MASK) */
 
-        dague_prof_grapher_dep(origin, exec_context, 1, origin_param, dest_param);
+        dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
 
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
@@ -917,7 +699,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_SCHED_CACHE_AWARE)
             new_context->data[0].gc_data = NULL;
 #endif
-
+            /* TODO: change this to the real number of input dependencies */
+            memset( new_context->data, 0, sizeof(dague_data_pair_t) * MAX_PARAM_COUNT );
+            assert( dest_flow->flow_index <= MAX_PARAM_COUNT );
+            /**
+             * Save the data_repo and the pointer to the data for later use. This will prevent the
+             * engine from atomically locking the hash table for at least one of the flow
+             * for each execution context.
+             */
+            new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
+            new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
             dague_list_add_single_elem_by_priority( pready_list, new_context );
         }
 
@@ -925,7 +716,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
     } else { /* Service not ready */
 
-        dague_prof_grapher_dep(origin, exec_context, 0, origin_param, dest_param);
+        dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
 
 #if defined(DAGUE_SCHED_DEPS_MASK)
         DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
@@ -942,24 +733,25 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     return 0;
 }
 
-#define is_inplace(ctx,param,dep) NULL
-#define is_read_only(ctx,param,dep) NULL
+#define is_inplace(ctx,flow,dep) NULL
+#define is_read_only(ctx,flow,dep) NULL
 
 dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu, 
                                              dague_execution_context_t *newcontext, 
                                              dague_execution_context_t *oldcontext, 
-                                             int param_index, int outdep_index, 
+                                             int out_index, int outdep_index, 
                                              int src_rank, int dst_rank,
                                              dague_arena_t* arena,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
+    const dague_flow_t* target = oldcontext->function->out[out_index];
 
-    if( !(arg->action_mask & (1 << param_index)) ) {
+    if( !(arg->action_mask & (1 << out_index)) ) {
 #if defined(DAGUE_DEBUG)
         char tmp[128];
-        DEBUG(("On task %s param_index %d not on the action_mask %x\n",
-               dague_service_to_string(oldcontext, tmp, 128), param_index, arg->action_mask));
+        DEBUG(("On task %s out_index %d not on the action_mask %x\n",
+               dague_service_to_string(oldcontext, tmp, 128), out_index, arg->action_mask));
 #endif
         return DAGUE_ITERATE_CONTINUE;
     }
@@ -969,15 +761,15 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
         if( arg->action_mask & DAGUE_ACTION_RECV_INIT_REMOTE_DEPS ) {
             void* data;
 
-            data = is_read_only(oldcontext, param_index, outdep_index);
+            data = is_read_only(oldcontext, out_index, outdep_index);
             if(NULL != data) {
-                arg->deps->msg.which &= ~(1 << param_index); /* unmark all data that are RO we already hold from previous tasks */
+                arg->deps->msg.which &= ~(1 << out_index); /* unmark all data that are RO we already hold from previous tasks */
             } else {
-                arg->deps->msg.which |= (1 << param_index); /* mark all data that are not RO */
-                data = is_inplace(oldcontext, param_index, outdep_index);  /* Can we do it inplace */
+                arg->deps->msg.which |= (1 << out_index); /* mark all data that are not RO */
+                data = is_inplace(oldcontext, out_index, outdep_index);  /* Can we do it inplace */
             }
-            arg->deps->output[param_index].data = data; /* if still NULL allocate it */
-            arg->deps->output[param_index].type = arena;
+            arg->deps->output[out_index].data = data; /* if still NULL allocate it */
+            arg->deps->output[out_index].type = arena;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -987,11 +779,11 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
             DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             arg->remote_deps->root = src_rank;
-            if( !(arg->remote_deps->output[param_index].rank_bits[_array_pos] & _array_mask) ) {
-                arg->remote_deps->output[param_index].type = arena;
-                arg->remote_deps->output[param_index].data = arg->data[param_index];
-                arg->remote_deps->output[param_index].rank_bits[_array_pos] |= _array_mask;
-                arg->remote_deps->output[param_index].count++;
+            if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
+                arg->remote_deps->output[out_index].type = arena;
+                arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
+                arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
+                arg->remote_deps->output[out_index].count++;
                 arg->remote_deps_count++;
             }
             if(newcontext->priority > arg->remote_deps->max_priority) arg->remote_deps->max_priority = newcontext->priority;
@@ -1004,14 +796,14 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        arg->output_entry->data[param_index] = arg->data[param_index];
+        arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
         arg->output_usage++;
-        AREF( arg->output_entry->data[param_index] );
+        AREF( arg->output_entry->data[out_index] );
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,
-                                                                 oldcontext->function->out[param_index],
+                                                                 oldcontext->function->out[out_index],
                                                                  newcontext,
-                                                                 oldcontext->function->out[param_index]->dep_out[outdep_index]->param,
+                                                                 oldcontext->function->out[out_index]->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
                                                                  &arg->ready_list);
     }

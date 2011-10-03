@@ -143,7 +143,7 @@ k = 1..SIZE-1
 :A(k, k)
 
 READ A <- A(k, k)
-       -> A HERK(k, 0..k-1)
+       -> T HERK(k, 0..k-1)
 
 BODY
  /* Nothing */
@@ -173,7 +173,7 @@ n = 0..k-1
 //Parameters
 READ  A <- C TRSM(n, k)
 READ  F <- (n == 0) ? C TRSM(k-1, k) : A HERK_IN_F(k)
-RW    T <- (n == 0) ? A HERK_IN_F(k) : T HERK(k, n-1)
+RW    T <- (n == 0) ? A HERK_IN_A(k) : T HERK(k, n-1)
         -> (n == k-1) ? T POTRF(k) : T HERK(k, n+1)
 
 ; (n >= (SIZE - PRI_CHANGE)) ? (SIZE - n) * (SIZE - n) * (SIZE - n) + 3 * (n - k) : 1000000000
@@ -231,7 +231,7 @@ m = k+1..SIZE-1
 :A(m, k)
 
 READ A <- A(m, k)
-       -> A GEMM(k, m, 0..k-1)
+       -> C GEMM(k, m, 0..k-1)
 
 BODY
   /* Nothing */

@@ -241,10 +241,12 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
     Ddesc->super.super.key = NULL;
     asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROF_TRACE */
-#ifdef DAGUE_DEBUG
-     printf("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n", Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores, Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb, Ddesc->super.lm,  Ddesc->super.ln,  Ddesc->super.i, Ddesc->super.j, Ddesc->super.m, Ddesc->super.n, Ddesc->grid.strows, Ddesc->grid.stcols, Ddesc->grid.rows);
-
-#endif /* DAGUE_DEBUG*/
+    DEBUG(("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %u, mb = %u, nb = %u, lm = %u, ln = %u, i = %u, j = %u, m = %u, n = %u, nrst = %u, ncst = %u, process_GridRows = %u\n",
+           Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores,
+           Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb,
+           Ddesc->super.lm,  Ddesc->super.ln,
+           Ddesc->super.i, Ddesc->super.j,
+           Ddesc->super.m, Ddesc->super.n, Ddesc->grid.strows, Ddesc->grid.stcols, Ddesc->grid.rows));
 }
 
 int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)

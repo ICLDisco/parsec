@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2011 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -119,7 +119,7 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 {
     unsigned int i, index = 0;
     dague_object_t* object;
-    const dague_t* function;
+    const dague_function_t* function;
     
     object = dague_object_lookup( origin->object_id );
     function = object->functions_array[origin->function_id];
@@ -290,15 +290,15 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
 
     return exec_context.function->release_deps(NULL, &exec_context,
                                                DAGUE_ACTION_RECV_INIT_REMOTE_DEPS | origin->msg.which,
-                                               origin, NULL);
+                                               origin);
 }
 
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin)
 {
     int actions = DAGUE_ACTION_NO_PLACEHOLDER | DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
     dague_execution_context_t exec_context;
-    dague_arena_chunk_t* data[MAX_PARAM_COUNT];
-    int ret, i;
+    const dague_flow_t* target;
+    int ret, i, whereto;
     
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
     assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
@@ -306,15 +306,17 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     for( i = 0; i < exec_context.function->nb_definitions; i++)
         exec_context.locals[i] = origin->msg.locals[i];
 
-    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != exec_context.function->out[i]); i++) {
-        data[i] = NULL;
+    for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != (target = exec_context.function->out[i])); i++) {
+        whereto = target->flow_index;
+        exec_context.data[whereto].data_repo = NULL;
+        exec_context.data[whereto].data      = NULL;
         if(origin->msg.deps & (1 << i)) {
             //DEBUG(("MPI:\tDATA %p released from %p[%d]\n", GC_DATA(origin->output[i].data), origin, i));
-            data[i] = origin->output[i].data;
+            exec_context.data[whereto].data = origin->output[i].data;
 #ifdef DAGUE_DEBUG
 /*            {
                 char tmp[128];
-                void* _data = ADATA(data[i]);
+                void* _data = ADATA(exec_context.data[whereto].data);
                 DEBUG((MPI:\t"%s: recv %p -> [0] %9.5f [1] %9.5f [2] %9.5f\n",
                        dague_service_to_string(&exec_context, tmp, 128),
                        _data, ((double*)_data)[0], ((double*)_data)[1], ((double*)_data)[2]));
@@ -325,7 +327,7 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     ret = exec_context.function->release_deps(eu_context, &exec_context, 
                                               actions | 
                                               origin->msg.deps, 
-                                              origin, data);
+                                              origin);
     origin->msg.which ^= origin->msg.deps;
     origin->msg.deps = 0;
     return ret;
@@ -506,6 +508,7 @@ enum {
 #ifdef DAGUE_PROF_TRACE
 static dague_thread_profiling_t* MPIctl_prof;
 static dague_thread_profiling_t* MPIsnd_prof[DEP_NB_CONCURENT];
+static dague_thread_profiling_t* MPIsnd_eager;
 static dague_thread_profiling_t* MPIrcv_prof[DEP_NB_CONCURENT];
 static unsigned long act = 0;
 static int MPI_Activate_sk, MPI_Activate_ek;
@@ -550,6 +553,7 @@ static void remote_dep_mpi_profiling_init(void)
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
     MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
+    MPIsnd_eager = dague_profiling_thread_init( 2*1024*1024, "MPI send()");
     for(i = 0; i < DEP_NB_CONCURENT; i++) {
         MPIsnd_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI isend(req=%d)", i);
         MPIrcv_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI irecv(req=%d)", i);
@@ -722,7 +726,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 #endif
     
     assert(dep_enabled);
-    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tparams %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which));
+    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which));
     
     TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
@@ -887,14 +891,18 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
 #endif
 
 #if defined(DAGUE_PROF_TRACE)
-        TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
-                            eu_context->master_context->my_rank, rank, msg);
+        TAKE_TIME_WITH_INFO(MPIsnd_eager, MPI_Data_plds_sk, 0,
+                            eu_context->master_context->my_rank, rank, (*msg));
 #else
         (void) eu_context;
 #endif /* DAGUE_PROF_TRACE */
 #ifndef DAGUE_PROF_DRY_DEP
         MPI_Send(data, 1, dtt, rank, tag, dep_comm); 
 #endif
+#if defined(DAGUE_PROF_TRACE)
+        TAKE_TIME_WITH_INFO(MPIsnd_eager, MPI_Data_plds_ek, 0,
+                            eu_context->master_context->my_rank, rank, (*msg));
+#endif /* DAGUE_PROF_TRACE */
         DEBUG_MARK_DTA_MSG_START_SEND(rank, data, tag);
 
     }

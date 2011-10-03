@@ -1,8 +1,8 @@
-MPICC=mpicc
-MPIF77=mpif77
+MPICC=/opt/ompi/bin/mpicc
+MPIF77=/opt/ompi/bin/mpif77
 CFLAGS="-Wall"
 CC=$(MPICC)
-LD=mpif77
+LD=/opt/ompi/bin/mpif77
 SMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl_sequential -lmkl_gf_lp64 -lmkl_core 
 # Old MKL < 11.xx
 #TMKL=-L/opt/mkl/lib/em64t -lmkl_scalapack_lp64 -lmkl_lapack -lmkl_blacs_openmpi_lp64 -lmkl -lmkl_gf_lp64 -lmkl_core -lguide -lpthread

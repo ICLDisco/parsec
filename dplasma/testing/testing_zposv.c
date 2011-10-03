@@ -66,7 +66,6 @@ int main(int argc, char ** argv)
     
 
 #if defined(DAGUE_PROF_TRACE)
-    ddescA.super.super.key  = strdup("A");
     ddescA0.super.super.key = strdup("A0");
     ddescB.super.super.key  = strdup("B");
     ddescX.super.super.key  = strdup("X");

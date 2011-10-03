@@ -29,22 +29,7 @@ struct dague_execution_unit {
     dague_thread_profiling_t* eu_profile;
 #endif /* DAGUE_PROF_TRACE */
 
-#  if (DAGUE_SCHEDULER == DAGUE_SCHEDULER_ABSOLUTE_PRIORITIES)
-    struct dague_priority_sorted_list *eu_task_queue;
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_HIER_QUEUES) || (DAGUE_SCHEDULER == DAGUE_SCHEDULER_LOCAL_FLAT_QUEUES)
-    dague_hbbuffer_t             *eu_task_queue;
-    dague_hbbuffer_t            **eu_hierarch_queues;
-    uint32_t                      eu_nb_hierarch_queues;
-    dague_dequeue_t              *eu_system_queue;
-#  elif (DAGUE_SCHEDULER == DAGUE_SCHEDULER_GLOBAL_DEQUEUE)
-    dague_dequeue_t              *eu_system_queue;
-#else
-#error No scheduler is defined
-#endif
-
-#if defined(DAGUE_SCHED_CACHE_AWARE)
-    struct cache_t *closest_cache;
-#endif
+    void *scheduler_object;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     uint32_t sched_nb_tasks_done;
