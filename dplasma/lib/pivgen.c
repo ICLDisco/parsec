@@ -86,9 +86,7 @@
 #define max(__a, __b) ( ( (__a) > (__b) ) ? (__a) : (__b) )
 #endif
 
-#define PIV(_ipiv, _mt, _i, _k) (_piv)[(_k)*(_mt)+(_i)]
 #define PRINT_PIVGEN 1
-
 #ifdef PRINT_PIVGEN
 #define myassert( test ) if ( ! (test) ) return -1;
 #else
@@ -104,24 +102,12 @@ int dplasma_qr_geti(       const int a, const int p, const int domino, const int
 int dplasma_qr_gettype(    const int a, const int p, const int domino, const int k, const int m   );
 
 /*
- * Debug
- */
-int  dplasma_qr_check(         tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_type(    tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_pivot(   tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_next_k(  tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
-void dplasma_qr_print_prev_k(  tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
-void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
-
-/*
  * Subtree for low-level
  */
 static void dplasma_low_flat_init(     qr_subpiv_t *arg);
 static void dplasma_low_greedy_init(   qr_subpiv_t *arg, const int minMN);
 static void dplasma_low_binary_init(   qr_subpiv_t *arg);
 static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, const int minMN);
-
 
 /****************************************************
  *             Common ipiv
@@ -258,18 +244,6 @@ int dplasma_qr_gettype( const int a, const int p, const int domino, const int k,
         else
             return 0;
     }
-}
-
-static int dplasma_qr_getinon0( const int a, const int p, const int domino, const int k, int i, int mt ) {
-
-    int j;
-    for(j=k; j<mt; j++) {
-        if ( dplasma_qr_gettype( a, p, domino, k, j) != 0 )
-            i--;
-        if ( i == -1 )
-            break;
-    }
-    return j;
 }
 
 /****************************************************
@@ -975,7 +949,9 @@ static void dplasma_high_greedy_init(qr_subpiv_t *arg, int minMN){
 };
 
 /****************************************************
- *       DPLASMA_LOW_TREE / DPLASMA_HIGH_TREE
+ *
+ *   Generic functions currpiv,prevpiv,nextpiv
+ *
  ***************************************************/
 int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k) 
 { 
@@ -1230,227 +1206,13 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int pivot, const int k, int st
 };
 
 /****************************************************
+ *
+ * Initialize/Finalize functions
+ *
  ***************************************************/
-/* #define ENDCHECK( test, ret )                   \ */
-/*     if ( !test )                                \ */
-/*         exit( -1 ); */
-
-#define ENDCHECK( test, ret )                   \
-    if ( !test )                                \
-        return ret;
-
-int dplasma_qr_check( tiled_matrix_desc_t *A, qr_piv_t *qrpiv)
-{
-    int minMN = min(A->mt, A->nt );
-    int i, m, k, nb;
-    int check;
-
-    int a = qrpiv->a;
-    int p = qrpiv->p;
-    int domino = qrpiv->domino;
-
-    /* 
-     * Check Formula for NB geqrt 
-     */
-    {
-        /* dplasma_qr_print_type( A, qrpiv ); */
-        /* dplasma_qr_print_nbgeqrt( A, qrpiv ); */
-        check = 1;
-        for (k=0; k<minMN; k++) {
-            nb = 0;
-            for (m=k; m < A->mt; m++) {
-              if ( dplasma_qr_gettype(qrpiv->a, qrpiv->p, domino, k, m) > 0 )
-                    nb++;
-            }
-
-            if ( nb != dplasma_qr_getnbgeqrf( a, p, domino, k, A->mt) ) {
-                check = 0;
-                printf(" ----------------------------------------------------\n"
-                       "  - a = %d, p = %d, M = %d, N = %d\n"
-                       "     Check number of geqrt:\n"
-                       "       For k=%d => return %d instead of %d",
-                       a, p, A->mt, A->nt, k, dplasma_qr_getnbgeqrf( a, p, domino, k, A->mt), nb );
-            }
-        }
-        
-        ENDCHECK( check, 1 );
-    }
-
-    /* 
-     * Check indices of geqrt 
-     */
-    {
-        int prevm = -1;
-        check = 1;
-        for (k=0; k<minMN; k++) {
-            /* dplasma_qr_print_geqrt_k( A, qrpiv, k ); */
-            nb = dplasma_qr_getnbgeqrf( a, p, domino, k, A->mt );
-            prevm = -1;
-            for (i=0; i < nb; i++) {
-
-                m = dplasma_qr_getm( a, p, domino, k, i );
-
-                /* tile before the diagonal are factorized and 
-                 * the m is a growing list
-                 */
-                if ( ( m < k ) || ( m < prevm ) ) {
-                    check = 0;
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Check indices of geqrt:\n"
-                           "        getm( k=%d, i=%d ) => m = %d", 
-                           a, p, A->mt, A->nt, k, i, m);
-                } else if ( m != dplasma_qr_getinon0( a, p, domino, k, i, A->mt ) ) {
-                    check = 0;
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Check indices of geqrt:\n"
-                           "        getm( k=%d, i=%d ) => m = %d but should be %d", 
-                           a, p, A->mt, A->nt, k, i, m, dplasma_qr_getinon0( a, p, domino, k, i, A->mt));
-                } else if ( i != dplasma_qr_geti( a, p, domino, k, m) ) {
-                    check = 0;
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Check indices of geqrt:\n"
-                           "        getm( k=%d, i=%d ) => m = %d && geti( k=%d, m=%d ) => i = %d\n", 
-                           a, p, A->mt, A->nt, 
-                           k, i, m, k, m, dplasma_qr_geti( a, p, domino, k, m));
-                }
-                prevm = m;
-            }
-        }
-        ENDCHECK( check, 2 );
-    }
-
-    /* 
-     * Check number of exit in next
-     */
-    {
-        int s;
-        check = 1;
- 
-        for (k=0; k<minMN; k++) {
-            for(m=k; m<A->mt; m++) {
-                nb = 0;
-                for(s=A->mt; s>k; s--) {
-                    if ( dplasma_qr_nextpiv(qrpiv, m, k, s) == A->mt )
-                        nb++;
-                }
-                if ( nb > 1 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
-
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Next of line %d for step %d contains more than one exit:\n",
-                           a, p, A->mt, A->nt, 
-                           m, k);
-                    check = 0;
-                    return 3;
-                }
-                else if ( nb == 0 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
-
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Next of line %d for step %d needs one exit:\n",
-                           a, p, A->mt, A->nt, 
-                           m, k);
-                    check = 0;
-                    return 3;
-                }
-            }
-        }
-        ENDCHECK( check, 3 );
-    }
-
-    /* 
-     * Check number of exit in prev
-     */
-    {
-        int s;
-        check = 1;
- 
-        for (k=0; k<minMN; k++) {
-            for(m=k; m<A->mt; m++) {
-                nb = 0;
-                for(s=k; s<A->mt; s++) {
-                    if ( dplasma_qr_prevpiv(qrpiv, m, k, s) == A->mt )
-                        nb++;
-                }
-                if ( nb > 1 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
-
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Prev of line %d for step %d contains more than one exit:\n",
-                           a, p, A->mt, A->nt, 
-                           m, k);
-                    check = 0;
-                    return 3;
-                }
-                else if ( nb == 0 ) {
-                    dplasma_qr_print_next_k( A, qrpiv, k);
-                    dplasma_qr_print_prev_k( A, qrpiv, k);
-
-                    printf(" ----------------------------------------------------\n"
-                           "  - a = %d, p = %d, M = %d, N = %d\n"
-                           "     Prev of line %d for step %d needs one exit:\n",
-                           a, p, A->mt, A->nt, 
-                           m, k);
-                    check = 0;
-                    return 3;
-                }
-            }
-        }
-        ENDCHECK( check, 3 );
-    }
-
-    /* 
-     * Check next/prev
-     */
-    {
-        int start, next, prev;
-        check = 1;
- 
-        for (k=0; k<minMN; k++) {
-            start = A->mt;
-            for(m=k; m<A->mt; m++) {
-
-                do {
-                    next = dplasma_qr_nextpiv(qrpiv, m, k, start);
-                    if ( next == A->mt ) 
-                        prev = dplasma_qr_prevpiv(qrpiv, m, k, m);
-                    else 
-                        prev = dplasma_qr_prevpiv(qrpiv, m, k, next);
-                    
-                    if ( start != prev ) {
-                        dplasma_qr_print_next_k( A, qrpiv, k);
-                        dplasma_qr_print_prev_k( A, qrpiv, k);
-
-                        printf(" ----------------------------------------------------\n"
-                               "  - a = %d, p = %d, M = %d, N = %d\n"
-                               "     Check next/prev:\n"
-                               "       next( m=%d, k=%d, start=%d ) => %d && prev( m=%d, k=%d, start=%d ) => %d\n ( %d != %d )", 
-                               a, p, A->mt, A->nt, 
-                               m, k, start, next, m, k, next, prev, start, prev);
-                        check = 0;
-                        return 3;
-                    }
-                    start = next;
-                } while ( start != A->mt );
-            }
-        }
-        ENDCHECK( check, 3 );
-    }
-
-    return 0;
-}
-
-
-qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_hlvl, int a, int p, int domino )
+qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, 
+                               int type_llvl, int type_hlvl, 
+                               int a, int p, int domino )
 {
     int low_mt, minMN;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
@@ -1535,209 +1297,3 @@ void dplasma_pivgen_finalize( qr_piv_t *qrpiv )
 
     free(qrpiv);
 }
-
-void dplasma_qr_print_type( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
-{
-    int minMN = min(A->mt, A->nt );
-    int m, k;
-    int lm = 0;
-    int lmg = 0;
-    int rank = 0;
-    int domino = qrpiv->domino;
-
-    printf("\n------------ Localization = Type of pivot --------------\n");
-    for(m=0; m<A->mt; m++) {
-        printf("%3d | ", m);              
-        for (k=0; k<min(minMN, m+1); k++) {
-            printf( "%3d ", dplasma_qr_gettype( qrpiv->a, qrpiv->p, domino, k, m ) );
-        }
-        for (k=min(minMN, m+1); k<minMN; k++) {
-            printf( "    " );
-        }
-      
-        printf("    ");
-        printf("%2d,%3d | ", rank, lmg);
-        for (k=0; k<min(minMN, lmg+1); k++) {
-            printf( "%3d ", dplasma_qr_gettype( qrpiv->a, qrpiv->p, domino, k, lmg) );
-        }
-        for (k=min(minMN, lmg+1); k<minMN; k++) {
-            printf( "    " );
-        }
-        lm++; lmg+=qrpiv->p;
-        if ( lmg >= A->mt ) {
-            rank++;
-            lmg = rank;
-            lm = 0;
-        } 
-        printf("\n");
-    }
-}
-
-void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
-{
-    int minMN = min(A->mt, A->nt );
-    int m, k;
-    int lm = 0;
-    int lmg = 0;
-    int rank = 0;
-    printf("\n------------ Current Pivot--------------\n");
-    for(m=0; m<A->mt; m++) {
-        printf("%3d | ", m);              
-        for (k=0; k<min(minMN, m+1); k++) {
-            printf( "%3d ", dplasma_qr_currpiv(qrpiv, m, k) );
-        }
-        for (k=min(minMN, m+1); k<minMN; k++) {
-            printf( "    " );
-        }
-            
-        printf("    ");
-        printf("%2d,%3d | ", rank, lmg);
-        for (k=0; k<min(minMN, lmg+1); k++) {
-            printf( "%3d ", dplasma_qr_currpiv(qrpiv, lmg, k) );
-        }
-        for (k=min(minMN, lmg+1); k<minMN; k++) {
-            printf( "    " );
-        }
-        lm++; lmg+=qrpiv->p;
-        if ( lmg >= A->mt ) {
-            rank++;
-            lmg = rank;
-            lm = 0;
-        } 
-        printf("\n");
-    }
-}
-
-void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
-{
-    int m;
-    
-    printf("digraph G { size=\"10,7.5\"; center=1; orientation=portrait; \n");
-    
-    for(m=0; m<A->mt; m++) {
-        int next = dplasma_qr_nextpiv(qrpiv, m, 0, A->mt);
-        int prev = next;
-        int posx = 0;
-        printf("%d [label=\"%d\",color=white,pos=\"%d,-%d!\"]\n", m, m, m, posx);
-        if ( m != 0 ) {
-            printf("%d->%d [style=\"invis\"];\n", m-1, m );
-            printf("{rank=same;0;%d};\n", m);
-        }
-        if ( next != A->mt ) {
-
-            posx++;
-            printf("%d->p%d_m%d_k0\n", m, m, next);
-            printf("p%d_m%d_k0 [fillcolor=\"black\",style=filled,fixedsize=true,height=0.1,width=0.1, label=\"\", pos=\"%d,-%d!\"];\n", 
-                   m, next, m, posx);
-
-            next = dplasma_qr_nextpiv(qrpiv, m, 0, next );
-            while ( next != A->mt ) {
-                posx++;
-                printf("p%d_m%d_k0->p%d_m%d_k0\n", m, prev, m, next);
-                printf("p%d_m%d_k0 [fillcolor=\"black\",style=filled,fixedsize=true,height=0.1,width=0.1, label=\"\", pos=\"%d,-%d!\"];\n", 
-                       m, next, m, posx);
-
-                prev = next;
-                next = dplasma_qr_nextpiv(qrpiv, m, 0, next );
-            }
-            if ( m != 0 ) {
-                int pivot = dplasma_qr_currpiv(qrpiv, m, 0);
-                printf("p%d_m%d_k0->p%d_m%d_k0 [style=dotted]\n", m, prev, pivot, m);
-            }
-        }
-        else {
-            int pivot = dplasma_qr_currpiv(qrpiv, m, 0);
-            printf("%d->p%d_m%d_k0 [style=dotted]\n", m, pivot, m);
-        }
-    }
-    printf("} // close graph\n");
-}
-
-void dplasma_qr_print_next_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
-{
-    int m, s;
-    printf("\n------------ Next (k = %d)--------------\n", k);
-
-    printf( "      " );
-    for(s=A->mt; s>0; s--)
-        printf( "%3d ", s );
-    printf( "\n" );
-
-    for(m=0; m<A->mt; m++) {
-        printf("%3d | ", m);              
-        for(s=A->mt; s>0; s--) {
-            printf( "%3d ", dplasma_qr_nextpiv(qrpiv, m, k, s) );
-        }
-        printf("\n");
-    }
-}
-
-void dplasma_qr_print_prev_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
-{
-    int m, s;
-    printf("\n------------ Prev (k = %d)--------------\n", k);
-
-    printf( "      " );
-    for(s=A->mt; s>-1; s--)
-        printf( "%3d ", s );
-    printf( "\n" );
-
-    for(m=0; m<A->mt; m++) {
-        printf("%3d | ", m);              
-        for(s=A->mt; s>-1; s--) {
-            printf( "%3d ", dplasma_qr_prevpiv(qrpiv, m, k, s) );
-        }
-        printf("\n");
-    }
-}
-
-
-void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
-{
-    int minMN = min(A->mt, A->nt );
-    int m, k, nb;
-    int domino = qrpiv->domino;
-
-    printf("\n------------ Nb GEQRT per k --------------\n");
-    printf(" k      : ");
-    for (k=0; k<minMN; k++) {
-        printf( "%3d ", k );
-    }
-    printf( "\n" );
-    printf(" Compute: ");
-    for (k=0; k<minMN; k++) {
-        nb = 0;
-        for (m=k; m < A->mt; m++) {
-            if ( dplasma_qr_gettype(qrpiv->a, qrpiv->p, domino, k, m) > 0 )
-                nb++;
-        }
-        printf( "%3d ", nb );
-    }
-    printf( "\n" );
-    printf(" Formula: ");
-    for (k=0; k<minMN; k++) {
-        printf( "%3d ", dplasma_qr_getnbgeqrf( qrpiv->a, qrpiv->p, domino, k, A->mt) );
-    }
-    printf( "\n" );
-}
-
-void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
-{
-    int i, m, nb;
-    int domino = qrpiv->domino;
-
-    printf("\n------------ Liste of geqrt for k = %d --------------\n", k);
-
-    printf( "  m:");
-    nb = dplasma_qr_getnbgeqrf( qrpiv->a, qrpiv->p, domino, k, A->mt );
-    for (i=0; i < nb; i++) {
-        m = dplasma_qr_getm( qrpiv->a, qrpiv->p, domino, k, i );
-        if ( i == dplasma_qr_geti( qrpiv->a, qrpiv->p, domino, k, m) )
-            printf( "%3d ", m );
-        else
-            printf( "x%2d ", dplasma_qr_geti( qrpiv->a, qrpiv->p, domino, k, m) );
-    }
-    printf( "\n" );
-}
-
-

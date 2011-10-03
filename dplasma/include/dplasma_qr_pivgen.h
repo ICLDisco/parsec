@@ -70,6 +70,13 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, int type_llvl, int type_h
                                int a, int p, int domino );
 void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
 
+/*
+ * Functions used in the jdf
+ *    dplasma_qr_getnbgeqrf: returns the number of geqrt kernels to apply during the step k
+ *    dplasma_qr_getm:       returns the row index of the i-th geqrt to apply during the step k
+ *    dplasma_qr_geti:       returns the index of the geqrt apply to the row m
+ *    dplasma_qr_gettype:    returns the type of the row m at step k
+ */
 int dplasma_qr_getnbgeqrf( const int a, const int p, const int domino, const int k, const int gmt );
 int dplasma_qr_getm(       const int a, const int p, const int domino, const int k, const int i   );
 int dplasma_qr_geti(       const int a, const int p, const int domino, const int k, const int m   );
@@ -108,5 +115,17 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int p, const int k, const int 
  *          desc->mt if p has never been used before that as an annihilator.
  */
 int dplasma_qr_prevpiv(const qr_piv_t *arg, const int p, const int k, const int m);
+
+/*
+ * Debugging functions
+ */
+int  dplasma_qr_check        ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_dag    ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_type   ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_pivot  ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_next_k ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
+void dplasma_qr_print_prev_k ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
+void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
 
 #endif /* _DPLASMA_QR_PIVGEN_H_ */

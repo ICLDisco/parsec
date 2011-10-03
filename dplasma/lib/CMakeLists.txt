@@ -9,6 +9,7 @@ set(EXTRA_SOURCES
   dplasmatypes.c 
   dplasmaaux.c
   pivgen.c
+  pivgen_dbg.c
 )
 
 ### Generate .c files from .jdf
