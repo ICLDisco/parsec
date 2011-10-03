@@ -91,6 +91,8 @@ option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
+option(DAGUE_DEBUG_QR_PIVGEN
+  "Enable the QR pivgen testings" OFF)
 
 ### Simulating Options
 option(DAGUE_SIM

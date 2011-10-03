@@ -24,6 +24,11 @@ set(TESTS
   testing_zheev.c
   #testing_zgesvd.c
 )
+if( DAGUE_DEBUG_QR_PIVGEN )
+  list(APPEND TESTS testing_zpivgen.c)
+  include(TestsQRPivgen.cmake)
+endif()
+
 testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
 
 #Add the LL define to potrf LL 
