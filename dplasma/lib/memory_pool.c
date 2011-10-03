@@ -27,5 +27,6 @@ int dague_private_memory_fini( dague_memory_pool_t* pool )
     while( NULL != (elem = dague_atomic_lifo_pop(&(pool->lifo))) ) {
         free(elem);
     }
+    dague_atomic_lifo_destruct( &(pool->lifo) );
     return 0;
 }
