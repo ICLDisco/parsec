@@ -1611,6 +1611,55 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     }
 }
 
+void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+{
+    int minMN = min(A->mt, A->nt );
+    int m, k, s;
+    int lm = 0;
+    int lmg = 0;
+    int rank = 0;
+    
+    printf("digraph G { size=\"10,7.5\"; center=1; orientation=portrait; \n");
+    
+    for(m=0; m<A->mt; m++) {
+        int next = dplasma_qr_nextpiv(qrpiv, m, 0, A->mt);
+        int prev = next;
+        int posx = 0;
+        printf("%d [label=\"%d\",color=white,pos=\"%d,-%d!\"]\n", m, m, m, posx);
+        if ( m != 0 ) {
+            printf("%d->%d [style=\"invis\"];\n", m-1, m );
+            printf("{rank=same;0;%d};\n", m);
+        }
+        if ( next != A->mt ) {
+
+            posx++;
+            printf("%d->p%d_m%d_k0\n", m, m, next);
+            printf("p%d_m%d_k0 [fillcolor=\"black\",style=filled,fixedsize=true,height=0.1,width=0.1, label=\"\", pos=\"%d,-%d!\"];\n", 
+                   m, next, m, posx);
+
+            next = dplasma_qr_nextpiv(qrpiv, m, 0, next );
+            while ( next != A->mt ) {
+                posx++;
+                printf("p%d_m%d_k0->p%d_m%d_k0\n", m, prev, m, next);
+                printf("p%d_m%d_k0 [fillcolor=\"black\",style=filled,fixedsize=true,height=0.1,width=0.1, label=\"\", pos=\"%d,-%d!\"];\n", 
+                       m, next, m, posx);
+
+                prev = next;
+                next = dplasma_qr_nextpiv(qrpiv, m, 0, next );
+            }
+            if ( m != 0 ) {
+                int pivot = dplasma_qr_currpiv(qrpiv, m, 0);
+                printf("p%d_m%d_k0->p%d_m%d_k0 [style=dotted]\n", m, prev, pivot, m);
+            }
+        }
+        else {
+            int pivot = dplasma_qr_currpiv(qrpiv, m, 0);
+            printf("%d->p%d_m%d_k0 [style=dotted]\n", m, pivot, m);
+        }
+    }
+    printf("} // close graph\n");
+}
+
 void dplasma_qr_print_next_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
 {
     int m, s;
