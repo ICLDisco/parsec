@@ -94,7 +94,7 @@ class Conversion:
     rel = relpath(file);
     self.file = list(path.split(file));
     self.date = path.getmtime(file);
-    if path.samefile(path.join(self.file[0],self.file[1]),sys.argv[0]):
+    if sys.platform!="win32" and path.samefile(path.join(self.file[0],self.file[1]),sys.argv[0]):
       raise ValueError('Let\'s just forget codegen.py');
     try:
       """['normal','all','mixed'] for example. This(ese) are the replacement types to be used."""
@@ -230,7 +230,10 @@ class Conversion:
         search = work[i][prec_from];
         replace = work[i][prec_to];
         if not search: continue;
-        replace.replace('\*','*');
+        replace = replace.replace('\*','*');
+        if sub_type != 'tracing' :
+          replace = replace.replace('\(','(');
+          replace = replace.replace('\)',')');
         data = re.sub(search, replace, data);
       except:
         print 'Bad replacement pair ',i,'in',sub_type;
