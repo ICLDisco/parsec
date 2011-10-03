@@ -457,16 +457,13 @@ inline static int dplasma_low_fibonacci_nextpiv( const qr_subpiv_t *qrpiv, const
 
 static void dplasma_low_fibonacci_init(qr_subpiv_t *arg, int minMN){
     int *ipiv;
-    int mt, a, p, domino;
+    int mt;
 
     arg->currpiv = dplasma_low_fibonacci_currpiv;
     arg->nextpiv = dplasma_low_fibonacci_nextpiv;
     arg->prevpiv = dplasma_low_fibonacci_prevpiv;
     
     mt = arg->ldd;
-    a = arg->a;
-    p = arg->p;
-    domino = arg->domino;
 
     arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
     ipiv = arg->ipiv;
@@ -1613,11 +1610,7 @@ void dplasma_qr_print_pivot( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
 
 void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
 {
-    int minMN = min(A->mt, A->nt );
-    int m, k, s;
-    int lm = 0;
-    int lmg = 0;
-    int rank = 0;
+    int m;
     
     printf("digraph G { size=\"10,7.5\"; center=1; orientation=portrait; \n");
     
