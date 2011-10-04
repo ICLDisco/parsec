@@ -92,21 +92,23 @@ int main(int argc, char ** argv)
     dague_progress(dague);
 
 #if defined(DAGUE_SIM)
-    SYNC_TIME_PRINT(rank, ("zgeqrf simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d M= %d N= %d : %d \n", 
-                           iparam[IPARAM_NNODES],
-                           iparam[IPARAM_NCORES],
-                           iparam[IPARAM_P],
-                           iparam[IPARAM_IB],
-                           iparam[IPARAM_MB],
-                           iparam[IPARAM_NB],
-                           iparam[IPARAM_QR_TS_SZE],
-                           iparam[IPARAM_QR_HLVL_SZE],
-                           iparam[IPARAM_LOWLVL_TREE],
-                           iparam[IPARAM_HIGHLVL_TREE],
-                           iparam[IPARAM_QR_DOMINO],
-                           iparam[IPARAM_M],
-                           iparam[IPARAM_N],
-                           dague->largest_simulation_date));
+    if ( rank == 0 ) {
+        printf("zgeqrf simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d M= %d N= %d : %d \n", 
+               iparam[IPARAM_NNODES],
+               iparam[IPARAM_NCORES],
+               iparam[IPARAM_P],
+               iparam[IPARAM_IB],
+               iparam[IPARAM_MB],
+               iparam[IPARAM_NB],
+               iparam[IPARAM_QR_TS_SZE],
+               iparam[IPARAM_QR_HLVL_SZE],
+               iparam[IPARAM_LOWLVL_TREE],
+               iparam[IPARAM_HIGHLVL_TREE],
+               iparam[IPARAM_QR_DOMINO],
+               iparam[IPARAM_M],
+               iparam[IPARAM_N],
+               dague->largest_simulation_date);
+    }
 #endif
     SYNC_TIME_PRINT(rank, ("zgeqrf computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d M= %d N= %d : %f gflops\n", 
                            iparam[IPARAM_NNODES],
