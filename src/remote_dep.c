@@ -95,7 +95,9 @@ int dague_remote_dep_init(dague_context_t* context)
 
 int dague_remote_dep_fini(dague_context_t* context)
 {
-    return remote_dep_fini(context);
+    int rc = remote_dep_fini(context);
+    remote_deps_allocation_fini();
+    return rc;
 }
 
 int dague_remote_dep_on(dague_context_t* context)
@@ -173,7 +175,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               uint32_t remote_deps_count )
 {
     const dague_function_t* function = exec_context->function;
-    int i, me, him, current_mask;
+    int i, me, him, current_mask, number_of_send = 0;
     unsigned int array_index, count, bit_index;
     
 #if defined(DAGUE_DEBUG)
