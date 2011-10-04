@@ -700,6 +700,8 @@ static int remote_dep_mpi_off(dague_context_t* context)
     {
         MPI_Cancel(&dep_activate_req[i]); MPI_Test(&dep_activate_req[i], &flag, &status); MPI_Request_free(&dep_activate_req[i]);
         MPI_Cancel(&dep_get_req[i]); MPI_Test(&dep_get_req[i], &flag, &status);MPI_Request_free(&dep_get_req[i]);
+        DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)dep_activate_buff[i]);
+        dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)dep_activate_buff[i]);
     }
     for(i = 0; i < DEP_NB_REQ; i++) {
         assert(MPI_REQUEST_NULL == array_of_requests[i]);
