@@ -74,15 +74,15 @@ struct dague_context_t {
     dague_mempool_t datarepo_mempools[MAX_PARAM_COUNT+1];
     pthread_t* pthreads;
 
+#if defined(DAGUE_SIM)
+    int largest_simulation_date;
+#endif
     /* This field should always be the last one in the structure. Even if the
      * declared number of execution units is 1 when we allocate the memory
      * we will allocate more (as many as we need), so everything after this
      * field might be overwritten.
      */
     dague_execution_unit_t* execution_units[1];
-#if defined(DAGUE_SIM)
-    int largest_simulation_date;
-#endif
 };
 
 #endif  /* DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */
