@@ -80,6 +80,9 @@ struct dague_context_t {
      * field might be overwritten.
      */
     dague_execution_unit_t* execution_units[1];
+#if defined(DAGUE_SIM)
+    int largest_simulation_date;
+#endif
 };
 
 #endif  /* DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */
