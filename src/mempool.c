@@ -57,7 +57,7 @@ void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_m
 static void dague_thread_mempool_destruct( dague_thread_mempool_t *thread_mempool )
 {
     void *elt;
-    while( (elt = dague_atomic_lifo_pop( &thread_mempool->mempool ) ) != NULL ) 
+    while( NULL != (elt = dague_atomic_lifo_pop( &thread_mempool->mempool ) ) ) 
         free(elt);
     dague_atomic_lifo_destruct( &thread_mempool->mempool );
 }
@@ -68,4 +68,6 @@ void dague_mempool_destruct( dague_mempool_t *mempool )
     for(tid = 0; tid < mempool->nb_thread_mempools; tid++)
         dague_thread_mempool_destruct( &mempool->thread_mempools[tid] );
     free( mempool->thread_mempools );
+    mempool->thread_mempools = NULL;
+    mempool->nb_thread_mempools = 0;
 }
