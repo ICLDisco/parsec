@@ -476,7 +476,7 @@ static int dplasma_qr_getinon0( const int a, const int p, const int domino,
     return j;
 }
 
-#define DAG_HEADER        "digraph G { size=\"%d,%d\"; orientation=portrait; \n"
+#define DAG_HEADER        "digraph G { orientation=portrait; \n"
 #define DAG_FOOTER        "} // close graph\n"
 #define DAG_LABELNODE     "%d [label=\"%d\",color=white,pos=\"-1.,-%d.!\"]\n"
 #define DAG_LENGTHNODE    "l%d [label=\"%d\",color=white,pos=\"%d.,0.5!\"]\n"
@@ -501,11 +501,12 @@ char *color[] = {
 };
 #define DAG_NBCOLORS 7
 
-void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
+void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filename )
 {
     int *pos, *next, *done;
     int k, m, n, lpos, prev, length;
     int minMN = min( A->mt, A->nt );
+    FILE *f = fopen( filename, "w" );
     
     done = (int*)malloc( A->mt * sizeof(int) );
     pos  = (int*)malloc( A->mt * sizeof(int) );
@@ -514,16 +515,16 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     memset(next, 0, A->mt * sizeof(int) );
 
     /* Print header */
-    printf(DAG_HEADER, A->mt+2, minMN+2 );
+    fprintf(f, DAG_HEADER, A->mt+2, minMN+2 );
     for(m=0; m < A->mt; m++) {
-        printf(DAG_LABELNODE, m, m, m);
+        fprintf(f, DAG_LABELNODE, m, m, m);
     }
 
     for(k=0; k<minMN; k++ ) {
         int nb2reduce = A->mt - k - 1;
 
         for(m=k; m < A->mt; m++) {
-            printf(DAG_STARTNODE, m, A->mt, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
+            fprintf(f, DAG_STARTNODE, m, A->mt, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
             next[m] = dplasma_qr_nextpiv( qrpiv, m, k, A->mt);
         }
         
@@ -540,22 +541,22 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
                     /*pos[n] = lpos;*/
                     pos[n]++;
 
-                    printf(DAG_NODE, m, n, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
+                    fprintf(f, DAG_NODE, m, n, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
                     
                     prev = dplasma_qr_prevpiv( qrpiv, m, k, n );
-                    printf(DAG_EDGE_PIV, 
+                    fprintf(f, DAG_EDGE_PIV, 
                            m, prev, k,
                            m, n,    k, 
                            color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
 
                     prev = dplasma_qr_prevpiv( qrpiv, n, k, n );
                     if ( dplasma_qr_gettype(qrpiv->a, qrpiv->p, qrpiv->domino, k, n) == 0 )
-                        printf(DAG_EDGE_TS, 
+                        fprintf(f, DAG_EDGE_TS, 
                                n, prev, k,
                                m, n, k, 
                                color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
                     else
-                        printf(DAG_EDGE_TT, 
+                        fprintf(f, DAG_EDGE_TT, 
                                n, prev, k,
                                m, n, k, 
                                color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
@@ -574,10 +575,12 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv )
     }
     length++;
     for(k=0; k<length; k++)
-        printf(DAG_LENGTHNODE, k, k, k);
+        fprintf(f, DAG_LENGTHNODE, k, k, k);
+    fprintf(f, DAG_FOOTER);
 
-    printf(DAG_FOOTER);
+    printf("Tic Max = %d\n", length-1);
 
+    fclose( f );
     free(pos);
     free(next);
 }

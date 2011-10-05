@@ -24,6 +24,7 @@ int main(int argc, char ** argv)
     qr_piv_t *qrpiv;
     int ret;
     int iparam[IPARAM_SIZEOF];
+    char *dot_filename;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -47,13 +48,24 @@ int main(int argc, char ** argv)
                                  iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
                                  iparam[IPARAM_QR_DOMINO]);
 
-    /*dplasma_qr_print_dag( (tiled_matrix_desc_t*)&ddescA, qrpiv);*/
+
+    asprintf(&dot_filename, "tree-%dx%d-a%d-p%d-l%d-h%d-d%d.dot", 
+                 M, N,
+                 iparam[IPARAM_QR_TS_SZE],
+                 iparam[IPARAM_QR_HLVL_SZE],
+                 iparam[IPARAM_LOWLVL_TREE],
+                 iparam[IPARAM_HIGHLVL_TREE],
+                 iparam[IPARAM_QR_DOMINO]);
+    
+    if ( iparam[IPARAM_DOT] )
+      dplasma_qr_print_dag( (tiled_matrix_desc_t*)&ddescA, qrpiv, dot_filename );
     /* dplasma_qr_print_pivot( (tiled_matrix_desc_t*)&ddescA, qrpiv); */
     /* dplasma_qr_print_next_k( (tiled_matrix_desc_t*)&ddescA, qrpiv, 0); */
     ret = dplasma_qr_check( (tiled_matrix_desc_t*)&ddescA, qrpiv );
     
     dplasma_pivgen_finalize( qrpiv );
 
+    free(dot_filename);
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
 

@@ -120,7 +120,7 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, const int p, const int k, const int 
  * Debugging functions
  */
 int  dplasma_qr_check        ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_dag    ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
+void dplasma_qr_print_dag    ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filename );
 void dplasma_qr_print_type   ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_pivot  ( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
 void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
