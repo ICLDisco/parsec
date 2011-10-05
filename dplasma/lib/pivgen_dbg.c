@@ -515,7 +515,7 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filena
     memset(next, 0, A->mt * sizeof(int) );
 
     /* Print header */
-    fprintf(f, DAG_HEADER, A->mt+2, minMN+2 );
+    fprintf(f, DAG_HEADER ); /*, A->mt+2, minMN+2 );*/
     for(m=0; m < A->mt; m++) {
         fprintf(f, DAG_LABELNODE, m, m, m);
     }
