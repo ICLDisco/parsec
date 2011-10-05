@@ -175,7 +175,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               uint32_t remote_deps_count )
 {
     const dague_function_t* function = exec_context->function;
-    int i, me, him, current_mask, number_of_send = 0;
+    int i, me, him, current_mask;
     unsigned int array_index, count, bit_index;
     
 #if defined(DAGUE_DEBUG)
