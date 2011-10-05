@@ -93,6 +93,34 @@ int main(int argc, char ** argv)
 
 #if defined(DAGUE_SIM)
     if ( rank == 0 ) {
+        char *filename;
+        FILE *f;
+        int i,j;
+        Dague_Complex64_t *mat = ddescA.mat;
+
+        asprintf(&filename, "simulation-%dx%d-a%d-p%d-l%d-h%d-d%d.dat", 
+                 M, N,
+                 iparam[IPARAM_QR_TS_SZE],
+                 iparam[IPARAM_QR_HLVL_SZE],
+                 iparam[IPARAM_LOWLVL_TREE],
+                 iparam[IPARAM_HIGHLVL_TREE],
+                 iparam[IPARAM_QR_DOMINO]);
+
+        f = fopen(filename, "w");
+        for( i=0; i<M; i++ ) {
+          for( j=0; j<N-1; j++ ) {
+            if( j > i )
+              fprintf(f, "%4d &", 0);
+            else
+              fprintf(f, "%4d &", (int)(mat[j*LDA+i]));
+          }
+          if( j > i )
+            fprintf(f, "%4d \\\\\n", 0);
+          else
+            fprintf(f, "%4d \\\\\n", (int)(mat[j*LDA+i]));
+        }
+        fclose(f);
+
         printf("zgeqrf simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d M= %d N= %d : %d \n", 
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
