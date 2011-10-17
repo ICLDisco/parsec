@@ -15,7 +15,7 @@ int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent )
 {
 #if defined(HAVE_MPI_20)
     MPI_Aint lb = 0; (void)lb;
-    return MPI_Type_get_extent(newtype, &lb, extent);
+    return MPI_Type_get_extent(dt, &lb, extent);
 #else
     return MPI_Type_extent( dt, extent);
 #endif  /* defined(HAVE_MPI_20) */
