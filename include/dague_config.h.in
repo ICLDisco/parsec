@@ -76,7 +76,7 @@
 #cmakedefine HAVE_CUDA
 #cmakedefine HAVE_OPENCL
 #cmakedefine HAVE_MPI
-
+#cmakedefine HAVE_MPI_20
 
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE

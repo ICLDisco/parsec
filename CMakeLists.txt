@@ -317,6 +317,18 @@ if (DAGUE_DIST_WITH_MPI)
       "not on the default path.")
   endif (MPI_FOUND)
 endif (DAGUE_DIST_WITH_MPI)
+#
+# Check to see if support for MPI 2.0 is available
+#
+if (MPI_FOUND)
+  set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
+  set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
+  set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
+  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
+  check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
+  set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
+  set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
+endif (MPI_FOUND)
 
 if( DAGUE_GPU_WITH_CUDA )
   find_package(CUDA)

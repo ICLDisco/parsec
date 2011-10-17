@@ -10,6 +10,17 @@
 #include "dplasmatypes.h"
 
 #if defined(HAVE_MPI)
+
+int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent )
+{
+#if defined(HAVE_MPI_20)
+    MPI_Aint lb = 0; (void)lb;
+    return MPI_Type_get_extent(newtype, &lb, extent);
+#else
+    return MPI_Type_extent( dt, extent);
+#endif  /* defined(HAVE_MPI_20) */
+}
+
 int dplasma_add2arena_rectangle( dague_arena_t *arena, 
                                  size_t elem_size, 
                                  size_t alignment,
@@ -19,12 +30,12 @@ int dplasma_add2arena_rectangle( dague_arena_t *arena,
                                  int resized )
 {
     dague_remote_dep_datatype_t newtype;
-    MPI_Aint lb = 0, extent = 0;
+    MPI_Aint extent = 0;
 
     (void)elem_size;
 
     dplasma_datatype_define_rectangle(oldtype, tile_mb, tile_nb, resized, &newtype);
-    MPI_Type_get_extent(newtype, &lb, &extent);
+    dplasma_get_extent(newtype, &extent);
     dague_arena_construct(arena, extent, alignment, newtype);
 
     return 0;
@@ -47,11 +58,11 @@ int dplasma_add2arena_upper( dague_arena_t *arena,
                              unsigned int tile_mb,  int diag )
 {
     dague_remote_dep_datatype_t newtype;
-    MPI_Aint lb = 0, extent = 0;
+    MPI_Aint extent = 0;
     (void)elem_size;
 
     dplasma_datatype_define_upper( oldtype, tile_mb, diag, &newtype);
-    MPI_Type_get_extent(newtype, &lb, &extent);
+    dplasma_get_extent(newtype, &extent);
     dague_arena_construct(arena, extent, alignment, newtype);
     return 0;
 }
@@ -63,11 +74,11 @@ int dplasma_add2arena_lower( dague_arena_t *arena,
                              unsigned int tile_mb, int diag )
 {
     dague_remote_dep_datatype_t newtype;
-    MPI_Aint lb = 0, extent = 0;
+    MPI_Aint extent = 0;
     (void)elem_size;
 
     dplasma_datatype_define_lower( oldtype, tile_mb, diag, &newtype);
-    MPI_Type_get_extent(newtype, &lb, &extent);
+    dplasma_get_extent(newtype, &extent);
     dague_arena_construct(arena, extent, alignment, newtype);
     return 0;
 }
@@ -85,11 +96,19 @@ int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
     MPI_Type_contiguous(tile_nb * tile_mb, oldtype, newtype);
     MPI_Type_size(oldtype, &oldsize);
     if( resized >= 0 ) {
+#if defined(HAVE_MPI_20)
         MPI_Datatype tmp = *newtype;
         MPI_Type_create_resized(tmp, 0, resized*oldsize, newtype);
         MPI_Type_free(&tmp);
+#else
+        int blocklens[] = {1, 1, 1};
+        MPI_Aint indices[] = {0, 0, resized*oldsize};
+        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
+        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
+#endif  /* defined(HAVE_MPI_20) */
     }
     MPI_Type_commit(newtype);
+#if defined(HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -98,6 +117,7 @@ int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, tile_mb, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }
+#endif  /* defined(HAVE_MPI_20) */
     return 0;
 }
 
@@ -128,6 +148,7 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
     MPI_Type_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
     MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
+#if defined(HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -136,6 +157,7 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "UPPER %s*%4u", oldtype_name, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }
+#endif  /* defined(HAVE_MPI_20) */
     MPI_Type_commit(newtype);
     MPI_Type_free(&tmp);
     free(blocklens);
@@ -163,6 +185,7 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
     MPI_Type_indexed(tile_nb-diag, blocklens, indices, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
     MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
+#if defined(HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -171,6 +194,7 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "LOWER %s*%4u", oldtype_name, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }
+#endif  /* defined(HAVE_MPI_20) */
     MPI_Type_commit(newtype);
     MPI_Type_free(&tmp);
     free(blocklens);
