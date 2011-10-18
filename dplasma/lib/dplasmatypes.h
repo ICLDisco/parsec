@@ -12,6 +12,11 @@
 #define dplasma_comm MPI_COMM_WORLD
 
 #if defined(HAVE_MPI)
+/**
+ * A portable accessor across all MPI versions (1.1 and 2.0) for
+ * accessing the extent of a datatype.
+ */
+int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent );
 int dplasma_datatype_define_rectangle( dague_remote_dep_datatype_t oldtype,
                                        unsigned int tile_mb,
                                        unsigned int tile_nb,

@@ -85,7 +85,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     dague_remote_dep_datatype_t tile_ddt, lower_ddt, upper_ddt, pivot_ddt, littlel_pivot_ddt;
     //int pri_change = dplasma_aux_get_priority( "GETRF", ddescA );
 #if defined(HAVE_MPI)
-    MPI_Aint lb = 0, extent = 0;
+    MPI_Aint extent = 0;
 #else
     int64_t extent = 0;
 #endif  /* defined(HAVE_MPI) */
@@ -100,7 +100,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     /* datatype for A */
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
 #if defined(HAVE_MPI)
-    MPI_Type_get_extent(tile_ddt, &lb, &extent);
+    dplasma_get_extent(tile_ddt, &extent);
 #else
     extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(HAVE_MPI) */
@@ -110,7 +110,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     /* datatype for A lower triangle */
     dplasma_datatype_define_lower(MPI_DOUBLE_COMPLEX, ddescA->nb, 0, &lower_ddt);
 #if defined(HAVE_MPI)
-    MPI_Type_get_extent(lower_ddt, &lb, &extent);
+    dplasma_get_extent(lower_ddt, &extent);
 #else
     extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(HAVE_MPI) */
@@ -120,7 +120,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     /* datatype for A upper triangle */
     dplasma_datatype_define_upper(MPI_DOUBLE_COMPLEX, ddescA->nb, 1, &upper_ddt);
 #if defined(HAVE_MPI)
-    MPI_Type_get_extent(upper_ddt, &lb, &extent);
+    dplasma_get_extent(upper_ddt, &extent);
 #else
     extent = ddescA->mb * ddescA->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(HAVE_MPI) */
@@ -130,7 +130,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     /* datatype for IPIV */
     dplasma_datatype_define_rectangle(MPI_INT, 1, LIPIV->nb, -1, &pivot_ddt);
 #if defined(HAVE_MPI)
-    MPI_Type_get_extent(pivot_ddt, &lb, &extent);
+    dplasma_get_extent(pivot_ddt, &extent);
 #else
     extent = LIPIV->nb * sizeof(int);
 #endif  /* defined(HAVE_MPI) */
@@ -140,7 +140,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     /* datatype for IPIV and dL combined */
     dplasma_datatype_define_rectangle(MPI_DOUBLE_COMPLEX, LIPIV->mb, LIPIV->nb, LIPIV->mb*LIPIV->nb, &littlel_pivot_ddt);
 #if defined(HAVE_MPI)
-    MPI_Type_get_extent(littlel_pivot_ddt, &lb, &extent);
+    dplasma_get_extent(littlel_pivot_ddt, &extent);
 #else
     extent = LIPIV->nb * LIPIV->nb * sizeof(Dague_Complex64_t);
 #endif  /* defined(HAVE_MPI) */
