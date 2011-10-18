@@ -623,7 +623,11 @@ static int remote_dep_mpi_init(dague_context_t* context)
     int *ub;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
 
-    MPI_Comm_get_attr(dep_comm, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);    
+#if defined(HAVE_MPI_20)
+    MPI_Comm_get_attr(dep_comm, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
+#else
+    MPI_Attr_get(dep_comm, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
+#endif  /* defined(HAVE_MPI_20) */
     if( !mpi_tag_ub_exists ) {
         MAX_MPI_TAG = INT_MAX;
         fprintf(stderr, "Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30).\n");

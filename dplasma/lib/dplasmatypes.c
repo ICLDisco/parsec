@@ -147,8 +147,8 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
     }
     MPI_Type_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
-    MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
 #if defined(HAVE_MPI_20)
+    MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -156,6 +156,13 @@ int dplasma_datatype_define_upper( dague_remote_dep_datatype_t oldtype,
         MPI_Type_get_name(oldtype, oldtype_name, &len);
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "UPPER %s*%4u", oldtype_name, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
+    }
+#else
+    {
+        int blocklens[] = {1, 1, 1};
+        MPI_Aint indices[] = {0, 0, tile_nb*tile_nb*oldsize};
+        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
+        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
     }
 #endif  /* defined(HAVE_MPI_20) */
     MPI_Type_commit(newtype);
@@ -184,8 +191,8 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
     }
     MPI_Type_indexed(tile_nb-diag, blocklens, indices, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
-    MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
 #if defined(HAVE_MPI_20)
+    MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -193,6 +200,13 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
         MPI_Type_get_name(oldtype, oldtype_name, &len);
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "LOWER %s*%4u", oldtype_name, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
+    }
+#else
+    {
+        int blocklens[] = {1, 1, 1};
+        MPI_Aint indices[] = {0, 0, tile_nb*tile_nb*oldsize};
+        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
+        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
     }
 #endif  /* defined(HAVE_MPI_20) */
     MPI_Type_commit(newtype);
