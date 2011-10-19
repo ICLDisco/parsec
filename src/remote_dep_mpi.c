@@ -623,10 +623,14 @@ static int remote_dep_mpi_init(dague_context_t* context)
     int *ub;
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
 
+    /*
+     * Based on MPI 1.1 the MPI_TAG_UB should only be defined
+     * on MPI_COMM_WORLD.
+     */
 #if defined(HAVE_MPI_20)
-    MPI_Comm_get_attr(dep_comm, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
+    MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
 #else
-    MPI_Attr_get(dep_comm, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
+    MPI_Attr_get(MPI_COMM_WORLD, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
 #endif  /* defined(HAVE_MPI_20) */
     if( !mpi_tag_ub_exists ) {
         MAX_MPI_TAG = INT_MAX;
