@@ -611,7 +611,7 @@ static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 #endif
 static int MAX_MPI_TAG;
 static int NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG+1;
-#if 0
+#if 1
 #define INC_NEXT_TAG(k) do { \
     assert(k < MAX_MPI_TAG); \
     if(NEXT_TAG < (MAX_MPI_TAG - k)) \

@@ -13,7 +13,11 @@ if [ "x$USER" = "xbosilca" ]; then
   FC=ifort
 elif [ "x$USER" = "xherault" ]; then
   HWLOC="/opt/hwloc"
-  PLASMADIR="/home/bosilca/opt/plasma/intel/"
+  if [ "x$1" = "xgcc" ]; then
+      PLASMADIR="/home/mfaverge/opt/plasma/"
+  else
+      PLASMADIR="/home/bosilca/opt/plasma/intel/"
+  fi
   CUDA="/opt/cuda"
   MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
