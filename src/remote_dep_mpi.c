@@ -143,7 +143,7 @@ dague_fifo_t    dague_put_fifo;          /* ordered non threaded fifo */
 dague_remote_deps_t** dep_pending_recv_array;
 dague_dep_wire_get_fifo_elem_t** dep_pending_put_array;
 volatile int np;
-static int dep_enabled;
+static volatile int dep_enabled;
 
 static void *remote_dep_dequeue_main(dague_context_t* context);
 
@@ -224,6 +224,9 @@ static int remote_dep_dequeue_off(dague_context_t* context)
         DAGUE_LIST_ITEM_SINGLETON(item);
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     }
+
+    while( dep_enabled ) sched_yield();
+
     return 0;
 }
 
