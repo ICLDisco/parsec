@@ -608,6 +608,7 @@ static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
 #endif
 static int MAX_MPI_TAG;
 static int NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG+1;
+#if 0
 #define INC_NEXT_TAG(k) do { \
     assert(k < MAX_MPI_TAG); \
     if(NEXT_TAG < (MAX_MPI_TAG - k)) \
@@ -615,6 +616,9 @@ static int NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG+1;
     else \
         NEXT_TAG = REMOTE_DEP_MAX_CTRL_TAG + k + 1; \
 } while(0)
+#else
+#define INC_NEXT_TAG(k) do {} while(0)
+#endif
 
 static int remote_dep_mpi_init(dague_context_t* context)
 {
