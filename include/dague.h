@@ -180,7 +180,7 @@ typedef int (*dague_completion_cb_t)(dague_object_t* dague_object, void*);
 struct dague_object {
     /** All dague_object_t structures hold these two arrays **/
     uint32_t                   object_id;
-    uint32_t                   nb_local_tasks;
+    volatile uint32_t          nb_local_tasks;
     uint32_t                   nb_functions;
     dague_startup_fn_t         startup_hook;
     const dague_function_t**   functions_array;

@@ -210,11 +210,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #endif  /* defined(HWLOC) */
 
     context->__dague_internal_finalization_in_progress = 0;
-    context->nb_cores  = (int32_t) nb_cores;
+    context->nb_cores       = (int32_t) nb_cores;
     context->__dague_internal_finalization_counter = 0;
-    context->nb_nodes  = 1;
-    context->taskstodo = 0;
-    context->my_rank   = 0;
+    context->nb_nodes       = 1;
+    context->active_objects = 0;
+    context->my_rank        = 0;
 
 #ifdef HAVE_PAPI
     num_events = 0;

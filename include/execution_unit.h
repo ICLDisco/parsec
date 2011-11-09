@@ -57,7 +57,7 @@ struct dague_context_t {
     int32_t nb_cores;
     volatile int32_t __dague_internal_finalization_counter;
     int32_t nb_nodes;
-    volatile uint32_t taskstodo;
+    volatile uint32_t active_objects;
     int32_t my_rank;
     dague_barrier_t  barrier;
 
