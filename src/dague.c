@@ -480,8 +480,8 @@ int dague_fini( dague_context_t** pcontext )
  * Convert the execution context to a string.
  */
 char* dague_service_to_string( const dague_execution_context_t* exec_context,
-                                 char* tmp,
-                                 size_t length )
+                               char* tmp,
+                               size_t length )
 {
     const dague_function_t* function = exec_context->function;
     unsigned int i, index = 0;
@@ -832,6 +832,36 @@ void dague_destruct_dependencies(dague_dependencies_t* d)
                 dague_destruct_dependencies(d->u.next[i-d->min]);
     }
     free(d);
+}
+
+/**
+ *
+ */
+int dague_set_complete_callback( dague_object_t* dague_object,
+                                 dague_completion_cb_t complete_cb, void* complete_cb_data )
+{
+    if( NULL == dague_object->complete_cb ) {
+        dague_object->complete_cb      = complete_cb;
+        dague_object->complete_cb_data = complete_cb_data;
+        return 0;
+    }
+    return -1;
+}
+    dague_completion_cb_t      complete_cb;
+    void*                      complete_cb_data;
+
+/**
+ *
+ */
+int dague_get_complete_callback( const dague_object_t* dague_object,
+                                 dague_completion_cb_t* complete_cb, void** complete_cb_data )
+{
+    if( NULL != dague_object->complete_cb ) {
+        *complete_cb      = dague_object->complete_cb;
+        *complete_cb_data = dague_object->complete_cb_data;
+        return 0;
+    }
+    return -1;
 }
 
 /* TODO: Change this code to something better */

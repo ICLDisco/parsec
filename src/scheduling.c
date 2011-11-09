@@ -183,6 +183,7 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
                                      dague_execution_context_t *exec_context )
 {
     int rc = 0;
+
     if( NULL != exec_context->function->complete_execution ) 
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
