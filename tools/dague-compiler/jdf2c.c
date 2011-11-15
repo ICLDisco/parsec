@@ -1868,7 +1868,6 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
 #if !defined(DAGUE_SCHED_DEPS_MASK)
                             "  .dependencies_goal = %d,\n"
 #else
-#error "DAGUE_SCHED_DEPS_MAX is not defined"
                             "  .dependencies_goal = 0x%x,\n"
 #endif
                             "  .nb_parameters = %d,\n"
