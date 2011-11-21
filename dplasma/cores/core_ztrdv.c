@@ -6,9 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include <stdarg.h>
 #include "dague_config.h"
-#include "data_dist/matrix/precision.h"
 #include "dplasma_zcores.h"
 
 #include <stdio.h>

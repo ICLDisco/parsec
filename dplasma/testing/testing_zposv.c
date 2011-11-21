@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
         if ( uplo[u] == PlasmaUpper ) {
             t1 = PlasmaConjTrans; t2 = PlasmaNoTrans;
         } else {
-            t1 = PlasmaNoTrans; t2 = PlasmaConjTrans;
+            t1 = PlasmaNoTrans; t2 = PlasmaconjTrans;
         }   
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
