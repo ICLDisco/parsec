@@ -4,7 +4,7 @@ rm -rf CMakeCache.txt CMakeFiles
 LOCATION=`dirname $0`
 HWLOC="/opt/hwloc"
 CUDA="/opt/cuda"
-MPI="-DMPI_COMPILER=/opt/ompi/bin/mpicc"
+MPI="-DMPI_C_COMPILER=/opt/ompi/bin/mpicc -DMPI_CXX_COMPILER=/opt/ompi/bin/mpic++ -DMPI_Fortran_COMPILER=/opt/ompi/bin/mpif90"
 
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC="/home/bosilca/opt/"
