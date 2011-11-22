@@ -126,7 +126,7 @@ int main(int argc, char ** argv)
 
                 if ( rank == 0 ) {
                     printf("***************************************************\n");
-                    printf(" ----- TESTING DGEMM (%s, %s) -------- \n",
+                    printf(" ----- TESTING ZGEMM (%s, %s) -------- \n",
                            transstr[tA], transstr[tB]);
                 }
                 
@@ -138,7 +138,7 @@ int main(int argc, char ** argv)
 
                 /* Create GEMM DAGuE */
                 if(loud) printf("Compute ... ... ");
-                dplasma_dgemm(dague, trans[tA], trans[tB],
+                dplasma_zgemm(dague, trans[tA], trans[tB],
                               (Dague_Complex64_t)alpha,
                               (tiled_matrix_desc_t *)&ddescA, 
                               (tiled_matrix_desc_t *)&ddescB, 
@@ -152,11 +152,11 @@ int main(int argc, char ** argv)
                                                 beta,  &ddescC2, &ddescC);
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
-                        printf(" ---- TESTING DGEMM (%s, %s) ...... PASSED !\n",
+                        printf(" ---- TESTING ZGEMM (%s, %s) ...... PASSED !\n",
                                transstr[tA], transstr[tB]);
                     }
                     else {
-                        printf(" ---- TESTING DGEMM (%s, %s) ... FAILED !\n",
+                        printf(" ---- TESTING ZGEMM (%s, %s) ... FAILED !\n",
                                transstr[tA], transstr[tB]);
                     }
                     printf("***************************************************\n");
