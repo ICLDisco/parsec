@@ -29,7 +29,7 @@ if( DAGUE_DEBUG_QR_PIVGEN )
   include(TestsQRPivgen.cmake)
 endif()
 
-testings_addexec(targets "+;${DPLASMA_PRECISIONS}" "${TESTS}")
+testings_addexec(targets "${DPLASMA_PRECISIONS}" "${TESTS}")
 
 #Add the LL define to potrf LL 
 # testings_addexec(lltargets "+;${DPLASMA_PRECISIONS}" "testing_zpotrf_ll.c")

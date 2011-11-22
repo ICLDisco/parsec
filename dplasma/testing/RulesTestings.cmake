@@ -26,7 +26,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   endif()
 
   set(testings_addexec_GENFILES "")
-  precisions_rules(testings_addexec_GENFILES 
+  precisions_rules_py(testings_addexec_GENFILES 
     "${ZSOURCES}"
     PRECISIONS "${PRECISIONS}")
   foreach(testings_addexec_GENFILE ${testings_addexec_GENFILES})

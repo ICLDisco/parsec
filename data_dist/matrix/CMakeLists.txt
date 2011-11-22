@@ -17,9 +17,9 @@ set( precision_files
   zmatrix.c
   ztwoDBC.c
 )
-precisions_rules(generated_files
+precisions_rules_py(generated_files
                  "${precision_files}"
-                 PRECISIONS "+;s;d;c;z"
+                 PRECISIONS "s;d;c;z"
                  TARGETDIR "generated")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)

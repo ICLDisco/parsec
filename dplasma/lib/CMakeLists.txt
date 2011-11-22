@@ -34,9 +34,9 @@ set(JDF
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
 )
-precisions_rules(generated_jdf
-                 "${JDF}"
-                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
+precisions_rules_py(generated_jdf
+                    "${JDF}"
+                    PRECISIONS "${DPLASMA_PRECISIONS}")
 
 list(APPEND generated_jdf
   "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")
@@ -75,9 +75,9 @@ set(SOURCES
   zhbrdt_wrapper.c
   zungqr_wrapper.c
 )
-precisions_rules(generated_files
+precisions_rules_py(generated_files
                  "${SOURCES}"
-                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib 
 if (MPI_FOUND)
