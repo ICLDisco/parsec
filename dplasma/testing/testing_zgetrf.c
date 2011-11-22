@@ -56,7 +56,6 @@ int main(int argc, char ** argv)
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
-        generate_tiled_zero_mat((tiled_matrix_desc_t *) &ddescIPIV);
         if(loud > 2) printf("Done\n");
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf,

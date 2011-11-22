@@ -23,6 +23,8 @@ extern "C" %{
 #define CORE_zgetrf CORE_zgetrf_incpiv
 #endif
 
+#define min( __a, __b ) ( (__a) < (__b) ? (__a) : (__b) )
+
 %}
 
 /** Globals */
@@ -104,6 +106,10 @@ BODY
          int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
          int ldak   = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Bmb);*/
 
+         /* Set local IPIV to 0 before genration 
+          * Better here than a global initialization for locality 
+          * and it's also done in parallel */
+         memset(B, 0, min(tempkn, tempkm) * sizeof(int) );
          CORE_zgetrf(tempkm, tempkn, ib, 
                      A /* A(k,k) */, ldak, 
                      B /* IPIV(k,k) */, &iinfo );
@@ -224,6 +230,7 @@ BODY
          int iinfo;
          PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
 
+         memset(IP, 0, min(tempkn, tempmm) * sizeof(int) );
          CORE_ztstrf(tempmm, tempkn, ib, Lnb, 
                      F /* A(k,k) */, ldak, 
                      G /* A(m,k) */, ldam, 
