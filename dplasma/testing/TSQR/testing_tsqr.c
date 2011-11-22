@@ -108,9 +108,7 @@ static dague_context_t *setup_tsqr( int* pargc
                       );
     dague_enqueue( dague, (dague_object_t*)dague_QR);
 
-    printf( "%i> Task count:%u\n"
-          , rank
-          , dague->taskstodo );
+    printf( "%i> Task count:%u\n", rank, dague_QR->nb_local_tasks );
     return dague;
 }
 

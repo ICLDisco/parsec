@@ -45,7 +45,7 @@
 #endif
 
 #include <stdint.h>
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+#if defined(DAGUE_SCHED_DEPS_MASK)
 typedef uint32_t dague_dependency_t;
 #else
 /**

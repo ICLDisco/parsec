@@ -158,7 +158,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
   SYNC_TIME_START(); \
   dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS; \
   dague_enqueue(DAGUE, DAGUE_##KERNEL); \
-  if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %u local tasks enqueued\n", DAGUE->taskstodo));
+  if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %u local tasks enqueued\n", DAGUE_##KERNEL->nb_local_tasks));
 
 
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL) \

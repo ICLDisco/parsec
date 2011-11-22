@@ -53,7 +53,7 @@ typedef struct remote_dep_wire_get_t
 
 struct remote_dep_output_param {
 /** Never change this structure without understanding the 
-  *   "subtle" relation with  remote_deps_allocation_init in
+  *   "subtle" relation with remote_deps_allocation_init in
   *  remote_dep.c
   */ 
     void*                 data;
@@ -65,6 +65,7 @@ struct remote_dep_output_param {
 struct dague_remote_deps_t {
     dague_list_item_t               item;
     struct dague_atomic_lifo_t*     origin;  /**< The memory arena where the data pointer is comming from */
+    struct dague_object*            dague_object;  /**< dague object generating this data transfer */
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
     int                             from;    /**< From whom we received the control */
@@ -125,6 +126,7 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* 
         assert( (int)(ptr - (char*)remote_deps) == (int)(dague_remote_dep_context.elem_size - rank_bit_size));
     }
     remote_deps->max_priority = 0xffffffff;
+    remote_deps->dague_object = NULL;
     return remote_deps;
 }
 #define DAGUE_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
@@ -148,9 +150,10 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                                 uint32_t remote_deps_count );
 
 /* Memcopy a particular data using datatype specification */
-void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context, 
-        void *dst, dague_arena_chunk_t *src, 
-        const dague_remote_dep_datatype_t datatype);
+void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
+                             dague_object_t* dague_object,
+                             void *dst, dague_arena_chunk_t *src, 
+                             const dague_remote_dep_datatype_t datatype);
 
 #else 
 # define dague_remote_dep_init(ctx) (1)

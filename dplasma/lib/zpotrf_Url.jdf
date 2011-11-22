@@ -10,6 +10,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/dplasmajdf.h"
 
 #define PRECISION_z
@@ -81,7 +82,7 @@ END
 TRSM(k, n) [high_priority = on]
 
 // Execution space
-k = 0..Ant-1
+k = 0..Ant-2
 n = k+1..Ant-1
 
 // Parallel partitioning
@@ -130,7 +131,7 @@ END
 HERK(k, n) [high_priority = on]
 
 // Execution space
-k = 0..Ant-1
+k = 0..Ant-2
 n = k+1..Ant-1
 
 // Parallel partitioning
@@ -174,7 +175,7 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..Amt-1
+k = 0..Amt-3
 m = k+1..Amt-1
 n = m+1..Ant-1
 

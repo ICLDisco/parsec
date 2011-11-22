@@ -11,6 +11,7 @@ extern "C" %{
 #include <core_blas.h>
 
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"

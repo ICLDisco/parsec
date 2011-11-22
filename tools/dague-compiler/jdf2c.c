@@ -5,6 +5,7 @@
  */
 
 #include "dague_config.h"
+#include "dague.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -1223,7 +1224,7 @@ static void jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *conte
     char *sep;
 
     (void)jdf;
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+#if !defined(DAGUE_SCHED_DEPS_MASK)
     assert((1<< flow_index) && (((1 << flow_index) & ~DAGUE_DEPENDENCIES_BITMASK) == 0)); 
     (void)flow_index;
 #endif
@@ -1864,7 +1865,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             "  .deps = %d,\n"
                             "  .flags = %s%s,\n"
                             "  .function_id = %d,\n"
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+#if !defined(DAGUE_SCHED_DEPS_MASK)
                             "  .dependencies_goal = %d,\n"
 #else
                             "  .dependencies_goal = 0x%x,\n"
@@ -1877,7 +1878,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                             (f->flags & JDF_FUNCTION_FLAG_HIGH_PRIORITY) ? "DAGUE_HIGH_PRIORITY_TASK" : "0x0",
                             has_in_in_dep ? " | DAGUE_HAS_IN_IN_DEPENDENCIES" : "",
                             dep_index,
-#if defined(DAGUE_USE_COUNTER_FOR_DEPENDENCIES)
+#if !defined(DAGUE_SCHED_DEPS_MASK)
                             nbinput,
 #else
                             inputmask,
@@ -2475,7 +2476,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
         UTIL_DUMP_LIST(sa, call->parameters, next,
                        dump_expr, (void**)&info, "", "", ", ", "");
         coutput("%s  if( ADATA(exec_context->data[%d].data) != %s(%s) ) {\n"
-                "%s    dague_remote_dep_memcpy( context, %s(%s), exec_context->data[%d].data, \n"
+                "%s    dague_remote_dep_memcpy( context, exec_context->dague_object, %s(%s), exec_context->data[%d].data, \n"
                 "%s                             __dague_object->super.arenas[DAGUE_%s_%s_ARENA]->opaque_dtt );\n"
                 "%s  }\n",                
                 spaces, dataflow_index, call->func_or_mem, string_arena_get_string(sa),

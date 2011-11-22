@@ -172,7 +172,7 @@ double dplasma_zlanhe( dague_context_t *dague,
     dplasma_zlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
 
     if ( workS.super.super.myrank == 0 ) {
-        CORE_dlanhe(
+        CORE_dlansy(
             ntype, workS.super.m, workS.super.n, 
             (double*)workS.mat, workS.super.lm, work, &result);
     }

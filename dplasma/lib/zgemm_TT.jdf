@@ -10,6 +10,7 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/dplasmajdf.h"
 %}
 

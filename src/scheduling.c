@@ -68,19 +68,27 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
     return rc; 
 }
 
-static inline void set_tasks_todo(dague_context_t* context, uint32_t n)
-{
-    context->taskstodo = n;
-}
-
 static inline int all_tasks_done(dague_context_t* context)
 {
-    return (context->taskstodo == 0);
+    return (context->active_objects == 0);
 }
 
-static inline void done_task(dague_context_t* context)
+int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context)
 {
-    dague_atomic_dec_32b( &(context->taskstodo) );
+    int remaining;
+
+    remaining = dague_atomic_dec_32b( &(dague_object->nb_local_tasks) );
+    if( 0 == remaining ) {
+        /* A dague object has been completed. Call the attached callback if
+         * necessary, then update the main engine.
+         */
+        if( NULL != dague_object->complete_cb ) {
+            (void)dague_object->complete_cb( dague_object, dague_object->complete_cb_data );
+        }
+        dague_atomic_dec_32b( &(context->active_objects) );
+        return 1;
+    }
+    return 0;
 }
 
 
@@ -140,16 +148,6 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     return ret;
 }
 
-void dague_register_nb_tasks(dague_context_t* context, int n)
-{
-#if defined(DAGUE_PROF_TRACE)
-    /* Reset the profiling information */
-    dague_profiling_reset();
-#endif  /* defined(DAGUE_PROF_TRACE) */
-        
-    set_tasks_todo(context, (uint32_t)n);
-}
-
 #include <math.h>
 static void __do_some_computations( void )
 {
@@ -183,10 +181,11 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
                                      dague_execution_context_t *exec_context )
 {
     int rc = 0;
+
     if( NULL != exec_context->function->complete_execution ) 
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
-    done_task(eu_context->master_context);
+    __dague_complete_task(exec_context->dague_object, eu_context->master_context);
 
     /* Succesfull execution. The context is ready to be released, all
      * dependencies have been marked as completed.
@@ -347,7 +346,9 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
         return -1;
     }
 
-    context->taskstodo += object->nb_local_tasks;
+    /* Update the number of pending dague objects */
+    dague_atomic_inc_32b( &(context->active_objects) );
+
     if( NULL != object->startup_hook ) {
         object->startup_hook(context, object, &startup_list);
         if( NULL != startup_list ) {
