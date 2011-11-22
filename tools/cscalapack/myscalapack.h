@@ -130,13 +130,17 @@ extern void descinit_( int *desc, int *m, int *n, int *mb, int *nb, int *irsrc, 
 extern void   pdgetrf_ ( int* m, int *n, double *a, int *i1, int *i2, int *desca, int* ipiv, int *info );
 extern void   pdgetrs_ ( char* trans, int* n, int* nrhs, double* A, int* ia, int* ja, int* descA, int* ippiv, double* B, int* ib, int* jb, int* descB, int* info);
 extern double pdlansy_ ( char *norm, char *uplo, int *n, double *a, int *ia, int *ja, int *desca, double *work );
+extern float  pslansy_ ( char *norm, char *uplo, int *n, float  *a, int *ia, int *ja, int *desca, float  *work );
 extern void   pdmatgen_( int *ictxt, char *aform, char *diag, int *m, int *n, int *mb, int *nb, double *a, int *lda, int *iarow, int *iacol, int *iseed, int *iroff, int *irnum, int *icoff, int *icnum, int *myrow, int *mycol, int *nprow, int *npcol );
 
 
 extern void pdpotrf_( char *uplo, int *n, double *a, int *ia, int *ja, int *desca, int *info );
+extern void pspotrf_( char *uplo, int *n, float  *a, int *ia, int *ja, int *desca, int *info );
 extern void pdpotri_( char *uplo, int *n, double *a, int *ia, int *ja, int *desca, int *info );
 extern void pdpotrs_( char *uplo, int *n, int *nrhs, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, int *info );
+extern void pspotrs_( char *uplo, int *n, int *nrhs, float  *a, int *ia, int *ja, int *desca, float  *b, int *ib, int *jb, int *descb, int *info );
 
 extern void pdsymm_(char *side, char *uplo, int *m, int *n, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc);
+extern void pssymm_(char *side, char *uplo, int *m, int *n, float  *alpha, float  *a, int *ia, int *ja, int *desca, float  *b, int *ib, int *jb, int *descb, float  *beta, float  *c, int *ic, int *jc, int *descc);
 
 #endif

@@ -33,7 +33,7 @@ const uint32_t MAX_QUEUE = 55;
 #endif
 #include "data_dist/matrix/matrix.h"
 
-static int OHM_N = 2;
+static int OHM_N = 5;
 static int OHM_M = 3;
 
 #define TRACE_WITH_REF(prof, key, eid, refdesc, refdescid) do {         \
