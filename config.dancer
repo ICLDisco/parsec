@@ -27,9 +27,18 @@ elif [ "x$USER" = "xherault" ]; then
   #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   USER_OPTIONS+="-DDAGUE_Q2J=ON"
 
-elif [ "x$USER" = "xmfaverge" ]; then
-  PLASMA_DIR="/home/mfaverge/opt/plasma-intel/"
-  USER_OPTIONS+="-DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_Q2J=ON"
+elif [ "x${USER}" = "xmfaverge" ]; then
+  if [ "x${CC}" = "xgcc" ]; then
+      PLASMA_DIR="/home/mfaverge/opt/plasma"
+      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
+  else
+      PLASMA_DIR="/home/mfaverge/opt/plasma-intel"
+      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
+  fi
+  #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
+  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
+  USER_OPTIONS+=" -DDAGUE_Q2J=ON"
+  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s\;d\;c\;z"
 
 elif [ "x$USER" = "xYOURSELF" ]; then
   PLASMA_DIR="SOMEWHERE"
@@ -41,20 +50,21 @@ fi
 #####
 ## Cmake does not have a clean interface for FindXXX modules, everyone has a different flavor. Reconciliation.
 
-if [ "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : "DAGUE_DIST_WITH_MPI=OFF") ]; then
+if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
   MPI="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc -DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpic++ -DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90"
 # Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
 fi
 
-if [ "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : "DAGUE_WITH_HWLOC=OFF") ]; then
+if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -eq 0 ]; then
+    echo "With HWLOC"
   HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
 fi
 
-if [ "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : "DAGUE_GPU_WITH_CUDA=OFF") ]; then 
+if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
   export CUDA_BIN_PATH=${CUDA_DIR}
 fi
 
-if [ "${OMEGA_DIR}" -a ! $(expr "${USER_OPTIONS}" : "DAGUE_Q2J=ON") ]; then 
+if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=ON.*") -gt 0 ]; then 
   Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
 fi
 
