@@ -6,8 +6,6 @@
 /************************************************************
  *distributed matrix generation
  ************************************************************/
-/* affect one tile with random values  */
-
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -20,6 +18,59 @@
 #include "matrix.h"
 #include "bindthread.h"
 
+int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
+    FILE * tmpf;
+    int i, j;
+    void* buf;
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf) {
+        printf("opening file: %s", filename);
+        return -1;
+    }
+
+    for (i = 0 ; i < Ddesc->mt ; i++)
+        for ( j = 0 ; j< Ddesc->nt ; j++) {
+            if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank) {
+                buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                fwrite(buf, Ddesc->mtype, Ddesc->bsiz, tmpf );
+            }
+        }
+
+    fclose(tmpf);
+    return 0;
+}
+
+int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
+    FILE * tmpf;
+    int i, j;
+    void * buf;
+    tmpf = fopen(filename, "r");
+    if(NULL == tmpf) {
+        printf("opening file: %s", filename);
+        return -1;
+    }
+
+    for (i = 0 ; i < Ddesc->mt ; i++)
+        for ( j = 0 ; j< Ddesc->nt ; j++) {
+            if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank) {
+                int ret;
+                buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
+                ret = fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
+                if ( ret !=  Ddesc->bsiz )
+                    {
+                        printf("Error reading file: %s", filename);
+                        return -1;
+                    }
+            }
+        }
+    fclose(tmpf);
+    return 0;
+}
+
+/*
+ * Deprecated code
+ */
+#if 0
 void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed)
 {
    
@@ -44,9 +95,6 @@ typedef struct info_tiles{
     void (*gen_fct)( tiled_matrix_desc_t *, void *, int, int, unsigned long long int);
 } info_tiles_t;
 
-
-
-
 /* thread function for affecting multiple tiles with random values
  * @param : tiles : of type dist_tiles_t
 
@@ -66,10 +114,10 @@ static void * rand_dist_tiles(void * info)
     for(i = 0 ; i < ((info_tiles_t *)info)->nb_elements ; i++ )
         {
             ((info_tiles_t *)info)->gen_fct(((info_tiles_t *)info)->Ddesc,
-                                              ((info_tiles_t *)info)->Ddesc->super.data_of(
-                                                                                           ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
-                                                                                           ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
-                                                                                           ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
+                                            ((info_tiles_t *)info)->Ddesc->super.data_of(
+                                                                                         ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
+                                                                                         ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
+                                                                                         ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col,
                                             ((info_tiles_t *)info)->seed);
@@ -223,55 +271,5 @@ void pddiagset(tiled_matrix_desc_t * Mdesc, double val)
     }
     return;
 }
+#endif
 
-int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
-    FILE * tmpf;
-    int i, j;
-    void* buf;
-    tmpf = fopen(filename, "w");
-    if(NULL == tmpf)
-        {
-            printf("opening file: %s", filename);
-            return -1;
-        }
-    for (i = 0 ; i < Ddesc->mt ; i++)
-        for ( j = 0 ; j< Ddesc->nt ; j++)
-            {
-                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
-                    {
-                        buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-                        fwrite(buf, Ddesc->mtype, Ddesc->bsiz, tmpf );
-                    }
-            }
-    fclose(tmpf);
-    return 0;
-}
-
-int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
-    FILE * tmpf;
-    int i, j;
-    void * buf;
-    tmpf = fopen(filename, "r");
-    if(NULL == tmpf)
-        {
-            printf("opening file: %s", filename);
-            return -1;
-        }
-    for (i = 0 ; i < Ddesc->mt ; i++)
-        for ( j = 0 ; j< Ddesc->nt ; j++)
-            {
-                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
-                    {
-                        int ret;
-                        buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-                        ret = fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
-                        if ( ret !=  Ddesc->bsiz )
-                            {
-                                printf("Error reading file: %s", filename);
-                                return -1;
-                            }
-                    }
-            }
-    fclose(tmpf);
-    return 0;
-}

@@ -249,6 +249,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
            Ddesc->super.m, Ddesc->super.n, Ddesc->grid.strows, Ddesc->grid.stcols, Ddesc->grid.rows));
 }
 
+#if 0
 int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
 {
     /* switch(Mdesc->super.mtype) { */
@@ -272,6 +273,7 @@ int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
 
   return 0;
 }
+#endif
 
 #ifdef HAVE_MPI
 
