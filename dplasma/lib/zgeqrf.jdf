@@ -114,7 +114,7 @@ zunmqr(k,n)
 
   READ  C <- A zgeqrt_typechange(k)                              [type = LOWER_TILE]
   READ  D <- B zgeqrt(k)                                         [type = LITTLE_T]
-  RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k-1+1, n) 
+  RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k, n) 
           -> (descA.mt==(k+1)) ? A(k, n)
           -> (descA.mt>=(k+2)) ? J ztsmqr(k, k+1, n) 
 
