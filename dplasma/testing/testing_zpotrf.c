@@ -69,13 +69,6 @@ int main(int argc, char ** argv)
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                                       N, NRHS, SMB, SNB, P));
     
-#if defined(DAGUE_PROF_TRACE)
-    ddescA.super.super.key  = strdup("A");
-    ddescA0.super.super.key = strdup("A0");
-    ddescB.super.super.key  = strdup("B");
-    ddescX.super.super.key  = strdup("X");
-#endif
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo, 
