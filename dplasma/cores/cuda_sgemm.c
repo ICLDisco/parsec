@@ -425,7 +425,7 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
 
 
 #if defined(DAGUE_PROF_TRACE)
-#include "../lib/generated/spotrf_rl.h"
+#include "../lib/spotrf_rl.h"
 /**
  * This function has benn copied by hand from the generated code. It should be
  * kept in sync with the hash function from there.
