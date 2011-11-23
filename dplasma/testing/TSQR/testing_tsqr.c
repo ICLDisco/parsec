@@ -101,7 +101,7 @@ static dague_context_t *setup_tsqr( int* pargc
 
     rtop.mat = dague_data_allocate((size_t)rtop.super.nb_local_tiles * (size_t)rtop.super.bsiz * (size_t)rtop.super.mtype);
 
-    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&rtop, 3129);
+    dplasma_dplrnt(dague, (tiled_matrix_desc_t *)&rtop, 3129);
 
     dague_QR = (dague_object_t*)
         dague_TSQR_new( (dague_ddesc_t*)&rtop
