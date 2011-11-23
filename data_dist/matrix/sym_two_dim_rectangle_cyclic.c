@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #endif
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 
@@ -157,10 +158,10 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     column = datakey / Ddesc->super.lmt;
     row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
+    res = snprintf(buffer, buffer_size, "(%d, %d)", row, column);
     if (res < 0)
         {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
+            printf("error in key_to_string for tile (%d, %d) key: %"PRIu32"\n", row, column, datakey);
         }
     return res;
 }
@@ -246,7 +247,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, enum matr
     Ddesc->super.super.data_key = sym_twoDBC_data_key;
     Ddesc->super.super.key_to_string = sym_twoDBC_key_to_string;
     Ddesc->super.super.key = NULL;
-    asprintf(&Ddesc->super.super.key_dim, "(%u, %u)", Ddesc->super.mt, Ddesc->super.nt);
+    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
 #endif /* DAGUE_PROF_TRACE */
 
 }
