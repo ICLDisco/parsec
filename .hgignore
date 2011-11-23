@@ -50,6 +50,8 @@ data_dist/matrix/reduce_col\.c
 data_dist/matrix/reduce_col\.h
 data_dist/matrix/reduce_row\.c
 data_dist/matrix/reduce_row\.h
+data_dist/matrix/[sdc]twoDBC\.c
+data_dist/matrix/[sdc]matrix\.c
 dplasma/cores/core_[sdc]trdv\.c
 dplasma/cores/dplasma_[sdc]cores\.h
 dplasma/include/dplasma_[sdc]\.h
