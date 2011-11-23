@@ -35,6 +35,11 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam)
     PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N))
 
+    if ( M != N && check ) {
+        fprintf(stderr, "Check cannot be perfomed with M != N\n");
+        check = 0;
+    }
+
     /* initializing matrix structure */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
