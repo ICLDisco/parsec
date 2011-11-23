@@ -16,20 +16,21 @@
 #include "zgetrf.h"
 #include "zgetrf_sd.h"
 
-dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* A,
+dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A,
                                    tiled_matrix_desc_t *L,
                                    tiled_matrix_desc_t *IPIV,
-                                   int* INFO)
+                                   int *INFO)
 {
     dague_zgetrf_object_t *dague_getrf;
-    dague_memory_pool_t   *workpool;
 
-    workpool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( workpool, L->mb * L->nb * sizeof(Dague_Complex64_t) );
+    dague_getrf = dague_zgetrf_new( *A, (dague_ddesc_t*)A, 
+                                    *L, (dague_ddesc_t*)L, 
+                                    (dague_ddesc_t*)IPIV, 
+                                    NULL, INFO, L->mb);
 
-    dague_getrf = dague_zgetrf_new( (dague_ddesc_t*)A, (dague_ddesc_t*)L, (dague_ddesc_t*)IPIV, 
-                                     workpool, INFO, L->mb,
-                                     A->m, A->n, A->mb, A->nb, A->mt, A->nt, L->mb, L->nb);
+    dague_getrf->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( dague_getrf->work_pool, L->mb * L->nb * sizeof(Dague_Complex64_t) );
+
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA], 
                             A->mb*A->nb*sizeof(Dague_Complex64_t),
@@ -61,6 +62,23 @@ dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t* A,
                                  MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
 
     return (dague_object_t*)dague_getrf;
+}
+
+void
+dplasma_zgetrf_Destruct( dague_object_t *o )
+{
+    dague_zgetrf_object_t *dague_zgetrf = (dague_zgetrf_object_t *)o;
+
+    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_UPPER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_LOWER_TILE_ARENA]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_SMALL_L_ARENA   ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA     ]->opaque_dtt) );
+      
+    dague_private_memory_fini( dague_zgetrf->work_pool );
+    free( dague_zgetrf->work_pool );
+ 
+    dague_zgetrf_destroy(dague_zgetrf);
 }
 
 int dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t *A, 
@@ -95,7 +113,7 @@ dague_object_t* dplasma_zgetrf_sd_New( tiled_matrix_desc_t* ddescA,
     object->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
 
     /* TODO: check if we should use mb-1 or mb here */
-    dague_private_memory_init( object->work_pool, (LIPIV->mb-1) * LIPIV->nb * sizeof(Dague_Complex64_t) );
+    dague_private_memory_init( object->work_pool, (LIPIV->mb) * LIPIV->nb * sizeof(Dague_Complex64_t) );
 
     /* datatype for A */
     dplasma_datatype_define_tile(MPI_DOUBLE_COMPLEX, ddescA->nb, &tile_ddt);
