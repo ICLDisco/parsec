@@ -84,6 +84,7 @@ dplasma/lib/[sdc]potrf_Lrl\.jdf
 dplasma/lib/[sdc]getrf\.jdf
 dplasma/lib/[sdc]getrf_sd\.jdf
 dplasma/lib/[sdc]trsmpl\.jdf
+dplasma/lib/[sdc]trsmpl_sd\.jdf
 dplasma/lib/[sdc]geqrf\.jdf
 dplasma/lib/[sdc]gelqf\.jdf
 dplasma/lib/[sdc]herbt_L\.jdf
@@ -130,6 +131,7 @@ dplasma/lib/[sdcz]potrf_Lrl\.[ch]
 dplasma/lib/[sdcz]getrf\.[ch]
 dplasma/lib/[sdcz]getrf_sd\.[ch]
 dplasma/lib/[sdcz]trsmpl\.[ch]
+dplasma/lib/[sdcz]trsmpl_sd\.[ch]
 dplasma/lib/[sdcz]geqrf\.[ch]
 dplasma/lib/[sdcz]gelqf\.[ch]
 dplasma/lib/[sdcz]herbt_L\.[ch]
