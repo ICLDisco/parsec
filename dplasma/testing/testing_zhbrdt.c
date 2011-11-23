@@ -31,7 +31,8 @@ int main(int argc, char *argv[])
 
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
-    if(P != 1) fprintf(stderr, "!!! This algorithm works on a band 1D matrix. The value of P=%d has been overriden, the actual grid is %dx%d\n", P, 1, nodes);
+    if(P != 1) 
+        fprintf(stderr, "!!! This algorithm works on a band 1D matrix. The value of P=%d has been overriden, the actual grid is %dx%d\n", P, 1, nodes);
         
     PASTE_CODE_FLOPS_COUNT(FADDS_ZHBRDT, FMULS_ZHBRDT, ((DagDouble_t)N));
     PLASMA_Init(1);
@@ -44,12 +45,11 @@ int main(int argc, char *argv[])
     */
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-                               two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
-                                                      nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0, 
-                                                      MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                               nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0, 
+                               MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
-
+    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescA, 3129);
 
     PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, 
                               ((tiled_matrix_desc_t*)&ddescA));

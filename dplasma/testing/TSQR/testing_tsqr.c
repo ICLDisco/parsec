@@ -26,6 +26,7 @@
 #include <plasma.h>
 #include <lapacke.h>
 
+#include "dplasma.h"
 #include "dplasma/lib/TSQR.h"
 
 /* globals and argv set values */
@@ -100,7 +101,7 @@ static dague_context_t *setup_tsqr( int* pargc
 
     rtop.mat = dague_data_allocate((size_t)rtop.super.nb_local_tiles * (size_t)rtop.super.bsiz * (size_t)rtop.super.mtype);
 
-    generate_tiled_random_mat((tiled_matrix_desc_t *)&rtop, 100);
+    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&rtop, 3129);
 
     dague_QR = (dague_object_t*)
         dague_TSQR_new( (dague_ddesc_t*)&rtop
