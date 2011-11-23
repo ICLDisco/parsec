@@ -66,7 +66,8 @@ int main(int argc, char *argv[])
                                    two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, 
                                                           nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 
                                                           0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
-        generate_tiled_random_mat((tiled_matrix_desc_t*) &ddescAcpy, 100);
+        dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescAcpy, 3129);
+
         /* Gather Acpy on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLAcpy, 1, 
                                    two_dim_block_cyclic, (&ddescLAcpy, matrix_ComplexDouble, 
