@@ -381,7 +381,6 @@ if(NOT DAGUE_COMPILE_INPLACE)
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
-#include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 add_definitions(-DHAVE_CONFIG_H)
 
 #
@@ -396,7 +395,6 @@ set(SRCS
   src/stats.c 
   src/remote_dep.c 
   src/barrier.c 
-  Buf2Cache/buf2cache.c
   src/freelist.c 
   src/debug.c 
   src/bindthread.c 

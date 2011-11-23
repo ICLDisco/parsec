@@ -103,6 +103,7 @@ typedef unsigned int (dague_cache_rank_function_t)(dague_execution_context_t *ex
 #if defined(DAGUE_SIM)
 typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context);
 #endif
+typedef uint64_t (dague_functionkey_fn_t)(const dague_object_t *dague_object, const assignment_t *assignments);
 
 struct dague_function {
     const char                  *name;
@@ -128,6 +129,7 @@ struct dague_function {
     dague_hook_t                *complete_execution;
     dague_traverse_function_t   *iterate_successors;
     dague_release_deps_t        *release_deps;
+    dague_functionkey_fn_t      *key;
     char                        *body;
 };
 

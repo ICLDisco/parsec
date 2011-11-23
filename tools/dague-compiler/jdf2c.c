@@ -1949,6 +1949,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, const jdf_function_entr
                                 "#endif\n");
     }
 
+    string_arena_add_string(sa, "  .key = (dague_functionkey_fn_t*)%s_hash,\n", f->fname);
+
     sprintf(prefix, "%s_%s_internal_init", jdf_basename, f->fname);
     jdf_generate_internal_init(jdf, f, prefix);
 
@@ -2221,9 +2223,9 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 
     (void)jdf;
 
-    coutput("static inline int %s_hash(const __dague_%s_internal_object_t *__dague_object, const assignment_t *assignments)\n"
+    coutput("static inline uint64_t %s_hash(const __dague_%s_internal_object_t *__dague_object, const assignment_t *assignments)\n"
             "{\n"
-            "  int __h = 0;\n"
+            "  uint64_t __h = 0;\n"
             "  (void)__dague_object;\n",
             f->fname, jdf_basename);
 
