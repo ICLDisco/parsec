@@ -346,17 +346,19 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
         return -1;
     }
 
-    /* Update the number of pending dague objects */
-    dague_atomic_inc_32b( &(context->active_objects) );
+    if( object->nb_local_tasks > 0 ) {
+        /* Update the number of pending dague objects */
+        dague_atomic_inc_32b( &(context->active_objects) );
 
-    if( NULL != object->startup_hook ) {
-        object->startup_hook(context, object, &startup_list);
-        if( NULL != startup_list ) {
-            /* We should add these tasks on the system queue */
-            __dague_schedule( context->execution_units[0], startup_list );
+        if( NULL != object->startup_hook ) {
+            object->startup_hook(context, object, &startup_list);
+            if( NULL != startup_list ) {
+                /* We should add these tasks on the system queue */
+                __dague_schedule( context->execution_units[0], startup_list );
+            }
         }
     }
-    
+
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
 #endif

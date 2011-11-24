@@ -2075,14 +2075,11 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 
     coutput("static void %s_startup(dague_context_t *context, dague_object_t *dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
-            "%s\n",
+            "%s\n"
+            "}\n",
             jdf_basename, 
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_startup_call, sa2,
                             "  ", jdf_basename, "\n  ", "") );
-    coutput("#if defined(DISTRIBUTED)\n"
-            "  remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);  /* TODO: a more generic solution */\n"
-            "#endif  /* defined(DISTRIBUTED) */\n"
-            "}\n");
 
     string_arena_free(sa1);
     string_arena_free(sa2);
