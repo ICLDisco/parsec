@@ -26,7 +26,7 @@ seed   [type = "unsigned long long int" ]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
 
-PLRNT(m, n)
+PLRNT(m, n)  [profile = off]
 
 // Execution space
 m = 0 .. descA.mt-1

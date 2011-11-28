@@ -31,7 +31,7 @@ A      [type = "dague_ddesc_t *"]
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
-PLGSY_L(m, n)
+PLGSY_L(m, n)  [profile = off]
 
 // Execution space
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
@@ -62,7 +62,7 @@ BODY
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
-PLGSY_U(m, n)
+PLGSY_U(m, n)  [profile = off]
 
 // Execution space
 m = 0   .. descA.mt-1
@@ -93,7 +93,7 @@ BODY
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
-PLGSY_DIAG(k)
+PLGSY_DIAG(k)  [profile = off]
 
 // Execution space
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )

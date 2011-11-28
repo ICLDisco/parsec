@@ -33,7 +33,7 @@ plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
 
-lacpy_l_in_Amn(m, n)
+lacpy_l_in_Amn(m, n)  [profile = off]
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
     
@@ -80,7 +80,7 @@ BODY
 END
 
 
-lacpy_u_in_Amn(m, n)
+lacpy_u_in_Amn(m, n)  [profile = off]
 m = 0   .. descA.mt-1
 n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
     
@@ -126,7 +126,7 @@ BODY
                  m, n, ldam, m, n, ldbm);
 END
 
-lacpy_diag_in_Akk(k)
+lacpy_diag_in_Akk(k)  [profile = off]
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
     
   : A(k, k)
