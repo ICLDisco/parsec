@@ -45,6 +45,20 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->lm = lm;
     tdesc->ln = ln;
 
+    /* WARNING: This has to be removed when padding will be removed */
+#if defined(DISTRIBUTED)
+    if ( storage == matrix_Lapack ) {
+        if ( tdesc->lm %mb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
+            MPI_Abort(MPI_COMM_WORLD);
+        }
+        if ( tdesc->ln %nb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
+            MPI_Abort(MPI_COMM_WORLD);
+        }
+    }
+#endif
+
     /* Large matrix derived parameters */
     /* tdesc->lm1 = (lm/mb); */
     /* tdesc->ln1 = (ln/nb); */

@@ -79,34 +79,58 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
 #endif
 
-    /* number of tiles per column of super-tile */
-    nb_elem_r = Ddesc->nb_elem_r * Ddesc->grid.stcols;
-
-    /* pos is currently at head of supertile (0xA) */
-    pos = nb_elem_r * ((n / Ddesc->grid.stcols)/ Ddesc->grid.cols);
-
-    /* tile is in the last column of super-tile */
-    if (n >= ((Ddesc->super.lnt/Ddesc->grid.stcols) * Ddesc->grid.stcols )) {
-        /* number of tile per super tile in last column */
-        last_c_size = (Ddesc->super.lnt % Ddesc->grid.stcols) * Ddesc->grid.strows;
-    }
+    if ( Ddesc->super.storage == matrix_Tile ) {
+        /* number of tiles per column of super-tile */
+        nb_elem_r = Ddesc->nb_elem_r * Ddesc->grid.stcols;
+        
+        /* pos is currently at head of supertile (0xA) */
+        pos = nb_elem_r * ((n / Ddesc->grid.stcols)/ Ddesc->grid.cols);
+        
+        /* tile is in the last column of super-tile */
+        if (n >= ((Ddesc->super.lnt/Ddesc->grid.stcols) * Ddesc->grid.stcols )) {
+            /* number of tile per super tile in last column */
+            last_c_size = (Ddesc->super.lnt % Ddesc->grid.stcols) * Ddesc->grid.strows;
+        }
+        else {
+            last_c_size = Ddesc->grid.stcols * Ddesc->grid.strows;
+        }
+        
+        /* pos is at head of supertile (BxA) containing (m,n)  */
+        pos += (last_c_size * ((m / Ddesc->grid.strows) / Ddesc->grid.rows ) );
+        
+        /* if tile (m,n) is in the last row of super tile and this super tile is smaller than others */
+        if (m >= ((Ddesc->super.lmt/Ddesc->grid.strows)*Ddesc->grid.strows)) {
+            last_c_size = Ddesc->super.lmt % Ddesc->grid.strows;
+        }
+        else {
+            last_c_size = Ddesc->grid.strows;
+        }
+        pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
+        pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
+    } 
+    /* Lapack Storage */
     else {
-        last_c_size = Ddesc->grid.stcols * Ddesc->grid.strows;
-    }
+        int local_m, local_n;
 
-    /* pos is at head of supertile (BxA) containing (m,n)  */
-    pos += (last_c_size * ((m / Ddesc->grid.strows) / Ddesc->grid.rows ) );
+        /* Compute the local row */
+        local_m = ( m / (Ddesc->grid.strows * Ddesc->grid.rows) ) * Ddesc->grid.strows;
 
-    /* if tile (m,n) is in the last row of super tile and this super tile is smaller than others */
-    if (m >= ((Ddesc->super.lmt/Ddesc->grid.strows)*Ddesc->grid.strows)) {
-        last_c_size = Ddesc->super.lmt % Ddesc->grid.strows;
-    }
-    else {
-        last_c_size = Ddesc->grid.strows;
-    }
-    pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
-    pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
+        m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
+        
+        assert( m / Ddesc->grid.strows == Ddesc->grid.rrank);
+        local_m += m % Ddesc->grid.strows;
+        
+        /* Compute the local column */
+        local_n = ( n / (Ddesc->grid.stcols * Ddesc->grid.cols) ) * Ddesc->grid.stcols;
 
+        n = n % (Ddesc->grid.stcols * Ddesc->grid.cols);
+        
+        assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
+        local_n += n % Ddesc->grid.stcols;
+
+        pos = local_n * Ddesc->nb_elem_r + local_m;
+    }
+        
     pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
 
     return &(((char *) Ddesc->mat)[pos]);
