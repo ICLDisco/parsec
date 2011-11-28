@@ -139,37 +139,44 @@ static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, ch
 }
 #endif /* DAGUE_PROF_TRACE */
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, int mb, int nb, int lm, int ln, int i, int j, int m, int n, int nrst, int ncst, int process_GridRows )
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, 
+                               enum matrix_type mtype, 
+                               int nodes, int cores, int myrank, 
+                               int mb,   int nb,   /* Tile size */
+                               int lm,   int ln,   /* Global matrix size (what is stored)*/
+                               int i,    int j,    /* Staring point in the global matrix */
+                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                               int nrst, int ncst, /* Super-tiling size */
+                               int process_GridRows )
 {
     int temp;
     int nbstile_r;
     int nbstile_c;
 
-    // Filling matrix description woth user parameter
-    Ddesc->super.super.nodes = nodes ;
-    Ddesc->super.super.cores = cores ;
-    Ddesc->super.super.myrank = myrank ;
-    Ddesc->super.mtype = mtype;
-    Ddesc->super.mb = mb;
-    Ddesc->super.nb = nb;
-    Ddesc->super.lm = lm;
-    Ddesc->super.ln = ln;
-    Ddesc->super.i = i;
-    Ddesc->super.j = j;
-    Ddesc->super.m = m;
-    Ddesc->super.n = n;
+    /* Initialize the dague_ddesc */
+    {
+        dague_ddesc_t *o = &(Ddesc->super.super);
+
+        o->nodes  = nodes;
+        o->cores  = cores;
+        o->myrank = myrank;
+        
+        o->rank_of       = twoDBC_get_rank_for_tile;
+        o->data_of       = twoDBC_get_local_tile;
+#if defined(DAGUE_PROF_TRACE)
+        o->data_key      = twoDBC_data_key;
+        o->key_to_string = twoDBC_key_to_string;
+        o->key_dim       = NULL;
+        o->key           = NULL;
+#endif
+    }
+
+    /* Initialize the tiled_matrix descriptor */
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
+                            mb, nb, lm, ln, i, j, m, n);
 
     assert((nodes % process_GridRows) == 0);
     grid_2Dcyclic_init(&Ddesc->grid, myrank, process_GridRows, nodes/process_GridRows, nrst, ncst);
-
-    // Matrix derived parameters
-    Ddesc->super.lmt = ((Ddesc->super.lm)%(Ddesc->super.mb)==0) ? ((Ddesc->super.lm)/(Ddesc->super.mb)) : ((Ddesc->super.lm)/(Ddesc->super.mb) + 1);
-    Ddesc->super.lnt = ((Ddesc->super.ln)%(Ddesc->super.nb)==0) ? ((Ddesc->super.ln)/(Ddesc->super.nb)) : ((Ddesc->super.ln)/(Ddesc->super.nb) + 1);
-    Ddesc->super.bsiz =  Ddesc->super.mb * Ddesc->super.nb;
-
-    // Submatrix parameters
-    Ddesc->super.mt = ((Ddesc->super.m)%(Ddesc->super.mb)==0) ? ((Ddesc->super.m)/(Ddesc->super.mb)) : ((Ddesc->super.m)/(Ddesc->super.mb) + 1);
-    Ddesc->super.nt = ((Ddesc->super.n)%(Ddesc->super.nb)==0) ? ((Ddesc->super.n)/(Ddesc->super.nb)) : ((Ddesc->super.n)/(Ddesc->super.nb) + 1);
 
     /* computing the number of rows of super-tile */
     nbstile_r = Ddesc->super.lmt / Ddesc->grid.strows;
@@ -233,14 +240,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
             perror("matrix memory allocation failed\n");
             exit(-1);
             }*/
-    Ddesc->super.super.rank_of =  twoDBC_get_rank_for_tile;
-    Ddesc->super.super.data_of =  twoDBC_get_local_tile;
-#ifdef DAGUE_PROF_TRACE
-    Ddesc->super.super.data_key = twoDBC_data_key;
-    Ddesc->super.super.key_to_string = twoDBC_key_to_string;
-    Ddesc->super.super.key = NULL;
-    asprintf(&Ddesc->super.super.key_dim, "(%d, %d)", Ddesc->super.mt, Ddesc->super.nt);
-#endif /* DAGUE_PROF_TRACE */
+
     DEBUG(("two_dim_block_cyclic_init: Ddesc = %p, mtype = %zu, nodes = %u, cores = %u, myrank = %d, mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, nrst = %d, ncst = %d, process_GridRows = %d\n",
            Ddesc, (size_t) Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores,
            Ddesc->super.super.myrank, Ddesc->super.mb, Ddesc->super.nb,
@@ -248,32 +248,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type 
            Ddesc->super.i, Ddesc->super.j,
            Ddesc->super.m, Ddesc->super.n, Ddesc->grid.strows, Ddesc->grid.stcols, Ddesc->grid.rows));
 }
-
-#if 0
-int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda)
-{
-    /* switch(Mdesc->super.mtype) { */
-    /* case matrix_RealFloat: */
-    /*     //twoDBC_stolapack(Mdesc, (float*)A, lda); */
-    /*     break; */
-    /* case matrix_RealDouble: */
-    /*     twoDBC_to_lapack_double(Mdesc, (double*)A, lda); */
-    /*     break; */
-    /* case matrix_ComplexFloat: */
-    /*     //twoDBC_ctolapack(Mdesc, (Dague_Complex32_t*)A, lda); */
-    /*     break; */
-    /* case matrix_ComplexDouble: */
-    /*     //twoDBC_ztolapack(Mdesc, (Dague_Complex64_t*)A, lda); */
-    /*     break; */
-    /* default: */
-           twoDBC_dtolapack(Mdesc, (double*)A, lda);
-    /*     printf("The matrix type is not handle by this function\n"); */
-    /*     return -1; */
-    /* } */
-
-  return 0;
-}
-#endif
 
 #ifdef HAVE_MPI
 
