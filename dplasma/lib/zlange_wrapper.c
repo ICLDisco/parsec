@@ -204,7 +204,7 @@ double dplasma_zlange( dague_context_t *dague,
 
     workD.mat = dague_data_allocate((size_t)workD.super.nb_local_tiles * 
                                     (size_t)workD.super.bsiz * 
-                                    (size_t)workD.super.mtype);
+                                    (size_t)dague_datadist_getsizeoftype(workD.super.mtype));
 
     args.ntype = ntype;
     args.desc = A;
@@ -222,7 +222,7 @@ double dplasma_zlange( dague_context_t *dague,
                               1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 1, 1, 1);
     workS.mat = dague_data_allocate((size_t)workS.super.nb_local_tiles * 
                                     (size_t)workS.super.bsiz * 
-                                    (size_t)workS.super.mtype);
+                                    (size_t)dague_datadist_getsizeoftype(workS.super.mtype));
 
     dplasma_zlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
 

@@ -99,7 +99,7 @@ static dague_context_t *setup_tsqr( int* pargc
             , count // int process_GridRows
             );
 
-    rtop.mat = dague_data_allocate((size_t)rtop.super.nb_local_tiles * (size_t)rtop.super.bsiz * (size_t)rtop.super.mtype);
+    rtop.mat = dague_data_allocate((size_t)rtop.super.nb_local_tiles * (size_t)rtop.super.bsiz * (size_t)dague_datadist_getsizeoftype(rtop.super.mtype));
 
     dplasma_dplrnt(dague, (tiled_matrix_desc_t *)&rtop, 3129);
 

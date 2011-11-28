@@ -102,7 +102,7 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
     DEBUG(("allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)\n",
            Ddesc->super.myrank, rr, cr, nb_elem_r, nb_elem_c, rlength, clength, Ddesc->m, Ddesc->n));
     
-    smat =  dague_data_allocate(rlength * clength * Ddesc->mtype);
+    smat =  dague_data_allocate(rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));
 
     sca_desc[0] = 1;
     sca_desc[1] = 0;
@@ -117,7 +117,7 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
     DEBUG(("allocate scalapack matrix: scalapack descriptor: [(dense == 1) %d, (ICTX) %d, (M) %d, (N) %d, (MB) %d, (NB) %d,(IRSRC) %d, (ICSRC) %d, (LLD) %d ]\n ",
            sca_desc[0], sca_desc[1], sca_desc[2], sca_desc[3], sca_desc[4], sca_desc[5], sca_desc[6], sca_desc[7], sca_desc[8]));
 
-    memset(smat, 0 , rlength * clength * Ddesc->mtype);
+    memset(smat, 0 , rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));
     return smat;    
 }
 

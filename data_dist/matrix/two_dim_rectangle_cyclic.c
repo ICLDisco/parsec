@@ -104,7 +104,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 
     //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
     /************************************/
-    return &(((char *) Ddesc->mat)[pos * Ddesc->super.bsiz * Ddesc->super.mtype]);
+    return &(((char *) Ddesc->mat)[pos * Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype)]);
 }
 
 
