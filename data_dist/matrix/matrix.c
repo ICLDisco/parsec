@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif
 
 #include "dague_config.h"
 #include "data_distribution.h"
@@ -46,7 +49,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->ln = ln;
 
     /* WARNING: This has to be removed when padding will be removed */
-#if defined(DISTRIBUTED)
+#if defined(HAVE_MPI)
     if ( storage == matrix_Lapack ) {
         if ( tdesc->lm %mb != 0 ) {
             fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
