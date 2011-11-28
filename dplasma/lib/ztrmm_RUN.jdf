@@ -86,7 +86,7 @@ BODY
               context->eu_id, m, n, 
               plasma_const(side), plasma_const(uplo), plasma_const(trans), plasma_const(diag), 
               tempmm, tempnn,
-              alpha, m, m, A, Amb,
+              creal(alpha), m, m, A, Amb,
                      m, n, B, Bmb);
 END
 
@@ -156,7 +156,7 @@ BODY
 	       context->eu_id, m, n, k, 
                plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
                tempmm, tempnn, Bmb,
-	       alpha, m, k, B, Bmb, k, n, A, Amb,
+	       creal(alpha), m, k, B, Bmb, k, n, A, Amb,
 	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
 

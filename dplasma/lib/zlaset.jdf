@@ -59,7 +59,7 @@ BODY
         printlog("thread %d laset( %d, %d )\n"
                  "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
                  context->eu_id, m, n, "Lower",
-                 tempmm, tempnn, alpha, alpha, m, n, ldam);
+                 tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
 END
 
 LASET_U(m, n)
@@ -89,7 +89,7 @@ BODY
         printlog("thread %d laset( %d, %d )\n"
                  "    ( %s, %d, %d, %f, %f, A(%d,%d), %d)\n",
                  context->eu_id, m, n, "Upper",
-                 tempmm, tempnn, alpha, alpha, m, n, ldam);
+                 tempmm, tempnn, creal(alpha), creal(beta), m, n, ldam);
 END
 
 LASET_DIAG(k)
@@ -118,7 +118,7 @@ BODY
    printlog("thread %d laset_diag( %d )\n"
            "    ( %s, %d, %d, %e, %e, A(%d,%d), %d)\n",
            context->eu_id, k, plasma_const( uplo ),
-           tempkm, tempkn, alpha, beta, k, k, ldak);
+            tempkm, tempkn, creal(alpha), creal(beta), k, k, ldak);
 END
 extern "C" %{
 

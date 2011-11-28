@@ -117,9 +117,9 @@ BODY
                  context->eu_id, m, n, k,
                  plasma_const( transA ), plasma_const( transB ), 
                  tempmm, tempnn, tempkk,
-                 alpha, m, k, Amb,
-                        n, k, Bmb,
-                 lbeta, m, n, Cmb );
+                 creal(alpha), m, k, Amb,
+                               n, k, Bmb,
+                 creal(lbeta), m, n, Cmb );
 END
 
 extern "C" %{

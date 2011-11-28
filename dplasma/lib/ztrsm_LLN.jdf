@@ -85,7 +85,7 @@ BODY
                plasma_const( side ), plasma_const( uplo ), 
                plasma_const( trans ), plasma_const( diag ),
                tempkm, tempnn,
-	       lalpha, k, k, A /*A(k, k)*/, Amb,
+	       creal(lalpha), k, k, A /*A(k, k)*/, Amb,
                        k, n, B /*B(k, n)*/, Bmb);
 
 END
@@ -140,8 +140,8 @@ BODY
 	       context->eu_id, k, m, n,
                plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
                tempmm, tempnn, Bmb,
-	       (Dague_Complex64_t)-1.0, m, k, A, Amb,
-                             k, n, B, Bmb,
-	       lalpha,       m, n, C, Bmb);
+	       -1.0, m, k, A, Amb,
+                     k, n, B, Bmb,
+	       creal(lalpha),       m, n, C, Bmb);
 
 END

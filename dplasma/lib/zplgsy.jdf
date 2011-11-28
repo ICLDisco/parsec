@@ -57,7 +57,7 @@ BODY
 
         printlog("thread %d plgsy_l( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 context->eu_id, m, n, creal(bump), tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -88,7 +88,7 @@ BODY
 
         printlog("thread %d plgsy_u( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 context->eu_id, m, n, creal(bump), tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -118,7 +118,7 @@ BODY
 
         printlog("thread %d plgsy_diag( %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, k, bump, tempkm, tempkn, 
+                 context->eu_id, k, creal(bump), tempkm, tempkn, 
                  k, k, ldak,
                  descA.m, k*descA.mb, k*descA.nb, seed);
 END

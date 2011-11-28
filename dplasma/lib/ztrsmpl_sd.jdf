@@ -174,7 +174,12 @@ BODY
                      G          /* A(m,k)  */, ldam, 
                      getIPIV(F) /* IPIV(m,k) */ );
          );
-  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
-           context->eu_id, descA.nb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, ldbk, m, n1, E, ldbm, m, k, F, descL.mb, m, k, G, ldam, m, k, H);
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n"
+           "\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, \n"
+           "\tL(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
+           context->eu_id, descA.nb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, 
+           k, n1, D, ldbk, m, n1, E, ldbm, 
+           m, k, getL(F), descL.mb, m, k, G, ldam, 
+           m, k, getIPIV(F));
 
 END

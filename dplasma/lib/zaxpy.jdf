@@ -69,7 +69,7 @@ BODY
         printlog("thread %d axpy( %d, %d )\n"
                  "    ( %d, %d, %e, A(%d,%d), %d, B(%d,%d), %d)\n",
                  context->eu_id, m, n, 
-		 tempmm, tempnn, alpha,
+		 tempmm, tempnn, creal(alpha),
                  m, n, ldam, m, n, ldbm);
 END
 
