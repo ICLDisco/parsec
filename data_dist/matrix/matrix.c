@@ -13,72 +13,161 @@
 #include <string.h>
 
 #include "dague_config.h"
-
 #include "data_distribution.h"
 #include "matrix.h"
-#include "bindthread.h"
 
-int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
-    FILE * tmpf;
-    int i, j;
-    void* buf;
-    tmpf = fopen(filename, "w");
-    if(NULL == tmpf) {
-        printf("opening file: %s", filename);
-        return -1;
-    }
+/***************************************************************************//**
+ *  Internal static descriptor initializer (PLASMA code)
+ **/
+void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, 
+                             enum matrix_type    dtyp, 
+                             enum matrix_storage storage, 
+                             int mb, int nb,
+                             int lm, int ln, 
+                             int i,  int j, 
+                             int m,  int n)
+{
+    /* Matrix address */
+    /* tdesc->mat = NULL;*/
+    /* tdesc->A21 = (lm - lm%mb)*(ln - ln%nb); */
+    /* tdesc->A12 = (     lm%mb)*(ln - ln%nb) + tdesc->A21; */
+    /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
 
-    for (i = 0 ; i < Ddesc->mt ; i++)
-        for ( j = 0 ; j< Ddesc->nt ; j++) {
-            if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank) {
-                buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-                fwrite(buf, Ddesc->mtype, Ddesc->bsiz, tmpf );
-            }
-        }
+    /* Matrix properties */
+    tdesc->mtype   = dtyp;
+    tdesc->storage = storage;
+    tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
+    tdesc->mb      = mb;
+    tdesc->nb      = nb;
+    tdesc->bsiz    = mb * nb;
 
-    fclose(tmpf);
-    return 0;
+    /* Large matrix parameters */
+    tdesc->lm = lm;
+    tdesc->ln = ln;
+
+    /* Large matrix derived parameters */
+    /* tdesc->lm1 = (lm/mb); */
+    /* tdesc->ln1 = (ln/nb); */
+    tdesc->lmt = (lm%mb==0) ? (lm/mb) : (lm/mb+1);
+    tdesc->lnt = (ln%nb==0) ? (ln/nb) : (ln/nb+1);
+
+    /* Submatrix parameters */
+    tdesc->i = i;
+    tdesc->j = j;
+    tdesc->m = m;
+    tdesc->n = n;
+
+    /* Submatrix derived parameters */
+    tdesc->mt = (i+m-1)/mb - i/mb + 1;
+    tdesc->nt = (j+n-1)/nb - j/nb + 1;
+
+    asprintf(&tdesc->super.key_dim, "(%d, %d)", tdesc->mt, tdesc->nt);
+
+    return;
 }
 
-int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
-    FILE * tmpf;
-    int i, j;
-    void * buf;
-    tmpf = fopen(filename, "r");
+/*
+ * Writes the data into the file filename
+ * Sequential function per node
+ */
+int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
+    dague_ddesc_t *ddesc = &(tdesc->super);
+    FILE *tmpf;
+    void *buf;
+    int i, j, k;
+    uint32_t myrank = tdesc->super.myrank;
+    int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
+
+    tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        printf("opening file: %s", filename);
+        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
         return -1;
     }
 
-    for (i = 0 ; i < Ddesc->mt ; i++)
-        for ( j = 0 ; j< Ddesc->nt ; j++) {
-            if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank) {
-                int ret;
-                buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-                ret = fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
-                if ( ret !=  Ddesc->bsiz )
-                    {
-                        printf("Error reading file: %s", filename);
-                        return -1;
-                    }
+    if ( tdesc->storage == matrix_Tile ) {
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    fwrite(buf, eltsize, tdesc->bsiz, tmpf );
+                }
             }
-        }
+    } else {
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    for (k=0; k<tdesc->nb; k++) {
+                        fwrite(buf, eltsize, tdesc->mb, tmpf );
+                        buf += eltsize * tdesc->lm;
+                    }
+                }
+            }
+    }
+
+
     fclose(tmpf);
     return 0;
 }
 
 /*
+ * Read the data from the file filename
+ * Sequential function per node
+ */
+int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
+    dague_ddesc_t *ddesc = &(tdesc->super);
+    FILE *tmpf;
+    void *buf;
+    int i, j, k, ret;
+    uint32_t myrank = tdesc->super.myrank;
+    int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
+
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf) {
+        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        return -1;
+    }
+
+    if ( tdesc->storage == matrix_Tile ) {
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
+                    if ( ret !=  tdesc->bsiz ) {
+                        fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n", 
+                                i, j, ret, tdesc->bsiz);
+                        return -1;
+                    }
+                }
+            }
+    } else {        
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    for (k=0; k<tdesc->nb; k++) {
+                        ret = fread(buf, eltsize, tdesc->mb, tmpf );
+                        if ( ret !=  tdesc->mb ) {
+                            fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n", 
+                                    i, j, ret, tdesc->mb);
+                            return -1;
+                        }
+                        buf += eltsize * tdesc->lm;
+                    }
+                }
+            }
+    }
+
+    fclose(tmpf);
+    return 0;
+}
+
+
+/*
  * Deprecated code
  */
 #if 0
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed)
-{
-   
-    (void)row;
-    (void)col;
-    (void)seed;
-    memset( position, 0, Ddesc->bsiz * Ddesc->mtype );
-}
 
 typedef struct tile_coordinate{
     int row;
