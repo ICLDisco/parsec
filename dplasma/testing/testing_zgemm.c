@@ -95,7 +95,7 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, 2873);
 
 /* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+#if defined(PRECISION_z) || defined(PRECISION_c)
         for(tA=0; tA<3; tA++) {
             for(tB=0; tB<3; tB++) {
 #else

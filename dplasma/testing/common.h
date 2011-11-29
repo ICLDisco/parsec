@@ -103,7 +103,7 @@ typedef double DagDouble_t;
 #define PASTE_CODE_FLOPS( FORMULA, PARAMS ) \
   double gflops, flops = FORMULA PARAMS;
   
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+#if defined(PRECISION_z) || defined(PRECISION_c)
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
   double gflops, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
 #else 
