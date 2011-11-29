@@ -10,7 +10,11 @@ FC=${FC:="ifort"}
 MPI_DIR=${MPI_DIR:="/opt/ompi"}
 HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
-PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
+if [ "x${CC}" = "xgcc" ]; then
+    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
+else
+    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
+fi
 OMEGA_DIR=${OMEGA_DIR:="/home/adanalis/pub/Omega/"}
 
 
@@ -29,10 +33,8 @@ elif [ "x$USER" = "xherault" ]; then
 
 elif [ "x${USER}" = "xmfaverge" ]; then
   if [ "x${CC}" = "xgcc" ]; then
-      PLASMA_DIR="/home/mfaverge/opt/plasma"
       DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
   else
-      PLASMA_DIR="/home/mfaverge/opt/plasma-intel"
       DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
   fi
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
