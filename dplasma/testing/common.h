@@ -94,9 +94,10 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
   int scheduler = iparam[IPARAM_SCHEDULER];\
+  int nb_local_tasks = 0;                                               \
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;
+  (void)scheduler;(void)nb_local_tasks;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
@@ -154,23 +155,24 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         dague_ddesc_set_key((dague_ddesc_t*)&DDESC, #DDESC);            \
     }
 
-#define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS) \
-  SYNC_TIME_START(); \
-  dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS; \
-  dague_enqueue(DAGUE, DAGUE_##KERNEL); \
-  if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %u local tasks enqueued\n", DAGUE_##KERNEL->nb_local_tasks));
+#define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS)                \
+    SYNC_TIME_START();                                                  \
+    dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
+    dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
+    nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
+    if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %u local tasks enqueued\n", nb_local_tasks));
 
 
-#define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL) \
-  SYNC_TIME_START(); \
-  TIME_START(); \
-  dague_progress(DAGUE); \
-  if(loud) TIME_PRINT(rank, (#KERNEL " computed %u tasks,\trate %f task/s\n", \
-              DAGUE_##KERNEL->nb_local_tasks, \
-              DAGUE_##KERNEL->nb_local_tasks/time_elapsed)); \
-  SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \
-                   gflops = (flops/1e9)/(sync_time_elapsed))); \
-  (void)gflops;
+#define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
+    SYNC_TIME_START();                                                  \
+    TIME_START();                                                       \
+    dague_progress(DAGUE);                                              \
+    if(loud) TIME_PRINT(rank, (#KERNEL " computed %u tasks,\trate %f task/s\n", \
+                               nb_local_tasks,                          \
+                               nb_local_tasks/time_elapsed));           \
+    SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \
+                           gflops = (flops/1e9)/(sync_time_elapsed)));  \
+    (void)gflops;
 
 
 #endif /* _TESTSCOMMON_H */
