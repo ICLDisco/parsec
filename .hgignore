@@ -210,7 +210,7 @@ dplasma/testing/testing_[cz]herbt
 dplasma/testing/testing_[c]herbt\.c
 dplasma/testing/testing_[sdcz]posv
 dplasma/testing/testing_[sdc]posv\.c
-dplasma/testing/testing_[sdcz]dpivgen
+dplasma/testing/testing_[sdcz]pivgen
 dplasma/testing/testing_[sdc]pivgen\.c
 dplasma/testing/testing_[sdcz]zlange
 dplasma/testing/testing_[sdc]lange\.c
