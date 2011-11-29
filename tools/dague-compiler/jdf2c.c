@@ -2877,14 +2877,14 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
             "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
+            "#if defined(DAGUE_SIM)\n"
+            "    assert(arg.output_entry->sim_exec_date == 0);\n"
+            "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
+            "#endif\n"
             "  }\n",
             f->fname, f->fname);
 
-    coutput("#if defined(DAGUE_SIM)\n"
-            "  assert(arg.output_entry->sim_exec_date == 0);\n"
-            "  arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
-            "#endif\n"
-            "#if defined(DISTRIBUTED)\n"
+    coutput("#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"
             "  arg.remote_deps = NULL;\n"
             "#endif\n"
