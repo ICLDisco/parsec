@@ -857,6 +857,73 @@ static void dplasma_high_fibonacci_init(qr_subpiv_t *arg){
 };
 
 /****************************************************
+ *                 DPLASMA_HIGH_GREEDY_TREE (1 panel duplicated)
+ ***************************************************/
+static void dplasma_high_greedy1p_init(qr_subpiv_t *arg){
+    int *ipiv;
+    int mt, p;
+
+    arg->currpiv = dplasma_high_fibonacci_currpiv;
+    arg->nextpiv = dplasma_high_fibonacci_nextpiv;
+    arg->prevpiv = dplasma_high_fibonacci_prevpiv;
+
+    mt = arg->ldd;
+    p = arg->p;
+
+    arg->ipiv = (int*)malloc( p * sizeof(int) );
+    ipiv = arg->ipiv;
+    memset(ipiv, 0, p*sizeof(int));
+  
+    {
+      int minMN = 1;
+        int j, k, height, start, end, firstk = 0;
+        int *nT = (int*)malloc(minMN*sizeof(int));
+        int *nZ = (int*)malloc(minMN*sizeof(int));
+        memset( nT, 0, minMN*sizeof(int));
+        memset( nZ, 0, minMN*sizeof(int));
+
+        nT[0] = mt;
+        nZ[0] = max( mt - p, 0 );
+        for(k=1; k<minMN; k++) {
+            height = max(mt-k-p, 0);
+            nT[k] = height;
+            nZ[k] = height;
+        }
+        
+        k = 0;
+        while ( (!( ( nT[minMN-1] == mt - (minMN - 1) ) &&
+                    ( nZ[minMN-1]+1 == nT[minMN-1] ) ) )
+                && ( firstk < minMN ) ) {
+            height = (nT[k] - nZ[k]) / 2;
+            if ( height == 0 ) {
+                while ( (firstk < minMN) &&
+                        ( nT[firstk] == mt - firstk ) &&
+                        ( nZ[firstk]+1 == nT[firstk] ) ) {
+                    firstk++;
+                }
+                k = firstk;
+                continue;
+            }
+             
+            start = mt - nZ[k] - 1;
+            end = start - height;
+            nZ[k] += height;
+            if (k < minMN-1) nT[k+1] = nZ[k];
+            
+            for( j=start; j > end; j-- ) {
+                ipiv[ k*p + j-k ] = (j - height);
+            }
+
+            k++;
+            if (k > minMN-1) k = firstk;
+        }
+        
+        free(nT);
+        free(nZ);
+    }
+};
+
+/****************************************************
  *                 DPLASMA_HIGH_GREEDY_TREE
  ***************************************************/
 static int dplasma_high_greedy_currpiv(const qr_subpiv_t *arg, const int m, const int k) 
@@ -968,7 +1035,11 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k)
         {
         case 0:
             tmp = lm / a;
+#if !defined(TS_WITH_ROUNDROBIN)
             return ( tmp == k / arg->a ) ? k * p + rank : tmp * a * p + rank;
+#else
+            return ( tmp == k / arg->a ) ? k * p + rank : tmp * a * p + rank + k % a;
+#endif
             break;
         case 1:
             tmp = arg->llvl->currpiv(arg->llvl, m, k);
@@ -1044,6 +1115,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
             if ( arg->domino && lpivot < k )
                 goto next_2;
                     
+#if !defined(TS_WITH_ROUNDROBIN)
             if ( start == arg->desc->mt )
                 nextp = pivot + p;
             else
@@ -1053,7 +1125,19 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int pivot, const int k, int st
                  ( nextp < pivot + a*p ) &&
                  ( (nextp/p)%a != 0 ) )
                 return nextp;
-            
+#else
+            if ( start == arg->desc->mt ) {
+                int offset = (pivot/p + 1 ) % a;
+                nextp = ((lpivot/a)*a + offset) * p;
+            } else {
+                int offset = (start/p + 1 ) % a;
+                nextp = ((lpivot/a)*a + offset) * p;
+            }
+
+            if ( ( nextp < arg->desc->mt ) && 
+                 ( nextp != pivot ) )
+                return nextp;
+#endif            
             /* no next of type 0, we reset start to search the next 1 */
             start = arg->desc->mt;
             lstart = arg->llvl->ldd * a;
@@ -1263,6 +1347,9 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
         qrpiv->hlvl->domino = domino;
 
         switch( type_hlvl ) {
+        case DPLASMA_GREEDY1P_TREE :
+            dplasma_high_greedy1p_init(qrpiv->hlvl);
+            break;
         case DPLASMA_GREEDY_TREE :
             dplasma_high_greedy_init(qrpiv->hlvl, minMN);
             break;
