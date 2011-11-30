@@ -91,6 +91,7 @@ subs = {
     ('ssyrfb','dsyrfb','cherfb','zherfb'),
     ('ssyrf','dsyrf','cherf','zherf'),
     ('saxpy','daxpy','caxpy','zaxpy'),
+    ('sgeadd','dgeadd','cgeadd','zgeadd'),
     ('ssymm','dsymm','chemm','zhemm'),
     ('SSYMM','DSYMM','CHEMM','ZHEMM'),
     ('ssyrk','dsyrk','cherk','zherk'),

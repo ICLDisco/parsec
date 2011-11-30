@@ -95,7 +95,7 @@ int main(int argc, char ** argv)
     if ( rank == 0 ) {
         Dague_Complex64_t *mat = ddescA.mat;
 
-        if (0) 
+        if (0)
         {
             char *filename;
             FILE *f;
