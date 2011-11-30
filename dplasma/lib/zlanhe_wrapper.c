@@ -52,7 +52,6 @@ dague_operator_zlanhe_max( struct dague_execution_unit *eu,
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
     ldam = BLKLDD( descA, m );
 
-    
     if ( uplo == PlasmaUpperLower ) {
       CORE_zlange( args->ntype, tempmm, tempnn,
 		   (PLASMA_Complex64_t*)src, ldam, NULL, (double*)dest );
@@ -169,7 +168,7 @@ double dplasma_zlanhe( dague_context_t *dague,
 
     if ( workS.super.super.myrank == 0 ) {
         CORE_dlansy(
-            ntype, workS.super.m, workS.super.n, 
+            ntype, uplo, workS.super.m, 
             (double*)workS.mat, workS.super.lm, work, &result);
     }
 
