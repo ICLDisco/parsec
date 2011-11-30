@@ -28,8 +28,10 @@ dplasma/testing/TSQR/mpi_testing_tsqr
 dplasma/testing/TSQR/testing_tsqr
 tools/dague-compiler/daguepp
 tests/unit/atomics/lifo
-dplasma/testing/psgeqrf/psgeqrf
-dplasma/testing/psgeqrf/sgeqrf
+tools/gpu/sgemmN-api/sgemmN
+tools/gpu/sgemmN-api/sgemmN-.*\.cubin
+tools/cscalapack/t?sca[sdcz]ge[tq]rf
+tools/cscalapack/t?sca[sdcz]potrf
 tools/grapher
 tools/grapher\.dot
 tools/grapher\.png
@@ -52,6 +54,7 @@ data_dist/matrix/reduce_row\.c
 data_dist/matrix/reduce_row\.h
 data_dist/matrix/[sdc]twoDBC\.c
 data_dist/matrix/[sdc]matrix\.c
+dplasma/cores/sgemm-sm.*\.cubin
 dplasma/cores/core_[sdc]trdv\.c
 dplasma/cores/dplasma_[sdc]cores\.h
 dplasma/include/dplasma_[sdc]\.h
@@ -210,7 +213,7 @@ dplasma/testing/testing_[cz]herbt
 dplasma/testing/testing_[c]herbt\.c
 dplasma/testing/testing_[sdcz]posv
 dplasma/testing/testing_[sdc]posv\.c
-dplasma/testing/testing_[sdcz]dpivgen
+dplasma/testing/testing_[sdcz]pivgen
 dplasma/testing/testing_[sdc]pivgen\.c
 dplasma/testing/testing_[sdcz]zlange
 dplasma/testing/testing_[sdc]lange\.c

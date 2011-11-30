@@ -538,8 +538,7 @@ void dplasma_qr_print_dag( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, char *filena
                     lpos = max( pos[m], pos[n] );
                     lpos++;
                     pos[m] = lpos;
-                    /*pos[n] = lpos;*/
-                    pos[n]++;
+                    pos[n] = lpos;
 
                     fprintf(f, DAG_NODE, m, n, k, pos[m], m, color[ (m%qrpiv->p) % DAG_NBCOLORS ]);
                     
