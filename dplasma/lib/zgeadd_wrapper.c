@@ -17,21 +17,21 @@
 
 #define BLKLDD(_desc, _k) (_desc).mb
 
-struct zaxpy_args_s {
+struct zgeadd_args_s {
   Dague_Complex64_t alpha;
   tiled_matrix_desc_t *descA;
   tiled_matrix_desc_t *descB;
 };
-typedef struct zaxpy_args_s zaxpy_args_t;
+typedef struct zgeadd_args_s zgeadd_args_t;
 
 static int
-dague_operator_zaxpy( struct dague_execution_unit *eu,
+dague_operator_zgeadd( struct dague_execution_unit *eu,
 		      const void* _A,
 		      void* _B,
 		      void* op_data, ... )
 {
     va_list ap;
-    zaxpy_args_t *args = (zaxpy_args_t*)op_data;
+    zgeadd_args_t *args = (zgeadd_args_t*)op_data;
     PLASMA_enum uplo;
     int j, m, n;
     int tempmm, tempnn, ldam, ldbm;
@@ -68,7 +68,7 @@ dague_operator_zaxpy( struct dague_execution_unit *eu,
       for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
 	cblas_zaxpy(tempmm, CBLAS_SADDR(args->alpha), A, 1, B, 1);
       }
-/*       CORE_zaxpy( tempmm, tempnn, args->alpha, */
+/*       CORE_zgeadd( tempmm, tempnn, args->alpha, */
 /* 		  A, ldam, B, ldbm); */
     }
 
@@ -79,7 +79,7 @@ dague_operator_zaxpy( struct dague_execution_unit *eu,
  *
  * @ingroup Dague_Complex64_t
  *
- *  dplasma_zaxpy_New - Compute the operation B = alpha * A + B
+ *  dplasma_zgeadd_New - Compute the operation B = alpha * A + B
  *
  *******************************************************************************
  *
@@ -94,12 +94,12 @@ dague_operator_zaxpy( struct dague_execution_unit *eu,
  *          On exit, the matrix B with the M-by-N part overwrite by alpha*A+B
  *
  ******************************************************************************/
-dague_object_t* dplasma_zaxpy_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
+dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
 				   tiled_matrix_desc_t *A,
 				   tiled_matrix_desc_t *B)
 {
     dague_map2_object_t* object;
-    zaxpy_args_t *params = (zaxpy_args_t*)malloc(sizeof(zaxpy_args_t));
+    zgeadd_args_t *params = (zgeadd_args_t*)malloc(sizeof(zgeadd_args_t));
 
     params->alpha = alpha;
     params->descA = A;
@@ -107,7 +107,7 @@ dague_object_t* dplasma_zaxpy_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
 
     object = dague_map2_new((dague_ddesc_t*)B, (dague_ddesc_t*)A, 
 			    uplo, *A, *B, 
-			    dague_operator_zaxpy, (void *)params);
+			    dague_operator_zgeadd, (void *)params);
 
     /* Default type */
     dplasma_add2arena_tile( object->arenas[DAGUE_map2_DEFAULT_ARENA], 
@@ -118,29 +118,29 @@ dague_object_t* dplasma_zaxpy_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
     return (dague_object_t*)object;
 }
 
-int dplasma_zaxpy( dague_context_t *dague,
+int dplasma_zgeadd( dague_context_t *dague,
 		   PLASMA_enum uplo,
 		   Dague_Complex64_t alpha,
 		   tiled_matrix_desc_t *A,
 		   tiled_matrix_desc_t *B) 
 {
-    dague_object_t *dague_zaxpy = NULL;
+    dague_object_t *dague_zgeadd = NULL;
 
-    dague_zaxpy = dplasma_zaxpy_New(uplo, alpha, A, B);
+    dague_zgeadd = dplasma_zgeadd_New(uplo, alpha, A, B);
 
-    dague_enqueue(dague, (dague_object_t*)dague_zaxpy);
+    dague_enqueue(dague, (dague_object_t*)dague_zgeadd);
     dplasma_progress(dague);
 
-    dplasma_zaxpy_Destruct( dague_zaxpy );
+    dplasma_zgeadd_Destruct( dague_zgeadd );
     return 0;
 }
 
 void
-dplasma_zaxpy_Destruct( dague_object_t *o )
+dplasma_zgeadd_Destruct( dague_object_t *o )
 {
-    dague_map2_object_t *dague_zaxpy = (dague_map2_object_t *)o;
-    dplasma_datatype_undefine_type( &(dague_zaxpy->arenas[DAGUE_map2_DEFAULT_ARENA   ]->opaque_dtt) );
-    free(dague_zaxpy->op_args);
-    dague_map2_destroy(dague_zaxpy);
+    dague_map2_object_t *dague_zgeadd = (dague_map2_object_t *)o;
+    dplasma_datatype_undefine_type( &(dague_zgeadd->arenas[DAGUE_map2_DEFAULT_ARENA   ]->opaque_dtt) );
+    free(dague_zgeadd->op_args);
+    dague_map2_destroy(dague_zgeadd);
 }
 

@@ -31,7 +31,7 @@ set(JDF
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
-  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf zaxpy.jdf
+  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf 
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
 )
@@ -53,7 +53,7 @@ set(SOURCES
   ztrmm_wrapper.c 
   ztrsmpl_wrapper.c   
   # Lapack Auxiliary 
-  zaxpy_wrapper.c
+  zgeadd_wrapper.c
   zlacpy_wrapper.c
   zlaset_wrapper.c
   zplrnt_wrapper.c

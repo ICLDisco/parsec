@@ -295,7 +295,7 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
                    (tiled_matrix_desc_t*)&L2);
 
     /* compute L'L - A or U'U - A */
-    dplasma_zaxpy( dague, uplo, -1.0, A0, 
+    dplasma_zgeadd( dague, uplo, -1.0, A0, 
                    (tiled_matrix_desc_t*)&L2);
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);

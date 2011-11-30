@@ -92,7 +92,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
     dague_ddesc_t *ddesc = &(tdesc->super);
     FILE *tmpf;
-    void *buf;
+    char *buf;
     int i, j, k;
     uint32_t myrank = tdesc->super.myrank;
     int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
@@ -136,7 +136,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
 int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
     dague_ddesc_t *ddesc = &(tdesc->super);
     FILE *tmpf;
-    void *buf;
+    char *buf;
     int i, j, k, ret;
     uint32_t myrank = tdesc->super.myrank;
     int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
