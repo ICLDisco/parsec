@@ -74,6 +74,9 @@ option(DAGUE_DEBUG_QR_PIVGEN
 ### Simulating Options
 option(DAGUE_SIM
   "Enable the computation of the critical path, through simulation" OFF)
+if( DAGUE_SIM AND DAGUE_DIST_WITH_MPI )
+  message(FATAL_ERROR "DAGUE_SIM cannot be enabled with DAGUE_DIST_WITH_MPI, please select only one")
+endif()
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
