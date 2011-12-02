@@ -22,6 +22,7 @@ struct qr_piv_s {
     int domino;  /* Switch to enable.disable the domino tree linking high and lw level reduction trees */
     qr_subpiv_t *llvl;
     qr_subpiv_t *hlvl;
+    int *perm;
 };
 
 struct qr_subpiv_s {
@@ -77,10 +78,10 @@ void      dplasma_pivgen_finalize( qr_piv_t *qrpiv );
  *    dplasma_qr_geti:       returns the index of the geqrt apply to the row m
  *    dplasma_qr_gettype:    returns the type of the row m at step k
  */
-int dplasma_qr_getnbgeqrf( const int a, const int p, const int domino, const int k, const int gmt );
-int dplasma_qr_getm(       const int a, const int p, const int domino, const int k, const int i   );
-int dplasma_qr_geti(       const int a, const int p, const int domino, const int k, const int m   );
-int dplasma_qr_gettype(    const int a, const int p, const int domino, const int k, const int m   );
+int dplasma_qr_getnbgeqrf( const qr_piv_t *arg, const int k, const int gmt );
+int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
+int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
+int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 
 /*
  * dplasma_qr_currpiv
@@ -90,7 +91,7 @@ int dplasma_qr_gettype(    const int a, const int p, const int domino, const int
  * 
  *  @return the annihilator p used with m at step k
  */
-int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k);
+int dplasma_qr_currpiv(const qr_piv_t *arg, int m, const int k);
 /*
  * dplasma_qr_nextpiv
  *    @param[in] arg pointer to the qr_piv structure
@@ -102,7 +103,7 @@ int dplasma_qr_currpiv(const qr_piv_t *arg, const int m, const int k);
  *  @return the next line m' using the line p as annihilator during step k
  *          desc->mt if p will never be used again as an annihilator.
  */
-int dplasma_qr_nextpiv(const qr_piv_t *arg, const int p, const int k, const int m);
+int dplasma_qr_nextpiv(const qr_piv_t *arg, int p, const int k, int m);
 /*
  * dplasma_qr_nextpiv
  *    @param[in] arg pointer to the qr_piv structure
@@ -114,7 +115,7 @@ int dplasma_qr_nextpiv(const qr_piv_t *arg, const int p, const int k, const int 
  *  @return the previous line m' using the line p as annihilator during step k
  *          desc->mt if p has never been used before that as an annihilator.
  */
-int dplasma_qr_prevpiv(const qr_piv_t *arg, const int p, const int k, const int m);
+int dplasma_qr_prevpiv(const qr_piv_t *arg, int p, const int k, int m);
 
 /*
  * Debugging functions
