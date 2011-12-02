@@ -77,7 +77,7 @@ int main(int argc, char ** argv)
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t *)&ddescA, 
                                  iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                                  iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                 iparam[IPARAM_QR_DOMINO], 1 );
+                                 iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
 
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_param,
@@ -138,7 +138,7 @@ int main(int argc, char ** argv)
             }
         }
 
-        printf("zgeqrf simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d M= %d N= %d : %d \n", 
+        printf("zgeqrf simulation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %d \n", 
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
                iparam[IPARAM_P],
@@ -150,13 +150,14 @@ int main(int argc, char ** argv)
                iparam[IPARAM_LOWLVL_TREE],
                iparam[IPARAM_HIGHLVL_TREE],
                iparam[IPARAM_QR_DOMINO],
+               iparam[IPARAM_QR_TSRR],
                iparam[IPARAM_M],
                iparam[IPARAM_N],
                dague->largest_simulation_date);
     }
 #else
     SYNC_TIME_PRINT(rank, 
-                    ("zgeqrf computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d M= %d N= %d : %f gflops\n",
+                    ("zgeqrf computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %f gflops\n",
                      iparam[IPARAM_NNODES],
                      iparam[IPARAM_NCORES],
                      iparam[IPARAM_P],
@@ -168,6 +169,7 @@ int main(int argc, char ** argv)
                      iparam[IPARAM_LOWLVL_TREE],
                      iparam[IPARAM_HIGHLVL_TREE],
                      iparam[IPARAM_QR_DOMINO],
+                     iparam[IPARAM_QR_TSRR],
                      iparam[IPARAM_M],
                      iparam[IPARAM_N],
                      gflops = (flops/1e9)/(sync_time_elapsed)));
