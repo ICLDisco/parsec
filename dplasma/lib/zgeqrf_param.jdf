@@ -129,7 +129,7 @@ BODY
 
 #if defined(DAGUE_SIM)
   if ( descA.mt-1 == k )
-    ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(exec_context->sim_exec_date);
+    ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
   printlog("thread %d CORE_zgeqrt(%d, %d)\n"
            "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -269,9 +269,9 @@ BODY
          );
 
 #if defined(DAGUE_SIM)
-  ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(exec_context->sim_exec_date);
+  ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
   if ( ( ( nextp == descA.mt ) & (p == k) ) )
-    ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(exec_context->sim_exec_date);
+    ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
   printlog("thread %d CORE_zttqrt(%d, %d)\n"
            "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
