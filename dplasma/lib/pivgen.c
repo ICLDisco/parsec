@@ -1396,7 +1396,7 @@ void dplasma_pivgen_genperm( qr_piv_t *qrpiv )
     }
     else {
         for(k=0; k<minMN; k++) {
-            for( i=k; i<m+1; i++) {
+            for( i=0; i<m+1; i++) {
                 perm[i] = i;
             }
             perm += m+1;
