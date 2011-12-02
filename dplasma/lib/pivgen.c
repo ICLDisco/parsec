@@ -93,8 +93,6 @@
 #define myassert assert
 #endif
 
-#define TS_WITH_ROUNDROBIN
-
 /*
  * Common functions
  */
@@ -1347,63 +1345,63 @@ void dplasma_pivgen_genperm( qr_piv_t *qrpiv )
     qrpiv->perm = (int*)malloc( (m+1) * minMN * sizeof(int) );
     perm = qrpiv->perm;
 
-#if defined(TS_WITH_ROUNDROBIN)
-    for(k=0; k<minMN; k++) {
-        for( i=0; i<m+1; i++) {
-            perm[i] = -1;
-        }
-        perm += m+1;
-    }
-    perm = qrpiv->perm;
-    for(k=0; k<minMN; k++) {
-        nbextra1 = nbextra1_formula;
-
-        end2 = p + ( domino ? k*p : k + nbextra1 );
-        end2 = (( end2 + pa - 1 ) / pa ) * pa;
-        end2 = min( end2, m );
-
-        /* 
-         * All tiles of type 3, 2 and:
-         * - 1 when domino is disabled 
-         * - 0 before the first multiple of pa under the considered diagonal
-         */
-        for( i=k; i<end2; i++) {
-            perm[i] = i;
-        }
-
-        /* All permutations in groups of pa tiles */
-        assert( i%pa == 0 || i>=endpa);
-        for( ; i<endpa; i+=pa ) {
-            for(j=0; j<pa; j++) {
-                perm[i+j] = i + ( j + p * (k%a) )%pa;
+    if ( qrpiv->tsrr ) {
+        for(k=0; k<minMN; k++) {
+            for( i=0; i<m+1; i++) {
+                perm[i] = -1;
             }
-        }        
+            perm += m+1;
+        }
+        perm = qrpiv->perm;
+        for(k=0; k<minMN; k++) {
+            nbextra1 = nbextra1_formula;
 
-        /* Last group of tiles */
-        if ( i < m )
-        {
-            int lp, la;
-            for(lp=0; lp<p; lp++) {
-                la = mpa / p;
-                if ( lp < mpa%p ) la++;
-                
-                for( j=lp; j<mpa && (i+j)<m; j+=p ) {
-                    perm[i+j] = i + ( j + p * (k%la) )%(p*la);
-                    assert(perm[i+j] < m);
+            end2 = p + ( domino ? k*p : k + nbextra1 );
+            end2 = (( end2 + pa - 1 ) / pa ) * pa;
+            end2 = min( end2, m );
+
+            /* 
+             * All tiles of type 3, 2 and:
+             * - 1 when domino is disabled 
+             * - 0 before the first multiple of pa under the considered diagonal
+             */
+            for( i=k; i<end2; i++) {
+                perm[i] = i;
+            }
+
+            /* All permutations in groups of pa tiles */
+            assert( i%pa == 0 || i>=endpa);
+            for( ; i<endpa; i+=pa ) {
+                for(j=0; j<pa; j++) {
+                    perm[i+j] = i + ( j + p * (k%a) )%pa;
+                }
+            }        
+
+            /* Last group of tiles */
+            if ( i < m ) {
+                int lp, la;
+                for(lp=0; lp<p; lp++) {
+                    la = mpa / p;
+                    if ( lp < mpa%p ) la++;
+                    
+                    for( j=lp; j<mpa && (i+j)<m; j+=p ) {
+                        perm[i+j] = i + ( j + p * (k%la) )%(p*la);
+                        assert(perm[i+j] < m);
+                    }
                 }
             }
+            perm[m] = m;
+            perm += m+1;
         }
-        perm[m] = m;
-        perm += m+1;
     }
-#else
-    for(k=0; k<minMN; k++) {
-        for( i=k; i<m+1; i++) {
-            perm[i] = i;
+    else {
+        for(k=0; k<minMN; k++) {
+            for( i=k; i<m+1; i++) {
+                perm[i] = i;
+            }
+            perm += m+1;
         }
-        perm += m+1;
     }
-#endif
 }
 
 int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m ) 
@@ -1435,7 +1433,8 @@ int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
  ***************************************************/
 qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A, 
                                int type_llvl, int type_hlvl, 
-                               int a, int p, int domino )
+                               int a, int p, 
+                               int domino, int tsrr )
 {
     int low_mt, minMN;
     qr_piv_t *qrpiv = (qr_piv_t*) malloc( sizeof(qr_piv_t) );
@@ -1448,6 +1447,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
     qrpiv->a = a;
     qrpiv->p = p;
     qrpiv->domino = domino;
+    qrpiv->tsrr = tsrr;
     qrpiv->perm = NULL;
 
     qrpiv->llvl = (qr_subpiv_t*) malloc( sizeof(qr_subpiv_t) );
