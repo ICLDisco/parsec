@@ -196,14 +196,14 @@ add_task_to_list(struct dague_execution_unit *eu_context,
 }
 
 static void iterate_successors(dague_execution_unit_t *eu,
-                               dague_execution_context_t *exec_context,
+                               dague_execution_context_t *this_task,
                                uint32_t action_mask,
                                dague_ontask_function_t *ontask,
                                void *ontask_arg)
 {
-    __dague_map_operator_object_t *__dague_object = (__dague_map_operator_object_t*)exec_context->dague_object;
-    int k = exec_context->locals[0].value;
-    int n = exec_context->locals[1].value+1;
+    __dague_map_operator_object_t *__dague_object = (__dague_map_operator_object_t*)this_task->dague_object;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value+1;
     dague_execution_context_t nc;
 
     nc.priority = 0;
@@ -220,10 +220,10 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.locals[0].value = k;
             nc.locals[1].value = n;
             nc.function = &dague_map_operator /*this*/;
-            nc.dague_object = exec_context->dague_object;
-            nc.data[0].data = exec_context->data[0].data;
-            nc.data[1].data = exec_context->data[1].data;
-            ontask(eu, &nc, exec_context, 0, 0,
+            nc.dague_object = this_task->dague_object;
+            nc.data[0].data = this_task->data[0].data;
+            nc.data[1].data = this_task->data[1].data;
+            ontask(eu, &nc, this_task, 0, 0,
                    __dague_object->super.src->super.myrank,
                    __dague_object->super.src->super.myrank, NULL, ontask_arg);
             return;
@@ -235,13 +235,13 @@ static void iterate_successors(dague_execution_unit_t *eu,
 }
 
 static int release_deps(dague_execution_unit_t *eu,
-                        dague_execution_context_t *exec_context,
+                        dague_execution_context_t *this_task,
                         uint32_t action_mask,
                         dague_remote_deps_t *deps)
 {
     dague_execution_context_t* ready_list = NULL;
 
-    iterate_successors(eu, exec_context, action_mask, add_task_to_list, &ready_list);
+    iterate_successors(eu, this_task, action_mask, add_task_to_list, &ready_list);
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {
         if( NULL != ready_list ) {
@@ -251,7 +251,7 @@ static int release_deps(dague_execution_unit_t *eu,
     }
 
     if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS) {
-        (void)AUNREF(exec_context->data[0].data);
+        (void)AUNREF(this_task->data[0].data);
     }
 
     assert( NULL == ready_list );
@@ -260,11 +260,11 @@ static int release_deps(dague_execution_unit_t *eu,
 }
 
 static int hook_of(dague_execution_unit_t *context,
-                   dague_execution_context_t *exec_context)
+                   dague_execution_context_t *this_task)
 {
-    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)exec_context->dague_object;
-    int k = exec_context->locals[0].value;
-    int n = exec_context->locals[1].value;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t*)this_task->dague_object;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value;
     dague_arena_chunk_t *asrc = NULL, *adest;
     const void* src_data = NULL;
     void* dest_data;
@@ -276,13 +276,13 @@ static int hook_of(dague_execution_unit_t *context,
     adest = (dague_arena_chunk_t*) dest(k,n);
     dest_data = ADATA(adest);
 
-    exec_context->data[0].data = asrc;
-    exec_context->data[0].data_repo = NULL;
-    exec_context->data[1].data = adest;
-    exec_context->data[1].data_repo = NULL;
+    this_task->data[0].data = asrc;
+    this_task->data[0].data_repo = NULL;
+    this_task->data[1].data = adest;
+    this_task->data[1].data_repo = NULL;
 
 #if !defined(DAGUE_PROF_DRY_BODY)
-    TAKE_TIME(context, 2*exec_context->function->function_id,
+    TAKE_TIME(context, 2*this_task->function->function_id,
               map_operator_op_hash( __dague_object, k, n ), __dague_object->super.src,
               ((dague_ddesc_t*)(__dague_object->super.src))->data_key((dague_ddesc_t*)__dague_object->super.src, k, n) );
     __dague_object->super.op( context, src_data, dest_data, __dague_object->super.op_data, k, n );
@@ -292,18 +292,18 @@ static int hook_of(dague_execution_unit_t *context,
 }
 
 static int complete_hook(dague_execution_unit_t *context,
-                         dague_execution_context_t *exec_context)
+                         dague_execution_context_t *this_task)
 {
-    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t *)exec_context->dague_object;
-    int k = exec_context->locals[0].value;
-    int n = exec_context->locals[1].value;
+    const __dague_map_operator_object_t *__dague_object = (const __dague_map_operator_object_t *)this_task->dague_object;
+    int k = this_task->locals[0].value;
+    int n = this_task->locals[1].value;
     (void)k; (void)n; (void)__dague_object;
 
-    TAKE_TIME(context, 2*exec_context->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
+    TAKE_TIME(context, 2*this_task->function->function_id+1, map_operator_op_hash( __dague_object, k, n ), NULL, 0);
 
-    dague_prof_grapher_task(exec_context, context->eu_id, k+n);
+    dague_prof_grapher_task(this_task, context->eu_id, k+n);
 
-    release_deps(context, exec_context,
+    release_deps(context, this_task,
                  (DAGUE_ACTION_RELEASE_REMOTE_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_DEPS |
                   DAGUE_ACTION_RELEASE_LOCAL_REFS |
