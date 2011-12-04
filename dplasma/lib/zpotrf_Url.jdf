@@ -200,7 +200,7 @@ BODY
     if( dague_using_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, exec_context, uplo )) )
+        if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */

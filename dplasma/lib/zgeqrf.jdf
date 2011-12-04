@@ -271,7 +271,7 @@ BODY
     if( dague_using_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
+        if( 0 == (rc = gpu_stsmqr( context, this_task)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */
