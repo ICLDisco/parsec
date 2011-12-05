@@ -99,7 +99,7 @@ dplasma/lib/[sdc]plrnt\.jdf
 dplasma/lib/[sdc]plghe\.jdf
 dplasma/lib/[sdc]plgsy\.jdf
 dplasma/lib/[sdc]lacpy\.jdf
-dplasma/lib/[sdc]axpy\.jdf
+dplasma/lib/[sdc]geadd\.jdf
 dplasma/lib/[sdc]geqrf_param\.jdf
 dplasma/lib/[sdc]ungqr_param\.jdf
 dplasma/lib/[sdc]orgqr_param\.jdf
@@ -146,7 +146,7 @@ dplasma/lib/[sdcz]plrnt\.[ch]
 dplasma/lib/[sdcz]plghe\.[ch]
 dplasma/lib/[sdcz]plgsy\.[ch]
 dplasma/lib/[sdcz]lacpy\.[ch]
-dplasma/lib/[sdcz]axpy\.[ch]
+dplasma/lib/[sdcz]geadd\.[ch]
 dplasma/lib/[sdcz]geqrf_param\.[ch]
 dplasma/lib/[sdcz]ungqr_param\.[ch]
 dplasma/lib/[sdcz]orgqr_param\.[ch]
@@ -158,7 +158,7 @@ dplasma/lib/[sdc]symm_wrapper.c
 dplasma/lib/[sdc]trsm_wrapper.c 
 dplasma/lib/[sdc]trmm_wrapper.c 
 dplasma/lib/[sdc]trsmpl_wrapper.c   
-dplasma/lib/[sdc]axpy_wrapper.c
+dplasma/lib/[sdc]geadd_wrapper.c
 dplasma/lib/[sdc]lacpy_wrapper.c
 dplasma/lib/[sdc]laset_wrapper.c
 dplasma/lib/[sdc]plrnt_wrapper.c
