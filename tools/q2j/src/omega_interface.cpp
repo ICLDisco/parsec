@@ -2139,6 +2139,8 @@ void print_header(){
            "#include \"dague.h\"\n"
            "#include \"data_distribution.h\"\n"
            "#include \"memory_pool.h\"\n"
+           "#include \"data_dist/matrix/precision.h\"\n"
+           "#include \"dplasma/lib/dplasmajdf.h\"\n"
            "%%}\n"
            "\n");
 }
