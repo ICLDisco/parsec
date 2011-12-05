@@ -86,8 +86,8 @@
 #define max(__a, __b) ( ( (__a) > (__b) ) ? (__a) : (__b) )
 #endif
 
-static int dplasma_qr_getinon0( const qr_piv_t *arg, 
-                                const int k, int i, int mt );
+/* static int dplasma_qr_getinon0( const qr_piv_t *arg,  */
+/*                                 const int k, int i, int mt ); */
 
 #define ENDCHECK( test, ret )                   \
     if ( !test )                                \
@@ -466,18 +466,18 @@ void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k )
 }
 
 
-static int dplasma_qr_getinon0( const qr_piv_t *qrpiv, 
-                                const int k, int i, int mt ) 
-{
-    int j;
-    for(j=k; j<mt; j++) {
-        if ( dplasma_qr_gettype( qrpiv, k, j ) != 0 )
-            i--;
-        if ( i == -1 )
-            break;
-    }
-    return j;
-}
+/* static int dplasma_qr_getinon0( const qr_piv_t *qrpiv,  */
+/*                                 const int k, int i, int mt )  */
+/* { */
+/*     int j; */
+/*     for(j=k; j<mt; j++) { */
+/*         if ( dplasma_qr_gettype( qrpiv, k, j ) != 0 ) */
+/*             i--; */
+/*         if ( i == -1 ) */
+/*             break; */
+/*     } */
+/*     return qrpiv->perm[k*(qrpiv->desc->mt+1) + j]; */
+/* } */
 
 #define DAG_HEADER        "digraph G { orientation=portrait; \n"
 #define DAG_FOOTER        "} // close graph\n"
