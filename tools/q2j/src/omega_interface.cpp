@@ -2140,7 +2140,12 @@ void print_header(){
            "#include \"data_distribution.h\"\n"
            "#include \"memory_pool.h\"\n"
            "#include \"data_dist/matrix/precision.h\"\n"
+           "#include \"data_dist/matrix/matrix.h\"\n"
            "#include \"dplasma/lib/dplasmajdf.h\"\n"
+           "\n"
+           "#define PRECISION_z\n"
+           "#define BLKLDD(_desc, _k) (_desc).mb\n"
+           "\n"
            "%%}\n"
            "\n");
 }
