@@ -10,9 +10,9 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
-#include "memory_pool.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
 #define PRECISION_z
@@ -71,7 +71,7 @@ BODY
 	lalpha, A /* A((descB.mt-1)-k,(descB.mt-1)-k) */, lda, 
 	B /* B((descB.mt-1)-k,n) */, ldb );
   printlog("thread %d CORE_ztrsm(%d, %d)\n"
-	"\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+           "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
   context->eu_id, k, n, (descB.mt-1)-k, (descB.mt-1)-k, A, (descB.mt-1)-k, n, B);
 
 END
@@ -137,7 +137,7 @@ BODY
 	ldb, lalpha, E /* B((descB.mt-1)-m,n1) */, 
 	descB.mb );
   printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
-	"\t(trans, PlasmaNoTrans, descB.mb, tempnn, tempkm, mzone, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb, lalpha, B(%d,%d)[%p], descB.mb)\n",
+           "\t(trans, PlasmaNoTrans, descB.mb, tempnn, tempkm, mzone, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb, lalpha, B(%d,%d)[%p], descB.mb)\n",
   context->eu_id, k, m, n1, (descB.mt-1)-k, (descB.mt-1)-m, C, (descB.mt-1)-k, n1, D, (descB.mt-1)-m, n1, E);
 
 END
