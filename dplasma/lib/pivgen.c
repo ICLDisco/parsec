@@ -13,9 +13,9 @@
  *       height of this tree is defined by the parameter 'a'. If 'a'
  *       is set to A->mt, the factorization is identical to the one
  *       perform by PLASMA_zgeqrf.
- *       For all subdiagonal "macro-tiles", the line reduced is always the first.
- *       For all diagonal "macro-tiles", the factorization performed
- *       is identical to the one performed by PLASMA_zgeqrf.
+ *       For all subdiagonal "macro-tiles", the line reduced is always
+ *       the first.  For all diagonal "macro-tiles", the factorization
+ *       performed is identical to the one performed by PLASMA_zgeqrf.
  *
  *     - the third level is using a reduction tree of size 'p'. By
  *       default, the parameter 'p' should be equal to the number of
@@ -101,7 +101,8 @@ int dplasma_qr_getm(       const qr_piv_t *arg, const int k, const int i   );
 int dplasma_qr_geti(       const qr_piv_t *arg, const int k, const int m   );
 int dplasma_qr_gettype(    const qr_piv_t *arg, const int k, const int m   );
 
-static int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
+static void dplasma_qr_genperm   (       qr_piv_t *qrpiv );
+static int  dplasma_qr_getinvperm( const qr_piv_t *qrpiv, const int k, int m );
 
 /*
  * Subtree for low-level
@@ -1326,7 +1327,7 @@ int dplasma_qr_prevpiv(const qr_piv_t *arg, int pivot, const int k, int start)
  * Generate the permutation required for the round-robin on TS
  *
  ***************************************************/
-void dplasma_pivgen_genperm( qr_piv_t *qrpiv )
+static void dplasma_qr_genperm( qr_piv_t *qrpiv )
 {
     int m = qrpiv->desc->mt;
     int n = qrpiv->desc->nt;
@@ -1505,7 +1506,7 @@ qr_piv_t *dplasma_pivgen_init( tiled_matrix_desc_t *A,
         }
     } 
 
-    dplasma_pivgen_genperm( qrpiv );
+    dplasma_qr_genperm( qrpiv );
     return qrpiv;
 }
 
