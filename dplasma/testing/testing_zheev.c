@@ -37,10 +37,9 @@ int main(int argc, char *argv[])
 #endif
 
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_IPARAM_LOCALS(iparam);
     
-    PASTE_CODE_FLOPS_COUNT(FADDS_ZHEEV, FMULS_ZHEEV, ((DagDouble_t)N))
-
+    PASTE_CODE_FLOPS_COUNT(FADDS_ZHEEV, FMULS_ZHEEV, ((DagDouble_t)N));
 
     PLASMA_Init(1);
 
@@ -96,7 +95,11 @@ int main(int argc, char *argv[])
                 //printf("%f+%fi ",
                     //creal(A2[N*j+i]),
                     //cimag(A2[N*j+i]));
-                printf("%f ", A2[N*j+i]);
+#if defined(PRECISION_d) || defined(PRECISION_s)
+                printf("%f ", A2[N*j+i] );
+#else
+                printf("(%f, %f)", creal(A2[N*j+i]), cimag(A2[N*j+i]));
+#endif
             }
             printf("\n");
         }
@@ -160,8 +163,11 @@ int main(int argc, char *argv[])
         printf("A2 apres\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
-                //printf("%f+%fi ", creal(A2[N*j+i]), cimag(A2[N*j+i]));
-                printf("%f ", A2[N*j+i]);
+#if defined(PRECISION_d) || defined(PRECISION_s)
+                printf("%f ", A2[N*j+i] );
+#else
+                printf("(%f, %f)", creal(A2[N*j+i]), cimag(A2[N*j+i]));
+#endif
             }
             printf("\n");
         }
