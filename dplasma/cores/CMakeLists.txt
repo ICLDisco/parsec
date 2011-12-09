@@ -52,7 +52,6 @@ add_library(dplasma_cores
   ${GPU_KERNEL_SOURCES})
 install(TARGETS dplasma_cores ARCHIVE DESTINATION lib)
 
-install(FILES core_z.h DESTINATION include/cores)
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include/cores)
 endforeach()
