@@ -628,10 +628,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                *deps,
                dague_service_to_string(exec_context, tmp2, 128),  dest_flow->name ));
     }
-    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
 #   else
     (void) origin; (void) origin_flow;
 #   endif 
+    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
 
     dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
     /* Mark the dependencies and check if this particular instance can be executed */
