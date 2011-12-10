@@ -20,14 +20,8 @@ OMEGA_DIR=${OMEGA_DIR:="/home/adanalis/pub/Omega/"}
 
 if [ "x$USER" = "xbosilca" ]; then
   HWLOC_DIR="/home/bosilca/opt/"
-  PLASMA_DIR="/home/bosilca/opt/plasma/intel/"
-
+  MPI_DIR="/home/bosilca/opt/mpi"
 elif [ "x$USER" = "xherault" ]; then
-  if [ "x$CC" = "xgcc" ]; then
-      PLASMA_DIR="/home/mfaverge/opt/plasma/"
-  else
-      PLASMA_DIR="/home/bosilca/opt/plasma/intel/"
-  fi
   #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
   USER_OPTIONS+="-DDAGUE_Q2J=ON"
 
