@@ -82,7 +82,7 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
     /* Create DAGuE */
-    if(loud > 2) printf("+++ Computing potrf ... ");
+    if(loud > 2) printf("+++ Computing getrf_sd ... ");
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_sd,
                               ((tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescL,

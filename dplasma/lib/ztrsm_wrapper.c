@@ -77,30 +77,26 @@ dplasma_ztrsm_New(const PLASMA_enum side, const PLASMA_enum uplo,
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_RLN_new(
-                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     side, uplo, trans, diag, alpha,
-                    A->m, A->n, A->mb, A->nb, A->mt, A->nt,
-                    B->m, B->n, B->mb, B->nb, B->mt, B->nt);
+                    *A, (dague_ddesc_t*)A,
+                    *B, (dague_ddesc_t*)B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_RLT_new(
-                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     side, uplo, trans, diag, alpha,
-                    A->m, A->n, A->mb, A->nb, A->mt, A->nt,
-                    B->m, B->n, B->mb, B->nb, B->mt, B->nt);
+                    *A, (dague_ddesc_t*)A,
+                    *B, (dague_ddesc_t*)B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_object_t*)dague_ztrsm_RUN_new(
-                    (dague_ddesc_t*)B, (dague_ddesc_t*)A,
                     side, uplo, trans, diag, alpha,
-                    A->m, A->n, A->mb, A->nb, A->mt, A->nt,
-                    B->m, B->n, B->mb, B->nb, B->mt, B->nt);
+                    *A, (dague_ddesc_t*)A,
+                    *B, (dague_ddesc_t*)B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_object_t*)dague_ztrsm_RUT_new(
-                    (dague_ddesc_t*)B, (dague_ddesc_t*)A, 
                     side, uplo, trans, diag, alpha,
-                    A->m, A->n, A->mb, A->nb, A->mt, A->nt,
-                    B->m, B->n, B->mb, B->nb, B->mt, B->nt);
+                    *A, (dague_ddesc_t*)A,
+                    *B, (dague_ddesc_t*)B);
             }
         }
     }

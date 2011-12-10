@@ -15,22 +15,21 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
 
 static Dague_Complex64_t zone = 1.;
 
 %}
 
-side [type = "PLASMA_enum"]
-uplo [type = "PLASMA_enum"]
+side  [type = "PLASMA_enum"]
+uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
-diag [type = "PLASMA_enum"]
+diag  [type = "PLASMA_enum"]
 alpha [type = "Dague_Complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
-A [type = "dague_ddesc_t *"]
+A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
-B [type = "dague_ddesc_t *"]
+B     [type = "dague_ddesc_t *"]
 
 
 ztrsm(k,n)
