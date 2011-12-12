@@ -576,6 +576,10 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
         node_t *phony_var = DA_create_ID("phony");
 
         // Create a variable to hold the task name in QUARK specific format.
+        // WARNING: The string prefices DAGUE_IN_ and DAGUE_OUT_ are also used in 
+        // omega_interface.c:is_phony_Entry_task() and 
+        // omega_interface.c:is_phony_Exit_task()
+        // so don't change them without changing them there as well.
         if( TASK_IN == task_type ){
             asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
         }else if( TASK_OUT == task_type ){
@@ -598,7 +602,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
         // Put the newly created FCALL into the BLOCK of the inner-most loop.
         DA_insert_first(tmp_block, f_call);
 
-        // Put the block with the loop nest at the beginning (or the end of the container block)
+        // Put the block with the loop nest at the beginning (or the end) of the container block
         if( TASK_IN == task_type ){
             DA_insert_first(container_block, new_block);
         }else if( TASK_OUT == task_type ){

@@ -21,6 +21,7 @@
 extern int yyget_lineno();
 void yyerror(const char *s);
 extern int yylex (void);
+extern int _q2j_add_phony_tasks;
 
 type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
@@ -1307,7 +1308,8 @@ external_declaration
           {
               rename_induction_variables(&($1));
               convert_OUTPUT_to_INOUT(&($1));
-              add_entry_and_exit_task_loops(&($1));
+              if( _q2j_add_phony_tasks )
+                  add_entry_and_exit_task_loops(&($1));
               //printf("%s\n",tree_to_str(&($1)));
               analyze_deps(&($1));
           }
