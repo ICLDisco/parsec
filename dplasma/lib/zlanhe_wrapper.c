@@ -154,6 +154,8 @@ double dplasma_zlanhe( dague_context_t *dague,
     dague_zlanhe = dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
 				  uplo, *A, workD.super, 
 				  op, (void *)&args);
+    /* This operation does not communicate, it does not need an arena */
+    dague_zlanhe->arenas[DAGUE_map2_DEFAULT_ARENA] = NULL;
     dague_enqueue( dague, (dague_object_t*)dague_zlanhe);
     dplasma_progress(dague);
     dague_map2_destroy( dague_zlanhe );
