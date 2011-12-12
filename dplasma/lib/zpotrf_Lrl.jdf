@@ -60,11 +60,11 @@ BODY
 
     int tempkm = k == Amt-1 ? Am - k*Amb : Amb;
     DRYRUN(
-           int iinfo = 0;
+        int iinfo = 0;
         CORE_zpotrf(
             uplo, tempkm, T, Amb,
             &iinfo );
-        if ( iinfo != 0 )
+        if ( iinfo != 0 && *INFO == 0 )
             *INFO = k*Amb+iinfo; /* Should return here */
          );
 
