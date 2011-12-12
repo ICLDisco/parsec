@@ -88,7 +88,7 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
     }
 
 #if defined(HAVE_MPI)
-    MPI_Allreduce( &info, &ginfo, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;
 #endif
