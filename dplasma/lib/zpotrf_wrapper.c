@@ -21,7 +21,7 @@ dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
 {
     dague_object_t *dague_zpotrf = NULL;
     int pri_change = dplasma_aux_get_priority( "POTRF", A );
- 
+
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
         dplasma_error("dplasma_zpotrf_New", "illegal value of uplo");
@@ -76,7 +76,7 @@ dplasma_zpotrf_Destruct( dague_object_t *o )
 int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* ddescA) 
 {
     dague_object_t *dague_zpotrf = NULL;
-    int info = 0;
+    int info = 0, ginfo = 0 ;
 
     dague_zpotrf = dplasma_zpotrf_New(uplo, ddescA, &info);
 
@@ -86,7 +86,13 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
         dplasma_progress(dague);
         dplasma_zpotrf_Destruct( dague_zpotrf );
     }
-    return info;
+
+#if defined(HAVE_MPI)
+    MPI_Allreduce( &info, &ginfo, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD);
+#else
+    ginfo = info;
+#endif
+    return ginfo;
 }
 
 /*
