@@ -9,7 +9,6 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 
-#define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"

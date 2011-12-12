@@ -15,7 +15,6 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
 
 static Dague_Complex64_t zone = 1.;

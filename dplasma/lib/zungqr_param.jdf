@@ -17,7 +17,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma_qr_pivgen.h"
 
-#define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
 
 %}

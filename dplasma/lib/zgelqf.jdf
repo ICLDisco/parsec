@@ -13,7 +13,6 @@ extern "C" %{
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 
-#define PRECISION_z
 
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/memory_pool.h"

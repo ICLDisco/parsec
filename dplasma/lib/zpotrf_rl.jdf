@@ -13,7 +13,6 @@ extern "C" %{
 #include "data_dist/matrix/precision.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define PRECISION_z
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"

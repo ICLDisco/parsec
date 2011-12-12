@@ -17,7 +17,6 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma_qr_pivgen.h"
   
-#define PRECISION_z
 #define BLKLDD(_desc, _k) (_desc).mb
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 #define MYMAX(a, b) ((a)>(b)?(a):(b))
