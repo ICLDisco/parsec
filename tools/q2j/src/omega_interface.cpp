@@ -2319,7 +2319,14 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
         }
     }
     // Compute the transitive closure of this relation
+
+//printf("  Before TC: ");
+//transitiveR.print_with_subs(stdout);
+
     transitiveR = TransitiveClosure(transitiveR);
+
+//printf("  After TC: ");
+//transitiveR.print_with_subs(stdout);
 
     // Union the resulting relation with the relation stored in the cycle of this node
     cycle_start->cycle = new Relation( Union(*(cycle_start->cycle), transitiveR) );
@@ -2345,8 +2352,8 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
     for (list<tg_edge_t *>::iterator it = src_nd->edges.begin(); it != src_nd->edges.end(); it++){
         tg_node_t *next_node = (*it)->dst;
 
-//fprintf(stderr,"%*s",depth,"");
-//fprintf(stderr,"%s -> %s\n",src_nd->task_name, next_node->task_name);
+printf("#%*s",depth,"");
+printf("%s -> %s\n",src_nd->task_name, next_node->task_name);
 
         // If the destination node of this edge has not been visited, jump to it and continue the
         // search for a cycle.  If the destination node is in our visited set, then we detected a
@@ -2433,50 +2440,37 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
 
     visited_nodes.insert(cur_nd);
 
-    if( cur_nd != src_nd ){
+// Why does the algorithm say not to take the cycle for the starting node?
+//    if( cur_nd != src_nd ){
         // T <- Cycle(Nc) o T
 
         // the "cycle" of a node with no outgoing edges (think DAGUE_OUT_A) will be null.
         if( !(cur_nd->cycle->is_null()) ){
-#if defined(COMPOSE_ON_THE_FLY)
-            if( Rt.is_null() ){
-                Rt = *(cur_nd->cycle);
-            }else{
-                if( cur_nd->cycle->n_inp() != Rt.n_out() ){
-                    fprintf(stderr,"r1.n_inp(): %d, r2.n_out(): %d\n", cur_nd->cycle->n_inp(), Rt.n_out() );
-                    abort();
-                }
-                Rt = Composition(copy(*(cur_nd->cycle)), Rt);
-            }
-#else // COMPOSE_ON_THE_FLY
             relation_fifo.push_back(cur_nd->cycle);
-#endif
         }
-    }
+//    }
 
     // if Nc == Sink(Ea)
     if ( cur_nd == snk_nd ){
-//fprintf(stderr,"Reached the sink: %s\n",snk_nd->task_name);
+//printf("Reached the sink: %s\n",snk_nd->task_name);
         // A U T
-#if !defined(COMPOSE_ON_THE_FLY)
         Relation Rtrnsv;
         list<Relation *>::iterator rel_it = relation_fifo.begin();
         if( rel_it != relation_fifo.end() ){
             Rtrnsv = *(*rel_it);
 //debug
-//Rtrnsv.print_with_subs(stderr);
-//fprintf(stderr,"----------------------------------------------------------------------\n\n");
+//Rtrnsv.print_with_subs();
+//printf("----------------------------------------------------------------------\n\n");
             rel_it++;
             for ( ; rel_it != relation_fifo.end(); rel_it++){
                 Relation Rtmp = *(*rel_it);
 //debug
-//Rtmp.print_with_subs(stderr);
-//fprintf(stderr,"----------------------------------------------------------------------\n\n");
+//Rtmp.print_with_subs();
+//printf("----------------------------------------------------------------------\n\n");
                 Rtrnsv = Composition(Rtmp, Rtrnsv);
             }
         }
         Rt = Rtrnsv;
-#endif
         if( Ra.is_null() ){
             return(Rt);
         }else if( Rt.is_null() ){
@@ -2495,28 +2489,17 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
         tg_node_t *next_node = (*it)->dst;
         Relation Rt_new;
         
-//fprintf(stderr,"%*s",debug_depth,"");
-//fprintf(stderr,"%s -> %s\n",cur_nd->task_name, next_node->task_name);
+printf("%*s",debug_depth,"");
+printf("%s -> %s\n",cur_nd->task_name, next_node->task_name);
 
         // If the next node (Ni) has not already been visited
         if( visited_nodes.find(next_node) == visited_nodes.end() ){
-#if defined(COMPOSE_ON_THE_FLY)
-            // Ttmp <- Ri o T (in the PPoPP manuscript this is mistakenly typed as "T <- Ri o T").
-            if( Rt.is_null() ){
-                Rt_new = *((*it)->R);
-            }else{
-                Rt_new = Composition(copy(*((*it)->R)), Rt);
-            }
-#else // COMPOSE_ON_THE_FLY
             relation_fifo.push_back((*it)->R);
-#endif
             
             debug_depth += 4;
             Ra = find_transitive_edge(next_node, Rt_new, Ra, visited_nodes, relation_fifo, src_nd, snk_nd);
             debug_depth -= 4;
-#if !defined(COMPOSE_ON_THE_FLY)
             relation_fifo.pop_back();
-#endif
         }
     }
 
@@ -2705,6 +2688,8 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         //         anti-edge we are trying to reduce.
         create_copy_of_graph_excluding_edge(task_to_node, dep, &source_node, &sink_node);
 
+printf("\n  >> Processing: %s --> %s\n",source_node->task_name, sink_node->task_name);
+
         // Step 2) for each pair of nodes N1,N2 in G, replace all the edges that
         //         go from N1 to N2 with their union.
         visited_nodes.clear(); // just being paranoid.
@@ -2733,15 +2718,16 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 6) Find the union of the transitive edges that start at source_node and end at
         // sink_node
-fprintf(stderr," Computing transitive edge for: %s --> %s\n",source_node->task_name, sink_node->task_name);
+printf("Computing transitive edge\n");
         visited_nodes.clear();
         relation_fifo.clear();
         Ra = find_transitive_edge(source_node, Rt, Ra, visited_nodes, relation_fifo, source_node, sink_node);
 
 if( Ra.is_null() ){
-    fprintf(stderr,"find_transitive_edge() found no transitive edge\n");
+    printf("find_transitive_edge() found no transitive edge\n");
 }else{
-    Ra.print_with_subs(stderr);
+    printf("  ");
+    Ra.print_with_subs();
 }
      
         Relation Rsync = *(dep->rel);
@@ -2749,12 +2735,12 @@ if( Ra.is_null() ){
         if(Ra.is_null()){
             Rsync_finalized = Rsync;
         }else{
-fprintf(stderr,"Subtracting from:\n");
-Rsync.print_with_subs(stderr);
+printf("Subtracting from:\n  ");
+Rsync.print_with_subs();
             Rsync_finalized = Difference(Rsync, Ra);
-fprintf(stderr,"Result:\n");
-Rsync_finalized.print_with_subs(stderr);
-fprintf(stderr,"\n");
+printf("==> Result:\n  ");
+Rsync_finalized.print_with_subs();
+printf("\n");
         }
 
         if( !Rsync_finalized.is_null() && Rsync_finalized.is_upper_bound_satisfiable() ){
@@ -3047,7 +3033,7 @@ printf("========================================================================
     // by factoring in the flow dependencies (also known as read-after-write).
     //
 
-fprintf(stderr,"\n-------------------------------------------------\n");
+printf("\n-------------------------------------------------\n");
 
 //#error "DEBUGGING the anti-dependencies code"
     // For every USE that is the source of anti dependencies
@@ -3077,7 +3063,7 @@ fprintf(stderr,"\n-------------------------------------------------\n");
             dep->rel = new Relation(Rai);
             dep_set.insert(dep);
 
-fprintf(stderr,"Inserting anti-dep %s::%s -> %s::%s\n",use->task->task_name, tree_to_str(use), sink->task->task_name, tree_to_str(sink));
+printf("Inserting anti-dep %s::%s -> %s::%s\n",use->task->task_name, tree_to_str(use), sink->task->task_name, tree_to_str(sink));
 
         }
 
@@ -3165,13 +3151,15 @@ fprintf(stderr,"Working with the anti-deps of %s::%s\n",use->task->task_name, tr
     }
 
 
-fprintf(stderr,"\n-------------> Checkpoint ---\n\n");
+//debug
+printf("\n --- Finalizing anti-dependencies ---\n");
 
     set<dep_t *> ctrl_deps = edge_map_to_dep_set(synch_edges);
     set<dep_t *> flow_deps = edge_map_to_dep_set(outgoing_edges);
     synch_edges = finalize_synch_edges(ctrl_deps, flow_deps);
 
-    fprintf(stderr,"finalization done\n");
+//debug
+printf("--- Finalization done ---\n");
 
 
     #ifdef DEBUG_2
