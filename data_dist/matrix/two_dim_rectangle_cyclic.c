@@ -55,7 +55,6 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     return res;
 }
 
-
 static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
     size_t pos;
@@ -67,8 +66,8 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     
     /* Get coordinates */
     va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */

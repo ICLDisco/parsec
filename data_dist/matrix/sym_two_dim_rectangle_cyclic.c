@@ -33,8 +33,8 @@
 
 static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 {
-    int rr, cr, m, n;
-    int res;
+    unsigned int rr, cr, m, n;
+    unsigned int res;
     va_list ap;
     sym_two_dim_block_cyclic_t * Ddesc;
     Ddesc = (sym_two_dim_block_cyclic_t *) desc;
@@ -82,8 +82,8 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 
     /* Get coordinates */
     va_start(ap, desc);
-    m = va_arg(ap, unsigned int);
-    n = va_arg(ap, unsigned int);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
@@ -168,15 +168,15 @@ static uint32_t sym_twoDBC_data_key(struct dague_ddesc *desc, ...)
 static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     sym_two_dim_block_cyclic_t * Ddesc;    
-    int row, column;
+    unsigned int row, column;
     int res;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
     column = datakey / Ddesc->super.lmt;
     row = datakey % Ddesc->super.lmt;
-    res = snprintf(buffer, buffer_size, "(%d, %d)", row, column);
+    res = snprintf(buffer, buffer_size, "(%u, %u)", row, column);
     if (res < 0)
         {
-            printf("error in key_to_string for tile (%d, %d) key: %u\n", row, column, datakey);
+            printf("error in key_to_string for tile (%u, %u) key: %u\n", row, column, datakey);
         }
     return res;
 }
