@@ -141,6 +141,7 @@ subs = {
     ('splgsy','dplgsy','cplgsy','zplgsy'),
     ('splgsy','dplgsy','cplghe','zplghe'),
     ('slaset','dlaset','claset','zlaset'),
+    ('sprint', 'dprint', 'cprint', 'zprint'),
     ('slacgv','dlacgv','clacgv','zlacgv'),
     ('slacpy','dlacpy','clacpy','zlacpy'),
     ('slagsy','dlagsy','claghe','zlaghe'),

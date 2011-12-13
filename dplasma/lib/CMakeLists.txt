@@ -20,6 +20,7 @@ jdf_rules(generated_files "${OLDJDF}")
 
 ### Generate .c files from .jdf for all required precisions
 set(JDF
+  zprint.jdf
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf zhemm.jdf
   ztrsm_LLN.jdf ztrsm_LLT.jdf ztrsm_LUN.jdf ztrsm_LUT.jdf ztrsm_RLN.jdf ztrsm_RLT.jdf ztrsm_RUN.jdf ztrsm_RUT.jdf
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
@@ -47,6 +48,7 @@ jdf_rules(generated_files "${generated_jdf}")
 ### Generate the dplasma wrappers for all required precisions 
 set(SOURCES
 #  dplasma_zf77.c
+  zprint_wrapper.c
   # Level 3 Blas
   zgemm_wrapper.c 
   zhemm_wrapper.c 
