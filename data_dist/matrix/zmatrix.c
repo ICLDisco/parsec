@@ -6,6 +6,10 @@
 /************************************************************
  * distributed matrix generation
  ************************************************************/
+/*
+ * WARNING: This file is deprecated and not compiled anymore 
+ */
+
 /* affect one tile with random values  */
 /*
  * @precisions normal z -> s d c

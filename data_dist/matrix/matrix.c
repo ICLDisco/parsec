@@ -6,28 +6,187 @@
 /************************************************************
  *distributed matrix generation
  ************************************************************/
-/* affect one tile with random values  */
-
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif
 
 #include "dague_config.h"
-
 #include "data_distribution.h"
 #include "matrix.h"
-#include "bindthread.h"
 
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed)
+/***************************************************************************//**
+ *  Internal static descriptor initializer (PLASMA code)
+ **/
+void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, 
+                             enum matrix_type    dtyp, 
+                             enum matrix_storage storage, 
+                             int mb, int nb,
+                             int lm, int ln, 
+                             int i,  int j, 
+                             int m,  int n)
 {
-   
-    (void)row;
-    (void)col;
-    (void)seed;
-    memset( position, 0, Ddesc->bsiz * Ddesc->mtype );
+    /* Matrix address */
+    /* tdesc->mat = NULL;*/
+    /* tdesc->A21 = (lm - lm%mb)*(ln - ln%nb); */
+    /* tdesc->A12 = (     lm%mb)*(ln - ln%nb) + tdesc->A21; */
+    /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
+
+    /* Matrix properties */
+    tdesc->mtype   = dtyp;
+    tdesc->storage = storage;
+    tdesc->tileld  = (storage == matrix_Tile) ? mb : lm;
+    tdesc->mb      = mb;
+    tdesc->nb      = nb;
+    tdesc->bsiz    = mb * nb;
+
+    /* Large matrix parameters */
+    tdesc->lm = lm;
+    tdesc->ln = ln;
+
+    /* WARNING: This has to be removed when padding will be removed */
+#if defined(HAVE_MPI)
+    if ( storage == matrix_Lapack ) {
+        if ( tdesc->lm %mb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+        if ( tdesc->ln %nb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+    }
+#endif
+
+    /* Large matrix derived parameters */
+    /* tdesc->lm1 = (lm/mb); */
+    /* tdesc->ln1 = (ln/nb); */
+    tdesc->lmt = (lm%mb==0) ? (lm/mb) : (lm/mb+1);
+    tdesc->lnt = (ln%nb==0) ? (ln/nb) : (ln/nb+1);
+
+    /* Submatrix parameters */
+    tdesc->i = i;
+    tdesc->j = j;
+    tdesc->m = m;
+    tdesc->n = n;
+
+    /* Submatrix derived parameters */
+    tdesc->mt = (i+m-1)/mb - i/mb + 1;
+    tdesc->nt = (j+n-1)/nb - j/nb + 1;
+
+#if defined(DAGUE_PROF_TRACE)
+    asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
+#endif
+
+    return;
 }
+
+/*
+ * Writes the data into the file filename
+ * Sequential function per node
+ */
+int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename) {
+    dague_ddesc_t *ddesc = &(tdesc->super);
+    FILE *tmpf;
+    char *buf;
+    int i, j, k;
+    uint32_t myrank = tdesc->super.myrank;
+    int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
+
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf) {
+        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        return -1;
+    }
+
+    if ( tdesc->storage == matrix_Tile ) {
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    fwrite(buf, eltsize, tdesc->bsiz, tmpf );
+                }
+            }
+    } else {
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    for (k=0; k<tdesc->nb; k++) {
+                        fwrite(buf, eltsize, tdesc->mb, tmpf );
+                        buf += eltsize * tdesc->lm;
+                    }
+                }
+            }
+    }
+
+
+    fclose(tmpf);
+    return 0;
+}
+
+/*
+ * Read the data from the file filename
+ * Sequential function per node
+ */
+int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename) {
+    dague_ddesc_t *ddesc = &(tdesc->super);
+    FILE *tmpf;
+    char *buf;
+    int i, j, k, ret;
+    uint32_t myrank = tdesc->super.myrank;
+    int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
+
+    tmpf = fopen(filename, "w");
+    if(NULL == tmpf) {
+        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        return -1;
+    }
+
+    if ( tdesc->storage == matrix_Tile ) {
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
+                    if ( ret !=  tdesc->bsiz ) {
+                        fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n", 
+                                i, j, ret, tdesc->bsiz);
+                        return -1;
+                    }
+                }
+            }
+    } else {        
+        for (i = 0 ; i < tdesc->mt ; i++)
+            for ( j = 0 ; j< tdesc->nt ; j++) {
+                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
+                    buf = ddesc->data_of( ddesc, i, j );
+                    for (k=0; k<tdesc->nb; k++) {
+                        ret = fread(buf, eltsize, tdesc->mb, tmpf );
+                        if ( ret !=  tdesc->mb ) {
+                            fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n", 
+                                    i, j, ret, tdesc->mb);
+                            return -1;
+                        }
+                        buf += eltsize * tdesc->lm;
+                    }
+                }
+            }
+    }
+
+    fclose(tmpf);
+    return 0;
+}
+
+
+/*
+ * Deprecated code
+ */
+#if 0
 
 typedef struct tile_coordinate{
     int row;
@@ -43,9 +202,6 @@ typedef struct info_tiles{
     unsigned long long int seed;
     void (*gen_fct)( tiled_matrix_desc_t *, void *, int, int, unsigned long long int);
 } info_tiles_t;
-
-
-
 
 /* thread function for affecting multiple tiles with random values
  * @param : tiles : of type dist_tiles_t
@@ -66,10 +222,10 @@ static void * rand_dist_tiles(void * info)
     for(i = 0 ; i < ((info_tiles_t *)info)->nb_elements ; i++ )
         {
             ((info_tiles_t *)info)->gen_fct(((info_tiles_t *)info)->Ddesc,
-                                              ((info_tiles_t *)info)->Ddesc->super.data_of(
-                                                                                           ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
-                                                                                           ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
-                                                                                           ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
+                                            ((info_tiles_t *)info)->Ddesc->super.data_of(
+                                                                                         ((struct dague_ddesc *)((info_tiles_t *)info)->Ddesc),
+                                                                                         ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
+                                                                                         ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col ),
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].row,
                                             ((info_tiles_t *)info)->tiles[((info_tiles_t *)info)->starting_position + i].col,
                                             ((info_tiles_t *)info)->seed);
@@ -223,55 +379,5 @@ void pddiagset(tiled_matrix_desc_t * Mdesc, double val)
     }
     return;
 }
+#endif
 
-int data_write(tiled_matrix_desc_t * Ddesc, char * filename){
-    FILE * tmpf;
-    int i, j;
-    void* buf;
-    tmpf = fopen(filename, "w");
-    if(NULL == tmpf)
-        {
-            printf("opening file: %s", filename);
-            return -1;
-        }
-    for (i = 0 ; i < Ddesc->mt ; i++)
-        for ( j = 0 ; j< Ddesc->nt ; j++)
-            {
-                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
-                    {
-                        buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-                        fwrite(buf, Ddesc->mtype, Ddesc->bsiz, tmpf );
-                    }
-            }
-    fclose(tmpf);
-    return 0;
-}
-
-int data_read(tiled_matrix_desc_t * Ddesc, char * filename){
-    FILE * tmpf;
-    int i, j;
-    void * buf;
-    tmpf = fopen(filename, "r");
-    if(NULL == tmpf)
-        {
-            printf("opening file: %s", filename);
-            return -1;
-        }
-    for (i = 0 ; i < Ddesc->mt ; i++)
-        for ( j = 0 ; j< Ddesc->nt ; j++)
-            {
-                if (Ddesc->super.rank_of((dague_ddesc_t *)Ddesc, i, j) == Ddesc->super.myrank)
-                    {
-                        int ret;
-                        buf = Ddesc->super.data_of((dague_ddesc_t *)Ddesc, i, j);
-                        ret = fread(buf, Ddesc->mtype, Ddesc->bsiz, tmpf);
-                        if ( ret !=  Ddesc->bsiz )
-                            {
-                                printf("Error reading file: %s", filename);
-                                return -1;
-                            }
-                    }
-            }
-    fclose(tmpf);
-    return 0;
-}

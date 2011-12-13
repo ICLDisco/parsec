@@ -1,4 +1,4 @@
-CUDA_INSTALL_PATH ?= /opt/cuda-3.0
+CUDA_INSTALL_PATH ?= /opt/cuda
 INCLUDES  := -I. -I$(CUDA_INSTALL_PATH)/include
 LIB       := -L$(CUDA_INSTALL_PATH)/lib64 -lcublas -lcudart -lcuda
 

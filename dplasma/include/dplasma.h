@@ -25,5 +25,6 @@
 #define DPLASMA_GREEDY_TREE     1
 #define DPLASMA_FIBONACCI_TREE  2
 #define DPLASMA_BINARY_TREE     3
+#define DPLASMA_GREEDY1P_TREE   4
 
 #endif /* _DPLASMA_H_ */

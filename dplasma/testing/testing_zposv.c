@@ -73,9 +73,9 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(N), PlasmaUpperLower, 
+    dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, 1358);
-    dplasma_zplrnt( dague, 
+    dplasma_zplrnt( dague,
                     (tiled_matrix_desc_t *)&ddescB, 3872);
     if(loud > 2) printf("Done\n");
  
@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
         if ( uplo[u] == PlasmaUpper ) {
             t1 = PlasmaConjTrans; t2 = PlasmaNoTrans;
         } else {
-            t1 = PlasmaNoTrans; t2 = PlasmaconjTrans;
+            t1 = PlasmaNoTrans; t2 = PlasmaConjTrans;
         }   
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
@@ -126,18 +126,19 @@ int main(int argc, char ** argv)
                              (tiled_matrix_desc_t *)&ddescA, 
                              (tiled_matrix_desc_t *)&ddescX );
         if ( loud > 2 ) printf("Done\n");
-        if ( loud > 2 ) printf("Info = %d\n", info);
+        if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
 
         /* Check the factorization */
-        info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                          (tiled_matrix_desc_t *)&ddescA, 
-                                          (tiled_matrix_desc_t *)&ddescA0);
-	
-        info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                     (tiled_matrix_desc_t *)&ddescA0, 
-                                     (tiled_matrix_desc_t *)&ddescB, 
-                                     (tiled_matrix_desc_t *)&ddescX);
-	
+        if ( info == 0 ) {
+          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
+                                            (tiled_matrix_desc_t *)&ddescA, 
+                                            (tiled_matrix_desc_t *)&ddescA0);
+          
+          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
+                                       (tiled_matrix_desc_t *)&ddescA0, 
+                                       (tiled_matrix_desc_t *)&ddescB, 
+                                       (tiled_matrix_desc_t *)&ddescX);
+	}
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOSV (%s) ... FAILED !\n", uplostr[u]);
@@ -172,18 +173,19 @@ int main(int argc, char ** argv)
                            (tiled_matrix_desc_t *)&ddescX );
         }
         if ( loud > 2 ) printf("Done\n");
-        if ( loud > 2 ) printf("Info = %d\n", info);
+        if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
 
         /* Check the solution */
-        info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                          (tiled_matrix_desc_t *)&ddescA, 
-                                          (tiled_matrix_desc_t *)&ddescA0);
-	
-        info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                     (tiled_matrix_desc_t *)&ddescA0, 
-                                     (tiled_matrix_desc_t *)&ddescB, 
-                                     (tiled_matrix_desc_t *)&ddescX);
-	
+        if ( info == 0 ) {
+          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
+                                            (tiled_matrix_desc_t *)&ddescA, 
+                                            (tiled_matrix_desc_t *)&ddescA0);
+          
+          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
+                                       (tiled_matrix_desc_t *)&ddescA0, 
+                                       (tiled_matrix_desc_t *)&ddescB, 
+                                       (tiled_matrix_desc_t *)&ddescX);
+	}
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOTRF + ZPOTRS (%s) ... FAILED !\n", uplostr[u]);
@@ -220,17 +222,19 @@ int main(int argc, char ** argv)
                           (tiled_matrix_desc_t *)&ddescX);
         }
         if ( loud > 2 ) printf("Done\n");
-        if ( loud > 2 ) printf("Info = %d\n", info);
+        if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
 	
         /* Check the solution */
-        info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                          (tiled_matrix_desc_t *)&ddescA, 
-                                          (tiled_matrix_desc_t *)&ddescA0);
-	
-        info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                     (tiled_matrix_desc_t *)&ddescA0, 
-                                     (tiled_matrix_desc_t *)&ddescB, 
-                                     (tiled_matrix_desc_t *)&ddescX);
+        if ( info == 0 ) {
+          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
+                                            (tiled_matrix_desc_t *)&ddescA, 
+                                            (tiled_matrix_desc_t *)&ddescA0);
+          
+          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
+                                       (tiled_matrix_desc_t *)&ddescA0, 
+                                       (tiled_matrix_desc_t *)&ddescB, 
+                                       (tiled_matrix_desc_t *)&ddescX);
+        }
 	
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
@@ -295,7 +299,7 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
                    (tiled_matrix_desc_t*)&L2);
 
     /* compute L'L - A or U'U - A */
-    dplasma_zaxpy( dague, uplo, -1.0, A0, 
+    dplasma_zgeadd( dague, uplo, -1.0, A0, 
                    (tiled_matrix_desc_t*)&L2);
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);

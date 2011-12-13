@@ -10,9 +10,9 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define PRECISION_z
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
@@ -60,11 +60,11 @@ BODY
 
     int tempkm = k == Amt-1 ? Am - k*Amb : Amb;
     DRYRUN(
-           int iinfo = 0;
+        int iinfo = 0;
         CORE_zpotrf(
             uplo, tempkm, T, Amb,
             &iinfo );
-        if ( iinfo != 0 )
+        if ( iinfo != 0 && *INFO == 0 )
             *INFO = k*Amb+iinfo; /* Should return here */
          );
 
@@ -130,7 +130,7 @@ END
 HERK(k, m) [high_priority = on]
 
 // Execution space
-k = 0..Amt-1
+k = 0..Amt-2
 m = k+1..Amt-1
 
 // Parallel partitioning
@@ -174,7 +174,7 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..Amt-1
+k = 0..Amt-3
 m = k+2..Amt-1
 n = k+1..m-1
 
@@ -199,7 +199,7 @@ BODY
     if( dague_using_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_zgemm( context, exec_context, uplo )) )
+        if( 0 == (rc = gpu_zgemm( context, this_task, uplo )) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */

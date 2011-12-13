@@ -94,7 +94,7 @@ int main(int argc, char ** argv)
 
         for (s=0; s<2; s++) {
             for (u=0; u<2; u++) {
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+#if defined(PRECISION_z) || defined(PRECISION_c)
                 for (t=0; t<3; t++) {
 #else
                 for (t=0; t<2; t++) {

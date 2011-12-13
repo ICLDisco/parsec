@@ -23,7 +23,7 @@
 
 void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrst, int ncst)
 {
-    // Filling matrix description woth user parameter
+    /* Filling matrix description woth user parameter */
     grid->rank = myrank ;
     grid->rows = P;
     grid->cols = Q;
@@ -31,8 +31,8 @@ void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrs
     grid->stcols = ncst;
 
     /* computing colRANK and rowRANK */
-    grid->rrank = myrank/Q;
-    grid->crank = myrank%Q;
+    grid->rrank = myrank / Q;
+    grid->crank = myrank % Q;
 
     grid->rloc = 0;
     grid->cloc = 0;

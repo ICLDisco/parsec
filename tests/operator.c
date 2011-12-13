@@ -48,7 +48,7 @@ int main( int argc, char* argv[] )
                                world, cores, rank, mb, nb, lm, ln, 0, 0, lm, ln, 1, 1, rows );
     ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles *
                                      (size_t)ddescA.super.bsiz *
-                                     (size_t)ddescA.super.mtype);
+                                     (size_t)dague_datadist_getsizeoftype(ddescA.super.mtype));
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
     object = dague_map_operator_New((tiled_matrix_desc_t*)&ddescA,

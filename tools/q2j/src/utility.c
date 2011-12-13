@@ -1920,7 +1920,7 @@ char *quark_tree_to_body(node_t *node){
             printStr = append_to_string( printStr, ", ", NULL, 0);
         printStr = append_to_string( printStr, "%d", NULL, 0);
     }
-    printStr = append_to_string( printStr, ")\\n\\t(", NULL, 0);
+    printStr = append_to_string( printStr, ")\\n\"\n           \"\\t(", NULL, 0);
 
     // Create the "#line lineno" directive and append a newline at the end.
     tmp = int_to_str(node->lineno);

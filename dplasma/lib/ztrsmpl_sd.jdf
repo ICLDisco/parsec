@@ -15,14 +15,16 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+#define getIPIV(__ptr) ((int*)(__ptr))
+#define getL(__ptr)    ((Dague_Complex64_t*)(__ptr) + descL.nb)
+
 %}
 
 /** Globals */
 descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
 descL     [type = "tiled_matrix_desc_t"]
-L         [type = "dague_ddesc_t *" aligned=A]
-IPIV      [type = "dague_ddesc_t *" aligned=A]
+Lipiv     [type = "dague_ddesc_t *" aligned=A]
 descB     [type = "tiled_matrix_desc_t"]
 B         [type = "dague_ddesc_t *"]
 ib        [type = int]
@@ -37,8 +39,8 @@ k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 
 READ A    <- A(k, k)
           -> B zgessm(k, 0..descB.nt-1) 
-     IPIV <- IPIV(k, k)                               [type = PIVOT]
-          -> A zgessm(k, 0..descB.nt-1)                  [type = PIVOT]
+     IPIV <- Lipiv(k, k)                              [type = PIVOT]
+          -> A zgessm(k, 0..descB.nt-1)               [type = PIVOT]
      
 BODY
         /* Nothing */
@@ -81,7 +83,7 @@ BODY
           int ldbk = descB.mb; /*((k+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
 
 	   CORE_zgessm(tempkm, tempnn, tempkmin, ib, 
-                       A /* IPIV(k,k) */, 
+                       getIPIV(A) /* IPIV(k,k) */, 
                        B /* A(k,k) */, ldak, 
                        C /* B(k,n) */, ldbk );
           );
@@ -102,10 +104,8 @@ m = k+1..descA.mt-1
 
 READ A    <- A(m, k)
           -> G zssssm(k, m, 0..descB.nt-1) 
-     L    <- L(m, k)                         [type = SMALL_L]
-          -> F zssssm(k, m, 0..descB.nt-1)   [type = SMALL_L]
-     IPIV <- IPIV(m, k)                      [type = PIVOT]
-          -> H zssssm(k, m, 0..descB.nt-1)   [type = PIVOT]  
+     L    <- Lipiv(m, k)                             [type = L_PIVOT]
+          -> F zssssm(k, m, 0..descB.nt-1)           [type = L_PIVOT]
 
 BODY
         /* Nothing */
@@ -149,9 +149,8 @@ zssssm(k,m,n1)
           -> (m>=(k+2)) & (descA.nt>=(k+2)) ? E zssssm(k+1, m, n1) 
           -> (descA.nt==(k+1)) ? B(m,n1)
           -> ((1+k)==m) & (descA.nt>=(2+k)) ? C zgessm(m, n1) 
-  READ  F <- L zssssm_inALIPIV(k, m)         [type = SMALL_L]
   READ  G <- A zssssm_inALIPIV(k, m)         
-  READ  H <- IPIV zssssm_inALIPIV(k, m)      [type = PIVOT]
+  READ  F <- L zssssm_inALIPIV(k, m)         [type = L_PIVOT]
 
   /*
 
@@ -169,13 +168,18 @@ BODY
   DRYRUN(
          CORE_zssssm(descA.nb, tempnn, tempmm, 
                      tempnn, tempkn, ib, 
-                     D /* B(k,n1) */, ldbk, 
-                     E /* B(m,n1) */, ldbm, 
-                     F /* L(m,k) */,  descL.mb, 
-                     G /* A(m,k) */,  ldam, 
-                     H /* IPIV(m,k) */ );
+                     D          /* B(k,n1) */, ldbk, 
+                     E          /* B(m,n1) */, ldbm, 
+                     getL(F)    /* L(m,k)  */, descL.mb-1, 
+                     G          /* A(m,k)  */, ldam, 
+                     getIPIV(F) /* IPIV(m,k) */ );
          );
-  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
-           context->eu_id, descA.nb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, ldbk, m, n1, E, ldbm, m, k, F, descL.mb, m, k, G, ldam, m, k, H);
+  printlog("thread %d   CORE_zssssm(%d, %d, %d)\n"
+           "\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, \n"
+           "\tL(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
+           context->eu_id, descA.nb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, 
+           k, n1, D, ldbk, m, n1, E, ldbm, 
+           m, k, getL(F), descL.mb, m, k, G, ldam, 
+           m, k, getIPIV(F));
 
 END

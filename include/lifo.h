@@ -14,7 +14,14 @@
 
 typedef struct dague_list_item_t {
     volatile struct dague_list_item_t* list_next;
-    void* cache_friendly_emptiness;
+    /**
+     * This field is __very__ special and should be handled with extreme
+     * care. It is used to avoid the ABA problem when atomic operations
+     * are in use. It can deal with 2^DAGUE_LIFO_ALIGNMENT_BITS pops,
+     * before running into the ABA. In all other cases, it is used to
+     * separate the two volatile members of the struct by a safe margin.
+     */
+    uint64_t keeper_of_the_seven_keys;
     volatile struct dague_list_item_t* list_prev;
 #if defined(DAGUE_DEBUG)
     volatile int32_t refcount;
@@ -147,7 +154,13 @@ static inline void dague_atomic_lifo_destruct( dague_atomic_lifo_t *lifo )
 #define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
 #define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
 
-#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) ((void) posix_memalign( (void**)&(elt), DAGUE_LIFO_ALIGNMENT, (truesize) ))
+#define DAGUE_LIFO_ELT_ALLOC( elt, truesize )                           \
+    do {                                                                \
+        dague_list_item_t *_elt;                                        \
+        (void)posix_memalign( (void**)&_elt, DAGUE_LIFO_ALIGNMENT, (truesize) ); \
+        _elt->keeper_of_the_seven_keys = 0;                             \
+        (elt) = _elt;                                                   \
+    } while (0)
 #define DAGUE_LIFO_ELT_FREE( elt ) free(elt)
 
 typedef struct dague_atomic_lifo_t {
@@ -179,10 +192,10 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
 #endif
 
     DAGUE_ATTACH_ELEMS(lifo, items);
-
+    tp = DAGUE_LIFO_VAL( items,
+                         (items->keeper_of_the_seven_keys + 1) % DAGUE_LIFO_ALIGNMENT );
     do {
         tail->list_next = lifo->lifo_head;
-        tp = DAGUE_LIFO_VAL( items, DAGUE_LIFO_CNT(lifo->lifo_head) );
         if( dague_atomic_cas( &(lifo->lifo_head),
                               (uintptr_t) tail->list_next,
                               (uintptr_t) tp ) ) {
@@ -197,21 +210,19 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
  */
 static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lifo )
 {
-    dague_list_item_t* item;
-    uintptr_t cnt;
+    dague_list_item_t *item, *save;
 
-    while(DAGUE_LIFO_PTR((item = lifo->lifo_head)) != lifo->lifo_ghost)
-    {
-        cnt = (DAGUE_LIFO_CNT(item) + 1) % DAGUE_LIFO_ALIGNMENT;
+    while(DAGUE_LIFO_PTR((item = lifo->lifo_head)) != lifo->lifo_ghost) {
         if( dague_atomic_cas( &(lifo->lifo_head),
                               (uintptr_t) item,
-                              (uintptr_t) DAGUE_LIFO_VAL( DAGUE_LIFO_PTR(item)->list_next, cnt) ) )
+                              (uintptr_t) DAGUE_LIFO_PTR(item)->list_next ) )
             break;
         /* Do some kind of pause to release the bus */
     }
-
+    save = item;
     item = DAGUE_LIFO_PTR(item);
     if( item == lifo->lifo_ghost ) return NULL;
+    item->keeper_of_the_seven_keys = DAGUE_LIFO_CNT(save);
 
     DAGUE_DETACH_ELEM(item);
     return item;

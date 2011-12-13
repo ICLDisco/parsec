@@ -10,9 +10,9 @@ extern "C" %{
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 
-#define PRECISION_z
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #define BLKLDD(_desc, _k) (_desc).mb
@@ -113,7 +113,7 @@ zunmqr(k,n)
 
   READ  C <- A zgeqrt_typechange(k)                              [type = LOWER_TILE]
   READ  D <- B zgeqrt(k)                                         [type = LITTLE_T]
-  RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k-1+1, n) 
+  RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k, n) 
           -> (descA.mt==(k+1)) ? A(k, n)
           -> (descA.mt>=(k+2)) ? J ztsmqr(k, k+1, n) 
 
@@ -270,7 +270,7 @@ BODY
     if( dague_using_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
+        if( 0 == (rc = gpu_stsmqr( context, this_task)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */

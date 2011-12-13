@@ -69,13 +69,6 @@ int main(int argc, char ** argv)
                                                       nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
                                                       N, NRHS, SMB, SNB, P));
     
-#if defined(DAGUE_PROF_TRACE)
-    ddescA.super.super.key  = strdup("A");
-    ddescA0.super.super.key = strdup("A0");
-    ddescB.super.super.key  = strdup("B");
-    ddescX.super.super.key  = strdup("X");
-#endif
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), uplo, 
@@ -191,8 +184,8 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
                    (tiled_matrix_desc_t*)&L2);
 
     /* compute L'L - A or U'U - A */
-    dplasma_zaxpy( dague, uplo, -1.0, A0, 
-                   (tiled_matrix_desc_t*)&L2);
+    dplasma_zgeadd( dague, uplo, -1.0, A0, 
+                    (tiled_matrix_desc_t*)&L2);
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);
     Rnorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo,

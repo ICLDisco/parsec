@@ -10,14 +10,6 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-int  dplasma_qr_check(         tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_type(    tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_pivot(   tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_nbgeqrt( tiled_matrix_desc_t *A, qr_piv_t *qrpiv );
-void dplasma_qr_print_next_k(  tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
-void dplasma_qr_print_prev_k(  tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
-void dplasma_qr_print_geqrt_k( tiled_matrix_desc_t *A, qr_piv_t *qrpiv, int k );
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -46,7 +38,7 @@ int main(int argc, char ** argv)
     qrpiv = dplasma_pivgen_init( (tiled_matrix_desc_t*)&ddescA, 
                                  iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                                  iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
-                                 iparam[IPARAM_QR_DOMINO]);
+                                 iparam[IPARAM_QR_DOMINO], 1);
 
 
     asprintf(&dot_filename, "tree-%dx%d-a%d-p%d-l%d-h%d-d%d.dot", 
@@ -59,12 +51,15 @@ int main(int argc, char ** argv)
     
     if ( iparam[IPARAM_DOT] )
       dplasma_qr_print_dag( (tiled_matrix_desc_t*)&ddescA, qrpiv, dot_filename );
-    /* dplasma_qr_print_pivot( (tiled_matrix_desc_t*)&ddescA, qrpiv); */
-    /* dplasma_qr_print_next_k( (tiled_matrix_desc_t*)&ddescA, qrpiv, 0); */
     ret = dplasma_qr_check( (tiled_matrix_desc_t*)&ddescA, qrpiv );
     
-    dplasma_pivgen_finalize( qrpiv );
+    /* dplasma_qr_print_pivot(   (tiled_matrix_desc_t*)&ddescA, qrpiv);    */
+    /* dplasma_qr_print_next_k(  (tiled_matrix_desc_t*)&ddescA, qrpiv, 1); */
+    /* dplasma_qr_print_prev_k(  (tiled_matrix_desc_t*)&ddescA, qrpiv, 1); */
+    /* dplasma_qr_print_nbgeqrt( (tiled_matrix_desc_t*)&ddescA, qrpiv );   */
 
+    dplasma_pivgen_finalize( qrpiv );
+                             
     free(dot_filename);
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);

@@ -628,10 +628,10 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                *deps,
                dague_service_to_string(exec_context, tmp2, 128),  dest_flow->name ));
     }
-    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
 #   else
     (void) origin; (void) origin_flow;
 #   endif 
+    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
 
     dep_new_value = DAGUE_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
     /* Mark the dependencies and check if this particular instance can be executed */
@@ -681,9 +681,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
             mpool = new_context->mempool_owner;  /* this should not be copied over from the old execution context */
-            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             memcpy( new_context, exec_context, sizeof(dague_minimal_execution_context_t) );
             new_context->mempool_owner = mpool;
+            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
             DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),

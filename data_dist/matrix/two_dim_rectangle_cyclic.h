@@ -27,8 +27,8 @@
  */
 typedef struct two_dim_block_cyclic {
     tiled_matrix_desc_t super;
-    grid_2Dcyclic_t grid; 
-    void *mat;               /**< pointer to the beginning of the matrix */
+    grid_2Dcyclic_t     grid; 
+    void *mat;      /**< pointer to the beginning of the matrix */
     int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
     int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
 } two_dim_block_cyclic_t;
@@ -62,13 +62,17 @@ typedef struct two_dim_block_cyclic {
  * @param ncst number of column of tiles for block distribution
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, enum matrix_type mtype, int nodes, int cores, int myrank, 
-			       int mb, int nb, 
-			       int lm, int ln, int i, int j, 
-			       int m, int n, int nrst, int ncst, int process_GridRows );
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc, 
+                               enum matrix_type mtype, 
+                               int nodes, int cores, int myrank, 
+			       int mb,   int nb,   /* Tile size */                                           
+			       int lm,   int ln,   /* Global matrix size (what is stored)*/                  
+                               int i,    int j,    /* Staring point in the global matrix */                  
+			       int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                               int nrst, int ncst, /* Super-tiling size */
+                               int process_GridRows );
 
 int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
-
 int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda);
 int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex32_t* A, int lda);
 int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);

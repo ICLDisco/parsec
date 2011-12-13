@@ -19,15 +19,35 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
     string(REGEX REPLACE "^(.*/)*(.+)\\.*.*" "\\2" jdf_rules_BSRC ${jdf_rules_SRC})
     set(jdf_rules_OSRC "${jdf_rules_BSRC}")
     GET_PROPERTY(ADDITIONAL_DAGUEPP_CFLAGS SOURCE ${jdf_rules_SOURCE} PROPERTY ADDITIONAL_DAGUEPP_CFLAGS)
-    add_custom_command(
-      OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-      COMMAND ${DAGUEPP} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
-      MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
-      DEPENDS ${DAGUEPP})
-    #   add_custom_target(${jdf_rules_BSRC} DEPENDS ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c)
+ 
+    get_source_file_property(jdf_rules_IsInBinaryDir ${jdf_rules_SOURCE} IS_IN_BINARY_DIR )
+
+    # If the file is generated in a different binary dir, 
+    # we force the dependency on the generated file
+    # otherwise we let cmake choose the correct file, it is so good for that.
+    if( jdf_rules_IsInBinaryDir )
+
+      #message(STATUS "${jdf_rules_SOURCE} with generated = ${jdf_rules_IsInBinaryDir} - Depends on binary_dir")
+      add_custom_command(
+        OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
+        COMMAND ${DAGUEPP} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+        MAIN_DEPENDENCY ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_SRC}.jdf
+        DEPENDS ${DAGUEPP})
+
+    else( jdf_rules_IsInBinaryDir )
+
+      #message(STATUS "${jdf_rules_SOURCE} with generated = ${jdf_rules_IsInBinaryDir} - Depends on source_dir")
+      add_custom_command(
+        OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
+        COMMAND ${DAGUEPP} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+        MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
+        DEPENDS ${DAGUEPP})
+
+    endif( jdf_rules_IsInBinaryDir )
+
     set_source_files_properties(${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c PROPERTIES GENERATED 1)
     list(APPEND ${jdf_rules_OUTPUTLIST} "${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h;${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c")
-#   message(STATUS "rule to generate ${jdf_rules_OSRC}.[ch] from ${jdf_rules_SOURCE}.jdf")
+
   endforeach()
 endmacro(jdf_rules)
 

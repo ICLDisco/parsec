@@ -25,15 +25,15 @@ dague_private_memory_pop(dague_memory_pool_t* pool)
 {
     dague_list_item_t* elem = dague_atomic_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        elem = (dague_list_item_t*)malloc( pool->elem_size );
+        DAGUE_LIFO_ELT_ALLOC(elem, pool->elem_size );
     }
-    return elem;
+    return (void*)((char*)elem+sizeof(dague_list_item_t));
 }
 
 static inline void
 dague_private_memory_push(dague_memory_pool_t* pool, void* memory)
 {
-    dague_list_item_t* item = DAGUE_LIST_ITEM_SINGLETON(memory);
+    dague_list_item_t* item = DAGUE_LIST_ITEM_SINGLETON( (((char*)memory)-sizeof(dague_list_item_t)) );
     dague_atomic_lifo_push( &(pool->lifo), item );
 }
 

@@ -25,18 +25,19 @@ set(JDF
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
   zpotrf_rl.jdf zpotrf_ll.jdf 
   zpotrf_Url.jdf zpotrf_Lrl.jdf 
-  zgetrf.jdf zgetrf_sd.jdf ztrsmpl.jdf
+  zgetrf.jdf zgetrf_sd.jdf
+  ztrsmpl.jdf ztrsmpl_sd.jdf
   zgeqrf.jdf
   zgelqf.jdf
   zherbt_L.jdf
   zhbrdt.jdf
-  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf zaxpy.jdf
+  zlaset.jdf zplrnt.jdf zplghe.jdf zplgsy.jdf zlacpy.jdf 
   zgeqrf_param.jdf zungqr_param.jdf
   zungqr.jdf
 )
-precisions_rules(generated_jdf
-                 "${JDF}"
-                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
+precisions_rules_py(generated_jdf
+                    "${JDF}"
+                    PRECISIONS "${DPLASMA_PRECISIONS}")
 
 list(APPEND generated_jdf
   "${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf")
@@ -45,6 +46,7 @@ jdf_rules(generated_files "${generated_jdf}")
 
 ### Generate the dplasma wrappers for all required precisions 
 set(SOURCES
+#  dplasma_zf77.c
   # Level 3 Blas
   zgemm_wrapper.c 
   zhemm_wrapper.c 
@@ -52,7 +54,7 @@ set(SOURCES
   ztrmm_wrapper.c 
   ztrsmpl_wrapper.c   
   # Lapack Auxiliary 
-  zaxpy_wrapper.c
+  zgeadd_wrapper.c
   zlacpy_wrapper.c
   zlaset_wrapper.c
   zplrnt_wrapper.c
@@ -75,9 +77,9 @@ set(SOURCES
   zhbrdt_wrapper.c
   zungqr_wrapper.c
 )
-precisions_rules(generated_files
+precisions_rules_py(generated_files
                  "${SOURCES}"
-                 PRECISIONS "+;${DPLASMA_PRECISIONS}")
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib 
 if (MPI_FOUND)
