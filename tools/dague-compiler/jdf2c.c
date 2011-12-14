@@ -256,7 +256,7 @@ static char * dump_expr(void **elem, void *arg)
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_LESS:
-        string_arena_add_string(sa, "(%s <  %s)",
+        string_arena_add_string(sa, "(%s < %s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
@@ -266,7 +266,7 @@ static char * dump_expr(void **elem, void *arg)
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_MORE:
-        string_arena_add_string(sa, "(%s >  %s)",
+        string_arena_add_string(sa, "(%s > %s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
@@ -1399,7 +1399,8 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
                 }
             }
             if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
-                if( NULL == dep->guard->calltrue->var ) {
+                if( (NULL == dep->guard->calltrue->var) ||
+                    (flow->access_type == JDF_VAR_TYPE_CTL)) {
                     if( 0 == already_added ) {
                         info.sa = sa;
                         dump_expr((void**)dep->guard->guard, &info);
@@ -1443,8 +1444,14 @@ static char* dump_direct_input_conditions(void **elt, void *arg)
         }
         dep = dep->next;
     }
+    /* We need to prepend ! if we're dealing with control flows */
+    if( already_added && (JDF_VAR_TYPE_CTL == flow->access_type) ) {
+        string_arena_init(sa1);
+        string_arena_add_string( sa1, "!(%s)", string_arena_get_string(sa) );
+        string_arena_init(sa);
+        string_arena_add_string( sa, "%s", string_arena_get_string(sa1) );
+    }
     string_arena_free(sa1);
-
     return (0 == already_added) ? NULL : string_arena_get_string(sa);
 }
 
@@ -1511,10 +1518,13 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                                             dump_string, NULL, 
                                                             "", "", ", ", ""));
+    /**
+     * Dump all the conditions that can invalidate the startup propriety.
+     */
     {
         char* condition = NULL;
         string_arena_init(sa2);
-        
+
         condition = UTIL_DUMP_LIST(sa1, f->dataflow, next, dump_direct_input_conditions, sa2,
                                    "", "(", ") && ", ")");
         if( strlen(condition) > 1 )
@@ -1538,8 +1548,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
-            coutput("  new_context->data[%d].data_repo = NULL;\n"
-                    "  new_context->data[%d].data      = NULL;\n",
+            coutput("    new_context->data[%d].data_repo = NULL;\n"
+                    "    new_context->data[%d].data      = NULL;\n",
                     idx, idx);
         }
     }
