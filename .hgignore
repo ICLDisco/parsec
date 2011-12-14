@@ -83,7 +83,8 @@ dplasma/lib/[sdc]trmm_RUT\.jdf
 dplasma/lib/[sdc]potrf_rl\.jdf
 dplasma/lib/[sdc]potrf_ll\.jdf
 dplasma/lib/[sdc]potrf_Url\.jdf
-dplasma/lib/[sdc]potrf_Lrl\.jdf
+dplasma/lib/[sdc]print\.jdf
+dplasma/lib/[sdc]potrf_rl\.jdf
 dplasma/lib/[sdc]getrf\.jdf
 dplasma/lib/[sdc]getrf_sd\.jdf
 dplasma/lib/[sdc]trsmpl\.jdf
@@ -131,6 +132,7 @@ dplasma/lib/[sdcz]potrf_rl\.[ch]
 dplasma/lib/[sdcz]potrf_ll\.[ch]
 dplasma/lib/[sdcz]potrf_Url\.[ch]
 dplasma/lib/[sdcz]potrf_Lrl\.[ch]
+dplasma/lib/[sdcz]print\.[ch]
 dplasma/lib/[sdcz]getrf\.[ch]
 dplasma/lib/[sdcz]getrf_sd\.[ch]
 dplasma/lib/[sdcz]trsmpl\.[ch]
@@ -170,6 +172,7 @@ dplasma/lib/[sdc]lansy_wrapper.c
 dplasma/lib/[sdc]potrf_wrapper.c 
 dplasma/lib/[sdc]potrs_wrapper.c 
 dplasma/lib/[sdc]posv_wrapper.c 
+dplasma/lib/[sdc]print_wrapper.c 
 dplasma/lib/[sdc]getrf_wrapper.c 
 dplasma/lib/[sdc]getrs_wrapper.c 
 dplasma/lib/[sdc]gesv_wrapper.c 
