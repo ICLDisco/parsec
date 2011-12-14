@@ -292,6 +292,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
     dague_execution_context_t exec_context;
 
     exec_context.dague_object = dague_object_lookup( origin->msg.object_id );
+    assert(exec_context.dague_object); /* Future: for composition, store this in a list to be considered upon creation of the DO*/
     exec_context.function = exec_context.dague_object->functions_array[origin->msg.function_id];
 
     for(int i = 0; i < exec_context.function->nb_definitions; i++)
