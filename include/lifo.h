@@ -70,10 +70,12 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
     return item;
 }
 
-
 #if defined(DAGUE_LIFO_USE_LOCKS)
 
-#define DAGUE_LIFO_ELT_ALLOC( elt, truesize ) elt = (__typeof__(elt))malloc( truesize )
+#define DAGUE_LIFO_ELT_ALLOC( elt, truesize )           \
+    do {                                                \
+        elt = (__typeof__(elt))malloc( truesize );      \
+    } while (0)
 #define DAGUE_LIFO_ELT_FREE( elt ) free(elt)
 
 typedef struct dague_atomic_lifo_t {
@@ -96,20 +98,17 @@ static inline int dague_atomic_lifo_is_empty( dague_atomic_lifo_t* lifo )
  * the first one in the list (if the list was empty before this
  * operation).
  */
-static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
-                                                         dague_list_item_t* items )
+static inline void dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
+                                           dague_list_item_t* items )
 {
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
-    dague_list_item_t* ret;
 
     DAGUE_ATTACH_ELEMS(lifo, items);
 
     dague_atomic_lock( &lifo->lifo_lock );
-    ret = (dague_list_item_t*)lifo->lifo_head;
-    tail->list_next = ret;
+    tail->list_next = (dague_list_item_t*)lifo->lifo_head;
     lifo->lifo_head = items;
     dague_atomic_unlock( &lifo->lifo_lock );
-    return ret;
 }
 
 /* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
@@ -182,8 +181,8 @@ static inline int dague_atomic_lifo_is_empty( dague_atomic_lifo_t* lifo )
  * the first one in the list (if the list was empty before this
  * operation).
  */
-static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
-                                                         dague_list_item_t* items )
+static inline void dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
+                                           dague_list_item_t* items )
 {
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     dague_list_item_t* tp;
@@ -199,7 +198,7 @@ static inline dague_list_item_t* dague_atomic_lifo_push( dague_atomic_lifo_t* li
         if( dague_atomic_cas( &(lifo->lifo_head),
                               (uintptr_t) tail->list_next,
                               (uintptr_t) tp ) ) {
-            return (dague_list_item_t*)tail->list_next;
+            return;
         }
         /* DO some kind of pause to release the bus */
     } while( 1 );
