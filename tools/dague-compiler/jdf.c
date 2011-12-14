@@ -535,6 +535,36 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
     return rc;
 }
 
+static int jdf_sanity_check_control(void)
+{
+    int rc = 0;
+    jdf_function_entry_t *func;
+    jdf_dataflow_t *flow;
+    jdf_dep_t *dep;
+    int i, j;
+
+    for(func = current_jdf.functions; func != NULL; func = func->next) {
+        i = 1;
+        for(flow = func->dataflow; flow != NULL; flow = flow->next, i++) {
+            if( JDF_VAR_TYPE_CTL == flow->access_type ) {
+                j = 1;
+                for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
+                    if( (dep->guard->calltrue->var == NULL) ||
+                        ((dep->guard->guard_type == JDF_GUARD_TERNARY) && 
+                         (dep->guard->callfalse->var == NULL)) ) {
+                        rc++;
+                        jdf_fatal(flow->lineno, 
+                                  "In function %s:%d the control of dependency %s(#%d) of flow %s(#%d) cannot refer to data\n",
+                                  func->fname, flow->lineno, dep->datatype_name, j, flow->varname, i );
+                    }
+                }
+            }
+        }
+    }
+
+    return rc;
+}
+
 static int compute_canonical_data_location(const char *name, const jdf_expr_t *p, char **_str, char **_canon)
 {
     jdf_global_entry_t *g;
@@ -736,6 +766,8 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
     if( mask & JDF_WARN_REMOTE_MEM_REFERENCE ) {
         DO_CHECK( jdf_sanity_check_remote_memory_references() );
     }
+    /* Check the control validity */
+    DO_CHECK( jdf_sanity_check_control() );
 
 #undef DO_CHECK
 

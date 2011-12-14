@@ -1344,21 +1344,33 @@ static char* has_ready_input_dependency(void **elt, void *pint)
     jdf_dep_t* dep = flow->deps;
     int can_be_startup = 0, has_input = 0;
 
-    while( NULL != dep ) {
-        if( dep->type == JDF_DEP_TYPE_IN ) {
-            has_input = 1;
-            if( NULL == dep->guard->calltrue->var ) {
-                can_be_startup = 1;
+    if( JDF_VAR_TYPE_CTL == flow->access_type ) {
+        has_input = 1;
+        can_be_startup = 1;
+        while( NULL != dep ) {
+            if( dep->type == JDF_DEP_TYPE_IN ) {
+                if( dep->guard->guard_type != JDF_GUARD_BINARY )
+                    can_be_startup = 0;
             }
-            if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
-                if( NULL == dep->guard->callfalse->var ) {
+            dep = dep->next;
+        }
+    } else {  /* This is a data */
+        while( NULL != dep ) {
+            if( dep->type == JDF_DEP_TYPE_IN ) {
+                has_input = 1;
+                if( NULL == dep->guard->calltrue->var ) {
                     can_be_startup = 1;
                 }
+                if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
+                    if( NULL == dep->guard->callfalse->var ) {
+                        can_be_startup = 1;
+                    }
+                }
             }
+            dep = dep->next;
         }
-        dep = dep->next;
     }
-    if( (0 == can_be_startup) && (has_input) ) {
+    if( (0 == can_be_startup) && has_input ) {
         *((int*)pint) = 0;
     }
     return NULL;
