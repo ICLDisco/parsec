@@ -195,7 +195,6 @@ struct dague_object {
     dague_completion_cb_t      complete_cb;
     void*                      complete_cb_data;
     dague_dependencies_t**     dependencies_array;
-    dague_arena_t**            arenas_array;
 };
 
 #if defined(DAGUE_PROF_TRACE)
