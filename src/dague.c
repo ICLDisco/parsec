@@ -507,7 +507,7 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
                              const dague_execution_context_t* exec_context )
 {
     const dague_function_t* function = exec_context->function;
-    int i, j, value, active;
+    int i, j, mask, active;
     const dague_flow_t* flow;
     const dep_t* dep;
     dague_dependency_t ret = 0;
@@ -520,32 +520,41 @@ dague_check_IN_dependencies( const dague_object_t *dague_object,
         flow = function->in[i];
         /* this param has no dependency condition satisfied */
 #if defined(DAGUE_SCHED_DEPS_MASK)
-        active = (1 << flow->flow_index);
+        mask = (1 << flow->flow_index);
 #else
-        active = 1;
+        mask = 1;
 #endif
-        for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
-            dep = flow->dep_in[j];
-            if( NULL != dep->cond ) {
-                /* Check if the condition apply on the current setting */
-                assert( dep->cond->op == EXPR_OP_INLINE );
-                value = dep->cond->inline_func(dague_object, exec_context->locals);
-                if( 0 == value ) {
-                    continue;
+        if( ACCESS_NONE == flow->access_type ) {
+            active = mask;
+            for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+                dep = flow->dep_in[j];
+                if( NULL != dep->cond ) {
+                    /* Check if the condition apply on the current setting */
+                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                        continue;
+                    }
+                }
+                active = 0;
+                break;
+            }
+        } else {
+            active = 0;
+            for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+                dep = flow->dep_in[j];
+                if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
+                    if( NULL != dep->cond ) {
+                        /* Check if the condition apply on the current setting */
+                        assert( dep->cond->op == EXPR_OP_INLINE );
+                        if( 0 == dep->cond->inline_func(dague_object, exec_context->locals) ) {
+                            continue;
+                        }
+                    }
+                    active = mask;
+                    break;
                 }
             }
-            if( dep->dague->nb_parameters == 0 ) {  /* this is only true for memory locations */
-                goto dep_resolved;
-            }
-            if( ACCESS_NONE == flow->access_type ) {
-                active = 0;
-                goto dep_resolved;
-            }
         }
-        if( ACCESS_NONE != flow->access_type ) {
-            active = 0;
-        }
-    dep_resolved:
         ret += active;
     }
     return ret;
