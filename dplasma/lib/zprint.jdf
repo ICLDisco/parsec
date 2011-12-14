@@ -31,19 +31,22 @@ static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, Dague_
     
     int ii, jj;
     
-    fprintf(stderr, "--------- Tile (%d, %d) --------------\n", m, n);
+    fflush(stdout);
+    //    fprintf(stdout, "--------- Tile (%d, %d) --------------\n", m, n);
     for(ii=0; ii<tempmm; ii++) {
         for(jj=0; jj<tempnn; jj++) {
 #if defined(PRECISION_z) || defined(PRECISION_c)
-            fprintf(stderr, " (%e, %e)", 
+            fprintf(stdout, " (%e, %e)", 
                     creal( M[jj*ldam + ii] ),
                     cimag( M[jj*ldam + ii] ));
 #else
-            fprintf(stderr, " %e", M[jj*ldam + ii]);
+            fprintf(stdout, " (%d, %d, %d, %d) = %e\n", m, n, ii, jj, M[jj*ldam + ii]);
 #endif
         }
-        fprintf(stderr, "\n"); 
+        fprintf(stdout, "\n"); 
     }
+    fflush(stdout);
+    sleep(1);
 }
 
 %}
@@ -79,7 +82,9 @@ PRINT_F(k) [profile = off]
   // Parameters
 READ A   <- dataA(m, n)
 CTL  ctl <- (k > 0 )      ? ctl PRINT_F(k-1)
-         -> (k < sizef-1) ? ctl PRINT_F(k+1)
+         -> (k < sizef-1) ? ctl PRINT_F(k+1) 
+/* RW   B <- (k > 0 )      ? B PRINT_F(k-1) : dataA(m, n) */
+/*          -> (k < sizef-1) ? B PRINT_F(k+1)  */
 BODY
   DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
 END
@@ -101,6 +106,8 @@ PRINT_L(k) [profile = off]
 READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_L(k-1)
           -> (k < sizel-1) ? ctl PRINT_L(k+1)
+/* RW    B <- (k > 0 )      ? B PRINT_L(k-1) : dataA(m, n) */
+/*           -> (k < sizel-1) ? B PRINT_L(k+1) */
 BODY
   DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
 END
@@ -121,6 +128,8 @@ PRINT_U(k) [profile = off]
 READ  A   <- dataA(m, n)
 CTL   ctl <- (k > 0 )      ? ctl PRINT_U(k-1)
           -> (k < sizeu-1) ? ctl PRINT_U(k+1)
+/* RW    B <- (k > 0 )      ? B PRINT_U(k-1) : dataA(m, n) */
+/*           -> (k < sizeu-1) ? B PRINT_U(k+1) */
 BODY
   DRYRUN( dplasma_zprint_tile( m, n, descA, (Dague_Complex64_t *)A ); )
 END
