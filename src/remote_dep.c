@@ -57,7 +57,6 @@ static inline void remote_dep_inc_flying_messages(dague_object_t *dague_object, 
 static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, dague_context_t* ctx)
 {
     __dague_complete_task(dague_object, ctx);
-    assert(dague_object->nb_local_tasks >= 0);
 }
 
 #endif
@@ -243,7 +242,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                             continue;
                         }
                         if( (ACCESS_NONE != exec_context->function->out[i]->access_type) &&  /* controls never take the eager path */ 
-                            (remote_deps->output[i].type->elem_size < RDEP_MSG_EAGER_LIMIT) ) {
+                            ((int)(remote_deps->output[i].type->elem_size) < RDEP_MSG_EAGER_LIMIT) ) {
                             RDEP_MSG_EAGER_SET(&remote_deps->msg);
                         } else {
                             RDEP_MSG_EAGER_CLR(&remote_deps->msg);
