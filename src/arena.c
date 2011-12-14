@@ -115,8 +115,9 @@ void dague_arena_release(dague_arena_chunk_t* ptr)
     dague_arena_chunk_t* chunk = DAGUE_ARENA_PREFIX(ptr);
     assert(DAGUE_ARENA_IS_PTR(ptr));
     dague_arena_t* arena = chunk->origin;
-    assert(NULL != chunk->origin);
-    assert(1 >= chunk->refcount);
+    assert(NULL != arena);
+    assert(0 == (((uintptr_t)arena)%sizeof(uintptr_t))); /* is it aligned */
+    assert(0 == chunk->refcount);
 
     if(arena->released >= arena->max_released) {
         DEBUG(("Arena deallocate a tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
