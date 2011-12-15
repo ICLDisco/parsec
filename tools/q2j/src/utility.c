@@ -1058,11 +1058,6 @@ void DA_insert_first(node_t *block, node_t *new_node){
     block->u.block.first = new_node;
     new_node->next = tmp;
     tmp->prev = new_node;
-/*
-    if( NULL == block->u.block.last ){
-        block->u.block.last = new_node;
-    }
-*/
     assert( NULL != block->u.block.last );
     return;
 }

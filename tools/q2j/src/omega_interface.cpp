@@ -733,14 +733,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         if( (NULL == encl_loop) && (def->task == use->task) && ((DEP_ANTI!=dep_type) || (def != use)) ){
             continue;
         }
-#if 0 // NOTE: finalize_synch_edges() should take care of anti-dependencies, this is old stuff.
-        // If USE and DEF are in the same task and that is not in a loop, there is no data flow, go to the next USE.
-        // However, if we are looking at anti-dependencies and "def == use" (not the tasks, the actual nodes) then
-        // we should keep this contrived edge because we will need to subtract it from all other anti-dep edges.
-        if( (NULL == encl_loop) && (def->task == use->task) && ((DEP_ANTI!=dep_type) || (def != use)) ){
-            continue;
-        }
-#endif
         
         if( NULL == encl_loop && 
             !( after_def && (def->task != use->task) ) &&
@@ -754,12 +746,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             }
             continue;
         }
-
-        // WARNING: As of Dec 2011 the following statement doesn't sound relevant any more. The function
-        // WARNING: finalize_synch_edges() should take care of the anti-dependencies in a much more systematic way.
-        //
-        // If we are recording anti-dependencies then we have to record an INOUT array as an antidepepdency. We will later
-        // subtract the relation of that "self" antidependency from the relations of all other anti-dependencies.
 
         // Create a conjunction to enforce the iteration vectors of src and dst to be Is<=Id or Is<Id.
         if( NULL != encl_loop ){
@@ -775,9 +761,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
                 ge.update_coef(ovar,1);
                 ge.update_coef(ivar,-1);
                 // Create Relation due to "normal" DU chain.
-#if 0 // NOTE: This is pre-Dec'11 logic. finalize_synch_edges() should take care of the anti-dependencies in a much more systematic way.
-                if( (( after_def && (def->task != use->task) ) || ( (DEP_ANTI==dep_type) && (after_def||(def==use)) )) && (tmp == encl_loop) ){
-#endif
                 if( (after_def && (def->task != use->task)) && (tmp == encl_loop) ){
                     // If there this is "normal" DU chain, i.e. there is direct path from src to dst, then the inner most common loop can be n<=n'
                     ;
@@ -796,10 +779,6 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
                 }
             }
         }
-
-// DEBUG
-//        R.print();
-// END DEBUG
 
         // Add equalities demanded by the array subscripts. For example is the DEF is A[k][k] and the
         // USE is A[m][n] then add (k=m && k=n).
@@ -2430,36 +2409,6 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
 }
 
 
-#if 0 // This is algorithmically wrong.
-////////////////////////////////////////////////////////////////////////////////
-// Note: We pass visited_nodes by value, so that the effects of the callee are
-// _not_ visible by the caller.
-void remove_all_self_cycles(tg_node_t *src_nd, set<tg_node_t *> visited_nodes){
-
-    visited_nodes.insert(src_nd);
-
-    for (list<tg_edge_t *>::iterator it = src_nd->edges.begin(); it != src_nd->edges.end(); it++){
-        tg_node_t *next_node = (*it)->dst;
-
-        // If this edge has for destination its source node, then it's
-        // a self cycle and should by removed.
-        if(next_node == src_nd){
-            src_nd->edges.erase(it);
-            continue;
-        }
-
-        // If the destination node of this edge has not been visited, jump to it and continue
-        // traversing the graph.  If the destination node is in our visited set, we ignore it.
-        if( visited_nodes.find(next_node) == visited_nodes.end() ){
-            remove_all_self_cycles(next_node, visited_nodes);
-        }
-    }
-
-    return;
-
-}
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<tg_node_t *> visited_nodes, list<Relation *> relation_fifo, tg_node_t *src_nd, tg_node_t *snk_nd, int just_started){
@@ -2792,16 +2741,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
 //printf("TC of cycles has been computed.\n");
 
-//
-// WARNING: Step 5 in the original algorithm (as submitted to PPoPP'11) is wrong.
-// WARNING: The edges to self _must_ remain in the graph.
-//
-//        // Step 5) Remove all edges from any node to itself (their semantics are
-//        // encapsulated in node.cycle after step 4, so they are not needed).
-//        visited_nodes.clear();
-//        remove_all_self_cycles(source_node, visited_nodes);
-
-        // Step 6) Find the union of the transitive edges that start at source_node and end at
+        // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
 //printf("Computing transitive edge\n");
         visited_nodes.clear();
@@ -3162,77 +3102,6 @@ printf("========================================================================
 
         }
 
-#if 0
-fprintf(stderr,"Working with the anti-deps of %s::%s\n",use->task->task_name, tree_to_str(use));
-
-        Ra0.Null(); // just in case.
-
-        // Iterate over all anti-deps that start from this USE looking for one that has the same
-        // node as its sink (in other words we are looking for an array passed as INOUT to a kernel).
-        map<node_t *, Relation>::iterator ad_it;
-        for(ad_it=anti_deps.begin(); ad_it!=anti_deps.end(); ++ad_it){
-            // Get the sink of the edge.
-            node_t *sink = ad_it->first;
-            if( sink == use ){
-                Ra0 = ad_it->second;
-                break;
-            }
-        }
-
-        // Use this "self edge" (composed with the appropriate output-edge) to reduce all other anti-edges.
-        // But if there is no self edge, add all the anti-deps into the set unchanged.
-
-        // Iterate over all anti-dependency edges (but skip the self-edge).
-        for(ad_it=anti_deps.begin(); ad_it!=anti_deps.end(); ++ad_it){
-            // Get the sink of the edge.
-            node_t *sink = ad_it->first;
-            // skip the self-edge
-            if( sink == use ){
-                continue;
-            }
-            Rai = ad_it->second;
-
-            if( Ra0.is_null() ){
-                dep_t *dep = (dep_t *)calloc(1, sizeof(dep_t));
-                dep->src = use;
-                dep->dst = sink;
-                dep->rel = new Relation(Rai);
-                dep_set.insert(dep);
-            }else{
-                // find an output edge that start where the self-edge starts and ends at "sink".
-                Roi.Null();
-                map<node_t *, map<node_t *, Relation> >::iterator out_src_it;
-                out_src_it = output_sources.find(use);
-                if(out_src_it == output_sources.end()){
-                   fprintf(stderr,"anti w/o out: %s:%s -> %s:%s\n",use->task->task_name, tree_to_str(use), sink->task->task_name, tree_to_str(sink) ); 
-                   exit(-1);
-                }
-                map<node_t *, Relation> output_deps = out_src_it->second;
-
-                map<node_t *, Relation>::iterator od_it;
-                for(od_it=output_deps.begin(); od_it!=output_deps.end(); ++od_it){
-                    // If the sink of this output edge is the same as the sink of the anti-flow we are good.
-                    node_t *od_sink = od_it->first;
-                    if( od_sink == sink ){
-                        Roi = od_it->second;
-                        break;
-                    }
-                }
-
-                // Now we have all the necessary edges, so we perform the operation.
-                if( !Roi.is_null() ){
-                    Relation rKill = Composition(copy(Roi), copy(Ra0));
-                    Rai = Difference(Rai, rKill);
-
-                    dep_t *dep = (dep_t *)calloc(1, sizeof(dep_t));
-                    dep->src = use;
-                    dep->dst = sink;
-                    dep->rel = new Relation(Rai);
-                    dep_set.insert(dep);
-                }
-            }
-        }
-#endif
         // see if the current task already has some synch edges and if so merge them with the new ones.
         map<char *, set<dep_t *> >::iterator edge_it;
         char *task_name = use->task->task_name;
@@ -4116,7 +3985,6 @@ list<char *> print_edges_and_create_pseudotasks(set<dep_t *>outg_deps, set<dep_t
         }else if( !ideps.empty() ){
             printf("  READ  ");
         }else if( !odeps.empty() ){
-            // printf("  WRITE ");
             /* 
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
