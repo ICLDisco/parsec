@@ -159,6 +159,7 @@ subs = {
     ('slarft','dlarft','clarft','zlarft'),
     ('slarnv','dlarnv','clarnv','zlarnv'),
     ('slaswp','dlaswp','claswp','zlaswp'),
+    ('smap','dmap','cmap','zmap'),
     ('spotrf','dpotrf','cpotrf','zpotrf'),
     ('spotrf','dpotrf','cpotrf','zpotrf'),
     ('SPOTRF','DPOTRF','CPOTRF','ZPOTRF'),
