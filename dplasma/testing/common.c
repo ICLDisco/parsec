@@ -426,9 +426,12 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     argvzero = argv[0];
 #endif
 #ifdef HAVE_MPI
-    MPI_Init(&argc, &argv);
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]); 
+    if(provided < MPI_THREAD_SERIALIZED)
+        fprintf(stderr, "!!! MPI serialized thread safety is not provided.\n");
 #else
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_RANK] = 0;
