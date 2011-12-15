@@ -77,7 +77,7 @@ dague_object_t* dplasma_zgeqrf_param_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A
 dague_object_t* dplasma_zgelqf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 dague_object_t *dplasma_zherbt_New( PLASMA_enum uplo, int ib, PLASMA_desc descA, tiled_matrix_desc_t *A, PLASMA_desc descT, tiled_matrix_desc_t *T);
 dague_object_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A);
-dague_object_t* dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
+dague_object_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
 dague_object_t* dplasma_zungqr_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 dague_object_t* dplasma_zungqr_param_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
 
@@ -85,7 +85,7 @@ dague_object_t* dplasma_zungqr_param_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A
 dague_object_t* dplasma_zgetrf_sd_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *LIPIV, int* INFO);
 dague_object_t* dplasma_zpotrf_rl_New(const PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
 dague_object_t* dplasma_zpotrf_ll_New(const PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
-dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
+dague_object_t* dplasma_zpotrfl_New(const PLASMA_enum looking, PLASMA_enum uplo, tiled_matrix_desc_t* A, int* INFO);
 dague_object_t* dplasma_ztrsmpl_sd_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *LIPIV, tiled_matrix_desc_t *B);
 
 /* Auxiliary routines */

@@ -17,8 +17,11 @@ extern "C" %{
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
+#define BLKLDD(_desc, _k) (_desc).mb
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
@@ -29,16 +32,11 @@ extern int *gpu_counter;
 
 /* Globals
  */
-PRI_CHANGE   [type = int]
-uplo         [type = PLASMA_enum]
-INFO         [type = "int*"]
-
-Am   [type = int]
-An   [type = int]
-Amb  [type = int]
-Anb  [type = int]
-Amt  [type = int]
-Ant  [type = int]
+PRI_CHANGE [type = int]
+uplo       [type = PLASMA_enum]
+descA      [type = "tiled_matrix_desc_t"]
+A          [type = "dague_ddesc_t *"]
+INFO       [type = "int*"]
 
 /**************************************************
  *                      POTRF                     *
@@ -46,38 +44,40 @@ Ant  [type = int]
 POTRF(k) [high_priority = on]
 
 // Execution space
-k = 0..Ant-1
+k = 0..descA.nt-1
 
 // Parallel partitioning
 :A(k, k)
 
 // Parameters
 RW T <- (k == 0) ? A(k, k) : T HERK(k-1, k)
-     -> T TRSM(k, k+1..Ant-1)
+     -> T TRSM(k, k+1..descA.nt-1)
      -> A(k, k)
 
-; (k >= (Ant - PRI_CHANGE)) ? (Ant - k) * (Ant - k) * (Ant - k) : 1000000000
-//; (k >= (Ant - PRI_CHANGE)) ? (Ant - k + 7) * (Ant - k + 2) * (Ant - k) / 6 : 0
+; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k) * (descA.nt - k) * (descA.nt - k) : 1000000000
+//; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k + 7) * (descA.nt - k + 2) * (descA.nt - k) / 6 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, k );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-    int tempkn = k == Ant-1 ? An - k*Anb : Anb;
+    int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
     int iinfo = 0;
+    int ldak = BLKLDD( descA, k );
+
     DRYRUN(
         CORE_zpotrf(
-            uplo, tempkn, T, Amb,
+            uplo, tempkn, T, ldak,
             &iinfo );
         if ( iinfo != 0 && *INFO == 0 )
-            *INFO = k*Anb+iinfo; /* Should return here */
+            *INFO = k*descA.nb+iinfo; /* Should return here */
          );
 
     printlog(
              "thread %d CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
              context->eu_id, k, 
-             plasma_const(uplo), tempkn, k, k, T, Amb, iinfo );
+             plasma_const(uplo), tempkn, k, k, T, ldak, iinfo );
 END
 
 
@@ -87,8 +87,8 @@ END
 TRSM(k, n) [high_priority = on]
 
 // Execution space
-k = 0..Ant-2
-n = k+1..Ant-1
+k = 0..descA.nt-2
+n = k+1..descA.nt-1
 
 // Parallel partitioning
 : A(k, n)
@@ -97,12 +97,12 @@ n = k+1..Ant-1
 READ  T <- T POTRF(k)
 RW    C <- (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
         -> A HERK(k, n)
-        -> A GEMM(k, n, n+1..Ant-1)
+        -> A GEMM(k, n, n+1..descA.nt-1)
         -> B GEMM(k, k+1..n-1, n )
         -> A(k, n)
 
-; (n >= (Ant - PRI_CHANGE)) ? (Ant - n) * (Ant - n) * (Ant - n) + 3 * ((2 * Ant) - k - n - 1) * (n - k) : 1000000000
-//;  (n >= (Ant - PRI_CHANGE)) ? (Ant - n - k) * ((Ant - n - k + 1) / 2 + 2) - 1 + (Ant - n + 2) * (Ant - n + 1) * (Ant - n) / 6 : 0
+; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - k - n - 1) * (n - k) : 1000000000
+//;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - k) * ((descA.nt - n - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -110,22 +110,24 @@ BODY
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, k, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-    int tempnn = n == Ant-1 ? An - n * Anb : Anb;
+    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+    int ldak = BLKLDD( descA, k );
+
     DRYRUN(
         CORE_ztrsm(
             PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
-            Amb, tempnn,
-            (Dague_Complex64_t)1.0, T /*A(k, k)*/, Amb,
-                                    C /*A(k, n)*/, Amb);
+            descA.mb, tempnn,
+            (Dague_Complex64_t)1.0, T /*A(k, k)*/, ldak,
+                                    C /*A(k, n)*/, ldak);
         );
 
     printlog("thread %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
              context->eu_id, k, n,
              plasma_const( PlasmaLeft ), plasma_const( PlasmaUpper ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
-             Amb, tempnn,
-             1.0, k, k, T, Amb,
-                  k, n, C, Amb);
+             descA.mb, tempnn,
+             1.0, k, k, T, ldak,
+                  k, n, C, ldak);
 
 END
 
@@ -136,8 +138,8 @@ END
 HERK(k, n) [high_priority = on]
 
 // Execution space
-k = 0..Ant-2
-n = k+1..Ant-1
+k = 0..descA.nt-2
+n = k+1..descA.nt-1
 
 // Parallel partitioning
 : A(n, n)
@@ -147,8 +149,8 @@ READ  A <- C TRSM(k, n)
 RW    T <- (k == 0)   ? A(n, n)    : T HERK(k-1, n)
         -> (n == k+1) ? T POTRF(n) : T HERK(k+1, n)
 
-; (n >= (Ant - PRI_CHANGE)) ? (Ant - n) * (Ant - n) * (Ant - n) + 3 * (n - k) : 1000000000
-//; (n >= (Ant - PRI_CHANGE)) ? (Ant - n + 2) * (Ant - n + 1) * (Ant - n) / 6 + Ant - n + k + 1 : 0
+; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * (n - k) : 1000000000
+//; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - n + k + 1 : 0
 
 BODY
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
@@ -156,21 +158,24 @@ BODY
     gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, n, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
-    int tempnn = n == Ant-1 ? An - n*Anb : Anb;
+    int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldan = BLKLDD( descA, n );
+    
     DRYRUN(
         CORE_zherk(
             PlasmaUpper, PlasmaConjTrans,
-            tempnn, Amb,
-            (double)-1.0, A /*A(k, n)*/, Amb,
-            (double) 1.0, T /*A(n, n)*/, Amb);
+            tempnn, descA.mb,
+            (double)-1.0, A /*A(k, n)*/, ldak,
+            (double) 1.0, T /*A(n, n)*/, ldan);
         );
     printlog(
              "thread %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              context->eu_id, k, n, 
              plasma_const( PlasmaUpper ), plasma_const( PlasmaConjTrans ),
-             tempnn, Amb,
-             -1.0, k, n, A, Amb,
-              1.0, n, n, T, Amb);
+             tempnn, descA.mb,
+             -1.0, k, n, A, ldak,
+              1.0, n, n, T, ldan);
 END
 
 /**************************************************
@@ -180,9 +185,9 @@ END
 GEMM(k, m, n)
 
 // Execution space
-k = 0..Amt-3
-m = k+1..Amt-1
-n = m+1..Ant-1
+k = 0..descA.mt-3
+m = k+1..descA.mt-1
+n = m+1..descA.nt-1
 
 // Parallel partitioning
 : A(m, n)
@@ -193,15 +198,17 @@ READ  B <- C TRSM(k, n)
 RW    C <- (k == 0)   ? A(m, n)      : C GEMM(k-1, m, n)
         -> (m == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
 
-; (n >= (Ant - PRI_CHANGE)) ? (Ant - n) * (Ant - n) * (Ant - n) + 3 * ((2 * Ant) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
-//;  (n >= (Ant - PRI_CHANGE)) ? (Ant - n - m) * ((Ant - m - k + 1) / 2 + 2) - 1 + (Ant - n + 2) * (Ant - n + 1) * (Ant - n) / 6 + Ant - m + k + 1 : 0
+; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - n - m - 3) * (n - m) + 6 * (n - k) : 1000000000
+//;  (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n - m) * ((descA.nt - m - k + 1) / 2 + 2) - 1 + (descA.nt - n + 2) * (descA.nt - n + 1) * (descA.nt - n) / 6 + descA.nt - m + k + 1 : 0
 
 BODY
-    int tempnn = n == Ant-1 ? An - n * Anb : Anb;
+    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldan = BLKLDD( descA, n );
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
+    gpu_mark_data_usage( &descA, DAGUE_READ, k, m );
+    gpu_mark_data_usage( &descA, DAGUE_READ, k, n );
     if( dague_using_gpu() > 0 ) {
         int rc;
 
@@ -218,24 +225,24 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
+    gpu_mark_data_usage( &descA, DAGUE_READ | DAGUE_WRITE, m, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     DRYRUN(
         CORE_zgemm( 
             PlasmaConjTrans, PlasmaNoTrans,
-            Amb, tempnn, Anb,
-            (Dague_Complex64_t)-1.0, A /*A(k, m)*/, Amb,
-                                     B /*A(k, n)*/, Amb,
-            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, Amb );
+            descA.mb, tempnn, descA.nb,
+            (Dague_Complex64_t)-1.0, A /*A(k, m)*/, ldak,
+                                     B /*A(k, n)*/, ldak,
+            (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldan);
         );
     printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
              context->eu_id, k, m, n, 
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
-             Amb, tempnn, Anb,
-             -1.0, k, m, A, Amb,
-                   k, n, B, Amb,
-              1.0, m, n, C, Amb);
+             descA.mb, tempnn, descA.nb,
+             -1.0, k, m, A, ldak,
+                   k, n, B, ldak,
+              1.0, m, n, C, ldan);
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 FIN:

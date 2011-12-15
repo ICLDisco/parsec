@@ -17,7 +17,7 @@
 #include "zpotrf_ll.h"
 
 dague_object_t* 
-dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
+dplasma_zpotrf_New(PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
 {
     dague_object_t *dague_zpotrf = NULL;
     int pri_change = dplasma_aux_get_priority( "POTRF", A );
@@ -31,14 +31,12 @@ dplasma_zpotrf_New(const PLASMA_enum uplo, tiled_matrix_desc_t *A, int *info)
     *info = 0;
     if ( uplo == PlasmaUpper ) {
         dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new(
-            (dague_ddesc_t*)A, 
-            pri_change, uplo, info, 
-            A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+            pri_change, uplo, 
+            *A, (dague_ddesc_t*)A, info);
     } else {
         dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new(
-            (dague_ddesc_t*)A, 
-            pri_change, uplo, info, 
-            A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+            pri_change, uplo, 
+            *A, (dague_ddesc_t*)A, info);
     }
     
     dplasma_add2arena_tile(((dague_zpotrf_Url_object_t*)dague_zpotrf)->arenas[DAGUE_zpotrf_Url_DEFAULT_ARENA], 
@@ -96,10 +94,10 @@ int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix
 }
 
 /*
-+ * Functions for advanced user allowing to choose right or left-looking variant 
-+ */
+ * Functions for advanced user allowing to choose right or left-looking variant 
+ */
 dague_object_t* 
-dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum uplo, 
+dplasma_zpotrfl_New(const PLASMA_enum looking, PLASMA_enum uplo, 
                     tiled_matrix_desc_t *A, int *info)
 {
     dague_object_t *dague_zpotrf = NULL;
@@ -110,14 +108,12 @@ dplasma_zpotrfl_New(const PLASMA_enum looking, const PLASMA_enum uplo,
     if ( looking == PlasmaRight ) {
         if ( uplo == PlasmaUpper ) {
             dague_zpotrf = (dague_object_t*)dague_zpotrf_Url_new(
-                (dague_ddesc_t*)A, 
-                pri_change, uplo, info, 
-                A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+                pri_change, uplo, 
+                *A, (dague_ddesc_t*)A, info);
         } else {
             dague_zpotrf = (dague_object_t*)dague_zpotrf_Lrl_new(
-                (dague_ddesc_t*)A, 
-                pri_change, uplo, info, 
-                A->m, A->n, A->mb, A->nb, A->mt, A->nt);
+                pri_change, uplo, 
+                *A, (dague_ddesc_t*)A, info);
         }
     } /* else { */
     /*     if ( uplo == PlasmaUpper ) { */
