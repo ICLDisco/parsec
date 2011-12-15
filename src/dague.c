@@ -689,8 +689,15 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
-            mpool = new_context->mempool_owner;  /* this should not be copied over from the old execution context */
-            memcpy( new_context, exec_context, sizeof(dague_minimal_execution_context_t) );
+            /* this should not be copied over from the old execution context */
+            mpool = new_context->mempool_owner;
+            /* we copy everything but the dague_list_item_t at the beginning, to
+             * avoid copying uninitialized stuff from the stack
+             */
+            assert( (uintptr_t)new_context == (uintptr_t)&new_context->list_item );
+            memcpy( ((char*)new_context) + sizeof(dague_list_item_t), 
+                    ((char*)exec_context) + sizeof(dague_list_item_t), 
+                    sizeof(dague_minimal_execution_context_t) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
