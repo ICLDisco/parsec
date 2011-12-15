@@ -59,6 +59,36 @@ static inline void remote_dep_dec_flying_messages(dague_object_t *dague_object, 
     __dague_complete_task(dague_object, ctx);
 }
 
+/* Mark that one of the remote deps is finished, and return the remote dep to
+ * the free items queue if it is now done */
+static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
+    deps->output_sent_count++;
+    if(deps->output_count == deps->output_sent_count) {
+        unsigned int count = 0;
+        int k = 0;
+        while( count < deps->output_count ) {
+            for(uint32_t a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
+                deps->output[k].rank_bits[a] = 0;
+            count += deps->output[k].count;
+            deps->output[k].count = 0;
+#if defined(DAGUE_DEBUG)
+            deps->output[k].data = NULL;
+            deps->output[k].type = NULL;
+#endif
+            k++;
+            assert(k < MAX_PARAM_COUNT);
+        }
+        assert(count == deps->output_count);
+        deps->output_count = 0;
+        deps->output_sent_count = 0;
+#if defined(DAGUE_DEBUG)
+        memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
+#endif
+        dague_atomic_lifo_push(deps->origin,           
+             dague_list_item_singleton((dague_list_item_t*) deps));
+    }
+}                                                                                           
+
 #endif
 
 #ifndef DAGUE_DIST_EAGER_LIMIT 
@@ -299,6 +329,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
     assert( (int)dague_remote_dep_context.max_dep_count >= max_output_deps );
     assert( (int)dague_remote_dep_context.max_nodes_number >= np );
 }
+
 
 void remote_deps_allocation_fini(void)
 {
