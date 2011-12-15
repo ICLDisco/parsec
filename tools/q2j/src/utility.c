@@ -27,6 +27,7 @@
 #define TASK_OUT 1
 
 extern char *q2j_input_file_name;
+extern int _q2j_generate_line_numbers;
 
 static dague_linked_list_t _dague_pool_list;
 static var_t *var_head=NULL;
@@ -1868,7 +1869,7 @@ char *create_pool_declarations(){
     return result;
 }
 
-/*
+/* FIXME: This comment is old. It needs to be updated.
  * Traverse the tree containing the QUARK specific code and generate up to five strings.
  * prefix   : The variable declarations (and maybe initializations)
  * pool_pop : The calls to dague_private_memory_pop() for SCRATCH parameters
@@ -1918,9 +1919,13 @@ char *quark_tree_to_body(node_t *node){
     printStr = append_to_string( printStr, ")\\n\"\n           \"\\t(", NULL, 0);
 
     // Create the "#line lineno" directive and append a newline at the end.
-    tmp = int_to_str(node->lineno);
-    tmp = append_to_string(strdup("#line "), tmp, NULL, 0);
-    tmp = append_to_string(tmp, q2j_input_file_name, " \"%s\"\n", 4+strlen(q2j_input_file_name));
+    if(_q2j_generate_line_numbers){
+        tmp = int_to_str(node->lineno);
+        tmp = append_to_string(strdup("#line "), tmp, NULL, 0);
+        tmp = append_to_string(tmp, q2j_input_file_name, " \"%s\"\n", 4+strlen(q2j_input_file_name));
+    }else{
+        tmp = NULL;
+    }
     // Append the call to the kernel after the directive.
     str = append_to_string(tmp, str, "  %s(", 3+strlen(str));
 
@@ -2063,13 +2068,17 @@ char *quark_tree_to_body(node_t *node){
     printStr = append_to_string( printStr, printSuffix, NULL, 0);
     printStr = append_to_string( printStr, ");", NULL, 0);
 
+    prefix = append_to_string( prefix, "\n  DRYRUN(\n", NULL, 0);
     if( NULL != pool_pop )
-        prefix = append_to_string( prefix, pool_pop, "\n%s", 1+strlen(pool_pop) );
+        prefix = append_to_string( prefix, pool_pop, "  %s", 2+strlen(pool_pop) );
 
-    str = append_to_string( prefix, str, "\n%s", 1+strlen(str) );
+    str = append_to_string( prefix, str, "\n  %s", 3+strlen(str) );
 
     if( NULL != pool_push )
-        str = append_to_string( str, pool_push, "\n\n%s", 2+strlen(pool_push) );
+        str = append_to_string( str, pool_push, "\n\n  %s", 4+strlen(pool_push) );
+
+    // close the DRYRUN
+    str = append_to_string( str, "  );\n", NULL, 0);
 
     str = append_to_string( str, printStr, "\n%s", 1+strlen(printStr));
 

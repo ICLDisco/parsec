@@ -2052,14 +2052,20 @@ void print_body(node_t *task_node){
 
 void print_header(){
     printf("extern \"C\" %%{\n"
-           "  /**\n"                 /* The following lines are PLASMA/DPLASMA specific */
-           "   * PLASMA include for defined and constants.\n"
-           "   *\n"
-           "   * @precisions normal z -> s d c\n"
-           "   *\n"
-           "   */\n"
-           "#include <plasma.h>\n"    
-           "#include <core_blas.h>\n" /* The previous lines are PLASMA/DPLASMA specific */
+           "/*\n"
+           " *  Copyright (c) 2010\n"
+           " *\n"
+           " *  The University of Tennessee and The University\n"
+           " *  of Tennessee Research Foundation.  All rights\n"
+           " *  reserved.\n"
+           " *\n"
+           " * @precisions normal z -> s d c\n"
+           " *\n"
+           " */\n"
+           "#define PRECISION_z\n"
+           "\n"
+           "#include <plasma.h>\n"
+           "#include <core_blas.h>\n"
            "\n"
            "#include \"dague.h\"\n"
            "#include \"data_distribution.h\"\n"
@@ -2068,11 +2074,9 @@ void print_header(){
            "#include \"dplasma/lib/memory_pool.h\"\n"
            "#include \"dplasma/lib/dplasmajdf.h\"\n"
            "\n"
-           "#define PRECISION_z\n"
            "#define BLKLDD(_desc, _k) (_desc).mb\n"
            "\n"
-           "%%}\n"
-           "\n");
+           "%%}\n\n");
 }
 
 
