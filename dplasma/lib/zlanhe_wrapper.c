@@ -99,7 +99,6 @@ double dplasma_zlanhe( dague_context_t *dague,
 		       PLASMA_enum uplo,
 		       tiled_matrix_desc_t *A) 
 {
-    dague_map2_object_t *dague_zlanhe = NULL;
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
@@ -151,14 +150,7 @@ double dplasma_zlanhe( dague_context_t *dague,
     args.desc = A;
     
     /* First reduction by tile */
-    dague_zlanhe = dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
-				  uplo, *A, workD.super, 
-				  op, (void *)&args);
-    /* This operation does not communicate, it does not need an arena */
-    dague_zlanhe->arenas[DAGUE_map2_DEFAULT_ARENA] = NULL;
-    dague_enqueue( dague, (dague_object_t*)dague_zlanhe);
-    dplasma_progress(dague);
-    dague_map2_destroy( dague_zlanhe );
+    dplasma_zmap2( dague, uplo, A, (tiled_matrix_desc_t*)&workD, op, (void *)&args );
 
     /* Second one with on element (one double or one vector )  per tile */
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(

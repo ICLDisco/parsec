@@ -98,24 +98,17 @@ dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
 				   tiled_matrix_desc_t *A,
 				   tiled_matrix_desc_t *B)
 {
-    dague_map2_object_t* object;
+    dague_object_t* object;
     zgeadd_args_t *params = (zgeadd_args_t*)malloc(sizeof(zgeadd_args_t));
 
     params->alpha = alpha;
     params->descA = A;
     params->descB = B;
 
-    object = dague_map2_new((dague_ddesc_t*)B, (dague_ddesc_t*)A, 
-			    uplo, *A, *B, 
-			    dague_operator_zgeadd, (void *)params);
+    object = dplasma_zmap2_New(uplo, A, B, 
+                               dague_operator_zgeadd, (void *)params);
 
-    /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_map2_DEFAULT_ARENA], 
-                            A->mb*A->nb*sizeof(Dague_Complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
-    
-    return (dague_object_t*)object;
+    return object;
 }
 
 int dplasma_zgeadd( dague_context_t *dague,
@@ -139,8 +132,7 @@ void
 dplasma_zgeadd_Destruct( dague_object_t *o )
 {
     dague_map2_object_t *dague_zgeadd = (dague_map2_object_t *)o;
-    dplasma_datatype_undefine_type( &(dague_zgeadd->arenas[DAGUE_map2_DEFAULT_ARENA   ]->opaque_dtt) );
     free(dague_zgeadd->op_args);
-    dague_map2_destroy(dague_zgeadd);
+    dplasma_zmap2_Destruct(o);
 }
 
