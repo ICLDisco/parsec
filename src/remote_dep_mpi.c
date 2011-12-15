@@ -767,11 +767,6 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         DAGUE_STATACC_ACCUMULATE(counter_bytes_sent, _size * dep_count);
     }
 #endif
-    /* Proceed with Eager mode now */
-    if(RDEP_MSG_EAGER(msg))
-    {
-       remote_dep_mpi_put_eager(eu_context, rank, msg); 
-    }
     
     /* Do not wait for completion of CTL */
     for(int k=0; msg->which>>k; k++) {
@@ -783,14 +778,21 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         DEBUG((" CTL\t%s\tparam%d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
 #endif
         msg->which ^= (1<<k);
+        if(0 == msg->which) {
+            remote_dep_dec_flying_messages(((dague_remote_deps_t*)msg->deps)->dague_object, eu_context->master_context);
+        }
+        remote_dep_complete_one_and_cleanup(deps);
     }
     
-    /* Have we satisfied all data Put in eager and CTL phases ? */
-    if(0 == msg->which) {
-        remote_dep_dec_flying_messages(((dague_remote_deps_t*)msg->deps)->dague_object, eu_context->master_context);
-        /* TODO: Should we return the remote_dep at this time ? */
+    /* Proceed with Eager mode now */
+    if(RDEP_MSG_EAGER(msg))
+    {
+        dague_object_t* obj = ((dague_remote_deps_t*)msg->deps)->dague_object;
+        remote_dep_mpi_put_eager(eu_context, rank, msg); 
+        /* In eager mode, everything is eager, so we are done, now */
+        remote_dep_dec_flying_messages(obj, eu_context->master_context);
     }
-       
+    
     return 1;
 }
 
@@ -960,8 +962,7 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
 
     }
     active_eagers++;
-    //remote_dep_dec_flying_messages(deps->dague_object, eu_context->master_context);
-    /* TODO: IMPORT THE CLEANUP CODE FROM PUT_END */
+    remote_dep_complete_one_and_cleanup(deps); 
 }
 
 static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i)
@@ -1026,38 +1027,11 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     AUNREF(deps->output[k].data);
     TAKE_TIME(MPIsnd_prof[i], MPI_Data_plds_ek, i);
     task->which ^= (1<<k);
+    /* Are we done yet ? */
     if(0 == task->which) {
         remote_dep_dec_flying_messages(deps->dague_object, eu_context->master_context);
     }
-
-    /* remote_deps cleanup */
-    deps->output_sent_count++;
-    if(deps->output_count == deps->output_sent_count) {
-        unsigned int count;
-
-        k = 0;
-        count = 0;
-        while( count < deps->output_count ) {
-            for(uint32_t a = 0; a < (dague_remote_dep_context.max_nodes_number + 31)/32; a++)
-                deps->output[k].rank_bits[a] = 0;
-            count += deps->output[k].count;
-            deps->output[k].count = 0;
-#if defined(DAGUE_DEBUG)
-            deps->output[k].data = NULL;
-            deps->output[k].type = NULL;
-#endif
-            k++;
-            assert(k < MAX_PARAM_COUNT);
-        }
-        deps->output_count = 0;
-        deps->output_sent_count = 0;
-#if defined(DAGUE_DEBUG)
-        memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
-#endif
-        dague_atomic_lifo_push(deps->origin, 
-                               dague_list_item_singleton((dague_list_item_t*) deps));
-    }
-
+    remote_dep_complete_one_and_cleanup(deps);
     if( 0 == task->which ) {
         free(item);
         dep_pending_put_array[i] = NULL;
