@@ -1,11 +1,22 @@
 extern "C" %{
-
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
 #include <plasma.h>
+#include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
 %}
@@ -15,7 +26,9 @@ extern "C" %{
  */
 uplo     [type = PLASMA_enum]
 descA    [type = "tiled_matrix_desc_t"]
+A        [type = "dague_ddesc_t*"]
 descB    [type = "tiled_matrix_desc_t"]
+B        [type = "dague_ddesc_t*"]
 operator [type = "dague_operator_t" ]
 op_args  [type = "void *" ]
 
