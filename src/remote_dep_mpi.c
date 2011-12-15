@@ -467,7 +467,7 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
     int output_count = deps->output_count;
     remote_dep_wire_activate_t msg = deps->msg;
 
-
+    msg.deps = (uintptr_t)deps;
     msg.which = RDEP_MSG_EAGER(&deps->msg);
     for( k = 0; output_count; k++ ) {
         output_count -= deps->output[k].count;
@@ -775,7 +775,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     
     /* Do not wait for completion of CTL */
     for(int k=0; msg->which>>k; k++) {
-        if(0 == msg->which & (1<<k)) continue;
+        if(0 == (msg->which & (1<<k))) continue;
         dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
         if(NULL != deps->output[k].type) continue;
 #ifdef DAGUE_DEBUG
