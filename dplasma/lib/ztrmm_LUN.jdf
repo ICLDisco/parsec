@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
+ *  Copyright (c) 2010 - 2011
  * 
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
@@ -23,10 +23,10 @@ extern "C" %{
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-side [type = int]
-uplo [type = int]
-trans[type = int]
-diag [type = int]
+side  [type = "PLASMA_enum"]
+uplo  [type = "PLASMA_enum"]
+trans [type = "PLASMA_enum"]
+diag  [type = "PLASMA_enum"]
 
 alpha[type = Dague_Complex64_t]
 
