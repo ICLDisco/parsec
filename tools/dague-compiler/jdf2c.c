@@ -689,23 +689,34 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
-    int nbdata;
+    jdf_dataflow_t* fl;
+    int output_data = 0;
 
     string_arena_init(sa);
 
-    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
-
-    string_arena_add_string(sa, 
-                            "  %s_nblocal_tasks = %s_%s_internal_init(_res);\n"
-                            "  if( 0 == %s_nblocal_tasks ) %s_nblocal_tasks = 10;\n"
-                            "  _res->%s_repository = data_repo_create_nothreadsafe(\n"
-                            "          ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
-                            "          MAX_DATAREPO_HASH :\n"
-                            "          ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);\n",
-                            f->fname, jdf_basename, f->fname,
-                            f->fname, f->fname,
-                            f->fname,
-                            f->fname, f->fname, nbdata);
+    /* Compute the number of output data */
+    for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
+        if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
+    }
+    if( 0 == output_data ) {
+        string_arena_add_string(sa, 
+                                "  %s_nblocal_tasks = %s_%s_internal_init(_res);\n"
+                                "  (void)%s_nblocal_tasks;\n",
+                                f->fname, jdf_basename, f->fname,
+                                f->fname);
+    } else {
+        string_arena_add_string(sa, 
+                                "  %s_nblocal_tasks = %s_%s_internal_init(_res);\n"
+                                "  if( 0 == %s_nblocal_tasks ) %s_nblocal_tasks = 10;\n"
+                                "  _res->%s_repository = data_repo_create_nothreadsafe(\n"
+                                "          ((unsigned int)(%s_nblocal_tasks * 1.5)) > MAX_DATAREPO_HASH ?\n"
+                                "          MAX_DATAREPO_HASH :\n"
+                                "          ((unsigned int)(%s_nblocal_tasks * 1.5)), %d);\n",
+                                f->fname, jdf_basename, f->fname,
+                                f->fname, f->fname,
+                                f->fname,
+                                f->fname, f->fname, output_data);
+    }
 
     return string_arena_get_string(sa);
 }
@@ -2424,8 +2435,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     char* condition[] = {"  if( %s ) {\n", "  else if( %s ) {\n"};
 
     if( JDF_VAR_TYPE_CTL == flow->access_type ) {
-        coutput("  this_task->data[%u].data = NULL;\n"
-                "  this_task->data[%u].data_repo = NULL;\n", flow_index, flow_index);
+        coutput("    /* this_task->data[%u] is a control flow */\n", flow_index);
         return;
     }
     coutput( "  e%s = this_task->data[%u].data_repo;\n"
@@ -2437,7 +2447,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     sa = string_arena_new(64);
     info.sa = sa;
     info.prefix = "";
-    info.assignments = "this_task->locals";
+    info.assignments = "  this_task->locals";
 
     for(dl = flow->deps; dl != NULL; dl = dl->next) {
         if( dl->type == JDF_DEP_TYPE_OUT )
@@ -2706,7 +2716,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                     output);
     }
 
-    coutput("  /** Lookup the input data, and store them in the context */\n");
+    coutput("  /** Lookup the input data, and store them in the context if any */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
@@ -2763,7 +2773,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t *)this_task->dague_object;\n"
             "  (void)context; (void)__dague_object;\n"
-            "%s\n",
+            "%s",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
                                  dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
