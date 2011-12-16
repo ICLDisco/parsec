@@ -158,6 +158,9 @@ double dplasma_zlange( dague_context_t *dague,
 		       PLASMA_enum ntype,
 		       tiled_matrix_desc_t *A) 
 {
+#if defined(DAGUE_DRY_RUN) || defined(DAGUE_PROF_DRY_BODY) || defined(DAGUE_PROF_DRY_DEP)
+    return -1.0;
+#else
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
@@ -236,6 +239,7 @@ double dplasma_zlange( dague_context_t *dague,
 #endif
 
     return result;
+#endif
 }
 
 #if 0
