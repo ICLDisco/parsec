@@ -390,22 +390,6 @@ static char* dump_predicate(void** elem, void *arg)
 }
 
 /**
- * Dump a repository line, like
- * #define F_repo (__dague_object->F_repo)
- */
-static char *dump_repo(void **elem, void *arg)
-{
-    jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
-    string_arena_t *sa = (string_arena_t*)arg;
-
-    string_arena_init(sa);
-    string_arena_add_string(sa, "%s_repo (__dague_object->%s_repository)",
-                            f->fname, f->fname);
-
-    return string_arena_get_string(sa);
-}
-
-/**
  * Parameters of the dump_assignments function
  */
 typedef struct assignment_info {
@@ -985,10 +969,21 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("typedef struct __dague_%s_internal_object {\n", jdf_basename);
     coutput(" dague_%s_object_t super;\n",
             jdf_basename);
-    coutput("  /* The list of data repositories */\n"
-            "%s",
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "  data_repo_t *", "_repository;\n", "_repository;\n"));
+    coutput("  /* The list of data repositories */\n");
+    {
+        jdf_function_entry_t* f;
+        jdf_dataflow_t* fl;
+        int output_data;
+
+        for( f = jdf->functions; NULL != f; f = f->next ) {
+            output_data = 0;
+            for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
+                if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
+            }
+            if( 0 != output_data )
+                coutput("  data_repo_t *%s_repository;\n", f->fname);
+        }
+    }
     coutput("} __dague_%s_internal_object_t;\n"
             "\n", jdf_basename);
 
@@ -1006,9 +1001,22 @@ static void jdf_generate_structure(const jdf_t *jdf)
             UTIL_DUMP_LIST(sa1, jdf->functions, next,
                            dump_predicate, sa2, "", "#define ", "\n", "\n"));
 
-    coutput("/* Data Repositories */\n%s\n",
-            UTIL_DUMP_LIST(sa1, jdf->functions, next,
-                           dump_repo, sa2, "", "#define ", "\n", "\n"));
+    coutput("/* Data Repositories */\n");
+    {
+        jdf_function_entry_t* f;
+        jdf_dataflow_t* fl;
+        int output_data;
+
+        for( f = jdf->functions; NULL != f; f = f->next ) {
+            output_data = 0;
+            for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
+                if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
+            }
+            if( 0 != output_data )
+                coutput("#define %s_repo (__dague_object->%s_repository)\n",
+                        f->fname, f->fname);
+        }
+    }
 
     coutput("/* Dependency Tracking Allocation Macro */\n"
             "#define ALLOCATE_DEP_TRACKING(DEPS, vMIN, vMAX, vNAME, vSYMBOL, PREVDEP, FLAG)               \\\n"
@@ -2058,9 +2066,7 @@ static char *dump_pseudodague(void **elem, void *arg)
 static void jdf_generate_predeclarations( const jdf_t *jdf )
 {
     jdf_function_entry_t *f;
-    int depid;
     jdf_dataflow_t *fl;
-    jdf_dep_t *dl;
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
@@ -2081,25 +2087,9 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     coutput("/** Predeclarations of the parameters */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         for(fl = f->dataflow; fl != NULL; fl = fl->next) {
-            for(depid = 1, dl = fl->deps; dl != NULL; depid++, dl = dl->next) {
-                if( (dl->guard->guard_type == JDF_GUARD_UNCONDITIONAL) ||
-                    (dl->guard->guard_type == JDF_GUARD_BINARY) ) {
-                    if( dl->guard->calltrue->var != NULL ) {
-                        coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
-                                jdf_basename, dl->guard->calltrue->func_or_mem, dl->guard->calltrue->var);
-                    } 
-                } else {
-                    /* dl->guard->guard_type == JDF_GUARD_TERNARY */
-                    if( dl->guard->calltrue->var != NULL ) {
-                        coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
-                                jdf_basename, dl->guard->calltrue->func_or_mem, dl->guard->calltrue->var);
-                    } 
-                    if( dl->guard->callfalse->var != NULL ) {
-                        coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
-                                jdf_basename, dl->guard->callfalse->func_or_mem, dl->guard->callfalse->var);
-                    }
-                }
-            }
+
+            coutput("static const dague_flow_t flow_of_%s_%s_for_%s;\n", 
+                    jdf_basename, f->fname, fl->varname);
         }
     }
 }
@@ -2149,11 +2139,22 @@ static void jdf_generate_destructor( const jdf_t *jdf )
                 jdf_basename, g->name);
     }
 
-    coutput("  /* Destroy the data repositories for this object */\n"
-            "%s",
-            UTIL_DUMP_LIST_FIELD( sa, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "   data_repo_destroy_nothreadsafe(io->", 
-                                  "_repository);\n", "_repository);\n"));
+    coutput("  /* Destroy the data repositories for this object */\n");
+    {
+        jdf_function_entry_t* f;
+        jdf_dataflow_t* fl;
+        int output_data;
+
+        for( f = jdf->functions; NULL != f; f = f->next ) {
+            output_data = 0;
+            for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
+                if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
+            }
+            if( 0 != output_data )
+                coutput("   data_repo_destroy_nothreadsafe(io->%s_repository);\n",
+                        f->fname);
+        }
+    }
 
     coutput("  for(i = 0; i < DAGUE_%s_NB_FUNCTIONS; i++)\n"
             "    dague_destruct_dependencies( d->dependencies_array[i] );\n"
