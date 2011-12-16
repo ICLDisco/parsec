@@ -476,6 +476,9 @@ static char *dump_data_declaration(void **elem, void *arg)
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
+    if(f->access_type == JDF_VAR_TYPE_CTL) 
+        return NULL;
+
     string_arena_init(sa);
 
     string_arena_add_string(sa, 
@@ -2687,31 +2690,35 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
             "#if defined(DAGUE_SIM)\n"
             "  int __dague_simulation_date = 0;\n"
             "#endif\n"
-            "%s\n",
+            "%s",
             name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
                                  dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
     coutput("%s\n",
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
-    coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
-            "%s\n",
-            UTIL_DUMP_LIST(sa, f->dataflow, next,
-                           dump_data_declaration, sa2, "", "", "", ""));
+    {
+        char* output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                                      dump_data_declaration, sa2, "", "", "", "");
+        if( 0 != strlen(output) )
+            coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+                    "%s\n",
+                    output);
+    }
 
     coutput("  /** Lookup the input data, and store them in the context */\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
-        jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
+        if(fl->access_type == JDF_VAR_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        if(fl->access_type != JDF_VAR_TYPE_CTL) 
-            coutput("#if defined(DAGUE_SIM)\n"
-                    "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
-                    "    __dague_simulation_date =  e%s->sim_exec_date;\n"
-                    "#endif\n",
-                    fl->varname,
-                    fl->varname,
-                    fl->varname);
+        jdf_generate_code_flow_initialization(jdf, f->fname, fl, di);
+        coutput("#if defined(DAGUE_SIM)\n"
+                "  if( (NULL != e%s) && (e%s->sim_exec_date > __dague_simulation_date) )\n"
+                "    __dague_simulation_date =  e%s->sim_exec_date;\n"
+                "#endif\n",
+                fl->varname,
+                fl->varname,
+                fl->varname);
     }
     coutput("#if defined(DAGUE_SIM)\n"
             "  if( this_task->function->sim_cost_fct != NULL ) {\n"
@@ -2887,6 +2894,14 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
+    jdf_dataflow_t* fl;
+    int output_data = 0;
+
+    /* Compute the number of real data outputs (not including the control flows */
+    for( fl = f->dataflow; fl != NULL; fl = fl->next) {
+        if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
+    }
+
     coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, uint32_t action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
@@ -2899,15 +2914,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename);
 
-    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
-            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
-            "#if defined(DAGUE_SIM)\n"
-            "    assert(arg.output_entry->sim_exec_date == 0);\n"
-            "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
-            "#endif\n"
-            "  }\n",
-            f->fname, f->fname);
-
     coutput("#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"
             "  arg.remote_deps = NULL;\n"
@@ -2916,9 +2922,18 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "\n",
             jdf_basename, f->fname);
 
-    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
-            "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n"
-            "    if( NULL != arg.ready_list ) {\n"
+    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n");
+    if( 0 != output_data )
+        coutput("    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
+                "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n"
+                "#if defined(DAGUE_SIM)\n"
+                "    assert(arg.output_entry->sim_exec_date == 0);\n"
+                "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
+                "#endif\n",
+                f->fname, f->fname,
+                f->fname);
+
+    coutput("    if( NULL != arg.ready_list ) {\n"
             "      __dague_schedule(eu, arg.ready_list);\n"
             "      arg.ready_list = NULL;\n"
             "    }\n"
@@ -2927,11 +2942,10 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  if( (action_mask & DAGUE_ACTION_SEND_REMOTE_DEPS) && arg.remote_deps_count ) {\n"
             "    arg.nb_released += dague_remote_dep_activate(eu, context, arg.remote_deps, arg.remote_deps_count);\n"
             "  }\n"
-            "#endif\n",
-            f->fname);
+            "#endif\n");
 
-
-    jdf_generate_code_free_hash_table_entry(jdf, f);
+    if( 0 != output_data )
+        jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput("  assert( NULL == arg.ready_list );\n"
             "  return arg.nb_released;\n"
