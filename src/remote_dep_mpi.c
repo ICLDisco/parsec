@@ -385,6 +385,7 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
             /* A DEP_CTL is a barrier that must not be crossed, flush the
              * ordered fifo and don't add anything until it is consumed */
             if( !dague_fifo_is_empty(&dep_cmd_fifo) ) {
+                DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)item);
                 dague_dequeue_push_front(&dep_cmd_queue, (dague_list_item_t*)item);
                 break;
             } else goto handle_now;
@@ -410,6 +411,7 @@ static int remote_dep_dequeue_nothread_progress_one(dague_execution_unit_t* eu_c
 handle_now:
     switch(item->action) {
     case DEP_ACTIVATE:
+        assert(dep_enabled);
         remote_dep_nothread_send(eu_context, item->cmd.activate.rank, item->cmd.activate.deps);
         break;
     case DEP_CTL:
@@ -426,6 +428,7 @@ handle_now:
         }
         break;
     case DEP_MEMCPY:
+        assert(dep_enabled);
         remote_dep_nothread_memcpy(item->cmd.memcpy.destination, 
                                    item->cmd.memcpy.source,
                                    item->cmd.memcpy.datatype);
@@ -808,8 +811,8 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     
     if(eu_context->eu_id != 0) return 0;
     
-    assert(dep_enabled);
     do {
+        assert(dep_enabled);
         MPI_Testsome(DEP_NB_REQ, array_of_requests, &outcount, array_of_indices, array_of_statuses);
         if(0 == outcount) break;  /* nothing ready right now */
         for( index = 0; index < outcount; index++ ) {
