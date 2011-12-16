@@ -2924,6 +2924,18 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename);
 
+    if( 0 != output_data )
+        coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
+                "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
+                "#if defined(DAGUE_SIM)\n"
+                "    assert(arg.output_entry->sim_exec_date == 0);\n"
+                "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
+                "#endif\n"
+                "  }\n",
+                f->fname, f->fname);
+    else
+        coutput("  arg.output_entry = NULL;\n");
+
     coutput("#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps_count = 0;\n"
             "  arg.remote_deps = NULL;\n"
@@ -2932,15 +2944,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "\n",
             jdf_basename, f->fname);
 
-    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n");
+    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n");
     if( 0 != output_data )
-        coutput("    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
-                "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n"
-                "#if defined(DAGUE_SIM)\n"
-                "    assert(arg.output_entry->sim_exec_date == 0);\n"
-                "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
-                "#endif\n",
-                f->fname, f->fname,
+        coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
                 f->fname);
 
     coutput("    if( NULL != arg.ready_list ) {\n"
