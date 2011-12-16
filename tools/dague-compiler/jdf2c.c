@@ -886,6 +886,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
     houtput("#include <dague.h>\n"
+            "#include <debug.h>\n"
             "#include <assert.h>\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
@@ -1578,8 +1579,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("#if defined(DAGUE_DEBUG)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
-            "%s    printf(\"Add startup task %%s\\n\",\n"
-            "%s           dague_service_to_string(new_context, tmp, 128));\n"
+            "%s    DEBUG((\"Add startup task %%s\\n\",\n"
+            "%s           dague_service_to_string(new_context, tmp, 128)));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 

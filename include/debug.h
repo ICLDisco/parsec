@@ -41,6 +41,11 @@ static inline char* arprintf(const char* fmt, ...)
 
 #include <mpi.h>
 
+#if defined(DAGUE_DEBUG_HISTORY)
+void dague_debug_history_add(const char *format, ...);
+#define DEBUG(ARG) dague_debug_history_add ARG
+#else /* DAGUE_DEBUG_HISTORY */
+
 #define DEBUG(ARG)  do { \
     int __debug_rank; \
     char* __debug_str; \
@@ -50,9 +55,16 @@ static inline char* arprintf(const char* fmt, ...)
     free(__debug_str); \
 } while(0)
 
+#endif
+
 #   else /* HAVE_MPI */
 
+#if defined(DAGUE_DEBUG_HISTORY)
+void dague_debug_history_add(const char *format, ...);
+#define DEBUG(ARG) dague_debug_history ARG
+#else
 #define DEBUG(ARG) printf ARG
+#endif
 
 #   endif /* HAVE_MPI */
 

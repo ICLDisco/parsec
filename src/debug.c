@@ -97,6 +97,7 @@ typedef struct {
 #define TYPE_SEND_END_DTA         6
 #define TYPE_RECV_START_DTA       7
 #define TYPE_RECV_END_DTA         8
+#define TYPE_GENERAL_MESSAGE      9
 
 typedef struct {
     uint32_t fromto;
@@ -110,10 +111,13 @@ typedef struct {
 } communication_mark_t;
 
 typedef struct {
-    int core;  /**< if core < 0, this is the MPI core, and a message mark. Otherwise it's an execution mark */
+    int core;  /**< if core == -1, this is the MPI core, and a message mark. 
+                  < if core == -2, this is a general message, without core information.
+                  <  Otherwise it's an execution mark */
     union {
         execution_mark_t     exe;
         communication_mark_t comm;
+        char                *general_message;
     } u;
 } mark_t;
 
@@ -124,9 +128,34 @@ static mark_t   marks[MAX_MARKS];
 static inline mark_t *get_my_mark(void)
 {
     uint32_t mymark_idx = dague_atomic_inc_32b(&nextmark) - 1;
+    char *m;
     mymark_idx %= MAX_MARKS;
     
+    if( marks[mymark_idx].core == -2 ) {
+        /* This was a general message, let's free it before we get this mark back */
+        do {
+            m = marks[mymark_idx].u.general_message;
+        } while( !dague_atomic_cas( &marks[mymark_idx].u.general_message, m, NULL ) );
+        /* This could happen if somebody is printing at the same time as I'm getting this */
+        if( m != NULL )
+            free(m);
+    }
+
     return (&marks[mymark_idx]);
+}
+
+void dague_debug_history_add(const char *format, ...)
+{
+    mark_t *mark = get_my_mark();
+    char* debug_str;
+    va_list args;
+    
+    va_start(args, format);
+    vasprintf(&debug_str, format, args);
+    va_end(args);
+    
+    mark->core = -2;
+    mark->u.general_message = debug_str;
 }
 
 void debug_mark_exe(int core, const struct dague_execution_context_t *ctx)
@@ -248,20 +277,27 @@ void debug_mark_dta_msg_end_recv(int tag)
 
 void debug_mark_display_history(void)
 {
-    uint32_t current_mark = nextmark;
-    uint32_t i, j;
+    int current_mark = nextmark;
+    int i, j;
     mark_t  *m;
     char msg[512];
     int pos, len = 512;
     const dague_function_t *f;
     const dague_object_t* object;
+    char *gm;
+    int rank;
+#if defined(HAVE_MPI)
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    rank = 0;
+#endif
 
     current_mark = current_mark > MAX_MARKS ? MAX_MARKS : current_mark;
-    for(i = nextmark % MAX_MARKS; i != (nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
+    for(i = ( (int)nextmark % MAX_MARKS); i != ( (int)nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
         m = &marks[i];
         pos = 0;
 
-        if( m->core < 0 ) {
+        if( m->core == -1 ) {
             /** This is a communication mark */
             switch( m->u.comm.type ) {
             case TYPE_SEND_ACTIVATE:
@@ -360,8 +396,8 @@ void debug_mark_display_history(void)
                                 (int)reali(i), (int)m->u.comm.type);
                 break;
             }
-            fprintf(stderr, "%s", msg);
-        } else {
+            fprintf(stderr, "[%d]: %s", rank, msg);
+        } else if( m->core >= 0 ) {
             pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", (int)reali(i), (int)m->core);
             pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
             for(j = 0; j < m->u.exe.function->nb_parameters; j++) {
@@ -369,10 +405,22 @@ void debug_mark_display_history(void)
                                 j, m->u.exe.locals[j].value,
                                 (j == m->u.exe.function->nb_parameters-1) ? ")\n" : ", ");
             }
-            fprintf(stderr, "%s", msg);
+            fprintf(stderr, "[%d]: %s", rank, msg);
+        } else if( m->core == -2) {
+            do {
+                gm = m->u.general_message;
+            } while( !dague_atomic_cas( &m->u.general_message, gm, NULL ) );
+            if( gm != NULL ) {
+                fprintf(stderr, "[%d]: %s", rank, gm);
+                free(gm);
+            } else {
+                fprintf(stderr, "[%d]: -- This mark was already displayed, or has not been pushed yet\n", rank);
+            }
+        } else {
+            fprintf(stderr, "Unknown mark type %d\n", m->core);
         }
     }
-    fprintf(stderr, "DISPLAYING last %u of %u events\n", current_mark, nextmark);
+    fprintf(stderr, "DISPLAYED last %u of %u events\n", current_mark, nextmark);
 }
 
 #endif
