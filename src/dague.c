@@ -807,9 +807,11 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
-        arg->output_usage++;
-        AREF( arg->output_entry->data[out_index] );
+        if( NULL != arg->output_entry ) {
+            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
+            arg->output_usage++;
+            AREF( arg->output_entry->data[out_index] );
+        }
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,
                                                                  oldcontext->function->out[out_index],
