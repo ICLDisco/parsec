@@ -122,26 +122,33 @@ typedef struct {
 } mark_t;
 
 #define MAX_MARKS 96
-static volatile uint32_t nextmark = 0;
-static mark_t   marks[MAX_MARKS];
+
+typedef struct {
+    volatile uint32_t nextmark;
+    mark_t marks[MAX_MARKS];
+} mark_buffer_t;
+
+static mark_buffer_t marks_A = {.nextmark = 0},
+                     marks_B = {.nextmark = 0};
+static mark_buffer_t  *marks = &marks_A;
 
 static inline mark_t *get_my_mark(void)
 {
-    uint32_t mymark_idx = dague_atomic_inc_32b(&nextmark) - 1;
+    uint32_t mymark_idx = dague_atomic_inc_32b(&marks->nextmark) - 1;
     char *m;
     mymark_idx %= MAX_MARKS;
     
-    if( marks[mymark_idx].core == -2 ) {
+    if( marks->marks[mymark_idx].core == -2 ) {
         /* This was a general message, let's free it before we get this mark back */
         do {
-            m = marks[mymark_idx].u.general_message;
-        } while( !dague_atomic_cas( &marks[mymark_idx].u.general_message, m, NULL ) );
+            m = marks->marks[mymark_idx].u.general_message;
+        } while( !dague_atomic_cas( &marks->marks[mymark_idx].u.general_message, m, NULL ) );
         /* This could happen if somebody is printing at the same time as I'm getting this */
         if( m != NULL )
             free(m);
     }
 
-    return (&marks[mymark_idx]);
+    return (&marks->marks[mymark_idx]);
 }
 
 void dague_debug_history_add(const char *format, ...)
@@ -273,11 +280,11 @@ void debug_mark_dta_msg_end_recv(int tag)
     mymark->u.comm.msg.tag = tag;
 }
 
-#define reali(i) (i+nextmark)
+#define reali(m, i) (int)(i+m->nextmark)
 
 void debug_mark_display_history(void)
 {
-    int current_mark = nextmark;
+    int current_mark;
     int i, j;
     mark_t  *m;
     char msg[512];
@@ -285,6 +292,7 @@ void debug_mark_display_history(void)
     const dague_function_t *f;
     const dague_object_t* object;
     char *gm;
+    mark_buffer_t *cmark, *nmark;
     int rank;
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -292,9 +300,22 @@ void debug_mark_display_history(void)
     rank = 0;
 #endif
 
-    current_mark = current_mark > MAX_MARKS ? MAX_MARKS : current_mark;
-    for(i = ( (int)nextmark % MAX_MARKS); i != ( (int)nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
-        m = &marks[i];
+    /* Atomically swap the current marks buffer, to avoid the case when we read
+     * something that is changing
+     */
+    cmark = marks;
+    nmark = (marks == &marks_A ? &marks_B : &marks_A );
+    nmark->nextmark = 0;
+    /* This CAS can only fail if debug_mark_display_history is called
+     * in parallel by two threads. The atomic swap is not wanted for that,
+     * it is wanted to avoid reading from the buffer that is being used to
+     * push new marks.
+     */
+    dague_atomic_cas( &marks, cmark, nmark );
+
+    current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
+    for(i = ( (int)cmark->nextmark % MAX_MARKS); i != ( (int)cmark->nextmark + MAX_MARKS - 1) % MAX_MARKS; i = (i + 1) % MAX_MARKS) {
+        m = &cmark->marks[i];
         pos = 0;
 
         if( m->core == -1 ) {
@@ -302,10 +323,14 @@ void debug_mark_display_history(void)
             switch( m->u.comm.type ) {
             case TYPE_SEND_ACTIVATE:
                 pos += snprintf(msg+pos, len-pos, "mark %d: emission of an activate message to %d\n", 
-                                (int)reali(i), (int)m->u.comm.fromto);
+                                reali(cmark, i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n",
                                 m->u.comm.buffer);
                 object = dague_object_lookup( m->u.comm.msg.activate.object_id );
+                if( object == NULL || object->functions_array[m->u.comm.msg.activate.function_id] == NULL ) {
+                    pos += snprintf(msg+pos, len-pos, "\t    Message changed during reading.\n");
+                    break;
+                }
                 f = object->functions_array[m->u.comm.msg.activate.function_id];
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_parameters; j++) {
@@ -320,10 +345,14 @@ void debug_mark_display_history(void)
 
             case TYPE_RECV_ACTIVATE:
                 pos += snprintf(msg+pos, len-pos, "mark %d: reception of an activate message from %d\n", 
-                                (int)reali(i), (int)m->u.comm.fromto);
+                                reali(cmark, i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 object = dague_object_lookup( m->u.comm.msg.activate.object_id );
+                if( object == NULL || object->functions_array[m->u.comm.msg.activate.function_id] == NULL ) {
+                    pos += snprintf(msg+pos, len-pos, "\t    Message changed during reading.\n");
+                    break;
+                }
                 f = object->functions_array[m->u.comm.msg.activate.function_id];
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_parameters; j++) {
@@ -340,7 +369,7 @@ void debug_mark_display_history(void)
 
             case TYPE_SEND_GET:
                 pos += snprintf(msg+pos, len-pos, "mark %d: emission of a Get control message to %d\n", 
-                                (int)reali(i), (int)m->u.comm.fromto);
+                                reali(cmark, i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emission\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      deps requested = 0x%X\n",
@@ -353,7 +382,7 @@ void debug_mark_display_history(void)
 
             case TYPE_RECV_GET:
                 pos += snprintf(msg+pos, len-pos, "mark %d: reception of a Get control message from %d\n", 
-                                (int)reali(i), (int)m->u.comm.fromto);
+                                reali(cmark, i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      deps requested = 0x%X\n",
@@ -366,7 +395,7 @@ void debug_mark_display_history(void)
 
             case TYPE_SEND_START_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Start emitting data to %d\n", 
-                                (int)reali(i), (int)m->u.comm.fromto);
+                                reali(cmark, i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emission\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the emission of data = %d\n",
@@ -375,12 +404,12 @@ void debug_mark_display_history(void)
 
             case TYPE_SEND_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done sending data of tag %d\n", 
-                                (int)reali(i), (int)m->u.comm.msg.tag);
+                                reali(cmark, i), (int)m->u.comm.msg.tag);
                 break;
 
             case TYPE_RECV_START_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Start receiving data from %d\n", 
-                                (int)reali(i), (int)m->u.comm.fromto);
+                                reali(cmark, i), (int)m->u.comm.fromto);
                 pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n",
                                 m->u.comm.buffer);
                 pos += snprintf(msg+pos, len-pos, "\t      tag for the reception of data = %d\n",
@@ -389,21 +418,25 @@ void debug_mark_display_history(void)
 
             case TYPE_RECV_END_DTA:
                 pos += snprintf(msg+pos, len-pos, "mark %d: Done receiving data with tag %d\n", 
-                                (int)reali(i), (int)m->u.comm.msg.tag);
+                                reali(cmark, i), (int)m->u.comm.msg.tag);
                 break;
             default: 
                 pos += snprintf(msg+pos, len-pos, "mark %d: WAT? type %d\n", 
-                                (int)reali(i), (int)m->u.comm.type);
+                                reali(cmark, i), (int)m->u.comm.type);
                 break;
             }
             fprintf(stderr, "[%d]: %s", rank, msg);
         } else if( m->core >= 0 ) {
-            pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", (int)reali(i), (int)m->core);
-            pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
-            for(j = 0; j < m->u.exe.function->nb_parameters; j++) {
-                pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s",
-                                j, m->u.exe.locals[j].value,
-                                (j == m->u.exe.function->nb_parameters-1) ? ")\n" : ", ");
+            pos += snprintf(msg+pos, len-pos, "mark %d: execution on core %d\n", reali(cmark, i), (int)m->core);
+            if( m->u.exe.function == NULL ) {
+                pos += snprintf(msg+pos, len-pos, "\t      Message changed while reading it, ignored\n");
+            } else {
+                pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
+                for(j = 0; j < m->u.exe.function->nb_parameters; j++) {
+                    pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s",
+                                    j, m->u.exe.locals[j].value,
+                                    (j == m->u.exe.function->nb_parameters-1) ? ")\n" : ", ");
+                }
             }
             fprintf(stderr, "[%d]: %s", rank, msg);
         } else if( m->core == -2) {
@@ -420,7 +453,7 @@ void debug_mark_display_history(void)
             fprintf(stderr, "Unknown mark type %d\n", m->core);
         }
     }
-    fprintf(stderr, "DISPLAYED last %u of %u events\n", current_mark, nextmark);
+    fprintf(stderr, "DISPLAYED last %u of %u events pushed since last display\n", current_mark, cmark->nextmark);
 }
 
 #endif
