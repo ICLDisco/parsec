@@ -88,9 +88,9 @@
 
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN
-#define myassert( test ) if ( ! (test) ) return -1;
+#define myassert( test ) {if ( ! (test) ) return -1;}
 #else
-#define myassert assert
+#define myassert(test) {assert((test)); return -1;}
 #endif
 
 /*
@@ -1424,7 +1424,6 @@ int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
 
     /* We should never arrive here */
     myassert( 0 );
-    return -1;
 }
 
 /****************************************************
