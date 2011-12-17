@@ -334,7 +334,7 @@ void debug_mark_display_history(void)
                 f = object->functions_array[m->u.comm.msg.activate.function_id];
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_parameters; j++) {
-                    pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s", 
+                    pos += snprintf(msg+pos, len-pos, "locals[%d]=%d%s", 
                                     j,
                                     m->u.comm.msg.activate.locals[j].value,
                                     (j == f->nb_parameters - 1) ? ")\n" : ", ");
@@ -356,7 +356,7 @@ void debug_mark_display_history(void)
                 f = object->functions_array[m->u.comm.msg.activate.function_id];
                 pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
                 for(j = 0; j < f->nb_parameters; j++) {
-                    pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s", 
+                    pos += snprintf(msg+pos, len-pos, "locals[%d]=%d%s", 
                                     j,
                                     m->u.comm.msg.activate.locals[j].value,
                                     (j == f->nb_parameters - 1) ? ")\n" : ", ");
@@ -433,7 +433,7 @@ void debug_mark_display_history(void)
             } else {
                 pos += snprintf(msg+pos, len-pos, "\t      %s(", m->u.exe.function->name);
                 for(j = 0; j < m->u.exe.function->nb_parameters; j++) {
-                    pos += snprintf(msg+pos, len-pos, "locals[%u]=%d%s",
+                    pos += snprintf(msg+pos, len-pos, "locals[%d]=%d%s",
                                     j, m->u.exe.locals[j].value,
                                     (j == m->u.exe.function->nb_parameters-1) ? ")\n" : ", ");
                 }
@@ -453,7 +453,7 @@ void debug_mark_display_history(void)
             fprintf(stderr, "Unknown mark type %d\n", m->core);
         }
     }
-    fprintf(stderr, "DISPLAYED last %u of %u events pushed since last display\n", current_mark, cmark->nextmark);
+    fprintf(stderr, "DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark);
 }
 
 #endif
