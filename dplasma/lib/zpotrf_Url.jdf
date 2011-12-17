@@ -207,8 +207,8 @@ BODY
     int ldan = BLKLDD( descA, n );
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
-    gpu_mark_data_usage( &descA, DAGUE_READ, k, m );
-    gpu_mark_data_usage( &descA, DAGUE_READ, k, n );
+    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, m );
+    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ, k, n );
     if( dague_using_gpu() > 0 ) {
         int rc;
 
@@ -225,7 +225,7 @@ BODY
         }
         /* Continue with the task on the cores */
     }
-    gpu_mark_data_usage( &descA, DAGUE_READ | DAGUE_WRITE, m, n );
+    gpu_mark_data_usage( (tiled_matrix_desc_t*)__dague_object->super.A, DAGUE_READ | DAGUE_WRITE, m, n );
 #endif  /* defined(HAVE_CUDA) && defined(PRECISION_s) */
 
     DRYRUN(
