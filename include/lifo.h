@@ -191,8 +191,7 @@ static inline void dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
 #endif
 
     DAGUE_ATTACH_ELEMS(lifo, items);
-    tp = DAGUE_LIFO_VAL( items,
-                         (items->keeper_of_the_seven_keys + 1) % DAGUE_LIFO_ALIGNMENT );
+    tp = DAGUE_LIFO_VAL( items, (items->keeper_of_the_seven_keys + 1) );
     do {
         tail->list_next = lifo->lifo_head;
         if( dague_atomic_cas( &(lifo->lifo_head),
