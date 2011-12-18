@@ -308,7 +308,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
         /* compute the maximum size of the dependencies array */
         int rankbits_size = sizeof(uint32_t) * ((np + 31)/32);
         dague_remote_deps_t fake_rdep;
-        dague_remote_dep_inited = 1;
+
         dague_remote_dep_context.max_dep_count = max_output_deps;
         dague_remote_dep_context.max_nodes_number = np;
         dague_remote_dep_context.elem_size = 
@@ -319,6 +319,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
         dague_atomic_lifo_construct(&dague_remote_dep_context.freelist);
+        dague_remote_dep_inited = 1;
     }
 
     assert( (int)dague_remote_dep_context.max_dep_count >= max_output_deps );
@@ -330,12 +331,12 @@ void remote_deps_allocation_fini(void)
 {
     dague_remote_deps_t* rdeps;
         
-    assert(dague_remote_dep_inited);
-    while(NULL != (rdeps = (dague_remote_deps_t*) dague_atomic_lifo_pop(&dague_remote_dep_context.freelist)))
-    {
-        free(rdeps);
+    if(1 == dague_remote_dep_inited) {
+        while(NULL != (rdeps = (dague_remote_deps_t*) dague_atomic_lifo_pop(&dague_remote_dep_context.freelist))) {
+            free(rdeps);
+        }
+        dague_atomic_lifo_destruct(&dague_remote_dep_context.freelist);
     }
-    dague_atomic_lifo_destruct(&dague_remote_dep_context.freelist);
     dague_remote_dep_inited = 0;
 } 
 
