@@ -35,8 +35,10 @@ int dplasma_datatype_define_lower( dague_remote_dep_datatype_t oldtype,
 int dplasma_datatype_undefine_type(dague_remote_dep_datatype_t* type);
 
 #define dplasma_progress( object )              \
-  MPI_Barrier(dplasma_comm);                    \
-  dague_progress( object );
+    do {                                        \
+        MPI_Barrier(dplasma_comm);              \
+        dague_progress( object );               \
+    } while (0)
 
 #else
 # define MPI_DOUBLE_COMPLEX NULL
