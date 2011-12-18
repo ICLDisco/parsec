@@ -110,22 +110,17 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #ifdef DISTRIBUTED
 int dague_remote_dep_init(dague_context_t* context)
 {
-    int np;
-    
-    np = (int32_t) remote_dep_init(context);
-    /* Worst case: one of the DAGs is going to use up to 
-     * MAX_PARAM_COUNT times nb_nodes dependencies.
-     */
-    remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);
-    if(np > 1)
+    (void)remote_dep_init(context);
+
+    if(context->nb_nodes > 1)
     {
-        context->remote_dep_fw_mask_sizeof = ((np + 31) / 32) * sizeof(uint32_t);
+        context->remote_dep_fw_mask_sizeof = ((context->nb_nodes + 31) / 32) * sizeof(uint32_t);
     }
     else 
     {
         context->remote_dep_fw_mask_sizeof = 0; /* hoping memset(0b) is fast */
     }
-    return np;
+    return context->nb_nodes;
 }
 
 int dague_remote_dep_fini(dague_context_t* context)
