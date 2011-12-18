@@ -25,7 +25,7 @@ static inline dague_list_item_t* dague_fifo_push( dague_fifo_t* fifo,
     elem->list_next = &(fifo->fifo_ghost);
     elem->list_prev->list_next = elem;
     elem->list_next->list_prev = elem;
-    DAGUE_ATTACH_ELEM(fifo, elem);
+    DAGUE_ATTACH_ELEMS(fifo, elem);
     return elem;
 }
 
