@@ -11,7 +11,6 @@
 
 #include <mpi.h>
 #include "profiling.h"
-#include "freelist.h"
 #include "arena.h"
 #include "fifo.h"
 
