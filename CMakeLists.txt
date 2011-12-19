@@ -398,7 +398,6 @@ set(SRCS
   src/stats.c 
   src/remote_dep.c 
   src/barrier.c 
-  src/freelist.c 
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
