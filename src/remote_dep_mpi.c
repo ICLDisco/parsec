@@ -13,6 +13,7 @@
 #include "profiling.h"
 #include "arena.h"
 #include "fifo.h"
+#include "barrier.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 
@@ -145,8 +146,7 @@ dague_dep_wire_get_fifo_elem_t** dep_pending_put_array;
 static void *remote_dep_dequeue_main(dague_context_t* context);
 static int mpi_initialized = 0;
 #if defined(DAGUE_REMOTE_DEP_USE_THREADS)
-static pthread_mutex_t mpi_thread_mutex;
-static pthread_cond_t mpi_thread_condition;
+static dague_barrier_t dep_barrier;
 #endif
 
 static int remote_dep_dequeue_init(dague_context_t* context)
@@ -173,27 +173,17 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT,sizeof(dague_dep_wire_get_fifo_elem_t*));
 
     /* Build the condition used to drive the MPI thread */
-    pthread_mutex_init( &mpi_thread_mutex, NULL );
-    pthread_cond_init( &mpi_thread_condition, NULL );
+    dague_barrier_init(&dep_barrier, NULL, 2);
 
-    remote_dep_mpi_init(context);
     pthread_attr_init(&thread_attr);
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 
-    /**
-     * We need to synchronize with the newly spawned thread. We will use
-     * the condition for this. If we lock the mutex prior to spawning the
-     * MPI thread, and then go in a condition wait, the MPI thread can
-     * lock the mutex, and then call condition signal. This insure
-     * proper synchronization. Similar mechanism will be used to turn
-     * on and off the MPI thread.
-     */
-    pthread_mutex_lock(&mpi_thread_mutex);
     pthread_create(&dep_thread_id,
                    &thread_attr,
                    (void* (*)(void*))remote_dep_dequeue_main,
                    (void*)context);
-    pthread_cond_wait( &mpi_thread_condition, &mpi_thread_mutex );
+    /* First barrier: wait that mpi thread has initialized */ 
+    dague_barrier_wait(&dep_barrier);
     mpi_initialized = 1;  /* up and running */
 
     return context->nb_nodes;
@@ -222,19 +212,15 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         DAGUE_LIST_ITEM_SINGLETON(item);
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 
-        /* I am supposed to own the lock. Wake the MPI thread */
-        pthread_cond_signal(&mpi_thread_condition);
-        pthread_mutex_unlock(&mpi_thread_mutex);
-
+        /* MPI thread is off, unlock Barrier 2 to process the CTL */
+        dague_barrier_wait(&dep_barrier);
+        /* MPI thread processes the off CTL, it is done at Barrier 3 */
+        dague_barrier_wait(&dep_barrier);
         pthread_join(dep_thread_id, (void**) &ret);
         assert(ret == context);
     }
 
-    /* Release all resources */
-    remote_dep_mpi_fini(context);
-
-    free( dep_pending_put_array );
-    free( dep_pending_recv_array );
+    dague_barrier_destroy(&dep_barrier);
     return 0;
 }
 
@@ -264,16 +250,11 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
 }
 #endif
 
-static volatile int mpi_thread_marker = 0;
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
     if(1 == context->nb_nodes) return 0;
-
-    /* At this point I am supposed to own the mutex */
-    mpi_thread_marker = 1;
-    pthread_cond_signal(&mpi_thread_condition);
-    pthread_mutex_unlock(&mpi_thread_mutex);
-
+    /* Second barrier: unlock the progress */
+    dague_barrier_wait(&dep_barrier);
     return 1;
 }
 
@@ -286,10 +267,9 @@ static int remote_dep_dequeue_off(dague_context_t* context)
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
     DAGUE_LIST_ITEM_SINGLETON(item);
-    while( 1 == mpi_thread_marker ) sched_yield();
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
-
-    pthread_mutex_lock(&mpi_thread_mutex);
+    /* Third barrier: wait for completion of the progress */
+    dague_barrier_wait(&dep_barrier);
     return 0;
 }
 
@@ -419,7 +399,6 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
     dep_cmd_item_t* item;
     int ret = 0;
 
-    remote_dep_mpi_on(NULL);
  check_pending_queues:
     /**
      * Move as many elements as possible from the dequeue into our ordered lifo.
@@ -482,23 +461,24 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     if(ctl != context->nb_cores) do_nano = 1;
     else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
 
-    /* Now synchroniza with the main thread */
-    pthread_mutex_lock(&mpi_thread_mutex);
-    pthread_cond_signal(&mpi_thread_condition);
+    remote_dep_mpi_init(context);
+    /* First barrier: sync with dequeue_init */
+    dague_barrier_wait(&dep_barrier);
 
     /* This is the main loop. Wait until being woken up by the main thread,
      * do the MPI stuff until we get the OFF or FINI commands. Then
      * react the them.
      */
     do {
-        /* Now let's block */
-        pthread_cond_wait(&mpi_thread_condition, &mpi_thread_mutex);
-        /* acknoledge the activation */
-        mpi_thread_marker = 0;
-        /* The MPI thread is owning the lock */
+        /* Second barrier: sync with dequeue_on */
+        dague_barrier_wait(&dep_barrier);
+        remote_dep_mpi_on(context);
         whatsup = remote_dep_dequeue_nothread_progress(context->execution_units[0]);
+        /* Third barrier: sync with dequeue_off */
+        dague_barrier_wait(&dep_barrier);
     } while(-1 != whatsup);
-    
+    /* Release all resources */
+    remote_dep_mpi_fini(context);
     pthread_exit((void*)context);
 }
 
@@ -704,7 +684,6 @@ static int remote_dep_mpi_init(dague_context_t* context)
     for(i = 0; i < DEP_NB_REQ; i++) {        
         array_of_requests[i] = MPI_REQUEST_NULL;
     }
-    remote_dep_mpi_profiling_init();
 
     /* Create the remote dependencies activation buffers */
     for(i = 0; i < DEP_NB_CONCURENT; i++) {
@@ -719,6 +698,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
         MPI_Start(&dep_get_req[i]);
     }
 
+    remote_dep_mpi_profiling_init();
     return 0;
 }
 
@@ -736,6 +716,8 @@ static int remote_dep_mpi_fini(dague_context_t* context)
     for(i = 0; i < DEP_NB_REQ; i++) {
         assert(MPI_REQUEST_NULL == array_of_requests[i]);
     }
+    free( dep_pending_put_array );
+    free( dep_pending_recv_array );
 
     MPI_Comm_free(&dep_comm);
     (void)context;
