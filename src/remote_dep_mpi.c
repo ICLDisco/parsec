@@ -44,8 +44,7 @@ static int remote_dep_dequeue_off(dague_context_t* context);
 
 #else
 static int remote_dep_dequeue_nothread_init(dague_context_t* context);
-static int remote_dep_dequeue_nothread_dini(dague_context_t* context);
-static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_context);
+static int remote_dep_dequeue_nothread_fini(dague_context_t* context);
 #   define remote_dep_init(ctx) remote_dep_dequeue_nothread_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_nothread_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_mpi_on(ctx)
@@ -53,6 +52,7 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_nothread_progress(ctx)
 #endif 
+static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_context);
 
 #include "dequeue.h"
 
@@ -169,8 +169,6 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     dague_fifo_construct(&dep_cmd_fifo);
     dague_fifo_construct(&dague_activations_fifo);
     dague_fifo_construct(&dague_put_fifo);
-    dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT,sizeof(dague_remote_deps_t*));
-    dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT,sizeof(dague_dep_wire_get_fifo_elem_t*));
 
     /* Build the condition used to drive the MPI thread */
     dague_barrier_init(&dep_barrier, NULL, 2);
@@ -224,31 +222,6 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     return 0;
 }
 
-#ifndef DAGUE_REMOTE_DEP_USE_THREADS
-static int remote_dep_dequeue_nothread_init(dague_context_t* context)
-{
-    dague_dequeue_construct(&dep_cmd_queue);
-    dague_fifo_construct(&dep_cmd_fifo);
-    dague_fifo_construct(&dague_activations_fifo);
-    dague_fifo_construct(&dague_put_fifo);
-    dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT*sizeof(dague_remote_deps_t*));
-    dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT,sizeof(dague_dep_wire_get_fifo_elem_t*));
-
-    MPI_Comm_size(MPI_COMM_WORLD, (int*) &np);
-    return remote_dep_mpi_init(context);
-}
-
-static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
-{
-    remote_dep_mpi_fini(context);
-    free(dep_pending_recv_array);
-    dep_pending_recv_array = NULL;
-    free(dep_pending_put_array);
-    dep_pending_put_array = NULL;
-
-    return 0;
-}
-#endif
 
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
@@ -272,6 +245,41 @@ static int remote_dep_dequeue_off(dague_context_t* context)
     dague_barrier_wait(&dep_barrier);
     return 0;
 }
+
+#define YIELD_TIME 5000
+#include "bindthread.h"
+
+static int do_nano = 0;
+
+static void* remote_dep_dequeue_main(dague_context_t* context)
+{
+    int ctl = -1, whatsup;
+
+    ctl = dague_bindthread(context->nb_cores);
+    if(ctl != context->nb_cores) do_nano = 1;
+    else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+
+    remote_dep_mpi_init(context);
+    /* First barrier: sync with dequeue_init */
+    dague_barrier_wait(&dep_barrier);
+
+    /* This is the main loop. Wait until being woken up by the main thread,
+     * do the MPI stuff until we get the OFF or FINI commands. Then
+     * react the them.
+     */
+    do {
+        /* Second barrier: sync with dequeue_on */
+        dague_barrier_wait(&dep_barrier);
+        remote_dep_mpi_on(context);
+        whatsup = remote_dep_dequeue_nothread_progress(context->execution_units[0]);
+        /* Third barrier: sync with dequeue_off */
+        dague_barrier_wait(&dep_barrier);
+    } while(-1 != whatsup);
+    /* Release all resources */
+    remote_dep_mpi_fini(context);
+    pthread_exit((void*)context);
+}
+
 
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 {
@@ -367,10 +375,6 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     return ret;
 }
 
-#define YIELD_TIME 5000
-#include "bindthread.h"
-
-static int do_nano = 0;
 
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
                                                           dague_list_item_t* elem )
@@ -393,6 +397,26 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
     return elem;
 }
 #define DAGUE_FIFO_PUSH  dague_fifo_push_ordered
+
+#ifndef DAGUE_REMOTE_DEP_USE_THREADS
+static int remote_dep_dequeue_nothread_init(dague_context_t* context)
+{
+    dague_dequeue_construct(&dep_cmd_queue);
+    dague_fifo_construct(&dep_cmd_fifo);
+    dague_fifo_construct(&dague_activations_fifo);
+    dague_fifo_construct(&dague_put_fifo);
+
+    return remote_dep_mpi_init(context);
+}
+
+static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
+{
+    remote_dep_mpi_fini(context);
+    /* todo: fifo cleanup */
+
+    return 0;
+}
+#endif
 
 static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_context)
 {
@@ -451,35 +475,6 @@ handle_now:
     }
     free(item);
     goto check_pending_queues;
-}
-
-static void* remote_dep_dequeue_main(dague_context_t* context)
-{
-    int ctl = -1, whatsup;
-
-    ctl = dague_bindthread(context->nb_cores);
-    if(ctl != context->nb_cores) do_nano = 1;
-    else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
-
-    remote_dep_mpi_init(context);
-    /* First barrier: sync with dequeue_init */
-    dague_barrier_wait(&dep_barrier);
-
-    /* This is the main loop. Wait until being woken up by the main thread,
-     * do the MPI stuff until we get the OFF or FINI commands. Then
-     * react the them.
-     */
-    do {
-        /* Second barrier: sync with dequeue_on */
-        dague_barrier_wait(&dep_barrier);
-        remote_dep_mpi_on(context);
-        whatsup = remote_dep_dequeue_nothread_progress(context->execution_units[0]);
-        /* Third barrier: sync with dequeue_off */
-        dague_barrier_wait(&dep_barrier);
-    } while(-1 != whatsup);
-    /* Release all resources */
-    remote_dep_mpi_fini(context);
-    pthread_exit((void*)context);
 }
 
 
@@ -697,6 +692,9 @@ static int remote_dep_mpi_init(dague_context_t* context)
         MPI_Start(&dep_activate_req[i]);
         MPI_Start(&dep_get_req[i]);
     }
+    
+    dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT,sizeof(dague_remote_deps_t*));
+    dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT,sizeof(dague_dep_wire_get_fifo_elem_t*));
 
     remote_dep_mpi_profiling_init();
     return 0;
