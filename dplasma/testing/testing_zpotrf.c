@@ -178,12 +178,12 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
 
     side = (uplo == PlasmaUpper ) ? PlasmaLeft : PlasmaRight;
 
-    /* Compute L'L or U'U  */
+    /* Compute LL' or U'U  */
     dplasma_ztrmm( dague, side, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, 
                    (tiled_matrix_desc_t*)&L1, 
                    (tiled_matrix_desc_t*)&L2);
 
-    /* compute L'L - A or U'U - A */
+    /* compute LL' - A or U'U - A */
     dplasma_zgeadd( dague, uplo, -1.0, A0, 
                     (tiled_matrix_desc_t*)&L2);
 
