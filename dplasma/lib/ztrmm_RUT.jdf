@@ -132,7 +132,7 @@ GEMM(m, n, k)
 
 // Execution space
 m = 0..Bmt-1
-n = 0..Bnt-1
+n = 0..Bnt-2
 k = (n+1)..Bnt-1
 
 // Parallel partitioning
@@ -174,7 +174,7 @@ GOK(m, n, k)  [profile = off]
 
 // Execution space
 m = 0..Bmt-1
-n = 0..Bnt-1
+n = 0..Bnt-2
 k = (n+1)..Bnt-1
 
 // Parallel partitioning

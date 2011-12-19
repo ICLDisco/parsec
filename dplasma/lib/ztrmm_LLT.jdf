@@ -131,7 +131,7 @@ END
 GEMM(m, n, k)
 
 // Execution space
-m = 0..Bmt-1
+m = 0..Bmt-2
 n = 0..Bnt-1
 k = (m+1)..Bmt-1
 
@@ -173,7 +173,7 @@ END
 GOK(m, n, k)  [profile = off]
 
 // Execution space
-m = 0..Bmt-1
+m = 0..Bmt-2
 n = 0..Bnt-1
 k = (m+1)..Bmt-1
 
