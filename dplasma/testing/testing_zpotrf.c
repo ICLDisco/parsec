@@ -105,7 +105,7 @@ int main(int argc, char ** argv)
     dplasma_zpotrf_Destruct( DAGUE_zpotrf );
     if(loud > 2) printf("Done.\n");
 
-    if ( check && info != 0 ) {
+    if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info);
         ret |= 1;
     }
