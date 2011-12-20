@@ -106,7 +106,8 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
     chunk->refcount = 0;
     chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
                                    arena->alignment, void* );
-    assert(((unsigned char*)chunk->data + arena->elem_size) <= ((unsigned char*)item + size));
+    assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
+    assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)item));
     return (dague_arena_chunk_t*) (((ptrdiff_t) chunk) | 1);
 }
 

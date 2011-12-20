@@ -1186,6 +1186,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
                             from, eu_context->master_context->my_rank, (*task));
         MPI_Send(&msg, datakey_count, datakey_dtt, from, 
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
+        assert(NULL == dep_pending_recv_array[i]);
         dep_pending_recv_array[i] = deps;
         TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
         DEBUG_MARK_CTL_MSG_GET_SENT(from, (void*)&msg, &msg);
