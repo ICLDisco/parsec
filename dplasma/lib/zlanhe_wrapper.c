@@ -153,7 +153,7 @@ double dplasma_zlanhe( dague_context_t *dague,
     args.desc = A;
     
     /* First reduction by tile */
-    dplasma_zmap2( dague, uplo, A, (tiled_matrix_desc_t*)&workD, op, (void *)&args );
+    dplasma_map2( dague, uplo, A, (tiled_matrix_desc_t*)&workD, op, (void *)&args );
 
     /* Second one with on element (one double or one vector )  per tile */
     PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(

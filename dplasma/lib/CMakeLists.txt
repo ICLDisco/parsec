@@ -10,6 +10,7 @@ set(EXTRA_SOURCES
   dplasmaaux.c
   pivgen.c
   pivgen_dbg.c
+  map2_wrapper.c
 )
 
 ### Generate .c files from .jdf
@@ -78,8 +79,6 @@ set(SOURCES
   zherbt_wrapper.c
   zhbrdt_wrapper.c
   zungqr_wrapper.c
-  # Others
-  zmap2_wrapper.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

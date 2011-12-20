@@ -105,8 +105,8 @@ dague_object_t* dplasma_zgeadd_New( PLASMA_enum uplo, Dague_Complex64_t alpha,
     params->descA = A;
     params->descB = B;
 
-    object = dplasma_zmap2_New(uplo, A, B, 
-                               dague_operator_zgeadd, (void *)params);
+    object = dplasma_map2_New(uplo, A, B, 
+                              dague_operator_zgeadd, (void *)params);
 
     return object;
 }
@@ -133,6 +133,6 @@ dplasma_zgeadd_Destruct( dague_object_t *o )
 {
     dague_map2_object_t *dague_zgeadd = (dague_map2_object_t *)o;
     free(dague_zgeadd->op_args);
-    dplasma_zmap2_Destruct(o);
+    dplasma_map2_Destruct(o);
 }
 
