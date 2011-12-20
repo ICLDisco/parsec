@@ -1160,7 +1160,6 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
             data = dague_arena_get(deps->output[k].type);
             DEBUG(("MPI:\tMalloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
             assert(data != NULL);
-            AREF(data);
             deps->output[k].data = data;
         }
 #ifdef DAGUE_PROF_DRY_DEP

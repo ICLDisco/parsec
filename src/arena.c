@@ -103,7 +103,7 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
     }
     chunk = (dague_arena_chunk_t*) item;
     chunk->origin = arena;
-    chunk->refcount = 0;
+    chunk->refcount = 1;
     chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
                                    arena->alignment, void* );
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
