@@ -176,7 +176,7 @@ dplasma_zungqr( dague_context_t *dague,
         return -5;
     }
 
-    if (min(Q->m, min(Q->n, A->n)) == 0)
+    if (imin(Q->m, imin(Q->n, A->n)) == 0)
         return 0;
 
     dague_zungqr = dplasma_zungqr_New(A, T, Q);
