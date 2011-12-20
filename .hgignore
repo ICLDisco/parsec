@@ -83,8 +83,8 @@ dplasma/lib/[sdc]trmm_RUT\.jdf
 dplasma/lib/[sdc]potrf_rl\.jdf
 dplasma/lib/[sdc]potrf_ll\.jdf
 dplasma/lib/[sdc]potrf_Url\.jdf
+dplasma/lib/[sdc]potrf_Lrl\.jdf
 dplasma/lib/[sdc]print\.jdf
-dplasma/lib/[sdc]potrf_rl\.jdf
 dplasma/lib/[sdc]getrf\.jdf
 dplasma/lib/[sdc]getrf_sd\.jdf
 dplasma/lib/[sdc]trsmpl\.jdf
