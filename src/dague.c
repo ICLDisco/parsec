@@ -807,7 +807,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        if( NULL != arg->output_entry && NULL != oldcontext->data[target->flow_index].data ) {
+        if( (NULL != arg->output_entry) && (NULL != oldcontext->data[target->flow_index].data) ) {
             arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
             arg->output_usage++;
             AREF( arg->output_entry->data[out_index] );
@@ -860,8 +860,6 @@ int dague_set_complete_callback( dague_object_t* dague_object,
     }
     return -1;
 }
-    dague_completion_cb_t      complete_cb;
-    void*                      complete_cb_data;
 
 /**
  *
