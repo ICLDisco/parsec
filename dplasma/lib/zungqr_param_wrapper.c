@@ -52,7 +52,7 @@
  *
  *******************************************************************************
  *
- * @sa dplasma_zungqr_param_Destroy
+ * @sa dplasma_zungqr_param_Destruct
  * @sa dplasma_zungqr_param
  * @sa dplasma_cungqr_param_New
  * @sa dplasma_dorgqr_param_New
@@ -121,9 +121,9 @@ dplasma_zungqr_param_New( qr_piv_t *qrpiv,
  *
  * @sa dplasma_zungqr_param_New
  * @sa dplasma_zungqr_param
- * @sa dplasma_cungqr_param_Destroy
- * @sa dplasma_dorgqr_param_Destroy
- * @sa dplasma_sorgqr_param_Destroy
+ * @sa dplasma_cungqr_param_Destruct
+ * @sa dplasma_dorgqr_param_Destruct
+ * @sa dplasma_sorgqr_param_Destruct
  *
  ******************************************************************************/
 void
@@ -161,7 +161,7 @@ dplasma_zungqr_param_Destruct( dague_object_t *o )
  *
  *******************************************************************************
  *
- * @sa dplasma_zungqr_param_Destroy
+ * @sa dplasma_zungqr_param_Destruct
  * @sa dplasma_zungqr_param_New
  * @sa dplasma_cungqr_param
  * @sa dplasma_dorgqr_param

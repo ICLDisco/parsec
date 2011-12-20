@@ -43,7 +43,7 @@
  *
  *******************************************************************************
  *
- * @sa dplasma_zungqr_Destroy
+ * @sa dplasma_zungqr_Destruct
  * @sa dplasma_zungqr
  * @sa dplasma_cungqr_New
  * @sa dplasma_dorgqr_New
@@ -96,7 +96,7 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zungqr_Destroy - Clean the data structures associated to a
+ *  dplasma_zungqr_Destruct - Clean the data structures associated to a
  *  zungqr dague object.
  *
  *******************************************************************************
@@ -108,9 +108,9 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
  *
  * @sa dplasma_zungqr_New
  * @sa dplasma_zungqr
- * @sa dplasma_cungqr_Destroy
- * @sa dplasma_dorgqr_Destroy
- * @sa dplasma_sorgqr_Destroy
+ * @sa dplasma_cungqr_Destruct
+ * @sa dplasma_dorgqr_Destruct
+ * @sa dplasma_sorgqr_Destruct
  *
  ******************************************************************************/
 void
