@@ -229,7 +229,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     
     for( i = 0; remote_deps_count; i++) {
         if( 0 == remote_deps->output[i].count ) continue;
-       // AREF(remote_deps->output[i].data); /* Retain it so that Put doesn't unref it while looping */
         
         him = 0;
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
@@ -262,20 +261,22 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     {
                         DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                         
-                        AREF(remote_deps->output[i].data);
+                        if(ACCESS_NONE != exec_context->function->out[i]->access_type)
+                        {
+                            AREF(remote_deps->output[i].data);
+                            if((int)(remote_deps->output[i].type->elem_size) < RDEP_MSG_EAGER_LIMIT) {
+                                RDEP_MSG_EAGER_SET(&remote_deps->msg);
+                            } else {
+                                RDEP_MSG_EAGER_CLR(&remote_deps->msg);
+                            }
+                            DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n",
+                                   dague_service_to_string(exec_context, tmp, 128), i,
+                                   (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), RDEP_MSG_EAGER(&remote_deps->msg)));
+                        }
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {
                             continue;
                         }
-                        if( (ACCESS_NONE != exec_context->function->out[i]->access_type) &&  /* controls never take the eager path */ 
-                            ((int)(remote_deps->output[i].type->elem_size) < RDEP_MSG_EAGER_LIMIT) ) {
-                            RDEP_MSG_EAGER_SET(&remote_deps->msg);
-                        } else {
-                            RDEP_MSG_EAGER_CLR(&remote_deps->msg);
-                        }
-                        DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n",
-                               dague_service_to_string(exec_context, tmp, 128), i,
-                               (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), RDEP_MSG_EAGER(&remote_deps->msg)));
                         remote_dep_inc_flying_messages(exec_context->dague_object, eu_context->master_context);
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
@@ -287,7 +288,6 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 }
             }
         }
-      //  AUNREF(remote_deps->output[i].data); /* Done looping on that one */
     }
     return 0;
 }
