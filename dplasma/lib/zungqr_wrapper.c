@@ -51,9 +51,10 @@
  * @sa dplasma_zgeqrf_New
  *
  ******************************************************************************/
-dague_object_t* dplasma_zungqr_New( tiled_matrix_desc_t *A,
-                                    tiled_matrix_desc_t *T,
-                                    tiled_matrix_desc_t *Q)
+dague_object_t* 
+dplasma_zungqr_New( tiled_matrix_desc_t *A,
+                    tiled_matrix_desc_t *T,
+                    tiled_matrix_desc_t *Q)
 {
     dague_zungqr_object_t* object;
     int ib = T->mb;
@@ -149,20 +150,18 @@ dplasma_zungqr_Destruct( dague_object_t *object )
  * @sa dplasma_zgeqrf
  *
  ******************************************************************************/
-int dplasma_zungqr( dague_context_t *dague, 
-                    tiled_matrix_desc_t *A, 
-                    tiled_matrix_desc_t *T, 
-                    tiled_matrix_desc_t *Q ) 
+int 
+dplasma_zungqr( dague_context_t *dague, 
+                tiled_matrix_desc_t *A, 
+                tiled_matrix_desc_t *T, 
+                tiled_matrix_desc_t *Q ) 
 {
     dague_object_t *dague_zungqr = NULL;
 
     if (dague == NULL) {
-        dplasma_error("PLASMA_zungqr", "PLASMA not initialized");
-        return PLASMA_ERR_NOT_INITIALIZED;
+        dplasma_error("dplasma_zungqr", "dplasma not initialized");
+        return -1;
     }
-
-
-
 
     if ( Q->n > Q->m) {
         dplasma_error("dplasma_zungqr", "illegal number of columns in Q (N)");
