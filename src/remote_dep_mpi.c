@@ -1160,6 +1160,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
             data = dague_arena_get(deps->output[k].type);
             DEBUG(("MPI:\tMalloc new remote tile %p size %zu\n", data, deps->output[k].type->elem_size));
             assert(data != NULL);
+            AREF(data);
             deps->output[k].data = data;
         }
 #ifdef DAGUE_PROF_DRY_DEP
@@ -1209,6 +1210,7 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
 {
     deps->msg.deps = 1<<k;
     remote_dep_release(eu_context, deps);
+    AUNREF(deps->output[k].data);
     if(deps->msg.which == deps->msg.deps) {
         DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)deps);
         dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);

@@ -229,8 +229,9 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     
     for( i = 0; remote_deps_count; i++) {
         if( 0 == remote_deps->output[i].count ) continue;
+       // AREF(remote_deps->output[i].data); /* Retain it so that Put doesn't unref it while looping */
+        
         him = 0;
-
         for( array_index = count = 0; count < remote_deps->output[i].count; array_index++ ) {
             current_mask = remote_deps->output[i].rank_bits[array_index];
             if( 0 == current_mask ) continue;  /* no bits here */
@@ -286,6 +287,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 }
             }
         }
+      //  AUNREF(remote_deps->output[i].data); /* Done looping on that one */
     }
     return 0;
 }
