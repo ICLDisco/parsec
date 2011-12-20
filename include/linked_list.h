@@ -42,7 +42,7 @@ dague_linked_list_add_head( dague_linked_list_t * linked_list,
     item->list_next = linked_list->ghost_element.list_next;
     linked_list->ghost_element.list_next->list_prev = item;
     linked_list->ghost_element.list_next = item;
-    DAGUE_ATTACH_ELEM(linked_list, item);
+    DAGUE_ATTACH_ELEMS(linked_list, item);
     dague_atomic_unlock(&(linked_list->atomic_lock));
 }
 
@@ -55,7 +55,7 @@ dague_linked_list_add_tail( dague_linked_list_t * linked_list,
     item->list_prev = linked_list->ghost_element.list_prev;
     linked_list->ghost_element.list_prev->list_next = item;
     linked_list->ghost_element.list_prev = item;
-    DAGUE_ATTACH_ELEM(linked_list, item);
+    DAGUE_ATTACH_ELEMS(linked_list, item);
     dague_atomic_unlock(&(linked_list->atomic_lock));
 }
 
