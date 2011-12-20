@@ -241,7 +241,6 @@ dplasma_ztrsm_Destruct( dague_object_t *o )
  *
  ******************************************************************************/
 int 
-void
 dplasma_ztrsm( dague_context_t *dague, 
                const PLASMA_enum side, const PLASMA_enum uplo, 
                const PLASMA_enum trans, const PLASMA_enum diag,
@@ -278,4 +277,5 @@ dplasma_ztrsm( dague_context_t *dague,
         
         dplasma_ztrsm_Destruct( dague_ztrsm );
     }
+    return 0;
 }
