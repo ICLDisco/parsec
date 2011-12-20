@@ -90,24 +90,6 @@ dplasma_ztrsm_New(const PLASMA_enum side,  const PLASMA_enum uplo,
 {
     dague_object_t *dague_trsm = NULL; 
 
-    /* Check input arguments */
-    if (side != PlasmaLeft && side != PlasmaRight) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of side");
-        return NULL /*-1*/;
-    }
-    if (uplo != PlasmaUpper && uplo != PlasmaLower) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of uplo");
-        return NULL /*-2*/;
-    }
-    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of trans");
-        return NULL /*-3*/;
-    }
-    if (diag != PlasmaUnit && diag != PlasmaNonUnit) {
-        dplasma_error("dplasma_ztrsm_New", "illegal value of diag");
-        return NULL /*-4*/;
-    }
-
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
@@ -269,7 +251,25 @@ dplasma_ztrsm( dague_context_t *dague,
 {
     dague_object_t *dague_ztrsm = NULL;
 
-    dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
+    /* Check input arguments */
+    if (side != PlasmaLeft && side != PlasmaRight) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of side");
+        return -1;
+    }
+    if (uplo != PlasmaUpper && uplo != PlasmaLower) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of uplo");
+        return -2;
+    }
+    if (trans != PlasmaConjTrans && trans != PlasmaNoTrans && trans != PlasmaTrans ) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of trans");
+        return -3;
+    }
+    if (diag != PlasmaUnit && diag != PlasmaNonUnit) {
+        dplasma_error("dplasma_ztrsm_New", "illegal value of diag");
+        return -4;
+    }
+ 
+   dague_ztrsm = dplasma_ztrsm_New(side, uplo, trans, diag, alpha, A, B);
 
     if ( dague_ztrsm != NULL ) 
     {
