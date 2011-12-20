@@ -39,7 +39,7 @@ static int jdf_property_get_int( const jdf_def_list_t* properties, const char* p
 
 /** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
-static int nblines(const char *p)
+static inline int nblines(const char *p)
 {
     int r = 0;
     for(; *p != '\0'; p++)
@@ -114,6 +114,26 @@ static void houtput(const char *format, ...)
         hfile_lineno += nblines(res);
         free(res);
     }
+}
+
+/**
+ * Returns true if the function has any valid data output (not control).
+ * Otherwise, returns false.
+ */
+static inline int function_has_data_output( const jdf_function_entry_t *f )
+{
+    jdf_dataflow_t* flow;
+    jdf_dep_t *dep;
+
+    for( flow = f->dataflow; flow != NULL; flow = flow->next) {
+        if(flow->access_type != JDF_VAR_TYPE_CTL) {
+            for(dep = flow->deps; dep != NULL; dep = dep->next)
+                if( JDF_DEP_TYPE_OUT == dep->type ) {
+                    return 1;
+                }
+        }
+    }
+    return 0;
 }
 
 /** Utils: dumper functions for UTIL_DUMP_LIST_FIELD and UTIL_DUMP_LIST calls **/
@@ -673,22 +693,18 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
 {
     string_arena_t *sa = (string_arena_t*)arg;
     jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
-    jdf_dataflow_t* fl;
-    int output_data = 0;
 
     string_arena_init(sa);
 
-    /* Compute the number of output data */
-    for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
-        if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
-    }
-    if( 0 == output_data ) {
+    if( 0 == function_has_data_output(f) ) {
         string_arena_add_string(sa, 
                                 "  %s_nblocal_tasks = %s_%s_internal_init(_res);\n"
                                 "  (void)%s_nblocal_tasks;\n",
                                 f->fname, jdf_basename, f->fname,
                                 f->fname);
     } else {
+        int nbdata = 0;
+        JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
         string_arena_add_string(sa, 
                                 "  %s_nblocal_tasks = %s_%s_internal_init(_res);\n"
                                 "  if( 0 == %s_nblocal_tasks ) %s_nblocal_tasks = 10;\n"
@@ -699,7 +715,7 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
                                 f->fname, jdf_basename, f->fname,
                                 f->fname, f->fname,
                                 f->fname,
-                                f->fname, f->fname, output_data);
+                                f->fname, f->fname, nbdata);
     }
 
     return string_arena_get_string(sa);
@@ -973,15 +989,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("  /* The list of data repositories */\n");
     {
         jdf_function_entry_t* f;
-        jdf_dataflow_t* fl;
-        int output_data;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            output_data = 0;
-            for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
-                if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
-            }
-            if( 0 != output_data )
+            if( 0 != function_has_data_output(f) )
                 coutput("  data_repo_t *%s_repository;\n", f->fname);
         }
     }
@@ -1005,15 +1015,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("/* Data Repositories */\n");
     {
         jdf_function_entry_t* f;
-        jdf_dataflow_t* fl;
-        int output_data;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            output_data = 0;
-            for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
-                if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
-            }
-            if( 0 != output_data )
+            if( 0 != function_has_data_output(f) )
                 coutput("#define %s_repo (__dague_object->%s_repository)\n",
                         f->fname, f->fname);
         }
@@ -2120,7 +2124,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     coutput("void dague_%s_destroy( dague_%s_object_t *o )\n"
             "{\n"
             "  dague_object_t *d = (dague_object_t *)o;\n"
-            "  __dague_%s_internal_object_t *io = (__dague_%s_internal_object_t*)o;\n"
+            "  __dague_%s_internal_object_t *__dague_object = (__dague_%s_internal_object_t*)o; (void)__dague_object;\n"
             "  int i;\n",
             jdf_basename, jdf_basename,
             jdf_basename,
@@ -2143,16 +2147,10 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     coutput("  /* Destroy the data repositories for this object */\n");
     {
         jdf_function_entry_t* f;
-        jdf_dataflow_t* fl;
-        int output_data;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            output_data = 0;
-            for( fl = f->dataflow; NULL != fl; fl = fl->next ) {
-                if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
-            }
-            if( 0 != output_data )
-                coutput("   data_repo_destroy_nothreadsafe(io->%s_repository);\n",
+            if( 0 != function_has_data_output(f) )
+                coutput("   data_repo_destroy_nothreadsafe(__dague_object->%s_repository);\n",
                         f->fname);
         }
     }
@@ -2652,14 +2650,12 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
 {
     (void)jdf;
 
-    coutput("  {\n"
-            "    release_deps_of_%s_%s(context, %s,\n"
-            "        DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
-            "        DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
-            "        DAGUE_ACTION_RELEASE_LOCAL_REFS |\n"
-            "        DAGUE_ACTION_DEPS_MASK,\n"
-            "        NULL);\n"
-            "  }\n",
+    coutput("  release_deps_of_%s_%s(context, %s,\n"
+            "      DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
+            "      DAGUE_ACTION_RELEASE_LOCAL_DEPS |\n"
+            "      DAGUE_ACTION_RELEASE_LOCAL_REFS |\n"
+            "      DAGUE_ACTION_DEPS_MASK,\n"
+            "      NULL);\n",
             jdf_basename, function->fname, context_name);
 }
 
@@ -2906,13 +2902,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    jdf_dataflow_t* fl;
-    int output_data = 0;
-
-    /* Compute the number of real data outputs (not including the control flows */
-    for( fl = f->dataflow; fl != NULL; fl = fl->next) {
-        if(fl->access_type != JDF_VAR_TYPE_CTL) output_data++;
-    }
+    int has_output_data = function_has_data_output(f);
 
     coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, uint32_t action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
@@ -2926,7 +2916,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename);
 
-    if( 0 != output_data )
+    if( 0 != has_output_data )
         coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS ) {\n"
                 "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_object, context->locals) );\n"
                 "#if defined(DAGUE_SIM)\n"
@@ -2947,10 +2937,10 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             jdf_basename, f->fname);
 
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n");
-    if( 0 != output_data )
+    if( 0 != has_output_data ) {
         coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
                 f->fname);
-
+    }
     coutput("    if( NULL != arg.ready_list ) {\n"
             "      __dague_schedule(eu, arg.ready_list);\n"
             "      arg.ready_list = NULL;\n"
@@ -2962,7 +2952,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  }\n"
             "#endif\n");
 
-    if( 0 != output_data )
+    if( 0 != has_output_data )
         jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput("  assert( NULL == arg.ready_list );\n"
