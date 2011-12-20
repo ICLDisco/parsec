@@ -30,6 +30,17 @@ typedef struct dague_list_item_t {
 } dague_list_item_t;
 
 #if defined(DAGUE_DEBUG)
+#define DAGUE_VALIDATE_ELEMS(ITEMS)                                     \
+    do {                                                                \
+        dague_list_item_t *__end = (ITEMS);                             \
+        dague_list_item_t *__item = (dague_list_item_t*)__end->list_next; \
+        int _number = 0;                                                \
+        for(; __item != __end;                                          \
+            __item = (dague_list_item_t*)__item->list_next ) {          \
+            if( ++_number > 1000 ) assert(0);                           \
+        }                                                               \
+    } while(0)
+
 #define DAGUE_ATTACH_ELEM(LIST, ITEM)                                   \
     do {                                                                \
         dague_list_item_t *_item_ = (ITEM);                             \
@@ -45,6 +56,7 @@ typedef struct dague_list_item_t {
             DAGUE_ATTACH_ELEM(LIST, _item);                             \
             _item = (dague_list_item_t*)_item->list_next;               \
         } while (_item != _end);                                        \
+        DAGUE_VALIDATE_ELEMS(_item);                                    \
     } while(0)
 
 #define DAGUE_DETACH_ELEM(ITEM)                  \
@@ -54,8 +66,8 @@ typedef struct dague_list_item_t {
         _item->belong_to_list = NULL;            \
     } while (0)
 #else
-#define DAGUE_ATTACH_ELEM(LIST, ITEMS)
-#define DAGUE_ATTACH_ELEMS(LIST, ITEMS)
+#define DAGUE_VALIDATE_ELEMS(ITEMS)
+#define DAGUE_ATTACH_ELEMS(LIST, ITEMS)         DAGUE_VALIDATE_ELEMS(ITEMS)
 #define DAGUE_DETACH_ELEM(ITEM)
 #endif  /* DAGUE_DEBUG */
 
