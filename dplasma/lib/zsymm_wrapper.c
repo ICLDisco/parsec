@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> s d c
+ * @precisions normal z -> c
  *
  */
 #include "dague.h"
@@ -11,13 +11,13 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
-#include "zhemm.h"
+#include "zsymm.h"
 
 /***************************************************************************//**
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zhemm_New - Generates dague object to compute the following operation
+ *  dplasma_zsymm_New - Generates dague object to compute the following operation
  *
  *     \f[ C = \alpha \times A \times B + \beta \times C \f]
  *
@@ -69,15 +69,15 @@
  *
  *******************************************************************************
  *
- * @sa dplasma_zhemm
- * @sa dplasma_zhemm_Destruct
- * @sa dplasma_chemm
- * @sa dplasma_dhemm
- * @sa dplasma_shemm
+ * @sa dplasma_zsymm
+ * @sa dplasma_zsymm_Destruct
+ * @sa dplasma_csymm
+ * @sa dplasma_dsymm
+ * @sa dplasma_ssymm
  *
  ******************************************************************************/
 dague_object_t*
-dplasma_zhemm_New( const PLASMA_enum side, 
+dplasma_zsymm_New( const PLASMA_enum side, 
                    const PLASMA_enum uplo,
                    const Dague_Complex64_t alpha, 
                    const tiled_matrix_desc_t* A, 
@@ -85,14 +85,14 @@ dplasma_zhemm_New( const PLASMA_enum side,
                    const double beta, 
                    tiled_matrix_desc_t* C)
 {
-    dague_zhemm_object_t* object;
+    dague_zsymm_object_t* object;
 
-    object = dague_zhemm_new(side, uplo, alpha, beta, 
+    object = dague_zsymm_new(side, uplo, alpha, beta, 
                              *A, (dague_ddesc_t*)A, 
                              *B, (dague_ddesc_t*)B, 
                              *C, (dague_ddesc_t*)C);
 
-    dplasma_add2arena_tile(object->arenas[DAGUE_zhemm_DEFAULT_ARENA],
+    dplasma_add2arena_tile(object->arenas[DAGUE_zsymm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, C->mb);
@@ -104,8 +104,8 @@ dplasma_zhemm_New( const PLASMA_enum side,
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zhemm_Destruct - Clean the data structures associated to a
- *  zhemm dague object.
+ *  dplasma_zsymm_Destruct - Clean the data structures associated to a
+ *  zsymm dague object.
  *
  *******************************************************************************
  *
@@ -114,26 +114,26 @@ dplasma_zhemm_New( const PLASMA_enum side,
  *
  *******************************************************************************
  *
- * @sa dplasma_zhemm_New
- * @sa dplasma_zhemm
- * @sa dplasma_chemm_Destruct
- * @sa dplasma_dhemm_Destruct
- * @sa dplasma_shemm_Destruct
+ * @sa dplasma_zsymm_New
+ * @sa dplasma_zsymm
+ * @sa dplasma_csymm_Destruct
+ * @sa dplasma_dsymm_Destruct
+ * @sa dplasma_ssymm_Destruct
  *
  ******************************************************************************/
 void
-dplasma_zhemm_Destruct( dague_object_t *o )
+dplasma_zsymm_Destruct( dague_object_t *o )
 {
-    dague_zhemm_object_t *zhemm_object = (dague_zhemm_object_t*)o;
-    dplasma_datatype_undefine_type( &(zhemm_object->arenas[DAGUE_zhemm_DEFAULT_ARENA]->opaque_dtt) );
-    dague_zhemm_destroy(zhemm_object);
+    dague_zsymm_object_t *zsymm_object = (dague_zsymm_object_t*)o;
+    dplasma_datatype_undefine_type( &(zsymm_object->arenas[DAGUE_zsymm_DEFAULT_ARENA]->opaque_dtt) );
+    dague_zsymm_destroy(zsymm_object);
 }
 
 /***************************************************************************//**
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zhemm - Synchronous version of dplasma_zhemm_New
+ *  dplasma_zsymm - Synchronous version of dplasma_zsymm_New
  *
  *******************************************************************************
  *
@@ -148,15 +148,15 @@ dplasma_zhemm_Destruct( dague_object_t *o )
  *
  *******************************************************************************
  *
- * @sa dplasma_zhemm_Destruct
- * @sa dplasma_zhemm_New
- * @sa dplasma_chemm
- * @sa dplasma_dhemm
- * @sa dplasma_shemm
+ * @sa dplasma_zsymm_Destruct
+ * @sa dplasma_zsymm_New
+ * @sa dplasma_csymm
+ * @sa dplasma_dsymm
+ * @sa dplasma_ssymm
  *
  ******************************************************************************/
 int
-dplasma_zhemm( dague_context_t *dague, 
+dplasma_zsymm( dague_context_t *dague, 
                const PLASMA_enum side, 
                const PLASMA_enum uplo,
                const Dague_Complex64_t alpha, 
@@ -165,26 +165,26 @@ dplasma_zhemm( dague_context_t *dague,
                const double beta, 
                tiled_matrix_desc_t *C)
 {
-    dague_object_t *dague_zhemm = NULL;
+    dague_object_t *dague_zsymm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        dplasma_error("PLASMA_zhemm", "illegal value of side");
+        dplasma_error("PLASMA_zsymm", "illegal value of side");
         return -1;
     }
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zhemm", "illegal value of uplo");
+        dplasma_error("PLASMA_zsymm", "illegal value of uplo");
         return -2;
     }
 
-    dague_zhemm = dplasma_zhemm_New(side, uplo, 
+    dague_zsymm = dplasma_zsymm_New(side, uplo, 
                                     alpha, A, B,
                                     beta, C);
 
-    if ( dague_zhemm != NULL )
+    if ( dague_zsymm != NULL )
     {
-        dague_enqueue( dague, (dague_object_t*)dague_zhemm);
+        dague_enqueue( dague, (dague_object_t*)dague_zsymm);
         dplasma_progress(dague);
-        dplasma_zhemm_Destruct( dague_zhemm );
+        dplasma_zsymm_Destruct( dague_zsymm );
     }
 }
