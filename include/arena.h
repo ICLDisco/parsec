@@ -38,9 +38,9 @@ struct dague_arena_t
     volatile int32_t used;                   /* elements currently out of the arena */
     int32_t max_used;                        /* maximum size of the arena in elements */
     volatile int32_t released;               /* elements currently not used but allocated */
-    int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo */
-    /* some host hardware requires special allocation functions (Cuda, pinning,
-     * Open CL, ...). Defaults are to use C malloc/free */
+    int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo
+                                              * some host hardware requires special allocation functions (Cuda, pinning,
+                                              * Open CL, ...). Defaults are to use C malloc/free */
     dague_allocate_data_t data_malloc;
     dague_free_data_t data_free;
 };
