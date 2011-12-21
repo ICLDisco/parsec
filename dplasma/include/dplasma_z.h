@@ -50,6 +50,7 @@ int dplasma_zplrnt( dague_context_t *dague,                                     
 
 double dplasma_zlange( dague_context_t *dague, PLASMA_enum ntype, tiled_matrix_desc_t *A);
 double dplasma_zlanhe( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, tiled_matrix_desc_t *A);
+double dplasma_zlansy( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 
 void dplasma_ztrsmpl_sd( dague_context_t *dague, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *L, tiled_matrix_desc_t *B);
 
