@@ -187,4 +187,5 @@ dplasma_zhemm( dague_context_t *dague,
         dplasma_progress(dague);
         dplasma_zhemm_Destruct( dague_zhemm );
     }
+    return 0;
 }
