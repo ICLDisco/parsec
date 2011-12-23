@@ -184,6 +184,12 @@ static int init_local_flat_queues(  dague_context_t *master )
 
 static int init_local_hier_queues( dague_context_t *master )
 {
+#if !defined(HAVE_HWLOC)
+    (void)master;
+    fprintf(stderr, "xxx\tDAGuE: hierarchical scheduler cannot be selected, you need to recompile DAGuE with hwloc\n");
+    return -1;
+#else
+
     int i;
     dague_execution_unit_t *eu;
     local_queues_scheduler_object_t *sched_obj = NULL;
@@ -210,10 +216,6 @@ static int init_local_hier_queues( dague_context_t *master )
 
         sched_obj->nb_hierarch_queues = master->nb_cores;    
         sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
-
-#    if !defined(HAVE_HWLOC)
-#      error Cannot use Hierarchical queues if HWLOC is not available
-#    endif
 
         sched_obj->nb_hierarch_queues = dague_hwloc_nb_levels();
         sched_obj->hierarch_queues = (dague_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(dague_hbbuffer_t*) );
@@ -256,6 +258,7 @@ static int init_local_hier_queues( dague_context_t *master )
     }
     
     return 0;
+#endif
 }
 
 static unsigned int ranking_function_bypriority(dague_list_item_t *elt, void *_)
@@ -298,6 +301,11 @@ static int schedule_local_queues( dague_execution_unit_t* eu_context,
 
 static void finalize_local_hier_queues( dague_context_t *master )
 {
+#if !defined(HAVE_HWLOC)
+    (void)master;
+    return;
+#else
+
     int i;
     dague_execution_unit_t *eu;
     local_queues_scheduler_object_t *sched_obj;
@@ -322,6 +330,7 @@ static void finalize_local_hier_queues( dague_context_t *master )
         free(eu->scheduler_object);
         eu->scheduler_object = NULL;
     }
+#endif
 }
 
 static void finalize_local_flat_queues( dague_context_t *master )
