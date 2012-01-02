@@ -185,6 +185,8 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 'o': 
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                else if( !strcmp(optarg, "TQ") )
+                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_TQ;
                 else if( !strcmp(optarg, "AP") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
                 else if( !strcmp(optarg, "LHQ") )

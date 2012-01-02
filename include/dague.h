@@ -53,18 +53,18 @@ extern dague_free_data_t     dague_data_free;
 #define DAGUE_DEPENDENCIES_BITMASK        (~(DAGUE_DEPENDENCIES_TASK_DONE|DAGUE_DEPENDENCIES_IN_DONE))
 
 typedef union {
-    dague_dependency_t    dependencies[1];
-    dague_dependencies_t* next[1];
+	dague_dependency_t    dependencies[1];
+	dague_dependencies_t* next[1];
 } dague_dependencies_union_t;
 
 struct dague_dependencies_t {
-    int                     flags;
-    const symbol_t*         symbol;
-    int                     min;
-    int                     max;
-    dague_dependencies_t* prev;
-    /* keep this as the last field in the structure */
-    dague_dependencies_union_t u; 
+	int                     flags;
+	const symbol_t*         symbol;
+	int                     min;
+	int                     max;
+	dague_dependencies_t* prev;
+	/* keep this as the last field in the structure */
+	dague_dependencies_union_t u; 
 };
 
 typedef int (dague_hook_t)(struct dague_execution_unit*, dague_execution_context_t*);
@@ -74,8 +74,8 @@ typedef int (dague_release_deps_t)(struct dague_execution_unit*,
                                    struct dague_remote_deps_t *);
 
 typedef enum  {
-    DAGUE_ITERATE_STOP,
-    DAGUE_ITERATE_CONTINUE
+	DAGUE_ITERATE_STOP,
+	DAGUE_ITERATE_CONTINUE
 } dague_ontask_iterate_t;
 
 typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_unit *eu, 
@@ -105,37 +105,37 @@ typedef int (dague_sim_cost_fct_t)(const dague_execution_context_t *exec_context
 #endif
 
 struct dague_function {
-    const char                  *name;
-    uint16_t                     flags;
-    uint16_t                     function_id;
-    uint8_t                      nb_parameters;
-    uint8_t                      nb_definitions;
-    dague_dependency_t           dependencies_goal;
-    const symbol_t              *params[MAX_LOCAL_COUNT];
-    const symbol_t              *locals[MAX_LOCAL_COUNT];
-    const expr_t                *pred;
-    const dague_flow_t          *in[MAX_PARAM_COUNT];
-    const dague_flow_t          *out[MAX_PARAM_COUNT];
-    const expr_t                *priority;
-    int                          deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
+	const char                  *name;
+	uint16_t                     flags;
+	uint16_t                     function_id;
+	uint8_t                      nb_parameters;
+	uint8_t                      nb_definitions;
+	dague_dependency_t           dependencies_goal;
+	const symbol_t              *params[MAX_LOCAL_COUNT];
+	const symbol_t              *locals[MAX_LOCAL_COUNT];
+	const expr_t                *pred;
+	const dague_flow_t          *in[MAX_PARAM_COUNT];
+	const dague_flow_t          *out[MAX_PARAM_COUNT];
+	const expr_t                *priority;
+	int                          deps;  /**< This is the index of the dependency array in the __DAGUE_object_t */
 #if defined(DAGUE_SIM)
-    dague_sim_cost_fct_t        *sim_cost_fct;
+	dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
 #if defined(DAGUE_SCHED_CACHE_AWARE)
-    dague_cache_rank_function_t *cache_rank_function;
+	dague_cache_rank_function_t *cache_rank_function;
 #endif
-    dague_hook_t                *hook;
-    dague_hook_t                *complete_execution;
-    dague_traverse_function_t   *iterate_successors;
-    dague_release_deps_t        *release_deps;
-    char                        *body;
+	dague_hook_t                *hook;
+	dague_hook_t                *complete_execution;
+	dague_traverse_function_t   *iterate_successors;
+	dague_release_deps_t        *release_deps;
+	char                        *body;
 };
 
 struct dague_data_pair_t {
-    data_repo_entry_t   *data_repo;
-    dague_arena_chunk_t *data;
+	data_repo_entry_t   *data_repo;
+	dague_arena_chunk_t *data;
 #if defined(HAVE_CUDA)
-    struct gpu_elem_t   *gpu_data;
+	struct gpu_elem_t   *gpu_data;
 #endif  /* defined(HAVE_CUDA) */
 };
 
@@ -146,30 +146,32 @@ struct dague_data_pair_t {
  * not the data pairs. We need this in order to be able to only copy the minimal
  * amount of information when a new task is constructed.
  */
-#define DAGUE_MINIMAL_EXECUTION_CONTEXT                  \
-    dague_list_item_t        list_item;                  \
-    dague_thread_mempool_t  *mempool_owner;              \
-    dague_object_t          *dague_object;               \
-    const  dague_function_t *function;                   \
-    int32_t                  priority;                   \
-    assignment_t             locals[MAX_LOCAL_COUNT];
+#define DAGUE_MINIMAL_EXECUTION_CONTEXT					\
+	dague_list_item_t        list_item;						\
+	dague_thread_mempool_t  *mempool_owner;				\
+	dague_object_t          *dague_object;					\
+	const  dague_function_t *function;						\
+	int32_t                  priority;						\
+	assignment_t             locals[MAX_LOCAL_COUNT];
 
 struct dague_minimal_execution_context_t {
-    DAGUE_MINIMAL_EXECUTION_CONTEXT
+	DAGUE_MINIMAL_EXECUTION_CONTEXT
 } dague_minimal_execution_context_t;
 
 struct dague_execution_context_t {
-    DAGUE_MINIMAL_EXECUTION_CONTEXT
+	DAGUE_MINIMAL_EXECUTION_CONTEXT
 #if defined(DAGUE_SIM)
-    int                     sim_exec_date;
+	int                     sim_exec_date;
 #endif
-    dague_data_pair_t       data[MAX_PARAM_COUNT];
+	dague_data_pair_t       data[MAX_PARAM_COUNT];
 };
 
 #if defined(DAGUE_PROF_TRACE)
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
+extern int queue_add_begin, queue_add_end;
+extern int queue_remove_begin, queue_remove_end;
 #endif
 
 typedef void (*dague_startup_fn_t)(dague_context_t *context, 
@@ -177,24 +179,24 @@ typedef void (*dague_startup_fn_t)(dague_context_t *context,
                                    dague_execution_context_t** startup_list);
 
 struct dague_object {
-    /** All dague_object_t structures hold these two arrays **/
-    uint32_t                   object_id;
-    uint32_t                   nb_local_tasks;
-    uint32_t                   nb_functions;
-    dague_startup_fn_t         startup_hook;
-    const dague_function_t**   functions_array;
+	/** All dague_object_t structures hold these two arrays **/
+	uint32_t                   object_id;
+	uint32_t                   nb_local_tasks;
+	uint32_t                   nb_functions;
+	dague_startup_fn_t         startup_hook;
+	const dague_function_t**   functions_array;
 #if defined(DAGUE_PROF_TRACE)
-    const int*                 profiling_array;
+	const int*                 profiling_array;
 #endif  /* defined(DAGUE_PROF_TRACE) */
-    dague_dependencies_t**     dependencies_array;
-    dague_arena_t**            arenas_array;
+	dague_dependencies_t**     dependencies_array;
+	dague_arena_t**            arenas_array;
 };
 
 #if defined(DAGUE_PROF_TRACE)
-#define DAGUE_PROF_FUNC_KEY_START(dague_object, function_index) \
-    (dague_object)->profiling_array[2 * (function_index)]
-#define DAGUE_PROF_FUNC_KEY_END(dague_object, function_index) \
-    (dague_object)->profiling_array[1 + 2 * (function_index)]
+#define DAGUE_PROF_FUNC_KEY_START(dague_object, function_index)	\
+	(dague_object)->profiling_array[2 * (function_index)]
+#define DAGUE_PROF_FUNC_KEY_END(dague_object, function_index)	\
+	(dague_object)->profiling_array[1 + 2 * (function_index)]
 #endif
 
 void dague_destruct_dependencies(dague_dependencies_t* d);
@@ -221,15 +223,15 @@ char* dague_service_to_string( const dague_execution_context_t* exec_context,
 #include "remote_dep.h"
 
 typedef struct {
-    int nb_released;
-    uint32_t output_usage;
-    data_repo_entry_t *output_entry;
-    int action_mask;
-    dague_remote_deps_t *deps;
-    dague_execution_context_t* ready_list;
+	int nb_released;
+	uint32_t output_usage;
+	data_repo_entry_t *output_entry;
+	int action_mask;
+	dague_remote_deps_t *deps;
+	dague_execution_context_t* ready_list; // PETER so this probably needs tweaking
 #if defined(DISTRIBUTED)
-    int remote_deps_count;
-    dague_remote_deps_t *remote_deps;
+	int remote_deps_count;
+	dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 
@@ -251,25 +253,25 @@ int dague_object_start( dague_object_t* object);
 static inline dague_execution_context_t*
 dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_execution_context_t* elem )
 {
-    if( NULL == *list ) {
-        DAGUE_LIST_ITEM_SINGLETON(elem);
-        *list = elem;
-    } else {
-        dague_execution_context_t* position = *list;
+	if( NULL == *list ) {
+		DAGUE_LIST_ITEM_SINGLETON(elem);
+		*list = elem;
+	} else {
+		dague_execution_context_t* position = *list;
         
-        while( position->priority > elem->priority ) {
-            position = (dague_execution_context_t*)position->list_item.list_next;
-            if( position == (*list) ) break;
-        }
-        elem->list_item.list_next = (dague_list_item_t*)position;
-        elem->list_item.list_prev = position->list_item.list_prev;
-        elem->list_item.list_next->list_prev = (dague_list_item_t*)elem;
-        elem->list_item.list_prev->list_next = (dague_list_item_t*)elem;
-        if( (position == *list) && (position->priority < elem->priority) ) {
-            *list = elem;
-        }
-    }
-    return *list;
+		while( position->priority > elem->priority ) {
+			position = (dague_execution_context_t*)position->list_item.list_next;
+			if( position == (*list) ) break;
+		}
+		elem->list_item.list_next = (dague_list_item_t*)position;
+		elem->list_item.list_prev = position->list_item.list_prev;
+		elem->list_item.list_next->list_prev = (dague_list_item_t*)elem;
+		elem->list_item.list_prev->list_next = (dague_list_item_t*)elem;
+		if( (position == *list) && (position->priority < elem->priority) ) {
+			*list = elem;
+		}
+	}
+	return *list;
 }
 
 /* gdb helpers */
