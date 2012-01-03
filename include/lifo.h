@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 #include "atomic.h"
-#include "list.h"
+#include "list_item.h"
 
 #if defined(DAGUE_LIFO_USE_LOCKS)
 

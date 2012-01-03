@@ -8,6 +8,7 @@
 #define FIFO_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "list_item.h"
 
 typedef struct dague_fifo_t {
     dague_list_item_t  fifo_ghost;

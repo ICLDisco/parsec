@@ -8,7 +8,7 @@
 #define DEQUEUE_H_HAS_BEEN_INCLUDED
 
 #include "atomic.h"
-#include "lifo.h"
+#include "list_item.h"
 
 typedef struct dague_dequeue_t {
     dague_list_item_t  ghost_element;
