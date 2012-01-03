@@ -87,6 +87,7 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
     } while (0)
 #else
 #define DAGUE_VALIDATE_ELEMS(ITEMS)
+#define DAGUE_ATTACH_ELEM(LIST, ITEM)
 #define DAGUE_ATTACH_ELEMS(LIST, ITEMS)         DAGUE_VALIDATE_ELEMS(ITEMS)
 #define DAGUE_DETACH_ELEM(ITEM)
 #endif  /* DAGUE_DEBUG */
@@ -124,7 +125,7 @@ dague_list_nolock_add_head( dague_list_t* linked_list,
     item->list_next = linked_list->ghost_element.list_next;
     linked_list->ghost_element.list_next->list_prev = item;
     linked_list->ghost_element.list_next = item;
-    DAGUE_ATTACH_ELEMS(linked_list, item);                                
+    DAGUE_ATTACH_ELEM(linked_list, item);                                
 }
 
 static inline void 
@@ -145,7 +146,7 @@ dague_list_nolock_add_tail( dague_list_t * linked_list,
     item->list_prev = linked_list->ghost_element.list_prev;
     linked_list->ghost_element.list_prev->list_next = item;
     linked_list->ghost_element.list_prev = item;
-    DAGUE_ATTACH_ELEMS(linked_list, item);
+    DAGUE_ATTACH_ELEM(linked_list, item);
 }
 
 static inline void 
@@ -241,6 +242,12 @@ dague_list_remove_item( dague_list_t * linked_list,
     return item;
 }
 
+/* define some convenience function shortnames */
+/* uop versions are not locked versions of op */
+#define dague_list_upush(list, item) dague_list_nolock_add_head(list, item)
+#define dague_list_push(list, item) dague_list_add_head(list, item)
+#define dague_list_upop(list) dague_list_nolock_remove_head(list)
+#define dague_list_pop(list) dague_list_remove_head(list)
 
 
 /* Iterate functions permits traversing the list. The considered items 
@@ -258,7 +265,7 @@ dague_list_iterate_head( dague_list_t* linked_list )
 {
     if(linked_list->ghost_element.list_next == &(linked_list->ghost_element))
         return NULL;
-    return (dague_list_item_t*) linked_list->ghost_element.list_next; /*discard volatile, not thread safe anyway */
+    return (dague_list_item_t*) linked_list->ghost_element.list_next;
 }
 
 static inline dague_list_item_t*
@@ -266,7 +273,7 @@ dague_list_iterate_tail( dague_list_t* linked_list )
 {
     if(linked_list->ghost_element.list_prev == &(linked_list->ghost_element))
         return NULL;
-    return (dague_list_item_t*) linked_list->ghost_element.list_prev; /*discard volatile, not thread safe anyway */
+    return (dague_list_item_t*) linked_list->ghost_element.list_prev;
 }
 
 static inline dague_list_item_t*
@@ -274,7 +281,7 @@ dague_list_iterate_next( dague_list_t* linked_list,
                          dague_list_item_t* item )
 {
     if(item->list_next == &(linked_list->ghost_element)) return NULL;
-    else return (dague_list_item_t*) item->list_next; /*discard volatile, not thread safe anyway */
+    else return (dague_list_item_t*) item->list_next;
 }
 
 static inline dague_list_item_t*
@@ -282,7 +289,7 @@ dague_list_iterate_prev( dague_list_t* linked_list,
                          dague_list_item_t* item )
 {
     if(item->list_prev == &(linked_list->ghost_element)) return NULL;
-    else return (dague_list_item_t*) item->list_prev; /*discard volatile, not thread safe anyway */
+    else return (dague_list_item_t*) item->list_prev;
 }
 
 /* Remove current item, and returns the next */
