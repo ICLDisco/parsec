@@ -8,33 +8,32 @@
 #define DAGUE_LINKED_LIST_H_HAS_BEEN_INCLUDED
 
 #include "atomic.h"
-#include "lifo.h"
 
-typedef struct dague_linked_list_t {
+typedef struct dague_list_t {
     dague_list_item_t  ghost_element;
     uint32_t atomic_lock;
-} dague_linked_list_t;
+} dague_list_t;
 
-static inline void dague_linked_list_construct( dague_linked_list_t* linked_list )
+static inline void dague_list_construct( dague_list_t* linked_list )
 {
     linked_list->ghost_element.list_next = &(linked_list->ghost_element);
     linked_list->ghost_element.list_prev = &(linked_list->ghost_element);
     linked_list->atomic_lock = 0;
 }
 
-static inline void dague_linked_list_item_construct( dague_list_item_t *item )
+static inline void dague_list_item_construct( dague_list_item_t *item )
 {
     item->list_prev = item;
     item->list_next = item;
 }
 
-static inline int dague_linked_list_is_empty( dague_linked_list_t * linked_list )
+static inline int dague_list_is_empty( dague_list_t * linked_list )
 {
     return linked_list->ghost_element.list_next != &(linked_list->ghost_element);
 }
 
 static inline void 
-dague_linked_list_add_head( dague_linked_list_t * linked_list,
+dague_list_add_head( dague_list_t * linked_list,
                             dague_list_item_t *item )
 {
     dague_atomic_lock(&(linked_list->atomic_lock));
@@ -47,7 +46,7 @@ dague_linked_list_add_head( dague_linked_list_t * linked_list,
 }
 
 static inline void 
-dague_linked_list_add_tail( dague_linked_list_t * linked_list,
+dague_list_add_tail( dague_list_t * linked_list,
                             dague_list_item_t *item )
 {
     dague_atomic_lock(&(linked_list->atomic_lock));
@@ -60,7 +59,7 @@ dague_linked_list_add_tail( dague_linked_list_t * linked_list,
 }
 
 static inline dague_list_item_t*
-dague_linked_list_remove_item( dague_linked_list_t * linked_list,
+dague_list_remove_item( dague_list_t * linked_list,
                                dague_list_item_t* item)
 {
     dague_atomic_lock(&(linked_list->atomic_lock));
@@ -74,7 +73,7 @@ dague_linked_list_remove_item( dague_linked_list_t * linked_list,
 }
 
 static inline dague_list_item_t*
-dague_linked_list_remove_head( dague_linked_list_t * linked_list )
+dague_list_remove_head( dague_list_t * linked_list )
 {
     dague_list_item_t* item;
 
@@ -93,7 +92,7 @@ dague_linked_list_remove_head( dague_linked_list_t * linked_list )
 }
 
 static inline dague_list_item_t*
-dague_linked_list_remove_tail( dague_linked_list_t * linked_list )
+dague_list_remove_tail( dague_list_t * linked_list )
 {
     dague_list_item_t* item;
 
