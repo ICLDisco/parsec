@@ -10,7 +10,7 @@
 #include "dague_config.h"
 
 #if defined(HAVE_CUDA)
-#include "linked_list.h"
+#include "list.h"
 #include "dequeue.h"
 #include "profiling.h"
 #include "lifo.h"

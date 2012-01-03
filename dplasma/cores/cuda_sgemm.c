@@ -1220,7 +1220,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
 #include "gpu_data.h"
 #include "data_distribution.h"
-#include "linked_list.h"
+#include "list.h"
 
 static memory_elem_t** data_map = NULL;
 extern int ndevices;
