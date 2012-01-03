@@ -26,6 +26,29 @@ typedef struct dague_list_item_t {
 #endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
+static inline void dague_list_item_construct( dague_list_item_t *item )
+{
+    item->list_prev = item;
+    item->list_next = item;
+    item->keeper_of_the_seven_keys = 0;
+#if defined(DAGUE_DEBUG)
+    item->refcount = 0;
+    item->belong_to_list = 0xdeadbeef;
+#endif
+}
+
+/* Make a well formed singleton list with a list item so that it can be 
+ * pushed. 
+ */
+#define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
+static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
+{
+    item->list_next = item;
+    item->list_prev = item;
+    return item;
+}
+
+/* This is debug helpers for list items accounting */
 #if defined(DAGUE_DEBUG)
 #define DAGUE_VALIDATE_ELEMS(ITEMS)                                     \
     do {                                                                \
@@ -60,7 +83,7 @@ typedef struct dague_list_item_t {
     do {                                         \
         dague_list_item_t *_item = (ITEM);       \
         _item->refcount--;                       \
-        _item->belong_to_list = NULL;            \
+        _item->belong_to_list = 0xdeadbeef;      \
     } while (0)
 #else
 #define DAGUE_VALIDATE_ELEMS(ITEMS)
@@ -68,97 +91,111 @@ typedef struct dague_list_item_t {
 #define DAGUE_DETACH_ELEM(ITEM)
 #endif  /* DAGUE_DEBUG */
 
-/* Make a well formed singleton list with a list item so that it can be 
- * puhsed. 
- */
-#define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
-static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
-{
-    item->list_next = item;
-    item->list_prev = item;
-    return item;
-}
 
-
-
-
-
+/****************************************************************/
+/* Done with list_item definitions. Proceed with list functions */
 
 typedef struct dague_list_t {
     dague_list_item_t  ghost_element;
     uint32_t atomic_lock;
 } dague_list_t;
 
-static inline void dague_list_construct( dague_list_t* linked_list )
+static inline void 
+dague_list_construct( dague_list_t* linked_list )
 {
     linked_list->ghost_element.list_next = &(linked_list->ghost_element);
     linked_list->ghost_element.list_prev = &(linked_list->ghost_element);
     linked_list->atomic_lock = 0;
 }
 
-static inline void dague_list_item_construct( dague_list_item_t *item )
-{
-    item->list_prev = item;
-    item->list_next = item;
-}
-
-static inline int dague_list_is_empty( dague_list_t * linked_list )
+static inline int 
+dague_list_is_empty( dague_list_t * linked_list )
 {
     return linked_list->ghost_element.list_next != &(linked_list->ghost_element);
 }
 
-static inline void 
-dague_list_add_head( dague_list_t * linked_list,
-                            dague_list_item_t *item )
+
+/* Add/remove items from a list. nolock version do not lock the list */
+static inline void
+dague_list_nolock_add_head( dague_list_t* linked_list, 
+                            dague_list_item_t* item )
 {
-    dague_atomic_lock(&(linked_list->atomic_lock));
     item->list_prev = &(linked_list->ghost_element);
     item->list_next = linked_list->ghost_element.list_next;
     linked_list->ghost_element.list_next->list_prev = item;
     linked_list->ghost_element.list_next = item;
-    DAGUE_ATTACH_ELEMS(linked_list, item);
-    dague_atomic_unlock(&(linked_list->atomic_lock));
+    DAGUE_ATTACH_ELEMS(linked_list, item);                                
 }
 
 static inline void 
-dague_list_add_tail( dague_list_t * linked_list,
-                            dague_list_item_t *item )
+dague_list_add_head( dague_list_t * linked_list,
+                     dague_list_item_t *item )
 {
     dague_atomic_lock(&(linked_list->atomic_lock));
+    dague_list_nolock_add_head(linked_list, item);
+    dague_atomic_unlock(&(linked_list->atomic_lock));
+}
+
+
+static inline void 
+dague_list_nolock_add_tail( dague_list_t * linked_list,
+                            dague_list_item_t *item )
+{
     item->list_next = &(linked_list->ghost_element);
     item->list_prev = linked_list->ghost_element.list_prev;
     linked_list->ghost_element.list_prev->list_next = item;
     linked_list->ghost_element.list_prev = item;
     DAGUE_ATTACH_ELEMS(linked_list, item);
+}
+
+static inline void 
+dague_list_add_tail( dague_list_t * linked_list,
+                     dague_list_item_t *item )
+{
+    dague_atomic_lock(&(linked_list->atomic_lock));
+    dague_list_nolock_add_tail(linked_list, item);
     dague_atomic_unlock(&(linked_list->atomic_lock));
 }
 
+
 static inline dague_list_item_t*
-dague_list_remove_item( dague_list_t * linked_list,
-                               dague_list_item_t* item)
+dague_list_nolock_remove_head( dague_list_t * linked_list )
 {
-    dague_atomic_lock(&(linked_list->atomic_lock));
-    item->list_prev->list_next = item->list_next;
-    item->list_next->list_prev = item->list_prev;
-    item->list_next = item;
+    dague_list_item_t* item;
+
+    item = (dague_list_item_t*)linked_list->ghost_element.list_next;
+    linked_list->ghost_element.list_next = item->list_next;
+    item->list_next->list_prev = &linked_list->ghost_element;
     item->list_prev = item;
-    dague_atomic_unlock(&(linked_list->atomic_lock));
-    DAGUE_DETACH_ELEM(item);
-    return item;
+    item->list_next = item;
+    if( &(linked_list->ghost_element) != item ) {
+        DAGUE_DETACH_ELEM(item);
+        return item;
+    }
+    return NULL;
 }
 
 static inline dague_list_item_t*
 dague_list_remove_head( dague_list_t * linked_list )
 {
     dague_list_item_t* item;
-
     dague_atomic_lock(&(linked_list->atomic_lock));
-    item = (dague_list_item_t*)linked_list->ghost_element.list_next;
-    linked_list->ghost_element.list_next = item->list_next;
-    item->list_next->list_prev = &linked_list->ghost_element;
+    item = dague_list_nolock_remove_head(linked_list);
+    dague_atomic_unlock(&(linked_list->atomic_lock));
+    return item;
+}
+
+
+static inline dague_list_item_t*
+dague_list_nolock_remove_tail( dague_list_t * linked_list )
+{
+    dague_list_item_t* item;
+
+    item = (dague_list_item_t*)linked_list->ghost_element.list_prev;
+    linked_list->ghost_element.list_prev = item->list_prev;
+    item->list_prev->list_next = &linked_list->ghost_element;
     item->list_prev = item;
     item->list_next = item;
-    dague_atomic_unlock(&(linked_list->atomic_lock));
     if( &(linked_list->ghost_element) != item ) {
         DAGUE_DETACH_ELEM(item);
         return item;
@@ -170,19 +207,118 @@ static inline dague_list_item_t*
 dague_list_remove_tail( dague_list_t * linked_list )
 {
     dague_list_item_t* item;
-
     dague_atomic_lock(&(linked_list->atomic_lock));
-    item = (dague_list_item_t*)linked_list->ghost_element.list_prev;
-    linked_list->ghost_element.list_prev = item->list_prev;
-    item->list_prev->list_next = &linked_list->ghost_element;
-    item->list_prev = item;
-    item->list_next = item;
+    item = dague_list_nolock_remove_tail(linked_list);
     dague_atomic_unlock(&(linked_list->atomic_lock));
-    if( &(linked_list->ghost_element) != item ) {
-        DAGUE_DETACH_ELEM(item);
-        return item;
-    }
-    return NULL;
+    return item;
 }
+
+
+static inline dague_list_item_t*
+dague_list_nolock_remove_item( dague_list_t * linked_list,
+                               dague_list_item_t* item)
+{
+#if defined(DAGUE_DEBUG)
+    assert(item->belong_to_list == linked_list);
+#else
+    (void)linked_list;
+#endif
+    item->list_prev->list_next = item->list_next;
+    item->list_next->list_prev = item->list_prev;
+    item->list_next = item;
+    item->list_prev = item;
+    DAGUE_DETACH_ELEM(item);
+    return item;
+}
+
+static inline dague_list_item_t*
+dague_list_remove_item( dague_list_t * linked_list,
+                        dague_list_item_t* item)
+{
+    dague_atomic_lock(&(linked_list->atomic_lock));
+    item = dague_list_nolock_remove_item(linked_list, item);
+    dague_atomic_unlock(&(linked_list->atomic_lock));
+    return item;
+}
+
+
+
+/* Iterate functions permits traversing the list. The considered items 
+ *   remain in the list. Hence, the iterate functions are not thread 
+ *   safe. If the list or the list items are modified (even with 
+ *   locked remove/add), status is undetermined.
+ * Typical use: 
+ *   for( item = iterate_head(list); 
+ *        item != NULL; 
+ *        item = iterate_next(list, item) ) { use_item(item); }
+ *  "use_item()"" should not change item->list_next, item->list_prev
+ */
+static inline dague_list_item_t*
+dague_list_iterate_head( dague_list_t* linked_list )
+{
+    if(linked_list->ghost_element.list_next == &(linked_list->ghost_element))
+        return NULL;
+    return (dague_list_item_t*) linked_list->ghost_element.list_next; /*discard volatile, not thread safe anyway */
+}
+
+static inline dague_list_item_t*
+dague_list_iterate_tail( dague_list_t* linked_list )
+{
+    if(linked_list->ghost_element.list_prev == &(linked_list->ghost_element))
+        return NULL;
+    return (dague_list_item_t*) linked_list->ghost_element.list_prev; /*discard volatile, not thread safe anyway */
+}
+
+static inline dague_list_item_t*
+dague_list_iterate_next( dague_list_t* linked_list, 
+                         dague_list_item_t* item )
+{
+    if(item->list_next == &(linked_list->ghost_element)) return NULL;
+    else return (dague_list_item_t*) item->list_next; /*discard volatile, not thread safe anyway */
+}
+
+static inline dague_list_item_t*
+dague_list_iterate_prev( dague_list_t* linked_list, 
+                         dague_list_item_t* item )
+{
+    if(item->list_prev == &(linked_list->ghost_element)) return NULL;
+    else return (dague_list_item_t*) item->list_prev; /*discard volatile, not thread safe anyway */
+}
+
+/* Remove current item, and returns the next */
+static inline dague_list_item_t*
+dague_list_iterate_remove_and_next( dague_list_t* linked_list, 
+                                    dague_list_item_t* item )
+{
+    dague_list_item_t* next = dague_list_iterate_next(linked_list, item);
+    dague_list_nolock_remove_item(linked_list, item);
+    return next;
+}
+
+static inline dague_list_item_t*
+dague_list_iterate_remove_and_prev( dague_list_t* linked_list,
+                                    dague_list_item_t* item )
+{
+    dague_list_item_t* prev = dague_list_iterate_prev(linked_list, item);
+    dague_list_nolock_remove_item(linked_list, item);
+    return prev;
+}
+
+#define dague_list_iterate_remove(L,I) dague_list_iterate_remove_and_next(L,I)
+
+/* Lock the list while it is used, to prevent concurent add/remove */
+static inline void 
+dague_list_iterate_lock( dague_list_t* linked_list )
+{
+    dague_atomic_lock(&(linked_list->atomic_lock));
+}
+
+static inline void
+dague_list_iterate_unlock( dague_list_t* linked_list )
+{
+    dague_atomic_unlock(&(linked_list->atomic_lock));
+}
+
+
 
 #endif  /* DAGUE_LINKED_LIST_H_HAS_BEEN_INCLUDED */
