@@ -86,7 +86,7 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 
 #define DAGUE_LIFO_ELT_ALLOC( elt, truesize )           \
     do {                                                \
-        elt = (__typeof__(elt))malloc( truesize );      \
+        (elt) = (__typeof__(elt))malloc( truesize );      \
     } while (0)
 #define DAGUE_LIFO_ELT_FREE( elt ) free(elt)
 
@@ -170,7 +170,7 @@ static inline void dague_atomic_lifo_destruct( dague_atomic_lifo_t *lifo )
         dague_list_item_t *_elt;                                        \
         (void)posix_memalign( (void**)&_elt, DAGUE_LIFO_ALIGNMENT, (truesize) ); \
         _elt->keeper_of_the_seven_keys = 0;                             \
-        (elt) = _elt;                                                   \
+        (elt) = (__typeof__(elt))_elt;                                                   \
     } while (0)
 #define DAGUE_LIFO_ELT_FREE( elt ) free(elt)
 
