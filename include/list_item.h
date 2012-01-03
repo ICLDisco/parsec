@@ -94,3 +94,4 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #endif  /* DAGUE_DEBUG */
 
 #endif
+
