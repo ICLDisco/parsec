@@ -45,9 +45,9 @@ static int schedule_global_dequeue( dague_execution_unit_t* eu_context,
                                      dague_execution_context_t* new_context )
 {
     if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
-        dague_list_push_front( (dague_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
+        dague_list_chain_front( (dague_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     } else {
-        dague_list_push_back( (dague_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
+        dague_list_chain_back( (dague_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     }
     return 0;
 }
@@ -91,7 +91,7 @@ typedef struct {
 
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
-    dague_fifo_push( (dague_fifo_t*)store, elt );
+    dague_fifo_chain( (dague_fifo_t*)store, elt );
 }
 
 /** In case of hierarchical bounded buffer, define
