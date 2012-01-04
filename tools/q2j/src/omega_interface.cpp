@@ -3063,12 +3063,6 @@ void interrogate_omega(node_t *root, var_t *head){
 printf("================================================================================\n");
 #endif
 
-    // Minimize the anti dependencies (also known as write-after-read).
-    // by factoring in the flow dependencies (also known as read-after-write).
-    //
-
-//printf("\n-------------------------------------------------\n");
-
     // For every USE that is the source of anti dependencies
     map<node_t *, map<node_t *, Relation> >::iterator anti_src_it;
     for(anti_src_it=anti_sources.begin(); anti_src_it!=anti_sources.end(); ++anti_src_it){
