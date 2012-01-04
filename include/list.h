@@ -165,7 +165,7 @@ dague_list_try_pop_front( dague_list_t* list );
 static inline dague_list_item_t*
 dague_list_try_pop_back( dague_list_t* list );
 
-/** remove a specific item from the list (not thread safe)
+/** remove a specific item from the list (mutex protected)
  *    item must be in the list, compared pointerwise */
 static inline dague_list_item_t*
 dague_list_remove_item( dague_list_t* list,
