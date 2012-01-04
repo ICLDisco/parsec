@@ -51,7 +51,7 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 
 /* This is debug helpers for list items accounting */
 #if defined(DAGUE_DEBUG)
-#define DAGUE_VALIDATE_ELEMS(ITEMS)                                     \
+#define DAGUE_LIST_VALIDATE_ELEMS(ITEMS)                                \
     do {                                                                \
         dague_list_item_t *__end = (ITEMS);                             \
         dague_list_item_t *__item = (dague_list_item_t*)__end->list_next; \
@@ -72,6 +72,8 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #define DAGUE_ATTACH_ELEMS(LIST, ITEMS)                                 \
     do {                                                                \
         dague_list_item_t *_item = (ITEMS);                             \
+        assert(_item->list_next != 0xdeadbeef);                         \
+        assert(_item->list_prev != 0xdeadbeef);                         \
         dague_list_item_t *_end = (dague_list_item_t *)_item->list_prev; \
         do {                                                            \
             DAGUE_ATTACH_ELEM(LIST, _item);                             \
@@ -83,14 +85,16 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #define DAGUE_DETACH_ELEM(ITEM)                  \
     do {                                         \
         dague_list_item_t *_item = (ITEM);       \
+        _item->list_prev = 0xdeadbeef;           \
+        _item->list_next = 0xdeadbeef;           \
         _item->refcount--;                       \
         _item->belong_to_list = 0xdeadbeef;      \
     } while (0)
 #else
-#define DAGUE_VALIDATE_ELEMS(ITEMS)
-#define DAGUE_ATTACH_ELEM(LIST, ITEM)
-#define DAGUE_ATTACH_ELEMS(LIST, ITEMS)         DAGUE_VALIDATE_ELEMS(ITEMS)
-#define DAGUE_DETACH_ELEM(ITEM)
+#define DAGUE_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
+#define DAGUE_ATTACH_ELEM(LIST, ITEM) do { (void)(LIST); (void)(ITEM); } while(0)
+#define DAGUE_ATTACH_ELEMS(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
+#define DAGUE_DETACH_ELEM(ITEM) do { (void)(ITEM); } while(0)
 #endif  /* DAGUE_DEBUG */
 
 #endif

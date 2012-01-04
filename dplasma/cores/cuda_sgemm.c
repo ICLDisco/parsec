@@ -345,9 +345,10 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
         }
         free(gpu_device->out_array); gpu_device->out_array = NULL;
         free(gpu_device->out_array_events); gpu_device->out_array_events = NULL;
-        free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
-        free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
-        free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
+        
+        dague_fifo_destruct(gpu_device->fifo_pending_in); free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
+        dague_fifo_destruct(gpu_device->fifo_pending_exec); free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
+        dague_fifo_destruct(gpu_device->fifo_pending_out);free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
 #endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
@@ -645,28 +646,26 @@ static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
 {
     dague_execution_context_t* ec;
     dague_execution_context_t* input = (dague_execution_context_t*)elem;
-    dague_list_item_t* current = (dague_list_item_t*)fifo->fifo_ghost.list_next;
+    dague_list_item_t* current;
 
-    if( 0 == input->priority ) {
-        while( current != &(fifo->fifo_ghost) ) {
-            ec = (dague_execution_context_t*)current;
-            if( ec->priority < input->priority )
-                break;
-            current = (dague_list_item_t *)current->list_next;
-        }
-    } else {
-        current = &(fifo->fifo_ghost);
+    if( 0 == input->priority ) 
+    {
+        dague_ufifo_push(fifo, elem);
+        return elem;
     }
-    /* Add the input element before the current one */
-    elem->list_prev = current->list_prev;
-    elem->list_next = current;
-    elem->list_prev->list_next = elem;
-    elem->list_next->list_prev = elem;
+    for(current = dague_list_iterate_first(fifo); NULL != current; 
+        current = dague_list_iterate_next(fifo))
+    {
+        ec = (dague_execution_context_t*)current;
+        if( ec->priority < input->priority )
+            break;
+    }
+    dague_list_iterate_add_before(fifo, current, elem);
     return elem;
 }
 #define DAGUE_FIFO_PUSH  dague_fifo_push_ordered
 #else
-#define DAGUE_FIFO_PUSH  dague_fifo_push
+#define DAGUE_FIFO_PUSH  dague_ufifo_push
 #endif
 
 /**
@@ -790,14 +789,14 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = NULL;
         } else {
             /* Get the oldest task */
-            if( !dague_fifo_is_empty(gpu_device->fifo_pending_in) ) {
+            if( !dague_ufifo_is_empty(gpu_device->fifo_pending_in) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_in, (dague_list_item_t*)this_task);
-                this_task = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_in);
+                this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_in);
             }
         }
     } else {
         if( NULL == gpu_device->in_array[gpu_device->in_submit] ) {
-            this_task = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_in);
+            this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_in);
         }
     }
     if( NULL != this_task ) {
@@ -846,14 +845,14 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = NULL;
         } else {
             /* Get the oldest task */
-            if( !dague_fifo_is_empty(gpu_device->fifo_pending_exec) ) {
+            if( !dague_ufifo_is_empty(gpu_device->fifo_pending_exec) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_exec, (dague_list_item_t*)this_task);
-                this_task = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_exec);
+                this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_exec);
             }
         }
     } else {
         if( NULL == gpu_device->exec_array[gpu_device->exec_submit] ) {
-            this_task = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_exec);
+            this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_exec);
         }
     }
     if( NULL != this_task ) {
@@ -909,14 +908,14 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = NULL;
         } else {
             /* Get the oldest task */
-            if( !dague_fifo_is_empty(gpu_device->fifo_pending_out) ) {
+            if( !dague_ufifo_is_empty(gpu_device->fifo_pending_out) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_out, (dague_list_item_t*)this_task);
-                this_task = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_out);
+                this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_out);
             }
         }
     } else {
         if( NULL == gpu_device->out_array[gpu_device->out_submit] ) {
-            this_task = (dague_execution_context_t*)dague_fifo_pop(gpu_device->fifo_pending_out);
+            this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_out);
         }
     }
     if( NULL != this_task ) {
