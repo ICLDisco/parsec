@@ -46,7 +46,7 @@ static inline void dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
 {
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
 
-    DAGUE_ATTACH_ELEMS(lifo, items);
+    DAGUE_ITEMS_ATTACH(lifo, items);
 
     dague_atomic_lock( &lifo->lifo_lock );
     tail->list_next = (dague_list_item_t*)lifo->lifo_head;
@@ -69,7 +69,7 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
     if( item == &(lifo->lifo_ghost) ) 
         return NULL;
 
-    DAGUE_DETACH_ELEM(item);
+    DAGUE_ITEM_DETACH(item);
     return item;
 }
 
@@ -133,7 +133,7 @@ static inline void dague_atomic_lifo_push( dague_atomic_lifo_t* lifo,
     assert(  (uintptr_t)items % DAGUE_LIFO_ALIGNMENT == 0 );
 #endif
 
-    DAGUE_ATTACH_ELEMS(lifo, items);
+    DAGUE_ITEMS_ATTACH(lifo, items);
     tp = DAGUE_LIFO_VAL( items, (items->keeper_of_the_seven_keys + 1) );
     do {
         tail->list_next = lifo->lifo_head;
@@ -165,7 +165,7 @@ static inline dague_list_item_t* dague_atomic_lifo_pop( dague_atomic_lifo_t* lif
     if( item == lifo->lifo_ghost ) return NULL;
     item->keeper_of_the_seven_keys = DAGUE_LIFO_CNT(save);
 
-    DAGUE_DETACH_ELEM(item);
+    DAGUE_ITEM_DETACH(item);
     return item;
 }
 

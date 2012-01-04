@@ -34,7 +34,7 @@ static inline void dague_list_item_construct( dague_list_item_t *item )
     item->keeper_of_the_seven_keys = 0;
 #if defined(DAGUE_DEBUG)
     item->refcount = 0;
-    item->belong_to_list = 0xdeadbeef;
+    item->belong_to_list = (void*)0xdeadbeef;
 #endif
 }
 
@@ -51,51 +51,56 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 
 /* This is debug helpers for list items accounting */
 #if defined(DAGUE_DEBUG)
-#define DAGUE_LIST_VALIDATE_ELEMS(ITEMS)                                \
+#define DAGUE_ITEMS_VALIDATE(ITEMS)                                     \
     do {                                                                \
         dague_list_item_t *__end = (ITEMS);                             \
-        dague_list_item_t *__item = (dague_list_item_t*)__end->list_next; \
-        int _number = 0;                                                \
-        for(; __item != __end;                                          \
+        int _number; dague_list_item_t *__item;                          \
+        for(_number=0, __item = (dague_list_item_t*)__end->list_next;    \
+            __item != __end;                                            \
             __item = (dague_list_item_t*)__item->list_next ) {          \
+            assert((__item->refcount == 0) || (__item->refcount == 1)); \
+            assert(__end->refcount == __item->refcount);                \
+            if( __item->refcount == 1 )                                 \
+                assert(__item->belong_to_list == __end->belong_to_list);\
             if( ++_number > 1000 ) assert(0);                           \
         }                                                               \
     } while(0)
 
-#define DAGUE_ATTACH_ELEM(LIST, ITEM)                                   \
+#define DAGUE_ITEM_ATTACH(LIST, ITEM)                                   \
     do {                                                                \
         dague_list_item_t *_item_ = (ITEM);                             \
         _item_->refcount++;                                             \
+        assert(_item_->refcount == 1);                                  \
         _item_->belong_to_list = (struct dague_list_t*)(LIST);          \
     } while(0)
 
-#define DAGUE_ATTACH_ELEMS(LIST, ITEMS)                                 \
+#define DAGUE_ITEMS_ATTACH(LIST, ITEMS)                                 \
     do {                                                                \
         dague_list_item_t *_item = (ITEMS);                             \
-        assert(_item->list_next != 0xdeadbeef);                         \
-        assert(_item->list_prev != 0xdeadbeef);                         \
+        assert(_item->list_next != (void*)0xdeadbeef);                  \
+        assert(_item->list_prev != (void*)0xdeadbeef);                  \
+        DAGUE_ITEMS_VALIDATE(_item);                                    \
         dague_list_item_t *_end = (dague_list_item_t *)_item->list_prev; \
         do {                                                            \
-            DAGUE_ATTACH_ELEM(LIST, _item);                             \
+            DAGUE_ITEM_ATTACH(LIST, _item);                             \
             _item = (dague_list_item_t*)_item->list_next;               \
         } while (_item != _end);                                        \
-        DAGUE_VALIDATE_ELEMS(_item);                                    \
     } while(0)
 
-#define DAGUE_DETACH_ELEM(ITEM)                  \
+#define DAGUE_ITEM_DETACH(ITEM)            \
     do {                                         \
         dague_list_item_t *_item = (ITEM);       \
-        assert( _item->belong_to_list != _item->belong_to_list->ghost_element ); \
-        _item->list_prev = 0xdeadbeef;           \
-        _item->list_next = 0xdeadbeef;           \
+        /* check for not poping the ghost element, doesn't work for atomic_lifo */\
+        assert( _item->belong_to_list != (void*)_item ); \
+        _item->list_prev = (void*)0xdeadbeef;           \
+        _item->list_next = (void*)0xdeadbeef;           \
         _item->refcount--;                       \
-        _item->belong_to_list = 0xdeadbeef;      \
     } while (0)
 #else
-#define DAGUE_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
-#define DAGUE_ATTACH_ELEM(LIST, ITEM) do { (void)(LIST); (void)(ITEM); } while(0)
-#define DAGUE_ATTACH_ELEMS(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
-#define DAGUE_DETACH_ELEM(ITEM) do { (void)(ITEM); } while(0)
+#define DAGUE_ITEMS_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
+#define DAGUE_ITEM_ATTACH(LIST, ITEM) do { (void)(LIST); (void)(ITEM); } while(0)
+#define DAGUE_ITEMS_ATTACH(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
+#define DAGUE_ITEMS_DETACH(ITEM) do { (void)(ITEM); } while(0)
 #endif  /* DAGUE_DEBUG */
 
 #endif

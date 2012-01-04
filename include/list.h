@@ -256,7 +256,7 @@ static inline void
 dague_list_nolock_push_front( dague_list_t* list, 
                               dague_list_item_t* item )
 {
-    DAGUE_ATTACH_ELEM(list, item);
+    DAGUE_ITEM_ATTACH(list, item);
     item->list_prev = _GHOST(list);
     item->list_next = _HEAD(list);
     _HEAD(list)->list_prev = item;
@@ -267,7 +267,7 @@ static inline void
 dague_list_push_front( dague_list_t* list,
                        dague_list_item_t *item )
 {
-    DAGUE_ATTACH_ELEM(list, item);
+    DAGUE_ITEM_ATTACH(list, item);
     item->list_prev = _GHOST(list);
     dague_atomic_lock(&list->atomic_lock);
     item->list_next = _HEAD(list);
@@ -280,7 +280,7 @@ static inline void
 dague_list_nolock_chain_front( dague_list_t* list,
                                dague_list_item_t* items )
 {
-    DAGUE_ATTACH_ELEMS(list, items);
+    DAGUE_ITEMS_ATTACH(list, items);
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     items->list_prev = _GHOST(list);
     tail->list_next = _HEAD(list);
@@ -292,7 +292,7 @@ static inline void
 dague_list_chain_front( dague_list_t* list,
                         dague_list_item_t* items )
 {
-    DAGUE_ATTACH_ELEMS(list, items);
+    DAGUE_ITEMS_ATTACH(list, items);
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     items->list_prev = _GHOST(list);
     dague_atomic_lock(&list->atomic_lock);
@@ -307,7 +307,7 @@ static inline void
 dague_list_nolock_push_back( dague_list_t* list,
                              dague_list_item_t *item )
 {
-    DAGUE_ATTACH_ELEM(list, item);
+    DAGUE_ITEM_ATTACH(list, item);
     item->list_next = _GHOST(list);
     item->list_prev = _TAIL(list);
     _TAIL(list)->list_next = item;
@@ -318,7 +318,7 @@ static inline void
 dague_list_push_back( dague_list_t* list,
                       dague_list_item_t *item )
 {
-    DAGUE_ATTACH_ELEM(list, item);
+    DAGUE_ITEM_ATTACH(list, item);
     item->list_next = _GHOST(list);
     dague_atomic_lock(&list->atomic_lock);
     item->list_prev = _TAIL(list);
@@ -331,7 +331,7 @@ static inline void
 dague_list_nolock_chain_back( dague_list_t* list,
                               dague_list_item_t* items )
 {
-    DAGUE_ATTACH_ELEMS(list, items);
+    DAGUE_ITEMS_ATTACH(list, items);
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     tail->list_next = _GHOST(list);
     items->list_prev = _TAIL(list);
@@ -343,7 +343,7 @@ static inline void
 dague_list_chain_back( dague_list_t* list,
                        dague_list_item_t* items )
 {
-    DAGUE_ATTACH_ELEMS(list, items);
+    DAGUE_ITEMS_ATTACH(list, items);
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
     tail->list_next = _GHOST(list);
     dague_atomic_lock(&list->atomic_lock);
@@ -356,7 +356,7 @@ dague_list_chain_back( dague_list_t* list,
 
 #define _RET_NULL_GHOST(LIST, ITEM) do {                                \
     if( _GHOST(LIST) != (ITEM) ) {                                      \
-        DAGUE_DETACH_ELEM(ITEM);                                        \
+        DAGUE_ITEM_DETACH(ITEM);                                        \
         return (ITEM);                                                  \
     }                                                                   \
     return NULL;                                                        \
@@ -445,7 +445,7 @@ dague_list_nolock_remove_item( dague_list_t* list,
     item->list_next->list_prev = item->list_prev;
     item->list_next = item;
     item->list_prev = item;
-    DAGUE_DETACH_ELEM(item);
+    DAGUE_ITEM_DETACH(item);
     return item;
 }
 
@@ -464,7 +464,7 @@ dague_list_remove_item( dague_list_t* list,
     dague_atomic_unlock(&list->atomic_lock);
     item->list_next = item;
     item->list_prev = item;
-    DAGUE_DETACH_ELEM(item);
+    DAGUE_ITEM_DETACH(item);
     return item;
 }
 
@@ -520,7 +520,7 @@ dague_list_iterate_add_before( dague_list_t* list,
 #if defined(DAGUE_DEBUG)
     assert( position->belong_to_list == list );
 #endif
-    DAGUE_ATTACH_ELEM(list, new);
+    DAGUE_ITEM_ATTACH(list, new);
     new->list_prev = position->list_prev;
     new->list_next = position;
     position->list_prev->list_next = new;
@@ -535,7 +535,7 @@ dague_list_iterate_add_after( dague_list_t* list,
 #if defined(DAGUE_DEBUG)
     assert( position->belong_to_list == list );
 #endif
-    DAGUE_ATTACH_ELEM(list, new);
+    DAGUE_ITEM_ATTACH(list, new);
     new->list_prev = position;
     new->list_next = position->list_next;
     position->list_next->list_prev = new;
