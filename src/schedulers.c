@@ -1,5 +1,6 @@
 #include "dague_config.h"
-#include "dequeue.h"
+#include "list.h"
+#include "fifo.h"
 #include "priority_sorted_queue.h"
 #include "scheduling.h"
 #include "schedulers.h"
@@ -25,8 +26,8 @@ static int init_global_dequeue( dague_context_t *master )
         eu_context = master->execution_units[i];
 
         if( eu_context->eu_id == 0 ) {
-            eu_context->scheduler_object = malloc(sizeof(dague_dequeue_t));
-            dague_dequeue_construct( (dague_dequeue_t*)eu_context->scheduler_object );
+            eu_context->scheduler_object = malloc(sizeof(dague_list_t));
+            dague_list_construct( (dague_list_t*)eu_context->scheduler_object );
         } else {
             eu_context->scheduler_object = eu_context->master_context->execution_units[0]->scheduler_object;
         }
@@ -37,16 +38,16 @@ static int init_global_dequeue( dague_context_t *master )
 
 static dague_execution_context_t *choose_job_global_dequeue( dague_execution_unit_t *eu_context )
 {
-    return (dague_execution_context_t*)dague_dequeue_pop_front( (dague_dequeue_t*)eu_context->scheduler_object );
+    return (dague_execution_context_t*)dague_fifo_try_pop( (dague_list_t*)eu_context->scheduler_object );
 }
 
 static int schedule_global_dequeue( dague_execution_unit_t* eu_context,
                                      dague_execution_context_t* new_context )
 {
     if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
-        dague_dequeue_push_front( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
+        dague_list_push_front( (dague_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     } else {
-        dague_dequeue_push_back( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
+        dague_list_push_back( (dague_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     }
     return 0;
 }
@@ -59,7 +60,7 @@ static void finalize_global_dequeue( dague_context_t *master )
     for(i = 0; i < master->nb_cores; i++) {
         eu = master->execution_units[i];
         if( eu->eu_id == 0 ) {
-            dague_dequeue_destruct( (dague_dequeue_t*)eu->scheduler_object );
+            dague_list_destruct( (dague_list_t*)eu->scheduler_object );
             free(eu->scheduler_object);
         }
         eu->scheduler_object = NULL;
@@ -80,7 +81,7 @@ dague_scheduler_t sched_global_dequeue = {
 /*********************************************************************/
 
 typedef struct { 
-    dague_dequeue_t   *system_queue;
+    dague_fifo_t      *system_queue;
     dague_hbbuffer_t  *task_queue;
     int                nb_hierarch_queues;
     dague_hbbuffer_t **hierarch_queues;
@@ -90,8 +91,7 @@ typedef struct {
 
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
-    /* Store is a lifo or a dequeue */
-    dague_dequeue_push_back( (dague_dequeue_t*)store, elt );
+    dague_fifo_push( (dague_fifo_t*)store, elt );
 }
 
 /** In case of hierarchical bounded buffer, define
@@ -124,8 +124,8 @@ static int init_local_flat_queues(  dague_context_t *master )
         eu->scheduler_object = sched_obj;
     
         if( eu->eu_id == 0 ) {
-            sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-            dague_dequeue_construct( sched_obj->system_queue );
+            sched_obj->system_queue = (dague_fifo_t*)malloc(sizeof(dague_fifo_t));
+            dague_fifo_construct( sched_obj->system_queue );
         } else {
             sched_obj->system_queue = LOCAL_QUEUES_OBJECT(master->execution_units[0])->system_queue;
         }
@@ -208,8 +208,8 @@ static int init_local_hier_queues( dague_context_t *master )
         eu->scheduler_object = sched_obj;
     
         if( eu->eu_id == 0 ) {
-            sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-            dague_dequeue_construct( sched_obj->system_queue );
+            sched_obj->system_queue = (dague_fifo_t*)malloc(sizeof(dague_fifo_t));
+            dague_fifo_construct( sched_obj->system_queue );
         } else {
             sched_obj->system_queue = LOCAL_QUEUES_OBJECT(master->execution_units[0])->system_queue;
         }
@@ -287,7 +287,7 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
             return exec_context;
     }
 
-    exec_context = (dague_execution_context_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+    exec_context = (dague_execution_context_t *)dague_fifo_try_pop(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     return exec_context;
 }
 
@@ -344,7 +344,7 @@ static void finalize_local_flat_queues( dague_context_t *master )
         sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
         if( eu->eu_id == 0 ) {
-            dague_dequeue_destruct( sched_obj->system_queue );
+            dague_fifo_destruct( sched_obj->system_queue );
             free( sched_obj->system_queue );
         }
         sched_obj->system_queue = NULL;
