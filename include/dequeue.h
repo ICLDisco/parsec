@@ -27,11 +27,6 @@ static inline void dague_dequeue_destruct( dague_dequeue_t *dequeue )
     (void)dequeue;
 }
 
-static inline void dplamsa_dequeue_item_construct( dague_list_item_t *item )
-{
-    item->list_prev = item;
-}
-
 static inline int dague_dequeue_is_empty( dague_dequeue_t * dequeue )
 {
     int res;
