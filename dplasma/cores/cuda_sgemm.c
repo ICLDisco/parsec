@@ -845,7 +845,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = NULL;
         } else {
             /* Get the oldest task */
-            if( !dague_ufifo_is_empty(gpu_device->fifo_pending_exec) ) {
+            if( !dague_ulist_is_empty(gpu_device->fifo_pending_exec) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_exec, (dague_list_item_t*)this_task);
                 this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_exec);
             }
@@ -908,7 +908,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = NULL;
         } else {
             /* Get the oldest task */
-            if( !dague_ufifo_is_empty(gpu_device->fifo_pending_out) ) {
+            if( !dague_ulist_is_empty(gpu_device->fifo_pending_out) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_out, (dague_list_item_t*)this_task);
                 this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_out);
             }
