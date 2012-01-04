@@ -29,7 +29,6 @@ typedef void* dague_remote_dep_datatype_t;
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
 #define DAGUE_ACTION_RELEASE_LOCAL_REFS         0x0200
-#define DAGUE_ACTION_NO_PLACEHOLDER             0x0800
 #define DAGUE_ACTION_SEND_INIT_REMOTE_DEPS      0x1000
 #define DAGUE_ACTION_SEND_REMOTE_DEPS           0x2000
 #define DAGUE_ACTION_RECV_INIT_REMOTE_DEPS      0x4000
