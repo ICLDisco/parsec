@@ -14,6 +14,7 @@
 #include "dequeue.h"
 #include "profiling.h"
 #include "lifo.h"
+#include "fifo.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -57,9 +58,9 @@ typedef struct _gpu_device {
     int in_submit, in_waiting,
         exec_submit, exec_waiting,
         out_submit, out_waiting;
-    struct dague_fifo_t *fifo_pending_in;
-    struct dague_fifo_t *fifo_pending_exec;
-    struct dague_fifo_t *fifo_pending_out;
+    dague_fifo_t *fifo_pending_in;
+    dague_fifo_t *fifo_pending_exec;
+    dague_fifo_t *fifo_pending_out;
 #endif  /* DAGUE_GPU_STREAM_PER_TASK */
     int id;
     int executed_tasks;
@@ -71,7 +72,7 @@ typedef struct _gpu_device {
     uint64_t transferred_data_out;
     uint64_t required_data_in;
     uint64_t required_data_out;
-    dague_list_t* gpu_mem_lru;
+    dague_fifo_t* gpu_mem_lru;
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
