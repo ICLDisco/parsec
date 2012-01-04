@@ -93,7 +93,7 @@ dague_list_item_ring_push_front( dague_list_item_t* ring,
 }
 #define dague_list_item_ring_pushf(ring, item) dague_list_item_ring_pushf(ring, item)
 
-/* Remove the current first item of the ring @item
+/* Remove the current first item of the ring @item (not thread safe)
  *   @returns the ring starting at next item, or NULL if @item is a singleton
  */
 static inline dague_list_item_t* 
