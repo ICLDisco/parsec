@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "linked_list.h"
+#include "list.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +29,7 @@
 extern char *q2j_input_file_name;
 extern int _q2j_generate_line_numbers;
 
-static dague_linked_list_t _dague_pool_list;
+static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
@@ -1824,17 +1824,20 @@ static char *size_to_pool_name(char *size_str){
     char *pool_name = NULL;
 
     if( !pool_count )
-        dague_linked_list_construct(&_dague_pool_list);
+        dague_list_construct(&_dague_pool_list);
 
     /* See if a pool of this size exists already, and if so return it. */
-    dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
-    while(list_item != &(_dague_pool_list.ghost_element) ){
+    dague_list_item_t *list_item;
+    for(list_item = dague_list_iterate_first(&_dague_pool_list);
+        list_item != dague_list_iterate_end(&_dague_pool_list);
+        list_item = dague_list_iterate_next(&_dague_pool_list, list_item))
+    {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
-        assert(list_item && NULL != true_item->var && NULL != true_item->def);
+        assert(NULL != true_item->var);
+        assert(NULL != true_item->def);
         if( !strcmp(true_item->var, size_str) ){
             return true_item->def;
         }
-        list_item = (dague_list_item_t *)list_item->list_next;
     }
 
     /* If control reached here, it means that we didn't find a pool of the given size. */
@@ -1845,8 +1848,7 @@ static char *size_to_pool_name(char *size_str){
     var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_item->var = size_str;
     new_item->def = pool_name;
-    DAGUE_LIST_ITEM_SINGLETON(new_item);
-    dague_linked_list_add_head( &_dague_pool_list, (dague_list_item_t *)new_item );
+    dague_ulist_pushf( &_dague_pool_list, (dague_list_item_t *)new_item );
 
     return pool_name;
 }
@@ -1854,17 +1856,15 @@ static char *size_to_pool_name(char *size_str){
 char *create_pool_declarations(){
     char *result = NULL;
 
-    dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
-    while(list_item && list_item != &(_dague_pool_list.ghost_element) ){
+    dague_list_item_t *list_item;
+    for(list_item = dague_list_iterate_first(&_dague_pool_list);
+        list_item != dague_list_iterate_end(&_dague_pool_list);
+        list_item = dague_list_iterate_next(&_dague_pool_list, list_item))
+    {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
-        assert(list_item);
-        assert(NULL != true_item->var);
-        assert(NULL != true_item->def);
        
         result = append_to_string(result, true_item->def, NULL, 0);
         result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
-
-        list_item = (dague_list_item_t *)list_item->list_next;
     }
     return result;
 }
@@ -1873,19 +1873,19 @@ char *create_pool_declarations(){
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
-int is_definition_seen(dague_linked_list_t *var_def_list, char *param){
-    volatile dague_list_item_t *item;
-    int i=0;
-
-    item = var_def_list->ghost_element.list_next;
-    while(item != &(var_def_list->ghost_element) ){
+int is_definition_seen(dague_list_t *var_def_list, char *param){
+    int i;
+    dague_list_item_t *item;
+    for(item = dague_list_iterate_first(var_def_list),i=0;
+        item != dague_list_iterate_end(var_def_list);
+        item = dague_list_iterate_next(var_def_list, item),i++)
+    {
         i++;
         var_def_item_t *true_item = (var_def_item_t *)item;
-        assert( item && (NULL != true_item->var) );
+        assert( NULL != true_item->var );
         if( !strcmp(true_item->var, param) ){
             return i;
         }
-        item = (dague_list_item_t *)item->list_next;
     }
     return 0;
 }
@@ -1895,14 +1895,13 @@ int is_definition_seen(dague_linked_list_t *var_def_list, char *param){
  * Add in the list of variable definitions an entry for the given parameter (the definition
  * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
  */
-void mark_definition_as_seen(dague_linked_list_t *var_def_list, char *param){
+void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
     var_def_item_t *new_list_item;
 
     new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_list_item->var = param;
     new_list_item->def = NULL; // we are not using the actual definition, just marking it as seen
-    DAGUE_LIST_ITEM_SINGLETON(new_list_item);
-    dague_linked_list_add_head( var_def_list, (dague_list_item_t *)new_list_item );
+    dague_ulist_pushf( var_def_list, (dague_list_item_t *)new_list_item );
 
     return;
 }
@@ -1926,8 +1925,8 @@ char *quark_tree_to_body(node_t *node){
     int i, j;
     int pool_buf_count = 0;
 
-    dague_linked_list_t var_def_list;
-    dague_linked_list_construct(&var_def_list);
+    dague_list_t var_def_list;
+    dague_list_construct(&var_def_list);
 
     assert( FCALL == node->type );
 
@@ -2038,8 +2037,7 @@ char *quark_tree_to_body(node_t *node){
                         var_def_item_t *new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
                         new_list_item->var = param;
                         new_list_item->def = tmp;
-                        DAGUE_LIST_ITEM_SINGLETON(new_list_item);
-                        dague_linked_list_add_head( &var_def_list, (dague_list_item_t *)new_list_item );
+                        dague_ulist_pushf( &var_def_list, (dague_list_item_t *)new_list_item );
 */
                     }
                 }
@@ -2111,7 +2109,7 @@ char *quark_tree_to_body(node_t *node){
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
-    while( NULL != (item = (var_def_item_t *)dague_linked_list_remove_head(&var_def_list)) ){
+    while( NULL != (item = (var_def_item_t *)dague_ulist_popf(&var_def_list)) ) {
         free(item);
     }
 
