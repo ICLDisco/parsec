@@ -17,7 +17,6 @@ typedef struct dague_execution_unit dague_execution_unit_t;
 #include <pthread.h>
 #include "hbbuffer.h"
 #include "mempool.h"
-#include "dequeue.h"
 #include "profiling.h"
 
 struct dague_priority_sorted_list;
@@ -62,13 +61,6 @@ struct dague_context_t {
     dague_barrier_t  barrier;
 
     size_t remote_dep_fw_mask_sizeof;
-#if defined(DAGUE_USE_LIFO) || defined(DAGUE_USE_GLOBAL_LIFO)
-    dague_atomic_lifo_t* fwd_IN_dep_queue;
-    dague_atomic_lifo_t* fwd_OUT_dep_queue;
-#else
-    dague_dequeue_t* fwd_IN_dep_queue;
-    dague_dequeue_t* fwd_OUT_dep_queue;
-#endif /*DAGUE_USE_LIFO */
 
     dague_mempool_t context_mempool;
     dague_mempool_t datarepo_mempools[MAX_PARAM_COUNT+1];
