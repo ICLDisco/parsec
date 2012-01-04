@@ -27,7 +27,8 @@ typedef struct dague_list_item_t {
 #endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
-static inline void dague_list_item_construct( dague_list_item_t *item )
+static inline void 
+dague_list_item_construct( dague_list_item_t* item )
 {
     item->list_prev = item;
     item->list_next = item;
@@ -38,16 +39,82 @@ static inline void dague_list_item_construct( dague_list_item_t *item )
 #endif
 }
 
-/* Make a well formed singleton list with a list item so that it can be 
- * chained.
+/* Make a well formed singleton ring with a list item @item.
+ *   @return @item, a valid list item ring containing itself
  */
-#define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
-static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
+static inline dague_list_item_t* 
+dague_list_item_singleton( dague_list_item_t* item )
 {
+#if defined(DAGUE_DEBUG)
+    assert(0 == item->refcount);
+#endif
     item->list_next = item;
     item->list_prev = item;
     return item;
 }
+#define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
+
+/* Add an @item to the item ring @ring, preceding @ring (not thread safe)
+ *   @return @ring, the list item representing the ring
+ */
+static inline dague_list_item_t* 
+dague_list_item_ring_push_back( dague_list_item_t* ring,
+                                dague_list_item_t* item )
+{
+#if defined(DAGUE_DEBUG)
+    assert( 0 == ring->refcount );
+    assert( (void*)0xdeadbeef != ring->list_next );
+    assert( (void*)0xdeadbeef != ring->list_prev );
+    assert( 0 == item->refcount );
+#endif
+    item->list_next = ring;
+    item->list_prev = ring->list_prev;
+    ring->list_prev->list_next = item;
+    ring->list_prev = item;
+    return ring;
+}
+#define dague_list_item_ring_pushb(ring, item) dague_list_item_ring_push_back(ring, item)
+#define dague_list_item_ring_push(ring, item) dague_list_item_ring_push_back(ring, item)
+
+/* Add an @item to the item ring @ring, preceding @ring (not thread safe)
+ *   @return @ring, the list item representing the ring
+ */
+static inline dague_list_item_t* 
+dague_list_item_ring_push_front( dague_list_item_t* ring,
+                                 dague_list_item_t* item )
+{
+#if defined(DAGUE_DEBUG)
+    assert( 0 == ring->refcount );
+    assert( (void*)0xdeadbeef != ring->list_next );
+    assert( (void*)0xdeadbeef != ring->list_prev );
+#endif
+    dague_list_item_ring_push_back(ring, item);
+    return item;
+}
+#define dague_list_item_ring_pushf(ring, item) dague_list_item_ring_pushf(ring, item)
+
+/* Remove the current first item of the ring @item
+ *   @returns the ring starting at next item, or NULL if @item is a singleton
+ */
+static inline dague_list_item_t* 
+dague_list_item_ring_remove_item( dague_list_item_t* item )
+{
+#if defined(DAGUE_DEBUG)
+    assert( 0 == item->refcount );
+    assert( (void*)0xdeadbeef != item->list_next );
+    assert( (void*)0xdeadbeef != item->list_prev );
+#endif
+    dague_list_item_t* ring = (dague_list_item_t*)item->list_next;
+    item->list_prev->list_next = item->list_next;
+    item->list_next->list_prev = item->list_prev;
+#if defined(DAGUE_DEBUG)
+    item->list_prev = (void*)0xdeadbeef;
+    item->list_next = (void*)0xdeadbeef;
+#endif
+    if(ring == item) return NULL;
+    return ring;
+}
+
 
 /* This is debug helpers for list items accounting */
 #if defined(DAGUE_DEBUG)
@@ -77,8 +144,8 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #define DAGUE_ITEMS_ATTACH(LIST, ITEMS)                                 \
     do {                                                                \
         dague_list_item_t *_item = (ITEMS);                             \
-        assert(_item->list_next != (void*)0xdeadbeef);                  \
-        assert(_item->list_prev != (void*)0xdeadbeef);                  \
+        assert( (void*)0xdeadbeef != _item->list_next );                \
+        assert( (void*)0xdeadbeef != _item->list_prev );                \
         DAGUE_ITEMS_VALIDATE(_item);                                    \
         dague_list_item_t *_end = (dague_list_item_t *)_item->list_prev; \
         do {                                                            \
