@@ -1,5 +1,4 @@
 #include "dague_config.h"
-#include "list.h"
 #include "fifo.h"
 #include "priority_sorted_queue.h"
 #include "scheduling.h"
@@ -81,7 +80,7 @@ dague_scheduler_t sched_global_dequeue = {
 /*********************************************************************/
 
 typedef struct { 
-    dague_fifo_t      *system_queue;
+    dague_list_t      *system_queue;
     dague_hbbuffer_t  *task_queue;
     int                nb_hierarch_queues;
     dague_hbbuffer_t **hierarch_queues;
@@ -91,7 +90,7 @@ typedef struct {
 
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
-    dague_fifo_chain( (dague_fifo_t*)store, elt );
+    dague_fifo_chain( (dague_list_t*)store, elt );
 }
 
 /** In case of hierarchical bounded buffer, define
@@ -124,8 +123,8 @@ static int init_local_flat_queues(  dague_context_t *master )
         eu->scheduler_object = sched_obj;
     
         if( eu->eu_id == 0 ) {
-            sched_obj->system_queue = (dague_fifo_t*)malloc(sizeof(dague_fifo_t));
-            dague_fifo_construct( sched_obj->system_queue );
+            sched_obj->system_queue = (dague_list_t*)malloc(sizeof(dague_list_t));
+            dague_list_construct( sched_obj->system_queue );
         } else {
             sched_obj->system_queue = LOCAL_QUEUES_OBJECT(master->execution_units[0])->system_queue;
         }
@@ -208,8 +207,8 @@ static int init_local_hier_queues( dague_context_t *master )
         eu->scheduler_object = sched_obj;
     
         if( eu->eu_id == 0 ) {
-            sched_obj->system_queue = (dague_fifo_t*)malloc(sizeof(dague_fifo_t));
-            dague_fifo_construct( sched_obj->system_queue );
+            sched_obj->system_queue = (dague_list_t*)malloc(sizeof(dague_list_t));
+            dague_list_construct( sched_obj->system_queue );
         } else {
             sched_obj->system_queue = LOCAL_QUEUES_OBJECT(master->execution_units[0])->system_queue;
         }
@@ -344,7 +343,7 @@ static void finalize_local_flat_queues( dague_context_t *master )
         sched_obj = LOCAL_QUEUES_OBJECT(eu);
 
         if( eu->eu_id == 0 ) {
-            dague_fifo_destruct( sched_obj->system_queue );
+            dague_list_destruct( sched_obj->system_queue );
             free( sched_obj->system_queue );
         }
         sched_obj->system_queue = NULL;

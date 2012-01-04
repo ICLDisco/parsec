@@ -10,7 +10,6 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "list.h"
 #include "fifo.h"
 
 #include <plasma.h>
@@ -714,8 +713,8 @@ int gpu_qr_data_map_init( int matrixIsT,
     if( NULL == data_map ) {
         data_map = (memory_elem_t**)calloc(data->lmt * data->lnt, sizeof(memory_elem_t*));
     }
-    gpu_device->gpu_mem_lru = (dague_fifo_t*)malloc(sizeof(dague_fifo_t));
-    dague_fifo_construct(gpu_device->gpu_mem_lru);
+    gpu_device->gpu_mem_lru = (dague_list_t*)malloc(sizeof(dague_list_t));
+    dague_list_construct(gpu_device->gpu_mem_lru);
     return 0;
 }
 

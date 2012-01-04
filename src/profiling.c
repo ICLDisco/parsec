@@ -15,12 +15,10 @@
 #include "profiling.h"
 #include "data_distribution.h"
 #include "debug.h"
-
-#include "atomic.h"
-#define min(a, b) ((a)<(b)?(a):(b))
-
 #include "os-spec-timing.h"
 #include "fifo.h"
+
+#define min(a, b) ((a)<(b)?(a):(b))
 
 #define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
 
@@ -81,7 +79,7 @@ static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
 /* Process-global profiling list */
-static dague_fifo_t threads;
+static dague_list_t threads;
 static char *hr_id = NULL;
 static dague_profiling_info_t *dague_profiling_infos = NULL;
 
@@ -141,7 +139,7 @@ int dague_profiling_init( const char *format, ... )
     vasprintf(&hr_id, format, ap);
     va_end(ap);
 
-    dague_fifo_construct( &threads );
+    dague_list_construct( &threads );
 
     dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
     dague_prof_keys_count = 0;
@@ -189,7 +187,7 @@ int dague_profiling_fini( void )
         free(t);
     }
     free(hr_id);
-    dague_fifo_destruct(&threads);
+    dague_list_destruct(&threads);
 
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);

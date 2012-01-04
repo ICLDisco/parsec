@@ -214,12 +214,12 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
 
         gpu_device->max_exec_streams = gpu_device->max_streams - 2;
 
-        gpu_device->fifo_pending_in = (dague_fifo_t*)malloc( sizeof(dague_fifo_t) );
-        dague_fifo_construct( gpu_device->fifo_pending_in );
-        gpu_device->fifo_pending_exec = (dague_fifo_t*)malloc( sizeof(dague_fifo_t) );
-        dague_fifo_construct( gpu_device->fifo_pending_exec );
-        gpu_device->fifo_pending_out = (dague_fifo_t*)malloc( sizeof(dague_fifo_t) );
-        dague_fifo_construct( gpu_device->fifo_pending_out );
+        gpu_device->fifo_pending_in = (dague_list_t*)malloc( sizeof(dague_list_t) );
+        dague_list_construct( gpu_device->fifo_pending_in );
+        gpu_device->fifo_pending_exec = (dague_list_t*)malloc( sizeof(dague_list_t) );
+        dague_list_construct( gpu_device->fifo_pending_exec );
+        gpu_device->fifo_pending_out = (dague_list_t*)malloc( sizeof(dague_list_t) );
+        dague_list_construct( gpu_device->fifo_pending_out );
 
         gpu_device->in_array = (struct dague_execution_context_t**)malloc(gpu_device->max_in_tasks * sizeof(struct dague_execution_context_t*));
         gpu_device->in_array_events = (CUevent*)malloc(gpu_device->max_in_tasks * sizeof(CUevent));
@@ -346,9 +346,9 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
         free(gpu_device->out_array); gpu_device->out_array = NULL;
         free(gpu_device->out_array_events); gpu_device->out_array_events = NULL;
         
-        dague_fifo_destruct(gpu_device->fifo_pending_in); free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
-        dague_fifo_destruct(gpu_device->fifo_pending_exec); free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
-        dague_fifo_destruct(gpu_device->fifo_pending_out);free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
+        dague_list_destruct(gpu_device->fifo_pending_in); free( gpu_device->fifo_pending_in ); gpu_device->fifo_pending_in = NULL;
+        dague_list_destruct(gpu_device->fifo_pending_exec); free( gpu_device->fifo_pending_exec ); gpu_device->fifo_pending_exec = NULL;
+        dague_list_destruct(gpu_device->fifo_pending_out);free( gpu_device->fifo_pending_out ); gpu_device->fifo_pending_out = NULL;
 #endif  /* !defined(DAGUE_GPU_STREAM_PER_TASK) */
         status = (cudaError_t)cuCtxDestroy( gpu_device->ctx );
         DAGUE_CUDA_CHECK_ERROR( "(FINI) cuCtxDestroy ", status,
@@ -641,7 +641,7 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
 #if !defined(DAGUE_GPU_STREAM_PER_TASK)
 
 #if DAGUE_GPU_USE_PRIORITIES
-static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
+static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
                                                           dague_list_item_t* elem )
 {
     dague_list_item_t* current;
@@ -789,7 +789,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             this_task = NULL;
         } else {
             /* Get the oldest task */
-            if( !dague_ufifo_is_empty(gpu_device->fifo_pending_in) ) {
+            if( !dague_ulist_is_empty(gpu_device->fifo_pending_in) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_in, (dague_list_item_t*)this_task);
                 this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_in);
             }
@@ -1246,8 +1246,8 @@ int gpu_data_map_init( gpu_device_t* gpu_device,
     if( NULL == data_map ) {
         data_map = (memory_elem_t**)calloc(data->lmt * data->lnt, sizeof(memory_elem_t*));
     }
-    gpu_device->gpu_mem_lru = (dague_list_t*)malloc(sizeof(dague_fifo_t));
-    dague_fifo_construct(gpu_device->gpu_mem_lru);
+    gpu_device->gpu_mem_lru = (dague_list_t*)malloc(sizeof(dague_list_t));
+    dague_list_construct(gpu_device->gpu_mem_lru);
     return 0;
 }
 
