@@ -10,11 +10,11 @@
 #include "dague_config.h"
 
 #if defined(HAVE_CUDA)
-#include "list.h"
-#include "dequeue.h"
-#include "profiling.h"
-#include "lifo.h"
+#include "list_item.h"
 #include "fifo.h"
+
+#include "profiling.h"
+
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -67,7 +67,7 @@ typedef struct _gpu_device {
     int major;
     int minor;
     volatile uint32_t mutex;
-    dague_dequeue_t pending;
+    dague_fifo_t pending;
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
     uint64_t required_data_in;

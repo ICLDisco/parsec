@@ -571,8 +571,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
-        DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t*)this_task );
-        dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)this_task );
+        dague_fifo_push( &(gpu_device->pending), (dague_list_item_t*)this_task );
         return -1;
     }
 
@@ -637,7 +636,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     if( NULL != progress_array[submit] )
         goto wait_for_completion;
 
-    this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+    this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
     if( NULL == this_task ) {  /* Collisions, save time and come back here later */
         goto more_work_to_do;
     }
@@ -652,7 +651,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     __dague_schedule( eu_context, this_task);
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     while( rc != 0 ) {
-        this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+        this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
         if( NULL != this_task ) {
             __dague_schedule( eu_context, this_task);
             rc = dague_atomic_dec_32b( &(gpu_device->mutex) );

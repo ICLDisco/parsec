@@ -10,7 +10,6 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "list.h"
 #include "fifo.h"
 
 #include <plasma.h>
@@ -193,7 +192,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
                                     }) );
             nb_allocations++;
             gpu_elem->memory_elem = NULL;
-            dague_ulist_pushb( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
+            dague_ufifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
         if( 0 == nb_allocations ) {
@@ -757,8 +756,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
-        DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t*)this_task );
-        dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)this_task );
+        dague_fifo_push( &(gpu_device->pending), (dague_list_item_t*)this_task );
         return -1;
     }
 
@@ -954,9 +952,9 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         }
     }
 
- fetch_task_from_shared_dequeue:
+ fetch_task_from_shared_queue:
     assert( NULL == this_task );
-    this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+    this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
     if( NULL != this_task ) {
         DEBUG(( "Add gemm(k = %d, m = %d, n = %d) priority %d\n",
                 this_task->locals[0].value, this_task->locals[1].value, this_task->locals[2].value,
@@ -987,7 +985,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
         return -1;
     }
     this_task = NULL;
-    goto fetch_task_from_shared_dequeue;
+    goto fetch_task_from_shared_queue;
 
  disable_gpu:
     /* Something wrong happened. Push all the pending tasks back on the
@@ -1121,8 +1119,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
-        DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t*)this_task );
-        dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)this_task );
+        dague_fifo_push( &(gpu_device->pending), (dague_list_item_t*)this_task );
         return -1;
     }
 
@@ -1187,7 +1184,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     if( NULL != progress_array[submit] )
         goto wait_for_completion;
 
-    this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+    this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
     if( NULL == this_task ) {  /* Collisions, save time and come back here later */
         goto more_work_to_do;
     }
@@ -1202,7 +1199,7 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
     __dague_schedule( eu_context, this_task);
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     while( rc != 0 ) {
-        this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+        this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
         if( NULL != this_task ) {
             __dague_schedule( eu_context, this_task);
             rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
@@ -1221,7 +1218,6 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
 
 #include "gpu_data.h"
 #include "data_distribution.h"
-#include "list.h"
 
 static memory_elem_t** data_map = NULL;
 extern int ndevices;
