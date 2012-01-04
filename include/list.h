@@ -118,11 +118,12 @@ dague_list_iterate_remove_and_prev( dague_list_t* list,
                                     dague_list_item_t* item );
 /* synonym to remove_and_next */
 #define dague_list_iterate_remove(L,I) dague_list_iterate_remove_and_next(L,I)
-/** lock the list */
+/** lock the list, can be used to render an iteration loop thread safe */
 static inline void 
 dague_list_iterate_lock( dague_list_t* list );
-/** unlock the list, any further calls to iterate_next/iterate_prev may
- *    have unspecified results, even if the list is locked again later */
+/** unlock the list, further calls to iterate while push/pop are 
+ *    possibly concurent may have unspecified results, even if the 
+ *    list is locked again before resuming iteration loop */
 static inline void
 dague_list_iterate_unlock( dague_list_t* list );
 
