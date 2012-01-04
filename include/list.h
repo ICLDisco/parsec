@@ -17,7 +17,7 @@
 
 typedef struct dague_list_t {
     dague_list_item_t  ghost_element;
-    uint32_t atomic_lock;
+    volatile uint32_t atomic_lock;
 } dague_list_t;
 
 

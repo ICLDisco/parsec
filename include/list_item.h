@@ -39,7 +39,7 @@ static inline void dague_list_item_construct( dague_list_item_t *item )
 }
 
 /* Make a well formed singleton list with a list item so that it can be 
- * pushed. 
+ * chained.
  */
 #define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
 static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* item)
@@ -85,6 +85,7 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #define DAGUE_DETACH_ELEM(ITEM)                  \
     do {                                         \
         dague_list_item_t *_item = (ITEM);       \
+        assert( _item->belong_to_list != _item->belong_to_list->ghost_element ); \
         _item->list_prev = 0xdeadbeef;           \
         _item->list_next = 0xdeadbeef;           \
         _item->refcount--;                       \
