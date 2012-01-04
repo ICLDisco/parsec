@@ -393,15 +393,17 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
 static inline dague_list_item_t* rdep_fifo_push_ordered_cmd( dague_fifo_t* fifo,
                                                              dague_list_item_t* elem )
 {
+    dague_list_item_t* current;
     dep_cmd_item_t* ec;
     dep_cmd_item_t* input = (dep_cmd_item_t*)elem;
-    dague_list_item_t* current = dague_list_iterate_first(fifo);
 
-    while( current ) {
+    for(current = dague_list_iterate_first(fifo);
+        current != dague_list_iterate_end(fifo);
+        current = dague_list_iterate_next(fifo, current))
+    {
         ec = (dep_cmd_item_t*)current;
         if( ec->priority < input->priority )
             break;
-        current = dague_list_iterate_next(fifo, current);
     }
     dague_list_iterate_add_before(fifo, current, elem);
     return elem;
@@ -887,15 +889,17 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
 static inline dague_list_item_t* rdep_fifo_push_ordered_get( dague_fifo_t* fifo,
                                                              dague_list_item_t* elem )
 {
+    dague_list_item_t* current;
     dague_dep_wire_get_fifo_elem_t* ec;
     dague_dep_wire_get_fifo_elem_t* input = (dague_dep_wire_get_fifo_elem_t*)elem;
-    dague_list_item_t* current = dague_list_iterate_first(fifo);
 
-    while( current ) {
+    for(current = dague_list_iterate_first(fifo);
+        current != dague_list_iterate_end(fifo);
+        current = dague_list_iterate_next(fifo, current))
+    {
         ec = (dague_dep_wire_get_fifo_elem_t*)current;
         if( ec->priority < input->priority )
             break;
-        current = dague_list_iterate_next(fifo, current);
     }
     dague_list_iterate_add_before(fifo, current, elem);
     return elem;

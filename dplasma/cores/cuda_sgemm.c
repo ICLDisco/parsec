@@ -645,16 +645,17 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_fifo_t* fifo,
                                                           dague_list_item_t* elem )
 {
+    dague_list_item_t* current;
     dague_execution_context_t* ec;
     dague_execution_context_t* input = (dague_execution_context_t*)elem;
-    dague_list_item_t* current;
 
     if( 0 == input->priority ) 
     {
         dague_ufifo_push(fifo, elem);
         return elem;
     }
-    for(current = dague_list_iterate_first(fifo); NULL != current; 
+    for(current = dague_list_iterate_first(fifo);
+        current != dague_list_iterate_end(fifo); 
         current = dague_list_iterate_next(fifo, current))
     {
         ec = (dague_execution_context_t*)current;
