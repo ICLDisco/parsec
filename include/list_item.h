@@ -100,7 +100,7 @@ static inline dague_list_item_t* dague_list_item_singleton(dague_list_item_t* it
 #define DAGUE_ITEMS_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
 #define DAGUE_ITEM_ATTACH(LIST, ITEM) do { (void)(LIST); (void)(ITEM); } while(0)
 #define DAGUE_ITEMS_ATTACH(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
-#define DAGUE_ITEMS_DETACH(ITEM) do { (void)(ITEM); } while(0)
+#define DAGUE_ITEM_DETACH(ITEM) do { (void)(ITEM); } while(0)
 #endif  /* DAGUE_DEBUG */
 
 #endif
