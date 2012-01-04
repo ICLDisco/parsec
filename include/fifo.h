@@ -52,6 +52,10 @@ static inline dague_list_item_t*
 dague_fifo_pop(dague_fifo_t* list) {
     return dague_list_pop_front(list); 
 }
+static inline dague_list_item_t*
+dague_fifo_try_pop(dague_fifo_t* list) {
+    return dague_list_try_pop_front(list);
+}
 static inline dague_list_item_t* 
 dague_fifo_nolock_pop(dague_fifo_t* list) { 
     return dague_list_nolock_pop_front(list); 
