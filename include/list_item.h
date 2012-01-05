@@ -39,6 +39,8 @@ dague_list_item_construct( dague_list_item_t* item )
 #endif
 }
 
+#define dague_list_item_destruct(item) do {(void)(item);} while(0)
+
 /* Make a well formed singleton ring with a list item @item.
  *   @return @item, a valid list item ring containing itself
  */
