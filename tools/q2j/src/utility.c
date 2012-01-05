@@ -1827,10 +1827,7 @@ static char *size_to_pool_name(char *size_str){
         dague_list_construct(&_dague_pool_list);
 
     /* See if a pool of this size exists already, and if so return it. */
-    dague_list_item_t *list_item;
-    for(list_item = dague_list_iterate_first(&_dague_pool_list);
-        list_item != dague_list_iterate_end(&_dague_pool_list);
-        list_item = dague_list_iterate_next(&_dague_pool_list, list_item))
+    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
     {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
         assert(NULL != true_item->var);
@@ -1838,7 +1835,7 @@ static char *size_to_pool_name(char *size_str){
         if( !strcmp(true_item->var, size_str) ){
             return true_item->def;
         }
-    }
+    });
 
     /* If control reached here, it means that we didn't find a pool of the given size. */
     pool_name = append_to_string( strdup("pool_"), int_to_str(pool_count), NULL, 0);
@@ -1848,7 +1845,7 @@ static char *size_to_pool_name(char *size_str){
     var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_item->var = size_str;
     new_item->def = pool_name;
-    dague_ulist_pushf( &_dague_pool_list, (dague_list_item_t *)new_item );
+    dague_ulist_lifo_push( &_dague_pool_list, (dague_list_item_t *)new_item );
 
     return pool_name;
 }
@@ -1856,16 +1853,13 @@ static char *size_to_pool_name(char *size_str){
 char *create_pool_declarations(){
     char *result = NULL;
 
-    dague_list_item_t *list_item;
-    for(list_item = dague_list_iterate_first(&_dague_pool_list);
-        list_item != dague_list_iterate_end(&_dague_pool_list);
-        list_item = dague_list_iterate_next(&_dague_pool_list, list_item))
+    DAGUE_LIST_ITERATOR(&_dague_pool_list, list_item,
     {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
        
         result = append_to_string(result, true_item->def, NULL, 0);
         result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
-    }
+    });
     return result;
 }
 
@@ -1874,19 +1868,16 @@ char *create_pool_declarations(){
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
 int is_definition_seen(dague_list_t *var_def_list, char *param){
-    int i;
-    dague_list_item_t *item;
-    for(item = dague_list_iterate_first(var_def_list),i=0;
-        item != dague_list_iterate_end(var_def_list);
-        item = dague_list_iterate_next(var_def_list, item),i++)
+    int i = 0;
+    DAGUE_ULIST_ITERATOR(var_def_list, item,
     {
         i++;
         var_def_item_t *true_item = (var_def_item_t *)item;
         assert( NULL != true_item->var );
-        if( !strcmp(true_item->var, param) ){
+        if( !strcmp(true_item->var, param) ) {
             return i;
         }
-    }
+    });
     return 0;
 }
 
@@ -1901,7 +1892,7 @@ void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
     new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_list_item->var = param;
     new_list_item->def = NULL; // we are not using the actual definition, just marking it as seen
-    dague_ulist_pushf( var_def_list, (dague_list_item_t *)new_list_item );
+    dague_ulist_lifo_push( var_def_list, (dague_list_item_t *)new_list_item );
 
     return;
 }
@@ -2037,7 +2028,7 @@ char *quark_tree_to_body(node_t *node){
                         var_def_item_t *new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
                         new_list_item->var = param;
                         new_list_item->def = tmp;
-                        dague_ulist_pushf( &var_def_list, (dague_list_item_t *)new_list_item );
+                        dague_ulist_lifo_push( &var_def_list, (dague_list_item_t *)new_list_item );
 */
                     }
                 }
@@ -2109,7 +2100,7 @@ char *quark_tree_to_body(node_t *node){
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
-    while( NULL != (item = (var_def_item_t *)dague_ulist_popf(&var_def_list)) ) {
+    while( NULL != (item = (var_def_item_t *)dague_ulist_lifo_pop(&var_def_list)) ) {
         free(item);
     }
 
