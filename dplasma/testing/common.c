@@ -104,6 +104,7 @@ void print_usage(void)
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
            );
+    dague_usage();
 }
 
 #define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:"

@@ -77,6 +77,12 @@ struct dague_context_t {
 #if defined(DAGUE_SIM)
     int largest_simulation_date;
 #endif
+
+#ifdef HAVE_HWLOC // STEPH
+  hwloc_cpuset_t comm_th_binding_mask;
+  int comm_th_core; 
+#endif
+
     /* This field should always be the last one in the structure. Even if the
      * declared number of execution units is 1 when we allocate the memory
      * we will allocate more (as many as we need), so everything after this

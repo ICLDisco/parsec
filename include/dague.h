@@ -287,4 +287,7 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
 void dague_dump_object( dague_object_t* object );
 void dague_dump_execution_context( dague_execution_context_t* exec_context );
 
+/**< Print DAGuE usage message */
+void dague_usage(void);
+
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

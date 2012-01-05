@@ -60,6 +60,10 @@ int num_events = 0;
 char* event_names[MAX_EVENTS];
 #endif
 
+#ifdef HAVE_HWLOC
+#define MAX_CORE_LIST 128
+#endif
+
 #if defined(HAVE_GETRUSAGE)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -109,6 +113,17 @@ static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
 
+typedef struct __dague_temporary_thread_initialization_t {
+    dague_context_t* master_context;
+    int th_id;
+    int nb_cores;
+    int bindto;
+} __dague_temporary_thread_initialization_t;
+
+static int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
+					 __dague_temporary_thread_initialization_t* startup);
+static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context);
+
 const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
     unsigned int i;
@@ -123,12 +138,6 @@ const dague_function_t* dague_find(const dague_object_t *dague_object, const cha
     return NULL;
 }
 
-typedef struct __dague_temporary_thread_initialization_t {
-    dague_context_t* master_context;
-    int th_id;
-    int nb_cores;
-    int bindto;
-} __dague_temporary_thread_initialization_t;
 
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
@@ -137,6 +146,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
+    DEBUG(("Bind thread %i on core %i\n", startup->th_id, startup->bindto));
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -183,8 +193,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
-            {"papi",        required_argument,  NULL, 'p'},
-            {"bind",        required_argument,  NULL, 'b'},
+	    {"dague_help",       no_argument,        NULL, 'h'},
+            {"dague_bind",       optional_argument,  NULL, 'b'},
+            {"dague_bind_comm",  optional_argument,  NULL, 'c'},
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
@@ -209,12 +220,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
+
     context->__dague_internal_finalization_in_progress = 0;
     context->nb_cores       = (int32_t) nb_cores;
     context->__dague_internal_finalization_counter = 0;
     context->nb_nodes       = 1;
     context->active_objects = 0;
     context->my_rank        = 0;
+#if defined(HAVE_HWLOC)
+    context->comm_th_binding_mask = NULL;
+    context->comm_th_core   = -1;
+#endif  /* defined(HWLOC) */
 
 #ifdef HAVE_PAPI
     num_events = 0;
@@ -242,74 +258,18 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
             
-            ret = getopt_long (argc, argv, "p:b:",
+            ret = getopt_long (argc, argv, "p:b:c:",
                                long_options, &option_index);
 #else
-            ret = getopt (argc, argv, "p:b:");
+            ret = getopt (argc, argv, "p:b:c:");
 #endif  /* defined(HAVE_GETOPT_LONG) */
             if( -1 == ret ) break;  /* we're done */
-            
+
             switch(ret) {
-            case 'b':
-                {
-                    char* option = strdup(optarg);
-                    char* position;
-                    if( NULL != (position = strchr(option, ':')) ) {
-                        /* range expression such as [start]:[end]:[step] */
-                        int start = 0, end, step = 1;
-                        if( position != option ) {  /* we have a starting position */
-                            start = strtol(option, NULL, 10);
-                        }
-                        end = start + nb_cores;  /* automatically compute the end */
-                        position++;  /* skip the : */
-                        if( '\0' != position[0] ) {
-                            if( ':' != position[0] ) {
-                                end = strtol(position, &position, 10);
-                                position = strchr(position, ':');  /* find the step */
-                            }
-                            if( NULL != position ) position++;  /* skip the : directly into the step */
-                            if( (NULL != position) && ('\0' != position[0]) ) {
-                                step = strtol(position, NULL, 10);
-                            }
-                        }
-                        DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
-                        {
-                            int where = start, skip = 1;
-                            for( i = 0; i < nb_cores; i++ ) {
-                                startup[i].bindto = where;
-                                where += step;
-                                if( where >= end ) {
-                                    where = start + skip;
-                                    skip++;
-                                    if( (skip > step) && (i < (nb_cores - 1))) {
-                                        printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        i = 0;
-                        /* array of cores c1,c2,... */
-                        position = option;
-                        while( NULL != position ) {
-                            /* We have more information than the number of cores. Ignore it! */
-                            if( i == nb_cores ) break;
-                            startup[i].bindto = strtol(position, &position, 10);
-                            i++;
-                            if( (',' != position[0]) || ('\0' == position[0]) ) {
-                                break;
-                            }
-                            position++;
-                        }
-                        if( i < nb_cores ) {
-                            printf( "Based on the information provided to --bind some threads are not binded\n" );
-                        }
-                    }
-                    free(option);
-                }
-                break;
-            }
+	    case 'h': dague_usage(); break;
+	    case 'c': dague_parse_comm_binding_parameter(optarg, context); break;
+	    case 'b': dague_parse_binding_parameter(optarg, context, startup); break;
+	    }
         } while(1);
     }
 
@@ -376,7 +336,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     /* Release the temporary array used for starting up the threads */
     free(startup);
 
-    /* Wait until threads are bound before introducing progress threads */
+    /* Introduce communication thread */
     context->nb_nodes = dague_remote_dep_init(context);
     
 #ifdef HAVE_PAPI
@@ -447,7 +407,12 @@ int dague_fini( dague_context_t** pcontext )
         free(context->pthreads);
     }
 
+
+
 #if defined(HAVE_HWLOC)
+    /* Release the temporary communication thread binding mask if allocated */
+    hwloc_bitmap_free(context->comm_th_binding_mask);
+
     dague_hwloc_fini();
 #endif  /* defined(HWLOC) */
 
@@ -910,3 +875,242 @@ int dague_object_register( dague_object_t* object )
     return (int)index;
 }
 
+/**< Print DAGuE usage message */
+void dague_usage(void)
+{
+    fprintf(stderr, "\n"
+	    "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
+            " --dague_bind        : define a set of core for the thread binding\n"
+	    "                       accepted values:\n"
+	    "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
+	    "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
+	    "                        - a binding range expression: [+][start]:[end]:[step] \n"
+	    "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
+            "                             to end (default physical core number) by step (default 1)\n"
+	    "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
+            "                             while extra threads remain unbound)\n"
+	    "                       if starts with \"+\", the communication thread will be executed on the core subset\n"
+	    " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+	    "                       (default: a NUIOA-aware core subset)\n"
+
+	    "\n"
+         /* " --dague_verbose     : extra verbose output\n" */
+         /* " --dague_papi        : enable PAPI\n" */
+	    " --dague_help         : this message\n"
+	    "\n"
+	);
+}
+
+
+/* Parse --dague_bind */
+int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
+				  __dague_temporary_thread_initialization_t* startup)
+{
+#if defined(HAVE_HWLOC)
+    DEBUG(("Parse request for the binding of threads\n"));
+    char* option = optarg;
+    char* position;
+    int i, need_mask=0;
+    int nb_real_cores=dague_hwloc_nb_real_cores();
+
+    if (option[0]=='+' & context->comm_th_core == -1)
+    {
+	/* the communication thread is considered but no binding has been defined yet */
+	context->comm_th_binding_mask=hwloc_bitmap_alloc();
+	context->comm_th_core=-2;
+	need_mask=1;
+	option++;  /* skip the + */
+    }
+
+    if (NULL != (position = strchr(option, 'x')))
+    {
+	/* Hexadecimal mask */
+	/* convert mask into hwloc bitmap, used if needed for the communication thread binding */
+	position++;
+	unsigned long mask = strtoul(position, NULL, 16);
+	if( context->comm_th_binding_mask==NULL)
+	    context->comm_th_binding_mask=hwloc_bitmap_alloc();
+	hwloc_bitmap_from_ulong(context->comm_th_binding_mask, mask);
+	
+        /* compute the bitmap indexes to define the binding. */
+	int prev=-1;
+	for( i = 0; i < context->nb_cores; i++ ) {
+	    prev=hwloc_bitmap_next(context->comm_th_binding_mask, prev);
+	    if(prev==-1){
+		/* reached the last index, start again */
+		prev=hwloc_bitmap_next(context->comm_th_binding_mask, prev);
+	    }
+	    startup[i].bindto=prev;
+	}
+
+	char *str2 = NULL;
+	hwloc_bitmap_asprintf(&str2, context->comm_th_binding_mask);
+	fprintf(stderr, "binding defined by the mask %s\n", str2);
+	free(str2);
+
+#if defined(DAGUE_DEBUG)
+	char *str = NULL;
+	hwloc_bitmap_asprintf(&str, context->comm_th_binding_mask);
+	DEBUG(( "binding defined by the mask %s\n", str));
+	free(str);
+#endif
+    }
+    else if( NULL != (position = strchr(option, ':')))
+    {
+	/* Range expression such as [start]:[end]:[step]*/
+	int arg;
+	int start = 0, step = 1;
+	int end=nb_real_cores-1;
+	if( position != option ) {  /* we have a starting position */
+	    arg = strtol(option, NULL, 10);
+	    if( arg < nb_real_cores && arg > -1)
+		start = strtol(option, NULL, 10);
+	    else
+		fprintf(stderr,"** WARNING binding start core not valid (restored to default value)\n");
+	}
+	position++;  /* skip the : */
+	if( '\0' != position[0] ) {
+	    if( ':' != position[0] ) {
+		arg = strtol(position, &position, 10);
+		if( arg < nb_real_cores && arg > -1 )
+		    end = arg;
+		else
+		    fprintf(stderr,"** WARNING: binding end core not valid (restored to default value)\n");
+	    }
+	    position = strchr(position, ':');  /* find the step */
+	}
+	if( NULL != position )
+	    position++;  /* skip the : directly into the step */
+	if( (NULL != position) && ('\0' != position[0]) ) {
+	    arg = strtol(position, NULL, 10);
+	    if( arg < nb_real_cores && arg > -1 )
+		step = arg;
+	    else
+		fprintf(stderr,"** WARNING:  binding step not valid (restored to default value)\n");
+	}
+
+	DEBUG(( "binding defined by core range [%d:%d:%d]\n", start, end, step));
+	{
+	    int where = start, skip = 1;
+	    for( i = 0; i < context->nb_cores; i++ ) {
+		startup[i].bindto = where;
+		where += step;
+		if( where > end ) {
+		    where = start + skip;
+		    skip++;
+		    if((skip > step) && (i < (context->nb_cores - 1))) {
+			printf( "No more available cores to bind to. The remaining %d threads are not bound\n", context->nb_cores -1-i);
+			int j;
+			for( j = i+1; j < context->nb_cores; j++ )
+			    startup[j].bindto = -1;
+			break;
+		    }
+		}
+	    }
+	}
+
+        /* communication thread binding is legal on cores from start to end */
+	if(need_mask){
+	    for(i=start; i <= end; i++)
+		hwloc_bitmap_set (context->comm_th_binding_mask, i);
+	}
+    } else {
+	/* List of cores */
+	int core_tab[MAX_CORE_LIST];
+	memset(core_tab, -1, MAX_CORE_LIST*sizeof(int));
+	int cmp=0;
+
+	int arg, next_arg;
+	if(option==NULL)
+	{
+            /* default binding */
+	    if(need_mask)
+		hwloc_bitmap_fill(context->comm_th_binding_mask);
+	}else{
+	      while( option != NULL && option[0] != '\0')
+	    {
+		/* first core of the remaining list */
+		arg = strtol(option, &option, 10);
+		if( arg < nb_real_cores && arg > -1 )
+		{
+		    core_tab[cmp]=arg;
+		    if(need_mask){
+			hwloc_bitmap_set(context->comm_th_binding_mask, arg);
+		    }
+		    cmp++;
+		}
+		if( NULL != (position = strpbrk(option, ",-")))
+		{
+		    if (position[0] == '-')
+		    {
+			/* core range */
+			position++;
+			next_arg = strtol(position, &position, 10);
+			for(i=arg+1; i<=next_arg; i++)
+			    if(i < nb_real_cores && i> -1 )
+			    {
+				core_tab[cmp]=i;
+				if(need_mask){
+				    hwloc_bitmap_set(context->comm_th_binding_mask, i);
+				}
+				cmp++;
+			    }
+			option++; /* skip the - and folowing number  */
+			option++;
+		    }
+		}
+		if( '\0' == option[0])
+		    option=NULL;
+		else
+                    /*skip the comma */
+		    option++;
+	    }
+	}
+	if (core_tab[0]== -1)
+	    fprintf(stderr,"** WARNING:  bindind arguments are not valid (restored to default value)\n");
+	else /* we have a legal list to defined the binding  */
+	{
+	    cmp=0;
+	    for(i=0; i<context->nb_cores; i++){
+		startup[i].bindto=core_tab[cmp];
+		cmp++;
+		if(core_tab[cmp] == -1)
+		    cmp=0;
+	    }
+	}
+
+#if defined(DAGUE_DEBUG)
+	char tmp[MAX_CORE_LIST];
+	char* str = tmp;
+	size_t offset;
+	for(i=0; i<MAX_CORE_LIST; i++){
+	    if(core_tab[i]==-1)
+		break;
+	    offset = sprintf(str, "%i ", core_tab[i]);
+	    str += offset;
+	}
+	DEBUG(( "binding defined by the parsed list: %s \n", tmp));
+#endif
+    }
+    return 0;
+#else
+    fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required).\n");
+    return -1;
+#endif
+}
+
+static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context){
+    char* option = optarg;
+    if (option[0]!='\0'){
+	int core=atoi(optarg);
+	if (core > 0 & core < dague_hwloc_nb_real_cores())
+	    context->comm_th_core=core;
+	else
+	    fprintf(stderr,"** Warning: the binding defined by --dague_bind_comm has been ignored (illegal core number)\n");
+    } else {
+	/* TODO:: Add binding NUIOA aware by default */
+	DEBUG(( "default binding for the communication thtread\n", tmp));
+    }
+    return 0;
+
+}
