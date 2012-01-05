@@ -440,7 +440,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 
 #ifdef HAVE_MPI
-    if(verbose && (provided != MPI_THREAD_SERIALIZED))
+    if((verbose > 2) && (provided != MPI_THREAD_SERIALIZED))
         fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
 #endif 
     

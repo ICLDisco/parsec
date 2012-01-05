@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "linked_list.h"
+#include "list.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +29,7 @@
 extern char *q2j_input_file_name;
 extern int _q2j_generate_line_numbers;
 
-static dague_linked_list_t _dague_pool_list;
+static dague_list_t _dague_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
@@ -46,6 +46,12 @@ struct matrix_variable{
     int matrix_rank;
     matrix_variable_t *next;
 };
+
+typedef struct var_def_item {
+    dague_list_item_t super;
+    char *var;
+    char *def;
+} var_def_item_t;
 
 static void do_parentize(node_t *node, int off);
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop);
@@ -827,6 +833,7 @@ void convert_OUTPUT_to_INOUT(node_t *node){
 }
 
 
+// poor man's asprintf().
 char *append_to_string(char *str, const char *app, const char *fmt, size_t add_length){
     size_t len_str;
 
@@ -1804,13 +1811,6 @@ static char *int_to_str(int num){
     return str;
 }
 
-/* var_def_item_t is only used inside quark_tree_to_body() to keep track of the variable definitions already seen */
-typedef struct var_def_item {
-    dague_list_item_t super;
-    char *var;
-    char *def;
-} var_def_item_t;
-
 /*
  * size_to_pool_name() maintains a map between buffer sizes and memory pools.
  * Since DAGuE does not have a predefind map, or hash-table, we use a linked list where we
@@ -1824,17 +1824,20 @@ static char *size_to_pool_name(char *size_str){
     char *pool_name = NULL;
 
     if( !pool_count )
-        dague_linked_list_construct(&_dague_pool_list);
+        dague_list_construct(&_dague_pool_list);
 
     /* See if a pool of this size exists already, and if so return it. */
-    dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
-    while(list_item != &(_dague_pool_list.ghost_element) ){
+    dague_list_item_t *list_item;
+    for(list_item = dague_list_iterate_first(&_dague_pool_list);
+        list_item != dague_list_iterate_end(&_dague_pool_list);
+        list_item = dague_list_iterate_next(&_dague_pool_list, list_item))
+    {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
-        assert(list_item && NULL != true_item->var && NULL != true_item->def);
+        assert(NULL != true_item->var);
+        assert(NULL != true_item->def);
         if( !strcmp(true_item->var, size_str) ){
             return true_item->def;
         }
-        list_item = (dague_list_item_t *)list_item->list_next;
     }
 
     /* If control reached here, it means that we didn't find a pool of the given size. */
@@ -1845,8 +1848,7 @@ static char *size_to_pool_name(char *size_str){
     var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_item->var = size_str;
     new_item->def = pool_name;
-    DAGUE_LIST_ITEM_SINGLETON(new_item);
-    dague_linked_list_add_head( &_dague_pool_list, (dague_list_item_t *)new_item );
+    dague_ulist_pushf( &_dague_pool_list, (dague_list_item_t *)new_item );
 
     return pool_name;
 }
@@ -1854,63 +1856,97 @@ static char *size_to_pool_name(char *size_str){
 char *create_pool_declarations(){
     char *result = NULL;
 
-    dague_list_item_t *list_item = (dague_list_item_t *)_dague_pool_list.ghost_element.list_next;
-    while(list_item && list_item != &(_dague_pool_list.ghost_element) ){
+    dague_list_item_t *list_item;
+    for(list_item = dague_list_iterate_first(&_dague_pool_list);
+        list_item != dague_list_iterate_end(&_dague_pool_list);
+        list_item = dague_list_iterate_next(&_dague_pool_list, list_item))
+    {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
-        assert(list_item);
-        assert(NULL != true_item->var);
-        assert(NULL != true_item->def);
        
         result = append_to_string(result, true_item->def, NULL, 0);
         result = append_to_string(result, true_item->var, " [type = \"dague_memory_pool_t *\" size = \"%s\"]\n", 47+strlen(true_item->var));
-
-        list_item = (dague_list_item_t *)list_item->list_next;
     }
     return result;
 }
 
-/* FIXME: This comment is old. It needs to be updated.
+/* 
+ * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
+ * Return the value one if "param" is in the list and the value zero if it is not.
+ */
+int is_definition_seen(dague_list_t *var_def_list, char *param){
+    int i;
+    dague_list_item_t *item;
+    for(item = dague_list_iterate_first(var_def_list),i=0;
+        item != dague_list_iterate_end(var_def_list);
+        item = dague_list_iterate_next(var_def_list, item),i++)
+    {
+        i++;
+        var_def_item_t *true_item = (var_def_item_t *)item;
+        assert( NULL != true_item->var );
+        if( !strcmp(true_item->var, param) ){
+            return i;
+        }
+    }
+    return 0;
+}
+
+
+/* 
+ * Add in the list of variable definitions an entry for the given parameter (the definition
+ * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
+ */
+void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
+    var_def_item_t *new_list_item;
+
+    new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
+    new_list_item->var = param;
+    new_list_item->def = NULL; // we are not using the actual definition, just marking it as seen
+    dague_ulist_pushf( var_def_list, (dague_list_item_t *)new_list_item );
+
+    return;
+}
+
+/*
  * Traverse the tree containing the QUARK specific code and generate up to five strings.
- * prefix   : The variable declarations (and maybe initializations)
- * pool_pop : The calls to dague_private_memory_pop() for SCRATCH parameters
- * str      : The actual call to the kernel
- * prentStr : The call to printlog()
- * pool_push: The calls to dague_private_memory_push() for SCRATCH parameters
+ * prefix     : The variable declarations (and maybe initializations)
+ * pool_pop   : The calls to dague_private_memory_pop() for SCRATCH parameters
+ * kernel_call: The actual call to the kernel
+ * printStr   : The call to printlog()
+ * pool_push  : The calls to dague_private_memory_push() for SCRATCH parameters
+ * result     : The concatenation of all the above strings that will be returned
  *
  * The function returns one string containing these five strings concatenated.
  */
 char *quark_tree_to_body(node_t *node){
-    char *str, *prefix=NULL, *tmp;
+    char *result=NULL, *kernel_call, *prefix=NULL, *tmp;
     char *printStr, *printSuffix;
     char *pool_pop = NULL;
     char *pool_push = NULL;
     int i, j;
     int pool_buf_count = 0;
 
-    dague_linked_list_t var_def_list;
-    dague_linked_list_construct(&var_def_list);
+    dague_list_t var_def_list;
+    dague_list_construct(&var_def_list);
 
     assert( FCALL == node->type );
 
     //dump_st(node->symtab);
 
     // Get the name of the function called from the tree.
-    str = tree_to_str(node->u.kids.kids[2]);
+    kernel_call = tree_to_str(node->u.kids.kids[2]);
 
     // Remove the suffix
-    tmp = strstr(str, "_quark");
+    tmp = strstr(kernel_call, "_quark");
     if( NULL != tmp ){
         *tmp = '\0';
     }
 
-    //str = append_to_string( strdup("  "), str, "%s(", 1+strlen(str));
-
-    // Form the printlog string first, because it needs to use the function name in "str", and only
-    // then change "str" to add the "#line" directive.
+    // Form the printlog string first, because it needs to use the function name in "kernel_call", and only
+    // then change "kernel_call" to add the "#line" directive.
 
     // Form the string for the "printlog"
     printStr = strdup("  printlog(\"thread %d ");
-    printStr = append_to_string( printStr, str, "%s(", 1+strlen(str));
+    printStr = append_to_string( printStr, kernel_call, "%s(", 1+strlen(kernel_call));
     for(i=0; NULL != node->task->ind_vars[i]; i++ ){
         if( i > 0 )
             printStr = append_to_string( printStr, ", ", NULL, 0);
@@ -1918,7 +1954,7 @@ char *quark_tree_to_body(node_t *node){
     }
     printStr = append_to_string( printStr, ")\\n\"\n           \"\\t(", NULL, 0);
 
-    // Create the "#line lineno" directive and append a newline at the end.
+    // If asked by the user, create the "#line lineno" directive and append a newline at the end.
     if(_q2j_generate_line_numbers){
         tmp = int_to_str(node->lineno);
         tmp = append_to_string(strdup("#line "), tmp, NULL, 0);
@@ -1927,7 +1963,7 @@ char *quark_tree_to_body(node_t *node){
         tmp = NULL;
     }
     // Append the call to the kernel after the directive.
-    str = append_to_string(tmp, str, "  %s(", 3+strlen(str));
+    kernel_call = append_to_string(tmp, kernel_call, "  %s(", 3+strlen(kernel_call));
 
 
     // Form the string for the suffix of the "printlog". That is whatever follows the format string, or in
@@ -1938,24 +1974,27 @@ char *quark_tree_to_body(node_t *node){
         printSuffix = append_to_string( printSuffix, iv, ", %s", 2+strlen(iv));
     }
 
-    // Form the string for the actuall function-call as well as the prefix, which is all
+    // Form the string for the actual function-call as well as the prefix, which is all
     // the definitions of the variables found in the call. Also generate declarations for
     // the variables based on their types.
     j=0;
     for(i=QUARK_FIRST_VAR; i<node->u.kids.kid_count; i+=QUARK_ELEMS_PER_LINE){
+        char *param;
+        node_t *var_node;
         if( j > 0 ){
-            str = append_to_string( str, ", ", NULL, 0);
+            kernel_call = append_to_string( kernel_call, ", ", NULL, 0);
             printStr = append_to_string( printStr, ", ", NULL, 0);
         }
         if( j && !(j%3) )
-            str = append_to_string( str, "\n\t", NULL, 0);
+            kernel_call = append_to_string( kernel_call, "\n\t", NULL, 0);
 
         // Get the next useful parameter and see if it's pass by VALUE (in which case we need to ignore the "&")
-        char *param = NULL;
-        node_t *var_node = NULL;
+        param = NULL;
+        var_node = NULL;
         if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "VALUE") ){
             if( EXPR == node->u.kids.kids[i]->type ){
                 node_t *exp_node = node->u.kids.kids[i];
+                // if the expression starts with "&", then take the remaining part of the expression (so, ignore the "&").
                 if( ADDR_OF == exp_node->u.kids.kids[0]->type ){
                     var_node = exp_node->u.kids.kids[1];
                     if( NULL != var_node ){
@@ -1968,6 +2007,7 @@ char *quark_tree_to_body(node_t *node){
             }
 
             if( NULL != var_node && NULL != param ){
+                // Find the type of the variable, so we can emmit a proper declaration (e.g. int x=3;).
                 char *type_name = NULL;
                 if( IDENTIFIER == var_node->type && NULL != var_node->u.var_name && NULL != var_node->symtab){
                     type_name = st_type_of_variable(var_node->u.var_name, var_node->symtab);
@@ -1982,36 +2022,26 @@ char *quark_tree_to_body(node_t *node){
 #endif
                 }
 
-                // See if this parameter is defined in the code and we've already found, stored and emmited the definition
-                tmp = NULL;
-                dague_list_item_t *item = (dague_list_item_t *)var_def_list.ghost_element.list_next;
-                while(item != &(var_def_list.ghost_element) ){
-                    var_def_item_t *true_item = (var_def_item_t *)item;
-                    assert(item && NULL != true_item->var && NULL != true_item->def);
-                    if( !strcmp(true_item->var, param) ){
-                        tmp = true_item->def;
-                        break;
-                    }
-                    item = (dague_list_item_t *)item->list_next;
-                }
-
                 // If we haven't seen this parameter before, see if it's defined and copy the definition into the body
-                if( NULL == tmp ){
+                if( 0 == is_definition_seen(&var_def_list, param) ){
                     tmp = find_definition(param, node);
                     if( tmp != param ){
                         prefix = append_to_string( prefix, "  ", NULL, 0);
-                        if( NULL !=  type_name )
+                        if( NULL != type_name )
                             prefix = append_to_string( prefix, type_name, "%s ", 1+strlen(tmp));
                         prefix = append_to_string( prefix, tmp, "%s;\n", 2+strlen(tmp));
 
-                        var_def_item_t *tmp_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
-                        tmp_item->var = param;
-                        tmp_item->def = tmp;
-                        DAGUE_LIST_ITEM_SINGLETON(tmp_item);
-                        dague_linked_list_add_head( &var_def_list, (dague_list_item_t *)tmp_item );
+                        // Add the definition into the list, so we don't emmit it again.
+                        mark_definition_as_seen(&var_def_list, param);
+/*
+                        var_def_item_t *new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
+                        new_list_item->var = param;
+                        new_list_item->def = tmp;
+                        dague_ulist_pushf( &var_def_list, (dague_list_item_t *)new_list_item );
+*/
                     }
                 }
-                str = append_to_string( str, param, NULL, 0);
+                kernel_call = append_to_string( kernel_call, param, NULL, 0);
             }
         }else if( (i+1<node->u.kids.kid_count) && !strcmp(tree_to_str(node->u.kids.kids[i+1]), "SCRATCH") ){
             char *pool_name = size_to_pool_name( tree_to_str(node->u.kids.kids[i-1]) );
@@ -2019,13 +2049,10 @@ char *quark_tree_to_body(node_t *node){
             param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
             pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
-
-            //pool_push = append_to_string( pool_push, param, "  dague_private_memory_push( %s", 35+strlen(param));
-            //pool_push = append_to_string( pool_push, pool_name, ", %s );\n", 6+strlen(pool_name));
             pool_push = append_to_string( pool_push, pool_name, "  dague_private_memory_push( %s", 35+strlen(pool_name));
             pool_push = append_to_string( pool_push, param, ", %s );\n", 6+strlen(param));
 
-            str = append_to_string( str, param, NULL, 0);
+            kernel_call = append_to_string( kernel_call, param, NULL, 0);
 
             // Every SCRATCH parameter will need a different buffer from the pool,
             // regardles of how many pools the buffers will belong to.
@@ -2034,17 +2061,17 @@ char *quark_tree_to_body(node_t *node){
             char *symname = node->u.kids.kids[i]->var_symname;
             assert(NULL != symname);
             param = tree_to_str(node->u.kids.kids[i]);
-            str = append_to_string( str, symname, NULL, 0);
-             /*
-              * JDF & QUARK specific optimization:
-              * Add the keyword "data_" infront of the matrix to
-              * differentiate the matrix from the struct.
-              */
-            str = append_to_string( str, param, " /* data_%s */", 12+strlen(param));
+            kernel_call = append_to_string( kernel_call, symname, NULL, 0);
+            /*
+             * JDF & QUARK specific optimization:
+             * Add the keyword "data_" infront of the matrix to
+             * differentiate the matrix from the struct.
+             */
+            kernel_call = append_to_string( kernel_call, param, " /* data_%s */", 12+strlen(param));
         }
 
         // Add the parameter to the string of the printlog.  If the parameter is an array, we need to
-        // do a little more work to print the value of the indices instead of their names and the pointer.
+        // do a little more work to print the pointer and the value of the indices instead of their names.
         if( ARRAY == node->u.kids.kids[i]->type ){
             node_t *arr = node->u.kids.kids[i];
             char *base_name = tree_to_str(arr->u.kids.kids[0]);
@@ -2063,32 +2090,30 @@ char *quark_tree_to_body(node_t *node){
 
         j++;
     }
-    str = append_to_string( str, " );", NULL, 0);
+    kernel_call = append_to_string( kernel_call, " );", NULL, 0);
 
+    // Finalize printStr by append the suffix to it.
     printStr = append_to_string( printStr, printSuffix, NULL, 0);
     printStr = append_to_string( printStr, ");", NULL, 0);
 
-    prefix = append_to_string( prefix, "\n  DRYRUN(\n", NULL, 0);
+    // Form the result by concatenating the strings we created in the right order.
+    result = append_to_string(result, prefix, NULL, 0);
+    result = append_to_string(result, "\n  DRYRUN(\n", NULL, 0);
     if( NULL != pool_pop )
-        prefix = append_to_string( prefix, pool_pop, "  %s", 2+strlen(pool_pop) );
-
-    str = append_to_string( prefix, str, "\n  %s", 3+strlen(str) );
-
+        result = append_to_string(result, pool_pop, "  %s", 2+strlen(pool_pop) );
+    result = append_to_string(result, kernel_call, "\n  %s", 3+strlen(kernel_call) );
     if( NULL != pool_push )
-        str = append_to_string( str, pool_push, "\n\n  %s", 4+strlen(pool_push) );
-
-    // close the DRYRUN
-    str = append_to_string( str, "  );\n", NULL, 0);
-
-    str = append_to_string( str, printStr, "\n%s", 1+strlen(printStr));
+        result = append_to_string(result, pool_push, "\n\n  %s", 4+strlen(pool_push) );
+    result = append_to_string(result, "  );\n", NULL, 0); // close the DRYRUN
+    result = append_to_string(result, printStr, "\n%s", 1+strlen(printStr));
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
-    while( NULL != (item = (var_def_item_t *)dague_linked_list_remove_head(&var_def_list)) ){
+    while( NULL != (item = (var_def_item_t *)dague_ulist_popf(&var_def_list)) ) {
         free(item);
     }
 
-    return str;
+    return result;
 }
 
 /*

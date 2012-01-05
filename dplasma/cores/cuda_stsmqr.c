@@ -10,6 +10,7 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
+#include "fifo.h"
 
 #include <plasma.h>
 
@@ -125,7 +126,7 @@ int stsmqr_cuda_init( dague_context_t* dague_context,
             if( nb_allocations > (uint32_t)((tileA->mt * tileA->nt) >> 1) )
                 break;
             gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
-            dague_linked_list_item_construct( (dague_list_item_t*)gpu_elem );
+            dague_list_item_construct( (dague_list_item_t*)gpu_elem );
             
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
@@ -138,7 +139,7 @@ int stsmqr_cuda_init( dague_context_t* dague_context,
                                     }) );
             nb_allocations++;
             gpu_elem->memory_elem = NULL;
-            dague_linked_list_add_tail( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
+            dague_ufifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
         if( 0 == nb_allocations ) {
@@ -205,7 +206,7 @@ int stsmqr_cuda_fini(dague_context_t* dague_context)
         /**
          * Release the GPU memory.
          */
-        while( NULL != (gpu_elem = (gpu_elem_t*)dague_linked_list_remove_head( gpu_device->gpu_mem_lru )) ) {
+        while( NULL != (gpu_elem = (gpu_elem_t*)dague_ufifo_pop( gpu_device->gpu_mem_lru )) ) {
             cuMemFree( gpu_elem->gpu_mem );
             free( gpu_elem );
         }
@@ -569,8 +570,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     /* Check the GPU status */
     rc = dague_atomic_inc_32b( &(gpu_device->mutex) );
     if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
-        DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t*)this_task );
-        dague_dequeue_push_back( &(gpu_device->pending), (dague_list_item_t*)this_task );
+        dague_fifo_push( &(gpu_device->pending), (dague_list_item_t*)this_task );
         return -1;
     }
 
@@ -635,7 +635,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     if( NULL != progress_array[submit] )
         goto wait_for_completion;
 
-    this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+    this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
     if( NULL == this_task ) {  /* Collisions, save time and come back here later */
         goto more_work_to_do;
     }
@@ -650,7 +650,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     __dague_schedule( eu_context, this_task);
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     while( rc != 0 ) {
-        this_task = (dague_execution_context_t*)dague_dequeue_pop_front( &(gpu_device->pending) );
+        this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
         if( NULL != this_task ) {
             __dague_schedule( eu_context, this_task);
             rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
@@ -669,7 +669,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
 
 #include "gpu_data.h"
 #include "data_distribution.h"
-#include "linked_list.h"
+#include "list.h"
 
 static memory_elem_t** data_mapT = NULL;
 static memory_elem_t** data_mapA = NULL;
@@ -713,8 +713,8 @@ int gpu_qr_data_map_init( int matrixIsT,
     if( NULL == data_map ) {
         data_map = (memory_elem_t**)calloc(data->lmt * data->lnt, sizeof(memory_elem_t*));
     }
-    gpu_device->gpu_mem_lru = (dague_linked_list_t*)malloc(sizeof(dague_linked_list_t));
-    dague_linked_list_construct(gpu_device->gpu_mem_lru);
+    gpu_device->gpu_mem_lru = (dague_list_t*)malloc(sizeof(dague_list_t));
+    dague_list_construct(gpu_device->gpu_mem_lru);
     return 0;
 }
 
@@ -799,7 +799,7 @@ int gpu_qr_data_is_on_gpu( int matrixIsT,
 
     if( NULL == (gpu_elem = memory_elem->gpu_elems[gpu_device->id]) ) {
         /* Get the LRU element on the GPU and transfer it to this new data */
-        gpu_elem = (gpu_elem_t*)dague_linked_list_remove_head(gpu_device->gpu_mem_lru);
+        gpu_elem = (gpu_elem_t*)dague_ufifo_pop(gpu_device->gpu_mem_lru);
         if( memory_elem != gpu_elem->memory_elem ) {
             if( NULL != gpu_elem->memory_elem ) {
                 memory_elem_t* old_mem = gpu_elem->memory_elem;
@@ -811,10 +811,10 @@ int gpu_qr_data_is_on_gpu( int matrixIsT,
         gpu_elem->memory_elem = memory_elem;
         memory_elem->gpu_elems[gpu_device->id] = gpu_elem;
         *pgpu_elem = gpu_elem;
-        dague_linked_list_add_tail(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_ufifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     } else {
-        dague_linked_list_remove_item(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
-        dague_linked_list_add_tail(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_list_remove_item(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_ufifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         gpu_elem->type |= type;
         *pgpu_elem = gpu_elem;
         if( memory_elem->memory_version == gpu_elem->gpu_version ) {

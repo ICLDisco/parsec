@@ -191,7 +191,7 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
 
         gpu_device = (gpu_device_t*)calloc(1, sizeof(gpu_device_t));
         gpu_devices[i] = gpu_device;
-        dague_dequeue_construct(&gpu_device->pending);
+        dague_list_construct(&gpu_device->pending);
         gpu_device->major = major;
         gpu_device->minor = minor;
         

@@ -15,12 +15,10 @@
 #include "profiling.h"
 #include "data_distribution.h"
 #include "debug.h"
-
-#include "atomic.h"
-#define min(a, b) ((a)<(b)?(a):(b))
-
 #include "os-spec-timing.h"
-#include "dequeue.h"
+#include "fifo.h"
+
+#define min(a, b) ((a)<(b)?(a):(b))
 
 #define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
 
@@ -81,7 +79,7 @@ static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
 /* Process-global profiling list */
-static dague_dequeue_t threads;
+static dague_list_t threads;
 static char *hr_id = NULL;
 static dague_profiling_info_t *dague_profiling_infos = NULL;
 
@@ -141,7 +139,7 @@ int dague_profiling_init( const char *format, ... )
     vasprintf(&hr_id, format, ap);
     va_end(ap);
 
-    dague_dequeue_construct( &threads );
+    dague_list_construct( &threads );
 
     dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
     dague_prof_keys_count = 0;
@@ -174,8 +172,8 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->events_top = res->events + length;
     res->nb_events = 0;
 
-    dplamsa_dequeue_item_construct( (dague_list_item_t*)res );
-    dague_dequeue_push_back( &threads, (dague_list_item_t*)res );
+    dague_list_item_construct( (dague_list_item_t*)res );
+    dague_fifo_push( &threads, (dague_list_item_t*)res );
 
     return res;
 }
@@ -184,15 +182,12 @@ int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
     
-    while( !dague_dequeue_is_empty( &threads ) ) {
-        t = (dague_thread_profiling_t*)dague_dequeue_pop_front( &threads );
-        if( NULL == t ) 
-            continue;
+    while( t = (dague_thread_profiling_t*)dague_ufifo_pop(&threads) ) {
         free(t->hr_id);
         free(t);
     }
-
     free(hr_id);
+    dague_list_destruct(&threads);
 
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
@@ -206,15 +201,15 @@ int dague_profiling_reset( void )
     dague_thread_profiling_t *t;
     dague_list_item_t *it;
     
-    dague_atomic_lock( &threads.atomic_lock );
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    dague_list_iterate_lock(&threads);
+    for( it = dague_list_iterate_first(&threads); 
+         it != dague_list_iterate_end(&threads); 
+         it = dague_list_iterate_next(&threads, it) {
         t = (dague_thread_profiling_t*)it;
         t->last_event = t->next_event;
         t->next_event = t->events;
     }
-    dague_atomic_unlock( &threads.atomic_lock );
+    dague_list_iterate_unlock(&threads);
 
     return 0;
 }
@@ -339,9 +334,10 @@ static void dump_whole_trace(void)
                START_KEY(i), END_KEY(i), dague_prof_keys[i].name, dague_prof_keys[i].attributes, dague_prof_keys[i].info_length ));
     }
 
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    for( it = dague_list_iterate_first(&threads); 
+         it != dague_list_iterate_end(&threads); 
+         it = dague_list_iterate_next(&threads, it) ) {
+
         profile = (dague_thread_profiling_t*)it;
         FORALL_EVENTS( event, profile->events, profile ) {
             DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
@@ -379,9 +375,9 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 /* It has an id, let's look somewhere in another profile, maybe it's end has been
                  * logged by another thread
                  */
-                for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-                     it != &threads.ghost_element; 
-                     it = (dague_list_item_t*)it->list_next ) {
+                for( it = dague_list_iterate_first(&threads); 
+                     it != dague_list_iterate_end(&threads); 
+                     it = dague_list_iterate_next(&threads, it) ) {
 
                     op = (dague_thread_profiling_t*)it;   
                     if( op == profile )
@@ -510,10 +506,10 @@ int dague_profiling_dump_xml( const char* filename )
 
     foundone = 0;
    
-    dague_atomic_lock( &threads.atomic_lock );
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    dague_list_iterate_lock(&threads);
+    for( it = dague_list_iterate_first(&threads); 
+         it != dague_list_iterate_end(&threads); 
+         it = dague_list_iterate_next(&threads, it) ) {
         profile = (dague_thread_profiling_t*)it;
 
         if( profile->last_event == NULL ) {
@@ -550,7 +546,7 @@ int dague_profiling_dump_xml( const char* filename )
         fprintf(tracefile, 
                 "   </THREAD>\n");
     }
-    dague_atomic_unlock( &threads.atomic_lock );
+    dague_list_iterate_unlock(&threads);
 
     fprintf(tracefile, 
             " </PROFILES>\n"

@@ -18,7 +18,6 @@
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
 #include "scheduling.h"
-#include "dequeue.h"
 #include "barrier.h"
 #include "remote_dep.h"
 #include "bindthread.h"

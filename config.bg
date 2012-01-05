@@ -1,0 +1,21 @@
+#!/bin/sh
+rm -rf CMakeCache.txt CMakeFiles
+
+USER_OPTIONS="$* "
+
+## Defaults for Dancer machine (Linux cluster)
+CC=${CC:="xlc_r"}
+CXX=${CXX:="xlc_r"}
+FC=${FC:="xlf_r"}
+
+MPI="-DDPLASMA_MPI=ON"
+PLASMA="-DPLASMA_DIR=/home/bosilca/tools/PLASMA/plasma-installer_2.4.5/install"
+HWLOC="-DHWLOC_DIR=/home/bosilca/opt"
+CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
+
+# Done with variable allocation, do the thing with Cmake
+LOCATION=`dirname $0`
+export CC CXX FC
+
+cmake -G "Unix Makefiles" ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${USER_OPTIONS} ${LOCATION}
+

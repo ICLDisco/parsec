@@ -12,9 +12,6 @@
 #include <stddef.h>
 
 #include "debug.h"
-#ifdef HAVE_HWLOC
-#include "dague_hwloc.h"
-#endif
 
 typedef struct dague_function            dague_function_t;
 typedef struct dague_object              dague_object_t;

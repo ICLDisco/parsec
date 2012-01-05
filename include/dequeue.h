@@ -8,7 +8,7 @@
 #define DEQUEUE_H_HAS_BEEN_INCLUDED
 
 #include "atomic.h"
-#include "lifo.h"
+#include "list_item.h"
 
 typedef struct dague_dequeue_t {
     dague_list_item_t  ghost_element;
@@ -25,11 +25,6 @@ static inline void dague_dequeue_construct( dague_dequeue_t* dequeue )
 static inline void dague_dequeue_destruct( dague_dequeue_t *dequeue )
 {
     (void)dequeue;
-}
-
-static inline void dplamsa_dequeue_item_construct( dague_list_item_t *item )
-{
-    item->list_prev = item;
 }
 
 static inline int dague_dequeue_is_empty( dague_dequeue_t * dequeue )

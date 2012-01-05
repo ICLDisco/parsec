@@ -7,6 +7,7 @@
 #include "dague_config.h"
 #include "dague.h"
 
+#include "dague_hwloc.h"
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>
 #endif  /* defined(HAVE_HWLOC) */
