@@ -182,7 +182,7 @@ int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
     
-    while( t = (dague_thread_profiling_t*)dague_ufifo_pop(&threads) ) {
+    while( t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads) ) {
         free(t->hr_id);
         free(t);
     }
