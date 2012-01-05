@@ -434,7 +434,7 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
     /**
      * Move as many elements as possible from the dequeue into our ordered lifo.
      */
-    while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)) ) {
+    while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {
             /* A DEP_CTL is a barrier that must not be crossed, flush the
              * ordered fifo and don't add anything until it is consumed */

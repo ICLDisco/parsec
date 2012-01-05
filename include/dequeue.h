@@ -40,11 +40,23 @@ dague_dequeue_is_empty( dague_dequeue_t* dequeue )
 static inline dague_list_item_t* 
 dague_dequeue_pop_back( dague_dequeue_t* dequeue )
 {
+    return dague_list_pop_back((dague_list_t*)dequeue);
+}
+
+static inline dague_list_item_t* 
+dague_dequeue_try_pop_back( dague_dequeue_t* dequeue )
+{
     return dague_list_try_pop_back((dague_list_t*)dequeue);
 }
 
 static inline dague_list_item_t* 
 dague_dequeue_pop_front( dague_dequeue_t* dequeue )
+{
+    return dague_list_pop_front((dague_list_t*)dequeue);
+}
+
+static inline dague_list_item_t* 
+dague_dequeue_try_pop_front( dague_dequeue_t* dequeue )
 {
     return dague_list_try_pop_front((dague_list_t*)dequeue);
 }
