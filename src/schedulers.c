@@ -4,6 +4,7 @@
 #include "scheduling.h"
 #include "schedulers.h"
 #include "debug.h"
+#include "dague_hwloc.h"
 
 /*********************************************************************/
 /************************ Global Dequeue *****************************/
