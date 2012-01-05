@@ -237,12 +237,12 @@ unset( SAVE_CMAKE_REQUIRED_FLAGS )
 #
 # Check compiler flags and capabilities
 #
-IF( !_match_xlc )
+IF( NOT _match_xlc )
   CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
   IF( HAVE_STD_C99 )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
   ENDIF( HAVE_STD_C99 )
-ENDIF( !_match_xlc )
+ENDIF( NOT _match_xlc )
 
 # Set warnings for debug builds 
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
