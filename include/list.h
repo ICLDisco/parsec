@@ -124,8 +124,6 @@ static inline void
 dague_list_chain_back( dague_list_t* list, 
                        dague_list_item_t* items );
                        
-/* SAME AS ABOVE, FOR SINGLE THREAD USE */
-
 /** pop the first item of the list (not thread safe)
  *    if the list is empty, NULL is returned */
 static inline dague_list_item_t*  
@@ -184,7 +182,7 @@ dague_list_nolock_fifo_pop( dague_list_t* list ) {
 static inline void 
 dague_list_nolock_fifo_push( dague_list_t* list, dague_list_item_t* item ) {
     return dague_list_nolock_push_back(list, item); }
-#define dague_ulist_fifo_push(list, item) dague_list_nolock_fifo_pop(list, item)
+#define dague_ulist_fifo_push(list, item) dague_list_nolock_fifo_push(list, item)
 /** Convenience function, same as dague_list_nolock_chain_back() */
 static inline void 
 dague_list_nolock_fifo_chain( dague_list_t* list, dague_list_item_t* items ) {
@@ -214,7 +212,7 @@ dague_list_nolock_lifo_pop( dague_list_t* list ) {
 static inline void 
 dague_list_nolock_lifo_push( dague_list_t* list, dague_list_item_t* item ) {
     return dague_list_nolock_push_front(list, item); }
-#define dague_ulist_lifo_push(list, item) dague_list_nolock_lifo_pop(list, item)
+#define dague_ulist_lifo_push(list, item) dague_list_nolock_lifo_push(list, item)
 /** Convenience function, same as dague_list_nolock_chain_front() */
 static inline void 
 dague_list_nolock_lifo_chain( dague_list_t* list, dague_list_item_t* items ) {
