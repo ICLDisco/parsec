@@ -68,6 +68,8 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
 static void add_entry_task_loops(matrix_variable_t *list, node_t *node);
 static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
 static matrix_variable_t *quark_find_all_matrices(node_t *node);
+static int is_definition_seen(dague_list_t *var_def_list, char *param);
+static void mark_definition_as_seen(dague_list_t *var_def_list, char *param);
 
 //#if 0
 void dump_und(und_t *und){
@@ -1867,7 +1869,7 @@ char *create_pool_declarations(){
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
-int is_definition_seen(dague_list_t *var_def_list, char *param){
+static int is_definition_seen(dague_list_t *var_def_list, char *param){
     int i = 0;
     DAGUE_ULIST_ITERATOR(var_def_list, item,
     {
@@ -1886,7 +1888,7 @@ int is_definition_seen(dague_list_t *var_def_list, char *param){
  * Add in the list of variable definitions an entry for the given parameter (the definition
  * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
  */
-void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
+static void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
     var_def_item_t *new_list_item;
 
     new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
