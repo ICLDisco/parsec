@@ -123,9 +123,6 @@ endif(NOT CMAKE_BUILD_TYPE)
 set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
-
-
-
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
@@ -133,7 +130,6 @@ include (CheckCCompilerFlag)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
 include (CheckIncludeFiles)
-
 
 #
 # check the capabilities of the system we are building for 
@@ -156,6 +152,25 @@ IF (_match_ftn)
     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
 ENDIF (_match_ftn)
 
+STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
+IF (_match_xlc)
+     MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
+ENDIF (_match_xlc)
+STRING(REGEX MATCH ".*xlc_r$" _match_xlc ${CMAKE_C_COMPILER})
+IF (_match_xlc)
+     MESSAGE(STATUS "Add -q64 to the C compiler/linker.")
+     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -q64")
+ENDIF (_match_xlc)
+
+STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
+IF (_match_xlf)
+     MESSAGE(ERROR "Please use the thread-safe version of the xlf compiler (xlf_r)")
+ENDIF (_match_xlf)
+STRING(REGEX MATCH ".*xlf_r$" _match_xlf ${CMAKE_Fortran_COMPILER})
+IF (_match_xlf)
+     MESSAGE(STATUS "Add -nofor_main and -q64 to the Fortran linker.")
+     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main -q64")
+ENDIF (_match_xlf)
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
@@ -194,9 +209,17 @@ ENDIF (_mach_ppc)
 #
 set(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 if (BUILD_64bits)
-  set( ARCH_BUILD "-m64" )
+  if( _match_xlc)
+    set( ARCH_BUILD "-q64" )
+  else (_match_xlc)
+    set( ARCH_BUILD "-m64" )
+  endif(_match_xlc)
 else (BUILD_64bits)
-  set( ARCH_BUILD "-m32" )
+  if( _match_xlc)
+    set( ARCH_BUILD "-q32" )
+  else (_match_xlc)
+    set( ARCH_BUILD "-m32" )
+  endif(_match_xlc)
 endif (BUILD_64bits)
 
 set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${ARCH_BUILD}")
@@ -214,10 +237,12 @@ unset( SAVE_CMAKE_REQUIRED_FLAGS )
 #
 # Check compiler flags and capabilities
 #
-CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
-IF( HAVE_STD_C99 )
-  SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-ENDIF( HAVE_STD_C99 )
+IF( !_match_xlc )
+  CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
+  IF( HAVE_STD_C99 )
+    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
+  ENDIF( HAVE_STD_C99 )
+ENDIF( !_match_xlc )
 
 # Set warnings for debug builds 
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
