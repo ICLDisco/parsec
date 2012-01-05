@@ -9,6 +9,10 @@
 
 #include "dague_config.h"
 
+#ifdef HAVE_HWLOC
+#include "dague_hwloc.h"
+#endif
+
 #define PLACEHOLDER_SIZE 2
 
 typedef struct dague_context_t dague_context_t;
@@ -70,7 +74,7 @@ struct dague_context_t {
     int largest_simulation_date;
 #endif
 
-#ifdef HAVE_HWLOC // STEPH
+#ifdef HAVE_HWLOC 
   hwloc_cpuset_t comm_th_binding_mask;
   int comm_th_core; 
 #endif

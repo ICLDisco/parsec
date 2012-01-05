@@ -1099,6 +1099,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 }
 
 static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context){
+#if defined(HAVE_HWLOC)
     char* option = optarg;
     if (option[0]!='\0'){
 	int core=atoi(optarg);
@@ -1111,5 +1112,8 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
 	DEBUG(( "default binding for the communication thtread\n", tmp));
     }
     return 0;
-
+#else
+    fprintf(stderr, "** Warning: the binding defined by --dague_bind_comm has been ignored (HWLOC is required).\n");
+    return -1;
+#endif
 }

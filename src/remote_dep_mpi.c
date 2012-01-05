@@ -1234,7 +1234,7 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
 }
 
 int remote_dep_bind_thread(dague_context_t* context){
-
+#ifdef HAVE_HWLOC
     if (context->comm_th_core >= 0){
 	/* Bind to the specified core */
 	if(dague_bindthread(context->comm_th_core) == context->comm_th_core)
@@ -1242,7 +1242,6 @@ int remote_dep_bind_thread(dague_context_t* context){
 	/* there is no guarantee the thread doesn't share the core. */
 	do_nano = 1;
     }
-#ifdef HAVE_HWLOC
     /* Bind to the specified mask */
     else if(context->comm_th_core == -2){
 	if (dague_bindthread_mask(context->comm_th_binding_mask)==0){
@@ -1257,7 +1256,7 @@ int remote_dep_bind_thread(dague_context_t* context){
 	}
 	do_nano = 1;
     }
-#endif
+
     else {
 	/* default binding */
 	int ctl = -1;
@@ -1273,6 +1272,18 @@ int remote_dep_bind_thread(dague_context_t* context){
 	else
 	    fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
     }
+#else
+    int ctl = -1;
+    ctl = dague_bindthread(context->nb_cores);
+    
+    if (ctl != context->nb_cores){
+	do_nano = 1;
+	fprintf(stderr, "DAGuE\tMPI not bound\n");
+    }
+    else
+	fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+    
+#endif
     return 0;
 }
 
