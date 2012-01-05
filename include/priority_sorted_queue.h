@@ -21,7 +21,7 @@ static inline void dague_priority_sorted_list_construct( dague_priority_sorted_l
 {
     l->queue_lock = 0;
     l->nb_elt = 0;
-    DAGUE_LIST_ITEM_SINGLETON( &l->queue_ghost );
+    dague_list_item_construct( &l->queue_ghost );
 }
 
 static inline void dague_priority_sorted_list_destruct( dague_priority_sorted_list_t *l )
