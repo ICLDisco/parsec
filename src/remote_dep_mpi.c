@@ -265,9 +265,14 @@ static int do_nano = 0;
 static void* remote_dep_dequeue_main(dague_context_t* context)
 {
     int ctl = -1, whatsup;
+    int nb_total_comp_threads = 0;
+    int p;
 
-    ctl = dague_bindthread(context->nb_cores);
-    if(ctl != context->nb_cores) do_nano = 1;
+    for(p = 0; p < context->nb_vp; p++) {
+        nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
+    }
+    ctl = dague_bindthread(nb_total_comp_threads);
+    if(ctl != nb_total_comp_threads) do_nano = 1;
     else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
 
     remote_dep_mpi_init(context);
@@ -286,7 +291,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
         mpi_thread_marker = 0;
         /* The MPI thread is owning the lock */
         remote_dep_mpi_on(context);
-        whatsup = remote_dep_dequeue_nothread_progress(context->execution_units[0]);
+        whatsup = remote_dep_dequeue_nothread_progress(context->virtual_processes[0]->execution_units[0]);
     } while(-1 != whatsup);
     /* Release all resources */
     remote_dep_mpi_fini(context);
@@ -318,7 +323,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
     item->cmd.memcpy.destination  = dst;
     item->cmd.memcpy.datatype     = datatype;
     AREF(src);
-    remote_dep_inc_flying_messages(dague_object, eu_context->master_context);
+    remote_dep_inc_flying_messages(dague_object, eu_context->virtual_process->dague_context);
     item->priority = 0;
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }
@@ -472,7 +477,7 @@ handle_now:
         remote_dep_nothread_memcpy(item->cmd.memcpy.destination, 
                                    item->cmd.memcpy.source,
                                    item->cmd.memcpy.datatype);
-        remote_dep_dec_flying_messages(item->cmd.memcpy.dague_object, eu_context->master_context);
+        remote_dep_dec_flying_messages(item->cmd.memcpy.dague_object, eu_context->virtual_process->dague_context);
         break;
     default:
         assert(0 && item->action); /* Not a valid action */
@@ -766,7 +771,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         RDEP_MSG_EAGER_CLR(msg);
     }
 
-    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
+    TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->virtual_process->dague_context->my_rank, rank, (*msg));
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
 
@@ -791,7 +796,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 
         msg->which ^= (1<<k);
         if(0 == msg->which) {
-            remote_dep_dec_flying_messages(((dague_remote_deps_t*)msg->deps)->dague_object, eu_context->master_context);
+            remote_dep_dec_flying_messages(((dague_remote_deps_t*)msg->deps)->dague_object, eu_context->virtual_process->dague_context);
         }
         remote_dep_complete_one_and_cleanup(deps);
     }
@@ -802,7 +807,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         dague_object_t* obj = ((dague_remote_deps_t*)msg->deps)->dague_object;
         remote_dep_mpi_put_eager(eu_context, rank, msg); 
         /* In eager mode, everything is eager, so we are done, now */
-        remote_dep_dec_flying_messages(obj, eu_context->master_context);
+        remote_dep_dec_flying_messages(obj, eu_context->virtual_process->dague_context);
     }
     
     return 1;
@@ -818,7 +823,7 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     int ret = 0;
     int index, i, k, outcount;
     
-    if(eu_context->eu_id != 0) return 0;
+    if( !DAGUE_THREAD_IS_MASTER(eu_context) ) return 0;
     
     do {
         MPI_Testsome(DEP_NB_REQ, array_of_requests, &outcount, array_of_indices, array_of_statuses);
@@ -953,7 +958,7 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
 
 #if defined(DAGUE_PROF_TRACE)
         TAKE_TIME_WITH_INFO(MPIsnd_eager, MPI_Data_plds_sk, 0,
-                            eu_context->master_context->my_rank, rank, (*msg));
+                            eu_context->virtual_process->dague_context->my_rank, rank, (*msg));
 #else
         (void) eu_context;
 #endif /* DAGUE_PROF_TRACE */
@@ -962,7 +967,7 @@ static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, int ran
 #endif
 #if defined(DAGUE_PROF_TRACE)
         TAKE_TIME_WITH_INFO(MPIsnd_eager, MPI_Data_plds_ek, 0,
-                            eu_context->master_context->my_rank, rank, (*msg));
+                            eu_context->virtual_process->dague_context->my_rank, rank, (*msg));
 #endif /* DAGUE_PROF_TRACE */
         DEBUG_MARK_DTA_MSG_START_SEND(rank, data, tag);
 
@@ -1010,7 +1015,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 
 #if defined(DAGUE_PROF_TRACE)
         TAKE_TIME_WITH_INFO(MPIsnd_prof[i], MPI_Data_plds_sk, i,
-                            eu_context->master_context->my_rank, item->peer, deps->msg);
+                            eu_context->virtual_process->dague_context->my_rank, item->peer, deps->msg);
 #else
         (void) eu_context;
 #endif /* DAGUE_PROF_TRACE */
@@ -1034,7 +1039,7 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     task->which ^= (1<<k);
     /* Are we done yet ? */
     if(0 == task->which) {
-        remote_dep_dec_flying_messages(deps->dague_object, eu_context->master_context);
+        remote_dep_dec_flying_messages(deps->dague_object, eu_context->virtual_process->dague_context);
     }
     remote_dep_complete_one_and_cleanup(deps);
     if( 0 == task->which ) {
@@ -1172,7 +1177,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, deps->output[k].type->elem_size, NEXT_TAG+k));
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
-                            eu_context->master_context->my_rank, deps->msg);
+                            eu_context->virtual_process->dague_context->my_rank, deps->msg);
 #  endif /* defined(DAGUE_PROF_TRACE) */
         MPI_Irecv(ADATA(data), 1, 
                   dtt, from, NEXT_TAG + k, dep_comm, 
@@ -1183,7 +1188,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
     if(msg.which)
     {
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get, 
-                            from, eu_context->master_context->my_rank, (*task));
+                            from, eu_context->virtual_process->dague_context->my_rank, (*task));
         MPI_Send(&msg, datakey_count, datakey_dtt, from, 
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         assert(NULL == dep_pending_recv_array[i]);
