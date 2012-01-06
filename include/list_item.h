@@ -27,6 +27,12 @@ typedef struct dague_list_item_t {
 #endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
+/** a function type to compare two list_items
+ *  return 0 if i1 == i2
+ *  return a positive value if i1 > i2
+ *  return a negative value if i1 < i2 */
+typedef int (*dague_list_item_comparator_t)(dague_list_item_t*i1, dague_list_item_t*i2);
+
 static inline void 
 dague_list_item_construct( dague_list_item_t* item )
 {
@@ -38,6 +44,11 @@ dague_list_item_construct( dague_list_item_t* item )
     item->belong_to_list = (void*)0xdeadbeef;
 #endif
 }
+
+#define dague_list_item_destruct(item) do {(void)(item);} while(0)
+
+#define DAGUE_LIST_ITEM_NEXT(item) ((item) = (typeof((item)))(((dague_list_item_t*)(item))->list_next))
+#define DAGUE_LIST_ITEM_PREV(item) ((item) = (typeof((item)))(((dague_list_item_t*)(item))->list_prev))
 
 /* Make a well formed singleton ring with a list item @item.
  *   @return @item, a valid list item ring containing itself
@@ -58,8 +69,8 @@ dague_list_item_singleton( dague_list_item_t* item )
  *   @return @ring, the list item representing the ring
  */
 static inline dague_list_item_t* 
-dague_list_item_ring_push_back( dague_list_item_t* ring,
-                                dague_list_item_t* item )
+dague_list_item_ring_push( dague_list_item_t* ring,
+                           dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
     assert( 0 == ring->refcount );
@@ -73,31 +84,12 @@ dague_list_item_ring_push_back( dague_list_item_t* ring,
     ring->list_prev = item;
     return ring;
 }
-#define dague_list_item_ring_pushb(ring, item) dague_list_item_ring_push_back(ring, item)
-#define dague_list_item_ring_push(ring, item) dague_list_item_ring_push_back(ring, item)
 
-/* Add an @item to the item ring @ring, preceding @ring (not thread safe)
- *   @return @ring, the list item representing the ring
- */
-static inline dague_list_item_t* 
-dague_list_item_ring_push_front( dague_list_item_t* ring,
-                                 dague_list_item_t* item )
-{
-#if defined(DAGUE_DEBUG)
-    assert( 0 == ring->refcount );
-    assert( (void*)0xdeadbeef != ring->list_next );
-    assert( (void*)0xdeadbeef != ring->list_prev );
-#endif
-    dague_list_item_ring_push_back(ring, item);
-    return item;
-}
-#define dague_list_item_ring_pushf(ring, item) dague_list_item_ring_pushf(ring, item)
-
-/* Remove the current first item of the ring @item
+/* Remove the current first item of the ring @item (not thread safe)
  *   @returns the ring starting at next item, or NULL if @item is a singleton
  */
 static inline dague_list_item_t* 
-dague_list_item_ring_remove_item( dague_list_item_t* item )
+dague_list_item_ring_chop( dague_list_item_t* item )
 {
 #if defined(DAGUE_DEBUG)
     assert( 0 == item->refcount );

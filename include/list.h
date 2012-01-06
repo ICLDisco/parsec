@@ -4,9 +4,11 @@
  *                         reserved.
  */
 
-/* This file contains functions to access simple lists and stacks, 
- * When thread safe locking performance is critical, one could prefer 
- * atomic lifo (see lifo.h)
+/* This file contains functions to access doubly linked lists.
+ * dague_ulist/dague_list_nolock functions are not thread safe, and
+ *   can be used only when the list is locked (by list_lock) or when
+ *   thread safety is ensured by another mean. 
+ * When locking performance is critical, one could prefer atomic lifo (see lifo.h)
  */
 
 #ifndef DAGUE_LIST_H_HAS_BEEN_INCLUDED
@@ -24,109 +26,129 @@ typedef struct dague_list_t {
 static inline void dague_list_construct( dague_list_t* list );
 static inline void dague_list_destruct( dague_list_t* list );
 
-/** check if list is empty (mutex protected) */
+/** lock the @list mutex, that same mutex is used by all 
+ *    mutex protected list operations */
+static inline void 
+dague_list_lock( dague_list_t* list );
+/** unlock the @list mutex, that same mutex is used by all 
+ *    mutex protected list operations */
+static inline void
+dague_list_unlock( dague_list_t* list );
+
+/** check if @list is empty (mutex protected) */
 static inline int dague_list_is_empty( dague_list_t* list );
 /** check if list is empty (not thread safe) */
 static inline int dague_list_nolock_is_empty( dague_list_t* list );
-
-/* define some convenience function shortnames 
- *   OPf does OP on the head of the list, OPb on the tail
- *   tOP tries to do OP, but returns immediatly if the list is locked
- *   ulist_OP versions are unsafe (not locked) versions of list_OP
- * if you need a FIFO or a LIFO, consider fifo.h and lifo.h
- */
-#define dague_list_pushf(list, item) dague_list_push_front(list, item)
-#define dague_list_pushb(list, item) dague_list_push_back(list, item)
-
-#define dague_list_chainf(list, items) dague_list_chain_front(list, items)
-#define dague_list_chainb(list, items) dague_list_chain_back(list, items)
-
-#define dague_list_popf(list) dague_list_pop_front(list)
-#define dague_list_popb(list) dague_list_pop_back(list)
-#define dague_list_tpopf(list) dague_list_try_pop_front(list)
-#define dague_list_tpopb(list) dague_list_try_pop_back(list)
-
 #define dague_ulist_is_empty(list) dague_list_nolock_is_empty(list)
 
-#define dague_ulist_pushf(list, item) dague_list_nolock_push_front(list, item)
-#define dague_ulist_pushb(list, item) dague_list_nolock_push_back(list, item)
 
-#define dague_ulist_chainf(list, items) dague_list_nolock_chain_front(list, items)
-#define dague_ulist_chainb(list, items) dague_list_nolock_chain_back(list, items)
+/** Paste code to iterate on all items in the @LIST (front to back) (mutex protected)
+ *    the @CODE_BLOCK code is applied to each item, which can be refered
+ *    to as @ITEM_NAME in @CODE_BLOCK
+ *    the entire loop iteration takes the list mutex, hence 
+ *      @CODE_BLOCK must not jump outside the block; although, break 
+ *      and continue are legitimate in @CODE_BLOCK
+ *  @return the last considered item */
+#define DAGUE_LIST_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_LIST_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
+/** Paste code to iterate on all items in the @LIST (front to back) (not thread safe)
+ *    the @CODE_BLOCK code is applied to each item, which can be refered
+ *    to as @ITEM_NAME in @CODE_BLOCK
+ *  @return the last considered item */
+#define DAGUE_LIST_NOLOCK_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_ULIST_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
+#define DAGUE_ULIST_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_ULIST_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
 
-#define dague_ulist_popf(list) dague_list_nolock_pop_front(list)
-#define dague_ulist_popb(list) dague_list_nolock_pop_back(list)
-
-#define dague_ulist_remove_item(list, item) dague_list_nolock_remove_item(list, item)
-
-/* Iterate functions permits traversing the list. The considered items
- *   remain in the list. Hence, the iterate functions are not thread 
- *   safe. If the list or the list items are modified (even with 
- *   locked remove/add), status is undetermined. One can lock the list
- *   with iterate_lock/unlock, but as soon as iterate_unlock has been 
- *   called, regardless of the current locked status, calls to
- *   iterate_next/prev may have unspecified results.
- * Typical use: 
- *   iterate_lock(list);
- *   for( item = iterate_head(list); 
- *        item != iterate_end(list); 
- *        item = iterate_next(list, item) ) { use_item(item); }
- *   iterate_unlock(list);
- */
-
-/** obtain the first item of @list, or the Ghost if @list is empty, 
- *    the returned item remains in the list (not thread safe) */
-static inline dague_list_item_t*
-dague_list_iterate_first( dague_list_t* list );
-/** obtain the last item of @list, or the Ghost if @list is empty,
- *    the returned item remains in the list (not thread safe) */
-static inline dague_list_item_t*
-dague_list_iterate_last( dague_list_t* list );
-/** obtain the successor of @item, or the Ghost if @item is the tail of @list
- *    the returned item remains in the list (not thread safe) */
-static inline dague_list_item_t*
-dague_list_iterate_next( dague_list_t* list, 
-                         dague_list_item_t* item );
-/** obtain the predecessor of @item, or the Ghost if @item is the head of @list
- *    the returned item remains in the list (not thread safe) */
-static inline dague_list_item_t*
-dague_list_iterate_prev( dague_list_t* list, 
-                         dague_list_item_t* item );
 /** add the @new item before the @position item in @list (not thread safe)
- *    @position item is obtained by one of the iterate functions, if 
- *    @position is the Ghost, @item is added back
- *    both @position and @new may be used in further iterate functions */
+ *    @position item must be in @list
+ *    if @position is the Ghost, @item is added back */
 static inline void
-dague_list_iterate_add_before( dague_list_t* list,
-                               dague_list_item_t* position,
-                               dague_list_item_t* new );
-/** add the @new item before the @position item in @list (not thread safe)
- *    @position item is obtained by one of the iterate functions, if 
- *    @position is the Ghost, @item is added front
- *    both @position and @new may be used in further iterate functions */
+dague_list_nolock_add_before( dague_list_t* list,
+                       dague_list_item_t* position,
+                       dague_list_item_t* new );
+#define dague_ulist_add_before(list, pos, new) dague_list_nolock_add_before(list, pos, new)
+/** convenience function, synonym to dague_list_nolock_add_before() */
+#define dague_list_nolock_add(list, pos, new) dague_list_nolock_add_before(list, pos, new)
+#define dague_ulist_add(list, pos, new) dague_list_nolock_add_before(list, pos, new)
+/** add the @new item after the @position item in @list (not thread safe)
+ *    @position item must be in @list
+ *    if @position is the Ghost, @item is added front */
 static inline void
-dague_list_iterate_add_after( dague_list_t* list,
-                              dague_list_item_t* position,
-                              dague_list_item_t* item );
-/** remove current item, and returns the next (not thread safe) */
+dague_list_nolock_add_after( dague_list_t* list,
+                      dague_list_item_t* position,
+                      dague_list_item_t* item );
+#define dague_ulist_add_after(list, pos, new) dague_list_nolock_add_after(list, pos, new)
+/** remove a specific @item from the @list (not thread safe)
+ *    @item must be in the @list
+ *    @return successor of @item in @list */
 static inline dague_list_item_t*
-dague_list_iterate_remove_and_next( dague_list_t* list, 
-                                    dague_list_item_t* item ); 
-/** remove current item, and returns the prev (not thread safe) */
-static inline dague_list_item_t*
-dague_list_iterate_remove_and_prev( dague_list_t* list,
-                                    dague_list_item_t* item );
-/* synonym to remove_and_next */
-#define dague_list_iterate_remove(L,I) dague_list_iterate_remove_and_next(L,I)
-/** lock the list */
-static inline void 
-dague_list_iterate_lock( dague_list_t* list );
-/** unlock the list, any further calls to iterate_next/iterate_prev may
- *    have unspecified results, even if the list is locked again later */
-static inline void
-dague_list_iterate_unlock( dague_list_t* list );
+dague_list_nolock_remove( dague_list_t* list,
+                          dague_list_item_t* item);
+#define dague_ulist_remove(list, item) dague_list_nolock_remove(list, item)
 
 
+/* SORTED LIST FUNCTIONS */
+
+/** add the @item before the first element of @list that is strictly smaller" (mutex protected),
+ *  according to the @comparator function. That is, if the input @list is 
+ *  sorted (descending order), the resulting list is still sorted. */
+static inline void
+dague_list_push_sorted( dague_list_t* list,
+                        dague_list_item_t* item, 
+                        dague_list_item_comparator_t comparator);                      
+/** add the @item before the first element of @list that is striclty smaller (not thread safe),
+ *  according to the @comparator function. That is, if the @list is 
+ *  already sorted (descending order), the resulting list is still sorted. */
+static inline void
+dague_list_nolock_push_sorted( dague_list_t* list,
+                               dague_list_item_t* item, 
+                               dague_list_item_comparator_t comparator);
+#define dague_ulist_push_sorted(list, item, comparator) dague_list_nolock_push_sorted(list,item,comparator)
+
+
+/** chain the unsorted @items (mutex protected), as if they had been
+ *  inserted in a loop by dague_list_push_sorted(). That is, if the 
+ * @list is sorted (descending order), the resulting list is still sorted. */
+static inline void
+dague_list_nolock_chain_sorted( dague_list_t* list, 
+                                dague_list_item_t* items,
+                                dague_list_item_comparator_t comparator );
+/** chain the unsorted @items (not thread safe), as if they had been
+ *  inserted in a loop by dague_list_push_sorted(). That is, if the 
+ * @list is sorted (descending order), the resulting list is still sorted. */
+static inline void
+dague_list_nolock_chain_sorted( dague_list_t* list, 
+                                dague_list_item_t* items,
+                                dague_list_item_comparator_t comparator );
+#define dague_ulist_chain_sorted(list, items, comp) dague_list_nolock_chain_sorted(list, items, comp)
+
+
+/** sort @list according to the (descending) order defined by @comparator (mutex protected) */
+static inline void
+dague_list_sort( dague_list_t* list,
+                 dague_list_item_comparator_t comparator );
+/** sort @list according to the (descending) order defined by @comparator (not thread safe) */
+static inline void
+dague_list_nolock_sort( dague_list_t* list,
+                        dague_list_item_comparator_t comparator );
+
+
+/* DEQUEUE EMULATION FUNCTIONS */
+
+/** pop the first item of the list (mutex protected)
+ *    if the list is empty, NULL is returned */
+static inline dague_list_item_t*  
+dague_list_pop_front( dague_list_t* list );
+/** pop the last item of the list (mutex protected)
+ *    if the list is empty, NULL is returned */
+static inline dague_list_item_t*
+dague_list_pop_back( dague_list_t* list );
+/** try to pop the first item of the list (mutex protected)
+ *    if the list is empty or currently locked, NULL is returned */
+static inline dague_list_item_t*
+dague_list_try_pop_front( dague_list_t* list );
+/** try to pop the last item of the list (mutex protected)
+ *    if the list is empty or currently locked, NULL is returned */
+static inline dague_list_item_t*
+dague_list_try_pop_back( dague_list_t* list );
 
 /** push item first in the list (mutex protected) */ 
 static inline void 
@@ -148,67 +170,104 @@ static inline void
 dague_list_chain_back( dague_list_t* list, 
                        dague_list_item_t* items );
                        
-/** pop the first item of the list (mutex protected)
+/** pop the first item of the list (not thread safe)
  *    if the list is empty, NULL is returned */
 static inline dague_list_item_t*  
-dague_list_pop_front( dague_list_t* list );
-/** pop the last item of the list (mutex protected)
+dague_list_nolock_pop_front( dague_list_t* list );
+#define dague_ulist_pop_front(list) dague_list_nolock_pop_front(list)
+/** pop the last item of the list (not thread safe)
  *    if the list is empty, NULL is returned */
 static inline dague_list_item_t*
-dague_list_pop_back( dague_list_t* list );
-/** try to pop the first item of the list (mutex protected)
- *    if the list is empty or currently locked, NULL is returned */
-static inline dague_list_item_t*
-dague_list_try_pop_front( dague_list_t* list );
-/** try to pop the last item of the list (mutex protected)
- *    if the list is empty or currently locked, NULL is returned */
-static inline dague_list_item_t*
-dague_list_try_pop_back( dague_list_t* list );
-
-/** remove a specific item from the list (not thread safe)
- *    item must be in the list, compared pointerwise */
-static inline dague_list_item_t*
-dague_list_remove_item( dague_list_t* list,
-                        dague_list_item_t* item);
-
-
-/* SAME AS ABOVE, FOR SINGLE THREAD USE */
+dague_list_nolock_pop_back( dague_list_t* list );
+#define dague_ulist_pop_back(list) dague_list_nolock_pop_back(list)
 
 /** push item first in the list (not thread safe) */ 
 static inline void
 dague_list_nolock_push_front( dague_list_t* list, 
                               dague_list_item_t* item );
+#define dague_ulist_push_front(list, item) dague_list_nolock_push_front(list, item)
 /** push item last in the list (not thread safe) */ 
 static inline void
 dague_list_nolock_push_back( dague_list_t* list, 
                              dague_list_item_t* item );
+#define dague_ulist_push_back(list, item) dague_list_nolock_push_back(list, item)
 
-/** chains the collection of items first in the list (not thread safe)
+/** chains the ring of @items first in the @list (not thread safe)
  *    items->prev must point to the tail of the items collection */
 static inline void 
 dague_list_nolock_chain_front( dague_list_t* list, 
                                dague_list_item_t* items );
-/** chains the collection of items last in the list (not thread safe)
+#define dague_ulist_chain_front(list, items) dague_list_nolock_chain_front(list, items)
+/** chains the ring of @items last in the @list (not thread safe)
  *    items->prev must point to the tail of the items collection */
 static inline void 
 dague_list_nolock_chain_back( dague_list_t* list, 
                               dague_list_item_t* items );
-                       
-/** pop the first item of the list (not thread safe)
- *    if the list is empty, NULL is returned */
-static inline dague_list_item_t*  
-dague_list_nolock_pop_front( dague_list_t* list );
-/** pop the last item of the list (not thread safe)
- *    if the list is empty, NULL is returned */
-static inline dague_list_item_t*
-dague_list_nolock_pop_back( dague_list_t* list );
+#define dague_ulist_chain_back(list, items) dague_list_nolock_chain_back(list, items)
 
-/** remove a specific item from the list (not thread safe)
- *    item must be in the list, compared pointerwise */
-static inline dague_list_item_t*
-dague_list_nolock_remove_item( dague_list_t* list,
-                               dague_list_item_t* item);
 
+/* FIFO EMULATION FUNCTIONS */
+
+/** Convenience function, same as dague_list_pop_front() */
+static inline dague_list_item_t*
+dague_list_fifo_pop( dague_list_t* list ) { 
+    return dague_list_pop_front(list); }
+/** Convenience function, same as dague_list_push_back() */
+static inline void 
+dague_list_fifo_push( dague_list_t* list, dague_list_item_t* item ) {
+    return dague_list_push_back(list, item); }
+/** Convenience function, same as dague_list_chain_back() */
+static inline void 
+dague_list_fifo_chain( dague_list_t* list, dague_list_item_t* items ) {
+    return dague_list_chain_back(list, items); }
+    
+/** Convenience function, same as dague_list_nolock_pop_front() */
+static inline dague_list_item_t*
+dague_list_nolock_fifo_pop( dague_list_t* list ) {
+    return dague_list_nolock_pop_front(list); }
+#define dague_ulist_fifo_pop(list) dague_list_nolock_fifo_pop(list)
+/** Convenience function, same as dague_list_nolock_push_back() */
+static inline void 
+dague_list_nolock_fifo_push( dague_list_t* list, dague_list_item_t* item ) {
+    return dague_list_nolock_push_back(list, item); }
+#define dague_ulist_fifo_push(list, item) dague_list_nolock_fifo_push(list, item)
+/** Convenience function, same as dague_list_nolock_chain_back() */
+static inline void 
+dague_list_nolock_fifo_chain( dague_list_t* list, dague_list_item_t* items ) {
+    return dague_list_nolock_chain_back(list, items); }
+#define dague_ulist_fifo_chain(list, items) dague_list_nolock_fifo_chain(list, items)
+
+
+/* LIFO EMULATION FUNCTIONS */
+
+/** Convenience function, same as dague_list_pop_front() */
+static inline dague_list_item_t*
+dague_list_lifo_pop( dague_list_t* list ) { 
+    return dague_list_pop_front(list); }
+/** Convenience function, same as dague_list_push_front() */
+static inline void 
+dague_list_lifo_push( dague_list_t* list, dague_list_item_t* item ) {
+    return dague_list_push_front(list, item); }
+/** Convenience function, same as dague_list_chain_front() */
+static inline void 
+dague_list_lifo_chain( dague_list_t* list, dague_list_item_t* items ) {
+    return dague_list_chain_front(list, items); }
+
+/** Convenience function, same as dague_list_nolock_pop_front() */
+static inline dague_list_item_t*
+dague_list_nolock_lifo_pop( dague_list_t* list ) {
+    return dague_list_nolock_pop_front(list); }
+#define dague_ulist_lifo_pop(list) dague_list_nolock_lifo_pop(list)
+/** Convenience function, same as dague_list_nolock_push_front() */
+static inline void 
+dague_list_nolock_lifo_push( dague_list_t* list, dague_list_item_t* item ) {
+    return dague_list_nolock_push_front(list, item); }
+#define dague_ulist_lifo_push(list, item) dague_list_nolock_lifo_push(list, item)
+/** Convenience function, same as dague_list_nolock_chain_front() */
+static inline void 
+dague_list_nolock_lifo_chain( dague_list_t* list, dague_list_item_t* items ) {
+    return dague_list_nolock_chain_front(list, items); }
+#define dague_ulist_lifo_chain(list, items) dague_list_nolock_lifo_chain(list, items)
 
 
 /***********************************************************************/
@@ -221,6 +280,7 @@ dague_list_nolock_remove_item( dague_list_t* list,
 static inline void 
 dague_list_construct( dague_list_t* list )
 {
+    dague_list_item_construct(_GHOST(list));
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
     list->atomic_lock = 0;
@@ -230,8 +290,8 @@ static inline void
 dague_list_destruct( dague_list_t* list )
 {
     assert(dague_list_is_empty(list));
+    dague_list_item_destruct(_GHOST(list));
 }
-
 
 static inline int 
 dague_list_nolock_is_empty( dague_list_t* list )
@@ -250,6 +310,209 @@ dague_list_is_empty( dague_list_t* list )
     dague_atomic_unlock(&list->atomic_lock);
     return rc;
 }
+
+static inline void 
+dague_list_lock( dague_list_t* list )
+{
+    dague_atomic_lock(&list->atomic_lock);
+}
+
+static inline void
+dague_list_unlock( dague_list_t* list )
+{
+    dague_atomic_unlock(&list->atomic_lock);
+}
+
+#define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({             \
+    dague_list_item_t* ITEM;                                            \
+    dague_list_lock(list);                                              \
+    for(ITEM = (dague_list_item_t*)(list)->ghost_element.list_next;     \
+        ITEM != &((list)->ghost_element);                               \
+        ITEM = (dague_list_item_t*)ITEM->list_next)                     \
+    {                                                                   \
+        CODE;                                                           \
+    }                                                                   \
+    dague_list_unlock(list);                                            \
+    ITEM;                                                               \
+})                                                                      \
+
+#define _OPAQUE_ULIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({            \
+    dague_list_item_t* ITEM;                                            \
+    for(ITEM = (dague_list_item_t*)(list)->ghost_element.list_next;     \
+        ITEM != &((list)->ghost_element);                               \
+        ITEM = (dague_list_item_t*)ITEM->list_next)                     \
+    {                                                                   \
+        CODE;                                                           \
+    }                                                                   \
+    ITEM;                                                               \
+})
+
+
+static inline void
+dague_list_nolock_add_before( dague_list_t* list,
+                              dague_list_item_t* position,
+                              dague_list_item_t* new )
+{
+#if defined(DAGUE_DEBUG)
+    assert( position->belong_to_list == list );
+#endif
+    DAGUE_ITEM_ATTACH(list, new);
+    new->list_prev = position->list_prev;
+    new->list_next = position;
+    position->list_prev->list_next = new;
+    position->list_prev = new;
+}
+
+static inline void
+dague_list_nolock_add_after( dague_list_t* list,
+                             dague_list_item_t* position,
+                             dague_list_item_t* new )
+{
+#if defined(DAGUE_DEBUG)
+    assert( position->belong_to_list == list );
+#endif
+    DAGUE_ITEM_ATTACH(list, new);
+    new->list_prev = position;
+    new->list_next = position->list_next;
+    position->list_next->list_prev = new;
+    position->list_next = new;
+}
+
+
+static inline dague_list_item_t*
+dague_list_nolock_remove( dague_list_t* list,
+                          dague_list_item_t* item)
+{
+#if defined(DAGUE_DEBUG)
+    assert(item->belong_to_list == list);
+#else
+    (void)list;
+#endif
+    dague_list_item_t* next = (dague_list_item_t*)item->list_next;
+    item->list_prev->list_next = item->list_next;
+    item->list_next->list_prev = item->list_prev;
+    DAGUE_ITEM_DETACH(item);
+    return next;
+}
+
+#if 0
+/* This is incorrect. list is locked, but item is not, item might have
+ * been poped, used and pushed in another list by another thread, the 
+ * ring trick, which solves concurrent remove_item, is still unsafe 
+ * in the general case. I prefer removing this. Keep it around for the
+ * unexpected case it serves some tailored purpose somewhere */
+static inline dague_list_item_t*
+dague_list_remove_item( dague_list_t* list,
+                        dague_list_item_t* item)
+{
+#if defined(DAGUE_DEBUG)
+    assert( item->belong_to_list == list );
+#else
+    (void)list;
+#endif
+    dague_atomic_lock(&list->atomic_lock);
+    item->list_prev->list_next = item->list_next;
+    item->list_next->list_prev = item->list_prev;
+    dague_atomic_unlock(&list->atomic_lock);
+    item->list_next = item;
+    item->list_prev = item;
+    DAGUE_ITEM_DETACH(item);
+    return item;
+}
+#endif
+
+static inline void
+dague_list_push_sorted( dague_list_t* list,
+                        dague_list_item_t* item, 
+                        dague_list_item_comparator_t comparator )
+{
+    dague_list_lock(list);
+    dague_list_nolock_push_sorted(list, item, comparator);
+    dague_list_unlock(list);
+}
+
+static inline void
+dague_list_nolock_push_sorted( dague_list_t* list,
+                               dague_list_item_t* item, 
+                               dague_list_item_comparator_t comparator )
+{
+    dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, current, 
+    {
+        if(comparator(current, item) < 0)
+            break;
+    });
+    dague_ulist_add(list, position, item);
+}
+
+static inline void
+dague_list_chain_sorted( dague_list_t* list, 
+                         dague_list_item_t* items,
+                         dague_list_item_comparator_t comparator )
+{
+    dague_list_lock(list);
+    dague_list_nolock_chain_sorted(list, items, comparator);
+    dague_list_unlock(list);
+}
+
+
+/* Insertion sort, but do in-place merge if sequential items are monotonic
+ * random complexity is O(n^2), but is reduced to O(n) if items are sorted
+ * average case should be close to O(n) for scheduling priority lists */
+static inline void
+dague_list_nolock_chain_sorted( dague_list_t* list, 
+                                dague_list_item_t* items,
+                                dague_list_item_comparator_t comparator )
+{
+    dague_list_item_t* item;
+    dague_list_item_t* position = (dague_list_item_t*)_HEAD(list);
+    for(item = items; NULL != item; items = dague_list_item_ring_chop(items))
+    {
+        if(comparator(position, item) >= 0)
+        {   /* items is not monotonic */ 
+            if(comparator(position, item) == 0)
+            {
+                /* add after so the sorting is stable */
+                dague_ulist_add_after(list, position, item);
+                position = item;
+                continue;
+            }
+            /* this new item is larger than the last insert,
+             * reboot the insertion */
+            position = DAGUE_ULIST_ITERATOR(list, current, 
+            {
+                if(comparator(current, item) < 0)
+                    break;
+            });
+        }
+        dague_ulist_add(list, position, item);
+        position = item;
+    }
+}
+
+
+static inline void
+dague_list_sort( dague_list_t* list,
+                 dague_list_item_comparator_t comparator )
+{
+    dague_list_lock(list);
+    dague_list_nolock_sort(list, comparator);
+    dague_list_unlock(list);
+}
+
+static inline void
+dague_list_nolock_sort( dague_list_t* list,
+                        dague_list_item_comparator_t comparator )
+{
+    dague_list_item_t* items;
+    
+    /* remove the items from the list, chain_sort the items */
+    items = (dague_list_item_t*)_HEAD(list);
+    items->list_prev = _TAIL(list);
+    _HEAD(list) = _GHOST(list);
+    _TAIL(list) = _GHOST(list);
+    dague_list_nolock_chain_sorted(list, items, comparator);
+}
+
 
 
 static inline void
@@ -430,149 +693,6 @@ dague_list_try_pop_back( dague_list_t* list)
 }
 
 #undef _RET_NULL_GHOST
-
-
-static inline dague_list_item_t*
-dague_list_nolock_remove_item( dague_list_t* list,
-                               dague_list_item_t* item)
-{
-#if defined(DAGUE_DEBUG)
-    assert(item->belong_to_list == list);
-#else
-    (void)list;
-#endif
-    item->list_prev->list_next = item->list_next;
-    item->list_next->list_prev = item->list_prev;
-    item->list_next = item;
-    item->list_prev = item;
-    DAGUE_ITEM_DETACH(item);
-    return item;
-}
-
-static inline dague_list_item_t*
-dague_list_remove_item( dague_list_t* list,
-                        dague_list_item_t* item)
-{
-#if defined(DAGUE_DEBUG)
-    assert( item->belong_to_list == list );
-#else
-    (void)list;
-#endif
-    dague_atomic_lock(&list->atomic_lock);
-    item->list_prev->list_next = item->list_next;
-    item->list_next->list_prev = item->list_prev;
-    dague_atomic_unlock(&list->atomic_lock);
-    item->list_next = item;
-    item->list_prev = item;
-    DAGUE_ITEM_DETACH(item);
-    return item;
-}
-
-
-
-static inline dague_list_item_t*
-dague_list_iterate_first( dague_list_t* list )
-{
-    return (dague_list_item_t*) _HEAD(list);
-}
-
-static inline dague_list_item_t*
-dague_list_iterate_last( dague_list_t* list )
-{
-    return (dague_list_item_t*) _TAIL(list);
-}
-
-static inline dague_list_item_t*
-dague_list_iterate_end( dague_list_t* list )
-{
-    return _GHOST(list);
-}
-
-static inline dague_list_item_t*
-dague_list_iterate_next( dague_list_t* list, 
-                         dague_list_item_t* item )
-{
-#if defined(DAGUE_DEBUG)
-    assert( item->belong_to_list == list );
-#else
-    (void)list;
-#endif
-    return (dague_list_item_t*)item->list_next;
-}
-
-static inline dague_list_item_t*
-dague_list_iterate_prev( dague_list_t* list, 
-                         dague_list_item_t* item )
-{
-#if defined(DAGUE_DEBUG)
-    assert( item->belong_to_list == list );
-#else
-    (void)list;
-#endif
-    return (dague_list_item_t*)item->list_prev;
-}
-
-static inline void
-dague_list_iterate_add_before( dague_list_t* list,
-                               dague_list_item_t* position,
-                               dague_list_item_t* new )
-{
-#if defined(DAGUE_DEBUG)
-    assert( position->belong_to_list == list );
-#endif
-    DAGUE_ITEM_ATTACH(list, new);
-    new->list_prev = position->list_prev;
-    new->list_next = position;
-    position->list_prev->list_next = new;
-    position->list_prev = new;
-}
-
-static inline void
-dague_list_iterate_add_after( dague_list_t* list,
-                              dague_list_item_t* position,
-                              dague_list_item_t* new )
-{
-#if defined(DAGUE_DEBUG)
-    assert( position->belong_to_list == list );
-#endif
-    DAGUE_ITEM_ATTACH(list, new);
-    new->list_prev = position;
-    new->list_next = position->list_next;
-    position->list_next->list_prev = new;
-    position->list_next = new;
-}
-
-static inline dague_list_item_t*
-dague_list_iterate_remove_and_next( dague_list_t* list, 
-                                    dague_list_item_t* item )
-{
-    dague_list_item_t* next = dague_list_iterate_next(list, item);
-    dague_list_nolock_remove_item(list, item);
-    return next;
-}
-
-static inline dague_list_item_t*
-dague_list_iterate_remove_and_prev( dague_list_t* list,
-                                    dague_list_item_t* item )
-{
-    dague_list_item_t* prev = dague_list_iterate_prev(list, item);
-    dague_list_nolock_remove_item(list, item);
-    return prev;
-}
-
-#define dague_list_iterate_remove(L,I) dague_list_iterate_remove_and_next(L,I)
-
-static inline void 
-dague_list_iterate_lock( dague_list_t* list )
-{
-    dague_atomic_lock(&list->atomic_lock);
-}
-
-static inline void
-dague_list_iterate_unlock( dague_list_t* list )
-{
-    dague_atomic_unlock(&list->atomic_lock);
-}
 
 #undef _GHOST
 #undef _HEAD

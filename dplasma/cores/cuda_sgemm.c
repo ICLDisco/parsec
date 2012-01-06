@@ -192,7 +192,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
                                     }) );
             nb_allocations++;
             gpu_elem->memory_elem = NULL;
-            dague_ufifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
+            dague_ulist_fifo_push( gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
             cuMemGetInfo( &free_mem, &total_mem );
         }
         if( 0 == nb_allocations ) {
@@ -309,7 +309,7 @@ int sgemm_cuda_fini(dague_context_t* dague_context)
         /**
          * Release the GPU memory.
          */
-        while( NULL != (gpu_elem = (gpu_elem_t*)dague_ufifo_pop( gpu_device->gpu_mem_lru )) ) {
+        while( NULL != (gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop( gpu_device->gpu_mem_lru )) ) {
             cuMemFree( gpu_elem->gpu_mem );
             free( gpu_elem );
         }
@@ -644,29 +644,27 @@ gpu_sgemm_internal_pop( gpu_device_t* gpu_device,
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
                                                           dague_list_item_t* elem )
 {
-    dague_list_item_t* current;
+    dague_list_item_t* position;
     dague_execution_context_t* ec;
     dague_execution_context_t* input = (dague_execution_context_t*)elem;
 
     if( 0 == input->priority ) 
     {
-        dague_ufifo_push(fifo, elem);
+        dague_ulist_fifo_push(fifo, elem);
         return elem;
     }
-    for(current = dague_list_iterate_first(fifo);
-        current != dague_list_iterate_end(fifo); 
-        current = dague_list_iterate_next(fifo, current))
+    position = DAGUE_ULIST_ITERATOR(fifo, current, 
     {
         ec = (dague_execution_context_t*)current;
         if( ec->priority < input->priority )
             break;
-    }
-    dague_list_iterate_add_before(fifo, current, elem);
+    });
+    dague_ulist_add(fifo, position, elem);
     return elem;
 }
 #define DAGUE_FIFO_PUSH  dague_fifo_push_ordered
 #else
-#define DAGUE_FIFO_PUSH  dague_ufifo_push
+#define DAGUE_FIFO_PUSH  dague_ulist_fifo_push
 #endif
 
 /**
@@ -791,12 +789,12 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             /* Get the oldest task */
             if( !dague_ulist_is_empty(gpu_device->fifo_pending_in) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_in, (dague_list_item_t*)this_task);
-                this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_in);
+                this_task = (dague_execution_context_t*)dague_ulist_fifo_pop(gpu_device->fifo_pending_in);
             }
         }
     } else {
         if( NULL == gpu_device->in_array[gpu_device->in_submit] ) {
-            this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_in);
+            this_task = (dague_execution_context_t*)dague_ulist_fifo_pop(gpu_device->fifo_pending_in);
         }
     }
     if( NULL != this_task ) {
@@ -847,12 +845,12 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             /* Get the oldest task */
             if( !dague_ulist_is_empty(gpu_device->fifo_pending_exec) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_exec, (dague_list_item_t*)this_task);
-                this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_exec);
+                this_task = (dague_execution_context_t*)dague_ulist_fifo_pop(gpu_device->fifo_pending_exec);
             }
         }
     } else {
         if( NULL == gpu_device->exec_array[gpu_device->exec_submit] ) {
-            this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_exec);
+            this_task = (dague_execution_context_t*)dague_ulist_fifo_pop(gpu_device->fifo_pending_exec);
         }
     }
     if( NULL != this_task ) {
@@ -910,12 +908,12 @@ int gpu_sgemm( dague_execution_unit_t* eu_context,
             /* Get the oldest task */
             if( !dague_ulist_is_empty(gpu_device->fifo_pending_out) ) {
                 DAGUE_FIFO_PUSH(gpu_device->fifo_pending_out, (dague_list_item_t*)this_task);
-                this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_out);
+                this_task = (dague_execution_context_t*)dague_ulist_fifo_pop(gpu_device->fifo_pending_out);
             }
         }
     } else {
         if( NULL == gpu_device->out_array[gpu_device->out_submit] ) {
-            this_task = (dague_execution_context_t*)dague_ufifo_pop(gpu_device->fifo_pending_out);
+            this_task = (dague_execution_context_t*)dague_ulist_fifo_pop(gpu_device->fifo_pending_out);
         }
     }
     if( NULL != this_task ) {
@@ -1317,7 +1315,7 @@ int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
 
     if( NULL == (gpu_elem = memory_elem->gpu_elems[gpu_device->id]) ) {
         /* Get the LRU element on the GPU and transfer it to this new data */
-        gpu_elem = (gpu_elem_t*)dague_ufifo_pop(gpu_device->gpu_mem_lru);
+        gpu_elem = (gpu_elem_t*)dague_ulist_fifo_pop(gpu_device->gpu_mem_lru);
         if( memory_elem != gpu_elem->memory_elem ) {
             if( NULL != gpu_elem->memory_elem ) {
                 memory_elem_t* old_mem = gpu_elem->memory_elem;
@@ -1329,10 +1327,10 @@ int gpu_data_is_on_gpu( gpu_device_t* gpu_device,
         gpu_elem->memory_elem = memory_elem;
         memory_elem->gpu_elems[gpu_device->id] = gpu_elem;
         *pgpu_elem = gpu_elem;
-        dague_ufifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     } else {
-        dague_ulist_remove_item(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
-        dague_ufifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_ulist_remove(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_ulist_fifo_push(gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
         gpu_elem->type |= type;
         *pgpu_elem = gpu_elem;
         if( memory_elem->memory_version == gpu_elem->gpu_version ) {

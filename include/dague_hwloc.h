@@ -8,7 +8,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_HWLOC
 #include <hwloc.h>
+#endif
 
 typedef struct {
             int lvl;

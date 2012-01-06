@@ -173,7 +173,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->nb_events = 0;
 
     dague_list_item_construct( (dague_list_item_t*)res );
-    dague_fifo_push( &threads, (dague_list_item_t*)res );
+    dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 
     return res;
 }
@@ -182,7 +182,7 @@ int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
     
-    while( t = (dague_thread_profiling_t*)dague_ufifo_pop(&threads) ) {
+    while( t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads) ) {
         free(t->hr_id);
         free(t);
     }
@@ -199,17 +199,12 @@ int dague_profiling_fini( void )
 int dague_profiling_reset( void )
 {
     dague_thread_profiling_t *t;
-    dague_list_item_t *it;
     
-    dague_list_iterate_lock(&threads);
-    for( it = dague_list_iterate_first(&threads); 
-         it != dague_list_iterate_end(&threads); 
-         it = dague_list_iterate_next(&threads, it) {
+    DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         t->last_event = t->next_event;
         t->next_event = t->events;
-    }
-    dague_list_iterate_unlock(&threads);
+    });
 
     return 0;
 }
@@ -322,7 +317,6 @@ static void dump_whole_trace(void)
 {
     const dague_profiling_output_t *event;
     const dague_thread_profiling_t *profile;
-    dague_list_item_t *it;
     dague_time_t zero = ZERO_TIME;
     int i;
 
@@ -334,16 +328,13 @@ static void dump_whole_trace(void)
                START_KEY(i), END_KEY(i), dague_prof_keys[i].name, dague_prof_keys[i].attributes, dague_prof_keys[i].info_length ));
     }
 
-    for( it = dague_list_iterate_first(&threads); 
-         it != dague_list_iterate_end(&threads); 
-         it = dague_list_iterate_next(&threads, it) ) {
-
+    DAGUE_ULIST_ITERATOR(&threads, it, {
         profile = (dague_thread_profiling_t*)it;
         FORALL_EVENTS( event, profile->events, profile ) {
             DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
                    diff_time(zero, event->event.timestamp)));
         }
-    }
+    });
 }
 #endif
 
@@ -357,7 +348,6 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
     char *infostr = malloc(4);
     int infostrsize = 4, infostrresize;
     int event_not_found;
-    dague_list_item_t *it;
     dague_thread_profiling_t *op;
     const dague_profiling_output_t *start_event, *end_event;
 
@@ -375,10 +365,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 /* It has an id, let's look somewhere in another profile, maybe it's end has been
                  * logged by another thread
                  */
-                for( it = dague_list_iterate_first(&threads); 
-                     it != dague_list_iterate_end(&threads); 
-                     it = dague_list_iterate_next(&threads, it) ) {
-
+                DAGUE_ULIST_ITERATOR(&threads, it, {
                     op = (dague_thread_profiling_t*)it;   
                     if( op == profile )
                         continue;
@@ -387,7 +374,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                         event_not_found = 0;
                         break;
                     }
-                }
+                });
 
                 /* Couldn't find the end, or no id. Bad. */
                 if( event_not_found ) {
@@ -471,7 +458,6 @@ int dague_profiling_dump_xml( const char* filename )
     unsigned int i;
     int foundone;
     dague_time_t relative = ZERO_TIME, latest = ZERO_TIME;
-    dague_list_item_t *it;
     dague_thread_profiling_t* profile;
     FILE* tracefile;
     dague_profiling_info_t *info;
@@ -506,10 +492,7 @@ int dague_profiling_dump_xml( const char* filename )
 
     foundone = 0;
    
-    dague_list_iterate_lock(&threads);
-    for( it = dague_list_iterate_first(&threads); 
-         it != dague_list_iterate_end(&threads); 
-         it = dague_list_iterate_next(&threads, it) ) {
+    DAGUE_LIST_ITERATOR(&threads, it, {
         profile = (dague_thread_profiling_t*)it;
 
         if( profile->last_event == NULL ) {
@@ -528,15 +511,12 @@ int dague_profiling_dump_xml( const char* filename )
                 latest = ((dague_profiling_output_t*)(profile->last_event))->event.timestamp;
             }
         }
-
-    }
+    });
 
     fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%"PRIu64"\" TIME_UNIT=\""TIMER_UNIT"\">\n",
             diff_time(relative, latest));
 
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    DAGUE_LIST_ITERATOR(&threads, it, {
         profile = (dague_thread_profiling_t*)it;
 
         fprintf(tracefile, 
@@ -545,8 +525,7 @@ int dague_profiling_dump_xml( const char* filename )
         dague_profiling_dump_one_xml(profile, tracefile, relative);
         fprintf(tracefile, 
                 "   </THREAD>\n");
-    }
-    dague_list_iterate_unlock(&threads);
+    });
 
     fprintf(tracefile, 
             " </PROFILES>\n"
