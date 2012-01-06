@@ -146,7 +146,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
     DEBUG(("Bind thread %i on core %i\n", startup->th_id, startup->bindto));
-
+    
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
@@ -227,8 +227,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     context->active_objects = 0;
     context->my_rank        = 0;
 #if defined(HAVE_HWLOC)
-    context->comm_th_binding_mask = NULL;
     context->comm_th_core   = -1;
+    context->comm_th_binding_mask = hwloc_bitmap_alloc(); 
+    context->core_free_mask = hwloc_bitmap_alloc();
+    hwloc_bitmap_set_range(context->core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
 #endif  /* defined(HWLOC) */
 
 #ifdef HAVE_PAPI
@@ -271,7 +273,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 	    }
         } while(1);
     }
-
+    
+#ifdef HAVE_HWLOC 
+    /* update the core_free_mask according to the thread binding defined */ 
+    for(i = 0; i < nb_cores; i++)
+	hwloc_bitmap_clr(context->core_free_mask, startup[i].bindto);     
+#endif  	
+    
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_cores );
 #ifdef DAGUE_PROF_TRACE
@@ -307,7 +315,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     }
 
     if( nb_cores > 1 ) {
-        pthread_attr_t thread_attr;
+    	pthread_attr_t thread_attr;
 
         pthread_attr_init(&thread_attr);
         pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
@@ -406,11 +414,10 @@ int dague_fini( dague_context_t** pcontext )
         free(context->pthreads);
     }
 
-
-
 #if defined(HAVE_HWLOC)
-    /* Release the temporary communication thread binding mask if allocated */
+    /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_binding_mask);
+    hwloc_bitmap_free(context->core_free_mask);
 
     dague_hwloc_fini();
 #endif  /* defined(HWLOC) */
@@ -909,15 +916,14 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     DEBUG(("Parse request for the binding of threads\n"));
     char* option = optarg;
     char* position;
-    int i, need_mask=0;
+    int i;
     int nb_real_cores=dague_hwloc_nb_real_cores();
 
     if (option[0]=='+' & context->comm_th_core == -1)
     {
-	/* the communication thread is considered but no binding has been defined yet */
-	context->comm_th_binding_mask=hwloc_bitmap_alloc();
+	/* the communication thread has to be included 
+	   if no more specific binding is defined */
 	context->comm_th_core=-2;
-	need_mask=1;
 	option++;  /* skip the + */
     }
 
@@ -1009,49 +1015,44 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 	}
 
         /* communication thread binding is legal on cores from start to end */
-	if(need_mask){
-	    for(i=start; i <= end; i++)
-		hwloc_bitmap_set (context->comm_th_binding_mask, i);
-	}
+	for(i=start; i <= end; i++)
+	    hwloc_bitmap_set(context->comm_th_binding_mask, i);
+	
     } else {
 	/* List of cores */
 	int core_tab[MAX_CORE_LIST];
 	memset(core_tab, -1, MAX_CORE_LIST*sizeof(int));
 	int cmp=0;
-
 	int arg, next_arg;
+
 	if(option==NULL)
 	{
-            /* default binding */
-	    if(need_mask)
-		hwloc_bitmap_fill(context->comm_th_binding_mask);
+            /* default binding,
+	       no restrinction for the communication thread binding */
+	    hwloc_bitmap_fill(context->comm_th_binding_mask);
 	}else{
-	      while( option != NULL && option[0] != '\0')
+	    while( option != NULL && option[0] != '\0')
 	    {
 		/* first core of the remaining list */
 		arg = strtol(option, &option, 10);
 		if( arg < nb_real_cores && arg > -1 )
 		{
 		    core_tab[cmp]=arg;
-		    if(need_mask){
-			hwloc_bitmap_set(context->comm_th_binding_mask, arg);
-		    }
+		    hwloc_bitmap_set(context->comm_th_binding_mask, arg);
 		    cmp++;
 		}
 		if( NULL != (position = strpbrk(option, ",-")))
 		{
 		    if (position[0] == '-')
 		    {
-			/* core range */
+                        /* core range */
 			position++;
 			next_arg = strtol(position, &position, 10);
 			for(i=arg+1; i<=next_arg; i++)
 			    if(i < nb_real_cores && i> -1 )
 			    {
 				core_tab[cmp]=i;
-				if(need_mask){
-				    hwloc_bitmap_set(context->comm_th_binding_mask, i);
-				}
+				hwloc_bitmap_set(context->comm_th_binding_mask, i);
 				cmp++;
 			    }
 			option++; /* skip the - and folowing number  */
@@ -1091,6 +1092,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 	DEBUG(( "binding defined by the parsed list: %s \n", tmp));
 #endif
     }
+
     return 0;
 #else
     fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required).\n");

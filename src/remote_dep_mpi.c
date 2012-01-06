@@ -1255,17 +1255,14 @@ int remote_dep_bind_thread(dague_context_t* context){
 	    free(str);
 	}
 	do_nano = 1;
-    }
-
-    else {
-	/* default binding */
-	int ctl = -1;
+    } else { 
+	/* no binding specified: bind on an available core if any 
+	   (registered in core_free_mask) */
+	int ctl = -1, free_core;
+	free_core=hwloc_bitmap_next(context->core_free_mask, -1); 
+	ctl = dague_bindthread(free_core); 
 	
-        /* TODO:: bind on the first truly available core considering 
-	   the defined binding of the computing threads */  
-	ctl = dague_bindthread(context->nb_cores);
-
-	if (ctl != context->nb_cores){
+	if (ctl != free_core){
 	    do_nano = 1;
 	    fprintf(stderr, "DAGuE\tMPI not bound\n");
 	}
@@ -1273,6 +1270,7 @@ int remote_dep_bind_thread(dague_context_t* context){
 	    fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
     }
 #else
+    /* binding on an extra core if any */ 
     int ctl = -1;
     ctl = dague_bindthread(context->nb_cores);
     
@@ -1282,7 +1280,6 @@ int remote_dep_bind_thread(dague_context_t* context){
     }
     else
 	fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
-    
 #endif
     return 0;
 }
