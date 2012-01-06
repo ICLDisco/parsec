@@ -48,7 +48,7 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 /***********************************************************************
  * Interface is defined. Everything else is private thereafter */
  
-#ifdef DAGUE_LIFO_USE_ATOMICS
+#ifdef DAGUE_DEBUG_LIFO_USE_ATOMICS
 
 #include <stdlib.h>
 #include "atomic.h"
@@ -69,7 +69,7 @@ struct dague_lifo_t {
 #define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({                        \
         dague_list_item_t *_elt;                                        \
         (void)posix_memalign( (void**)&_elt, DAGUE_LIFO_ALIGNMENT, (truesize) ); \
-        _elt->keeper_of_the_seven_keys = 0;                             \
+        dague_list_item_construct(_elt);                                 \
         (elt) = (__typeof__(elt))_elt;                                  \
 })
 #define DAGUE_LIFO_ITEM_FREE( elt ) free(elt)
@@ -197,14 +197,14 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
 static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
 {
     dague_list_item_t* item = lifo->lifo_head;
-    lifo->lifo_head = item->list_next;
+    lifo->lifo_head = (dague_list_item_t*)item->list_next;
     DAGUE_ITEM_DETACH(item);
     return item;
 }
 
 static inline void dague_lifo_construct( dague_lifo_t* lifo )
 {
-    DAGUE_LIFO_ELT_ALLOC(lifo->lifo_ghost, sizeof(dague_list_item_t));
+    DAGUE_LIFO_ITEM_ALLOC(lifo->lifo_ghost, sizeof(dague_list_item_t));
     dague_list_item_construct(lifo->lifo_ghost);
     DAGUE_ITEM_ATTACH(lifo, lifo->lifo_ghost);
     lifo->lifo_head = lifo->lifo_ghost;
@@ -213,7 +213,7 @@ static inline void dague_lifo_construct( dague_lifo_t* lifo )
 static inline void dague_lifo_destruct( dague_lifo_t *lifo )
 {
     DAGUE_ITEM_DETACH(lifo->lifo_ghost);
-    DAGUE_LIFO_ELT_FREE(lifo->lifo_ghost);
+    DAGUE_LIFO_ITEM_FREE(lifo->lifo_ghost);
 }
 
 #else /* LIFO_USE_ATOMICS */

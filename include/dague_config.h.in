@@ -22,7 +22,7 @@
 /* debug */
 #cmakedefine DAGUE_DEBUG
 #cmakedefine DAGUE_DEBUG_HISTORY
-#cmakedefine DAGUE_DEBUG_LIFO_USE_LOCKS
+#cmakedefine DAGUE_DEBUG_LIFO_USE_ATOMICS
 #cmakedefine DAGUE_CALL_TRACE
 
 /* profiling */
