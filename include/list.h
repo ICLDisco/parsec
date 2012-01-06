@@ -129,7 +129,7 @@ dague_list_sort( dague_list_t* list,
 static inline void
 dague_list_nolock_sort( dague_list_t* list,
                         dague_list_item_comparator_t comparator );
-
+#define dague_ulist_sort(list, comp) dague_list_nolock_sort(list,comp)
 
 /* DEQUEUE EMULATION FUNCTIONS */
 
@@ -281,6 +281,7 @@ static inline void
 dague_list_construct( dague_list_t* list )
 {
     dague_list_item_construct(_GHOST(list));
+    DAGUE_ITEM_ATTACH(list, _GHOST(list));
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
     list->atomic_lock = 0;
@@ -441,7 +442,7 @@ dague_list_nolock_push_sorted( dague_list_t* list,
         if(comparator(current, item) < 0)
             break;
     });
-    dague_ulist_add(list, position, item);
+    dague_ulist_add_before(list, position, item);
 }
 
 static inline void
@@ -456,36 +457,48 @@ dague_list_chain_sorted( dague_list_t* list,
 
 
 /* Insertion sort, but do in-place merge if sequential items are monotonic
- * random complexity is O(n^2), but is reduced to O(n) if items are sorted
- * average case should be close to O(n) for scheduling priority lists */
+ * random complexity is O(ln*in), but is reduced to O(ln+in)) if items 
+ * are already sorted; average case should be O(k*(ln+in)) for 
+ * scheduling k ranges of dependencies by priority*/
 static inline void
 dague_list_nolock_chain_sorted( dague_list_t* list, 
                                 dague_list_item_t* items,
                                 dague_list_item_comparator_t comparator )
 {
-    dague_list_item_t* item;
-    dague_list_item_t* position = (dague_list_item_t*)_HEAD(list);
-    for(item = items; NULL != item; items = dague_list_item_ring_chop(items))
+    dague_list_item_t* new;
+    dague_list_item_t* last;
+    if( NULL == items ) return;
+    if( dague_ulist_is_empty(list) )
+    {   /* the list must contain the last/smallest element in next loop */
+        new = items;
+        items = dague_list_item_ring_chop(items);
+        dague_ulist_add(list, _GHOST(list), new);
+    }
+    last = (dague_list_item_t*)_TAIL(list);
+    
+    for(new = items;
+        NULL != new; 
+        new = items)
     {
-        if(comparator(position, item) >= 0)
-        {   /* items is not monotonic */ 
-            if(comparator(position, item) == 0)
-            {
-                /* add after so the sorting is stable */
-                dague_ulist_add_after(list, position, item);
-                position = item;
-                continue;
-            }
-            /* this new item is larger than the last insert,
-             * reboot the insertion */
-            position = DAGUE_ULIST_ITERATOR(list, current, 
-            {
-                if(comparator(current, item) < 0)
-                    break;
-            });
+        items = dague_list_item_ring_chop(items);
+        if( comparator(last, new) < 0 )
+        {   /* this new item is larger than the last insert,
+             * reboot and insert from the beginning */
+             last = (dague_list_item_t*)_HEAD(list);
         }
-        dague_ulist_add(list, position, item);
-        position = item;
+        else
+        {   /* advance one, so the sorting is stable if last == new */
+            last = (dague_list_item_t*)last->list_next;
+        }
+        /* search the first smaller element, from the computed start 
+         * position, then insert before it */
+        for(; last != _GHOST(list); last = (dague_list_item_t*)last->list_next)
+        {
+            if( comparator(last, new) < 0 )
+                    break;
+        }
+        dague_ulist_add_before(list, last, new);
+        last = new;
     }
 }
 
@@ -503,11 +516,19 @@ static inline void
 dague_list_nolock_sort( dague_list_t* list,
                         dague_list_item_comparator_t comparator )
 {
-    dague_list_item_t* items;
+    if(dague_list_nolock_is_empty(list)) return;
     
     /* remove the items from the list, chain_sort the items */
-    items = (dague_list_item_t*)_HEAD(list);
+#ifdef DAGUE_DEBUG
+    /* because we are internal, we do shaddy things to that list
+     * make asserts happy */
+    DAGUE_ULIST_ITERATOR(list, item, {
+        item->refcount = 0;
+    });
+#endif
+    dague_list_item_t* items = (dague_list_item_t*)_HEAD(list);
     items->list_prev = _TAIL(list);
+    _TAIL(list)->list_next = items;
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
     dague_list_nolock_chain_sorted(list, items, comparator);

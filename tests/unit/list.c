@@ -147,18 +147,47 @@ static int elt_comparator(dague_list_item_t* i1, dague_list_item_t* i2)
     else return 1;
 }
 
-static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
-{
-    printf(" - sort empty list l1\n"); 
-    dague_ulist_sort(l1, elt_comparator);
-    printf(" - sort ramdomized list l2, check it is in order\n"); 
-    dague_ulist_sort(l2, elt_comparator);
-    check_lifo_translate_outoforder(l2,l1,"l2","l1");
-    DAGUE_LIST_ITERATOR(l1, item, {
+#if 0
+    /* usefull code snippet */
+    DAGUE_LIST_ITERATOR(l2, item, {
         printf(" %04d ", ((elt_t*)item)->base);
     });
     printf("\n");
-    check_lifo_translate_inorder(l1,l2,"l1","l2");    
+#endif
+
+static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
+{
+    printf(" - sort empty list l2\n");
+    dague_ulist_sort(l2, elt_comparator);
+
+    printf(" - sort already sorted list l1, check it is in order\n"); 
+    dague_ulist_sort(l1, elt_comparator);
+    check_lifo_translate_inorder(l1,l2,"l1","l2");
+        
+    printf(" - sort reverse sorted list l2, check it is in order\n");
+    dague_ulist_sort(l2, elt_comparator);
+    check_lifo_translate_inorder(l2,l1,"l1","l2");
+    
+    printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
+    elt_t* e;
+    while(e = (elt_t*)dague_ulist_fifo_pop(l1))
+    {
+        int choice = rand()%3; /* do not care for true random*/
+        switch(choice)
+        {
+            case 0:
+                dague_ulist_fifo_push(l1, &e->list); /* return in l1, for later */
+                break;
+            case 1:
+                dague_ulist_push_front(l2, &e->list);
+                break;
+            case 2:
+                dague_ulist_push_back(l2, &e->list);
+                break;
+        }
+    }
+    dague_list_sort(l2, elt_comparator);
+    check_lifo_translate_inorder(l2,l1,"l2","l1");
 }
 
 static pthread_mutex_t heavy_synchro_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -277,6 +306,9 @@ int main(int argc, char *argv[])
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
     check_lifo_translate_inorder(&l2, &l1, "l2", "l1");
 
+    check_list_sort(&l1, &l2);
+
+
     printf("Parallel test.\n");
 
     printf(" - translate elements from l1 to l2 or from l2 to l1 (random), %u times on %ld threads\n",
@@ -328,12 +360,6 @@ int main(int argc, char *argv[])
     }
     
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
-    
-    /* END OF LIFO TESTS */
-    
-    check_list_sort(&l1, &l2);
-
-
 
 
 
