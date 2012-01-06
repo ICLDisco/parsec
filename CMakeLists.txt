@@ -17,6 +17,37 @@ enable_testing()
 # ccmake tunable parameters
 #####
 
+## Selectively compile only parts of the framework
+option(BUILD_TOOLS
+       "Build the helper tools such as the pre-compilers, profiling manipulation and so on" ON)
+mark_as_advanced(BUILD_TOOLS)
+option(BUILD_DAGUE
+       "Compile the DAGuE framework" ON)
+mark_as_advanced(BUILD_DAGUE)
+if( BUILD_DAGUE AND NOT BUILD_TOOLS )
+  message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
+endif( BUILD_DAGUE AND NOT BUILD_TOOLS )
+option(BUILD_DPLASMA
+       "Compile the DPLASMA layer" ON)
+mark_as_advanced(BUILD_DPLASMA)
+if( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE framework")
+endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+
+### Misc options
+option(BUILD_SHARED_LIBS
+  "Build shared libraries" OFF)
+option(BUILD_64bits
+  "Build 64 bits mode" ON)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+### Dague PP options
+set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
+mark_as_advanced(DAGUEPP_CFLAGS)
+
+
 ## Multicore scheduler parameters
 mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
@@ -111,19 +142,6 @@ if(DAGUE_Q2J)
   endif(DAGUE_OMEGA_DIR)
 endif(DAGUE_Q2J)
 
-### Misc options
-option(BUILD_SHARED_LIBS
-  "Build shared libraries" OFF)
-option(BUILD_64bits
-  "Build 64 bits mode" ON)
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
-
-### Dague PP options
-set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
-mark_as_advanced(DAGUEPP_CFLAGS)
-
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
@@ -136,9 +154,11 @@ include (CheckIncludeFiles)
 # check the capabilities of the system we are building for 
 #
 
-# Check for compiler tools 
-find_package(BISON)
-find_package(FLEX)
+IF( BUILD_TOOLS )
+  # Check for compiler tools 
+  find_package(BISON)
+  find_package(FLEX)
+ENDIF( BUILD_TOOLS )
 
 # Fortran tricks
 STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
@@ -320,72 +340,74 @@ check_include_files(string.h HAVE_STRING_H)
 #
 # Find optional packages
 #
-find_package(HWLOC QUIET)
-set(HAVE_HWLOC ${HWLOC_FOUND})
-if( HWLOC_FOUND )
-  list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-  list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-  include_directories( ${HWLOC_INCLUDE_DIR} )
-else( HWLOC_FOUND )
-  if( DAGUE_SCHED_CACHE_AWARE OR DAGUE_SCHED_HIERARCHICAL_QUEUES)
-    message( WARNING "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES require the HWLOC package, but it has not been found. Revert to flat queues." )
-    set(DAGUE_SCHED_CACHE_AWARE 0)
-    set(DAGUE_SCHED_HIERARCHICAL_QUEUES 0)
-  endif()
-endif (HWLOC_FOUND)
+IF( BUILD_DAGUE )
+  find_package(HWLOC QUIET)
+  set(HAVE_HWLOC ${HWLOC_FOUND})
+  if( HWLOC_FOUND )
+    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
+    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+    include_directories( ${HWLOC_INCLUDE_DIR} )
+  else( HWLOC_FOUND )
+    if( DAGUE_SCHED_CACHE_AWARE OR DAGUE_SCHED_HIERARCHICAL_QUEUES)
+      message( WARNING "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES require the HWLOC package, but it has not been found. Revert to flat queues." )
+      set(DAGUE_SCHED_CACHE_AWARE 0)
+      set(DAGUE_SCHED_HIERARCHICAL_QUEUES 0)
+    endif()
+  endif (HWLOC_FOUND)
 
-if (DAGUE_DIST_WITH_MPI)
-  find_package(MPI REQUIRED)
+  if (DAGUE_DIST_WITH_MPI)
+    find_package(MPI REQUIRED)
+    if (MPI_FOUND)
+      set(HAVE_MPI 1)
+      include_directories( ${MPI_INCLUDE_PATH} )
+    else (MPI_FOUND)
+      set(HAVE_MPI 0)
+      message(WARNING "MPI support is required in order to build the distributed version of DAGuE."
+        "Unfortunately, MPI does not seem to be properly installed on this system, at least"
+        "not on the default path.")
+    endif (MPI_FOUND)
+  endif (DAGUE_DIST_WITH_MPI)
+  #
+  # Check to see if support for MPI 2.0 is available
+  #
   if (MPI_FOUND)
-    set(HAVE_MPI 1)
-    include_directories( ${MPI_INCLUDE_PATH} )
-  else (MPI_FOUND)
-    set(HAVE_MPI 0)
-    message(WARNING "MPI support is required in order to build the distributed version of DAGuE."
-      "Unfortunately, MPI does not seem to be properly installed on this system, at least"
-      "not on the default path.")
+    set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
+    set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
+    set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
+    set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
+    check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
+    set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
+    set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
   endif (MPI_FOUND)
-endif (DAGUE_DIST_WITH_MPI)
-#
-# Check to see if support for MPI 2.0 is available
-#
-if (MPI_FOUND)
-  set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
-  set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
-  set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
-  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
-  check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
-  set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
-  set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
-endif (MPI_FOUND)
 
-if( DAGUE_GPU_WITH_CUDA )
-  find_package(CUDA)
-  if (CUDA_FOUND)
-    if(CUDA_VERSION VERSION_LESS "3.0")
+  if( DAGUE_GPU_WITH_CUDA )
+    find_package(CUDA)
+    if (CUDA_FOUND)
+      if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
-    endif(CUDA_VERSION VERSION_LESS "3.0")
-    set(CUDA_BUILD_EMULATION OFF)
-    include_directories(${CUDA_INCLUDE_DIRS})
-    list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
-    list(APPEND EXTRA_SOURCES src/gpu_data.c)
-    set(HAVE_CUDA 1)
-  else (CUDA_FOUND)
-    set(HAVE_CUDA 0)
-  endif (CUDA_FOUND)
-endif( DAGUE_GPU_WITH_CUDA )
+      endif(CUDA_VERSION VERSION_LESS "3.0")
+      set(CUDA_BUILD_EMULATION OFF)
+      include_directories(${CUDA_INCLUDE_DIRS})
+      list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
+      list(APPEND EXTRA_SOURCES src/gpu_data.c)
+      set(HAVE_CUDA 1)
+    else (CUDA_FOUND)
+      set(HAVE_CUDA 0)
+    endif (CUDA_FOUND)
+  endif( DAGUE_GPU_WITH_CUDA )
 
-if (DAGUE_PROF_PAPI)
-  find_package(PAPI REQUIRED)
-  if (PAPI_FOUND)
-    list(APPEND EXTRA_SOURCES src/papime.c)
-    list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
-    include_directories( ${PAPI_INCLUDE_DIR} )
-    set(HAVE_PAPI 1)
-  else (PAPI_FOUND)
-    set(HAVE_PAPI 0)
-  endif (PAPI_FOUND)
-endif (DAGUE_PROF_PAPI)
+  if (DAGUE_PROF_PAPI)
+    find_package(PAPI REQUIRED)
+    if (PAPI_FOUND)
+      list(APPEND EXTRA_SOURCES src/papime.c)
+      list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
+      include_directories( ${PAPI_INCLUDE_DIR} )
+      set(HAVE_PAPI 1)
+    else (PAPI_FOUND)
+      set(HAVE_PAPI 0)
+    endif (PAPI_FOUND)
+  endif (DAGUE_PROF_PAPI)
+ENDIF( BUILD_DAGUE )
 
 if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)
@@ -433,27 +455,34 @@ set(SRCS
 #
 # Setup targets
 #
-
-if (MPI_FOUND)
-  add_library(dague-mpi STATIC ${SRCS})
-  set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-  target_link_libraries(dague-mpi ${EXTRA_LIBS})
-  install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-else (MPI_FOUND)
-  add_library(dague STATIC ${SRCS})
-  set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-  target_link_libraries(dague ${EXTRA_LIBS})
-  install(TARGETS dague ARCHIVE DESTINATION lib)
-endif (MPI_FOUND)
+if( BUILD_DAGUE )
+  if (MPI_FOUND)
+    add_library(dague-mpi STATIC ${SRCS})
+    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+    target_link_libraries(dague-mpi ${EXTRA_LIBS})
+    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
+  else (MPI_FOUND)
+    add_library(dague STATIC ${SRCS})
+    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+    target_link_libraries(dague ${EXTRA_LIBS})
+    install(TARGETS dague ARCHIVE DESTINATION lib)
+  endif (MPI_FOUND)
+  add_subdirectory(data_dist)
+ENDIF( BUILD_DAGUE )
 
 #
 # Now continue with compiling the tests.
 #
 
-add_subdirectory(tools)
-add_subdirectory(dplasma)
-add_subdirectory(data_dist)
-add_subdirectory(tests)
+IF( BUILD_TOOLS )
+  add_subdirectory(tools)
+ENDIF( BUILD_TOOLS )
+IF( BUILD_DPLASMA )
+  add_subdirectory(dplasma)
+ENDIF ( BUILD_DPLASMA )
+IF( BUILD_TESTING AND BUILD_DAGUE )
+  add_subdirectory(tests)
+ENDIF( BUILD_TESTING AND BUILD_DAGUE )
 
 # Configuration header
 configure_file (
