@@ -68,8 +68,8 @@ BODY
         );
     assert( 0 == (*INFO) );
     printlog(
-             "thread %d CORE_potrf( %s, %d, A(%d,%d), %d)\n",
-             context->eu_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
+             "thread %d VP %d CORE_potrf( %s, %d, A(%d,%d), %d)\n",
+             context->th_id, context->virtual_process->vp_id, (uplo == PlasmaLower) ? "PlasmaLower" : "PlasmaUpper",
              NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
              k, k, NB /*A.nb,*/ );
 END
@@ -114,8 +114,8 @@ BODY
                                         C /*A(n, k)*/, NB /*A.nb*/ )
             );
         printlog( 
-                 "thread %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                 context->eu_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
+                 "thread %d VP %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                 context->th_id, context->virtual_process->vp_id, "PlasmaRight", "PlasmaLower", "PlasmaTrans", "PlasmaNonUnit",
                  NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                  NB, /*A.nb,*/
                  1.0, k, k, NB, /*A.nb,*/
@@ -131,8 +131,8 @@ BODY
                                         C /*A(k, n)*/, NB /*A.nb*/ )
             );
        printlog(
-                "thread %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
-                context->eu_id, "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
+                "thread %d VP %d CORE_trsm( %s, %s, %s, %s, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d)\n",
+                context->th_id, context->virtual_process->vp_id, "PlasmaLeft", "PlasmaUpperr", "PlasmaTrans", "PlasmaNonUnit",
                 NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                 NB, /*A.nb,*/
                 1.0, k, k, NB, /*A.nb,*/
@@ -177,8 +177,8 @@ BODY
                 (double) 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         printlog(
-                 "thread %d CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                 context->eu_id, "PlasmaLower", "PlasmaNoTrans",
+                 "thread %d VP %d CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->th_id, context->virtual_process->vp_id, "PlasmaLower", "PlasmaNoTrans",
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  NB, /*A.nb,*/
                  -1.0, n, k, NB, /*A.nb,*/
@@ -193,8 +193,8 @@ BODY
                 (double) 1.0, T /*A(n, n)*/, NB /*A.nb*/ )
             );
         printlog(
-                 "thread %d CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                 context->eu_id, "PlasmaLower", "PlasmaNoTrans",
+                 "thread %d VP %d CORE_herk( %s, %s, %d, %d, %f, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->th_id, context->virtual_process->vp_id, "PlasmaLower", "PlasmaNoTrans",
                  NB, /*k == A.nt-1 ? A.n-k*A.nb : A.nb,*/
                  NB, /*A.nb,*/
                  -1.0, k, n, NB, /*A.nb,*/
@@ -260,8 +260,8 @@ BODY
                 (Dague_Complex64_t) 1.0, C /*A(m, n)*/, NB /*A.nb*/ )
             );
         printlog(
-                 "thread %d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                 context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
+                 "thread %d VP %d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->th_id, context->virtual_process->vp_id, "PlasmaNoTrans", "PlasmaTrans",
                  NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                  NB, /*A.nb,*/
                  NB, /*A.nb,*/
@@ -280,8 +280,8 @@ BODY
                 (Dague_Complex64_t) 1.0, C /*A(n, m)*/, NB /*A.nb*/ )
             );
         printlog(
-                 "%d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
-                 context->eu_id, "PlasmaNoTrans", "PlasmaTrans",
+                 "thread %d VP %d CORE_gemm( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, A(%d,%d), %d, %f, A(%d,%d), %d)\n",
+                 context->th_id, context->virtual_process->vp_id, "PlasmaNoTrans", "PlasmaTrans",
                  NB, /*m == A.nt-1 ? A.n-m*A.nb : A.nb,*/
                  NB, /*A.nb,*/
                  NB, /*A.nb,*/

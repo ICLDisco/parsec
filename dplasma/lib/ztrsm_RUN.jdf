@@ -50,8 +50,8 @@ READ A <- A(k, k)
        -> A TRSM(0..descB.mt-1, k)
 BODY
  /* Nothing */
-  printlog("thread %d ztrsm_in( %d )\n", 
-           context->eu_id, k);
+  printlog("thread %d VP %d ztrsm_in( %d )\n", 
+           context->th_id, context->virtual_process->vp_id, k);
 END
 
 TRSM(m, k)
@@ -81,8 +81,8 @@ BODY
                                 B /*B(m, k)*/, descB.mb)
 	   );
 
-      printlog("thread %d CORE_ztrsm( %d, %d)\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-	       context->eu_id, m, k,
+      printlog("thread %d VP %d CORE_ztrsm( %d, %d)\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
+	       context->th_id, context->virtual_process->vp_id, m, k,
                plasma_const( side ), plasma_const( uplo ), 
                plasma_const( trans ), plasma_const( diag ),
                tempmm, tempkn,
@@ -102,8 +102,8 @@ READ A <- A(k, n)
        -> A GEMM(k, 0..descB.mt-1, n)
 BODY
         /* Nothing */
-        printlog("thread %d zgemm_in( %d, %d )\n", 
-                 context->eu_id, k, n);
+        printlog("thread %d VP %d zgemm_in( %d, %d )\n", 
+                 context->th_id, context->virtual_process->vp_id, k, n);
 END
 
 // Name
@@ -136,8 +136,8 @@ BODY
 			lalpha,                  C /* B(m, n)*/ , descB.mb)
 	   );
 
-      printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, B(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id,  k, m, n,
+      printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, B(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
+	       context->th_id, context->virtual_process->vp_id,  k, m, n,
                plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
                tempmm, tempnn, descB.mb,
                -1.0, m, k, B, descB.mb,

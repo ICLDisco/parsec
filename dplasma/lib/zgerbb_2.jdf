@@ -98,8 +98,8 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k, k, A, k, k, B);
+  printlog("thread %d VP %d CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
 
 END
 
@@ -184,8 +184,8 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldam, p_elem_A, desc_T->nb)\n",
-  context->eu_id, k, m, k, k, C, k, k, D, m, k, E);
+  printlog("thread %d VP %d CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldam, p_elem_A, desc_T->nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, m, k, k, C, k, k, D, m, k, E);
 
 END
 
@@ -245,8 +245,8 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, n, k, k, F, k, n, G, k, n, H);
+  printlog("thread %d VP %d CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, F, k, n, G, k, n, H);
 
 END
 
@@ -356,8 +356,8 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, desc_A->nb, tempmm, tempnn, desc_A->mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
+  printlog("thread %d VP %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, desc_A->nb, tempmm, tempnn, desc_A->mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
 END
 
@@ -409,8 +409,8 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, k+1, k, N, k+1, k, O);
+  printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, k+1, k, N, k+1, k, O);
 
 END
 
@@ -492,8 +492,8 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T->nb)\n",
-  context->eu_id, k, n1, k+1, k, P, k+1, k, Q, k+1, n1, R);
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T->nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, n1, k+1, k, P, k+1, k, Q, k+1, n1, R);
 
 END
 
@@ -553,8 +553,8 @@ BODY
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
-  context->eu_id, k, m2, k+1, k, S, m2, k, T, m2, k, U);
+  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, m2, k+1, k, S, m2, k, T, m2, k, U);
 
 END
 
@@ -662,7 +662,7 @@ BODY
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A->mb, tempnn, tempmm, tempnn, desc_A->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
-  context->eu_id, k, m2, n2, k+1, n2, V, m2, n2, W, m2, k, X, m2, k, Y);
+  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A->mb, tempnn, tempmm, tempnn, desc_A->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, m2, n2, k+1, n2, V, m2, n2, W, m2, k, X, m2, k, Y);
 
 END

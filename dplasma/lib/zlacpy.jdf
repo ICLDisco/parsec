@@ -77,9 +77,9 @@ BODY
                    A, ldam, B, ldbm);
                );
 
-        printlog("thread %d lacpy_l( %d, %d )\n"
+        printlog("thread %d VP %d lacpy_l( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->eu_id, m, n, 
+                 context->th_id, context->virtual_process->vp_id, m, n, 
                  plasma_const(uplo), tempmm, tempnn, 
                  m, n, ldam, m, n, ldbm);
 END
@@ -124,9 +124,9 @@ BODY
                    A, ldam, B, ldbm);
                );
 
-        printlog("thread %d lacpy_u( %d, %d )\n"
+        printlog("thread %d VP %d lacpy_u( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->eu_id, m, n, 
+                 context->th_id, context->virtual_process->vp_id, m, n, 
                  plasma_const(uplo), tempmm, tempnn, 
                  m, n, ldam, m, n, ldbm);
 END
@@ -168,9 +168,9 @@ BODY
                    A, ldak, B, ldbk);
                );
 
-        printlog("thread %d lacpy_diag( %d, %d )\n"
+        printlog("thread %d VP %d lacpy_diag( %d, %d )\n"
                  "    ( %s, %d, %d, A(%d,%d), %d, B(%d,%d), %d)\n",
-                 context->eu_id, k, k, 
+                 context->th_id, context->virtual_process->vp_id, k, k, 
                  plasma_const(uplo), tempkm, tempkn, 
                  k, k, ldak, k, k, ldbk);
 END

@@ -75,9 +75,9 @@ BODY
 	diag, tempkm, tempnn, 
 	lalpha, A /* A((descB.mt-1)-k,(descB.mt-1)-k) */, lda, 
 	B /* B((descB.mt-1)-k,n) */, ldb );
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, n, (descB.mt-1)-k, (descB.mt-1)-k, A, (descB.mt-1)-k, n, B);
+  context->th_id, context->virtual_process->vp_id, k, n, (descB.mt-1)-k, (descB.mt-1)-k, A, (descB.mt-1)-k, n, B);
 
 END
 
@@ -141,9 +141,9 @@ BODY
 	C /* A((descB.mt-1)-k,(descB.mt-1)-m) */, lda, D /* B((descB.mt-1)-k,n1) */, 
 	ldb, lalpha, E /* B((descB.mt-1)-m,n1) */, 
 	descB.mb );
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaNoTrans, descB.mb, tempnn, tempkm, mzone, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb, lalpha, B(%d,%d)[%p], descB.mb)\n",
-  context->eu_id, k, m, n1, (descB.mt-1)-k, (descB.mt-1)-m, C, (descB.mt-1)-k, n1, D, (descB.mt-1)-m, n1, E);
+  context->th_id, context->virtual_process->vp_id, k, m, n1, (descB.mt-1)-k, (descB.mt-1)-m, C, (descB.mt-1)-k, n1, D, (descB.mt-1)-m, n1, E);
 
 END
 

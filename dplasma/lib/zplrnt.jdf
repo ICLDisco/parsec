@@ -55,9 +55,9 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d plrnt( %d, %d )\n"
+        printlog("thread %d VP %d plrnt( %d, %d )\n"
                  "    ( %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, tempmm, tempnn, 
+                 context->th_id, context->virtual_process->vp_id, m, n, tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END

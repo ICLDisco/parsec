@@ -75,8 +75,8 @@ BODY
          );
 
     printlog(
-             "thread %d CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
-             context->eu_id, k, 
+             "thread %d VP %d CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
+             context->th_id, context->virtual_process->vp_id, k, 
              plasma_const(uplo), tempkn, k, k, T, ldak, iinfo );
 END
 
@@ -121,8 +121,8 @@ BODY
                                     C /*A(k, n)*/, ldak);
         );
 
-    printlog("thread %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, n,
+    printlog("thread %d VP %d CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, k, n,
              plasma_const( PlasmaLeft ), plasma_const( PlasmaUpper ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
              descA.mb, tempnn,
@@ -170,8 +170,8 @@ BODY
             (double) 1.0, T /*A(n, n)*/, ldan);
         );
     printlog(
-             "thread %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, n, 
+             "thread %d VP %d CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, k, n, 
              plasma_const( PlasmaUpper ), plasma_const( PlasmaConjTrans ),
              tempnn, descA.mb,
              -1.0, k, n, A, ldak,
@@ -236,8 +236,8 @@ BODY
                                      B /*A(k, n)*/, ldak,
             (Dague_Complex64_t) 1.0, C /*A(m, n)*/, ldan);
         );
-    printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
-             context->eu_id, k, m, n, 
+    printlog("thread %d VP %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
+             context->th_id, context->virtual_process->vp_id, k, m, n, 
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
              descA.mb, tempnn, descA.nb,
              -1.0, k, m, A, ldak,

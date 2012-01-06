@@ -31,6 +31,7 @@
 #define DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER 65536
 typedef struct {
     int      thread_id;
+    int      vp_id;
     int32_t  priority;
     uint32_t step;
 } sched_priority_trace_t;
@@ -49,7 +50,9 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
         int set_parameters, i;
         char tmp[128];
 
-        DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
+        DEBUG(( "thread %d of VP %d Execute %s\n", 
+                eu_context->th_id, eu_context->virtual_process->vp_id,
+                dague_service_to_string(exec_context, tmp, 128) ));
         for( i = set_parameters = 0; NULL != (flow = exec_context->function->in[i]); i++ ) {
             if( (NULL != exec_context->data[flow->flow_index].data_repo) &&
                 (ACCESS_NONE != flow->access_type)) {
@@ -135,7 +138,9 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                         dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
                 assert( set_parameters > 1 );
             }
-            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
+            DEBUG(( "thread %d of VP %d Schedules %s\n", 
+                    eu_context->th_id, eu_context->virtual_process->vp_id,
+                    dague_service_to_string(context, tmp, 128) ));
             context = (dague_execution_context_t*)context->list_item.list_next;
         } while ( context != new_context );
     }
@@ -190,7 +195,7 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
     /* Succesfull execution. The context is ready to be released, all
      * dependencies have been marked as completed.
      */
-    DEBUG_MARK_EXE( eu_context->eu_id, exec_context );
+    DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
     /* Release the execution context */
     DAGUE_STAT_DECREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     dague_thread_mempool_free( eu_context->context_mempool, exec_context );
@@ -200,8 +205,8 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
 void* __dague_progress( dague_execution_unit_t* eu_context )
 {
     uint64_t misses_in_a_row;
-    dague_context_t* master_context = eu_context->virtual_process->dague_context;
-    int32_t my_barrier_counter = master_context->__dague_internal_finalization_counter;
+    dague_context_t* dague_context = eu_context->virtual_process->dague_context;
+    int32_t my_barrier_counter = dague_context->__dague_internal_finalization_counter;
     dague_execution_context_t* exec_context;
     int nbiterations = 0;
     struct timespec rqtp;
@@ -215,19 +220,19 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
         /* Wait until all threads are done binding themselves 
          * (see dague_init) */
-        dague_barrier_wait( &(master_context->barrier) );
+        dague_barrier_wait( &(dague_context->barrier) );
         my_barrier_counter = 1;
     }
 
     /* The main loop where all the threads will spend their time */
  wait_for_the_next_round:
     /* Wait until all threads are here and the main thread signal the begining of the work */
-    dague_barrier_wait( &(master_context->barrier) );
+    dague_barrier_wait( &(dague_context->barrier) );
 
-    if( master_context->__dague_internal_finalization_in_progress ) {
+    if( dague_context->__dague_internal_finalization_in_progress ) {
         my_barrier_counter++;
-        for(; my_barrier_counter <= master_context->__dague_internal_finalization_counter; my_barrier_counter++ ) {
-            dague_barrier_wait( &(master_context->barrier) );
+        for(; my_barrier_counter <= dague_context->__dague_internal_finalization_counter; my_barrier_counter++ ) {
+            dague_barrier_wait( &(dague_context->barrier) );
         }
         goto finalize_progress;
     }
@@ -238,7 +243,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         return (void *)-1;
     }
 
-    while( !all_tasks_done(master_context) ) {
+    while( !all_tasks_done(dague_context) ) {
 #if defined(DISTRIBUTED)
         if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
             /* check for remote deps completion */
@@ -268,7 +273,8 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 uint32_t my_idx = dague_atomic_inc_32b(&sched_priority_trace_counter);
                 if(my_idx < DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
                     sched_priority_trace[my_idx].step = eu_context->sched_nb_tasks_done++;
-                    sched_priority_trace[my_idx].thread_id = eu_context->eu_id;
+                    sched_priority_trace[my_idx].thread_id = eu_context->th_id;
+                    sched_priority_trace[my_idx].vp_id     = eu_context->virtual_process->vp_id;
                     sched_priority_trace[my_idx].priority  = exec_context->priority;
                 }
             }
@@ -286,19 +292,19 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
     
     /* We're all done ? */
-    dague_barrier_wait( &(master_context->barrier) );
+    dague_barrier_wait( &(dague_context->barrier) );
 
 #if defined(DAGUE_SIM)
-    if( 0 == eu_context->eu_id ) {
+    if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
         int32_t my_idx;
         int largest_date = 0;
-        for(my_idx = 0; my_idx < master_context->nb_cores; my_idx++) {
-            if( master_context->execution_units[my_idx]->largest_simulation_date > largest_date )
-                largest_date = master_context->execution_units[my_idx]->largest_simulation_date;
+        for(my_idx = 0; my_idx < dague_context->nb_cores; my_idx++) {
+            if( dague_context->execution_units[my_idx]->largest_simulation_date > largest_date )
+                largest_date = dague_context->execution_units[my_idx]->largest_simulation_date;
         }
-        master_context->largest_simulation_date = largest_date;
+        dague_context->largest_simulation_date = largest_date;
     }
-    dague_barrier_wait( &(master_context->barrier) );
+    dague_barrier_wait( &(dague_context->barrier) );
     eu_context ->largest_simulation_date = 0;
 #endif
 
@@ -309,25 +315,27 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
  finalize_progress:
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
-    printf("#Scheduling: th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
-           eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
+    printf("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
+           eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
            (long long unsigned int)miss_victim );
 
-    if( eu_context->eu_id == 0 ) {
+    if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
         char  priority_trace_fname[64];
         FILE *priority_trace = NULL;
-        sprintf(priority_trace_fname, "priority_trace-%d.dat", eu_context->master_context->my_rank);
+        sprintf(priority_trace_fname, "priority_trace-%d.dat", eu_context->virtual_process->dague_context->my_rank);
         priority_trace = fopen(priority_trace_fname, "w");
         if( NULL != priority_trace ) {
             uint32_t my_idx;
             fprintf(priority_trace, 
-                    "#Step\tPriority\tThread\n"
+                    "#Step\tPriority\tThread\tVP\n"
                     "#Tasks are ordered in execution order\n");
             for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
-                fprintf(priority_trace, "%d\t%d\t%d\n", sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority, sched_priority_trace[my_idx].thread_id);
+                fprintf(priority_trace, "%d\t%d\t%d\t%d\n", 
+                        sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority, 
+                        sched_priority_trace[my_idx].thread_id, sched_priority_trace[my_idx].vp_id);
             }
             fclose(priority_trace);
         }

@@ -75,9 +75,9 @@ BODY
 	diag, tempkm, tempnn, 
 	lalpha, A /* A(k,k) */, lda, 
 	B /* B(k,n) */, ldb );
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+  printlog("thread %d VP %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, n, k, k, A, k, n, B);
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, n, B);
 
 END
 
@@ -140,9 +140,9 @@ BODY
 	C /* A(k,m) */, descA.mb, D /* B(k,n1) */, 
 	descB.mb, lalpha, E /* B(m,n1) */, 
 	ldb );
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB.mb, mzone, A(%d,%d)[%p], descA.mb, B(%d,%d)[%p], descB.mb, lalpha, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, m, n1, k, m, C, k, n1, D, m, n1, E);
+  context->th_id, context->virtual_process->vp_id, k, m, n1, k, m, C, k, n1, D, m, n1, E);
 
 END
 

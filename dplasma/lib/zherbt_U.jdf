@@ -76,8 +76,8 @@ BODY
   dague_private_memory_push( pool_A, pool_0 );
   dague_private_memory_push( pool_B, pool_1 );
 
-  printlog("thread %d CORE_zgelqt(%d)\n\t(A.nb, tempkn, ib, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
-  context->eu_id, k, k, k+1, A, k, k+1, B);
+  printlog("thread %d VP %d CORE_zgelqt(%d)\n\t(A.nb, tempkn, ib, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, k, k+1, A, k, k+1, B);
 
 END
 
@@ -125,8 +125,8 @@ BODY
 
   dague_private_memory_push( pool_A, pool_2 );
 
-  printlog("thread %d CORE_zherfb(%d)\n\t(PlasmaUpper, tempkn, tempkn, ib, T.nb, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
-  context->eu_id, k, k, k+1, C, k, k+1, D, k+1, k+1, E);
+  printlog("thread %d VP %d CORE_zherfb(%d)\n\t(PlasmaUpper, tempkn, tempkn, ib, T.nb, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, k, k+1, C, k, k+1, D, k+1, k+1, E);
 
 END
 
@@ -177,8 +177,8 @@ BODY
 
   dague_private_memory_push( pool_A, pool_1 );
 
-  printlog("thread %d CORE_zunmlq(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, A.nb, tempnn, tempkn, ib, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
-  context->eu_id, k, n, k, k+1, F, k, k+1, G, k+1, n, H);
+  printlog("thread %d VP %d CORE_zunmlq(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, A.nb, tempnn, tempkn, ib, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, k, k+1, F, k, k+1, G, k+1, n, H);
 
 END
 
@@ -242,8 +242,8 @@ BODY
   dague_private_memory_push( pool_A, pool_0 );
   dague_private_memory_push( pool_B, pool_1 );
 
-  printlog("thread %d CORE_ztslqt(%d, %d)\n\t(A.nb, tempnn, ib, A(%d,%d)[%p], A.nb, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
-  context->eu_id, k, n1, k, k+1, J, k, n1, K, k, n1, L);
+  printlog("thread %d VP %d CORE_ztslqt(%d, %d)\n\t(A.nb, tempnn, ib, A(%d,%d)[%p], A.nb, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
+  context->th_id, context->virtual_process->vp_id, k, n1, k, k+1, J, k, n1, K, k, n1, L);
 
 END
 
@@ -304,8 +304,8 @@ BODY
 
   dague_private_memory_push( pool_A, pool_1 );
 
-  printlog("thread %d CORE_ztsmlq_hetra1(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, A.mb, A.nb, A.nb, tempnn, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldai, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
-  context->eu_id, k, n1, i, k+1, i, M, i, n1, N, k, n1, O, k, n1, P);
+  printlog("thread %d VP %d CORE_ztsmlq_hetra1(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, A.mb, A.nb, A.nb, tempnn, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldai, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, n1, i, k+1, i, M, i, n1, N, k, n1, O, k, n1, P);
 
 END
 
@@ -365,8 +365,8 @@ BODY
 
   dague_private_memory_push( pool_A, pool_1 );
 
-  printlog("thread %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, A.nb, tempjj, tempnn, tempjj, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
-  context->eu_id, k, n1, j, k+1, j, Q, n1, j, R, k, n1, S, k, n1, T);
+  printlog("thread %d VP %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, A.nb, tempjj, tempnn, tempjj, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, n1, j, k+1, j, Q, n1, j, R, k, n1, S, k, n1, T);
 
 END
 
@@ -433,7 +433,7 @@ BODY
 
   dague_private_memory_push( pool_A, pool_3 );
 
-  printlog("thread %d CORE_ztsmlq_corner(%d, %d)\n\t(A.nb, A.nb, A.nb, tempnn, tempnn, tempnn, A.nb, ib, T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
-  context->eu_id, k, n1, k+1, k+1, U, k+1, n1, V, n1, n1, W, k, n1, X, k, n1, Y);
+  printlog("thread %d VP %d CORE_ztsmlq_corner(%d, %d)\n\t(A.nb, A.nb, A.nb, tempnn, tempnn, tempnn, A.nb, ib, T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, n1, k+1, k+1, U, k+1, n1, V, n1, n1, W, k, n1, X, k, n1, Y);
 
 END

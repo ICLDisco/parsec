@@ -78,8 +78,8 @@ void dague_debug_history_add(const char *format, ...);
 #ifdef DAGUE_DEBUG_HISTORY
 
 struct dague_execution_context_t;
-void debug_mark_exe(int core, const struct dague_execution_context_t *ctx);
-#define DEBUG_MARK_EXE(core, ctx) debug_mark_exe(core, ctx)
+void debug_mark_exe(int th, int vp, const struct dague_execution_context_t *ctx);
+#define DEBUG_MARK_EXE(th, vp, ctx) debug_mark_exe(th, vp, ctx)
 
 struct remote_dep_wire_activate_t;
 void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_t *m);
@@ -106,7 +106,7 @@ void debug_mark_display_history(void);
 
 #else /* DAGUE_DEBUG_HISTORY */
 
-#define DEBUG_MARK_EXE(core, ctx)
+#define DEBUG_MARK_EXE(th, vp, ctx)
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(to, buffer, message)
 #define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message)
 #define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message)

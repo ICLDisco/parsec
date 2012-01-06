@@ -98,8 +98,8 @@ BODY
   CORE_zgelqt(tempkm, tempkn, ib, 
 	A /* A(k,k) */, ldak, B /* T(k,k) */, 
 	Tmb, pool1, pool2 );
-  printlog("thread %d   CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
-  context->eu_id, k, k, k, A, k, k, B);
+  printlog("thread %d VP %d   CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
+  context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
 
   dague_private_memory_push( pool_Tau, pool1 );
   dague_private_memory_push( pool_work, pool2 );
@@ -148,8 +148,8 @@ BODY
 	C /* A(k,k) */, ldak, D /* T(k,k) */, 
 	Tmb, E /* A(m,k) */, ldam, 
 	pool1, Tnb );
-  printlog("thread %d   CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, A(%d,%d)[%p], ldam, pool1, Tnb)\n",
-  context->eu_id, k, m, k, k, C, k, k, D, m, k, E);
+  printlog("thread %d VP %d   CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, A(%d,%d)[%p], ldam, pool1, Tnb)\n",
+  context->th_id, context->virtual_process->vp_id, k, m, k, k, C, k, k, D, m, k, E);
 
   dague_private_memory_push( pool_work, pool1 );
 
@@ -212,8 +212,8 @@ BODY
 	F /* A(k,k) */, ldak, G /* A(k,n) */, 
 	ldak, H /* T(k,n) */, Tmb, 
 	pool1, pool2 );
-  printlog("thread %d   CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
-  context->eu_id, k, n, k, k, F, k, n, G, k, n, H);
+  printlog("thread %d VP %d   CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, k, k, F, k, n, G, k, n, H);
 
   dague_private_memory_push( pool_Tau, pool1 );
   dague_private_memory_push( pool_work, pool2 );
@@ -280,8 +280,8 @@ BODY
 	ldam, K /* A(m1,n) */, ldam, 
 	L /* A(k,n) */, ldak, M /* T(k,n) */, 
 	Tmb, pool1, ldwork );
-  printlog("thread %d   CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, Anb, tempmm, tempnn, Amb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, ldwork)\n",
-  context->eu_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
+  printlog("thread %d VP %d   CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, Anb, tempmm, tempnn, Amb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, ldwork)\n",
+  context->th_id, context->virtual_process->vp_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
   dague_private_memory_push( pool_work, pool1 );
 

@@ -60,9 +60,9 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d plghe_l( %d, %d )\n"
+        printlog("thread %d VP %d plghe_l( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 context->th_id, context->virtual_process->vp_id, m, n, bump, tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -91,9 +91,9 @@ BODY
                    descA.m, m*descA.mb, n*descA.nb, seed );
                );
 
-        printlog("thread %d plghe_u( %d, %d )\n"
+        printlog("thread %d VP %d plghe_u( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 context->th_id, context->virtual_process->vp_id, m, n, bump, tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
@@ -121,9 +121,9 @@ BODY
                    descA.m, k*descA.mb, k*descA.nb, seed );
                );
 
-        printlog("thread %d plghe_diag( %d )\n"
+        printlog("thread %d VP %d plghe_diag( %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, k, bump, tempkm, tempkn, 
+                 context->th_id, context->virtual_process->vp_id, k, bump, tempkm, tempkn, 
                  k, k, ldak,
                  descA.m, k*descA.mb, k*descA.nb, seed);
 END

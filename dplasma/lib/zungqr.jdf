@@ -67,11 +67,11 @@ ztsmqr(k,m,n)
   */
 BODY
 
-   printlog("thread %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
+   printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
             "\tdescQ.mb, tempnn, tempmm, tempnn, tempAkn, ib, \n"
             "\tQ(%d,%d)[%p], ldqk, Q(%d,%d)[%p], ldqm, \n"
             "\tA(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
-            context->eu_id, k, m, n, 
+            context->th_id, context->virtual_process->vp_id, k, m, n, 
             k, n, A1, m, n, A2, 
             m, k, V, m, k, T);
 
@@ -174,9 +174,9 @@ zunmqr(k, n)
 
 BODY
 
-  printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
            "\tA(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, Q(%d,%d)[%p], ldqk, p_elem_A, descT.nb)\n",
-           context->eu_id, k, n, k, k, A, k, k, T, k, n, C);
+           context->th_id, context->virtual_process->vp_id, k, n, k, k, A, k, k, T, k, n, C);
 
      DRYRUN(
          int tempAkm  = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;

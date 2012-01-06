@@ -2624,7 +2624,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 {
     (void)jdf;
 
-    coutput("  dague_prof_grapher_task(%s, context->eu_id, %s_hash(__dague_object, %s->locals));\n",
+    coutput("  dague_prof_grapher_task(%s, context->th_id, context->virtual_process->vp_id, %s_hash(__dague_object, %s->locals));\n",
             context_name, f->fname, context_name);
 }
 
@@ -3105,7 +3105,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             "#if defined(DAGUE_DEBUG)\n"
                             "%s%sif( NULL != eu ) {\n"
                             "%s%s  char tmp[128], tmp1[128];\n"
-                            "%s%s  DEBUG((\"thread %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
+                            "%s%s  DEBUG((\"thread %%d VP %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\",\n"
+                            "%s%s         eu->th_id, eu->virtual_process->vp_id,\n"
                             "%s%s         dague_service_to_string(this_task, tmp, 128),\n"
                             "%s%s         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst));\n"
                             "%s%s}\n"
@@ -3113,6 +3114,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             prefix, indent(nbopen),
                             prefix, indent(nbopen),
                             prefix, indent(nbopen), flow->varname, call->var,
+                            prefix, indent(nbopen),
                             prefix, indent(nbopen),
                             prefix, indent(nbopen), var,
                             prefix, indent(nbopen));

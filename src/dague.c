@@ -721,11 +721,11 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
-            DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
+            DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d of VP %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),
                    dague_service_to_string(origin, tmp2, 128),
                    *deps,
-                   eu_context->eu_id));
+                   eu_context->th_id, eu_context->virtual_process->vp_id));
 
 #if defined(DAGUE_SCHED_CACHE_AWARE)
             new_context->data[0].gc_data = NULL;

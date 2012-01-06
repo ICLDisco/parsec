@@ -26,8 +26,8 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
     k = va_arg(ap, int);
     n = va_arg(ap, int);
     va_end(ap);
-    printf( "tile %s(%d, %d) -> %p:%p thread %d\n",
-            (char*)op_data, k, n, data, op_data, eu->eu_id );
+    printf( "tile %s(%d, %d) -> %p:%p thread %d VP %d\n",
+            (char*)op_data, k, n, data, op_data, eu->th_id, eu->virtual_process->vp_id );
     return 0;
 }
 #endif
