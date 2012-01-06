@@ -123,7 +123,7 @@ const dague_function_t* dague_find(const dague_object_t *dague_object, const cha
 }
 
 typedef struct __dague_temporary_thread_initialization_t {
-    dague_context_t* master_context;
+    dague_vp_t *virtual_process;
     int th_id;
     int nb_cores;
     int bindto;
@@ -141,29 +141,29 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     if( NULL == eu ) {
         return NULL;
     }
-    eu->eu_id          = startup->th_id;
-    eu->master_context = startup->master_context;
+    eu->th_id           = startup->th_id;
+    eu->virtual_process = startup->virtual_process;
     eu->scheduler_object = NULL;
-    (startup->master_context)->execution_units[startup->th_id] = eu;
+    startup->virtual_process->execution_units[startup->th_id] = eu;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;
 #endif
 
-    eu->context_mempool = &(eu->master_context->context_mempool.thread_mempools[eu->eu_id]);
+    eu->context_mempool = &(eu->virtual_process->context_mempool.thread_mempools[eu->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
-        eu->datarepo_mempools[pi] = &(eu->master_context->datarepo_mempools[pi].thread_mempools[eu->eu_id]);
+        eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d", eu->eu_id );
+    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024, "DAGuE Thread %d of VP %d", eu->th_id, eu->virtual_process->vp_id );
 #endif
 
 #if defined(DAGUE_SIM)
     eu->largest_simulation_date = 0;
 #endif
 
-    /* The main thread will go back to the user level */
-    if( 0 == eu->eu_id )
+    /* The main thread of VP 0 will go back to the user level */
+    if( DAGUE_THREAD_IS_MASTER(eu) )
         return NULL;
 
     return __dague_progress(eu);
@@ -174,11 +174,48 @@ extern int num_events;
 extern char* event_names[];
 #endif
 
-dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
+static void dague_vp_init( dague_vp_t *vp,
+                           int32_t nb_cores,
+                           __dague_temporary_thread_initialization_t *startup)
 {
-    int argc = (*pargc), i;
-    char** argv = NULL;
+    int t, pi;
+    dague_execution_context_t fake_context;
+    data_repo_entry_t fake_entry;
 
+    vp->nb_cores = nb_cores;
+#if defined(DAGUE_SIM)
+    vp->largest_simulation_date = 0;
+#endif /* DAGUE_SIM */
+    
+    dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
+                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), 
+                             vp->nb_cores );
+
+    for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
+        dague_mempool_construct( &vp->datarepo_mempools[pi], 
+                                 sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
+                                 ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
+                                 vp->nb_cores);
+
+
+    /* Prepare the temporary storage for each thread startup */
+    for( t = 0; t < vp->nb_cores; t++ ) {
+        startup[t].th_id = t;
+        startup[t].virtual_process = vp;
+        startup[t].nb_cores = nb_cores;
+        startup[t].bindto = -1;
+    }
+}
+
+dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
+{
+    int argc = (*pargc);
+    int nb_vp = 1;
+    int p, t, nb_total_comp_threads;
+    char** argv = NULL;
+    __dague_temporary_thread_initialization_t *startup;
+    dague_context_t* context;
+    
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
@@ -188,37 +225,39 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
 
-    dague_context_t* context = (dague_context_t*)malloc(sizeof(dague_context_t) +
-                                                        nb_cores * sizeof(dague_execution_unit_t*));
-    __dague_temporary_thread_initialization_t* startup = 
-        (__dague_temporary_thread_initialization_t*)malloc(nb_cores * sizeof(__dague_temporary_thread_initialization_t));
-    /* Prepare the temporary storage for each thread startup */
-    for( i = 0; i < nb_cores; i++ ) {
-        startup[i].th_id = i;
-        startup[i].master_context = context;
-        startup[i].nb_cores = nb_cores;
-        startup[i].bindto = i;
-    }
-
-#if defined(HAVE_PAPI)
-    papime_start();
-#endif
-
-#if defined(HAVE_HWLOC)
-    dague_hwloc_init();
-#endif  /* defined(HWLOC) */
+    context = (dague_context_t*)malloc(sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*));
 
     context->__dague_internal_finalization_in_progress = 0;
-    context->nb_cores       = (int32_t) nb_cores;
     context->__dague_internal_finalization_counter = 0;
     context->nb_nodes       = 1;
     context->active_objects = 0;
     context->my_rank        = 0;
 
-#ifdef HAVE_PAPI
-    num_events = 0;
-#endif
-    
+    /* TODO: nb_cores should depend on the vp_id */
+    nb_total_comp_threads = 0;
+    for(p = 0; p < nb_vp; p++) {
+        nb_total_comp_threads += nb_cores;
+    }
+    startup = 
+        (__dague_temporary_thread_initialization_t*)malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
+
+    context->nb_vp = nb_vp;
+    t = 0;
+    for(p = 0; p < nb_vp; p++) {
+        dague_vp_t *vp;
+        vp = (dague_vp_t *)malloc(sizeof(dague_vp_t) + (nb_cores-1) * sizeof(dague_execution_unit_t*));
+        vp->dague_context = context;
+        vp->vp_id = p;
+        context->virtual_processes[p] = vp;
+        /** This creates startup[t] -> startup[t+nb_cores] */
+        dague_vp_init(vp, nb_cores, &(startup[t]));
+        t += nb_cores;
+    }
+
+#if defined(HAVE_HWLOC)
+    dague_hwloc_init();
+#endif  /* defined(HWLOC) */
+
     {
         int index = 0;
         /* Check for the upper level arguments */
@@ -274,34 +313,34 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
                         DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
                         {
                             int where = start, skip = 1;
-                            for( i = 0; i < nb_cores; i++ ) {
-                                startup[i].bindto = where;
+                            for( t = 0; t < nb_total_comp_threads; t++ ) {
+                                startup[t].bindto = where;
                                 where += step;
                                 if( where >= end ) {
                                     where = start + skip;
                                     skip++;
-                                    if( (skip > step) && (i < (nb_cores - 1))) {
-                                        printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
+                                    if( (skip > step) && (t < (nb_total_comp_threads - 1))) {
+                                        printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_total_comp_threads - t );
                                         break;
                                     }
                                 }
                             }
                         }
                     } else {
-                        i = 0;
+                        t = 0;
                         /* array of cores c1,c2,... */
                         position = option;
                         while( NULL != position ) {
                             /* We have more information than the number of cores. Ignore it! */
-                            if( i == nb_cores ) break;
-                            startup[i].bindto = strtol(position, &position, 10);
-                            i++;
+                            if( t == nb_total_comp_threads ) break;
+                            startup[t].bindto = strtol(position, &position, 10);
+                            t++;
                             if( (',' != position[0]) || ('\0' == position[0]) ) {
                                 break;
                             }
                             position++;
                         }
-                        if( i < nb_cores ) {
+                        if( t < nb_total_comp_threads ) {
                             printf( "Based on the information provided to --bind some threads are not binded\n" );
                         }
                     }
@@ -313,7 +352,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     }
 
     /* Initialize the barriers */
-    dague_barrier_init( &(context->barrier), NULL, nb_cores );
+    dague_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 #ifdef DAGUE_PROF_TRACE
     dague_profiling_init( "%s", (*pargv)[0] );
 
@@ -331,39 +370,27 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
                                             &schedule_sleep_begin, &schedule_sleep_end);
 #endif  /* DAGUE_PROF_TRACE */
 
-    {
-        dague_execution_context_t fake_context;
-        dague_mempool_construct( &context->context_mempool, sizeof(dague_execution_context_t),
-                                 ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), nb_cores );
-    }
-    {
-        data_repo_entry_t fake_entry;
-        int pi;
-        for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
-            dague_mempool_construct( &context->datarepo_mempools[pi], 
-                                     sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
-                                     ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
-                                     nb_cores);
-    }
 
-    if( nb_cores > 1 ) {
+    if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
 
         pthread_attr_init(&thread_attr);
         pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 #ifdef __linux
-        pthread_setconcurrency(nb_cores);
+        pthread_setconcurrency(nb_total_comp_threads);
 #endif  /* __linux */
 
-        context->pthreads = (pthread_t*)malloc(nb_cores * sizeof(pthread_t));
+        context->pthreads = (pthread_t*)malloc(nb_total_comp_threads * sizeof(pthread_t));
 
         /* The first execution unit is for the master thread */
-        for( i = 1; i < context->nb_cores; i++ ) {
-            pthread_create( &((context)->pthreads[i]),
+        for( t = 1; t < nb_total_comp_threads; t++ ) {
+            pthread_create( &((context)->pthreads[t]),
                             &thread_attr,
                             (void* (*)(void*))__dague_thread_init,
-                            (void*)&(startup[i]));
+                            (void*)&(startup[t]));
         }
+    } else {
+        context->pthreads = NULL;
     }
 
     __dague_thread_init( &startup[0] );
@@ -378,27 +405,23 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     /* Wait until threads are bound before introducing progress threads */
     context->nb_nodes = dague_remote_dep_init(context);
     
-#ifdef HAVE_PAPI
-    if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
-        printf("PAPI library initialization error! \n");
-    else {
-        if (PAPI_create_eventset(&eventSet) != PAPI_OK)
-            printf("PAPI unable to create event set! \n");
-        else {
-            for( i = 0; i < num_events; ++i ) {
-                int event;
-                PAPI_event_name_to_code(event_names[i], &event);
-
-                if (PAPI_add_event(eventSet, event) != PAPI_OK) 
-                    printf("PAPI unable to add event: %s \n", event_names[i]);
-            }
-        }
-    }
-#endif
-
     dague_statistics("DAGuE");
 
     return context;
+}
+
+static void dague_vp_fini( dague_vp_t *vp )
+{
+    int i;
+    dague_mempool_destruct( &vp->context_mempool );
+    for(i = 0; i <= MAX_PARAM_COUNT; i++)
+        dague_mempool_destruct( &vp->datarepo_mempools[i]);
+
+    for(i = 0; i < vp->nb_cores; i++) {
+        free(vp->execution_units[i]);
+        vp->execution_units[i] = NULL;
+    }
+
 }
 
 /**
@@ -407,44 +430,42 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
-    int i;
+    int nb_total_comp_threads, t, p;
 
-#ifdef HAVE_PAPI
-    papime_stop();
-#endif
-
-    dague_mempool_destruct( &context->context_mempool );
-    for(i = 0; i <= MAX_PARAM_COUNT; i++)
-        dague_mempool_destruct( &context->datarepo_mempools[i]);
+    nb_total_comp_threads = 0;
+    for(p = 0; p < context->nb_vp; p++) {
+        nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
+    }
 
     /* Now wait until every thread is back */
     context->__dague_internal_finalization_in_progress = 1;
     dague_barrier_wait( &(context->barrier) );
 
     /* The first execution unit is for the master thread */
-    for(i = 1; i < context->nb_cores; i++) {
-        pthread_join( context->pthreads[i], NULL );
+    if( nb_total_comp_threads > 1 ) {
+        for(t = 1; t < nb_total_comp_threads; t++) {
+            pthread_join( context->pthreads[t], NULL );
+        }
+        free(context->pthreads);
+        context->pthreads = NULL;
     }
 
     (void) dague_remote_dep_fini( context );
 
     dague_set_scheduler( context, NULL );
 
-    for(i = 0; i < context->nb_cores; i++) {
-        free(context->execution_units[i]);
-        context->execution_units[i] = NULL;
+    for(p = 0; p < context->nb_vp; p++) {
+        dague_vp_fini(context->virtual_processes[p]);
+        free(context->virtual_processes[p]);
+        context->virtual_processes[p] = NULL;
     }
-    
+
 #ifdef DAGUE_PROF_TRACE
     dague_profiling_fini( );
 #endif  /* DAGUE_PROF_TRACE */
 
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
-
-    if( context->nb_cores > 1 ) {
-        free(context->pthreads);
-    }
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_fini();
@@ -805,7 +826,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
-        (eu->master_context->my_rank == dst_rank) ) {
+        (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         if( (NULL != arg->output_entry) && (NULL != oldcontext->data[target->flow_index].data) ) {
             arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
             arg->output_usage++;

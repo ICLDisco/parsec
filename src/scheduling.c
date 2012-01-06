@@ -185,7 +185,7 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
     if( NULL != exec_context->function->complete_execution ) 
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
-    __dague_complete_task(exec_context->dague_object, eu_context->master_context);
+    __dague_complete_task(exec_context->dague_object, eu_context->virtual_process->dague_context);
 
     /* Succesfull execution. The context is ready to be released, all
      * dependencies have been marked as completed.
@@ -200,7 +200,7 @@ inline int dague_complete_execution( dague_execution_unit_t *eu_context,
 void* __dague_progress( dague_execution_unit_t* eu_context )
 {
     uint64_t misses_in_a_row;
-    dague_context_t* master_context = eu_context->master_context;
+    dague_context_t* master_context = eu_context->virtual_process->dague_context;
     int32_t my_barrier_counter = master_context->__dague_internal_finalization_counter;
     dague_execution_context_t* exec_context;
     int nbiterations = 0;
@@ -209,7 +209,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     rqtp.tv_sec = 0;
     misses_in_a_row = 1;
     
-    if( 0 != eu_context->eu_id ) {
+    if( !DAGUE_THREAD_IS_MASTER(eu_context) ) {
         /* Force the kernel to bind me to the expected core */
         __do_some_computations();
 
@@ -240,7 +240,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
     while( !all_tasks_done(master_context) ) {
 #if defined(DISTRIBUTED)
-        if( eu_context->eu_id == 0) {
+        if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
             /* check for remote deps completion */
             while(dague_remote_dep_progress(eu_context) > 0)  {
                 misses_in_a_row = 0;
@@ -302,7 +302,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     eu_context ->largest_simulation_date = 0;
 #endif
 
-    if( 0 != eu_context->eu_id ) {
+    if( !DAGUE_THREAD_IS_MASTER(eu_context) ) {
         my_barrier_counter++;
         goto wait_for_the_next_round;
     }
@@ -354,7 +354,8 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
             object->startup_hook(context, object, &startup_list);
             if( NULL != startup_list ) {
                 /* We should add these tasks on the system queue */
-                __dague_schedule( context->execution_units[0], startup_list );
+#warning TODO: should not be virtual_processes[0] but virtual_processes[domain_of(...)]
+                __dague_schedule( context->virtual_processes[0]->execution_units[0], startup_list );
             }
         }
     }
@@ -380,10 +381,10 @@ int dague_test( dague_context_t* context )
 
 int dague_wait( dague_context_t* context )
 {
-    int ret;
+    int ret = 0;
     (void)dague_remote_dep_on(context);
     
-    ret = (int)(long)__dague_progress( context->execution_units[0] );
+    ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);
@@ -392,11 +393,11 @@ int dague_wait( dague_context_t* context )
 
 int dague_progress(dague_context_t* context)
 {
-    int ret;
+    int ret = 0;
     (void)dague_remote_dep_on(context);
     
-    ret = (int)(long)__dague_progress( context->execution_units[0] );
-
+    ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
+    
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);
     return ret;
