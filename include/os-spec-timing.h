@@ -69,6 +69,23 @@ static inline int time_less( dague_time_t start, dague_time_t end )
     return start < end;
 }
 #define ZERO_TIME 0
+#elif defined(__bgp__)
+#include <bpcore/ppc450_inlines.h>
+typedef uint64_t dague_time_t;
+static inline dague_time_t take_time(void)
+{
+    return _bgp_GetTimeBase();
+}
+#define TIMER_UNIT "cycles"
+static inline uint64_t diff_time( dague_time_t start, dague_time_t end )
+{
+    return (end - start);
+}
+static inline int time_less( dague_time_t start, dague_time_t end )
+{
+    return start < end;
+}
+#define ZERO_TIME 0
 #else
 #include <sys/time.h>
 typedef struct timeval dague_time_t;
