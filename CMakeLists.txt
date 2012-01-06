@@ -24,12 +24,15 @@ mark_as_advanced(BUILD_TOOLS)
 option(BUILD_DAGUE
        "Compile the DAGuE framework" ON)
 mark_as_advanced(BUILD_DAGUE)
+if( BUILD_DAGUE AND NOT BUILD_TOOLS )
+  message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
+endif( BUILD_DAGUE AND NOT BUILD_TOOLS )
 option(BUILD_DPLASMA
        "Compile the DPLASMA layer" ON)
 mark_as_advanced(BUILD_DPLASMA)
-if( BUILD_DPLASMA AND NOT BUILD_TOOLS )
-  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE tools")
-endif()
+if( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE framework")
+endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
 
 ### Misc options
 option(BUILD_SHARED_LIBS
