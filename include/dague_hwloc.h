@@ -8,17 +8,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_HWLOC
-#include <hwloc.h>
-#endif
 
 typedef struct {
-            int lvl;
-            int processor_id;
-            int master_id;
-            int id1;
-            int id2;
-            int set;
+    int lvl;
+    int processor_id;
+    int master_id;
+    int id1;
+    int id2;
+    int set;
 } hwloc_info;
 
 /**
