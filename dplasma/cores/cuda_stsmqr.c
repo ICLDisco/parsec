@@ -635,7 +635,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     if( NULL != progress_array[submit] )
         goto wait_for_completion;
 
-    this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
+    this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL == this_task ) {  /* Collisions, save time and come back here later */
         goto more_work_to_do;
     }
@@ -650,7 +650,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     __dague_schedule( eu_context, this_task);
     rc = dague_atomic_dec_32b( &(gpu_device->mutex) );
     while( rc != 0 ) {
-        this_task = (dague_execution_context_t*)dague_fifo_tpop( &(gpu_device->pending) );
+        this_task = (dague_execution_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
         if( NULL != this_task ) {
             __dague_schedule( eu_context, this_task);
             rc = dague_atomic_dec_32b( &(gpu_device->mutex) );

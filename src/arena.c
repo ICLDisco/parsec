@@ -24,7 +24,7 @@ int dague_arena_construct(dague_arena_t* arena,
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
         return -1;
 
-    dague_atomic_lifo_construct(&arena->lifo);
+    dague_lifo_construct(&arena->lifo);
     arena->alignment = alignment;
     arena->elem_size = elem_size;
     arena->opaque_dtt = opaque_dtt;
@@ -60,10 +60,10 @@ void dague_arena_destruct(dague_arena_t* arena)
     
     assert(0 == arena->used);
     
-    while(NULL != (item = dague_atomic_lifo_pop(&arena->lifo))) {
+    while(NULL != (item = dague_lifo_pop(&arena->lifo))) {
         arena->data_free(item);
     }
-    dague_atomic_lifo_destruct(&arena->lifo);
+    dague_lifo_destruct(&arena->lifo);
 }
 
 dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
@@ -81,7 +81,7 @@ dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
         }
     }
 
-    item = dague_atomic_lifo_pop(&arena->lifo);
+    item = dague_lifo_pop(&arena->lifo);
     if(NULL != item) {
         if(INT32_MAX != arena->max_released) {
             dague_atomic_dec_32b((uint32_t*)&arena->released);
@@ -130,8 +130,7 @@ void dague_arena_release(dague_arena_chunk_t* ptr)
         if(INT32_MAX != arena->max_released) {
             dague_atomic_inc_32b((uint32_t*)&arena->released);
         }
-        DAGUE_LIST_ITEM_SINGLETON(chunk);
-        dague_atomic_lifo_push(&arena->lifo, (dague_list_item_t*) chunk);
+        dague_lifo_push(&arena->lifo, (dague_list_item_t*) chunk);
     }
     if(INT32_MAX != arena->max_used) {
         dague_atomic_dec_32b((uint32_t*)&arena->used);

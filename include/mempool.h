@@ -35,7 +35,7 @@ struct dague_thread_mempool {
     dague_mempool_t  *parent;    /**<  back pointer to the mempool */
     uint32_t nb_elt;             /**< this is the number of elements this thread
                                   *   has allocated since the creation of the pool */
-    dague_atomic_lifo_t mempool;
+    dague_lifo_t mempool;
 };
 
 /** DAGUE_MEMPOOL_CONSTRUCT / dague_mempool_construct
@@ -77,7 +77,7 @@ void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_m
 static inline void *dague_thread_mempool_allocate( dague_thread_mempool_t *thread_mempool )
 {
     unsigned char *ret;
-    ret = (unsigned char *)dague_atomic_lifo_pop( &thread_mempool->mempool );
+    ret = (unsigned char *)dague_lifo_pop( &thread_mempool->mempool );
     if( ret == NULL ) {
         ret = dague_thread_mempool_allocate_when_empty( thread_mempool );
     }
@@ -92,8 +92,7 @@ static inline void  dague_mempool_free( dague_mempool_t *mempool, void *elt )
 {
     unsigned char *_elt = (unsigned char *)elt;
     dague_thread_mempool_t *owner = *(dague_thread_mempool_t **)(_elt + mempool->pool_owner_offset);
-    DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t*)elt );
-    dague_atomic_lifo_push( &(owner->mempool), elt );
+    dague_lifo_push( &(owner->mempool), elt );
 }
 
 /** dague_thread_mempool_free

@@ -31,7 +31,7 @@ typedef struct dague_arena_chunk_t dague_arena_chunk_t;
 
 struct dague_arena_t
 {
-    dague_atomic_lifo_t lifo;
+    dague_lifo_t lifo;
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
