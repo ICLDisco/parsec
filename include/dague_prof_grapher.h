@@ -18,7 +18,7 @@ void dague_prof_grapher_fini(void);
 #else
 
 #define dague_prof_grapher_init(f, r, s, n)     do {} while(0)
-#define dague_prof_grapher_task(c, t, h)        do {} while(0)
+#define dague_prof_grapher_task(c, t, p, h)     do {} while(0)
 #define dague_prof_grapher_dep(f, t, b, fp, tp) do {} while(0)
 #define dague_prof_grapher_fini()               do {} while(0)
 

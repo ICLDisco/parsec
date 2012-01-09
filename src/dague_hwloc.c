@@ -101,7 +101,7 @@ int dague_hwloc_master_id( int level, int processor_id )
 #endif  /* defined(HAVE_HWLOC) */
 
     return -1;
-}    
+}
  
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
@@ -157,4 +157,11 @@ size_t dague_hwloc_cache_size( unsigned int level, int master_id )
     }
 #endif  /* defined(HAVE_HWLOC) */
     return 0;
+}
+
+int dague_hwloc_nb_real_cores()
+{
+#if defined(HAVE_HWLOC)
+    return hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+#endif
 }

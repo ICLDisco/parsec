@@ -8,17 +8,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_HWLOC
-#include <hwloc.h>
-#endif
 
 typedef struct {
-            int lvl;
-            int processor_id;
-            int master_id;
-            int id1;
-            int id2;
-            int set;
+    int lvl;
+    int processor_id;
+    int master_id;
+    int id1;
+    int id2;
+    int set;
 } hwloc_info;
 
 /**
@@ -34,7 +31,7 @@ extern int dague_hwloc_master_id( int level, int processor_id );
 extern unsigned int dague_hwloc_nb_cores( int level, int master_id );
  
 /**
- * Find the number of level from the computer architectur
+ * Find the number of level from the computer architecture
  *
  */
 extern int dague_hwloc_nb_levels( void );
@@ -61,4 +58,9 @@ extern int dague_hwloc_init(void);
  */
 extern int dague_hwloc_fini(void);
 
+/**
+ * Find the number of core of the architecture.
+ * 
+ */
+extern int dague_hwloc_nb_real_cores();
 #endif  /* HWLOC_H_HAS_BEEN_INCLUDED */

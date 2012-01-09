@@ -27,6 +27,8 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
 static int remote_dep_nothread_send(dague_execution_unit_t* eu_context, int rank, dague_remote_deps_t* deps);
 static int remote_dep_nothread_memcpy(void *dst, void *src, const dague_remote_dep_datatype_t datatype);
 
+static int remote_dep_bind_thread(dague_context_t* context);
+
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
 #ifdef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(dague_context_t* context);
@@ -264,16 +266,9 @@ static int do_nano = 0;
 
 static void* remote_dep_dequeue_main(dague_context_t* context)
 {
-    int ctl = -1, whatsup;
-    int nb_total_comp_threads = 0;
-    int p;
+    int whatsup;
 
-    for(p = 0; p < context->nb_vp; p++) {
-        nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
-    }
-    ctl = dague_bindthread(nb_total_comp_threads);
-    if(ctl != nb_total_comp_threads) do_nano = 1;
-    else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+    remote_dep_bind_thread(context); 
 
     remote_dep_mpi_init(context);
     /* Now synchroniza with the main thread */
@@ -1223,3 +1218,63 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
         }
     }
 }
+
+int remote_dep_bind_thread(dague_context_t* context){
+    int nb_total_comp_threads;
+    int p;
+
+    nb_total_comp_threads = 0;
+    for(p = 0; p < context->nb_vp; p++) {
+        nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
+    }
+
+#ifdef HAVE_HWLOC
+    if (context->comm_th_core >= 0){
+        /* Bind to the specified core */
+        if(dague_bindthread(context->comm_th_core) == context->comm_th_core)
+            fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n",  context->comm_th_core);
+        /* there is no guarantee the thread doesn't share the core. */
+        do_nano = 1;
+    }
+    /* Bind to the specified mask */
+    else if(context->comm_th_core == -2){
+        if (dague_bindthread_mask(context->comm_th_binding_mask)==0){
+            char *str = NULL;
+#if !defined(HAVE_HWLOC_BITMAP)
+            hwloc_cpuset_asprintf(&str, context->comm_th_binding_mask);
+#else
+            hwloc_bitmap_asprintf(&str, context->comm_th_binding_mask);
+#endif
+            fprintf(stderr, "Bind the communication thread on the cpu mask %s\n", str);
+            free(str);
+        }
+        do_nano = 1;
+    } else { 
+        /* no binding specified: bind on an available core if any 
+           (registered in core_free_mask) */
+        int ctl = -1, free_core;
+        free_core=hwloc_bitmap_next(context->core_free_mask, -1); 
+        ctl = dague_bindthread(free_core); 
+        
+        if (ctl != free_core){
+            do_nano = 1;
+            fprintf(stderr, "DAGuE\tMPI not bound\n");
+        }
+        else
+            fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+    }
+#else
+    /* binding on an extra core if any */ 
+    int ctl = -1;
+    ctl = dague_bindthread(nb_total_comp_threads);
+    
+    if (ctl != nb_total_comp_threads){
+        do_nano = 1;
+        fprintf(stderr, "DAGuE\tMPI not bound\n");
+    }
+    else
+        fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+#endif
+    return 0;
+}
+

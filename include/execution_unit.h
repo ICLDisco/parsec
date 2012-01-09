@@ -9,6 +9,10 @@
 
 #include "dague_config.h"
 
+#ifdef HAVE_HWLOC
+#include "hwloc.h"
+#endif
+
 typedef struct dague_context_t      dague_context_t;          /**< The general context that holds all the threads of dague for this MPI process */
 typedef struct dague_vp             dague_vp_t;               /**< Each MPI process includes multiple virtual processes (and a single comm. thread) */
 typedef struct dague_execution_unit dague_execution_unit_t;   /**< Each virtual process includes multiple execution units (posix threads + local data) */
@@ -72,7 +76,7 @@ struct dague_vp {
      */
     dague_execution_unit_t* execution_units[1];
 };
-
+	
 struct dague_context_t {
     volatile int32_t __dague_internal_finalization_in_progress;
     volatile int32_t __dague_internal_finalization_counter;
@@ -90,6 +94,13 @@ struct dague_context_t {
                           */
 
     int32_t nb_vp; /**< number of virtual processes in this MPI process */
+
+#ifdef HAVE_HWLOC 
+  int comm_th_core; 
+  hwloc_cpuset_t comm_th_binding_mask;
+  hwloc_cpuset_t core_free_mask;
+#endif
+
     /* This field should always be the last one in the structure. Even if the
      * declared number of virtual processes is 1, when we allocate the memory
      * we will allocate more (as many as we need), so everything after this
