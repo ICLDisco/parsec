@@ -10,7 +10,8 @@
 #include "dague_config.h"
 
 #ifdef HAVE_HWLOC
-#include "dague_hwloc.h"
+//#include "dague_hwloc.h"
+#include <hwloc.h>
 #endif
 
 typedef struct dague_context_t dague_context_t;
