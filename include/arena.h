@@ -9,10 +9,6 @@
 #include <stdlib.h>
 
 #include "dague_config.h"
-
-typedef struct dague_arena_t dague_arena_t;
-typedef struct dague_arena_chunk_t dague_arena_chunk_t;
-
 #include "dague.h"
 #if defined(HAVE_STDDEF_H)
 #include <stddef.h>
