@@ -47,8 +47,8 @@ dague_list_item_construct( dague_list_item_t* item )
 
 #define dague_list_item_destruct(item) do {(void)(item);} while(0)
 
-#define DAGUE_LIST_ITEM_NEXT(item) ((item) = (typeof((item)))(((dague_list_item_t*)(item))->list_next))
-#define DAGUE_LIST_ITEM_PREV(item) ((item) = (typeof((item)))(((dague_list_item_t*)(item))->list_prev))
+#define DAGUE_LIST_ITEM_NEXT(item) ((__typeof__(item))(((dague_list_item_t*)(item))->list_next))
+#define DAGUE_LIST_ITEM_PREV(item) ((__typeof__(item))(((dague_list_item_t*)(item))->list_prev))
 
 /** Make a well formed singleton ring with a list item @item.
  *   @return @item, a valid list item ring containing itself
@@ -71,23 +71,22 @@ dague_list_item_singleton( dague_list_item_t* item )
 static inline dague_list_item_t* 
 dague_list_item_ring( dague_list_item_t* first, dague_list_item_t* last )
 {
+    first->list_prev = last;
+    last->list_next = first;
+    
 #if defined(DAGUE_DEBUG)
     if( 1 == first->refcount )
     {   /* Pseudo detach the items if they had been attached */
-        dague_list_item_t* item;
-        last->list_next = NULL;
-        for(item = first; 
-            NULL != item; 
-            item = (dague_list_item_t*)item->list_next) 
-        {
+        dague_list_item_t* item = first;
+        do {
             assert( item->belong_to == first->belong_to );
             item->refcount--;
             assert( 0 == item->refcount );
-        }
+            item = (dague_list_item_t*)item->list_next;
+        } while(item != first);
     }
 #endif
-    first->list_prev = last;
-    last->list_next = first;
+
     return first;
 }
 

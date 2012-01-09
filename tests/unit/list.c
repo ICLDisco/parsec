@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -138,15 +139,7 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
     }
 }
 
-static int elt_comparator(dague_list_item_t* i1, dague_list_item_t* i2)
-{
-    elt_t* e1 = (elt_t*)i1;
-    elt_t* e2 = (elt_t*)i2;
-    
-    if(e1->base == e2->base) return 0;
-    if(e1->base < e2->base) return -1;
-    else return 1;
-}
+#define elt_comparator offsetof(elt_t, base)
 
 #if 0
     /* usefull code snippet */
