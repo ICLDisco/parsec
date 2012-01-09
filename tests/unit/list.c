@@ -167,7 +167,7 @@ static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
         
     printf(" - sort reverse sorted list l2, check it is in order\n");
     dague_ulist_sort(l2, elt_comparator);
-    check_lifo_translate_inorder(l2,l1,"l1","l2");
+    check_lifo_translate_inorder(l2,l1,"l2","l1");
     
     printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
     elt_t* e;
