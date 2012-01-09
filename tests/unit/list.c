@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "list.h"
 #include "os-spec-timing.h"
@@ -170,7 +171,7 @@ static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
     
     printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
     elt_t* e;
-    while(e = (elt_t*)dague_ulist_fifo_pop(l1))
+    while(NULL != (e = (elt_t*)dague_ulist_fifo_pop(l1)))
     {
         int choice = rand()%3; /* do not care for true random*/
         switch(choice)
@@ -336,8 +337,8 @@ int main(int argc, char *argv[])
         sum_time += times[e];
     }
     printf("== Time to move %u times per thread for %ld threads from l1 to l2 or l2 to l1 randomly:\n"
-           "== MIN %lu %s\n"
-           "== MAX %lu %s\n"
+           "== MIN %"PRIu64" %s\n"
+           "== MAX %"PRIu64" %s\n"
            "== AVG %g %s\n",
            NBTIMES, nbthreads,
            min_time, TIMER_UNIT,
