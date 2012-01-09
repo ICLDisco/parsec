@@ -34,6 +34,7 @@ extern dague_free_data_t     dague_data_free;
 #include "mempool.h"
 #include "arena.h"
 #include "datarepo.h"
+#include "list.h"
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -256,6 +257,8 @@ int dague_object_register( dague_object_t* object );
 /**< Start the dague execution and launch the ready tasks */
 int dague_object_start( dague_object_t* object);
 
+#define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
+
 static inline dague_execution_context_t*
 dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_execution_context_t* elem )
 {
@@ -264,21 +267,19 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
         *list = elem;
     } else {
         dague_execution_context_t* position = *list;
-        
         while( position->priority > elem->priority ) {
-            position = (dague_execution_context_t*)position->list_item.list_next;
+            position = DAGUE_LIST_ITEM_NEXT(position);
             if( position == (*list) ) break;
         }
-        elem->list_item.list_next = (dague_list_item_t*)position;
-        elem->list_item.list_prev = position->list_item.list_prev;
-        elem->list_item.list_next->list_prev = (dague_list_item_t*)elem;
-        elem->list_item.list_prev->list_next = (dague_list_item_t*)elem;
-        if( (position == *list) && (position->priority < elem->priority) ) {
+        dague_list_item_ring_push((dague_list_item_t*)position,
+                                  (dague_list_item_t*)elem);
+        if( (*list)->priority < elem->priority ) {
             *list = elem;
         }
     }
     return *list;
 }
+
 
 /* gdb helpers */
 void dague_dump_object( dague_object_t* object );
