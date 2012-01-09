@@ -269,13 +269,13 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
         *list = elem;
     } else {
         dague_execution_context_t* position = *list;
-        while( position->priority > elem->priority ) {
+        while( elem->priority <= position->priority ) {
             position = DAGUE_LIST_ITEM_NEXT(position);
             if( position == (*list) ) break;
         }
         dague_list_item_ring_push((dague_list_item_t*)position,
                                   (dague_list_item_t*)elem);
-        if( (*list)->priority < elem->priority ) {
+        if( elem->priority > (*list)->priority ) {
             *list = elem;
         }
     }
