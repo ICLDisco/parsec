@@ -1095,6 +1095,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 
     return 0;
 #else
+    (void)optarg; (void)context; (void)startup;
     fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required).\n");
     return -1;
 #endif
@@ -1115,6 +1116,7 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
     }
     return 0;
 #else
+    (void)optarg; (void)context;
     fprintf(stderr, "** Warning: the binding defined by --dague_bind_comm has been ignored (HWLOC is required).\n");
     return -1;
 #endif
