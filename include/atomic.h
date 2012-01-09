@@ -20,7 +20,11 @@
 #elif defined(ARCH_X86_64)
 #include "atomic-x86_64.h"
 #elif defined(ARCH_PPC)
+#if defined(__bgp__)
+#include "atomic-ppc-bgp.h"
+#else
 #include "atomic-ppc.h"
+#endif
 #else
 #error "Using unsafe atomics"
 #endif

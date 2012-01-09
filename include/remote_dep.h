@@ -63,7 +63,7 @@ struct remote_dep_output_param {
 
 struct dague_remote_deps_t {
     dague_list_item_t               item;
-    struct dague_atomic_lifo_t*     origin;  /**< The memory arena where the data pointer is comming from */
+    struct dague_lifo_t*     origin;  /**< The memory arena where the data pointer is comming from */
     struct dague_object*            dague_object;  /**< dague object generating this data transfer */
     remote_dep_wire_activate_t      msg;     /**< A copy of the message control */
     int                             root;    /**< The root of the control message */
@@ -94,7 +94,7 @@ int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
 #if defined(DISTRIBUTED)
 
 typedef struct {
-    dague_atomic_lifo_t freelist;
+    dague_lifo_t freelist;
     uint32_t            max_dep_count;
     uint32_t            max_nodes_number;
     uint32_t            elem_size;
@@ -105,9 +105,9 @@ extern dague_remote_dep_context_t dague_remote_dep_context;
 void remote_deps_allocation_init(int np, int max_deps);
 void remote_deps_allocation_fini(void);
 
-static inline dague_remote_deps_t* remote_deps_allocation( dague_atomic_lifo_t* lifo )
+static inline dague_remote_deps_t* remote_deps_allocation( dague_lifo_t* lifo )
 {
-    dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_atomic_lifo_pop(lifo);
+    dague_remote_deps_t* remote_deps = (dague_remote_deps_t*)dague_lifo_pop(lifo);
     uint32_t i, rank_bit_size;
 
     if( NULL == remote_deps ) {

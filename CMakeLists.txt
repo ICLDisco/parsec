@@ -88,17 +88,18 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-mark_as_advanced(DAGUE_DEBUG_LIFO_USES_LOCKS)
 option(DAGUE_DEBUG
   "Enable the internal debugging verbose output of the DAGUE library" OFF)
-option(DAGUE_DEBUG_LIFO_USES_LOCKS
-  "Use a spinlock-based implementation of LIFOs (instead of an atomic operations-based LIFO implementation)" OFF)
 option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
-option(DAGUE_DEBUG_BUILD_UNIT_TESTS
-  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
+option(DAGUE_DEBUG_BUILD_UNIT_TESTS
+  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
+mark_as_advanced(DAGUE_DEBUG_LIFO_USE_ATOMICS)
+option(DAGUE_DEBUG_LIFO_USE_ATOMICS
+  "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)" ON)
+mark_as_advanced(DAGUE_DEBUG_QR_PIVGEN)
 option(DAGUE_DEBUG_QR_PIVGEN
   "Enable the QR pivgen testings" OFF)
 
