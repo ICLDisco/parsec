@@ -23,7 +23,7 @@ typedef struct dague_list_item_t {
     volatile struct dague_list_item_t* list_prev;
 #if defined(DAGUE_DEBUG)
     volatile int32_t refcount;
-    volatile struct dague_list_t* belong_to_list;
+    volatile void* belong_to;
 #endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
@@ -41,7 +41,7 @@ dague_list_item_construct( dague_list_item_t* item )
     item->keeper_of_the_seven_keys = 0;
 #if defined(DAGUE_DEBUG)
     item->refcount = 0;
-    item->belong_to_list = (void*)0xdeadbeef;
+    item->belong_to = (void*)0xdeadbeef;
 #endif
 }
 
@@ -50,7 +50,7 @@ dague_list_item_construct( dague_list_item_t* item )
 #define DAGUE_LIST_ITEM_NEXT(item) ((item) = (typeof((item)))(((dague_list_item_t*)(item))->list_next))
 #define DAGUE_LIST_ITEM_PREV(item) ((item) = (typeof((item)))(((dague_list_item_t*)(item))->list_prev))
 
-/* Make a well formed singleton ring with a list item @item.
+/** Make a well formed singleton ring with a list item @item.
  *   @return @item, a valid list item ring containing itself
  */
 static inline dague_list_item_t* 
@@ -64,6 +64,32 @@ dague_list_item_singleton( dague_list_item_t* item )
     return item;
 }
 #define DAGUE_LIST_ITEM_SINGLETON(item) dague_list_item_singleton((dague_list_item_t*) item)
+
+/** Make a ring from a chain of items, starting with @first, ending with @last, @returns @first
+ *    if first->last is not a valid chain of items, result is undetermined
+ *    in DAGUE_DEBUG mode, attached items are detached, must be reattached if needed */
+static inline dague_list_item_t* 
+dague_list_item_ring( dague_list_item_t* first, dague_list_item_t* last )
+{
+#if defined(DAGUE_DEBUG)
+    if( 1 == first->refcount )
+    {   /* Pseudo detach the items if they had been attached */
+        dague_list_item_t* item;
+        last->list_next = NULL;
+        for(item = first; 
+            NULL != item; 
+            item = (dague_list_item_t*)item->list_next) 
+        {
+            assert( item->belong_to == first->belong_to );
+            item->refcount--;
+            assert( 0 == item->refcount );
+        }
+    }
+#endif
+    first->list_prev = last;
+    last->list_next = first;
+    return first;
+}
 
 /* Add an @item to the item ring @ring, preceding @ring (not thread safe)
  *   @return @ring, the list item representing the ring
@@ -120,7 +146,7 @@ dague_list_item_ring_chop( dague_list_item_t* item )
             assert((__item->refcount == 0) || (__item->refcount == 1)); \
             assert(__end->refcount == __item->refcount);                \
             if( __item->refcount == 1 )                                 \
-                assert(__item->belong_to_list == __end->belong_to_list);\
+                assert(__item->belong_to == __end->belong_to);\
             if( ++_number > 1000 ) assert(0);                           \
         }                                                               \
     } while(0)
@@ -130,7 +156,7 @@ dague_list_item_ring_chop( dague_list_item_t* item )
         dague_list_item_t *_item_ = (ITEM);                             \
         _item_->refcount++;                                             \
         assert(_item_->refcount == 1);                                  \
-        _item_->belong_to_list = (struct dague_list_t*)(LIST);          \
+        _item_->belong_to = (struct dague_list_t*)(LIST);          \
     } while(0)
 
 #define DAGUE_ITEMS_ATTACH(LIST, ITEMS)                                 \
@@ -150,7 +176,7 @@ dague_list_item_ring_chop( dague_list_item_t* item )
     do {                                         \
         dague_list_item_t *_item = (ITEM);       \
         /* check for not poping the ghost element, doesn't work for atomic_lifo */\
-        assert( _item->belong_to_list != (void*)_item ); \
+        assert( _item->belong_to != (void*)_item ); \
         _item->list_prev = (void*)0xdeadbeef;           \
         _item->list_next = (void*)0xdeadbeef;           \
         _item->refcount--;                       \

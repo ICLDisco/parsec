@@ -355,7 +355,7 @@ dague_list_nolock_add_before( dague_list_t* list,
                               dague_list_item_t* new )
 {
 #if defined(DAGUE_DEBUG)
-    assert( position->belong_to_list == list );
+    assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
     new->list_prev = position->list_prev;
@@ -370,7 +370,7 @@ dague_list_nolock_add_after( dague_list_t* list,
                              dague_list_item_t* new )
 {
 #if defined(DAGUE_DEBUG)
-    assert( position->belong_to_list == list );
+    assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
     new->list_prev = position;
@@ -385,7 +385,7 @@ dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
 #if defined(DAGUE_DEBUG)
-    assert(item->belong_to_list == list);
+    assert(item->belong_to == list);
 #else
     (void)list;
 #endif
@@ -407,7 +407,7 @@ dague_list_remove_item( dague_list_t* list,
                         dague_list_item_t* item)
 {
 #if defined(DAGUE_DEBUG)
-    assert( item->belong_to_list == list );
+    assert( item->belong_to == list );
 #else
     (void)list;
 #endif
@@ -518,18 +518,10 @@ dague_list_nolock_sort( dague_list_t* list,
 {
     if(dague_list_nolock_is_empty(list)) return;
     
-    /* remove the items from the list, chain_sort the items */
-#ifdef DAGUE_DEBUG
-    /* because we are internal, we do shaddy things to that list
-     * make asserts happy */
-    DAGUE_ULIST_ITERATOR(list, item, {
-        assert( 1 == item->refcount );
-        item->refcount = 0;
-    });
-#endif
-    dague_list_item_t* items = (dague_list_item_t*)_HEAD(list);
-    items->list_prev = _TAIL(list);
-    _TAIL(list)->list_next = items;
+    /* remove the items from the list, then chain_sort the items */
+    dague_list_item_t* items;
+    items = dague_list_item_ring((dague_list_item_t*)_HEAD(list), 
+                                 (dague_list_item_t*)_TAIL(list));
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
     dague_list_nolock_chain_sorted(list, items, comparator);
