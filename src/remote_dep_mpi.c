@@ -1245,8 +1245,13 @@ int remote_dep_bind_thread(dague_context_t* context){
 	/* no binding specified: bind on an available core if any 
 	   (registered in core_free_mask) */
 	int ctl = -1, free_core;
+#if defined(HAVE_HWLOC_BITMAP)
 	free_core=hwloc_bitmap_next(context->core_free_mask, -1); 
-	ctl = dague_bindthread(free_core); 
+#else
+    /* the core_free_mask doesn't exist as it depends on HWLOC_BITMAP */ 
+	free_core=-1; 
+#endif
+   	ctl = dague_bindthread(free_core); 
 	
 	if (ctl != free_core){
 	    do_nano = 1;
