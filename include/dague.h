@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,9 @@
 
 #include "dague_config.h"
 
+#if defined(HAVE_STDDEF_H)
 #include <stddef.h>
+#endif  /* HAVE_STDDEF_H */
 
 #include "debug.h"
 
@@ -30,7 +32,6 @@ extern dague_free_data_t     dague_data_free;
 #endif
 
 #include "dague_description_structures.h"
-#include "execution_unit.h"
 #include "mempool.h"
 #include "arena.h"
 #include "datarepo.h"
@@ -267,6 +268,7 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
         *list = elem;
     } else {
         dague_execution_context_t* position = *list;
+        DAGUE_ITEM_ATTACH(*list, (dague_list_item_t*)elem);
         while( position->priority > elem->priority ) {
             position = DAGUE_LIST_ITEM_NEXT(position);
             if( position == (*list) ) break;
