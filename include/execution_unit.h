@@ -10,7 +10,6 @@
 #include "dague_config.h"
 
 #ifdef HAVE_HWLOC
-//#include "dague_hwloc.h"
 #include <hwloc.h>
 #endif
 

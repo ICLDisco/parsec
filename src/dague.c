@@ -192,7 +192,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
-	    {"dague_help",       no_argument,        NULL, 'h'},
+            {"dague_help",       no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'c'},
             {0, 0, 0, 0}
@@ -226,12 +226,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     context->nb_nodes       = 1;
     context->active_objects = 0;
     context->my_rank        = 0;
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     context->comm_th_core   = -1;
     context->comm_th_binding_mask = hwloc_bitmap_alloc(); 
     context->core_free_mask = hwloc_bitmap_alloc();
     hwloc_bitmap_set_range(context->core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
-#endif  /* defined(HWLOC) */
+#endif 
 
 #ifdef HAVE_PAPI
     num_events = 0;
@@ -274,7 +274,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
         } while(1);
     }
     
-#ifdef HAVE_HWLOC 
+#if defined HAVE_HWLOC && defined(HAVE_HWLOC_BITMAP)
     /* update the core_free_mask according to the thread binding defined */ 
     for(i = 0; i < nb_cores; i++)
 	hwloc_bitmap_clr(context->core_free_mask, startup[i].bindto);     
@@ -414,7 +414,7 @@ int dague_fini( dague_context_t** pcontext )
         free(context->pthreads);
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_binding_mask);
     hwloc_bitmap_free(context->core_free_mask);
@@ -912,7 +912,7 @@ void dague_usage(void)
 int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 				  __dague_temporary_thread_initialization_t* startup)
 {
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     DEBUG(("Parse request for the binding of threads\n"));
     char* option = optarg;
     char* position;
@@ -1095,7 +1095,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 
     return 0;
 #else
-    fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required).\n");
+    fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required and must support bitmap).\n");
     return -1;
 #endif
 }

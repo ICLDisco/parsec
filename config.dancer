@@ -8,7 +8,7 @@ CC=${CC:="icc"}
 CXX=${CXX:="icpc"}
 FC=${FC:="ifort"}
 MPI_DIR=${MPI_DIR:="/opt/ompi"}
-HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
+HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}  
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 if [ "x${CC}" = "xgcc" ]; then
     PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
