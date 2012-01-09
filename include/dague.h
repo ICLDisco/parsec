@@ -14,6 +14,8 @@
 #endif  /* HAVE_STDDEF_H */
 
 #include "debug.h"
+#include "list_item.h"
+#include "dague_description_structures.h"
 
 typedef struct dague_function            dague_function_t;
 typedef struct dague_object              dague_object_t;
@@ -21,6 +23,11 @@ typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
 typedef struct dague_dependencies_t      dague_dependencies_t;
 typedef struct dague_data_pair_t         dague_data_pair_t;
+typedef struct dague_execution_unit      dague_execution_unit_t;
+typedef struct dague_context_t           dague_context_t;
+typedef struct dague_arena_chunk_t       dague_arena_chunk_t;
+typedef struct dague_arena_t             dague_arena_t;
+struct dague_thread_mempool;
 
 typedef void* (*dague_allocate_data_t)(size_t matrix_size);
 typedef void (*dague_free_data_t)(void *data);
@@ -30,12 +37,6 @@ extern dague_free_data_t     dague_data_free;
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
 #endif
-
-#include "dague_description_structures.h"
-#include "mempool.h"
-#include "arena.h"
-#include "datarepo.h"
-#include "list.h"
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -133,7 +134,7 @@ struct dague_function {
 };
 
 struct dague_data_pair_t {
-    data_repo_entry_t   *data_repo;
+    struct data_repo_entry   *data_repo;
     dague_arena_chunk_t *data;
 #if defined(HAVE_CUDA)
     struct gpu_elem_t   *gpu_data;
@@ -149,7 +150,7 @@ struct dague_data_pair_t {
  */
 #define DAGUE_MINIMAL_EXECUTION_CONTEXT                  \
     dague_list_item_t        list_item;                  \
-    dague_thread_mempool_t  *mempool_owner;              \
+    struct dague_thread_mempool  *mempool_owner;         \
     dague_object_t          *dague_object;               \
     const  dague_function_t *function;                   \
     int32_t                  priority;                   \
@@ -211,7 +212,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           const dague_flow_t* restrict origin_flow,
                                           dague_execution_context_t* restrict exec_context,
                                           const dague_flow_t* restrict dest_flow,
-                                          data_repo_entry_t* dest_repo_entry,
+                                          struct data_repo_entry* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
 
 const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname);
@@ -233,7 +234,7 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 typedef struct {
     int nb_released;
     uint32_t output_usage;
-    data_repo_entry_t *output_entry;
+    struct data_repo_entry *output_entry;
     int action_mask;
     dague_remote_deps_t *deps;
     dague_execution_context_t* ready_list;
