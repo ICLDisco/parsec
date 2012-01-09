@@ -919,7 +919,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     int i;
     int nb_real_cores=dague_hwloc_nb_real_cores();
 
-    if( (option[0]=='+') & (context->comm_th_core == -1)) {
+    if( (option[0]=='+') && (context->comm_th_core == -1)) {
         /* the communication thread has to be included 
            if no more specific binding is defined */
         context->comm_th_core=-2;
@@ -964,7 +964,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         int end=nb_real_cores-1;
         if( position != option ) {  /* we have a starting position */
             arg = strtol(option, NULL, 10);
-            if( arg < nb_real_cores && arg > -1)
+            if( (arg < nb_real_cores) && (arg > -1) )
                 start = strtol(option, NULL, 10);
             else
                 fprintf(stderr,"** WARNING binding start core not valid (restored to default value)\n");
@@ -973,7 +973,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         if( '\0' != position[0] ) {
             if( ':' != position[0] ) {
                 arg = strtol(position, &position, 10);
-                if( arg < nb_real_cores && arg > -1 )
+                if( (arg < nb_real_cores) && (arg > -1) )
                     end = arg;
                 else
                     fprintf(stderr,"** WARNING: binding end core not valid (restored to default value)\n");
@@ -984,7 +984,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             position++;  /* skip the : directly into the step */
         if( (NULL != position) && ('\0' != position[0]) ) {
             arg = strtol(position, NULL, 10);
-            if( arg < nb_real_cores && arg > -1 )
+            if( (arg < nb_real_cores) && (arg > -1) )
                 step = arg;
             else
                 fprintf(stderr,"** WARNING:  binding step not valid (restored to default value)\n");
@@ -1028,7 +1028,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             while( option != NULL && option[0] != '\0') {
                 /* first core of the remaining list */
                 arg = strtol(option, &option, 10);
-                if( arg < nb_real_cores && arg > -1 ) {
+                if( (arg < nb_real_cores) && (arg > -1) ) {
                     core_tab[cmp]=arg;
                     hwloc_bitmap_set(context->comm_th_binding_mask, arg);
                     cmp++;
@@ -1039,7 +1039,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                         position++;
                         next_arg = strtol(position, &position, 10);
                         for(i=arg+1; i<=next_arg; i++)
-                            if(i < nb_real_cores && i> -1 ) {
+                            if( (i < nb_real_cores) && (i > -1) ) {
                                 core_tab[cmp]=i;
                                 hwloc_bitmap_set(context->comm_th_binding_mask, i);
                                 cmp++;
@@ -1095,7 +1095,7 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
     char* option = optarg;
     if (option[0]!='\0'){
         int core=atoi(optarg);
-        if( (core > 0) & (core < dague_hwloc_nb_real_cores()) )
+        if( (core > 0) && (core < dague_hwloc_nb_real_cores()) )
             context->comm_th_core=core;
         else
             fprintf(stderr,"** Warning: the binding defined by --dague_bind_comm has been ignored (illegal core number)\n");
