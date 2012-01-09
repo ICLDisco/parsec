@@ -1112,7 +1112,7 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
 	    fprintf(stderr,"** Warning: the binding defined by --dague_bind_comm has been ignored (illegal core number)\n");
     } else {
 	/* TODO:: Add binding NUIOA aware by default */
-	DEBUG(( "default binding for the communication thtread\n", tmp));
+	DEBUG(( "default binding for the communication thtread\n"));
     }
     return 0;
 #else
