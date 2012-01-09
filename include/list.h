@@ -523,6 +523,7 @@ dague_list_nolock_sort( dague_list_t* list,
     /* because we are internal, we do shaddy things to that list
      * make asserts happy */
     DAGUE_ULIST_ITERATOR(list, item, {
+        assert( 1 == item->refcount );
         item->refcount = 0;
     });
 #endif
