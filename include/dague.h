@@ -269,7 +269,6 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
         *list = elem;
     } else {
         dague_execution_context_t* position = *list;
-        DAGUE_ITEM_ATTACH(*list, (dague_list_item_t*)elem);
         while( position->priority > elem->priority ) {
             position = DAGUE_LIST_ITEM_NEXT(position);
             if( position == (*list) ) break;
