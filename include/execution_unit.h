@@ -22,8 +22,6 @@ typedef struct dague_execution_unit dague_execution_unit_t;
 #include "mempool.h"
 #include "profiling.h"
 
-struct dague_priority_sorted_list;
-
 struct dague_execution_unit {
     int32_t eu_id;
     pthread_t pthread_id;
