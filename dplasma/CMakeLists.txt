@@ -1,3 +1,7 @@
+IF( NOT BUILD_DPLASMA )
+  message(FATAL "The CMakeLists.txt in the dplasma directory is not supposed to be included if support for DPLASMA has been disabled")
+ENDIF( NOT BUILD_DPLASMA )
+
 # DPLASMA specific option.
 option(DPLASMA_GPU_WITH_MAGMA
   "Enable GPU support using MAGMA kernels" OFF)
@@ -22,8 +26,8 @@ endif( PLASMA_SRC )
 if( DPLASMA_GPU_WITH_MAGMA )
   find_package(MAGMA)
   if( MAGMA_FOUND )
-  else()
-  endif()
+  else( MAGMA_FOUND )
+  endif( MAGMA_FOUND )
 endif( DPLASMA_GPU_WITH_MAGMA )
 
 include_directories(${PLASMA_INCLUDE_DIRS})
@@ -39,5 +43,7 @@ if(PLASMA_FOUND)
   Add_Subdirectory(include)
   Add_Subdirectory(cores)
   Add_Subdirectory(lib)
-  Add_Subdirectory(testing)
+  IF( BUILD_TESTING )
+    Add_Subdirectory(testing)
+  ENDIF( BUILD_TESTING )
 endif(PLASMA_FOUND)
