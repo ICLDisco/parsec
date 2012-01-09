@@ -139,8 +139,6 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
     }
 }
 
-#define elt_comparator offsetof(elt_t, base)
-
 #if 0
     /* usefull code snippet */
     DAGUE_LIST_ITERATOR(l2, item, {
@@ -148,6 +146,8 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
     });
     printf("\n");
 #endif
+
+#define elt_comparator offsetof(elt_t, base)
 
 static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
 {

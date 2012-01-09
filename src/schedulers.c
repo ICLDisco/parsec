@@ -1,10 +1,10 @@
 #include "dague_config.h"
-#include "dequeue.h"
-#include "priority_sorted_queue.h"
+#include "debug.h"
 #include "scheduling.h"
 #include "schedulers.h"
-#include "debug.h"
 #include "dague_hwloc.h"
+#include "dequeue.h"
+#include "list.h"
 
 /*********************************************************************/
 /************************ Global Dequeue *****************************/
@@ -387,13 +387,15 @@ dague_scheduler_t sched_local_hier_queues = {
 
 static dague_execution_context_t *choose_job_absolute_priorities( dague_execution_unit_t *eu_context )
 {
-    return (dague_execution_context_t*)dague_priority_sorted_list_pop_front((dague_priority_sorted_list_t*)eu_context->scheduler_object);
+    return (dague_execution_context_t*)dague_list_pop_front((dague_list_t*)eu_context->scheduler_object);
 }
 
 static int schedule_absolute_priorities( dague_execution_unit_t* eu_context,
                                          dague_execution_context_t* new_context )
 {
-    dague_priority_sorted_list_merge((dague_priority_sorted_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context );
+    dague_list_chain_sorted((dague_list_t*)eu_context->scheduler_object,
+                            (dague_list_item_t*)new_context,
+                            dague_execution_context_priority_comparator);
     return 0;
 }
 
@@ -405,8 +407,8 @@ static int init_absolute_priorities( dague_context_t *master )
     for(i = 0; i < master->nb_cores; i++) {
         eu = master->execution_units[i];
         if( eu->eu_id == 0 ) {
-            eu->scheduler_object = (dague_priority_sorted_list_t*)malloc(sizeof(dague_priority_sorted_list_t));
-            dague_priority_sorted_list_construct( (dague_priority_sorted_list_t*)eu->scheduler_object );
+            eu->scheduler_object = (dague_list_t*)malloc(sizeof(dague_list_t));
+            dague_list_construct( (dague_list_t*)eu->scheduler_object );
         } else {
             eu->scheduler_object = eu->master_context->execution_units[0]->scheduler_object;
         }
@@ -424,7 +426,7 @@ static void finalize_absolute_priorities( dague_context_t *master )
         eu = master->execution_units[i];
 
         if( eu->eu_id == 0 ) {
-            dague_priority_sorted_list_destruct( (dague_priority_sorted_list_t*)eu->scheduler_object );
+            dague_list_destruct( (dague_list_t*)eu->scheduler_object );
             free(eu->scheduler_object);
         }
         eu->scheduler_object = NULL;
