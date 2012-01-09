@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "lifo.h"
 #include "os-spec-timing.h"
@@ -280,8 +281,8 @@ int main(int argc, char *argv[])
         sum_time += times[e];
     }
     printf("== Time to move %u times per thread for %ld threads from l1 to l2 or l2 to l1 randomly:\n"
-           "== MIN %lu %s\n"
-           "== MAX %lu %s\n"
+           "== MIN %"PRIu64" %s\n"
+           "== MAX %"PRIu64" %s\n"
            "== AVG %g %s\n",
            NBTIMES, nbthreads,
            min_time, TIMER_UNIT,

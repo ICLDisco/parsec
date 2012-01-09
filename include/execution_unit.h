@@ -10,7 +10,6 @@
 #include "dague_config.h"
 
 #ifdef HAVE_HWLOC
-//#include "dague_hwloc.h"
 #include <hwloc.h>
 #endif
 
@@ -96,7 +95,7 @@ struct dague_context_t {
 
     int32_t nb_vp; /**< number of virtual processes in this MPI process */
 
-#ifdef HAVE_HWLOC 
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
   int comm_th_core; 
   hwloc_cpuset_t comm_th_binding_mask;
   hwloc_cpuset_t core_free_mask;

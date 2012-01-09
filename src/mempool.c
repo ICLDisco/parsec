@@ -24,9 +24,9 @@ static void dague_thread_mempool_construct( dague_thread_mempool_t *thread_mempo
 static void dague_thread_mempool_destruct( dague_thread_mempool_t *thread_mempool )
 {
     void *elt;
-    while( NULL != (elt = dague_lifo_pop( &thread_mempool->mempool ) ) ) 
-        free(elt);
-    dague_lifo_destruct( &thread_mempool->mempool );
+    while(NULL != (elt = dague_lifo_pop(&thread_mempool->mempool)))
+        DAGUE_LIFO_ITEM_FREE(elt);
+    dague_lifo_destruct(&thread_mempool->mempool);
 }
 
 void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t pool_offset, unsigned int nbthreads )
@@ -37,10 +37,10 @@ void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t 
     mempool->elt_size = elt_size;
     mempool->pool_owner_offset = pool_offset;
     mempool->nb_max_elt = 0;
-    mempool->thread_mempools = (dague_thread_mempool_t *)malloc( sizeof(dague_thread_mempool_t) * nbthreads );
+    mempool->thread_mempools = (dague_thread_mempool_t *)malloc(sizeof(dague_thread_mempool_t) * nbthreads);
 
     for(tid = 0; tid < mempool->nb_thread_mempools; tid++)
-        dague_thread_mempool_construct( &mempool->thread_mempools[tid], mempool );
+        dague_thread_mempool_construct(&mempool->thread_mempools[tid], mempool);
 }
 
 void dague_mempool_destruct( dague_mempool_t *mempool )
@@ -48,9 +48,9 @@ void dague_mempool_destruct( dague_mempool_t *mempool )
     uint32_t tid;
 
     for(tid = 0; tid < mempool->nb_thread_mempools; tid++)
-        dague_thread_mempool_destruct( &mempool->thread_mempools[tid] );
+        dague_thread_mempool_destruct(&mempool->thread_mempools[tid]);
 
-    free( mempool->thread_mempools );
+    free(mempool->thread_mempools);
     mempool->thread_mempools = NULL;
     mempool->nb_thread_mempools = 0;
 }

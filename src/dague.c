@@ -28,10 +28,6 @@
 #include "profiling.h"
 #endif
 
-#ifdef HAVE_PAPI
-#include <papime.h>
-#endif
-
 #ifdef HAVE_HWLOC
 #include "hbbuffer.h"
 #include "dague_hwloc.h"
@@ -52,12 +48,6 @@ int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
 #endif  /* DAGUE_PROF_TRACE */
-
-#ifdef HAVE_PAPI
-int eventSet = PAPI_NULL;
-int num_events = 0;
-char* event_names[MAX_EVENTS];
-#endif
 
 #ifdef HAVE_HWLOC
 #define MAX_CORE_LIST 128
@@ -177,11 +167,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     return __dague_progress(eu);
 }
 
-#ifdef HAVE_PAPI
-extern int num_events;
-extern char* event_names[];
-#endif
-
 static void dague_vp_init( dague_vp_t *vp,
                            int32_t nb_cores,
                            __dague_temporary_thread_initialization_t *startup)
@@ -227,7 +212,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
-	    {"dague_help",       no_argument,        NULL, 'h'},
+            {"dague_help",       no_argument,        NULL, 'h'},
             {"dague_bind",       optional_argument,  NULL, 'b'},
             {"dague_bind_comm",  optional_argument,  NULL, 'c'},
             {0, 0, 0, 0}
@@ -265,15 +250,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
+#if defined(HAVE_HWLOC_BITMAP)
     context->comm_th_core   = -1;
     context->comm_th_binding_mask = hwloc_bitmap_alloc(); 
     context->core_free_mask = hwloc_bitmap_alloc();
     hwloc_bitmap_set_range(context->core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
-#endif  /* defined(HWLOC) */
-
-#ifdef HAVE_PAPI
-    num_events = 0;
-#endif
+#endif /* HAVE_HWLOC_BITMAP */
+#endif /* HAVE_HWLOC */
     
     {
         int index = 0;
@@ -312,7 +295,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         } while(1);
     }
     
-#ifdef HAVE_HWLOC 
+#if defined HAVE_HWLOC && defined(HAVE_HWLOC_BITMAP)
     /* update the core_free_mask according to the thread binding defined */ 
     for(t = 0; t < nb_total_comp_threads; t++)
         hwloc_bitmap_clr(context->core_free_mask, startup[t].bindto);     
@@ -434,13 +417,14 @@ int dague_fini( dague_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) 
+#if defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_binding_mask);
     hwloc_bitmap_free(context->core_free_mask);
-
+#endif /* HAVE_HWLOC_BITMAP */
     dague_hwloc_fini();
-#endif  /* defined(HWLOC) */
+#endif  /* HAVE_HWLOC */
 
 #if defined(DAGUE_STATS)
     {
@@ -921,7 +905,6 @@ void dague_usage(void)
 
 	    "\n"
          /* " --dague_verbose     : extra verbose output\n" */
-         /* " --dague_papi        : enable PAPI\n" */
 	    " --dague_help         : this message\n"
 	    "\n"
 	);
@@ -931,7 +914,7 @@ void dague_usage(void)
 int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                                   __dague_temporary_thread_initialization_t* startup)
 {
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     DEBUG(("Parse request for the binding of threads\n"));
     char* option = optarg;
     char* position;
@@ -1106,7 +1089,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     
     return 0;
 #else
-    fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required).\n");
+    fprintf(stderr, "** Warning: the binding defined by --dague_bind has been ignored (HWLOC is required and must support bitmap).\n");
     return -1;
 #endif
 }
