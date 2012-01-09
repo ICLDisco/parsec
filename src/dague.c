@@ -22,7 +22,7 @@
 #include "remote_dep.h"
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
-#include "priority_sorted_queue.h"
+#include "list.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
