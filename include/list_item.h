@@ -9,6 +9,7 @@
 
 #include "dague_config.h"
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct dague_list_item_t {
     volatile struct dague_list_item_t* list_next;
