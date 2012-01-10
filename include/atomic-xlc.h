@@ -37,7 +37,7 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t new_value )
 {
     int64_t old = (int64_t)old_value;
-    return __compare_and_swap( (volatile int*)location, &old, new_value );
+    return __compare_and_swaplp( (volatile long*)location, &old, new_value );
 }
 #else
 #include <stdio.h>
