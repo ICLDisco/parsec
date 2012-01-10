@@ -63,21 +63,18 @@ char* event_names[MAX_EVENTS];
 #define MAX_CORE_LIST 128
 #endif
 
-#if defined(HAVE_GETRUSAGE)
+#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
 
-static void dague_object_empty_repository(void);
-
 static void dague_statistics(char* str)
 {
     struct rusage current;
 
     getrusage(RUSAGE_SELF, &current);
-
     if ( !_dague_rusage_first_call ) {
         double usr, sys;
 
@@ -104,13 +101,13 @@ static void dague_statistics(char* str)
 
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
-
     return;
 }
 #else
 static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
+static void dague_object_empty_repository(void);
 
 typedef struct __dague_temporary_thread_initialization_t {
     dague_context_t* master_context;
