@@ -100,6 +100,9 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         if( NULL != next ) {
             dague_list_item_ring_push(next, elt);
         }
+        else {
+            dague_list_item_singleton(elt);
+        }
         b->parent_push_fct(b->parent_store, elt);
     }
 }
