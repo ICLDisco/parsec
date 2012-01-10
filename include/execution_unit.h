@@ -24,9 +24,12 @@ typedef struct dague_execution_unit dague_execution_unit_t;   /**< Each virtual 
 
 struct dague_priority_sorted_list;
 
+/**
+ *  Computational Thread-specific structure 
+ */
 struct dague_execution_unit {
-    int32_t  th_id;
-    pthread_t pthread_id;
+    int32_t   th_id;          /**< Internal thread identifier. A thread belongs to a vp */
+    pthread_t pthread_id;     /**< POSIX thread identifier. */
 
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *eu_profile;
@@ -44,7 +47,7 @@ struct dague_execution_unit {
 
     pthread_t* pthreads;            /**< posix threads for each of the threads under this context */
 
-    dague_vp_t             *virtual_process;
+    dague_vp_t             *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     dague_thread_mempool_t *context_mempool;
     dague_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];
 
@@ -57,6 +60,9 @@ struct dague_execution_unit {
 #include "profiling.h"
 #include "dague.h"
 
+/**
+ * Threads are grouped per virtual process
+ */
 struct dague_vp {
     dague_context_t *dague_context; /**< backlink to the global context */
     int32_t vp_id;                  /**< virtual process identifier of this vp */
@@ -77,15 +83,21 @@ struct dague_vp {
     dague_execution_unit_t* execution_units[1];
 };
 	
+/**
+ * All virtual processes belong to a single physical
+ * process
+ */
 struct dague_context_t {
     volatile int32_t __dague_internal_finalization_in_progress;
     volatile int32_t __dague_internal_finalization_counter;
-    int32_t nb_nodes;
     volatile uint32_t active_objects;
-    int32_t my_rank;
+    int32_t nb_nodes;    /**< nb of physical processes */
+    int32_t my_rank;     /**< rank of this physical process */
+
     dague_barrier_t  barrier;
 
-    size_t remote_dep_fw_mask_sizeof;
+    size_t remote_dep_fw_mask_sizeof; /**< ?? */
+
     pthread_t *pthreads; /**< all POSIX threads used for computation are stored here in order 
                           *   threads[0] is uninitialized, this is the user's thread
                           *   threads[1] = thread for vp=0, th=1, if vp[0]->nbcores > 1
@@ -93,12 +105,12 @@ struct dague_context_t {
                           *   etc...
                           */
 
-    int32_t nb_vp; /**< number of virtual processes in this MPI process */
+    int32_t nb_vp; /**< number of virtual processes in this physical process */
 
 #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
-  int comm_th_core; 
-  hwloc_cpuset_t comm_th_binding_mask;
-  hwloc_cpuset_t core_free_mask;
+    int comm_th_core; 
+    hwloc_cpuset_t comm_th_binding_mask;
+    hwloc_cpuset_t core_free_mask;
 #endif
 
     /* This field should always be the last one in the structure. Even if the
