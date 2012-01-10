@@ -29,11 +29,6 @@ typedef struct dague_list_item_t {
 #endif  /* defined(DAGUE_DEBUG) */
 } dague_list_item_t;
 
-/** a function type to compare two list_items
- *  return 0 if i1 == i2
- *  return a positive value if i1 > i2
- *  return a negative value if i1 < i2 */
-typedef int (*dague_list_item_comparator_t)(dague_list_item_t*i1, dague_list_item_t*i2);
 
 static inline void 
 dague_list_item_construct( dague_list_item_t* item )
@@ -156,8 +151,8 @@ dague_list_item_ring_chop( dague_list_item_t* item )
     do {                                                                \
         dague_list_item_t *_item_ = (ITEM);                             \
         _item_->refcount++;                                             \
-        assert(_item_->refcount == 1);                                  \
-        _item_->belong_to = (struct dague_list_t*)(LIST);          \
+        assert( 1 == _item_->refcount );                                \
+        _item_->belong_to = (LIST);                                     \
     } while(0)
 
 #define DAGUE_ITEMS_ATTACH(LIST, ITEMS)                                 \
@@ -181,6 +176,7 @@ dague_list_item_ring_chop( dague_list_item_t* item )
         _item->list_prev = (void*)0xdeadbeef;           \
         _item->list_next = (void*)0xdeadbeef;           \
         _item->refcount--;                       \
+        assert( 0 == _item->refcount ); \
     } while (0)
 #else
 #define DAGUE_ITEMS_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
