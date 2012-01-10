@@ -176,7 +176,7 @@ int sgemm_cuda_init( dague_context_t* dague_context, tiled_matrix_desc_t *tileA 
             if( nb_allocations > (uint32_t)((tileA->mt * tileA->nt) >> 1) )
                 break;
             gpu_elem = (gpu_elem_t*)malloc(sizeof(gpu_elem_t));
-            dague_list_item_construct( (dague_list_item_t*)gpu_elem );
+            DAGUE_LIST_ITEM_CONSTRUCT(gpu_elem);
             
             cuda_status = (cudaError_t)cuMemAlloc( &(gpu_elem->gpu_mem), tile_size);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,

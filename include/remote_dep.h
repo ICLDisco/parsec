@@ -101,6 +101,7 @@ static inline dague_remote_deps_t* remote_deps_allocation( dague_lifo_t* lifo )
     if( NULL == remote_deps ) {
         char *ptr;
         remote_deps = (dague_remote_deps_t*)calloc(1, dague_remote_dep_context.elem_size);
+        DAGUE_LIST_ITEM_CONSTRUCT(remote_deps);
         remote_deps->origin = lifo;
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);

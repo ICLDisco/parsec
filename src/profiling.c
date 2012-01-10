@@ -172,7 +172,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->events_top = res->events + length;
     res->nb_events = 0;
 
-    dague_list_item_construct( (dague_list_item_t*)res );
+    DAGUE_LIST_ITEM_CONSTRUCT( res );
     dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 
     return res;

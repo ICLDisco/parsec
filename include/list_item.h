@@ -41,8 +41,10 @@ dague_list_item_construct( dague_list_item_t* item )
     item->belong_to = (void*)0xdeadbeef;
 #endif
 }
+#define DAGUE_LIST_ITEM_CONSTRUCT(item) dague_list_item_construct((dague_list_item_t*)item)
 
 #define dague_list_item_destruct(item) do {(void)(item);} while(0)
+#define DAGUE_LIST_ITEM_DESTRUCT(item) dague_list_item_destruct((dague_list_item_t*)item)
 
 #define DAGUE_LIST_ITEM_NEXT(item) ((__typeof__(item))(((dague_list_item_t*)(item))->list_next))
 #define DAGUE_LIST_ITEM_PREV(item) ((__typeof__(item))(((dague_list_item_t*)(item))->list_prev))

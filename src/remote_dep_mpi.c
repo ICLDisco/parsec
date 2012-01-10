@@ -219,6 +219,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
      */
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+        DAGUE_LIST_ITEM_CONSTRUCT(item);
         dague_context_t *ret;
 
         item->action = DEP_CTL;
@@ -252,6 +253,7 @@ static int remote_dep_dequeue_off(dague_context_t* context)
     if(1 == context->nb_nodes) return 0;
 
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_CTL;
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
@@ -300,6 +302,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_ACTIVATE;
     item->cmd.activate.rank = rank;
     item->cmd.activate.deps = deps;
@@ -315,6 +318,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_remote_dep_datatype_t datatype)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_MEMCPY;
     item->cmd.memcpy.dague_object = dague_object;
     item->cmd.memcpy.source       = src;
@@ -875,6 +879,7 @@ static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, 
     dague_remote_deps_t *deps;
     
     item = (dague_dep_wire_get_fifo_elem_t*)malloc(sizeof(dague_dep_wire_get_fifo_elem_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     task = &(item->task);
     memcpy( task, &dep_get_buff[i], sizeof(remote_dep_wire_get_t) );
     deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
