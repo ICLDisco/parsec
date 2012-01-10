@@ -84,6 +84,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          dague_execution_context_t *oldcontext, 
                                                          int flow_index, int outdep_index, 
                                                          int rank_src, int rank_dst,
+                                                         int vpid_dst,
                                                          dague_arena_t* arena,
                                                          void *param);
 typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
@@ -236,7 +237,7 @@ typedef struct {
     struct data_repo_entry *output_entry;
     int action_mask;
     struct dague_remote_deps_t *deps;
-    dague_execution_context_t* ready_list;
+    dague_execution_context_t** ready_lists;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
     struct dague_remote_deps_t *remote_deps;
@@ -248,6 +249,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              dague_execution_context_t *oldcontext, 
                                              int flow_index, int outdep_index, 
                                              int rank_src, int rank_dst,
+                                             int vpid_dst,
                                              dague_arena_t* arena,
                                              void *param);
 

@@ -182,6 +182,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
                  dague_execution_context_t *oldcontext,
                  int flow_index, int outdep_index,
                  int rank_src, int rank_dst,
+                 int vpid_dst,
                  dague_arena_t* arena,
                  void *flow)
 {
@@ -189,11 +190,13 @@ add_task_to_list(struct dague_execution_unit *eu_context,
     dague_execution_context_t* new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
     dague_thread_mempool_t* mpool = new_context->mempool_owner;
 
+#warning should we do something with vpid_dst?
+
     memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
     new_context->mempool_owner = mpool;
 
     dague_list_add_single_elem_by_priority( pready_list, new_context );
-    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst;
+    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)vpid_dst;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -225,9 +228,12 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.dague_object = this_task->dague_object;
             nc.data[0].data = this_task->data[0].data;
             nc.data[1].data = this_task->data[1].data;
+#warning is vpid_dst useful here?
             ontask(eu, &nc, this_task, 0, 0,
                    __dague_object->super.src->super.myrank,
-                   __dague_object->super.src->super.myrank, NULL, ontask_arg);
+                   __dague_object->super.src->super.myrank, 
+                   -1,
+                   NULL, ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */
@@ -367,9 +373,12 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
             /* Here we go, one ready local task */
             fake_context.locals[0].value = k;
             fake_context.locals[1].value = n;
+#warning vpid_dst should not be -1 here.
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
                              __dague_object->super.src->super.myrank,
-                             __dague_object->super.src->super.myrank, NULL, (void*)&ready_list);
+                             __dague_object->super.src->super.myrank, 
+                             -1,
+                             NULL, (void*)&ready_list);
             __dague_schedule( eu, ready_list );
             count++;
 #warning This should be context->virtual_processes[vpid_of(...)]

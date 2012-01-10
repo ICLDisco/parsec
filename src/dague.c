@@ -728,6 +728,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                              dague_execution_context_t *oldcontext, 
                                              int out_index, int outdep_index, 
                                              int src_rank, int dst_rank,
+                                             int dst_vpid,
                                              dague_arena_t* arena,
                                              void *param)
 {
@@ -794,7 +795,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                                                  newcontext,
                                                                  oldcontext->function->out[out_index]->dep_out[outdep_index]->flow,
                                                                  arg->output_entry,
-                                                                 &arg->ready_list);
+                                                                 &arg->ready_lists[dst_vpid]);
     }
     
     return DAGUE_ITERATE_CONTINUE;

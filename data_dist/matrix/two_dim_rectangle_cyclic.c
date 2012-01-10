@@ -167,8 +167,9 @@ static int32_t twoDBC_get_vpid(dague_ddesc_t *desc, ...)
 #endif
 
     pos = twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
-
-    return tiled_matrix_get_vpid(&Ddesc->super, pos);
+    /* pos is expressed in bytes */
+    assert( (pos % (Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype))) == 0 );
+    return tiled_matrix_get_vpid(&Ddesc->super, pos / (Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype)));
 }
 
 #ifdef DAGUE_PROF_TRACE

@@ -2912,11 +2912,12 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "{\n"
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t *)context->dague_object;\n"
             "  dague_release_dep_fct_arg_t arg;\n"
+            "  int __vp_id;\n"
             "  arg.nb_released = 0;\n"
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
-            "  arg.ready_list = NULL;\n"
+            "  arg.ready_lists = (eu != NULL) ? calloc(sizeof(dague_execution_context_t *), eu->virtual_process->dague_context->nb_vp) : NULL;\n"
             "  (void)__dague_object;\n",
             name, jdf_basename, jdf_basename);
 
@@ -2945,9 +2946,15 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
         coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
                 f->fname);
     }
-    coutput("    if( NULL != arg.ready_list ) {\n"
-            "      __dague_schedule(eu, arg.ready_list);\n"
-            "      arg.ready_list = NULL;\n"
+    coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
+            "      if( NULL != arg.ready_lists[__vp_id] ) {\n"
+            "        if( eu != NULL && __vp_id == eu->virtual_process->vp_id ) {\n"
+            "          __dague_schedule(eu, arg.ready_lists[__vp_id]);\n"
+            "        } else {\n"
+            "          __dague_schedule(eu->virtual_process->dague_context->virtual_processes[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
+            "        }\n"
+            "        arg.ready_lists[__vp_id] = NULL;\n"
+            "      }\n"
             "    }\n"
             "  }\n"
             "#if defined(DISTRIBUTED)\n"
@@ -2959,7 +2966,12 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     if( 0 != has_output_data )
         jdf_generate_code_free_hash_table_entry(jdf, f);
 
-    coutput("  assert( NULL == arg.ready_list );\n"
+    coutput("  if(arg.ready_lists != NULL) {\n"
+            "    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
+            "      assert( NULL == arg.ready_lists[__vp_id] );\n"
+            "    }\n"
+            "    free(arg.ready_lists);\n"
+            "  }\n"
             "  return arg.nb_released;\n"
             "}\n"
             "\n");
@@ -3095,8 +3107,21 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
      */
     string_arena_add_string(sa_open, 
                             "#if defined(DISTRIBUTED)\n"
-                            "%s%s  rank_dst = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
-                            "#endif\n",
+                            "%s%s  rank_dst = ((dague_ddesc_t*)__dague_object->super.%s)->rank_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n",
+                            prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
+                            UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
+                                           dump_expr, (void**)&linfo,
+                                           "", "", ", ", ""));
+    string_arena_add_string(sa_open, 
+                            "%s%s  if( eu != NULL && rank_dst == eu->virtual_process->dague_context->my_rank ) vpid_dst = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+                            "#else /* !DISTRIBUTED */\n",
+                            prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
+                            UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
+                                           dump_expr, (void**)&linfo,
+                                           "", "", ", ", ""));
+    string_arena_add_string(sa_open,
+                            "%s%s  vpid_dst = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+                            "#endif /* DISTRIBUTED */\n",
                             prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
                                            dump_expr, (void**)&linfo,
@@ -3182,9 +3207,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "  const __dague_%s_internal_object_t *__dague_object = (const __dague_%s_internal_object_t*)this_task->dague_object;\n"
             "  dague_execution_context_t nc;\n"
             "  dague_arena_t* arena = NULL;\n"
-            "  int rank_src = 0, rank_dst = 0;\n"
+            "  int rank_src = 0, rank_dst = 0, vpid_dst = -1;\n"
             "%s"
-            "  (void)rank_src; (void)rank_dst; (void)__dague_object;\n",
+            "  (void)rank_src; (void)rank_dst; (void)__dague_object; (void)vpid_dst;\n",
             name,
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
@@ -3222,7 +3247,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                                         "    arena = %s;\n"
                                         "#endif  /* defined(DISTRIBUTED) */\n", string_arena_get_string(sa));
                 string_arena_init(sa);
-                string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, arena, ontask_arg)",
+                string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, arena, ontask_arg)",
                                         flownb, depnb);
 
                 switch( dl->guard->guard_type ) {
@@ -3265,7 +3290,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
                         depnb++;
                         string_arena_init(sa);
-                        string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, arena, ontask_arg)",
+                        string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, arena, ontask_arg)",
                                                 flownb, depnb);
 
                         if( NULL != dl->guard->callfalse->var ) {
@@ -3282,7 +3307,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                     } else {
                         depnb++;
                         string_arena_init(sa);
-                        string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, arena, ontask_arg)",
+                        string_arena_add_string(sa, "ontask(eu, &nc, this_task, %d, %d, rank_src, rank_dst, vpid_dst, arena, ontask_arg)",
                                                 flownb, depnb);
 
                         if( NULL != dl->guard->callfalse->var ) {

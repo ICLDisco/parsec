@@ -76,7 +76,7 @@ int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
  */
 void tiled_matrix_set_custom_vp_map(tiled_matrix_desc_t *tdesc, dague_vp_map_t custom_map);
 
-static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, size_t pos)
+static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
 {
     assert( pos <= tdesc->nb_local_tiles );
     return pos % tdesc->nb_vp;

@@ -135,7 +135,7 @@ static int32_t sym_twoDBC_get_vpid(dague_ddesc_t *desc, ...)
     assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
     
     pos = sym_twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
-
+    /* pos is expressed in tiles */
     return tiled_matrix_get_vpid(&Ddesc->super, pos);
 }
 
