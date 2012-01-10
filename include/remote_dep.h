@@ -21,10 +21,7 @@ typedef void* dague_remote_dep_datatype_t;
 
 #include "dague_description_structures.h"
 #include "lifo.h"
-#include "execution_unit.h"
 #include "dague.h"
-#include "arena.h"
-#include "datarepo.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100

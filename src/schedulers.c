@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #include "debug.h"
 #include "scheduling.h"
@@ -5,6 +11,8 @@
 #include "dague_hwloc.h"
 #include "dequeue.h"
 #include "list.h"
+#include "remote_dep.h"
+#include "datarepo.h"
 
 /*********************************************************************/
 /************************ Global Dequeue *****************************/

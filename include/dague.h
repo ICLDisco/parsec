@@ -228,19 +228,17 @@ int dague_set_complete_callback( dague_object_t* dague_object,
                                  dague_completion_cb_t complete_cb, void* complete_data );
 int dague_get_complete_callback( const dague_object_t* dague_object,
                                  dague_completion_cb_t* complete_cb, void** complete_data );
-/* This must be included here for the DISTRIBUTED macro, and after many constants have been defined */
-#include "remote_dep.h"
 
 typedef struct {
     int nb_released;
     uint32_t output_usage;
     struct data_repo_entry *output_entry;
     int action_mask;
-    dague_remote_deps_t *deps;
+    struct dague_remote_deps_t *deps;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
-    dague_remote_deps_t *remote_deps;
+    struct dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 

@@ -6,7 +6,6 @@
 
 #include "dague_config.h"
 #include "dague.h"
-#include "stats.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -17,12 +16,15 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
+
+#include "list.h"
 #include "scheduling.h"
 #include "barrier.h"
 #include "remote_dep.h"
+#include "datarepo.h"
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
-#include "list.h"
+#include "stats.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"

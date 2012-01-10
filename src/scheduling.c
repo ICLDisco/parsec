@@ -10,6 +10,7 @@
 #include "remote_dep.h"
 #include "dague.h"
 #include "stats.h"
+#include "datarepo.h"
 
 #include <signal.h>
 #include <string.h>

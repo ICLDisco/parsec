@@ -7,7 +7,8 @@
 #ifndef DAGUE_LIST_ITEM_H_HAS_BEEN_INCLUDED
 #define DAGUE_LIST_ITEM_H_HAS_BEEN_INCLUDED
 
-#include "atomic.h"
+#include "dague_config.h"
+#include <stdlib.h>
 
 typedef struct dague_list_item_t {
     volatile struct dague_list_item_t* list_next;
