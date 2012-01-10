@@ -47,7 +47,7 @@ struct dague_arena_chunk_t {
     dague_arena_t* origin;
     uint64_t keeper_of_the_seven_keys;
     void* data;
-    volatile int32_t refcount;
+    volatile uint32_t refcount;
     int32_t cache_friendly_emptyness;
 };
 
