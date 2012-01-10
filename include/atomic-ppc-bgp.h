@@ -17,6 +17,8 @@
 
 #warning BGP atomic included
 
+#include <common/bgp_personality.h>
+#include <common/bgp_personality_inlines.h>
 /*#include <bpcore/ppc450_inlines.h>*/
 #include <assert.h>
 
@@ -106,3 +108,4 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 }
 
 #endif  /* DAGUE_ATOMIC_BGP_HAS_BEEN_INCLUDED */
+
