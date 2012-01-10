@@ -1,11 +1,11 @@
 #
 # Check if the compiler supports __sync_bool_compare_and_swap.
 #
-include(CheckCSourceRuns)
+include(CheckCSourceCompiles)
 
 message(STATUS "Check if the compiler provides atomic operations directives")
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main( int argc, char** argv)
@@ -19,7 +19,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main( int argc, char** argv)
@@ -33,7 +33,35 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_GCC_64_BUILTINS)
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
+      #include <stdint.h>
+
+      int main( int argc, char** argv)
+      {
+         int32_t where = 0, old = where;
+
+         if (!__compare_and_swap(&where, &old, 1))
+            return -1;
+
+         return 0;
+      }
+      " DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
+
+CHECK_C_SOURCE_COMPILES("
+      #include <stdint.h>
+
+      int main( int argc, char** argv)
+      {
+         long where = 0, old = where;
+
+         if (!__compare_and_swaplp(&where, &old, 1))
+            return -1;
+
+         return 0;
+      }
+      " DAGUE_ATOMIC_USE_XLC_64_BUILTINS)
+
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main(int, const char**)
@@ -46,7 +74,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS)
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main(int, const char**)
@@ -59,7 +87,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <atomic.h>
       #include <stdint.h>
 
@@ -73,7 +101,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_SUN_32)
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <atomic.h>
       #include <stdint.h>
 

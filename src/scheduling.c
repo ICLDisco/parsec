@@ -11,18 +11,21 @@
 #include "dague.h"
 #include "stats.h"
 #include "datarepo.h"
+#include "execution_unit.h"
 
 #include <signal.h>
+#if defined(HAVE_STRING_H)
 #include <string.h>
+#endif /* defined(HAVE_STRING_H) */
 #include <sched.h>
 #include <sys/types.h>
+#if defined(HAVE_ERRNO_H)
 #include <errno.h>
-
-#ifdef  HAVE_SCHED_SETAFFINITY
+#endif  /* defined(HAVE_ERRNO_H) */
+#if defined(HAVE_SCHED_SETAFFINITY)
 #include <linux/unistd.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
-
-#if defined(DAGUE_PROF_TRACE) && 0
+#endif  /* defined(HAVE_SCHED_SETAFFINITY) */
+#if defined(DAGUE_PROF_TRACE)
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -402,3 +405,4 @@ int dague_progress(dague_context_t* context)
     (void)dague_remote_dep_off(context);
     return ret;
 }
+

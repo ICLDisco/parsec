@@ -13,6 +13,8 @@
 
 #if defined(DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
 #include "atomic-gcc.h"
+#elif defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
+#include "atomic-xlc.h"
 #elif defined(MAC_OS_X)
 #include "atomic-macosx.h"
 #elif defined(ARCH_X86)
