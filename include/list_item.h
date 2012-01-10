@@ -165,7 +165,7 @@ dague_list_item_ring_chop( dague_list_item_t* item )
         do {                                                            \
             DAGUE_ITEM_ATTACH(LIST, _item);                             \
             _item = (dague_list_item_t*)_item->list_next;               \
-        } while (_item != _end);                                        \
+        } while(_item != _end->list_next);                              \
     } while(0)
 
 #define DAGUE_ITEM_DETACH(ITEM)            \
