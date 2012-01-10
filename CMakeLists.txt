@@ -333,10 +333,30 @@ endif( HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
 check_include_files(stdarg.h HAVE_STDARG_H)
-check_function_exists(va_copy HAVE_VA_COPY)
-if (NOT HAVE_VA_COPY)
-  check_function_exists(__va_copy HAVE_UNDERSCORE_VA_COPY)
-endif (NOT HAVE_VA_COPY)
+# va_copy is special as it is not required to be a function.
+if (HAVE_STDARG_H)
+  check_c_source_compiles("
+      #include <stdarg.h>
+      int main(void) {
+          va_list a, b;
+          va_copy(a, b);
+          return 0;
+      }"
+      HAVE_VA_COPY
+      )
+ 
+  if (NOT HAVE_VA_COPY)
+    check_c_source_compiles("
+        #include <stdarg.h>
+        int main(void) {
+            va_list a, b;
+            __va_copy(a, b);
+            return 0;
+        }"
+        HAVE_UNDERSCORE_VA_COPY
+        )
+  endif (NOT HAVE_VA_COPY)
+endif (HAVE_STDARG_H)
 check_function_exists(asprintf HAVE_ASPRINTF)
 check_function_exists(vasprintf HAVE_VASPRINTF)
 check_include_files(getopt.h HAVE_GETOPT_H)
@@ -450,13 +470,13 @@ add_definitions(-DHAVE_CONFIG_H)
 # 
 
 set(SRCS 
-  src/dague.c 
-  src/arena.c
+  src/barrier.c 
+  src/stats.c 
   src/scheduling.c
   src/schedulers.c 
-  src/stats.c 
+  src/dague.c 
+  src/arena.c
   src/remote_dep.c 
-  src/barrier.c 
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
