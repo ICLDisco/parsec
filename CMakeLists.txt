@@ -505,9 +505,7 @@ ENDIF( BUILD_DAGUE )
 # Now continue with compiling the tests.
 #
 
-IF( BUILD_TOOLS )
-  add_subdirectory(tools)
-ENDIF( BUILD_TOOLS )
+add_subdirectory(tools)
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
