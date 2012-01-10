@@ -78,11 +78,20 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->mt = (i+m-1)/mb - i/mb + 1;
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
 
+    assert(dague_default_vp_map.nb_vp >= 1);
+    tdesc->nb_vp = dague_default_vp_map.nb_vp;
+
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(tdesc->super.key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
 
     return;
+}
+
+void tiled_matrix_set_custom_vp_map(tiled_matrix_desc_t *tdesc, dague_vp_map_t custom_map)
+{
+    assert(custom_map.nb_vp >= 1);
+    tdesc->nb_vp = custom_map.nb_vp;
 }
 
 /*

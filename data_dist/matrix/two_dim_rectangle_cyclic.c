@@ -55,28 +55,10 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     return res;
 }
 
-static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
+static size_t twoDBC_compute_mempos_from_global_coordinates(two_dim_block_cyclic_t *Ddesc, int m, int n)
 {
-    size_t pos;
-    int m, n;
     int nb_elem_r, last_c_size;
-    two_dim_block_cyclic_t * Ddesc;
-    va_list ap;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
-    
-    /* Get coordinates */
-    va_start(ap, desc);
-    m = (int)va_arg(ap, unsigned int);
-    n = (int)va_arg(ap, unsigned int);
-    va_end(ap);
-
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
-
-#if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
-#endif
+    size_t pos;
 
     if ( Ddesc->super.storage == matrix_Tile ) {
         /* number of tiles per column of super-tile */
@@ -132,9 +114,62 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         
     pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
 
+    return pos;
+}
+
+static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
+{
+    size_t pos;
+    int m, n;
+    two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+#if defined(DISTRIBUTED)
+    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
+#endif
+
+    pos = twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
+
     return &(((char *) Ddesc->mat)[pos]);
 }
 
+static int32_t twoDBC_get_vpid(dague_ddesc_t *desc, ...)
+{
+    size_t pos;
+    int m, n;
+    two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+    
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+#if defined(DISTRIBUTED)
+    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
+#endif
+
+    pos = twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
+
+    return tiled_matrix_get_vpid(&Ddesc->super, pos);
+}
 
 #ifdef DAGUE_PROF_TRACE
 /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
@@ -202,6 +237,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         
         o->rank_of       = twoDBC_get_rank_for_tile;
         o->data_of       = twoDBC_get_local_tile;
+        o->vpid_of       = twoDBC_get_vpid;
 #if defined(DAGUE_PROF_TRACE)
         o->data_key      = twoDBC_data_key;
         o->key_to_string = twoDBC_key_to_string;

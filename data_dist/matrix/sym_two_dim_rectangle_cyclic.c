@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#include <assert.h>
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 
 #if !defined(UINT_MAX)
@@ -71,11 +72,77 @@ static uint32_t sym_twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
     return res;
 }
 
+static size_t sym_twoDBC_compute_mempos_from_global_coordinates(sym_two_dim_block_cyclic_t *Ddesc, int m, int n)
+{
+    int nb_elem, nb_elem_col, column;
+    size_t pos;
+
+    pos = 0; /* current position (as number of tile) in the buffer */
+    column = Ddesc->grid.crank; /* tile column considered */
+
+    /**********************************/
+    if(Ddesc->uplo == MatrixLower ) {
+        nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
+        if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
+            nb_elem_col++;
+            
+        while(column != n) {
+            /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+            nb_elem = column / (Ddesc->grid.rows);
+            if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
+                nb_elem++;
+                    
+            pos += (nb_elem_col - nb_elem);
+            column += Ddesc->grid.cols;
+        }
+            
+        pos += ((m - n) / (Ddesc->grid.rows));
+    } else {
+        while(column != n) {
+            /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+            nb_elem = (column + 1) / (Ddesc->grid.rows);
+            if ( ( (column + 1) % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
+                nb_elem++;
+                    
+            pos += nb_elem;
+            column += Ddesc->grid.cols;
+        }
+            
+        pos += (m / (Ddesc->grid.rows));
+    }
+
+    return pos;
+}
+
+static int32_t sym_twoDBC_get_vpid(dague_ddesc_t *desc, ...)
+{
+    int m, n;
+    size_t pos;
+    sym_two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (sym_two_dim_block_cyclic_t *)desc;
+
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+    assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
+    
+    pos = sym_twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
+
+    return tiled_matrix_get_vpid(&Ddesc->super, pos);
+}
+
 static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 {
-    size_t pos;
     int m, n;
-    int nb_elem, nb_elem_col, column;
+    size_t pos;
     sym_two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (sym_two_dim_block_cyclic_t *)desc;
@@ -92,47 +159,7 @@ static void * sym_twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 
     assert(desc->myrank == sym_twoDBC_get_rank_for_tile(desc, m, n));
 
-    /**********************************/
-    if(Ddesc->uplo == MatrixLower )
-        {
-            pos = 0; /* current position (as number of tile) in the buffer */
-            column = Ddesc->grid.crank; /* tile column considered */
-            nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
-            if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
-                nb_elem_col++;
-            
-            while(column != n) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-                {
-                    nb_elem = column / (Ddesc->grid.rows);
-                    if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
-                        nb_elem++;
-                    
-                    pos += (nb_elem_col - nb_elem);
-                    column += Ddesc->grid.cols;
-                    
-                }
-            
-            pos += ((m - n) / (Ddesc->grid.rows));
-        }
-    else /* Ddesc->uplo == MatrixUpper */
-        {
-            pos = 0; /* current position (as number of tile) in the buffer */
-            column = Ddesc->grid.crank; /* tile column considered */
-                        
-            while(column != n) /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-                {
-                    nb_elem = (column + 1) / (Ddesc->grid.rows);
-                    if ( ( (column + 1) % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
-                        nb_elem++;
-                    
-                    pos += nb_elem;
-                    column += Ddesc->grid.cols;
-                    
-                }
-            
-            pos += (m / (Ddesc->grid.rows));
-            
-        }
+    pos = sym_twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
 
     /**********************************/
     //printf("get tile (%d, %d) is at pos %d\t(ptr %p, base %p)\n", m, n, pos*Ddesc->bsiz,&(((double *) Ddesc->mat)[pos * Ddesc->bsiz]), Ddesc->mat);
@@ -183,7 +210,7 @@ static int  sym_twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey
 #endif /* DAGUE_PROF_TRACE */
 
 
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc, 
+void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
                                    enum matrix_type mtype, 
                                    int nodes, int cores, int myrank, 
                                    int mb,   int nb,   /* Tile size */
@@ -205,6 +232,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
         
         o->rank_of       = sym_twoDBC_get_rank_for_tile;
         o->data_of       = sym_twoDBC_get_local_tile;
+        o->vpid_of       = sym_twoDBC_get_vpid;
 #if defined(DAGUE_PROF_TRACE)
         o->data_key      = sym_twoDBC_data_key;
         o->key_to_string = sym_twoDBC_key_to_string;
@@ -215,7 +243,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
-                            mb, nb, lm, ln, i, j, m, n);
+                            mb, nb, lm, ln, i, j, m, n );
 
     assert((nodes % P) == 0);
     Q = nodes / P;

@@ -353,7 +353,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
     fake_context.data[1].data      = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__dague_object->super.src->nt; n = 0) {
-#warning This should be context->virtual_processes[domain_of(...)]
+#warning This should be context->virtual_processes[vpid_of(...)]
         eu = context->virtual_processes[0]->execution_units[count];
         ready_list = NULL;
 
@@ -370,7 +370,7 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
                              __dague_object->super.src->super.myrank, NULL, (void*)&ready_list);
             __dague_schedule( eu, ready_list );
             count++;
-#warning This should be context->virtual_processes[domain_of(...)]
+#warning This should be context->virtual_processes[vpid_of(...)]
             if( count == context->virtual_processes[0]->nb_cores ) goto done;
             break;
         }

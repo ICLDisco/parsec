@@ -41,6 +41,7 @@
 
 dague_allocate_data_t dague_data_allocate = malloc;
 dague_free_data_t     dague_data_free = free;
+dague_vp_map_t        dague_default_vp_map = { .nb_vp = 1 };
 
 #ifdef DAGUE_PROF_TRACE
 int MEMALLOC_start_key, MEMALLOC_end_key;

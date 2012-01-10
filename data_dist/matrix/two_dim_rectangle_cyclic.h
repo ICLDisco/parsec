@@ -65,10 +65,10 @@ typedef struct two_dim_block_cyclic {
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc, 
                                enum matrix_type mtype, 
                                int nodes, int cores, int myrank, 
-			       int mb,   int nb,   /* Tile size */                                           
-			       int lm,   int ln,   /* Global matrix size (what is stored)*/                  
+                               int mb,   int nb,   /* Tile size */                                           
+                               int lm,   int ln,   /* Global matrix size (what is stored)*/                  
                                int i,    int j,    /* Staring point in the global matrix */                  
-			       int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
                                int nrst, int ncst, /* Super-tiling size */
                                int process_GridRows );
 

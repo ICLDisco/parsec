@@ -1496,7 +1496,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-#warning Should be virtal_processes[domain_of(...)] (not critical, though)
+#warning Should be virtal_processes[vpid_of(...)] (not critical, though)
     coutput("static int %s(dague_context_t *context, const __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
             "  dague_execution_context_t* new_context;\n"
@@ -1591,7 +1591,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  dague_list_add_single_elem_by_priority( pready_list, new_context );\n", indent(nesting));
 
-#warning Should be virtual_processes[domain_of(...)] (not critical, though)
+#warning Should be virtual_processes[vpid_of(...)] (not critical, though)
     coutput("%s  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[0]->execution_units[0]->context_mempool );\n"
             "%s  assignments = new_context->locals;\n",
             indent(nesting),
@@ -1610,7 +1610,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);    
     string_arena_free(sa2);
 
-#warning Should be virtual_processes[domain_of(...)] (not critical, though)
+#warning Should be virtual_processes[vpid_of(...)] (not critical, though)
     coutput("  dague_thread_mempool_free( context->virtual_processes[0]->execution_units[0]->context_mempool, new_context );\n");
 
     coutput("  return 0;\n"

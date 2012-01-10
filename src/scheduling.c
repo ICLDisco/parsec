@@ -362,7 +362,7 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
             object->startup_hook(context, object, &startup_list);
             if( NULL != startup_list ) {
                 /* We should add these tasks on the system queue */
-#warning TODO: should not be virtual_processes[0] but virtual_processes[domain_of(...)]
+#warning TODO: should not be virtual_processes[0] but virtual_processes[vpid_of(...)]
                 __dague_schedule( context->virtual_processes[0]->execution_units[0], startup_list );
             }
         }
