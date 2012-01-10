@@ -76,7 +76,7 @@ _EOF
 CC=mpixlc_r
 CXX=mpixlcxx_r
 FC=mpixlf77_r
-CFLAGS="-I/bgsys/drivers/V1R4M2_200_2010-100508P/ppc/arch/include"
+#CFLAGS="-I/bgsys/drivers/ppcfloor/arch/include"
 LDFLAGS="${SAVE_LDFLAGS}"
 
 MPI="-DDAGUE_DIST_WITH_MPI=ON"
