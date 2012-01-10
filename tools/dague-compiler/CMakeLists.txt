@@ -1,10 +1,6 @@
-# when crosscompiling import the executable targets from a file
-IF(CMAKE_CROSSCOMPILING)
-
-  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
-  INCLUDE(${IMPORT_EXECUTABLES})
-
-ELSE(CMAKE_CROSSCOMPILING)
+# when crosscompiling the executable is imported from the
+# export file.
+IF(NOT CMAKE_CROSSCOMPILING)
 
   BISON_TARGET(dague_yacc dague.y ${CMAKE_CURRENT_BINARY_DIR}/dague.y.c)
   FLEX_TARGET(dague_flex dague.l  ${CMAKE_CURRENT_BINARY_DIR}/dague.l.c)
@@ -26,5 +22,9 @@ ELSE(CMAKE_CROSSCOMPILING)
 
   install(TARGETS daguepp RUNTIME DESTINATION bin)
 
-ENDIF(CMAKE_CROSSCOMPILING)
+  #
+  # Generate the EXPORT file for external projects.
+  #
+  EXPORT(TARGETS daguepp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake" NAMESPACE native-)
+ENDIF(NOT CMAKE_CROSSCOMPILING)
 

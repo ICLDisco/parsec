@@ -466,9 +466,21 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 add_definitions(-DHAVE_CONFIG_H)
 
 #
+# First go for the tools.
+#
+set(daguepp_EXE "NOT-DEFINED")
+add_subdirectory(tools)
+IF(CMAKE_CROSSCOMPILING)
+  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
+  MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
+  INCLUDE(${IMPORT_EXECUTABLES})
+  GET_TARGET_PROPERTY(daguepp_EXE native-daguepp IMPORTED_LOCATION_RELWITHDEBINFO)
+ELSE(CMAKE_CROSSCOMPILING)
+  GET_TARGET_PROPERTY(daguepp_EXE daguepp LOCATION)
+ENDIF(CMAKE_CROSSCOMPILING)
+#
 #  Settings for targets
 # 
-
 set(SRCS 
   src/barrier.c 
   src/stats.c 
@@ -505,7 +517,6 @@ ENDIF( BUILD_DAGUE )
 # Now continue with compiling the tests.
 #
 
-add_subdirectory(tools)
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
