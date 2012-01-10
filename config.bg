@@ -62,9 +62,9 @@ _EOF
 # Generate the imported executable file.
 #
 cat << _EOF > ImportExecutables.cmake
-ADD_EXECUTABLE(daguepp IMPORT)
+ADD_EXECUTABLE(daguepp IMPORTED)
 SET_TARGET_PROPERTIES(daguepp PROPERTIES 
-                      LOCATION ${PWD}/tools/dague-compiler/daguepp)
+                      IMPORTED_LOCATION ${PWD}/native/tools/dague-compiler/daguepp)
 _EOF
 
 #
@@ -92,5 +92,5 @@ OPTS="-DBUILD_64bits=OFF -DBUILD_TOOLS=OFF"
 # Done with variable allocation, do the thing with Cmake
 export CC CXX FC CFLAGS
 
-cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneP.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneP.cmake -DIMPORT_EXECUTABLES=ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
 
