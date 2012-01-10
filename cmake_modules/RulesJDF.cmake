@@ -27,7 +27,8 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
       add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c
         COMMAND ${daguepp_EXE} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
-        MAIN_DEPENDENCY ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_SRC}.jdf)
+        MAIN_DEPENDENCY ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_SRC}.jdf
+        DEPEND ${daguepp_EXE})
 
     else( jdf_rules_IsInBinaryDir )
 
@@ -35,7 +36,8 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
       add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c
         COMMAND ${daguepp_EXE} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
-        MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf)
+        MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
+        DEPEND ${daguepp_EXE})
 
     endif( jdf_rules_IsInBinaryDir )
 
