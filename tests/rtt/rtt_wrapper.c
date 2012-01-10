@@ -6,6 +6,7 @@
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
+#include <stdio.h>
 
 #include "rtt.h"
 #include "rtt_wrapper.h"
