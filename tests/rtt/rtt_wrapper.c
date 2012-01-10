@@ -1,4 +1,6 @@
 #include "dague.h"
+#include <data_distribution.h>
+#include <arena.h>
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
