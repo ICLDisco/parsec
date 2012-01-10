@@ -25,25 +25,28 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
 
       #message(STATUS "${jdf_rules_SOURCE} with generated = ${jdf_rules_IsInBinaryDir} - Depends on binary_dir")
       add_custom_command(
-        OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-        COMMAND daguepp ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c
+        COMMAND ${daguepp_EXE} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
         MAIN_DEPENDENCY ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_SRC}.jdf
-        DEPENDS daguepp)
+        DEPEND ${daguepp_EXE})
 
     else( jdf_rules_IsInBinaryDir )
 
       #message(STATUS "${jdf_rules_SOURCE} with generated = ${jdf_rules_IsInBinaryDir} - Depends on source_dir")
       add_custom_command(
-        OUTPUT ${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c
-        COMMAND daguepp ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c
+        COMMAND ${daguepp_EXE} ${DAGUEPP_CFLAGS} ${ADDITIONAL_DAGUEPP_CFLAGS} -i ${jdf_rules_SRC}.jdf -o ${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC} -f ${jdf_rules_BSRC}
         MAIN_DEPENDENCY ${jdf_rules_SRC}.jdf
-        DEPENDS daguepp)
+        DEPEND ${daguepp_EXE})
 
     endif( jdf_rules_IsInBinaryDir )
 
-    set_source_files_properties(${jdf_rules_OSRC}.h ${jdf_rules_OSRC}.c PROPERTIES GENERATED 1)
     list(APPEND ${jdf_rules_OUTPUTLIST} "${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h;${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c")
 
   endforeach()
+  #
+  # Mark all generated files as such.
+  #
+  set_source_files_properties(${jdf_rules_OUTPUTLIST} PROPERTIES GENERATED 1)
 endmacro(jdf_rules)
 

@@ -5,9 +5,11 @@
  */
 
 #include "dague.h"
+#include "remote_dep.h"
 #include "matrix.h"
 #include "dague_prof_grapher.h"
 #include <scheduling.h>
+#include <datarepo.h>
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};

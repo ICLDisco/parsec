@@ -12,7 +12,7 @@
 #include <mpi.h>
 #include "profiling.h"
 #include "arena.h"
-#include "fifo.h"
+#include "list.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 
@@ -99,6 +99,7 @@ typedef struct dep_cmd_item_t
     int               priority;
     dep_cmd_t         cmd;
 } dep_cmd_item_t;
+#define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
 
 typedef struct dague_dep_wire_get_fifo_elem_t {
     dague_list_item_t           item;
@@ -106,6 +107,8 @@ typedef struct dague_dep_wire_get_fifo_elem_t {
     int                         priority;
     int                         peer;
 } dague_dep_wire_get_fifo_elem_t;
+#define dep_wire_get_prio (offsetof(dague_dep_wire_get_fifo_elem_t, priority))
+#define rdep_prio (offsetof(dague_remote_deps_t, max_priority))
 
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i);
@@ -386,23 +389,6 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     return ret;
 }
 
-static inline dague_list_item_t* rdep_fifo_push_ordered_cmd( dague_list_t* fifo,
-                                                             dague_list_item_t* elem )
-{
-    dague_list_item_t* position;
-    dep_cmd_item_t* ec;
-    dep_cmd_item_t* input = (dep_cmd_item_t*)elem;
-
-    position = DAGUE_ULIST_ITERATOR(fifo, item, 
-    {
-        ec = (dep_cmd_item_t*)item;
-        if( ec->priority < input->priority )
-            break;
-    });
-    dague_ulist_add(fifo, position, elem);
-    return elem;
-}
-
 #ifndef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_nothread_init(dague_context_t* context)
 {
@@ -443,7 +429,8 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
                 break;
             } else goto handle_now;
         }
-        rdep_fifo_push_ordered_cmd(&dep_cmd_fifo, (dague_list_item_t*)item);
+        
+        dague_ulist_push_sorted(&dep_cmd_fifo, (dague_list_item_t*)item, dep_cmd_prio);
     }
     item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_cmd_fifo);
 
@@ -878,23 +865,6 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     return ret;
 }
 
-static inline dague_list_item_t* rdep_fifo_push_ordered_get( dague_list_t* fifo,
-                                                             dague_list_item_t* elem )
-{
-    dague_list_item_t* position;
-    dague_dep_wire_get_fifo_elem_t* ec;
-    dague_dep_wire_get_fifo_elem_t* input = (dague_dep_wire_get_fifo_elem_t*)elem;
-
-    position = DAGUE_ULIST_ITERATOR(fifo, item,
-    {
-        ec = (dague_dep_wire_get_fifo_elem_t*)item;
-        if( ec->priority < input->priority )
-            break;
-    });
-    dague_ulist_add(fifo, position, elem);
-    return elem;
-}
-
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status )
 {
 #ifdef DAGUE_DEBUG
@@ -910,7 +880,7 @@ static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, 
     deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
     item-> priority = deps->max_priority;
     item->peer = status->MPI_SOURCE;
-    rdep_fifo_push_ordered_get( &dague_put_fifo, (dague_list_item_t*)item );
+    dague_ulist_push_sorted(&dague_put_fifo, (dague_list_item_t*)item, dep_wire_get_prio);
     DEBUG(("MPI: Put DELAYED for %s from %d tag %u which 0x%x (deps %p)\n",
            remote_dep_cmd_to_string(&deps->msg, tmp, 128), item->peer, task->tag, task->which, (void*)deps));
     /* Check if we can push any new puts */
@@ -1111,7 +1081,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
      * point */
     if(saved_deps->msg.which) {
         saved_deps->msg.deps = deps->msg.deps;
-        rdep_fifo_push_ordered_cmd( &dague_activations_fifo, (dague_list_item_t*)saved_deps );
+        dague_ulist_push_sorted(&dague_activations_fifo, (dague_list_item_t*)saved_deps, rdep_prio);
     }
     else
     {

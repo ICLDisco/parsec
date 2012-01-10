@@ -88,47 +88,49 @@ dague_list_nolock_remove( dague_list_t* list,
 /* SORTED LIST FUNCTIONS */
 
 /** add the @item before the first element of @list that is strictly smaller" (mutex protected),
- *  according to the @comparator function. That is, if the input @list is 
+ *  according to the integer  value at @offset in items. That is, if the input @list is 
  *  sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_push_sorted( dague_list_t* list,
                         dague_list_item_t* item, 
-                        dague_list_item_comparator_t comparator);                      
+                        size_t offset );
 /** add the @item before the first element of @list that is striclty smaller (not thread safe),
- *  according to the @comparator function. That is, if the @list is 
- *  already sorted (descending order), the resulting list is still sorted. */
+ *  according to the integer  value at @offset in items. That is, if the input @list is 
+ *  sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_nolock_push_sorted( dague_list_t* list,
                                dague_list_item_t* item, 
-                               dague_list_item_comparator_t comparator);
+                               size_t offset );
 #define dague_ulist_push_sorted(list, item, comparator) dague_list_nolock_push_sorted(list,item,comparator)
 
 
 /** chain the unsorted @items (mutex protected), as if they had been
- *  inserted in a loop by dague_list_push_sorted(). That is, if the 
+ *  inserted in a loop of dague_list_push_sorted(). That is, if the input
  * @list is sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_nolock_chain_sorted( dague_list_t* list, 
                                 dague_list_item_t* items,
-                                dague_list_item_comparator_t comparator );
+                                size_t offset );
 /** chain the unsorted @items (not thread safe), as if they had been
- *  inserted in a loop by dague_list_push_sorted(). That is, if the 
+ *  inserted in a loop by dague_list_push_sorted(). That is, if the input
  * @list is sorted (descending order), the resulting list is still sorted. */
 static inline void
 dague_list_nolock_chain_sorted( dague_list_t* list, 
                                 dague_list_item_t* items,
-                                dague_list_item_comparator_t comparator );
+                                size_t offset );
 #define dague_ulist_chain_sorted(list, items, comp) dague_list_nolock_chain_sorted(list, items, comp)
 
 
-/** sort @list according to the (descending) order defined by @comparator (mutex protected) */
+/** sort @list according to the (descending) order defined by the integer
+ * value at @offset in evey item (mutex protected) */
 static inline void
 dague_list_sort( dague_list_t* list,
-                 dague_list_item_comparator_t comparator );
-/** sort @list according to the (descending) order defined by @comparator (not thread safe) */
+                 size_t offset );
+/** sort @list according to the (descending) order defined by the integer
+ * value at @offset in evey item (not thread safe) */
 static inline void
 dague_list_nolock_sort( dague_list_t* list,
-                        dague_list_item_comparator_t comparator );
+                        size_t offset );
 #define dague_ulist_sort(list, comp) dague_list_nolock_sort(list,comp)
 
 /* DEQUEUE EMULATION FUNCTIONS */
@@ -355,7 +357,7 @@ dague_list_nolock_add_before( dague_list_t* list,
                               dague_list_item_t* new )
 {
 #if defined(DAGUE_DEBUG)
-    assert( position->belong_to_list == list );
+    assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
     new->list_prev = position->list_prev;
@@ -370,7 +372,7 @@ dague_list_nolock_add_after( dague_list_t* list,
                              dague_list_item_t* new )
 {
 #if defined(DAGUE_DEBUG)
-    assert( position->belong_to_list == list );
+    assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, new);
     new->list_prev = position;
@@ -385,7 +387,7 @@ dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
 #if defined(DAGUE_DEBUG)
-    assert(item->belong_to_list == list);
+    assert(item->belong_to == list);
 #else
     (void)list;
 #endif
@@ -407,7 +409,7 @@ dague_list_remove_item( dague_list_t* list,
                         dague_list_item_t* item)
 {
 #if defined(DAGUE_DEBUG)
-    assert( item->belong_to_list == list );
+    assert( item->belong_to == list );
 #else
     (void)list;
 #endif
@@ -422,39 +424,41 @@ dague_list_remove_item( dague_list_t* list,
 }
 #endif
 
+
+#define _comp_val(it, off) (*((int*)(((uintptr_t)it)+off)))
+
 static inline void
 dague_list_push_sorted( dague_list_t* list,
                         dague_list_item_t* item, 
-                        dague_list_item_comparator_t comparator )
+                        size_t off )
 {
     dague_list_lock(list);
-    dague_list_nolock_push_sorted(list, item, comparator);
+    dague_list_nolock_push_sorted(list, item, off);
     dague_list_unlock(list);
 }
 
 static inline void
 dague_list_nolock_push_sorted( dague_list_t* list,
-                               dague_list_item_t* item, 
-                               dague_list_item_comparator_t comparator )
+                               dague_list_item_t* new, 
+                               size_t off )
 {
-    dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, current, 
+    dague_list_item_t* position = DAGUE_ULIST_ITERATOR(list, pos, 
     {
-        if(comparator(current, item) < 0)
+        if( _comp_val(new, off) > _comp_val(pos, off) )
             break;
     });
-    dague_ulist_add_before(list, position, item);
+    dague_ulist_add_before(list, position, new);
 }
 
 static inline void
 dague_list_chain_sorted( dague_list_t* list, 
                          dague_list_item_t* items,
-                         dague_list_item_comparator_t comparator )
+                         size_t off )
 {
     dague_list_lock(list);
-    dague_list_nolock_chain_sorted(list, items, comparator);
+    dague_list_nolock_chain_sorted(list, items, off);
     dague_list_unlock(list);
 }
-
 
 /* Insertion sort, but do in-place merge if sequential items are monotonic
  * random complexity is O(ln*in), but is reduced to O(ln+in)) if items 
@@ -463,77 +467,67 @@ dague_list_chain_sorted( dague_list_t* list,
 static inline void
 dague_list_nolock_chain_sorted( dague_list_t* list, 
                                 dague_list_item_t* items,
-                                dague_list_item_comparator_t comparator )
+                                size_t off )
 {
     dague_list_item_t* new;
-    dague_list_item_t* last;
+    dague_list_item_t* pos;
     if( NULL == items ) return;
-    if( dague_ulist_is_empty(list) )
-    {   /* the list must contain the last/smallest element in next loop */
+    if( dague_list_nolock_is_empty(list) )
+    {   /* the list must contain the pos element in next loop */
         new = items;
         items = dague_list_item_ring_chop(items);
-        dague_ulist_add(list, _GHOST(list), new);
+        dague_list_nolock_add(list, _GHOST(list), new);
     }
-    last = (dague_list_item_t*)_TAIL(list);
+    pos = (dague_list_item_t*)_TAIL(list);
     
     for(new = items;
         NULL != new; 
         new = items)
     {
         items = dague_list_item_ring_chop(items);
-        if( comparator(last, new) < 0 )
+        if( _comp_val(new, off) > _comp_val(pos, off) )
         {   /* this new item is larger than the last insert,
              * reboot and insert from the beginning */
-             last = (dague_list_item_t*)_HEAD(list);
+             pos = (dague_list_item_t*)_HEAD(list);
         }
-        else
-        {   /* advance one, so the sorting is stable if last == new */
-            last = (dague_list_item_t*)last->list_next;
-        }
-        /* search the first smaller element, from the computed start 
-         * position, then insert before it */
-        for(; last != _GHOST(list); last = (dague_list_item_t*)last->list_next)
+        /* search the first strictly (for stability) smaller element, 
+         * from the current start position, then insert before it */
+        for(; pos != _GHOST(list); pos = (dague_list_item_t*)pos->list_next)
         {
-            if( comparator(last, new) < 0 )
-                    break;
+            if( _comp_val(new, off) > _comp_val(pos, off) )
+                break;
         }
-        dague_ulist_add_before(list, last, new);
-        last = new;
+        dague_list_nolock_add_before(list, pos, new);
+        pos = new;
     }
 }
 
 
 static inline void
 dague_list_sort( dague_list_t* list,
-                 dague_list_item_comparator_t comparator )
+                 size_t off )
 {
     dague_list_lock(list);
-    dague_list_nolock_sort(list, comparator);
+    dague_list_nolock_sort(list, off);
     dague_list_unlock(list);
 }
 
 static inline void
 dague_list_nolock_sort( dague_list_t* list,
-                        dague_list_item_comparator_t comparator )
+                        size_t off )
 {
     if(dague_list_nolock_is_empty(list)) return;
     
-    /* remove the items from the list, chain_sort the items */
-#ifdef DAGUE_DEBUG
-    /* because we are internal, we do shaddy things to that list
-     * make asserts happy */
-    DAGUE_ULIST_ITERATOR(list, item, {
-        item->refcount = 0;
-    });
-#endif
-    dague_list_item_t* items = (dague_list_item_t*)_HEAD(list);
-    items->list_prev = _TAIL(list);
-    _TAIL(list)->list_next = items;
+    /* remove the items from the list, then chain_sort the items */
+    dague_list_item_t* items;
+    items = dague_list_item_ring((dague_list_item_t*)_HEAD(list), 
+                                 (dague_list_item_t*)_TAIL(list));
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
-    dague_list_nolock_chain_sorted(list, items, comparator);
+    dague_list_nolock_chain_sorted(list, items, off);
 }
 
+#undef _comp_val
 
 
 static inline void

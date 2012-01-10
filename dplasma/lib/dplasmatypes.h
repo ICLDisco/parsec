@@ -2,12 +2,14 @@
 #define DPLASMA_DATATYPE_H_HAS_BEEN_INCLUDED
 
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 #include <dague.h>
 #include "dplasma.h"
+#include "remote_dep.h"
+#include "arena.h"
 
 #define dplasma_comm MPI_COMM_WORLD
 

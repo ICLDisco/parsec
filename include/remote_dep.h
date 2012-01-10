@@ -21,10 +21,7 @@ typedef void* dague_remote_dep_datatype_t;
 
 #include "dague_description_structures.h"
 #include "lifo.h"
-#include "execution_unit.h"
 #include "dague.h"
-#include "arena.h"
-#include "datarepo.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x0100
@@ -81,15 +78,6 @@ struct dague_remote_deps_t {
  *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
 
 
-
-/* Gives pointers to expr_t allowing for evaluation of GRID predicates, needed 
- * by the precompiler only */
-int dague_remote_dep_get_rank_preds(const dague_object_t *dague_object,
-                                    const expr_t **predicates,
-                                    const expr_t **rowpred,
-                                    const expr_t **colpred, 
-                                    const symbol_t **rowsize,
-                                    const symbol_t **colsize);
 
 #if defined(DISTRIBUTED)
 

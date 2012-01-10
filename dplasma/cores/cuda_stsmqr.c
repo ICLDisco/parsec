@@ -11,6 +11,7 @@
 #include "execution_unit.h"
 #include "scheduling.h"
 #include "fifo.h"
+#include "datarepo.h"
 
 #include <plasma.h>
 

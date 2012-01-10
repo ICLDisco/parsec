@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -138,16 +139,6 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
     }
 }
 
-static int elt_comparator(dague_list_item_t* i1, dague_list_item_t* i2)
-{
-    elt_t* e1 = (elt_t*)i1;
-    elt_t* e2 = (elt_t*)i2;
-    
-    if(e1->base == e2->base) return 0;
-    if(e1->base < e2->base) return -1;
-    else return 1;
-}
-
 #if 0
     /* usefull code snippet */
     DAGUE_LIST_ITERATOR(l2, item, {
@@ -155,6 +146,8 @@ static int elt_comparator(dague_list_item_t* i1, dague_list_item_t* i2)
     });
     printf("\n");
 #endif
+
+#define elt_comparator offsetof(elt_t, base)
 
 static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
 {
@@ -167,7 +160,7 @@ static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
         
     printf(" - sort reverse sorted list l2, check it is in order\n");
     dague_ulist_sort(l2, elt_comparator);
-    check_lifo_translate_inorder(l2,l1,"l1","l2");
+    check_lifo_translate_inorder(l2,l1,"l2","l1");
     
     printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
     elt_t* e;

@@ -70,13 +70,17 @@
  *     high level tree to reduce communications.
  *     These lines are defined by (i-k)/p = 0.
  */ 
-#include <math.h>
-#include <plasma.h>
 #include <dague.h>
+#include <plasma.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
 #include "dplasma_qr_pivgen.h"
+
+#include <math.h>
+#if defined(HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
 
 #ifndef min
 #define min(__a, __b) ( ( (__a) < (__b) ) ? (__a) : (__b) )

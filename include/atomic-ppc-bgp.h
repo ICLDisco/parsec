@@ -15,7 +15,10 @@
 #ifndef DAGUE_ATOMIC_BGP_HAS_BEEN_INCLUDED
 #define DAGUE_ATOMIC_BGP_HAS_BEEN_INCLUDED
 
-#include <bpcore/ppc450_inlines.h>
+#warning BGP atomic included
+
+/*#include <bpcore/ppc450_inlines.h>*/
+#include <assert.h>
 
 static inline void dague_mfence( void )
 {

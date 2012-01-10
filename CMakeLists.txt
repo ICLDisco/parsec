@@ -24,9 +24,11 @@ mark_as_advanced(BUILD_TOOLS)
 option(BUILD_DAGUE
        "Compile the DAGuE framework" ON)
 mark_as_advanced(BUILD_DAGUE)
-if( BUILD_DAGUE AND NOT BUILD_TOOLS )
-  message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
-endif( BUILD_DAGUE AND NOT BUILD_TOOLS )
+if( BUILD_DAGUE )
+  if( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
+    message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
+  endif( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
+endif( BUILD_DAGUE )
 option(BUILD_DPLASMA
        "Compile the DPLASMA layer" ON)
 mark_as_advanced(BUILD_DPLASMA)
@@ -178,10 +180,10 @@ IF (_match_xlc)
      MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
 ENDIF (_match_xlc)
 STRING(REGEX MATCH ".*xlc_r$" _match_xlc ${CMAKE_C_COMPILER})
-IF (_match_xlc)
+IF (_match_xlc AND BUILD_64bits)
      MESSAGE(STATUS "Add -q64 to the C compiler/linker.")
      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -q64")
-ENDIF (_match_xlc)
+ENDIF (_match_xlc AND BUILD_64bits)
 
 STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
 IF (_match_xlf)
@@ -189,8 +191,12 @@ IF (_match_xlf)
 ENDIF (_match_xlf)
 STRING(REGEX MATCH ".*xlf_r$" _match_xlf ${CMAKE_Fortran_COMPILER})
 IF (_match_xlf)
-     MESSAGE(STATUS "Add -nofor_main and -q64 to the Fortran linker.")
-     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main -q64")
+  SET(arch_flags "-q32")
+  IF(BUILD_64bits)
+     SET(arch_flags "-q64")
+  ENDIF(BUILD_64bits)
+  MESSAGE(STATUS "Add ${arch_flags} and -nofor_main to the Fortran linker.")
+  SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${arch_flags} -nofor_main")
 ENDIF (_match_xlf)
 
 # check for the CPU we build for
@@ -263,6 +269,11 @@ IF( NOT _match_xlc )
   IF( HAVE_STD_C99 )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
   ENDIF( HAVE_STD_C99 )
+ELSE( NOT _match_xlc )
+  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" HAVE_STD_C99)
+  IF( HAVE_STD_C99 )
+    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qlanglvl=extc99" )
+  ENDIF( HAVE_STD_C99 )
 ENDIF( NOT _match_xlc )
 
 # Set warnings for debug builds 
@@ -322,10 +333,30 @@ endif( HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
 check_include_files(stdarg.h HAVE_STDARG_H)
-check_function_exists(va_copy HAVE_VA_COPY)
-if (NOT HAVE_VA_COPY)
-  check_function_exists(__va_copy HAVE_UNDERSCORE_VA_COPY)
-endif (NOT HAVE_VA_COPY)
+# va_copy is special as it is not required to be a function.
+if (HAVE_STDARG_H)
+  check_c_source_compiles("
+      #include <stdarg.h>
+      int main(void) {
+          va_list a, b;
+          va_copy(a, b);
+          return 0;
+      }"
+      HAVE_VA_COPY
+      )
+ 
+  if (NOT HAVE_VA_COPY)
+    check_c_source_compiles("
+        #include <stdarg.h>
+        int main(void) {
+            va_list a, b;
+            __va_copy(a, b);
+            return 0;
+        }"
+        HAVE_UNDERSCORE_VA_COPY
+        )
+  endif (NOT HAVE_VA_COPY)
+endif (HAVE_STDARG_H)
 check_function_exists(asprintf HAVE_ASPRINTF)
 check_function_exists(vasprintf HAVE_VASPRINTF)
 check_include_files(getopt.h HAVE_GETOPT_H)
@@ -435,17 +466,29 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 add_definitions(-DHAVE_CONFIG_H)
 
 #
+# First go for the tools.
+#
+set(daguepp_EXE "NOT-DEFINED")
+add_subdirectory(tools)
+IF(CMAKE_CROSSCOMPILING)
+  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
+  MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
+  INCLUDE(${IMPORT_EXECUTABLES})
+  GET_TARGET_PROPERTY(daguepp_EXE native-daguepp IMPORTED_LOCATION_RELWITHDEBINFO)
+ELSE(CMAKE_CROSSCOMPILING)
+  GET_TARGET_PROPERTY(daguepp_EXE daguepp LOCATION)
+ENDIF(CMAKE_CROSSCOMPILING)
+#
 #  Settings for targets
 # 
-
 set(SRCS 
-  src/dague.c 
-  src/arena.c
+  src/barrier.c 
+  src/stats.c 
   src/scheduling.c
   src/schedulers.c 
-  src/stats.c 
+  src/dague.c 
+  src/arena.c
   src/remote_dep.c 
-  src/barrier.c 
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
@@ -474,9 +517,6 @@ ENDIF( BUILD_DAGUE )
 # Now continue with compiling the tests.
 #
 
-IF( BUILD_TOOLS )
-  add_subdirectory(tools)
-ENDIF( BUILD_TOOLS )
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )

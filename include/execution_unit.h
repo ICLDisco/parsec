@@ -8,21 +8,18 @@
 #define DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague.h"
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif
 
-typedef struct dague_context_t      dague_context_t;          /**< The general context that holds all the threads of dague for this MPI process */
-typedef struct dague_vp             dague_vp_t;               /**< Each MPI process includes multiple virtual processes (and a single comm. thread) */
-typedef struct dague_execution_unit dague_execution_unit_t;   /**< Each virtual process includes multiple execution units (posix threads + local data) */
-
 #include <pthread.h>
+#include <stdint.h>
 #include "hbbuffer.h"
 #include "mempool.h"
 #include "profiling.h"
-
-struct dague_priority_sorted_list;
+#include "barrier.h"
 
 /**
  *  Computational Thread-specific structure 
@@ -47,18 +44,12 @@ struct dague_execution_unit {
 
     pthread_t* pthreads;            /**< posix threads for each of the threads under this context */
 
-    dague_vp_t             *virtual_process;   /**< Backlink to the virtual process that holds this thread */
+    struct dague_vp        *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     dague_thread_mempool_t *context_mempool;
     dague_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];
 
     uint32_t *remote_dep_fw_mask;
 };
-
-#include <stdint.h>
-#include <pthread.h>
-#include "barrier.h"
-#include "profiling.h"
-#include "dague.h"
 
 /**
  * Threads are grouped per virtual process
@@ -118,7 +109,7 @@ struct dague_context_t {
      * we will allocate more (as many as we need), so everything after this
      * field might be overwritten.
      */
-    dague_vp_t* virtual_processes[1];
+    struct dague_vp* virtual_processes[1];
 };
 
 #define DAGUE_THREAD_IS_MASTER(eu) ( ((eu)->th_id == 0) && ((eu)->virtual_process->vp_id == 0) )
