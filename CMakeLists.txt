@@ -49,7 +49,6 @@ endif(NOT CMAKE_BUILD_TYPE)
 set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
-
 ## Multicore scheduler parameters
 mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
@@ -474,9 +473,9 @@ IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  GET_TARGET_PROPERTY(daguepp_EXE native-daguepp IMPORTED_LOCATION_RELWITHDEBINFO)
+  SET(daguepp_EXE native-daguepp)
 ELSE(CMAKE_CROSSCOMPILING)
-  GET_TARGET_PROPERTY(daguepp_EXE daguepp LOCATION)
+  SET(daguepp_EXE daguepp)
 ENDIF(CMAKE_CROSSCOMPILING)
 #
 #  Settings for targets
