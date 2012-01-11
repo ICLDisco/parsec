@@ -77,7 +77,7 @@ CC=mpixlc_r
 CXX=mpixlcxx_r
 FC=mpixlf77_r
 #CFLAGS="-I/bgsys/drivers/ppcfloor/arch/include"
-LDFLAGS="${SAVE_LDFLAGS}"
+LDFLAGS="${SAVE_LDFLAGS} -L/opt/ibmcmp/xlf/bg/11.1/bglib/ -qsmp=omp"
 
 MPI="-DDAGUE_DIST_WITH_MPI=ON"
 PLASMA="-DPLASMA_DIR=/home/bosilca/opt/bluegene/"
