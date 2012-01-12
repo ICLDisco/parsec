@@ -44,6 +44,7 @@ struct _dep_t{
 
 extern int _q2j_produce_shmem_jdf;
 extern int _q2j_verbose_warnings;
+extern int _q2j_add_phony_tasks;
 
 #if 0
 extern void dump_und(und_t *und);
@@ -3858,19 +3859,6 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
     // Put the name and parameters of the pseudo-task in the beginning of the string.
     ptask_str = append_to_string(pseudotask_name, ptask_str, "\n%s", 1+strlen(ptask_str)); 
 
-#if 0
-    // This code generates a predicate expressed as a range, to ensure that tasks are not generated if they are impossible.
-    // This functionality does not seem to be necessary any more, so we removed it.
-    if( !cond.is_null() ){
-        Relation dom = Relation(Domain(cond));
-        // WARNING: This is needed by Omega. If you remove it you get strange
-        // assert() calls being triggered inside the Omega library.
-        (void)dom.print_with_subs_to_string(false);
-        const char *tmp = expr_tree_to_str(relation_to_tree(dom)); 
-        ptask_str = append_to_string(ptask_str, tmp, "  /*_dague_pseudotask_predicate = 1..%s*/\n", 40+strlen(tmp));
-    }
-#endif
-
     asprintf( &parent_task_name , "%s(%s)",parent_task->task_name, parent_formal_parameters);
 
     //char *data_str = tree_to_str(data_element);
@@ -3890,7 +3878,6 @@ static char *create_pseudotask(task_t *parent_task, Relation S_es, Relation cond
     ptask_str = append_to_string(ptask_str,"BODY\n/* nothing */\nEND\n", NULL, 0);
 
     free(parent_task_name);
-    //free(pseudotask_name);
     free(mtrx_name);
 
     return ptask_str;
@@ -3931,6 +3918,10 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     }
     free(comm_mtrx);
     free(refr_mtrx);
+
+    if( need_ptask && _q2j_add_phony_tasks ){
+        fprintf(stderr,"WARNING: Both phony tasks (e.g. DAGUE_IN_A) and pseudo-tasks (e.g. zunmqr_in_data_T1) are being generated.");
+    }
 
     return need_ptask;
 }
