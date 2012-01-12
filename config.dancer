@@ -60,7 +60,7 @@ if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*
   export CUDA_BIN_PATH=${CUDA_DIR}
 fi
 
-if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=ON.*") -gt 0 ]; then 
+if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
   Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
 fi
 
