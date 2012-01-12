@@ -19,15 +19,12 @@ int asprintf(char **ret, const char *format, ...);
 int vasprintf(char **ret, const char *format, va_list ap);
 #endif  /* !defined(HAVE_VASPRINTF) */
 
-#ifdef DAGUE_DEBUG
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#   ifdef HAVE_MPI
-/* only one printf to avoid line breaks in the middle */
 
+/* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
 {
     char* txt;
@@ -39,40 +36,80 @@ static inline char* arprintf(const char* fmt, ...)
     return txt;
 }
 
-#include <mpi.h>
-
 #if defined(DAGUE_DEBUG_HISTORY)
-void dague_debug_history_add(const char *format, ...);
-#define DEBUG(ARG) dague_debug_history_add ARG
-#else /* DAGUE_DEBUG_HISTORY */
+    void dague_debug_history_add(const char *format, ...);
+#   define _DAGUE_DEBUG_HISTORY(ARG) dague_debug_history_add ARG
+#else
+#   define _DAGUE_DEBUG_HISTORY(ARG)
+#endif
 
-#define DEBUG(ARG)  do { \
-    int __debug_rank; \
-    char* __debug_str; \
-    MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
-    __debug_str = arprintf ARG ; \
-    fprintf(stderr, "[%d]\t%s", __debug_rank, __debug_str); \
-    free(__debug_str); \
+#ifdef HAVE_MPI
+#   include <mpi.h>
+#   define _DAGUE_OUTPUT(PRFX, ARG) do { \
+        int __debug_rank; \
+        char* __debug_str; \
+        MPI_Comm_rank(MPI_COMM_WORLD, &__debug_rank); \
+        __debug_str = arprintf ARG ; \
+        fprintf(stderr,  "["PRFX"DAGuE % 5d]:\t%s", __debug_rank, __debug_str); \
+        free(__debug_str); \
+    } while(0)
+
+#   define ABORT() MPI_Abort(MPI_COMM_SELF, -1)
+
+#else /* HAVE_MPI */
+#   define _DAGUE_OUTPUT(PRFX, ARG) do { \
+        char* __debug_str; \
+        __debug_str = arprintf ARG ; \
+        fprintf(stderr, "["PRFX"DAGuE]:\t%s", __debug_str); \
+        free(__debug_str); \
+    } while(0)
+
+#   define ABORT() abort()
+
+#endif /* HAVE_MPI */
+
+#define STATUS(ARG) do { \
+    _DAGUE_OUTPUT("i.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
 
-#endif
+#define WARNING(ARG) do { \
+    _DAGUE_OUTPUT("!.", ARG) ; \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
 
-#   else /* HAVE_MPI */
+#define ERROR(ARG) do { \
+    _DAGUE_OUTPUT("X.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+    ABORT(); \
+} while(0)
 
-#if defined(DAGUE_DEBUG_HISTORY)
-void dague_debug_history_add(const char *format, ...);
-#define DEBUG(ARG) dague_debug_history ARG
-#else
-#define DEBUG(ARG) printf ARG
-#endif
+#ifdef DAGUE_DEBUG_VERBOSE1
+#   define DEBUG(ARG) do { \
+        _DAGUE_OUTPUT("v.", ARG); \
+        _DAGUE_DEBUG_HISTORY(ARG); \
+    } while(0)
 
-#   endif /* HAVE_MPI */
+#   ifdef DAGUE_DEBUG_VERBOSE2
+#       define DEBUG2(ARG) do { \
+            _DAGUE_OUTPUT("V.", ARG); \
+            _DAGUE_DEBUG_HISTORY(ARG); \
+    } while(0)
+#       ifdef DAGUE_DEBUG_VERBOSE3
+#           define DEBUG3(ARG) do { \
+                _DAGUE_OUTPUT("V.", ARG); \
+                _DAGUE_DEBUG_HISTORY(ARG); \
+            } while(0)
+#       else /*DEBUG3*/
+#           define DEBUG3(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
+#       endif /*DEBUG3*/
+#   else /*DEBUG2*/
+#       define DEBUG2(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
+#   endif /*DEBUG2*/
+#else /*DEBUG1*/
+#   define DEBUG(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
+#endif /*DEBUG1*/
 
-#else /* DAGUE_DEBUG */
-
-#define DEBUG(ARG)
-
-#endif /* DAGUE_DEBUG */
 
 
 #ifdef DAGUE_DEBUG_HISTORY
