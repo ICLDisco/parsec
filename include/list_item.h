@@ -173,7 +173,6 @@ dague_list_item_ring_chop( dague_list_item_t* item )
     do {                                                                \
         dague_list_item_t *_item = (ITEM);                              \
         /* check for not poping the ghost element, doesn't work for atomic_lifo */\
-        assert( _item->list_next->belong_to == _item->belong_to );      \
         assert( _item->belong_to != (void*)_item );                     \
         _item->list_prev = (void*)0xdeadbeef;                           \
         _item->list_next = (void*)0xdeadbeef;                           \
