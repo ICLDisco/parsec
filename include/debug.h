@@ -23,6 +23,16 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #include <stdlib.h>
 #include <stdio.h>
 
+#if (DAGUE_DEBUG_VERBOSE) >= 3
+#   define DAGUE_DEBUG_VERBOSE3
+#   define DAGUE_DEBUG_VERBOSE2
+#   define DAGUE_DEBUG_VERBOSE1
+#elif (DAGUE_DEBUG_VERBOSE) >= 2
+#   define DAGUE_DEBUG_VERBOSE2
+#   define DAGUE_DEBUG_VERBOSE1
+#elif (DAGUE_DEBUG_VERBOSE) >= 1
+#   define DAGUE_DEBUG_VERBOSE1
+#endif
 
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
