@@ -261,7 +261,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* Total number of tiles stored locally */
     Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
 
-    DEBUG(("two_dim_block_cyclic_init: \n"
+    DEBUG3(("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, cores = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
            "      nrst = %d, ncst = %d, P = %d, Q = %d\n",

@@ -15,7 +15,7 @@
 /* Clear the already forwarded remote dependency matrix */
 static inline void remote_dep_reset_forwarded( dague_execution_unit_t* eu_context, dague_remote_deps_t* rdeps )
 {
-    /*DEBUG(("fw reset\tcontext %p\n", (void*) eu_context));*/
+    DEBUG3(("fw reset\tcontext %p\n", (void*) eu_context));
     memset(rdeps->remote_dep_fw_mask, 0, eu_context->master_context->remote_dep_fw_mask_sizeof);
 }
 
@@ -25,7 +25,7 @@ static inline void remote_dep_mark_forwarded( dague_execution_unit_t* eu_context
     unsigned int boffset;
     uint32_t mask;
     
-    /*DEBUG(("fw mark\tREMOTE rank %d\n", rank));*/
+    DEBUG3(("fw mark\tREMOTE rank %d\n", rank));
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
@@ -41,7 +41,7 @@ static inline int remote_dep_is_forwarded( dague_execution_unit_t* eu_context, d
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->master_context->remote_dep_fw_mask_sizeof);
-    /*DEBUG(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));*/
+    DEBUG3(("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (eu_context->remote_dep_fw_mask[boffset] & mask)));
     return (int) ((rdeps->remote_dep_fw_mask[boffset] & mask) != 0);
 }
 
@@ -208,9 +208,11 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
     unsigned int array_index, count, bit_index;
     
 #if defined(DAGUE_DEBUG)
-    char tmp[128];
     /* make valgrind happy */
     memset(&remote_deps->msg, 0, sizeof(remote_dep_wire_activate_t));
+#endif
+#if defined(DAGUE_DEBUG_VERBOSE1)
+    char tmp[128];
 #endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
@@ -243,7 +245,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     count++;
                     remote_deps_count--;
 
-                    //DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
+                    DEBUG3((" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank));
                     
                     /* root already knows but falsely appear in this bitfield */
                     if(rank == remote_deps->root) continue;
@@ -258,7 +260,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     
                     if(remote_dep_bcast_child(me, him))
                     {
-                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
+                        DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) -> %d (d%d)\n", dague_service_to_string(exec_context, tmp, 128), remote_deps->root, eu_context->master_context->my_rank, me, rank, him));
                         
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
@@ -268,7 +270,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                             } else {
                                 RDEP_MSG_EAGER_CLR(&remote_deps->msg);
                             }
-                            DEBUG((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n",
+                            DEBUG3((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n",
                                    dague_service_to_string(exec_context, tmp, 128), i,
                                    (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), RDEP_MSG_EAGER(&remote_deps->msg)));
                         }
@@ -280,7 +282,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                         remote_dep_send(rank, remote_deps);
                     } else {
-                        DEBUG((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n",
+                        DEBUG2((" TOPO\t%s\troot=%d\t%d (d%d) ][ %d (d%d)\n",
                                dague_service_to_string(exec_context, tmp, 128), remote_deps->root,
                                eu_context->master_context->my_rank, me, rank, him));
                     }

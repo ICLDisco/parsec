@@ -82,8 +82,8 @@ typedef struct _gpu_device {
     {                                                                   \
         cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
         if( cudaSuccess != __cuda_error ) {                             \
-            printf( "%s:%d %s%s\n", __FILE__, __LINE__,                 \
-                    (STR), cudaGetErrorString(__cuda_error) );          \
+            WARNING(( "%s:%d %s%s\n", __FILE__, __LINE__,               \
+                    (STR), cudaGetErrorString(__cuda_error) ));         \
             CODE;                                                       \
         }                                                               \
     }

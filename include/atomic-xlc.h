@@ -40,14 +40,12 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
     return __compare_and_swaplp( (volatile long*)location, &old, new_value );
 }
 #else
-#include <stdio.h>
-#include <assert.h>
+#include "debug.h"
 static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )
 {
-    printf("Use of 64b CAS using atomic-xlc without compiler support\n \n");
-    assert(0);
+    ERROR(("Use of 64b CAS using atomic-xlc without compiler support\n \n"));
     return -1;
 }
 #endif

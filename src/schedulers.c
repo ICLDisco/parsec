@@ -170,7 +170,7 @@ static int init_local_flat_queues(  dague_context_t *master )
                 d = dague_hwloc_distance(eu->eu_id, id);
                 if( d == 2*level || d == 2*level + 1 ) {
                     sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(master->execution_units[id])->task_queue;
-                    DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
+                    DEBUG3(("schedLFQ %d:\tmy %d preferred queue is the task queue of %d (%p)\n",
                            eu->eu_id, nq, id, sched_obj->hierarch_queues[nq]));
                     nq++;
                     if( nq == sched_obj->nb_hierarch_queues )
@@ -242,7 +242,7 @@ static int init_local_hier_queues( dague_context_t *master )
                 sched_obj->hierarch_queues[idx] = dague_hbbuffer_new( queue_size, nbcores,
                                                                       level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                                                       level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1]);
-                DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
+                DEBUG3(("schedHQ %d:\tcreates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
                        eu->eu_id, queue_size, nbcores,
                        level, idx, sched_obj->hierarch_queues[idx],
                        level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1],
@@ -258,7 +258,7 @@ static int init_local_hier_queues( dague_context_t *master )
             int idx = sched_obj->nb_hierarch_queues - 1 - level;
             int m = dague_hwloc_master_id(level, eu->eu_id);
             if( eu->eu_id != m ) {
-                DEBUG(("%d takes the buffer of %d at level %d stored in %d: %p\n",
+                DEBUG3(("schedHQ %d:\ttakes the buffer of %d at level %d stored in %d: %p\n",
                        eu->eu_id, m, level, idx, LOCAL_QUEUES_OBJECT(master->execution_units[m])->hierarch_queues[idx]));
                 /* The slaves take their queue for this level from their master */
                 sched_obj->hierarch_queues[idx] = LOCAL_QUEUES_OBJECT(master->execution_units[m])->hierarch_queues[idx];

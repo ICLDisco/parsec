@@ -271,8 +271,8 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
     this_event_length = EVENT_LENGTH( key, (NULL != info) );
     if( (context->next_event + this_event_length) > context->events_top ) {
         if( context->next_event <= context->events_top ) {
-            fprintf(stderr, "Profiling warning: profiling for ID %s will be truncated after %lu events\n",
-                    context->hr_id, (unsigned long)context->nb_events);
+            WARNING(("Profiling: trace for ID %s will be truncated after %lu events\n",
+                    context->hr_id, (unsigned long)context->nb_events));
             context->next_event = context->events_top + 1;
         }
         return -1;
@@ -312,7 +312,7 @@ static dague_profiling_output_t *find_matching_event_in_profile(const dague_thre
     return NULL;
 }
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE1)
 static void dump_whole_trace(void)
 {
     const dague_profiling_output_t *event;
@@ -379,18 +379,18 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 /* Couldn't find the end, or no id. Bad. */
                 if( event_not_found ) {
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE1)
                     dump_whole_trace();
 #endif
 
                     if( !displayed_error_message ) {
                         if( profile->next_event >= profile->events_top ) {
-                            fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
+                            WARNING(("Profiling: end event of key %u (%s) id %lu was not found for ID %s\n"
                                     "\t-- some histories are truncated\n",
-                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
+                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
                         } else {
-                            fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n",
-                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
+                            WARNING(("Profiling: end event of key %u (%s) id %lu was not found for ID %s\n",
+                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
                         }
                         displayed_error_message = 1;
                     }
