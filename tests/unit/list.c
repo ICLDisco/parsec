@@ -1,4 +1,7 @@
+#include "dague_config.h"
 #undef NDEBUG
+#undef HAVE_MPI
+#undef DAGUE_DEBUG_HISTORY
 
 #include <pthread.h>
 #include <stdarg.h>
