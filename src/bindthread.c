@@ -1,4 +1,7 @@
 #include "dague_config.h"
+/*  unset options that make debug.h unpure, we need bindthread to compile standalone for unit tests */
+#undef HAVE_MPI
+#undef DAGUE_DEBUG_HISTORY
 #include "debug.h"
 #include "bindthread.h"
 #if defined(HAVE_HWLOC)
