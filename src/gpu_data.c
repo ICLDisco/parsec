@@ -16,6 +16,7 @@ static int using_gpu = 0;
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <errno.h>
 #include "lifo.h"
 
 static CUcontext dague_allocate_on_gpu_context;

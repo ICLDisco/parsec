@@ -1,4 +1,5 @@
 #include "dague_config.h"
+#include "debug.h"
 #include "bindthread.h"
 #if defined(HAVE_HWLOC)
 #  include <hwloc.h>
