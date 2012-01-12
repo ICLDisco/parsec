@@ -224,8 +224,13 @@ struct dague_lifo_t {
     dague_list_t list;
 };
 
-#define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ((elt) = (__typeof__(elt)) malloc(truesize))
-#define DAGUE_LIFO_ITEM_FREE( elt ) free(elt)
+#define DAGUE_LIFO_ITEM_ALLOC( elt, truesize ) ({                       \
+    (elt) = (__typeof__(elt)) malloc(truesize);                         \
+    DAGUE_LIST_ITEM_CONSTRUCT(elt);                                     \
+    (elt); })
+#define DAGUE_LIFO_ITEM_FREE( elt ) do {                                \
+    DAGUE_LIST_ITEM_DESTRUCT(elt);                                      \
+    free(elt); } while(0)
 
 static inline void 
 dague_lifo_construct( dague_lifo_t* lifo ) {
