@@ -1,9 +1,12 @@
 #include "dague.h"
+#include <data_distribution.h>
+#include <arena.h>
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
+#include <stdio.h>
 
 #include "rtt.h"
 #include "rtt_wrapper.h"

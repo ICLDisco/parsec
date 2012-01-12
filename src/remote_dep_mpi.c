@@ -12,7 +12,7 @@
 #include <mpi.h>
 #include "profiling.h"
 #include "arena.h"
-#include "fifo.h"
+#include "list.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 
@@ -26,6 +26,8 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
 
 static int remote_dep_nothread_send(dague_execution_unit_t* eu_context, int rank, dague_remote_deps_t* deps);
 static int remote_dep_nothread_memcpy(void *dst, void *src, const dague_remote_dep_datatype_t datatype);
+
+static int remote_dep_bind_thread(dague_context_t* context);
 
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
 #ifdef DAGUE_REMOTE_DEP_USE_THREADS
@@ -97,6 +99,7 @@ typedef struct dep_cmd_item_t
     int               priority;
     dep_cmd_t         cmd;
 } dep_cmd_item_t;
+#define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
 
 typedef struct dague_dep_wire_get_fifo_elem_t {
     dague_list_item_t           item;
@@ -104,6 +107,8 @@ typedef struct dague_dep_wire_get_fifo_elem_t {
     int                         priority;
     int                         peer;
 } dague_dep_wire_get_fifo_elem_t;
+#define dep_wire_get_prio (offsetof(dague_dep_wire_get_fifo_elem_t, priority))
+#define rdep_prio (offsetof(dague_remote_deps_t, max_priority))
 
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
 static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i);
@@ -136,9 +141,9 @@ static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* 
 
 static pthread_t dep_thread_id;
 dague_dequeue_t dep_cmd_queue;
-dague_fifo_t    dep_cmd_fifo;            /* ordered non threaded fifo */
-dague_fifo_t    dague_activations_fifo;  /* ordered non threaded fifo */
-dague_fifo_t    dague_put_fifo;          /* ordered non threaded fifo */
+dague_list_t    dep_cmd_fifo;            /* ordered non threaded fifo */
+dague_list_t    dague_activations_fifo;  /* ordered non threaded fifo */
+dague_list_t    dague_put_fifo;          /* ordered non threaded fifo */
 dague_remote_deps_t** dep_pending_recv_array;
 dague_dep_wire_get_fifo_elem_t** dep_pending_put_array;
 
@@ -166,9 +171,9 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);
 
     dague_dequeue_construct(&dep_cmd_queue);
-    dague_fifo_construct(&dep_cmd_fifo);
-    dague_fifo_construct(&dague_activations_fifo);
-    dague_fifo_construct(&dague_put_fifo);
+    dague_list_construct(&dep_cmd_fifo);
+    dague_list_construct(&dague_activations_fifo);
+    dague_list_construct(&dague_put_fifo);
 
     /* Build the condition used to drive the MPI thread */
     pthread_mutex_init( &mpi_thread_mutex, NULL );
@@ -214,12 +219,12 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
      */
     {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+        DAGUE_LIST_ITEM_CONSTRUCT(item);
         dague_context_t *ret;
 
         item->action = DEP_CTL;
         item->cmd.ctl.enable = -1;  /* turn off the MPI thread */
         item->priority = 0;
-        DAGUE_LIST_ITEM_SINGLETON(item);
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 
         /* I am supposed to own the lock. Wake the MPI thread */
@@ -248,10 +253,10 @@ static int remote_dep_dequeue_off(dague_context_t* context)
     if(1 == context->nb_nodes) return 0;
 
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_CTL;
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
-    DAGUE_LIST_ITEM_SINGLETON(item);
     while( 1 == mpi_thread_marker ) sched_yield();
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 
@@ -266,11 +271,9 @@ static int do_nano = 0;
 
 static void* remote_dep_dequeue_main(dague_context_t* context)
 {
-    int ctl = -1, whatsup;
+    int whatsup;
 
-    ctl = dague_bindthread(context->nb_cores);
-    if(ctl != context->nb_cores) do_nano = 1;
-    else fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+    remote_dep_bind_thread(context); 
 
     remote_dep_mpi_init(context);
     /* Now synchroniza with the main thread */
@@ -299,11 +302,11 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_ACTIVATE;
     item->cmd.activate.rank = rank;
     item->cmd.activate.deps = deps;
     item->priority = deps->max_priority;
-    DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
     return 1;
 }
@@ -315,6 +318,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_remote_dep_datatype_t datatype)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_MEMCPY;
     item->cmd.memcpy.dague_object = dague_object;
     item->cmd.memcpy.source       = src;
@@ -323,7 +327,6 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
     AREF(src);
     remote_dep_inc_flying_messages(dague_object, eu_context->master_context);
     item->priority = 0;
-    DAGUE_LIST_ITEM_SINGLETON(item);
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }
 
@@ -352,7 +355,7 @@ static int remote_dep_get_datatypes(dague_remote_deps_t* origin)
 
 static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_deps_t* origin)
 {
-    int actions = DAGUE_ACTION_NO_PLACEHOLDER | DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
+    int actions = DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_RELEASE_REMOTE_DEPS;
     dague_execution_context_t exec_context;
     const dague_flow_t* target;
     int ret, i, whereto;
@@ -390,32 +393,13 @@ static int remote_dep_release(dague_execution_unit_t* eu_context, dague_remote_d
     return ret;
 }
 
-static inline dague_list_item_t* rdep_fifo_push_ordered_cmd( dague_fifo_t* fifo,
-                                                             dague_list_item_t* elem )
-{
-    dague_list_item_t* current;
-    dep_cmd_item_t* ec;
-    dep_cmd_item_t* input = (dep_cmd_item_t*)elem;
-
-    for(current = dague_list_iterate_first(fifo);
-        current != dague_list_iterate_end(fifo);
-        current = dague_list_iterate_next(fifo, current))
-    {
-        ec = (dep_cmd_item_t*)current;
-        if( ec->priority < input->priority )
-            break;
-    }
-    dague_list_iterate_add_before(fifo, current, elem);
-    return elem;
-}
-
 #ifndef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_nothread_init(dague_context_t* context)
 {
     dague_dequeue_construct(&dep_cmd_queue);
-    dague_fifo_construct(&dep_cmd_fifo);
-    dague_fifo_construct(&dague_activations_fifo);
-    dague_fifo_construct(&dague_put_fifo);
+    dague_list_construct(&dep_cmd_fifo);
+    dague_list_construct(&dague_activations_fifo);
+    dague_list_construct(&dague_put_fifo);
 
     return remote_dep_mpi_init(context);
 }
@@ -423,9 +407,9 @@ static int remote_dep_dequeue_nothread_init(dague_context_t* context)
 static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
 {
     remote_dep_mpi_fini(context);
-    dague_fifo_destruct(&dep_cmd_fifo);
-    dague_fifo_destruct(&dague_activations_fifo);
-    dague_fifo_destruct(&dague_put_fifo);
+    dague_list_destruct(&dep_cmd_fifo);
+    dague_list_destruct(&dague_activations_fifo);
+    dague_list_destruct(&dague_put_fifo);
     
     return 0;
 }
@@ -440,19 +424,19 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
     /**
      * Move as many elements as possible from the dequeue into our ordered lifo.
      */
-    while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_pop_front(&dep_cmd_queue)) ) {
+    while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {
             /* A DEP_CTL is a barrier that must not be crossed, flush the
              * ordered fifo and don't add anything until it is consumed */
-            if( !dague_ufifo_is_empty(&dep_cmd_fifo) ) {
-                DAGUE_LIST_ITEM_SINGLETON(item);
+            if( !dague_ulist_is_empty(&dep_cmd_fifo) ) {
                 dague_dequeue_push_front(&dep_cmd_queue, (dague_list_item_t*)item);
                 break;
             } else goto handle_now;
         }
-        rdep_fifo_push_ordered_cmd(&dep_cmd_fifo, (dague_list_item_t*)item);
+        
+        dague_ulist_push_sorted(&dep_cmd_fifo, (dague_list_item_t*)item, dep_cmd_prio);
     }
-    item = (dep_cmd_item_t*)dague_ufifo_pop(&dep_cmd_fifo);
+    item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_cmd_fifo);
 
     if(NULL == item ) {
         do { 
@@ -720,8 +704,7 @@ static int remote_dep_mpi_fini(dague_context_t* context)
     for(i = 0; i < DEP_NB_CONCURENT; i++) {
         MPI_Cancel(&dep_activate_req[i]); MPI_Test(&dep_activate_req[i], &flag, &status); MPI_Request_free(&dep_activate_req[i]);
         MPI_Cancel(&dep_get_req[i]); MPI_Test(&dep_get_req[i], &flag, &status); MPI_Request_free(&dep_get_req[i]);
-        DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)dep_activate_buff[i]);
-        dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)dep_activate_buff[i]);
+        dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)dep_activate_buff[i]);
     }
     for(i = 0; i < DEP_NB_REQ; i++) {
         assert(MPI_REQUEST_NULL == array_of_requests[i]);
@@ -886,25 +869,6 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     return ret;
 }
 
-static inline dague_list_item_t* rdep_fifo_push_ordered_get( dague_fifo_t* fifo,
-                                                             dague_list_item_t* elem )
-{
-    dague_list_item_t* current;
-    dague_dep_wire_get_fifo_elem_t* ec;
-    dague_dep_wire_get_fifo_elem_t* input = (dague_dep_wire_get_fifo_elem_t*)elem;
-
-    for(current = dague_list_iterate_first(fifo);
-        current != dague_list_iterate_end(fifo);
-        current = dague_list_iterate_next(fifo, current))
-    {
-        ec = (dague_dep_wire_get_fifo_elem_t*)current;
-        if( ec->priority < input->priority )
-            break;
-    }
-    dague_list_iterate_add_before(fifo, current, elem);
-    return elem;
-}
-
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status )
 {
 #ifdef DAGUE_DEBUG
@@ -915,19 +879,19 @@ static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, 
     dague_remote_deps_t *deps;
     
     item = (dague_dep_wire_get_fifo_elem_t*)malloc(sizeof(dague_dep_wire_get_fifo_elem_t));
-    DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)item);
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
     task = &(item->task);
     memcpy( task, &dep_get_buff[i], sizeof(remote_dep_wire_get_t) );
     deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
     item-> priority = deps->max_priority;
     item->peer = status->MPI_SOURCE;
-    rdep_fifo_push_ordered_get( &dague_put_fifo, (dague_list_item_t*)item );
+    dague_ulist_push_sorted(&dague_put_fifo, (dague_list_item_t*)item, dep_wire_get_prio);
     DEBUG(("MPI: Put DELAYED for %s from %d tag %u which 0x%x (deps %p)\n",
            remote_dep_cmd_to_string(&deps->msg, tmp, 128), item->peer, task->tag, task->which, (void*)deps));
     /* Check if we can push any new puts */
     for( i = 0; i < DEP_NB_CONCURENT; i++ ) {
         if( NULL == dep_pending_put_array[i] ) {
-            item = (dague_dep_wire_get_fifo_elem_t*)dague_ufifo_pop(&dague_put_fifo);
+            item = (dague_dep_wire_get_fifo_elem_t*)dague_ulist_fifo_pop(&dague_put_fifo);
             remote_dep_mpi_put_start(eu_context, item, i );
             break;
         }
@@ -1050,8 +1014,8 @@ static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, in
     if( 0 == task->which ) {
         free(item);
         dep_pending_put_array[i] = NULL;
-        if( !dague_ufifo_is_empty(&dague_put_fifo) ) {
-            item = (dague_dep_wire_get_fifo_elem_t*)dague_ufifo_pop(&dague_put_fifo);
+        if( !dague_ulist_is_empty(&dague_put_fifo) ) {
+            item = (dague_dep_wire_get_fifo_elem_t*)dague_ulist_fifo_pop(&dague_put_fifo);
             if( NULL != item ) {
                 remote_dep_mpi_put_start(eu_context, item, i );
             }
@@ -1067,7 +1031,6 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
     dague_remote_deps_t *saved_deps, *deps = dep_activate_buff[i];
     
     saved_deps = remote_deps_allocation(&dague_remote_dep_context.freelist);
-    DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)saved_deps);
     /* Update the required fields */
     saved_deps->msg = deps->msg;
     RDEP_MSG_EAGER_CLR(&saved_deps->msg);
@@ -1123,18 +1086,17 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
      * point */
     if(saved_deps->msg.which) {
         saved_deps->msg.deps = deps->msg.deps;
-        rdep_fifo_push_ordered_cmd( &dague_activations_fifo, (dague_list_item_t*)saved_deps );
+        dague_ulist_push_sorted(&dague_activations_fifo, (dague_list_item_t*)saved_deps, rdep_prio);
     }
     else
     {
-        DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)saved_deps);
-        dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)saved_deps);
+        dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)saved_deps);
     }
 
     /* Check if we have some ordered rdv get to treat */
     for( i = 0; i < DEP_NB_CONCURENT; i++ ) {
         if( NULL == dep_pending_recv_array[i] ) {
-            deps = (dague_remote_deps_t*)dague_ufifo_pop(&dague_activations_fifo);
+            deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dague_activations_fifo);
             if(deps) remote_dep_mpi_get_start(eu_context, deps, i );
             break;
         }
@@ -1221,14 +1183,70 @@ static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_rem
     remote_dep_release(eu_context, deps);
     AUNREF(deps->output[k].data);
     if(deps->msg.which == deps->msg.deps) {
-        DAGUE_LIST_ITEM_SINGLETON((dague_list_item_t*)deps);
-        dague_atomic_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
+        dague_lifo_push(&dague_remote_dep_context.freelist, (dague_list_item_t*)deps);
         dep_pending_recv_array[i] = NULL;
-        if( !dague_ufifo_is_empty(&dague_activations_fifo) ) {
-            deps = (dague_remote_deps_t*)dague_ufifo_pop(&dague_activations_fifo);
+        if( !dague_ulist_is_empty(&dague_activations_fifo) ) {
+            deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dague_activations_fifo);
             if( NULL != deps ) {
                 remote_dep_mpi_get_start(eu_context, deps, i );
             }
         }
     }
 }
+
+int remote_dep_bind_thread(dague_context_t* context){
+#ifdef HAVE_HWLOC
+    if (context->comm_th_core >= 0){
+	/* Bind to the specified core */
+	if(dague_bindthread(context->comm_th_core) == context->comm_th_core)
+	    fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n",  context->comm_th_core);
+	/* there is no guarantee the thread doesn't share the core. */
+	do_nano = 1;
+    }
+    /* Bind to the specified mask */
+    else if(context->comm_th_core == -2){
+	if (dague_bindthread_mask(context->comm_th_binding_mask)==0){
+	    char *str = NULL;
+#if !defined(HAVE_HWLOC_BITMAP)
+	    hwloc_cpuset_asprintf(&str, context->comm_th_binding_mask);
+#else
+	    hwloc_bitmap_asprintf(&str, context->comm_th_binding_mask);
+#endif
+	    fprintf(stderr, "Bind the communication thread on the cpu mask %s\n", str);
+	    free(str);
+	}
+	do_nano = 1;
+    } else { 
+	/* no binding specified: bind on an available core if any 
+	   (registered in core_free_mask) */
+	int ctl = -1, free_core;
+#if defined(HAVE_HWLOC_BITMAP)
+	free_core=hwloc_bitmap_next(context->core_free_mask, -1); 
+#else
+    /* the core_free_mask doesn't exist as it depends on HWLOC_BITMAP */ 
+	free_core=-1; 
+#endif
+   	ctl = dague_bindthread(free_core); 
+	
+	if (ctl != free_core){
+	    do_nano = 1;
+	    fprintf(stderr, "DAGuE\tMPI not bound\n");
+	}
+	else
+	    fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+    }
+#else
+    /* binding on an extra core if any */ 
+    int ctl = -1;
+    ctl = dague_bindthread(context->nb_cores);
+    
+    if (ctl != context->nb_cores){
+	do_nano = 1;
+	fprintf(stderr, "DAGuE\tMPI not bound\n");
+    }
+    else
+	fprintf(stderr, "DAGuE\tMPI bound to physical core %d\n", ctl);
+#endif
+    return 0;
+}
+

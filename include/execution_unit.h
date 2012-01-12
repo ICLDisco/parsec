@@ -8,18 +8,18 @@
 #define DAGUE_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague.h"
 
-#define PLACEHOLDER_SIZE 2
-
-typedef struct dague_context_t dague_context_t;
-typedef struct dague_execution_unit dague_execution_unit_t;
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
 
 #include <pthread.h>
+#include <stdint.h>
 #include "hbbuffer.h"
 #include "mempool.h"
 #include "profiling.h"
-
-struct dague_priority_sorted_list;
+#include "barrier.h"
 
 struct dague_execution_unit {
     int32_t eu_id;
@@ -45,12 +45,6 @@ struct dague_execution_unit {
     uint32_t* remote_dep_fw_mask;
 };
 
-#include <stdint.h>
-#include <pthread.h>
-#include "barrier.h"
-#include "profiling.h"
-#include "dague.h"
-
 struct dague_context_t {
     volatile int32_t __dague_internal_finalization_in_progress;
     int32_t nb_cores;
@@ -69,6 +63,13 @@ struct dague_context_t {
 #if defined(DAGUE_SIM)
     int largest_simulation_date;
 #endif
+
+#ifdef HAVE_HWLOC 
+    int comm_th_core; 
+    hwloc_cpuset_t comm_th_binding_mask;
+    hwloc_cpuset_t core_free_mask;
+#endif
+
     /* This field should always be the last one in the structure. Even if the
      * declared number of execution units is 1 when we allocate the memory
      * we will allocate more (as many as we need), so everything after this

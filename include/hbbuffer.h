@@ -75,21 +75,11 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         /* Assume that we're going to push elt.
          * Remove the first element from the list, keeping the rest of the list in next
          */
-        next = (dague_list_item_t *)elt->list_next;
-        if(next == elt) {
-            next = NULL;
-        } else {
-            elt->list_next->list_prev = elt->list_prev;
-            elt->list_prev->list_next = elt->list_next;
-
-            elt->list_prev = elt;
-            elt->list_next = elt;
-        }
+        next = dague_list_item_ring_chop(elt);
         /* Try to find a room for elt */
         for(; (size_t)i < b->size; i++) {
-            if( dague_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) == 0 )
+            if( 0 == dague_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) )
                 continue;
-
             /*printf( "Push elem %p in local queue %p at position %d\n", elt, b, i );*/
             /* Found an empty space to push the first element. */
             nbelt++;
@@ -106,16 +96,13 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
 
     DEBUG(("pushed %d elements. %s\n", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done"));
 
-    if( elt != NULL ) {
-
+    if( NULL != elt ) {
         if( NULL != next ) {
-            /* Rechain elt to next */
-            elt->list_next = next;
-            elt->list_prev = next->list_prev;
-            next->list_prev->list_next = elt;
-            next->list_prev = elt;
+            dague_list_item_ring_push(next, elt);
         }
-
+        else {
+            dague_list_item_singleton(elt);
+        }
         b->parent_push_fct(b->parent_store, elt);
     }
 }

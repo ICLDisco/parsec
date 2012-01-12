@@ -145,3 +145,36 @@ int dague_bindthread(int cpu)
     
     return cpu;
 }
+
+
+#if defined(HAVE_HWLOC)
+int dague_bindthread_mask(hwloc_cpuset_t cpuset)
+{
+    hwloc_topology_t topology; /* Topology object */
+
+    /* Allocate and initialize topology object.  */
+    hwloc_topology_init(&topology);
+
+    /* Perform the topology detection.  */
+    hwloc_topology_load(topology);
+
+    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
+	char *str = NULL;
+#if !defined(HAVE_HWLOC_BITMAP)
+	hwloc_cpuset_asprintf(&str, cpuset);
+#else
+	hwloc_bitmap_asprintf(&str, cpuset);
+#endif
+	printf("Couldn't bind to cpuset %s\n", str);
+	free(str);
+
+        /* Destroy topology object.  */
+	hwloc_topology_destroy(topology);
+	return -1;
+    }
+
+    /* Destroy topology object.  */
+    hwloc_topology_destroy(topology);
+    return 0;
+}
+#endif

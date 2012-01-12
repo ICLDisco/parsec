@@ -84,8 +84,7 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #if defined(DAGUE_DEBUG)
         memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
-        dague_atomic_lifo_push(deps->origin,           
-             dague_list_item_singleton((dague_list_item_t*) deps));
+        dague_lifo_push(deps->origin, (dague_list_item_t*)deps);
     }
 }                                                                                           
 
@@ -320,7 +319,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             dague_remote_dep_context.max_dep_count * rankbits_size +
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
-        dague_atomic_lifo_construct(&dague_remote_dep_context.freelist);
+        dague_lifo_construct(&dague_remote_dep_context.freelist);
         dague_remote_dep_inited = 1;
     }
 
@@ -334,10 +333,10 @@ void remote_deps_allocation_fini(void)
     dague_remote_deps_t* rdeps;
         
     if(1 == dague_remote_dep_inited) {
-        while(NULL != (rdeps = (dague_remote_deps_t*) dague_atomic_lifo_pop(&dague_remote_dep_context.freelist))) {
+        while(NULL != (rdeps = (dague_remote_deps_t*) dague_lifo_pop(&dague_remote_dep_context.freelist))) {
             free(rdeps);
         }
-        dague_atomic_lifo_destruct(&dague_remote_dep_context.freelist);
+        dague_lifo_destruct(&dague_remote_dep_context.freelist);
     }
     dague_remote_dep_inited = 0;
 } 

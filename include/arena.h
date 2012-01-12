@@ -9,10 +9,6 @@
 #include <stdlib.h>
 
 #include "dague_config.h"
-
-typedef struct dague_arena_t dague_arena_t;
-typedef struct dague_arena_chunk_t dague_arena_chunk_t;
-
 #include "dague.h"
 #if defined(HAVE_STDDEF_H)
 #include <stddef.h>
@@ -31,7 +27,7 @@ typedef struct dague_arena_chunk_t dague_arena_chunk_t;
 
 struct dague_arena_t
 {
-    dague_atomic_lifo_t lifo;
+    dague_lifo_t lifo;
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
@@ -45,11 +41,14 @@ struct dague_arena_t
     dague_free_data_t data_free;
 };
 
+/* The fields are ordered so that important list_item_t fields are not 
+ * damaged when using them as arena chunks */
 struct dague_arena_chunk_t {
-    volatile uint32_t refcount;
-    uint32_t cache_friendly_emptyness;
     dague_arena_t* origin;
+    uint64_t keeper_of_the_seven_keys;
     void* data;
+    volatile uint32_t refcount;
+    int32_t cache_friendly_emptyness;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */

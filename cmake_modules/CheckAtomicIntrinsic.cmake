@@ -1,11 +1,11 @@
 #
 # Check if the compiler supports __sync_bool_compare_and_swap.
 #
-include(CheckCSourceRuns)
+include(CheckCSourceCompiles)
 
 message(STATUS "Check if the compiler provides atomic operations directives")
 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main( int argc, char** argv)
@@ -18,22 +18,52 @@ CHECK_C_SOURCE_RUNS("
          return 0;
       }
       " DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
+if( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
+  CHECK_C_SOURCE_COMPILES("
+        #include <stdint.h>
 
-CHECK_C_SOURCE_RUNS("
+        int main( int argc, char** argv)
+        {
+           int64_t where = 0;
+
+           if (!__sync_bool_compare_and_swap(&where, 0, 1))
+              return -1;
+
+           return 0;
+        }
+        " DAGUE_ATOMIC_USE_GCC_64_BUILTINS)
+endif( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
+
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main( int argc, char** argv)
       {
-         int64_t where = 0;
+         int32_t where = 0, old = where;
 
-         if (!__sync_bool_compare_and_swap(&where, 0, 1))
+         if (!__compare_and_swap(&where, &old, 1))
             return -1;
 
          return 0;
       }
-      " DAGUE_ATOMIC_USE_GCC_64_BUILTINS)
+      " DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
+if( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
+  CHECK_C_SOURCE_COMPILES("
+        #include <stdint.h>
 
-CHECK_C_SOURCE_RUNS("
+        int main( int argc, char** argv)
+        {
+           long where = 0, old = where;
+
+           if (!__compare_and_swaplp(&where, &old, 1))
+              return -1;
+
+           return 0;
+        }
+        " DAGUE_ATOMIC_USE_XLC_64_BUILTINS)
+endif( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
+
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main(int, const char**)
@@ -45,21 +75,22 @@ CHECK_C_SOURCE_RUNS("
          return 0;
       }
       " DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS)
+if( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
+  CHECK_C_SOURCE_COMPILES("
+        #include <stdint.h>
 
-CHECK_C_SOURCE_RUNS("
-      #include <stdint.h>
+        int main(int, const char**)
+        {
+           uint64_t where  = 0;
+           if (!__sync_compare_and_swap(&where, 0, 1))
+              return -1;
 
-      int main(int, const char**)
-      {
-         uint64_t where  = 0;
-         if (!__sync_compare_and_swap(&where, 0, 1))
-            return -1;
+           return 0;
+        }
+        " DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
+endif( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
 
-         return 0;
-      }
-      " DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
-
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <atomic.h>
       #include <stdint.h>
 
@@ -72,20 +103,21 @@ CHECK_C_SOURCE_RUNS("
          return 0;
       }
       " DAGUE_ATOMIC_USE_SUN_32)
+if( DAGUE_ATOMIC_USE_SUN_32 )
+  CHECK_C_SOURCE_COMPILES("
+        #include <atomic.h>
+        #include <stdint.h>
 
-CHECK_C_SOURCE_RUNS("
-      #include <atomic.h>
-      #include <stdint.h>
+        int main(int, const char**)
+        {
+           uint64_t where = 0;
+           if (0 != atomic_cas_uint(&where, 0, 1))
+              return -1;
 
-      int main(int, const char**)
-      {
-         uint64_t where = 0;
-         if (0 != atomic_cas_uint(&where, 0, 1))
-            return -1;
-
-         return 0;
-      }
-      " DAGUE_ATOMIC_USE_SUN_64)
+           return 0;
+        }
+        " DAGUE_ATOMIC_USE_SUN_64)
+endif( DAGUE_ATOMIC_USE_SUN_32 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 HAVE_COMPARE_AND_SWAP_32)

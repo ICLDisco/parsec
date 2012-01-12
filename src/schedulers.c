@@ -1,9 +1,18 @@
+/*
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
-#include "dequeue.h"
-#include "priority_sorted_queue.h"
+#include "debug.h"
 #include "scheduling.h"
 #include "schedulers.h"
-#include "debug.h"
+#include "dague_hwloc.h"
+#include "dequeue.h"
+#include "list.h"
+#include "remote_dep.h"
+#include "datarepo.h"
 
 /*********************************************************************/
 /************************ Global Dequeue *****************************/
@@ -37,16 +46,16 @@ static int init_global_dequeue( dague_context_t *master )
 
 static dague_execution_context_t *choose_job_global_dequeue( dague_execution_unit_t *eu_context )
 {
-    return (dague_execution_context_t*)dague_dequeue_pop_front( (dague_dequeue_t*)eu_context->scheduler_object );
+    return (dague_execution_context_t*)dague_dequeue_try_pop_front( (dague_dequeue_t*)eu_context->scheduler_object );
 }
 
 static int schedule_global_dequeue( dague_execution_unit_t* eu_context,
                                      dague_execution_context_t* new_context )
 {
     if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
-        dague_dequeue_push_front( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
+        dague_dequeue_chain_front( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     } else {
-        dague_dequeue_push_back( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
+        dague_dequeue_chain_back( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     }
     return 0;
 }
@@ -90,10 +99,10 @@ typedef struct {
 
 static void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
 {
-    /* Store is a lifo or a dequeue */
-    dague_dequeue_push_back( (dague_dequeue_t*)store, elt );
+    dague_dequeue_chain_back( (dague_dequeue_t*)store, elt );
 }
 
+#if defined(HAVE_HWLOC)
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
@@ -102,6 +111,7 @@ static void push_in_buffer_wrapper(void *store, dague_list_item_t *elt)
     /* Store is a hbbbuffer */
     dague_hbbuffer_push_all( (dague_hbbuffer_t*)store, elt );
 }
+#endif
 
 static int init_local_flat_queues(  dague_context_t *master )
 {
@@ -209,7 +219,7 @@ static int init_local_hier_queues( dague_context_t *master )
     
         if( eu->eu_id == 0 ) {
             sched_obj->system_queue = (dague_dequeue_t*)malloc(sizeof(dague_dequeue_t));
-            dague_dequeue_construct( sched_obj->system_queue );
+            dague_list_construct( sched_obj->system_queue );
         } else {
             sched_obj->system_queue = LOCAL_QUEUES_OBJECT(master->execution_units[0])->system_queue;
         }
@@ -287,7 +297,7 @@ static dague_execution_context_t *choose_job_local_queues( dague_execution_unit_
             return exec_context;
     }
 
-    exec_context = (dague_execution_context_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+    exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     return exec_context;
 }
 
@@ -385,13 +395,15 @@ dague_scheduler_t sched_local_hier_queues = {
 
 static dague_execution_context_t *choose_job_absolute_priorities( dague_execution_unit_t *eu_context )
 {
-    return (dague_execution_context_t*)dague_priority_sorted_list_pop_front((dague_priority_sorted_list_t*)eu_context->scheduler_object);
+    return (dague_execution_context_t*)dague_list_pop_front((dague_list_t*)eu_context->scheduler_object);
 }
 
 static int schedule_absolute_priorities( dague_execution_unit_t* eu_context,
                                          dague_execution_context_t* new_context )
 {
-    dague_priority_sorted_list_merge((dague_priority_sorted_list_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context );
+    dague_list_chain_sorted((dague_list_t*)eu_context->scheduler_object,
+                            (dague_list_item_t*)new_context,
+                            dague_execution_context_priority_comparator);
     return 0;
 }
 
@@ -403,8 +415,8 @@ static int init_absolute_priorities( dague_context_t *master )
     for(i = 0; i < master->nb_cores; i++) {
         eu = master->execution_units[i];
         if( eu->eu_id == 0 ) {
-            eu->scheduler_object = (dague_priority_sorted_list_t*)malloc(sizeof(dague_priority_sorted_list_t));
-            dague_priority_sorted_list_construct( (dague_priority_sorted_list_t*)eu->scheduler_object );
+            eu->scheduler_object = (dague_list_t*)malloc(sizeof(dague_list_t));
+            dague_list_construct( (dague_list_t*)eu->scheduler_object );
         } else {
             eu->scheduler_object = eu->master_context->execution_units[0]->scheduler_object;
         }
@@ -422,7 +434,7 @@ static void finalize_absolute_priorities( dague_context_t *master )
         eu = master->execution_units[i];
 
         if( eu->eu_id == 0 ) {
-            dague_priority_sorted_list_destruct( (dague_priority_sorted_list_t*)eu->scheduler_object );
+            dague_list_destruct( (dague_list_t*)eu->scheduler_object );
             free(eu->scheduler_object);
         }
         eu->scheduler_object = NULL;

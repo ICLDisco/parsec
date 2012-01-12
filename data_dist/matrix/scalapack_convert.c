@@ -16,7 +16,7 @@
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-
+#include <stdio.h>
 #ifdef HAVE_MPI
 #include "mpi.h"
 #endif
