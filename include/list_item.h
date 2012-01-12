@@ -137,14 +137,14 @@ dague_list_item_ring_chop( dague_list_item_t* item )
 #define DAGUE_ITEMS_VALIDATE(ITEMS)                                     \
     do {                                                                \
         dague_list_item_t *__end = (ITEMS);                             \
-        int _number; dague_list_item_t *__item;                          \
-        for(_number=0, __item = (dague_list_item_t*)__end->list_next;    \
+        int _number; dague_list_item_t *__item;                         \
+        for(_number=0, __item = (dague_list_item_t*)__end->list_next;   \
             __item != __end;                                            \
             __item = (dague_list_item_t*)__item->list_next ) {          \
-            assert((__item->refcount == 0) || (__item->refcount == 1)); \
-            assert(__end->refcount == __item->refcount);                \
+            assert( (__item->refcount == 0) || (__item->refcount == 1) );\
+            assert( __end->refcount == __item->refcount );              \
             if( __item->refcount == 1 )                                 \
-                assert(__item->belong_to == __end->belong_to);\
+                assert(__item->belong_to == __end->belong_to);          \
             if( ++_number > 1000 ) assert(0);                           \
         }                                                               \
     } while(0)
@@ -162,7 +162,6 @@ dague_list_item_ring_chop( dague_list_item_t* item )
         dague_list_item_t *_item = (ITEMS);                             \
         assert( (void*)0xdeadbeef != _item->list_next );                \
         assert( (void*)0xdeadbeef != _item->list_prev );                \
-        DAGUE_ITEMS_VALIDATE(_item);                                    \
         dague_list_item_t *_end = (dague_list_item_t *)_item->list_prev; \
         do {                                                            \
             DAGUE_ITEM_ATTACH(LIST, _item);                             \
@@ -170,15 +169,16 @@ dague_list_item_ring_chop( dague_list_item_t* item )
         } while(_item != _end->list_next);                              \
     } while(0)
 
-#define DAGUE_ITEM_DETACH(ITEM)            \
-    do {                                         \
-        dague_list_item_t *_item = (ITEM);       \
+#define DAGUE_ITEM_DETACH(ITEM)                                         \
+    do {                                                                \
+        dague_list_item_t *_item = (ITEM);                              \
         /* check for not poping the ghost element, doesn't work for atomic_lifo */\
-        assert( _item->belong_to != (void*)_item ); \
-        _item->list_prev = (void*)0xdeadbeef;           \
-        _item->list_next = (void*)0xdeadbeef;           \
-        _item->refcount--;                       \
-        assert( 0 == _item->refcount ); \
+        assert( _item->list_next->belong_to == _item->belong_to );      \
+        assert( _item->belong_to != (void*)_item );                     \
+        _item->list_prev = (void*)0xdeadbeef;                           \
+        _item->list_next = (void*)0xdeadbeef;                           \
+        _item->refcount--;                                              \
+        assert( 0 == _item->refcount );                                 \
     } while (0)
 #else
 #define DAGUE_ITEMS_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)

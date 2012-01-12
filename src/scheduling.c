@@ -140,7 +140,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 assert( set_parameters > 1 );
             }
             DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
-            context = (dague_execution_context_t*)context->list_item.list_next;
+            context = DAGUE_LIST_ITEM_NEXT(context);
         } while ( context != new_context );
     }
 # endif
