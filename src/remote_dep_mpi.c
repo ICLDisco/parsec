@@ -118,7 +118,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
 static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
 static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k);
 
-#if DAGUE_DEBUG_VERBOSE
+#ifdef DAGUE_DEBUG_VERBOSE1
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
 {
     unsigned int i, index = 0;
