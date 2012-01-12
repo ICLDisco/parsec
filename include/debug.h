@@ -23,17 +23,6 @@ int vasprintf(char **ret, const char *format, va_list ap);
 #include <stdlib.h>
 #include <stdio.h>
 
-#if (DAGUE_DEBUG_VERBOSE) >= 3
-#   define DAGUE_DEBUG_VERBOSE3
-#   define DAGUE_DEBUG_VERBOSE2
-#   define DAGUE_DEBUG_VERBOSE1
-#elif (DAGUE_DEBUG_VERBOSE) >= 2
-#   define DAGUE_DEBUG_VERBOSE2
-#   define DAGUE_DEBUG_VERBOSE1
-#elif (DAGUE_DEBUG_VERBOSE) >= 1
-#   define DAGUE_DEBUG_VERBOSE1
-#endif
-
 /* only one printf to avoid line breaks in the middle */
 static inline char* arprintf(const char* fmt, ...)
 {
@@ -79,10 +68,14 @@ static inline char* arprintf(const char* fmt, ...)
 #endif /* HAVE_MPI */
 
 #define STATUS(ARG) do { \
-    _DAGUE_OUTPUT("i.", ARG); \
+    _DAGUE_OUTPUT("..", ARG); \
     _DAGUE_DEBUG_HISTORY(ARG); \
 } while(0)
-
+#define VERBOSE(ARG) do { \
+    if(dague_verbose) \
+        _DAGUE_OUTPUT("+.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
 #define WARNING(ARG) do { \
     _DAGUE_OUTPUT("!.", ARG) ; \
     _DAGUE_DEBUG_HISTORY(ARG); \
@@ -94,35 +87,45 @@ static inline char* arprintf(const char* fmt, ...)
     ABORT(); \
 } while(0)
 
-#ifdef DAGUE_DEBUG_VERBOSE1
-#   define DEBUG(ARG) do { \
-        _DAGUE_OUTPUT("v.", ARG); \
-        _DAGUE_DEBUG_HISTORY(ARG); \
-    } while(0)
+#ifdef DAGUE_DEBUG_VERBOSE3
+# define DEBUG3(ARG) do { \
+    _DAGUE_OUTPUT("D.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
+#else /*DEBUG3*/
+# define DEBUG3(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
+#endif /*DEBUG3*/
 
-#   ifdef DAGUE_DEBUG_VERBOSE2
-#       define DEBUG2(ARG) do { \
-            _DAGUE_OUTPUT("V.", ARG); \
-            _DAGUE_DEBUG_HISTORY(ARG); \
-    } while(0)
-#       ifdef DAGUE_DEBUG_VERBOSE3
-#           define DEBUG3(ARG) do { \
-                _DAGUE_OUTPUT("V.", ARG); \
-                _DAGUE_DEBUG_HISTORY(ARG); \
-            } while(0)
-#       else /*DEBUG3*/
-#           define DEBUG3(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#       endif /*DEBUG3*/
-#   else /*DEBUG2*/
-#       define DEBUG2(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
-#   endif /*DEBUG2*/
+#ifdef DAGUE_DEBUG_VERBOSE2
+# define DEBUG2(ARG) do { \
+    _DAGUE_OUTPUT("D.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
+#else /*DEBUG2*/
+# define DEBUG2(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
+#endif /*DEBUG2*/
+
+#ifdef DAGUE_DEBUG_VERBOSE1
+# define DEBUG(ARG) do { \
+    _DAGUE_OUTPUT("d.", ARG); \
+    _DAGUE_DEBUG_HISTORY(ARG); \
+} while(0)
 #else /*DEBUG1*/
-#   define DEBUG(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
+# define DEBUG(ARG) do { _DAGUE_DEBUG_HISTORY(ARG); } while(0)
 #endif /*DEBUG1*/
 
 
 
 #ifdef DAGUE_DEBUG_HISTORY
+#   ifndef DAGUE_DEBUG_VERBOSE1
+#       define DAGUE_DEBUG_VERBOSE1
+#   endif
+#   ifndef DAGUE_DEBUG_VERBOSE2
+#       define DAGUE_DEBUG_VERBOSE2
+#   endif
+#   ifndef DAGUE_DEBUG_VERBOSE3
+#       define DAGUE_DEBUG_VERBOSE3
+#   endif
 
 struct dague_execution_context_t;
 void debug_mark_exe(int core, const struct dague_execution_context_t *ctx);

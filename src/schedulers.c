@@ -196,7 +196,7 @@ static int init_local_hier_queues( dague_context_t *master )
 {
 #if !defined(HAVE_HWLOC)
     (void)master;
-    fprintf(stderr, "xxx\tDAGuE: hierarchical scheduler cannot be selected, you need to recompile DAGuE with hwloc, or select another scheduler.\n");
+    ERROR(("hierarchical scheduler cannot be selected, you need to recompile DAGuE with hwloc, or select another scheduler.\n"));
     return -1;
 #else
 

@@ -139,7 +139,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
             }
-            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
+            DEBUG2(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
             context = DAGUE_LIST_ITEM_NEXT(context);
         } while ( context != new_context );
     }
@@ -313,12 +313,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
  finalize_progress:
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
-    printf("#Scheduling: th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
+    STATUS(("#Scheduling: th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
-           (long long unsigned int)miss_victim );
+           (long long unsigned int)miss_victim ));
 
     if( eu_context->eu_id == 0 ) {
         char  priority_trace_fname[64];
@@ -346,7 +346,7 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
     dague_execution_context_t *startup_list = NULL;
 
     if( NULL == scheduler.schedule_task ) {
-        fprintf(stderr, "DAGuE: error -- You cannot enqueue a task without selecting a scheduler first.\n");
+        WARNING(("You cannot enqueue a task without selecting a scheduler first.\n"));
         return -1;
     }
 

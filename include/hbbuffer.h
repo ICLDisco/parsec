@@ -2,13 +2,13 @@
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "debug.h"
+#include "atomic.h"
+#include <stdlib.h>
+#include "lifo.h"
 
 typedef struct dague_hbbuffer_t dague_hbbuffer_t;
 
-#include "debug.h"
-#include "atomic.h"
-#include "lifo.h"
-#include <stdlib.h>
 /**
  * Hierarchical Bounded Buffers:
  *

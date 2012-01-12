@@ -662,18 +662,17 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
             /* we copy everything but the dague_list_item_t at the beginning, to
              * avoid copying uninitialized stuff from the stack
              */
-            assert( (uintptr_t)new_context == (uintptr_t)&new_context->list_item );
             memcpy( ((char*)new_context) + sizeof(dague_list_item_t), 
                     ((char*)exec_context) + sizeof(dague_list_item_t), 
                     sizeof(dague_minimal_execution_context_t) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
-            DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
+            DEBUG(("%s becomes ready from %s on thread %d, with mask 0x%04x and priority %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),
                    dague_service_to_string(origin, tmp2, 128),
-                   *deps,
-                   eu_context->eu_id));
+                   eu_context->eu_id,
+                   *deps, exec_context->priority));
 
 #if defined(DAGUE_SCHED_CACHE_AWARE)
             new_context->data[0].gc_data = NULL;
@@ -698,12 +697,12 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
 
 #if defined(DAGUE_SCHED_DEPS_MASK)
-        DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
+        DEBUG2(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_goal,
                (int)(dep_cur_value & DAGUE_DEPENDENCIES_BITMASK),
                (int)(dep_cur_value)));
 #else
-        DEBUG(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
+        DEBUG2(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
                dague_service_to_string( exec_context, tmp, 128 ), 
                (int)function->dependencies_goal, dep_cur_value));
 #endif
