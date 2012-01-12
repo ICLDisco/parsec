@@ -24,7 +24,7 @@ set(TESTS
   testing_zheev.c
   #testing_zgesvd.c
 )
-if( DAGUE_DEBUG_QR_PIVGEN )
+if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
   include(TestsQRPivgen.cmake)
 endif()

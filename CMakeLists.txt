@@ -102,9 +102,6 @@ option(DAGUE_DEBUG_BUILD_UNIT_TESTS
 mark_as_advanced(DAGUE_DEBUG_LIFO_USE_ATOMICS)
 option(DAGUE_DEBUG_LIFO_USE_ATOMICS
   "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)" ON)
-mark_as_advanced(DAGUE_DEBUG_QR_PIVGEN)
-option(DAGUE_DEBUG_QR_PIVGEN
-  "Enable the QR pivgen testings" OFF)
 
 ### Simulating Options
 option(DAGUE_SIM
