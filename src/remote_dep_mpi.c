@@ -527,7 +527,6 @@ enum {
 #ifdef DAGUE_PROF_TRACE
 static dague_thread_profiling_t* MPIctl_prof;
 static dague_thread_profiling_t* MPIsnd_prof[DEP_NB_CONCURENT];
-static dague_thread_profiling_t* MPIsnd_eager;
 static dague_thread_profiling_t* MPIrcv_prof[DEP_NB_CONCURENT];
 static unsigned long act = 0;
 static int MPI_Activate_sk, MPI_Activate_ek;
@@ -746,13 +745,13 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 #if !defined(DAGUE_PROF_TRACE)
     (void)eu_context;
 #endif
+    int eager = RDEP_MSG_EAGER(msg);
     
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which));
     
     TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
     MPI_Send((void*) msg, dep_count, dep_dtt, rank, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
-
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(rank, (void*)msg, msg);
 
 #if defined(DAGUE_STATS)
@@ -764,13 +763,14 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     }
 #endif
     
+    RDEP_MSG_EAGER_CLR(msg);
     /* Do not wait for completion of CTL */
     for(int k=0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
         dague_remote_deps_t* deps = (dague_remote_deps_t*) msg->deps;
         if(NULL != deps->output[k].type) continue;
 
-        DEBUG2((" CTL\t%s\tparam%d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
+        DEBUG2((" CTL\t%s\tparam %d\tdemoted to be a control\n",remote_dep_cmd_to_string(&deps->msg, tmp, 128), k));
 
         msg->which ^= (1<<k);
         if(0 == msg->which) {
@@ -780,7 +780,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     }
     
     /* Proceed with Eager mode now */
-    if(RDEP_MSG_EAGER(msg))
+    if(eager)
     {
         dague_object_t* obj = ((dague_remote_deps_t*)msg->deps)->dague_object;
         remote_dep_mpi_put_eager(eu_context, msg, rank); 

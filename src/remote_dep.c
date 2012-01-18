@@ -97,7 +97,7 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #endif
 #define RDEP_MSG_EAGER_SET(msg) ((msg)->which |= (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
 #define RDEP_MSG_EAGER_CLR(msg) ((msg)->which &= ~(((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
-#define RDEP_MSG_EAGER(msg)     ((msg)->which & (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
+#define RDEP_MSG_EAGER(msg)     ((remote_dep_datakey_t)0 != ((msg)->which & (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1))))
 
 #ifdef HAVE_MPI
 #include "remote_dep_mpi.c" 
