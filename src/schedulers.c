@@ -119,6 +119,7 @@ static int init_local_flat_queues(  dague_context_t *master )
     dague_execution_unit_t *eu;
     uint32_t queue_size = master->nb_cores * 4;
     local_queues_scheduler_object_t *sched_obj = NULL;
+    int hwloc_levels;
 
     for(i = 0; i < master->nb_cores; i++) {
         eu = master->execution_units[i];
@@ -159,34 +160,45 @@ static int init_local_flat_queues(  dague_context_t *master )
         eu = master->execution_units[i];
         sched_obj = LOCAL_QUEUES_OBJECT(eu);
  
-        /* Then, they know about all other queues, from the closest to the farthest */
 #if defined(HAVE_HWLOC)
-        for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
-            for(int id = (eu->eu_id + 1) % master->nb_cores; 
-                id != eu->eu_id; 
-                id = (id + 1) %  master->nb_cores) {
-                int d;
-                
-                d = dague_hwloc_distance(eu->eu_id, id);
-                if( d == 2*level || d == 2*level + 1 ) {
-                    sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(master->execution_units[id])->task_queue;
-                    DEBUG3(("schedLFQ %d:\tmy %d preferred queue is the task queue of %d (%p)\n",
-                           eu->eu_id, nq, id, sched_obj->hierarch_queues[nq]));
-                    nq++;
-                    if( nq == sched_obj->nb_hierarch_queues )
-                        break;
-                }
-            }
-            if( nq == sched_obj->nb_hierarch_queues )
-                break;
-        }
-        assert( nq == sched_obj->nb_hierarch_queues );
+        hwloc_levels = dague_hwloc_nb_levels();
 #else
-        for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
-            sched_obj->hierarch_queues[nq] =
-                LOCAL_QUEUES_OBJECT(master->execution_units[(eu->eu_id + nq) % master->nb_cores])->task_queue;
-        }
+        hwloc_levels = -1;
 #endif
+
+        /* Handle the case when HWLOC is present but cannot compute the hierarchy, 
+         * as well as the casewhen HWLOC is not present
+         */
+        if( hwloc_levels == -1 ) {
+            for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
+                sched_obj->hierarch_queues[nq] =
+                    LOCAL_QUEUES_OBJECT(master->execution_units[(eu->eu_id + nq) % master->nb_cores])->task_queue;
+            }
+        } else {
+#if defined(HAVE_HWLOC)
+            /* Then, they know about all other queues, from the closest to the farthest */
+            for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
+                for(int id = (eu->eu_id + 1) % master->nb_cores; 
+                    id != eu->eu_id; 
+                    id = (id + 1) %  master->nb_cores) {
+                    int d;
+                    
+                    d = dague_hwloc_distance(eu->eu_id, id);
+                    if( d == 2*level || d == 2*level + 1 ) {
+                        sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(master->execution_units[id])->task_queue;
+                        DEBUG3(("schedLFQ %d:\tmy %d preferred queue is the task queue of %d (%p)\n",
+                                eu->eu_id, nq, id, sched_obj->hierarch_queues[nq]));
+                        nq++;
+                        if( nq == sched_obj->nb_hierarch_queues )
+                            break;
+                    }
+                }
+                if( nq == sched_obj->nb_hierarch_queues )
+                    break;
+            }
+            assert( nq == sched_obj->nb_hierarch_queues );
+#endif
+        }
     }
 
     return 0;
