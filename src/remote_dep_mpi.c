@@ -485,7 +485,8 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
     remote_dep_wire_activate_t msg = deps->msg;
 
     msg.deps = (uintptr_t)deps;
-    msg.which = RDEP_MSG_EAGER(&deps->msg);
+    if( RDEP_MSG_EAGER(&deps->msg) )
+        RDEP_MSG_EAGER_SET(&msg);
     for( k = 0; output_count; k++ ) {
         output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
@@ -746,7 +747,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     (void)eu_context;
 #endif
     int eager = RDEP_MSG_EAGER(msg);
-    
+
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which));
     
     TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Activate_sk, act, eu_context->master_context->my_rank, rank, (*msg));
@@ -1092,7 +1093,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
 #ifdef DAGUE_DEBUG_VERBOSE2
         for(int k = 0; saved_deps->msg.deps>>k; k++) 
             if((1<<k) & saved_deps->msg.deps)
-                DEBUG2(("MPI:\tHERE\t%d\tGet LOCAL\t% -8s\ti=%d,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=na)\n",
+                DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\ti=%d,k=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=na)\n",
                        saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, deps->msg.deps, ADATA(saved_deps->output[k].data) ));
 #endif
         remote_dep_release(eu_context, saved_deps);

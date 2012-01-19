@@ -93,11 +93,11 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #ifndef DAGUE_DIST_EAGER_LIMIT 
 #define RDEP_MSG_EAGER_LIMIT    0
 #else
-#define RDEP_MSG_EAGER_LIMIT    (DAGUE_DIST_EAGER_LIMIT*1024)
+#define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
 #define RDEP_MSG_EAGER_SET(msg) ((msg)->which |= (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
 #define RDEP_MSG_EAGER_CLR(msg) ((msg)->which &= ~(((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
-#define RDEP_MSG_EAGER(msg)     ((remote_dep_datakey_t)0 != ((msg)->which & (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1))))
+#define RDEP_MSG_EAGER(msg)     ((int)((msg)->which>>(8*sizeof(remote_dep_datakey_t)-1)))
 
 #ifdef HAVE_MPI
 #include "remote_dep_mpi.c" 
@@ -265,7 +265,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
                             AREF(remote_deps->output[i].data);
-                            if((int)(remote_deps->output[i].type->elem_size) < RDEP_MSG_EAGER_LIMIT) {
+                            if(remote_deps->output[i].type->elem_size < RDEP_MSG_EAGER_LIMIT) {
                                 RDEP_MSG_EAGER_SET(&remote_deps->msg);
                             } else {
                                 RDEP_MSG_EAGER_CLR(&remote_deps->msg);
