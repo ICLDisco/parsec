@@ -783,10 +783,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     /* Proceed with Eager mode now */
     if(eager)
     {
-        dague_object_t* obj = ((dague_remote_deps_t*)msg->deps)->dague_object;
         remote_dep_mpi_put_eager(eu_context, msg, rank); 
-        /* In eager mode, everything is eager, so we are done, now */
-        remote_dep_dec_flying_messages(obj, eu_context->master_context);
     }
     
     return 1;
