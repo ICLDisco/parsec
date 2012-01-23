@@ -265,7 +265,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
                             AREF(remote_deps->output[i].data);
-                            if(remote_deps->output[i].type->elem_size < RDEP_MSG_EAGER_LIMIT) {
+                            if(RDEP_MSG_EAGER_LIMIT > 0 && remote_deps->output[i].type->elem_size < RDEP_MSG_EAGER_LIMIT) {
                                 RDEP_MSG_EAGER_SET(&remote_deps->msg);
                             } else {
                                 RDEP_MSG_EAGER_CLR(&remote_deps->msg);
