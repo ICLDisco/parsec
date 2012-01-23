@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2010      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
@@ -35,8 +34,6 @@ dplasma_zbutterfly_New( tiled_matrix_desc_t *A, int *info)
     return dague_zbutterfly;
 }
 
-
- 
 void
 dplasma_zbutterfly_Destruct( dague_object_t *o )
 {

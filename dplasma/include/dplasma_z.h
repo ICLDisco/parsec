@@ -103,6 +103,8 @@ dague_object_t* dplasma_zplrnt_New(                                           ti
 dague_object_t* dplasma_zplghe_New( double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_object_t* dplasma_zplgsy_New( Dague_Complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 
+dague_object_t* dplasma_zbutterfly_New( tiled_matrix_desc_t *A, int *info);
+
 /***********************************************************
  *               Destruct functions
  */
@@ -131,5 +133,7 @@ void dplasma_zlaset_Destruct( dague_object_t *o );
 void dplasma_zplrnt_Destruct( dague_object_t *o );
 void dplasma_zplghe_Destruct( dague_object_t *o );
 void dplasma_zplgsy_Destruct( dague_object_t *o );
+
+void dplasma_zbutterfly_Destruct( dague_object_t *o );
 
 #endif /* _DPLASMA_Z_H_ */
