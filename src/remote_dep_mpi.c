@@ -665,6 +665,9 @@ static int remote_dep_mpi_init(dague_context_t* context)
             WARNING(("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
         }
+        if(MAX_MPI_TAG < DEP_NB_CONCURENT) {
+            ERROR(("MPI:\tYour MPI implementation defines the maximal TAG value to %d, which is insufficient for handling %d simultaneous messages\n", MAX_MPI_TAG, DEP_NB_CONCURENT));
+        }
 #endif
     }
 
@@ -859,12 +862,12 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
     DAGUE_LIST_ITEM_CONSTRUCT(eager);
     eager->priority = deps->max_priority;
     eager->peer = rank;
-    eager->task.deps = msg->deps;
     eager->task.which = msg->which;
     eager->task.tag = REMOTE_DEP_PUT_DATA_TAG;
     /* Check if we can process the eager now */
     for(int i = 0; i < DEP_NB_CONCURENT; i++ ) {
         if( NULL == dep_pending_put_array[i] ) {
+            eager->task.deps = i;
             remote_dep_mpi_put_start(eu_context, eager, i);
             return;
         }
@@ -1076,9 +1079,9 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
                 assert(saved_deps->output[k].data != NULL);
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
-                   saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, deps->msg.deps, ADATA(saved_deps->output[k].data), REMOTE_DEP_PUT_DATA_TAG));
+                   saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, deps->msg.deps, ADATA(saved_deps->output[k].data), deps->msg.deps));
 #ifndef DAGUE_PROF_DRY_DEP
-            MPI_Recv(ADATA(saved_deps->output[k].data), 1, saved_deps->output[k].type->opaque_dtt, saved_deps->from, REMOTE_DEP_PUT_DATA_TAG, dep_comm, MPI_STATUS_IGNORE);
+            MPI_Recv(ADATA(saved_deps->output[k].data), 1, saved_deps->output[k].type->opaque_dtt, saved_deps->from, deps->msg.deps, dep_comm, MPI_STATUS_IGNORE);
 #endif
             saved_deps->msg.deps |= 1<<k;
             continue;
