@@ -161,7 +161,7 @@ subs = {
     ('slaswp','dlaswp','claswp','zlaswp'),
     ('smap','dmap','cmap','zmap'),
     ('spotrf','dpotrf','cpotrf','zpotrf'),
-    ('spotrf','dpotrf','cpotrf','zpotrf'),
+    ('sbutterfly','dbutterfly','cbutterfly','zbutterfly'),
     ('SPOTRF','DPOTRF','CPOTRF','ZPOTRF'),
     ('spotrs','dpotrs','cpotrs','zpotrs'),
     ('SPOTRS','DPOTRS','CPOTRS','ZPOTRS'),
