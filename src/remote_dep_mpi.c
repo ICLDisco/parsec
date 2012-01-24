@@ -862,12 +862,12 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
     DAGUE_LIST_ITEM_CONSTRUCT(eager);
     eager->priority = deps->max_priority;
     eager->peer = rank;
+    eager->task.deps = msg->deps;
     eager->task.which = msg->which;
-    eager->task.tag = REMOTE_DEP_PUT_DATA_TAG;
     /* Check if we can process the eager now */
     for(int i = 0; i < DEP_NB_CONCURENT; i++ ) {
         if( NULL == dep_pending_put_array[i] ) {
-            eager->task.deps = i;
+            eager->task.tag = i;
             remote_dep_mpi_put_start(eu_context, eager, i);
             return;
         }
