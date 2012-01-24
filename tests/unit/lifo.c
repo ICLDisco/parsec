@@ -1,3 +1,5 @@
+#include "dague_config.h"
+#undef NDEBUG
 #include <pthread.h>
 #include <stdarg.h>
 #include <signal.h>

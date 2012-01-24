@@ -1,4 +1,8 @@
 #include "dague_config.h"
+/*  unset options that make debug.h unpure, we need bindthread to compile standalone for unit tests */
+#undef HAVE_MPI
+#undef DAGUE_DEBUG_HISTORY
+#include "debug.h"
 #include "bindthread.h"
 #if defined(HAVE_HWLOC)
 #  include <hwloc.h>
@@ -72,7 +76,7 @@ int dague_bindthread(int cpu)
 #else
             hwloc_bitmap_asprintf(&str, obj->cpuset);
 #endif
-            printf("Couldn't bind to cpuset %s\n", str);
+            WARNING(("Couldn't bind to cpuset %s\n", str));
             free(str);
 
             /* Free our cpuset copy */
@@ -165,7 +169,7 @@ int dague_bindthread_mask(hwloc_cpuset_t cpuset)
 #else
 	hwloc_bitmap_asprintf(&str, cpuset);
 #endif
-	printf("Couldn't bind to cpuset %s\n", str);
+	WARNING(("Couldn't bind to cpuset %s\n", str));
 	free(str);
 
         /* Destroy topology object.  */

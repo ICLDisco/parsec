@@ -42,8 +42,6 @@ struct dague_execution_unit {
     int largest_simulation_date;
 #endif
 
-    pthread_t* pthreads;            /**< posix threads for each of the threads under this context */
-
     struct dague_vp        *virtual_process;   /**< Backlink to the virtual process that holds this thread */
     dague_thread_mempool_t *context_mempool;
     dague_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];
@@ -87,7 +85,7 @@ struct dague_context_t {
 
     dague_barrier_t  barrier;
 
-    size_t remote_dep_fw_mask_sizeof; /**< ?? */
+    size_t remote_dep_fw_mask_sizeof; /* Size of the remote dep fw mask */
 
     pthread_t *pthreads; /**< all POSIX threads used for computation are stored here in order 
                           *   threads[0] is uninitialized, this is the user's thread

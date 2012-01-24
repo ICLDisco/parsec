@@ -14,6 +14,7 @@
 #if defined(HAVE_ERRNO_H)
 #include <errno.h>
 #endif  /* defined(HAVE_ERRNO_H) */
+#include <stdio.h>
 
 #if !defined(HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...)

@@ -13,6 +13,7 @@ set(TESTS
   testing_ztrmm.c
   testing_ztrsm.c
   testing_zpotrf.c
+  testing_zbutterfly.c
   testing_zposv.c
   testing_zgetrf.c
   testing_zgetrf_sd.c
@@ -24,7 +25,7 @@ set(TESTS
   testing_zheev.c
   #testing_zgesvd.c
 )
-if( DAGUE_DEBUG_QR_PIVGEN )
+if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
   include(TestsQRPivgen.cmake)
 endif()

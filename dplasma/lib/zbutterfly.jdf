@@ -1,0 +1,168 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
+
+
+/*
+ *
+ */
+L0_Diag(i)
+  /* Execution space */
+  i = 0..descA.nt/2-1
+
+  : A(i,i)
+
+  RW  A   <- A(i,i)
+          -> A(i,i)
+
+  RW  Abl <- A L0_Reader_BL(i,i)
+          -> A L0_Writer_BL(i,i)
+
+  RW  Abr <- A L0_Reader_BR(i,i)
+          -> A L0_Writer_BR(i,i)
+
+BODY
+
+/* nothing */
+
+END
+
+
+/*
+ *
+ */
+L0_Lower(i,j)
+  /* Execution space */
+  i = 1..descA.nt/2-1
+  j = 0..i-1
+
+  : A(i,j)
+
+  RW  A   <- A(i,j)
+          -> A(i,j)
+
+  RW  Abl <- A L0_Reader_BL(i,j)
+          -> A L0_Writer_BL(i,j)
+
+  RW  Atr <- A L0_Reader_BL(j,i)
+          -> A L0_Writer_BL(j,i)
+
+  RW  Abr <- A L0_Reader_BR(i,j)
+          -> A L0_Writer_BR(i,j)
+
+BODY
+
+/* nothing */
+
+END
+
+
+
+/*
+ *
+ */
+L0_Reader_BR(i,j)
+  /* Execution space */
+  i = 0..descA.nt/2-1
+  j = 0..i
+
+  : A(i+descA.nt/2,j+descA.nt/2)
+
+  READ  A <- A(i+descA.nt/2,j+descA.nt/2)
+          -> (i==j) ? Abr L0_Diag(i) : Abr L0_Lower(i,j)
+
+BODY
+
+/* nothing */
+
+END
+
+
+
+/*
+ *
+ */
+L0_Reader_BL(i,j)
+  /* Execution space */
+  i = 0..descA.nt/2-1
+  j = 0..descA.nt/2-1
+
+  : A(i+descA.nt/2,j)
+
+  READ  A <- A(i+descA.nt/2,j)
+          -> (i==j) ? Abl L0_Diag(i)
+          -> (i>j)  ? Abl L0_Lower(i,j)
+          -> (i<j)  ? Atr L0_Lower(j,i)
+
+BODY
+
+/* nothing */
+
+END
+
+
+
+/*
+ *
+ */
+L0_Writer_BR(i,j)
+  /* Execution space */
+  i = 0..descA.nt/2-1
+  j = 0..i
+
+  : A(i+descA.nt/2,j+descA.nt/2)
+
+  RW  A <- (i==j) ? Abr L0_Diag(i) : Abr L0_Lower(i,j)
+        -> A(i+descA.nt/2,j+descA.nt/2)
+
+BODY
+
+/* nothing */
+
+END
+
+
+/*
+ *
+ */
+L0_Writer_BL(i,j)
+  /* Execution space */
+  i = 0..descA.nt/2-1
+  j = 0..descA.nt/2-1
+
+  : A(i+descA.nt/2,j)
+
+  RW  A <- (i==j) ? Abl L0_Diag(i)
+        <- (i>j) ?  Abl L0_Lower(i,j)
+        <- (i<j) ?  Atr L0_Lower(j,i)
+        -> A(i+descA.nt/2,j)
+
+BODY
+
+/* nothing */
+
+END

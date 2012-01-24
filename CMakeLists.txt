@@ -49,7 +49,6 @@ endif(NOT CMAKE_BUILD_TYPE)
 set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
-
 ## Multicore scheduler parameters
 mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
@@ -91,7 +90,9 @@ endif()
 
 ### Debug options
 option(DAGUE_DEBUG
-  "Enable the internal debugging verbose output of the DAGUE library" OFF)
+    "Enable extra paranoid checks" OFF)
+set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
+    "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")
 option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_CALL_TRACE
@@ -101,9 +102,6 @@ option(DAGUE_DEBUG_BUILD_UNIT_TESTS
 mark_as_advanced(DAGUE_DEBUG_LIFO_USE_ATOMICS)
 option(DAGUE_DEBUG_LIFO_USE_ATOMICS
   "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)" ON)
-mark_as_advanced(DAGUE_DEBUG_QR_PIVGEN)
-option(DAGUE_DEBUG_QR_PIVGEN
-  "Enable the QR pivgen testings" OFF)
 
 ### Simulating Options
 option(DAGUE_SIM
@@ -296,7 +294,12 @@ IF( HAVE_WD )
     # 1572: cuda compares floats with 0.0f. 
     SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
 ENDIF( HAVE_WD )
-SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
+CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
+IF( HAVE_G3 )
+    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 ${C_WFLAGS}" )
+ELSE()
+    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 ${C_WFLAGS}" )
+ENDIF( HAVE_G3)
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
 
 # threads and atomics
@@ -474,9 +477,9 @@ IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  GET_TARGET_PROPERTY(daguepp_EXE native-daguepp IMPORTED_LOCATION_RELWITHDEBINFO)
+  SET(daguepp_EXE native-daguepp)
 ELSE(CMAKE_CROSSCOMPILING)
-  GET_TARGET_PROPERTY(daguepp_EXE daguepp LOCATION)
+  SET(daguepp_EXE daguepp)
 ENDIF(CMAKE_CROSSCOMPILING)
 #
 #  Settings for targets

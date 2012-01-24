@@ -2,6 +2,10 @@ IF( NOT BUILD_DPLASMA )
   message(FATAL "The CMakeLists.txt in the dplasma directory is not supposed to be included if support for DPLASMA has been disabled")
 ENDIF( NOT BUILD_DPLASMA )
 
+mark_as_advanced(DPLASMA_DEBUG_QR_PIVGEN)
+option(DPLASMA_DEBUG_QR_PIVGEN
+  "Enable the QR pivgen testings" OFF)
+
 # DPLASMA specific option.
 option(DPLASMA_GPU_WITH_MAGMA
   "Enable GPU support using MAGMA kernels" OFF)

@@ -140,6 +140,7 @@ static int init_local_flat_queues(  dague_context_t *master )
     dague_vp_t *vp;
     uint32_t queue_size;
     local_queues_scheduler_object_t *sched_obj = NULL;
+    int hwloc_levels;
 
     if( !no_scheduler_is_active( master ) ) {
         return -1;
@@ -181,37 +182,48 @@ static int init_local_flat_queues(  dague_context_t *master )
             eu = vp->execution_units[t];
             sched_obj = LOCAL_QUEUES_OBJECT(eu);
  
-            /* Then, they know about all other queues, from the closest to the farthest */
 #if defined(HAVE_HWLOC)
-            for(int level = 0; level <= dague_hwloc_nb_levels(); level++) {
-                for(int id = (eu->th_id + 1) % vp->nb_cores; 
-                    id != eu->th_id; 
-                    id = (id + 1) %  vp->nb_cores) {
-                    int d;
-                
-                    d = dague_hwloc_distance(eu->th_id, id);
-                    if( d == 2*level || d == 2*level + 1 ) {
-                        sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                        DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
-                               eu->th_id, nq, id, sched_obj->hierarch_queues[nq]));
-                        nq++;
-                        if( nq == sched_obj->nb_hierarch_queues )
-                            break;
-                    }
-                }
-                if( nq == sched_obj->nb_hierarch_queues )
-                    break;
-            }
-            assert( nq == sched_obj->nb_hierarch_queues );
-#else
-            for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
-                sched_obj->hierarch_queues[nq] =
-                    LOCAL_QUEUES_OBJECT(master->execution_units[(eu->th_id + nq) % vp->nb_cores])->task_queue;
-            }
+            hwloc_levels = dague_hwloc_nb_levels();
+#else 
+            hwloc_levels = -1;
 #endif
+            
+            /* Handle the case when HWLOC is present but cannot compute the hierarchy, 
+             * as well as the casewhen HWLOC is not present
+             */
+            if( hwloc_levels == -1 ) {
+                for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
+                    sched_obj->hierarch_queues[nq] =
+                        LOCAL_QUEUES_OBJECT(vp->execution_units[(eu->th_id + nq) % vp->nb_cores])->task_queue;
+                }
+            } else {
+#if defined(HAVE_HWLOC)
+                /* Then, they know about all other queues, from the closest to the farthest */
+                for(int level = 0; level <= hwloc_levels; level++) {
+                    for(int id = (eu->th_id + 1) % vp->nb_cores; 
+                        id != eu->th_id; 
+                        id = (id + 1) %  vp->nb_cores) {
+                        int d;
+                        d = dague_hwloc_distance(eu->th_id, id);
+                        if( d == 2*level || d == 2*level + 1 ) {
+                            sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
+                            DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
+                                   eu->th_id, nq, id, sched_obj->hierarch_queues[nq]));
+                            nq++;
+                            if( nq == sched_obj->nb_hierarch_queues )
+                                break;
+                        }
+                    }
+                    if( nq == sched_obj->nb_hierarch_queues )
+                        break;
+                }
+                assert( nq == sched_obj->nb_hierarch_queues );
+#else
+                /* Unreachable code */
+#endif
+            }
         }
-    }
-
+    }   
     return 0;
 }
 
@@ -219,7 +231,7 @@ static int init_local_hier_queues( dague_context_t *master )
 {
 #if !defined(HAVE_HWLOC)
     (void)master;
-    fprintf(stderr, "xxx\tDAGuE: hierarchical scheduler cannot be selected, you need to recompile DAGuE with hwloc, or select another scheduler.\n");
+    ERROR(("hierarchical scheduler cannot be selected, you need to recompile DAGuE with hwloc, or select another scheduler.\n"));
     return -1;
 #else
     int p, t;
@@ -266,11 +278,11 @@ static int init_local_hier_queues( dague_context_t *master )
                         dague_hbbuffer_new( queue_size, nbcores,
                                             level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                             level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1]);
-                    DEBUG(("%d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
-                           eu->th_id, queue_size, nbcores,
-                           level, idx, sched_obj->hierarch_queues[idx],
-                           level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1],
-                           level == 0 ? "System queue" : "upper level hhbuffer"));
+                    DEBUG3(("schedHQ %d creates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
+                            eu->th_id, queue_size, nbcores,
+                            level, idx, sched_obj->hierarch_queues[idx],
+                            level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1],
+                            level == 0 ? "System queue" : "upper level hhbuffer"));
                 }
             }
         }
@@ -282,8 +294,8 @@ static int init_local_hier_queues( dague_context_t *master )
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
                 int m = dague_hwloc_master_id(level, eu->th_id);
                 if( eu->th_id != m ) {
-                    DEBUG(("%d takes the buffer of %d at level %d stored in %d: %p\n",
-                           eu->th_id, m, level, idx, LOCAL_QUEUES_OBJECT(vp->execution_units[m])->hierarch_queues[idx]));
+                    DEBUG3(("%d takes the buffer of %d at level %d stored in %d: %p\n",
+                            eu->th_id, m, level, idx, LOCAL_QUEUES_OBJECT(vp->execution_units[m])->hierarch_queues[idx]));
                     /* The slaves take their queue for this level from their master */
                     sched_obj->hierarch_queues[idx] = LOCAL_QUEUES_OBJECT(vp->execution_units[m])->hierarch_queues[idx];
                 }

@@ -38,14 +38,12 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
-#include <stdlib.h>
-#include <stdio.h>
+#include "debug.h"
 static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                           uint64_t old_value,
                                           uint64_t new_value )
 {
-    printf("Use of 64b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 set\n \n");
-    exit(-2);
+    ERROR(("Use of 64b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 set\n \n"));
     return -1;
 }
 #endif
