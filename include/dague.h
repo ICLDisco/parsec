@@ -84,6 +84,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          int flow_index, int outdep_index, 
                                                          int rank_src, int rank_dst,
                                                          dague_arena_t* arena,
+                                                         int nb_elt,
                                                          void *param);
 typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
                                          dague_execution_context_t *,
@@ -248,6 +249,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              int flow_index, int outdep_index, 
                                              int rank_src, int rank_dst,
                                              dague_arena_t* arena,
+                                             int nb_elt,
                                              void *param);
 
 /**< Retrieve the local object attached to a unique object id */

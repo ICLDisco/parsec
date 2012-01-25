@@ -40,6 +40,7 @@ void jdf_prepare_parsing(void)
     current_jdf.epilogue  = NULL;
     current_jdf.globals   = NULL;
     current_jdf.functions = NULL;
+    current_jdf.global_properties = NULL;
     current_lineno = 1;
 }
 
@@ -556,8 +557,8 @@ static int jdf_sanity_check_control(void)
                      (dep->guard->callfalse->var == NULL)) ) {
                     rc++;
                     jdf_fatal(flow->lineno, 
-                              "In function %s:%d the control of dependency %s(#%d) of flow %s(#%d) cannot refer to data\n",
-                              func->fname, flow->lineno, dep->datatype_name, j, flow->varname, i );
+                              "In function %s:%d the control of dependency #%d of flow %s(#%d) cannot refer to data\n",
+                              func->fname, flow->lineno, j, flow->varname, i );
                 }
             }
         }

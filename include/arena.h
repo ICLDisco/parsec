@@ -48,6 +48,7 @@ struct dague_arena_chunk_t {
     uint64_t keeper_of_the_seven_keys;
     void* data;
     volatile uint32_t refcount;
+    size_t count;
     int32_t cache_friendly_emptyness;
 };
 
@@ -79,7 +80,7 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              int32_t max_released); 
 void dague_arena_destruct(dague_arena_t* arena);
 
-dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena);
+dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
 void dague_arena_release(dague_arena_chunk_t* ptr);
 
 static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr)

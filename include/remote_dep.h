@@ -54,6 +54,7 @@ struct remote_dep_output_param {
   */ 
     void*                 data;
     struct dague_arena_t* type;
+    uint32_t              nbelt;
     uint32_t*             rank_bits;
     uint32_t              count;
 };
@@ -141,7 +142,8 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_object_t* dague_object,
                              void *dst, dague_arena_chunk_t *src, 
-                             const dague_remote_dep_datatype_t datatype);
+                             const dague_remote_dep_datatype_t datatype,
+                             int nbelt);
 
 #else 
 # define dague_remote_dep_init(ctx) (1)
