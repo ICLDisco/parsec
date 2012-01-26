@@ -1,0 +1,106 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
+it     [type = "int"]
+jt     [type = "int"]
+nt     [type = "int"]
+mt     [type = "int"]
+
+
+/*
+ *
+ */
+GEBRT(i,j)
+  /* Execution space */
+  i = 1 .. nt/2-1
+  j = 0 .. nt/2-1
+
+  : A(it+i,jt+j)
+
+  /* Atl: A from Top Left */
+  RW  Atl <- A GEBRT_Reader(i,j)
+          -> A GEBRT_Writer(i,j)
+
+  /* Abl: A from Bottom Left */
+  RW  Abl <- A GEBRT_Reader(i+nt/2,j)
+          -> A GEBRT_Writer(i+nt/2,j)
+
+  /* Atr: A from Top Right */
+  RW  Atr <- A GEBRT_Reader(i,j+mt/2)
+          -> A GEBRT_Writer(i,j+mt/2)
+
+  /* Abr: A from Bottom Right */
+  RW  Abr <- A GEBRT_Reader(i+nt/2,j+mt/2)
+          -> A GEBRT_Writer(i+nt/2,j+mt/2)
+
+BODY
+/* nothing */
+END
+
+
+/*
+ *
+ */
+GEBRT_Reader(i,j)
+  /* Execution space */
+  i = 0 .. nt-1
+  j = 0 .. nt-1
+
+  : A(i+it,j+jt)
+
+READ A <- A(i+it, j+jt)
+       -> ( (i<nt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j)
+       -> ( (i<nt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2)
+       -> ( (i>=nt/2) && (j<nt/2)  ) ? Abl GEBRT(i-nt/2,j)
+       -> ( (i>=nt/2) && (j>=nt/2) ) ? Abr GEBRT(i-nt/2,j-nt/2)
+
+BODY
+/* nothing */
+END
+
+
+/*
+ *
+ */
+GEBRT_Writer(i,j)
+  /* Execution space */
+  i = 0 .. nt-1
+  j = 0 .. nt-1
+
+  : A(i+it,j+jt)
+
+READ A <- ( (i<nt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j)
+       <- ( (i<nt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2)
+       <- ( (i>=nt/2) && (j<nt/2)  ) ? Abl GEBRT(i-nt/2,j)
+       <- ( (i>=nt/2) && (j>=nt/2) ) ? Abr GEBRT(i-nt/2,j-nt/2)
+       -> A(i+it, j+jt)
+
+BODY
+/* nothing */
+END
+
+
