@@ -98,6 +98,7 @@ void print_usage(void)
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
+	    " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
@@ -107,7 +108,7 @@ void print_usage(void)
     dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -158,6 +159,8 @@ static struct option long_options[] =
     {"tsrr",        required_argument,  0, 'r'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
+    {"butlvl",      required_argument,  0, 'y'},
+    {"y",           required_argument,  0, 'y'},
 
     {"dot",         required_argument,  0, '.'},
 
@@ -236,6 +239,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
             case 'd': iparam[IPARAM_QR_DOMINO] = atoi(optarg) ? 1 : 0; break;
+	    case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
             case 'r': iparam[IPARAM_QR_TSRR] = atoi(optarg) ? 1 : 0; break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;

@@ -54,11 +54,18 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
     if(loud > 2) printf("+++ Computing Butterfly ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zbutterfly, 
-                              ((tiled_matrix_desc_t*)&ddescA, &info));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zbutterfly);
 
-    dplasma_zbutterfly_Destruct( DAGUE_zbutterfly );
+    SYNC_TIME_START(); 
+    TIME_START();
+    dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, butterfly_level);
+    if(loud) 
+	TIME_PRINT(rank, ("zhebut computed %d tasks,\trate %f task/s\n", 
+                   nb_local_tasks, 
+                   nb_local_tasks/time_elapsed));
+    SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d : %f gflops\n", N, NB, 
+                    gflops = (flops/1e9)/(sync_time_elapsed))); 
+    (void)gflops;
+
     if(loud > 2) printf("Done.\n");
 
     if ( info != 0 ) {

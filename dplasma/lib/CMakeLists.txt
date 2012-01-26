@@ -77,7 +77,7 @@ set(SOURCES
   zlansy_wrapper.c
   # Lapack 
   zpotrf_wrapper.c 
-  zbut_wrapper.c 
+  zhebut_wrapper.c 
   zpotrs_wrapper.c 
   zposv_wrapper.c 
   zgetrf_wrapper.c 

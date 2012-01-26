@@ -36,7 +36,7 @@ mt     [type = "int"]
  */
 GEBRT(i,j)
   /* Execution space */
-  i = 1 .. nt/2-1
+  i = 0 .. nt/2-1
   j = 0 .. nt/2-1
 
   : A(it+i,jt+j)
