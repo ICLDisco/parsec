@@ -74,9 +74,9 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #if defined(DAGUE_DEBUG)
             deps->output[k].data = NULL;
             deps->output[k].type = NULL;
-#endif
             k++;
             assert(k < MAX_PARAM_COUNT);
+#endif
         }
         assert(count == deps->output_count);
         deps->output_count = 0;
