@@ -74,9 +74,10 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #if defined(DAGUE_DEBUG)
             deps->output[k].data = NULL;
             deps->output[k].type = NULL;
+            deps->output[k].nbelt = -1;
+#endif
             k++;
             assert(k < MAX_PARAM_COUNT);
-#endif
         }
         assert(count == deps->output_count);
         deps->output_count = 0;
@@ -264,15 +265,19 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
+                            size_t rs = remote_deps->output[i].type->elem_size * remote_deps->output[i].nbelt;
                             AREF(remote_deps->output[i].data);
-                            if(RDEP_MSG_EAGER_LIMIT > 0 && remote_deps->output[i].type->elem_size < RDEP_MSG_EAGER_LIMIT) {
+            
+                            if( RDEP_MSG_EAGER_LIMIT > 0 && rs < RDEP_MSG_EAGER_LIMIT) {
                                 RDEP_MSG_EAGER_SET(&remote_deps->msg);
                             } else {
                                 RDEP_MSG_EAGER_CLR(&remote_deps->msg);
                             }
-                            DEBUG3((" RDEP\t%s\toutput=%d, type size=%d, eager=%lx\n",
+                            DEBUG3((" RDEP\t%s\toutput=%d, type size=%d, nbelt = %d, eager=%lx\n",
                                    dague_service_to_string(exec_context, tmp, 128), i,
-                                   (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), RDEP_MSG_EAGER(&remote_deps->msg)));
+                                   (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), 
+                                   remote_deps->output[i].type,
+                                   RDEP_MSG_EAGER(&remote_deps->msg)));
                         }
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {

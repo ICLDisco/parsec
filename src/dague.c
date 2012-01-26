@@ -720,6 +720,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                              int out_index, int outdep_index, 
                                              int src_rank, int dst_rank,
                                              dague_arena_t* arena,
+                                             int nbelt,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
@@ -746,6 +747,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             }
             arg->deps->output[out_index].data = data; /* if still NULL allocate it */
             arg->deps->output[out_index].type = arena;
+            arg->deps->output[out_index].nbelt = nbelt;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -757,6 +759,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
+                arg->remote_deps->output[out_index].nbelt = nbelt;
                 arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
@@ -768,6 +771,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 #else
     (void)src_rank;
     (void)arena;
+    (void)nbelt;
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
