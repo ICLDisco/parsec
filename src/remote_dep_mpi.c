@@ -1081,7 +1081,7 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
             if(NULL == saved_deps->output[k].data) {
                 saved_deps->output[k].data = dague_arena_get(saved_deps->output[k].type, saved_deps->output[k].nbelt);
                 DEBUG3(("MPI:\tMalloc new remote tile %p size %zu nbelt = %d\n", 
-                        saved_deps->output[k].data, saved_deps->output[k].type->elem_size; saved_deps->output[k].nbelt));
+                        saved_deps->output[k].data, saved_deps->output[k].type->elem_size, saved_deps->output[k].nbelt));
                 assert(saved_deps->output[k].data != NULL);
             }
             DEBUG2(("MPI:\tFROM\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
@@ -1172,7 +1172,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_r
 #else
 #  ifdef DAGUE_DEBUG_VERBOSE2
         MPI_Type_get_name(dtt, type_name, &len);
-        DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, nbdtt, eps->output[k].type->elem_size * nbdtt, NEXT_TAG+k));
+        //DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\ti=%d,k=%d\twith datakey %lx at %p type %s nbelt %d extent %d\t(tag=%d)\n", from, remote_dep_cmd_to_string(task, tmp, 128), i, k, task->deps, ADATA(data), type_name, nbdtt, eps->output[k].type->elem_size * nbdtt, NEXT_TAG+k));
         TAKE_TIME_WITH_INFO(MPIrcv_prof[i], MPI_Data_pldr_sk, i+k, from,
                             eu_context->master_context->my_rank, deps->msg);
 #  endif /* defined(DAGUE_PROF_TRACE) */
