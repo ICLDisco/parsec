@@ -616,9 +616,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
-#   ifdef DAGUE_DEBUG_VERBOSE2
+#   ifdef DAGUE_DEBUG_VERBOSE3
         if( dep_new_value != 0 ) {
-            DEBUG2(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
+            DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
 #   endif /* DAGUE_DEBUG */
     }
