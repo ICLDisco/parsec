@@ -495,6 +495,7 @@ set(SRCS
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
+  src/vpmap.c
  ${EXTRA_SOURCES} 
 )
 

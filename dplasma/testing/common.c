@@ -31,6 +31,7 @@
 
 #include "dague_prof_grapher.h"
 #include "schedulers.h"
+#include "vpmap.h"
 
 /*******************************
  * globals and argv set values *
@@ -71,6 +72,16 @@ void print_usage(void)
             "                       GD  -- Global Dequeue\n"
             "                       LHQ -- Local Hierarchical Queues\n"
             "                       AP  -- Absolute Priorities\n"
+            " -V --vpmap        : select the virtual process map (default: flat map)\n"
+            "                     Accepted values:\n"
+            "                       flat -- Flat Map: all cores defined with -c are under the same virtual process\n"
+            "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
+            "                                bound on cores that are under the same socket are also under the same\n"
+            "                                virtual process\n"
+            "                       file:filename -- uses filename to load the virtual process map\n"
+            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p\n"
+            "                                   threads bound in a round-robin fashion on the number of cores c (overloads the\n"
+            "                                   -c flag)\n"
             "\n"
             " -p -P --grid-rows : rows (P) in the PxQ process grid   (default: NP)\n"
             " -q -Q --grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
@@ -98,7 +109,7 @@ void print_usage(void)
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
-	    " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
+	        " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
@@ -108,7 +119,7 @@ void print_usage(void)
     dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:V:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -127,6 +138,8 @@ static struct option long_options[] =
     {"Q",           required_argument,  0, 'q'},
     {"prio-switch", optional_argument,  0, 'k'},
     {"k",           optional_argument,  0, 'k'},
+    {"V",           required_argument,  0, 'V'},
+    {"vpmap",       required_argument,  0, 'V'},
 
     {"N",           required_argument,  0, 'N'},
     {"M",           required_argument,  0, 'M'},
@@ -239,7 +252,7 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
             case 'd': iparam[IPARAM_QR_DOMINO] = atoi(optarg) ? 1 : 0; break;
-	    case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
+	        case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
             case 'r': iparam[IPARAM_QR_TSRR] = atoi(optarg) ? 1 : 0; break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
@@ -250,6 +263,32 @@ static void parse_arguments(int argc, char** argv, int* iparam)
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
                 break;
+
+            case 'V':
+                if( !strncmp(optarg, "display", 7 )) {
+                    vpmap_display_map(stderr);
+                } else {
+                    /* Change the vpmap choice: first cancel the previous one */
+                    vpmap_fini();
+                    if( !strncmp(optarg, "flat", 4) ) {
+                        /* No problem, this is the default choice */
+                    } else if( !strncmp(optarg, "hwloc", 5) ) {
+                        vpmap_init_from_hardware_affinity();
+                    } else if( !strncmp(optarg, "file:", 5) ) {
+                        vpmap_init_from_file(optarg + 5);
+                    } else if( !strncmp(optarg, "rr:", 3) ) {
+                        int n, p, co;
+                        sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
+                        vpmap_init_from_parameters(n, p, co);
+                        iparam[IPARAM_NCORES] = co;
+                    } else {
+                        fprintf(stderr, "invalid VPMAP choice (-V argument): %s\n", optarg);
+                        print_usage();
+                        exit(1);
+                    }
+                }
+                break;
+
             case 'h': print_usage(); exit(0);
             
             case '?': /* getopt_long already printed an error message. */
@@ -273,7 +312,10 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             fprintf(stderr, "+++ cores detected      : %d\n", iparam[IPARAM_NCORES]);
     }
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
-    
+
+    /* This will fail if another init has been done already */
+    (void)vpmap_init_from_flat(iparam[IPARAM_NCORES]);
+
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
         iparam[IPARAM_P] = iparam[IPARAM_NNODES];
