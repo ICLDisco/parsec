@@ -607,6 +607,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #   if defined(DAGUE_DEBUG)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         char tmp2[128];
+	char tmp[128];
         ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
                dest_flow->flow_index, dague_service_to_string(origin, tmp, 128), origin_flow->name,
                *deps,
@@ -621,9 +622,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
-#   ifdef DAGUE_DEBUG_VERBOSE2
+#   ifdef DAGUE_DEBUG_VERBOSE3
         if( dep_new_value != 0 ) {
-            DEBUG2(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
+            DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
 #   endif /* DAGUE_DEBUG */
     }
@@ -639,6 +640,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
+	    char tmp[128];
             dague_dependency_t tmp_mask;
             tmp_mask = *deps;
             success = dague_atomic_cas( deps,
@@ -728,6 +730,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                              int src_rank, int dst_rank,
                                              int dst_vpid,
                                              dague_arena_t* arena,
+                                             int nbelt,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
@@ -754,6 +757,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             }
             arg->deps->output[out_index].data = data; /* if still NULL allocate it */
             arg->deps->output[out_index].type = arena;
+            arg->deps->output[out_index].nbelt = nbelt;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -765,6 +769,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
+                arg->remote_deps->output[out_index].nbelt = nbelt;
                 arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
@@ -776,6 +781,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 #else
     (void)src_rank;
     (void)arena;
+    (void)nbelt;
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&

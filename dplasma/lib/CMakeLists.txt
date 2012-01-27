@@ -33,7 +33,8 @@ set(JDF
   ztrmm_LLN.jdf ztrmm_LLT.jdf ztrmm_LUN.jdf ztrmm_LUT.jdf ztrmm_RLN.jdf ztrmm_RLT.jdf ztrmm_RUN.jdf ztrmm_RUT.jdf
   zpotrf_rl.jdf zpotrf_ll.jdf 
   zpotrf_Url.jdf zpotrf_Lrl.jdf 
-  zbutterfly.jdf
+  zgebut.jdf
+  zhebut.jdf
   zgetrf.jdf zgetrf_sd.jdf
   ztrsmpl.jdf ztrsmpl_sd.jdf
   zgeqrf.jdf
@@ -76,7 +77,7 @@ set(SOURCES
   zlansy_wrapper.c
   # Lapack 
   zpotrf_wrapper.c 
-  zbutterfly_wrapper.c 
+  zhebut_wrapper.c 
   zpotrs_wrapper.c 
   zposv_wrapper.c 
   zgetrf_wrapper.c 

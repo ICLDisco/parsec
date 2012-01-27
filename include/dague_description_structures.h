@@ -14,6 +14,7 @@ typedef struct expr expr_t;
 typedef struct dague_flow dague_flow_t;
 typedef struct dep dep_t;
 typedef struct symbol symbol_t;
+typedef struct dague_datatype dague_datatype_t;
 
 struct dague_object;
 struct dague_function;
@@ -77,13 +78,20 @@ struct dague_flow {
  * Dependencies
  */
 #define MAX_CALL_PARAM_COUNT    MAX_PARAM_COUNT
-  
+
+struct dague_datatype {
+    int index;
+    expr_op_inline_func_t index_fct;
+    int nb_elt;
+    expr_op_inline_func_t nb_elt_fct;
+};
+
 struct dep {
     const expr_t                *cond;
     const struct dague_function *dague;
     const expr_t                *call_params[MAX_CALL_PARAM_COUNT];
     const dague_flow_t          *flow;
-    int                          datatype_index;
+    dague_datatype_t             datatype;
 };
   
 void dep_dump(const dep_t *d, const struct dague_object *dague_object, const char *prefix);
