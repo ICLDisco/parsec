@@ -1040,9 +1040,15 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
             DEBUG2(("MPI:\tFROM\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
                    saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, deps->msg.deps, ADATA(saved_deps->output[k].data), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
-            MPI_Recv(ADATA(saved_deps->output[k].data), saved_deps->output[k].nbelt, 
+            MPI_Request req; int flag = 0;
+            MPI_Irecv(ADATA(saved_deps->output[k].data), saved_deps->output[k].nbelt, 
                      saved_deps->output[k].type->opaque_dtt, saved_deps->from, 
-                     tag+k, dep_comm, MPI_STATUS_IGNORE);
+                     tag+k, dep_comm, &req);
+            do {
+                MPI_Test(&req, &flag, MPI_STATUS_IGNORE);
+                if(flag) break;
+                remote_dep_mpi_progress(eu_context);
+            } while(!flag);
 #endif
             saved_deps->msg.deps |= 1<<k;
             continue;
