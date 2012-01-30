@@ -12,6 +12,7 @@
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
+#include "vpmap.h"
 
 #include <signal.h>
 #if defined(HAVE_STRING_H)
@@ -349,26 +350,33 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
 int dague_enqueue( dague_context_t* context, dague_object_t* object)
 {
-    dague_execution_context_t *startup_list = NULL;
+    dague_execution_context_t **startup_list;
+    int p;
 
     if( NULL == scheduler.schedule_task ) {
         WARNING(("You cannot enqueue a task without selecting a scheduler first.\n"));
         return -1;
     }
 
+    /* These pointers need to be initialized to NULL; doing it with calloc */
+    startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+
     if( object->nb_local_tasks > 0 ) {
         /* Update the number of pending dague objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
         if( NULL != object->startup_hook ) {
-            object->startup_hook(context, object, &startup_list);
-            if( NULL != startup_list ) {
-                /* We should add these tasks on the system queue */
-#warning TODO: should not be virtual_processes[0] but virtual_processes[vpid_of(...)]
-                __dague_schedule( context->virtual_processes[0]->execution_units[0], startup_list );
+            object->startup_hook(context, object, startup_list);
+            for(p = 0; p < vpmap_get_nb_vp(); p++) {
+                if( NULL != startup_list[p] ) {
+                    /* We should add these tasks on the system queue when there is one */
+                    __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
+                }
             }
         }
     }
+    
+    free(startup_list);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;

@@ -1556,6 +1556,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     int nesting;
     expr_info_t info1, info2;
     int idx;
+    int nbdefinitions;
 
     assert( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP );
     (void)jdf;
@@ -1566,11 +1567,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 #warning Should be virtal_processes[vpid_of(...)] (not critical, though)
     coutput("static int %s(dague_context_t *context, const __dague_%s_internal_object_t *__dague_object, dague_execution_context_t** pready_list)\n"
             "{\n"
-            "  dague_execution_context_t* new_context;\n"
+            "  dague_execution_context_t* new_context, new_context_holder, *new_dynamic_context;\n"
             "  assignment_t *assignments = NULL;\n"
+            "  int vpid;\n"
             "%s\n"
             "%s\n"
-            "  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[0]->execution_units[0]->context_mempool );\n"
+            "  new_context = &new_context_holder;\n"
             "  assignments = new_context->locals;\n",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
@@ -1589,7 +1591,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     info2.prefix = "";
     info2.assignments = "assignments";
 
-    coutput("  /* Parse all the inputs and generate the ready execution tasks */\n");
+    coutput("  new_context->dague_object = (dague_object_t*)__dague_object;\n"
+            "  new_context->function = (const dague_function_t*)&%s_%s;\n"
+            "  /* Parse all the inputs and generate the ready execution tasks */\n",
+            jdf_basename, f->fname);
 
     nesting = 0;
     idx = 0;
@@ -1626,48 +1631,53 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
 
+    coutput("%s  vpid = ((dague_ddesc_t*)__dague_object->super.%s)->vpid_of((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+            "%s  new_dynamic_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[vpid]->execution_units[0]->context_mempool );\n",
+            indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem, 
+                             UTIL_DUMP_LIST(sa1, f->predicate->parameters, next,
+                                            dump_expr, (void**)&info2,
+                                            "", "", ", ", ""),
+            indent(nesting));
+
+    JDF_COUNT_LIST_ENTRIES(f->definitions, jdf_def_list_t, next, nbdefinitions);
+    coutput("%s  /* Copy only the valid elements from new_context to new_dynamic one */\n"
+            "%s  new_dynamic_context->dague_object = new_context->dague_object;\n"
+            "%s  new_dynamic_context->function     = new_context->function;\n"
+            "%s  memcpy(new_dynamic_context->locals, new_context->locals, %d*sizeof(assignment_t));\n",
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting), nbdefinitions);
+    
     coutput("%s  DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
-            "%s  DAGUE_LIST_ITEM_SINGLETON( new_context );\n",
+            "%s  DAGUE_LIST_ITEM_SINGLETON( new_dynamic_context );\n",
             indent(nesting),
             indent(nesting));
-    coutput("%s  new_context->dague_object = (dague_object_t*)__dague_object;\n"
-            "%s  new_context->function = (const dague_function_t*)&%s_%s;\n",
-            indent(nesting),
-            indent(nesting), jdf_basename, f->fname);
     if( NULL != f->priority ) {
-        coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->dague_object, new_context->locals);\n",
+        coutput("%s  new_dynamic_context->priority = priority_of_%s_%s_as_expr_fct(new_dynamic_context->dague_object, new_dynamic_context->locals);\n",
                 indent(nesting), jdf_basename, f->fname);
     } else {
-        coutput("%s  new_context->priority = 0;\n", indent(nesting));
+        coutput("%s  new_dynamic_context->priority = 0;\n", indent(nesting));
     }
+
     {
         struct jdf_dataflow *dataflow = f->dataflow;
         for(idx = 0; NULL != dataflow; idx++, dataflow = dataflow->next ) {
-            coutput("    new_context->data[%d].data_repo = NULL;\n"
-                    "    new_context->data[%d].data      = NULL;\n",
+            coutput("    new_dynamic_context->data[%d].data_repo = NULL;\n"
+                    "    new_dynamic_context->data[%d].data      = NULL;\n",
                     idx, idx);
         }
     }
+
     coutput("#if defined(DAGUE_DEBUG_VERBOSE2)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
             "%s    DEBUG2((\"Add startup task %%s\\n\",\n"
-            "%s           dague_service_to_string(new_context, tmp, 128)));\n"
+            "%s           dague_service_to_string(new_dynamic_context, tmp, 128)));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
-    coutput("%s  dague_list_add_single_elem_by_priority( pready_list, new_context );\n", indent(nesting));
-
-#warning Should be virtual_processes[vpid_of(...)] (not critical, though)
-    coutput("%s  new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( context->virtual_processes[0]->execution_units[0]->context_mempool );\n"
-            "%s  assignments = new_context->locals;\n",
-            indent(nesting),
-            indent(nesting));
-    /* Dump all assignments except the last one */
-    for(idx = 0, dl = f->definitions; NULL != dl->next; dl = dl->next, idx++) {
-        coutput("%s  assignments[%d].value = %s;\n", 
-                indent(nesting), idx, dl->name);
-    }
+    coutput("%s  dague_list_add_single_elem_by_priority( &pready_list[vpid], new_dynamic_context );\n", indent(nesting));
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
@@ -1676,9 +1686,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     /* Quiet the compiler by using the varibales */
     string_arena_free(sa1);    
     string_arena_free(sa2);
-
-#warning Should be virtual_processes[vpid_of(...)] (not critical, though)
-    coutput("  dague_thread_mempool_free( context->virtual_processes[0]->execution_units[0]->context_mempool, new_context );\n");
 
     coutput("  return 0;\n"
             "}\n\n");
