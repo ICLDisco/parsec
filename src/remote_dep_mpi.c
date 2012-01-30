@@ -884,7 +884,7 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
         item = dague_ulist_fifo_pop(&dague_put_fifo);
     } while( (dague_list_item_t*)eager == item );
     if( NULL != item ) /* return the item to the list */
-        dague_ulist_push_front(&dague_put_fifo, item); 
+        dague_ulist_push_front(&dague_put_fifo, item);
 }
 
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status )
@@ -971,6 +971,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, int k, MPI_Status* status)
 {
     dague_dep_wire_get_fifo_elem_t* item = dep_pending_put_array[i];
+    assert(NULL != item);
     remote_dep_wire_get_t* task = &(item->task);
     dague_remote_deps_t* deps = (dague_remote_deps_t*)(uintptr_t)task->deps;
 
