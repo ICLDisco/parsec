@@ -177,6 +177,9 @@ static int init_local_flat_queues(  dague_context_t *master )
             sched_obj->hierarch_queues[0] = sched_obj->task_queue;
         }
 
+        DEBUG(("VP %d: creating queues for %d cores\n",
+               p, vp->nb_cores));
+
         for(t = 0; t < vp->nb_cores; t++) {
             nq = 1;
             eu = vp->execution_units[t];
@@ -187,7 +190,7 @@ static int init_local_flat_queues(  dague_context_t *master )
 #else 
             hwloc_levels = -1;
 #endif
-            
+
             /* Handle the case when HWLOC is present but cannot compute the hierarchy, 
              * as well as the casewhen HWLOC is not present
              */
@@ -207,8 +210,8 @@ static int init_local_flat_queues(  dague_context_t *master )
                         d = dague_hwloc_distance(eu->th_id, id);
                         if( d == 2*level || d == 2*level + 1 ) {
                             sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                            DEBUG(("%d: my %d preferred queue is the task queue of %d (%p)\n",
-                                   eu->th_id, nq, id, sched_obj->hierarch_queues[nq]));
+                            DEBUG(("%d of %d: my %d preferred queue is the task queue of %d (%p)\n",
+                                   eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
                             nq++;
                             if( nq == sched_obj->nb_hierarch_queues )
                                 break;

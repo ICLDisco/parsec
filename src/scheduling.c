@@ -65,7 +65,7 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
 # endif
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[128];
-    DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128))); 
+    DEBUG(( "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id, dague_service_to_string(exec_context, tmp, 128))); 
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 

@@ -25,6 +25,7 @@
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
 #include "stats.h"
+#include "vpmap.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -203,7 +204,7 @@ static void dague_vp_init( dague_vp_t *vp,
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int argc = (*pargc);
-    int nb_vp = 1;
+    int nb_vp;
     int p, t, nb_total_comp_threads;
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
@@ -218,6 +219,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
+    nb_vp = vpmap_get_nb_vp();
 
     context = (dague_context_t*)malloc(sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*));
 
@@ -230,8 +232,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* TODO: nb_cores should depend on the vp_id */
     nb_total_comp_threads = 0;
     for(p = 0; p < nb_vp; p++) {
-        nb_total_comp_threads += nb_cores;
+        nb_total_comp_threads += vpmap_get_nb_threads_in_vp(p);
     }
+
+    if( nb_cores != nb_total_comp_threads ) {
+        fprintf(stderr, "Warning: using %d threads instead of the requested %d (need to change features in VP MAP)\n",
+                nb_total_comp_threads, nb_cores);
+    }
+
     startup = 
         (__dague_temporary_thread_initialization_t*)malloc(nb_total_comp_threads * sizeof(__dague_temporary_thread_initialization_t));
 
@@ -239,13 +247,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     t = 0;
     for(p = 0; p < nb_vp; p++) {
         dague_vp_t *vp;
-        vp = (dague_vp_t *)malloc(sizeof(dague_vp_t) + (nb_cores-1) * sizeof(dague_execution_unit_t*));
+        vp = (dague_vp_t *)malloc(sizeof(dague_vp_t) + (vpmap_get_nb_threads_in_vp(p)-1) * sizeof(dague_execution_unit_t*));
         vp->dague_context = context;
         vp->vp_id = p;
         context->virtual_processes[p] = vp;
         /** This creates startup[t] -> startup[t+nb_cores] */
-        dague_vp_init(vp, nb_cores, &(startup[t]));
-        t += nb_cores;
+        dague_vp_init(vp, vpmap_get_nb_threads_in_vp(p), &(startup[t]));
+        t += vpmap_get_nb_threads_in_vp(p);
     }
 
 #if defined(HAVE_HWLOC)
@@ -606,7 +614,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #   if defined(DAGUE_DEBUG)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         char tmp2[128];
-	char tmp[128];
         ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
                dest_flow->flow_index, dague_service_to_string(origin, tmp, 128), origin_flow->name,
                *deps,
@@ -639,7 +646,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
-	    char tmp[128];
             dague_dependency_t tmp_mask;
             tmp_mask = *deps;
             success = dague_atomic_cas( deps,
