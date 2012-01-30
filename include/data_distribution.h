@@ -19,11 +19,6 @@
 #include "mpi.h"
 #endif /*HAVE_MPI */
 
-typedef struct dague_vp_map {
-    int nb_vp;    /**< Number of virtual processes in the local physical process */
-} dague_vp_map_t;
-extern dague_vp_map_t dague_default_vp_map;
-
 typedef struct dague_ddesc {
     uint32_t myrank;  /**< process rank */
     uint32_t cores;   /**< number of cores used for computation per node */

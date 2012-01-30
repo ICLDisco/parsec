@@ -1,6 +1,8 @@
 #ifndef _VPMAP_H_
 #define _VPMAP_H_
 
+#include <stdio.h> /* for FILE* */
+
 /**
  * vpmap_fini
  * to be called when finalizing the virtual process map
