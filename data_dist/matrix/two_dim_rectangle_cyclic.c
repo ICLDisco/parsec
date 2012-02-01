@@ -180,7 +180,7 @@ static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, ch
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                enum matrix_type mtype,
-                               enum matrix_type storage,
+                               enum matrix_storage storage,
                                int nodes, int cores, int myrank,
                                int mb,   int nb,   /* Tile size */
                                int lm,   int ln,   /* Global matrix size (what is stored)*/
