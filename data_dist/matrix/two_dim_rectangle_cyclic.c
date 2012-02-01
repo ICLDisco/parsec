@@ -106,12 +106,15 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         }
         pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
         pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
+
+        pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
+
     }
     /* Lapack Storage */
     else {
         int local_m, local_n;
 
-        /* Compute the local row */
+        /* Compute the local tile row */
         local_m = ( m / (Ddesc->grid.strows * Ddesc->grid.rows) ) * Ddesc->grid.strows;
 
         m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
@@ -127,10 +130,8 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
         local_n += n % Ddesc->grid.stcols;
 
-        pos = local_n * Ddesc->nb_elem_r + local_m;
+        pos = ( local_n * Ddesc->super.nb ) * Ddesc->super.lm + local_m * Ddesc->super.mb;
     }
-
-    pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
 
     return &(((char *) Ddesc->mat)[pos]);
 }
@@ -179,6 +180,7 @@ static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, ch
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                enum matrix_type mtype,
+                               enum matrix_type storage,
                                int nodes, int cores, int myrank,
                                int mb,   int nb,   /* Tile size */
                                int lm,   int ln,   /* Global matrix size (what is stored)*/
@@ -211,7 +213,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     }
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
                             mb, nb, lm, ln, i, j, m, n);
 
     assert((nodes % P) == 0);

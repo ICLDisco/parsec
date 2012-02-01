@@ -11,7 +11,7 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_enum trans, PLASMA_enum diag,
-                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, 
+                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA,
                           two_dim_block_cyclic_t *ddescB, two_dim_block_cyclic_t *ddescX );
 
 int main(int argc, char ** argv)
@@ -33,16 +33,16 @@ int main(int argc, char ** argv)
     int Am = max(M, NRHS);
     LDA = max(LDA, Am);
     LDB = max(LDB, M);
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, LDA, 0, 0,
                                Am, Am, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                M, NRHS, SMB, SNB, P));
 
-    if(!check) 
+    if(!check)
     {
         PLASMA_enum side  = PlasmaLeft;
         PLASMA_enum uplo  = PlasmaLower;
@@ -60,8 +60,8 @@ int main(int argc, char ** argv)
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, ztrsm,
                                   (side, uplo, trans, diag,
-                                   (Dague_Complex64_t)1.0, 
-                                   (tiled_matrix_desc_t *)&ddescA, 
+                                   (Dague_Complex64_t)1.0,
+                                   (tiled_matrix_desc_t *)&ddescA,
                                    (tiled_matrix_desc_t *)&ddescB));
 
         /* lets rock! */
@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
         dplasma_ztrsm_Destruct( DAGUE_ztrsm );
     }
     else
-    { 
+    {
         if ( iparam[IPARAM_NNODES] > 1 ) {
             fprintf(stderr, "Checking doesn't work in distributed\n");
             return EXIT_FAILURE;
@@ -80,9 +80,9 @@ int main(int argc, char ** argv)
         int info_solution;
         Dague_Complex64_t alpha = 3.5;
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
-            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
+            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    M, NRHS, SMB, SNB, P));
 
         dplasma_zplghe( dague, 2., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA, 1358);
@@ -188,7 +188,7 @@ static int check_solution(int loud, PLASMA_enum side, PLASMA_enum uplo, PLASMA_e
     twoDBC_ztolapack( ddescA, A, LDA );
     twoDBC_ztolapack( ddescB, B, LDB );
     twoDBC_ztolapack( ddescX, X, LDB );
-    
+
     /* TODO: check lantr because it returns 0.0, it looks like a parameter is wrong */
     //Anorm      = LAPACKE_zlantr_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), lapack_const(diag), Am, Am, A, LDA, work );
     Anorm      = LAPACKE_zlanhe_work( LAPACK_COL_MAJOR, 'i', lapack_const(uplo), Am, A, LDA, work );

@@ -64,14 +64,14 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
 # endif
 #ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[128];
-    DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128))); 
+    DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
 #endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
         rc = function->hook( eu_context, exec_context );
     }
-    return rc; 
+    return rc;
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -259,7 +259,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
         }
-        
+
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
         exec_context = scheduler.select_task(eu_context);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
@@ -288,7 +288,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             misses_in_a_row++;
         }
     }
-    
+
     /* We're all done ? */
     dague_barrier_wait( &(master_context->barrier) );
 
@@ -327,7 +327,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         priority_trace = fopen(priority_trace_fname, "w");
         if( NULL != priority_trace ) {
             uint32_t my_idx;
-            fprintf(priority_trace, 
+            fprintf(priority_trace,
                     "#Step\tPriority\tThread\n"
                     "#Tasks are ordered in execution order\n");
             for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
@@ -386,7 +386,7 @@ int dague_wait( dague_context_t* context )
 {
     int ret;
     (void)dague_remote_dep_on(context);
-    
+
     ret = (int)(long)__dague_progress( context->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
@@ -398,7 +398,7 @@ int dague_progress(dague_context_t* context)
 {
     int ret;
     (void)dague_remote_dep_on(context);
-    
+
     ret = (int)(long)__dague_progress( context->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;

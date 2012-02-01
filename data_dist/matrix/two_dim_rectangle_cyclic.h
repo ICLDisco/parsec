@@ -18,7 +18,6 @@
  * General distribution of data. Suppose exists a matrix in process of mpi rank 0
  */
 
-
 /*******************************************************************
  * distributed data structure and basic functionalities
  *******************************************************************/
@@ -64,6 +63,7 @@ typedef struct two_dim_block_cyclic {
  */
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                enum matrix_type mtype,
+                               enum matrix_type storage,
                                int nodes, int cores, int myrank,
 			       int mb,   int nb,   /* Tile size */
 			       int lm,   int ln,   /* Global matrix size (what is stored)*/
@@ -72,7 +72,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                int nrst, int ncst, /* Super-tiling size */
                                int process_GridRows );
 
-int twoDBC_tolapack(two_dim_block_cyclic_t *Mdesc, void* A, int lda);
+int twoDBC_tolapack( two_dim_block_cyclic_t *Mdesc, void* A, int lda);
 int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex64_t* A, int lda);
 int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, Dague_Complex32_t* A, int lda);
 int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);

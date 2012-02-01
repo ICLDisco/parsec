@@ -15,12 +15,12 @@
 #include "dplasma/cores/cuda_sgemm.h"
 #endif
 
-static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo, 
-                                tiled_matrix_desc_t *A, 
+static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo,
+                                tiled_matrix_desc_t *A,
                                 tiled_matrix_desc_t *A0 );
-static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo, 
-                           tiled_matrix_desc_t *ddescA, 
-                           tiled_matrix_desc_t *ddescB, 
+static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
+                           tiled_matrix_desc_t *ddescA,
+                           tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 
 int main(int argc, char ** argv)
@@ -31,7 +31,7 @@ int main(int argc, char ** argv)
     int u, t1, t2;
     int info_solve, info_facto;
     int ret = 0;
-        
+
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
@@ -50,20 +50,20 @@ int main(int argc, char ** argv)
     SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-                               two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
+                               two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                       N, N, SMB, SNB, P));
-    
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-                               two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+                               two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                                       N, NRHS, SMB, SNB, P));
-    
-    PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
-                               two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
-                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+
+    PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
+                               two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                                                      nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                                       N, NRHS, SMB, SNB, P));
-    
+
 
 #if defined(DAGUE_PROF_TRACE)
     ddescA0.super.super.key = strdup("A0");
@@ -78,17 +78,17 @@ int main(int argc, char ** argv)
     dplasma_zplrnt( dague,
                     (tiled_matrix_desc_t *)&ddescB, 3872);
     if(loud > 2) printf("Done\n");
- 
+
     for ( u=0; u<2; u++) {
         if ( uplo[u] == PlasmaUpper ) {
             t1 = PlasmaConjTrans; t2 = PlasmaNoTrans;
         } else {
             t1 = PlasmaNoTrans; t2 = PlasmaConjTrans;
-        }   
+        }
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-            sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+            sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                       nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo[u]));
 #if defined(DAGUE_PROF_TRACE)
         ddescA.super.super.key  = strdup("A");
@@ -122,23 +122,23 @@ int main(int argc, char ** argv)
 
         /* Compute */
         if ( loud > 2 ) printf("Compute ... ... ");
-        info = dplasma_zposv(dague, uplo[u], 
-                             (tiled_matrix_desc_t *)&ddescA, 
+        info = dplasma_zposv(dague, uplo[u],
+                             (tiled_matrix_desc_t *)&ddescA,
                              (tiled_matrix_desc_t *)&ddescX );
         if ( loud > 2 ) printf("Done\n");
         if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
 
         /* Check the factorization */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                            (tiled_matrix_desc_t *)&ddescA, 
+          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                            (tiled_matrix_desc_t *)&ddescA,
                                             (tiled_matrix_desc_t *)&ddescA0);
-          
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                       (tiled_matrix_desc_t *)&ddescA0, 
-                                       (tiled_matrix_desc_t *)&ddescB, 
+
+          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                       (tiled_matrix_desc_t *)&ddescA0,
+                                       (tiled_matrix_desc_t *)&ddescB,
                                        (tiled_matrix_desc_t *)&ddescX);
-	}
+        }
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOSV (%s) ... FAILED !\n", uplostr[u]);
@@ -149,7 +149,7 @@ int main(int argc, char ** argv)
             }
             printf("***************************************************\n");
         }
-	
+
         /*********************************************************************
          *               Second Check ( ZPOTRF + ZPOTRS )
          */
@@ -165,11 +165,11 @@ int main(int argc, char ** argv)
 
         /* Compute */
         if ( loud > 2 ) printf("Compute ... ... ");
-        info = dplasma_zpotrf(dague, uplo[u], 
+        info = dplasma_zpotrf(dague, uplo[u],
                               (tiled_matrix_desc_t *)&ddescA );
         if ( info == 0 ) {
-            dplasma_zpotrs(dague, uplo[u], 
-                           (tiled_matrix_desc_t *)&ddescA, 
+            dplasma_zpotrs(dague, uplo[u],
+                           (tiled_matrix_desc_t *)&ddescA,
                            (tiled_matrix_desc_t *)&ddescX );
         }
         if ( loud > 2 ) printf("Done\n");
@@ -177,15 +177,15 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                            (tiled_matrix_desc_t *)&ddescA, 
+          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                            (tiled_matrix_desc_t *)&ddescA,
                                             (tiled_matrix_desc_t *)&ddescA0);
-          
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                       (tiled_matrix_desc_t *)&ddescA0, 
-                                       (tiled_matrix_desc_t *)&ddescB, 
+
+          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                       (tiled_matrix_desc_t *)&ddescA0,
+                                       (tiled_matrix_desc_t *)&ddescB,
                                        (tiled_matrix_desc_t *)&ddescX);
-	}
+        }
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOTRF + ZPOTRS (%s) ... FAILED !\n", uplostr[u]);
@@ -196,14 +196,14 @@ int main(int argc, char ** argv)
             }
             printf("***************************************************\n");
         }
-	
+
         /*********************************************************************
          *               Third Check (ZPOTRF + ZTRSM + ZTRSM)
          */
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
-	
+
         /* Create A and X */
         dplasma_zlacpy( dague, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
@@ -214,28 +214,28 @@ int main(int argc, char ** argv)
         if ( loud > 2 ) printf("Compute ... ... ");
         info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
         if ( info == 0 ) {
-            dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0, 
-                          (tiled_matrix_desc_t *)&ddescA, 
+            dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0,
+                          (tiled_matrix_desc_t *)&ddescA,
                           (tiled_matrix_desc_t *)&ddescX);
-            dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0, 
-                          (tiled_matrix_desc_t *)&ddescA, 
+            dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0,
+                          (tiled_matrix_desc_t *)&ddescA,
                           (tiled_matrix_desc_t *)&ddescX);
         }
         if ( loud > 2 ) printf("Done\n");
         if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
-	
+
         /* Check the solution */
         if ( info == 0 ) {
-          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                            (tiled_matrix_desc_t *)&ddescA, 
+          info_facto = check_factorization( dague, (rank == 0) ? loud : 0, uplo[u],
+                                            (tiled_matrix_desc_t *)&ddescA,
                                             (tiled_matrix_desc_t *)&ddescA0);
-          
-          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u], 
-                                       (tiled_matrix_desc_t *)&ddescA0, 
-                                       (tiled_matrix_desc_t *)&ddescB, 
+
+          info_solve = check_solution( dague, (rank == 0) ? loud : 0, uplo[u],
+                                       (tiled_matrix_desc_t *)&ddescA0,
+                                       (tiled_matrix_desc_t *)&ddescB,
                                        (tiled_matrix_desc_t *)&ddescX);
         }
-	
+
         if ( rank == 0 ) {
             if ( info_solve || info_facto || info ) {
                 printf(" ----- TESTING ZPOTRF + ZTRSM + ZTRSM (%s) ... FAILED !\n", uplostr[u]);
@@ -262,8 +262,8 @@ int main(int argc, char ** argv)
     return ret;
 }
 
-static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo, 
-                                tiled_matrix_desc_t *A, 
+static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum uplo,
+                                tiled_matrix_desc_t *A,
                                 tiled_matrix_desc_t *A0 )
 {
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A0;
@@ -275,18 +275,18 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     int N = A->n;
     double eps = LAPACKE_dlamch_work('e');
     PLASMA_enum side;
-    
+
     PASTE_CODE_ALLOCATE_MATRIX(L1, 1,
                                sym_two_dim_block_cyclic, (&L1, matrix_ComplexDouble,
                                                           A->super.nodes, A->super.cores, twodA->grid.rank,
                                                           A->mb, A->nb, M, N, 0, 0,
                                                           M, N, twodA->grid.rows, uplo));
-    PASTE_CODE_ALLOCATE_MATRIX(L2, 1, 
-                               two_dim_block_cyclic, (&L2, matrix_ComplexDouble, 
-                                                      A->super.nodes, A->super.cores, twodA->grid.rank, 
-                                                      A->mb, A->nb, M, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(L2, 1,
+                               two_dim_block_cyclic, (&L2, matrix_ComplexDouble, matrix_Tile,
+                                                      A->super.nodes, A->super.cores, twodA->grid.rank,
+                                                      A->mb, A->nb, M, N, 0, 0,
                                                       M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
-    
+
     dplasma_zlacpy( dague, uplo, A, (tiled_matrix_desc_t *)&L1 );
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0.,(tiled_matrix_desc_t *)&L2 );
     dplasma_zlacpy( dague, uplo, A, (tiled_matrix_desc_t *)&L2 );
@@ -294,12 +294,12 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
     side = (uplo == PlasmaUpper ) ? PlasmaLeft : PlasmaRight;
 
     /* Compute L'L or U'U  */
-    dplasma_ztrmm( dague, side, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, 
-                   (tiled_matrix_desc_t*)&L1, 
+    dplasma_ztrmm( dague, side, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0,
+                   (tiled_matrix_desc_t*)&L1,
                    (tiled_matrix_desc_t*)&L2);
 
     /* compute L'L - A or U'U - A */
-    dplasma_zgeadd( dague, uplo, -1.0, A0, 
+    dplasma_zgeadd( dague, uplo, -1.0, A0,
                    (tiled_matrix_desc_t*)&L2);
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A0);
@@ -307,7 +307,7 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
                            (tiled_matrix_desc_t*)&L2);
 
     result = Rnorm / ( Anorm * N * eps ) ;
-    
+
     if ( loud > 2 ) {
         printf("============\n");
         printf("Checking the Cholesky factorization \n");
@@ -315,16 +315,16 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
             printf( "-- ||A||_oo = %e",
                     Anorm );
         if ( loud > 3 )
-            printf( ", ||L'L-A||_oo = %e\n", 
+            printf( ", ||L'L-A||_oo = %e\n",
                     Rnorm );
-	
+
         printf("-- ||L'L-A||_oo/(||A||_oo.N.eps) = %e \n", result);
     }
 
-    if ( isnan(Rnorm) 
-         || isinf(Rnorm) 
-         || isnan(result) 
-         || isinf(result) 
+    if ( isnan(Rnorm)
+         || isinf(Rnorm)
+         || isnan(result)
+         || isinf(result)
          || (result > 60.0) ) {
         if( loud ) printf("-- Factorization is suspicious ! \n");
         info_factorization = 1;
@@ -333,7 +333,7 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
         if( loud ) printf("-- Factorization is CORRECT ! \n");
         info_factorization = 0;
     }
-    
+
     dague_data_free(L1.mat);
     dague_ddesc_destroy( (dague_ddesc_t*)&L1);
     dague_data_free(L2.mat);
@@ -345,9 +345,9 @@ static int check_factorization( dague_context_t *dague, int loud, PLASMA_enum up
 /*
  * This function destroy B
  */
-static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo, 
-                           tiled_matrix_desc_t *A, 
-                           tiled_matrix_desc_t *B, 
+static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
+                           tiled_matrix_desc_t *A,
+                           tiled_matrix_desc_t *B,
                            tiled_matrix_desc_t *X )
 {
     two_dim_block_cyclic_t *twodB = (two_dim_block_cyclic_t *)B;
@@ -360,10 +360,10 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     int NRHS = B->n;
     double eps = LAPACKE_dlamch_work('e');
 
-    PASTE_CODE_ALLOCATE_MATRIX(R, 1, 
-                               two_dim_block_cyclic, (&R, matrix_ComplexDouble, 
-                                                      A->super.nodes, A->super.cores, twodB->grid.rank, 
-                                                      A->mb, A->nb, N, NRHS, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(R, 1,
+                               two_dim_block_cyclic, (&R, matrix_ComplexDouble, matrix_Tile,
+                                                      A->super.nodes, A->super.cores, twodB->grid.rank,
+                                                      A->mb, A->nb, N, NRHS, 0, 0,
                                                       N, NRHS, twodB->grid.strows, twodB->grid.stcols, twodB->grid.rows));
 
     Anorm = dplasma_zlanhe(dague, PlasmaMaxNorm, uplo, A);
@@ -372,19 +372,19 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     dplasma_zlacpy( dague, PlasmaUpperLower, B, (tiled_matrix_desc_t *)&R );
 
     /* Compute A*x */
-    dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, A, X, 
+    dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, A, X,
                    1.0, (tiled_matrix_desc_t *)&R);
 
-    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, 
+    Rnorm = dplasma_zlange(dague, PlasmaMaxNorm,
                            (tiled_matrix_desc_t *)&R);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;
-    
+
     if ( loud > 2 ) {
         printf("============\n");
         printf("Checking the Residual of the solution \n");
         if ( loud > 3 )
-            printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n", 
+            printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
                     Anorm, Xnorm, Bnorm, Rnorm );
 
         printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);

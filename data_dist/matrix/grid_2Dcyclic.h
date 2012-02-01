@@ -13,7 +13,7 @@
 #include "dague_config.h"
 
 /*******************************************************************
- * 2D (or 1D) cyclic distribution 
+ * 2D (or 1D) cyclic distribution
  *******************************************************************/
 
 /* Placeholder for all relevant 2D distribution parameters */
@@ -30,7 +30,7 @@ typedef struct grid_2Dcyclic {
 } grid_2Dcyclic_t;
 
 /************************************************
- *   sequential ranks distribution 
+ *   sequential ranks distribution
  *   in a 2x4 process grid
  *   -----------------
  *   | 0 | 1 | 2 | 3 |
@@ -43,7 +43,7 @@ typedef struct grid_2Dcyclic {
  * Initialize the description of a  2-D cyclic distribution.
  * @param rank: sequential rank of the local node (as of mpi rank)
  * @param P: number of row of processes of the process grid
- * @param Q: number of colums of the processes of the process grid 
+ * @param Q: number of colums of the processes of the process grid
  * @param nrst: number of consecutive tiles along rows held by the same processor
  * @param ncst: number of consecutive tiles along columns held by the same processor
  */

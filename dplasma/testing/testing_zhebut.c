@@ -42,28 +42,28 @@ int main(int argc, char ** argv)
     SMB = 1;
     SNB = 1;
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-                               sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+                               sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+                                                          nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, P, uplo));
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(N), uplo, 
+    dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
     if(loud > 2) printf("Done\n");
 
     if(loud > 2) printf("+++ Computing Butterfly ... ");
 
-    SYNC_TIME_START(); 
+    SYNC_TIME_START();
     TIME_START();
     dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, butterfly_level);
-    if(loud) 
-	TIME_PRINT(rank, ("zhebut computed %d tasks,\trate %f task/s\n", 
-                   nb_local_tasks, 
+    if(loud)
+        TIME_PRINT(rank, ("zhebut computed %d tasks,\trate %f task/s\n",
+                   nb_local_tasks,
                    nb_local_tasks/time_elapsed));
-    SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d : %f gflops\n", N, NB, 
-                    gflops = (flops/1e9)/(sync_time_elapsed))); 
+    SYNC_TIME_PRINT(rank, ("zhebut computation N= %d NB= %d : %f gflops\n", N, NB,
+                    gflops = (flops/1e9)/(sync_time_elapsed)));
     (void)gflops;
 
     if(loud > 2) printf("Done.\n");

@@ -76,7 +76,7 @@ dplasma_zgemm_New( const int transA, const int transB,
         }
     }
 
-    dplasma_add2arena_tile(arena, 
+    dplasma_add2arena_tile(arena,
                            A->mb*A->nb*sizeof(Dague_Complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
@@ -114,7 +114,7 @@ dplasma_zgemm( dague_context_t *dague, const int transA, const int transB,
 {
     dague_object_t *dague_zgemm = NULL;
 
-    dague_zgemm = dplasma_zgemm_New(transA, transB, 
+    dague_zgemm = dplasma_zgemm_New(transA, transB,
                                     alpha, A, B,
                                     beta, C);
 
