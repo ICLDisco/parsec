@@ -62,6 +62,7 @@ set(SOURCES
   # Level 3 Blas
   zgemm_wrapper.c 
   zhemm_wrapper.c 
+  zherk_wrapper.c 
   ztrsm_wrapper.c 
   ztrmm_wrapper.c 
   ztrsmpl_wrapper.c   
