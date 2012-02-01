@@ -847,30 +847,41 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 }
 
 /* TODO: Change this code to something better */
+static volatile uint32_t object_array_lock = 0;
 static dague_object_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
 
 static void dague_object_empty_repository(void)
 {
+    dague_atomic_lock( &object_array_lock );
     free(object_array);
     object_array = NULL;
     object_array_size = 1;
     object_array_pos = 0;
+    dague_atomic_unlock( &object_array_pos );
 }
 
 /**< Retrieve the local object attached to a unique object id */
 dague_object_t* dague_object_lookup( uint32_t object_id )
 {
+    dague_object_t *r;
+    dague_atomic_lock( &object_array_lock );
     if( object_id > object_array_pos ) {
-        return NULL;
+        r = NULL;
+    } else {
+        r = object_array[object_id];
     }
-    return object_array[object_id];
+    dague_atomic_unlock( &object_array_lock );
+    return r;
 }
 
 /**< Register the object with the engine. Create the unique identifier for the object */
 int dague_object_register( dague_object_t* object )
 {
-    uint32_t index = ++object_array_pos;
+    uint32_t index;
+
+    dague_atomic_lock( &object_array_lock );
+    index = (uint32_t)++object_array_pos;
 
     if( index >= object_array_size ) {
         object_array_size *= 2;
@@ -878,6 +889,8 @@ int dague_object_register( dague_object_t* object )
     }
     object_array[index] = object;
     object->object_id = index;
+    dague_atomic_unlock( &object_array_lock );
+
     return (int)index;
 }
 
