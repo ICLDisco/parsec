@@ -63,7 +63,7 @@ typedef struct two_dim_block_cyclic {
  */
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                enum matrix_type mtype,
-                               enum matrix_type storage,
+                               enum matrix_storage storage,
                                int nodes, int cores, int myrank,
 			       int mb,   int nb,   /* Tile size */
 			       int lm,   int ln,   /* Global matrix size (what is stored)*/
