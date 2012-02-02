@@ -40,6 +40,7 @@ tools/q2j/q2j
 tools/q2j/q2j\.l\.c
 tools/q2j/q2j\.y\.c
 tools/q2j/q2j\.y\.h
+tools/q2j/examples/.*
 tools/precision_generator/subs\.pyc
 CTestTestfile\.cmake
 Testing/
@@ -64,6 +65,8 @@ dplasma/lib/[sdc]gemm_NT\.jdf
 dplasma/lib/[sdc]gemm_TT\.jdf
 dplasma/lib/[sdc]hemm\.jdf
 dplasma/lib/[sdc]symm\.jdf
+dplasma/lib/[sdc]herk_.*\.jdf
+dplasma/lib/[sdc]syrk_.*\.jdf
 dplasma/lib/[sdc]trsm_LLN\.jdf
 dplasma/lib/[sdc]trsm_LLT\.jdf
 dplasma/lib/[sdc]trsm_LUN\.jdf
@@ -112,6 +115,8 @@ dplasma/lib/[sdcz]gemm_NT\.[ch]
 dplasma/lib/[sdcz]gemm_TT\.[ch]
 dplasma/lib/[sdcz]hemm\.[ch]
 dplasma/lib/[sdcz]symm\.[ch]
+dplasma/lib/[sdcz]herk_.*\.[ch]
+dplasma/lib/[sdcz]syrk_.*\.[ch]
 dplasma/lib/[sdcz]trsm_LLN\.[ch]
 dplasma/lib/[sdcz]trsm_LLT\.[ch]
 dplasma/lib/[sdcz]trsm_LUN\.[ch]
@@ -157,6 +162,8 @@ dplasma/lib/[sdcz]orgqr\.[ch]
 dplasma/lib/[sdc]gemm_wrapper.c 
 dplasma/lib/[sdc]hemm_wrapper.c 
 dplasma/lib/[sdc]symm_wrapper.c 
+dplasma/lib/[sdc]herk_wrapper.c 
+dplasma/lib/[sdc]syrk_wrapper.c 
 dplasma/lib/[sdc]trsm_wrapper.c 
 dplasma/lib/[sdc]trmm_wrapper.c 
 dplasma/lib/[sdc]trsmpl_wrapper.c   

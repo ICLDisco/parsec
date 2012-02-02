@@ -1132,7 +1132,7 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
             }else{
                 is_lb_simple = true;
                 is_lb_C = true;
-                asprintf(&lb, "MAX((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
+                asprintf(&lb, "dague_imax((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
             }
         }else{ // else upper bound
             if( NULL == ub ){
@@ -1141,7 +1141,7 @@ static const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<con
             }else{
                 is_ub_simple = true;
                 is_ub_C = true;
-                asprintf(&ub, "MIN((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
+                asprintf(&ub, "dague_imin((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
             }
         }
 
@@ -2075,7 +2075,7 @@ void print_header(){
            "#include \"dplasma/lib/memory_pool.h\"\n"
            "#include \"dplasma/lib/dplasmajdf.h\"\n"
            "\n"
-           "#define BLKLDD(_desc, _k) (_desc).mb\n"
+           "#define BLKLDD(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )\n"
            "\n"
            "%%}\n\n");
 }

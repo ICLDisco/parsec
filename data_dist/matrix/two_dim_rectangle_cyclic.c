@@ -63,7 +63,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (two_dim_block_cyclic_t *)desc;
-    
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -81,10 +81,10 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     if ( Ddesc->super.storage == matrix_Tile ) {
         /* number of tiles per column of super-tile */
         nb_elem_r = Ddesc->nb_elem_r * Ddesc->grid.stcols;
-        
+
         /* pos is currently at head of supertile (0xA) */
         pos = nb_elem_r * ((n / Ddesc->grid.stcols)/ Ddesc->grid.cols);
-        
+
         /* tile is in the last column of super-tile */
         if (n >= ((Ddesc->super.lnt/Ddesc->grid.stcols) * Ddesc->grid.stcols )) {
             /* number of tile per super tile in last column */
@@ -93,10 +93,10 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         else {
             last_c_size = Ddesc->grid.stcols * Ddesc->grid.strows;
         }
-        
+
         /* pos is at head of supertile (BxA) containing (m,n)  */
         pos += (last_c_size * ((m / Ddesc->grid.strows) / Ddesc->grid.rows ) );
-        
+
         /* if tile (m,n) is in the last row of super tile and this super tile is smaller than others */
         if (m >= ((Ddesc->super.lmt/Ddesc->grid.strows)*Ddesc->grid.strows)) {
             last_c_size = Ddesc->super.lmt % Ddesc->grid.strows;
@@ -106,31 +106,32 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         }
         pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
         pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
-    } 
+
+        pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
+
+    }
     /* Lapack Storage */
     else {
         int local_m, local_n;
 
-        /* Compute the local row */
+        /* Compute the local tile row */
         local_m = ( m / (Ddesc->grid.strows * Ddesc->grid.rows) ) * Ddesc->grid.strows;
 
         m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
-        
+
         assert( m / Ddesc->grid.strows == Ddesc->grid.rrank);
         local_m += m % Ddesc->grid.strows;
-        
+
         /* Compute the local column */
         local_n = ( n / (Ddesc->grid.stcols * Ddesc->grid.cols) ) * Ddesc->grid.stcols;
 
         n = n % (Ddesc->grid.stcols * Ddesc->grid.cols);
-        
+
         assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
         local_n += n % Ddesc->grid.stcols;
 
-        pos = local_n * Ddesc->nb_elem_r + local_m;
+        pos = ( local_n * Ddesc->super.nb ) * Ddesc->super.lm + local_m * Ddesc->super.mb;
     }
-        
-    pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
 
     return &(((char *) Ddesc->mat)[pos]);
 }
@@ -177,9 +178,10 @@ static int  twoDBC_key_to_string(struct dague_ddesc * desc, uint32_t datakey, ch
 }
 #endif /* DAGUE_PROF_TRACE */
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc, 
-                               enum matrix_type mtype, 
-                               int nodes, int cores, int myrank, 
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
+                               enum matrix_type mtype,
+                               enum matrix_storage storage,
+                               int nodes, int cores, int myrank,
                                int mb,   int nb,   /* Tile size */
                                int lm,   int ln,   /* Global matrix size (what is stored)*/
                                int i,    int j,    /* Staring point in the global matrix */
@@ -199,7 +201,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->nodes  = nodes;
         o->cores  = cores;
         o->myrank = myrank;
-        
+
         o->rank_of       = twoDBC_get_rank_for_tile;
         o->data_of       = twoDBC_get_local_tile;
 #if defined(DAGUE_PROF_TRACE)
@@ -211,7 +213,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     }
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
+    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
                             mb, nb, lm, ln, i, j, m, n);
 
     assert((nodes % P) == 0);
@@ -266,12 +268,12 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
            "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
            Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.cores,
-           Ddesc->super.super.myrank, 
+           Ddesc->super.super.myrank,
            Ddesc->super.mb, Ddesc->super.nb,
            Ddesc->super.lm, Ddesc->super.ln,
            Ddesc->super.i,  Ddesc->super.j,
-           Ddesc->super.m,  Ddesc->super.n, 
-           Ddesc->grid.strows, Ddesc->grid.stcols, 
+           Ddesc->super.m,  Ddesc->super.n,
+           Ddesc->grid.strows, Ddesc->grid.stcols,
            P, Q));
 }
 
