@@ -386,7 +386,7 @@ static inline dague_list_item_t*
 dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
-    assert( list->ghost_element != item );
+    assert( &list->ghost_element != item );
 #if defined(DAGUE_DEBUG)
     assert(item->belong_to == list);
 #else
