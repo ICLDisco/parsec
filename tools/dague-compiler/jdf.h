@@ -54,6 +54,7 @@ typedef struct jdf {
     struct jdf_external_entry *prologue;
     struct jdf_external_entry *epilogue;
     struct jdf_global_entry   *globals;
+    struct jdf_def_list       *global_properties;
     struct jdf_function_entry *functions;
     struct jdf_data_entry     *data;
     struct jdf_name_list      *datatypes;
@@ -148,11 +149,20 @@ typedef unsigned int jdf_dep_type_t;
 #define JDF_DEP_TYPE_IN  ((jdf_dep_type_t)(1<<0))
 #define JDF_DEP_TYPE_OUT ((jdf_dep_type_t)(1<<1))
 
+typedef struct jdf_datatransfer_type {
+    int simple;               /**< true iff the datatype is simple (i.e. it is a datatype name) */
+    struct jdf_expr *nb_elt;  /**< number of elements of this datatype to transfer */
+    union {
+        struct jdf_expr *complex_expr;
+        char            *simple_name;
+    } u;
+} jdf_datatransfer_type_t;
+
 struct jdf_dep {
     jdf_dep_t               *next;
     jdf_dep_type_t           type;
     struct jdf_guarded_call *guard;
-    char*                    datatype_name;
+    jdf_datatransfer_type_t  datatype;
     int                      lineno;
 };
 

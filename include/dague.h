@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,12 +9,13 @@
 
 #include "dague_config.h"
 
+#if defined(HAVE_STDDEF_H)
 #include <stddef.h>
+#endif  /* HAVE_STDDEF_H */
 
 #include "debug.h"
-#ifdef HAVE_HWLOC
-#include "dague_hwloc.h"
-#endif
+#include "list_item.h"
+#include "dague_description_structures.h"
 
 typedef struct dague_function            dague_function_t;
 typedef struct dague_object              dague_object_t;
@@ -22,6 +23,11 @@ typedef struct dague_remote_deps_t       dague_remote_deps_t;
 typedef struct dague_execution_context_t dague_execution_context_t;
 typedef struct dague_dependencies_t      dague_dependencies_t;
 typedef struct dague_data_pair_t         dague_data_pair_t;
+typedef struct dague_execution_unit      dague_execution_unit_t;
+typedef struct dague_context_t           dague_context_t;
+typedef struct dague_arena_chunk_t       dague_arena_chunk_t;
+typedef struct dague_arena_t             dague_arena_t;
+struct dague_thread_mempool;
 
 typedef void* (*dague_allocate_data_t)(size_t matrix_size);
 typedef void (*dague_free_data_t)(void *data);
@@ -31,12 +37,6 @@ extern dague_free_data_t     dague_data_free;
 #ifdef HAVE_PAPI
 #define MAX_EVENTS 3
 #endif
-
-#include "dague_description_structures.h"
-#include "execution_unit.h"
-#include "mempool.h"
-#include "arena.h"
-#include "datarepo.h"
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
@@ -84,6 +84,7 @@ typedef dague_ontask_iterate_t (dague_ontask_function_t)(struct dague_execution_
                                                          int flow_index, int outdep_index, 
                                                          int rank_src, int rank_dst,
                                                          dague_arena_t* arena,
+                                                         int nb_elt,
                                                          void *param);
 typedef void (dague_traverse_function_t)(struct dague_execution_unit *,
                                          dague_execution_context_t *,
@@ -134,7 +135,7 @@ struct dague_function {
 };
 
 struct dague_data_pair_t {
-    data_repo_entry_t   *data_repo;
+    struct data_repo_entry   *data_repo;
     dague_arena_chunk_t *data;
 #if defined(HAVE_CUDA)
     struct gpu_elem_t   *gpu_data;
@@ -150,7 +151,7 @@ struct dague_data_pair_t {
  */
 #define DAGUE_MINIMAL_EXECUTION_CONTEXT                  \
     dague_list_item_t        list_item;                  \
-    dague_thread_mempool_t  *mempool_owner;              \
+    struct dague_thread_mempool  *mempool_owner;         \
     dague_object_t          *dague_object;               \
     const  dague_function_t *function;                   \
     int32_t                  priority;                   \
@@ -212,7 +213,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
                                           const dague_flow_t* restrict origin_flow,
                                           dague_execution_context_t* restrict exec_context,
                                           const dague_flow_t* restrict dest_flow,
-                                          data_repo_entry_t* dest_repo_entry,
+                                          struct data_repo_entry* dest_repo_entry,
                                           dague_execution_context_t** pready_list );
 
 const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname);
@@ -228,19 +229,17 @@ int dague_set_complete_callback( dague_object_t* dague_object,
                                  dague_completion_cb_t complete_cb, void* complete_data );
 int dague_get_complete_callback( const dague_object_t* dague_object,
                                  dague_completion_cb_t* complete_cb, void** complete_data );
-/* This must be included here for the DISTRIBUTED macro, and after many constants have been defined */
-#include "remote_dep.h"
 
 typedef struct {
     int nb_released;
     uint32_t output_usage;
-    data_repo_entry_t *output_entry;
+    struct data_repo_entry *output_entry;
     int action_mask;
-    dague_remote_deps_t *deps;
+    struct dague_remote_deps_t *deps;
     dague_execution_context_t* ready_list;
 #if defined(DISTRIBUTED)
     int remote_deps_count;
-    dague_remote_deps_t *remote_deps;
+    struct dague_remote_deps_t *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
 
@@ -250,6 +249,7 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit *eu,
                                              int flow_index, int outdep_index, 
                                              int rank_src, int rank_dst,
                                              dague_arena_t* arena,
+                                             int nb_elt,
                                              void *param);
 
 /**< Retrieve the local object attached to a unique object id */
@@ -259,6 +259,8 @@ int dague_object_register( dague_object_t* object );
 /**< Start the dague execution and launch the ready tasks */
 int dague_object_start( dague_object_t* object);
 
+#define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
+
 static inline dague_execution_context_t*
 dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_execution_context_t* elem )
 {
@@ -267,24 +269,25 @@ dague_list_add_single_elem_by_priority( dague_execution_context_t** list, dague_
         *list = elem;
     } else {
         dague_execution_context_t* position = *list;
-        
-        while( position->priority > elem->priority ) {
-            position = (dague_execution_context_t*)position->list_item.list_next;
+        while( elem->priority <= position->priority ) {
+            position = DAGUE_LIST_ITEM_NEXT(position);
             if( position == (*list) ) break;
         }
-        elem->list_item.list_next = (dague_list_item_t*)position;
-        elem->list_item.list_prev = position->list_item.list_prev;
-        elem->list_item.list_next->list_prev = (dague_list_item_t*)elem;
-        elem->list_item.list_prev->list_next = (dague_list_item_t*)elem;
-        if( (position == *list) && (position->priority < elem->priority) ) {
+        dague_list_item_ring_push((dague_list_item_t*)position,
+                                  (dague_list_item_t*)elem);
+        if( elem->priority > (*list)->priority ) {
             *list = elem;
         }
     }
     return *list;
 }
 
+
 /* gdb helpers */
 void dague_dump_object( dague_object_t* object );
 void dague_dump_execution_context( dague_execution_context_t* exec_context );
+
+/**< Print DAGuE usage message */
+void dague_usage(void);
 
 #endif  /* DAGUE_H_HAS_BEEN_INCLUDED */

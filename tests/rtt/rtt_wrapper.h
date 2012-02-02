@@ -1,7 +1,8 @@
 #ifndef _rtt_wrapper_h
 #define _rtt_wrapper_h
 
-#include "dague.h"
+#include <dague.h>
+#include <data_distribution.h>
 
 /**
  * @param [IN] A    the data, already distributed and allocated

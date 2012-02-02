@@ -70,13 +70,17 @@
  *     high level tree to reduce communications.
  *     These lines are defined by (i-k)/p = 0.
  */ 
-#include <math.h>
-#include <plasma.h>
 #include <dague.h>
+#include <plasma.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
 #include "dplasma_qr_pivgen.h"
+
+#include <math.h>
+#if defined(HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
 
 #ifndef min
 #define min(__a, __b) ( ( (__a) < (__b) ) ? (__a) : (__b) )
@@ -88,9 +92,9 @@
 
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN
-#define myassert( test ) if ( ! (test) ) return -1;
+#define myassert( test ) {if ( ! (test) ) return -1;}
 #else
-#define myassert assert
+#define myassert(test) {assert((test)); return -1;}
 #endif
 
 /*
@@ -1424,7 +1428,6 @@ int dplasma_qr_getinvperm( const qr_piv_t *qrpiv, int k, int m )
 
     /* We should never arrive here */
     myassert( 0 );
-    return -1;
 }
 
 /****************************************************

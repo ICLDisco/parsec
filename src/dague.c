@@ -6,7 +6,6 @@
 
 #include "dague_config.h"
 #include "dague.h"
-#include "stats.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -17,13 +16,15 @@
 #if defined(HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(HAVE_GETOPT_H) */
+
+#include "list.h"
 #include "scheduling.h"
-#include "dequeue.h"
 #include "barrier.h"
 #include "remote_dep.h"
+#include "datarepo.h"
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
-#include "priority_sorted_queue.h"
+#include "stats.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -60,21 +61,22 @@ int num_events = 0;
 char* event_names[MAX_EVENTS];
 #endif
 
-#if defined(HAVE_GETRUSAGE)
+#ifdef HAVE_HWLOC
+#define MAX_CORE_LIST 128
+#endif
+
+#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
 static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
 
-static void dague_object_empty_repository(void);
-
 static void dague_statistics(char* str)
 {
     struct rusage current;
 
     getrusage(RUSAGE_SELF, &current);
-
     if ( !_dague_rusage_first_call ) {
         double usr, sys;
 
@@ -83,31 +85,42 @@ static void dague_statistics(char* str)
         sys = ((current.ru_stime.tv_sec - _dague_rusage.ru_stime.tv_sec) +
                (current.ru_stime.tv_usec - _dague_rusage.ru_stime.tv_usec) / 1000000.0);
 
-        printf("=============================================================\n");
-        printf("%s: Resource Usage Data...\n", str);
-        printf("-------------------------------------------------------------\n");
-        printf("User Time   (secs)          : %10.3f\n", usr);
-        printf("System Time (secs)          : %10.3f\n", sys);
-        printf("Total Time  (secs)          : %10.3f\n", usr + sys);
-        printf("Minor Page Faults           : %10ld\n", (current.ru_minflt  - _dague_rusage.ru_minflt));
-        printf("Major Page Faults           : %10ld\n", (current.ru_majflt  - _dague_rusage.ru_majflt));
-        printf("Swap Count                  : %10ld\n", (current.ru_nswap   - _dague_rusage.ru_nswap));
-        printf("Voluntary Context Switches  : %10ld\n", (current.ru_nvcsw   - _dague_rusage.ru_nvcsw));
-        printf("Involuntary Context Switches: %10ld\n", (current.ru_nivcsw  - _dague_rusage.ru_nivcsw));
-        printf("Block Input Operations      : %10ld\n", (current.ru_inblock - _dague_rusage.ru_inblock));
-        printf("Block Output Operations     : %10ld\n", (current.ru_oublock - _dague_rusage.ru_oublock));
-        printf("=============================================================\n");
+        STATUS(("=============================================================\n"));
+        STATUS(("%s: Resource Usage Data...\n", str));
+        STATUS(("-------------------------------------------------------------\n"));
+        STATUS(("User Time   (secs)          : %10.3f\n", usr));
+        STATUS(("System Time (secs)          : %10.3f\n", sys));
+        STATUS(("Total Time  (secs)          : %10.3f\n", usr + sys));
+        STATUS(("Minor Page Faults           : %10ld\n", (current.ru_minflt  - _dague_rusage.ru_minflt)));
+        STATUS(("Major Page Faults           : %10ld\n", (current.ru_majflt  - _dague_rusage.ru_majflt)));
+        STATUS(("Swap Count                  : %10ld\n", (current.ru_nswap   - _dague_rusage.ru_nswap)));
+        STATUS(("Voluntary Context Switches  : %10ld\n", (current.ru_nvcsw   - _dague_rusage.ru_nvcsw)));
+        STATUS(("Involuntary Context Switches: %10ld\n", (current.ru_nivcsw  - _dague_rusage.ru_nivcsw)));
+        STATUS(("Block Input Operations      : %10ld\n", (current.ru_inblock - _dague_rusage.ru_inblock)));
+        STATUS(("Block Output Operations     : %10ld\n", (current.ru_oublock - _dague_rusage.ru_oublock)));
+        STATUS(("=============================================================\n"));
     }
 
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
-
     return;
 }
 #else
 static void dague_statistics(char* str) { (void)str; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 
+static void dague_object_empty_repository(void);
+
+typedef struct __dague_temporary_thread_initialization_t {
+    dague_context_t* master_context;
+    int th_id;
+    int nb_cores;
+    int bindto;
+} __dague_temporary_thread_initialization_t;
+
+static int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
+					 __dague_temporary_thread_initialization_t* startup);
+static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context);
 
 const dague_function_t* dague_find(const dague_object_t *dague_object, const char *fname)
 {
@@ -123,12 +136,6 @@ const dague_function_t* dague_find(const dague_object_t *dague_object, const cha
     return NULL;
 }
 
-typedef struct __dague_temporary_thread_initialization_t {
-    dague_context_t* master_context;
-    int th_id;
-    int nb_cores;
-    int bindto;
-} __dague_temporary_thread_initialization_t;
 
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
@@ -137,7 +144,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
-
+    DEBUG2(("Bind thread %i on core %i\n", startup->th_id, startup->bindto));
+    
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
         return NULL;
@@ -183,8 +191,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
-            {"papi",        required_argument,  NULL, 'p'},
-            {"bind",        required_argument,  NULL, 'b'},
+            {"dague_help",       no_argument,        NULL, 'h'},
+            {"dague_bind",       optional_argument,  NULL, 'b'},
+            {"dague_bind_comm",  optional_argument,  NULL, 'c'},
             {0, 0, 0, 0}
         };
 #endif  /* defined(HAVE_GETOPT_LONG) */
@@ -209,12 +218,19 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
+
     context->__dague_internal_finalization_in_progress = 0;
     context->nb_cores       = (int32_t) nb_cores;
     context->__dague_internal_finalization_counter = 0;
     context->nb_nodes       = 1;
     context->active_objects = 0;
     context->my_rank        = 0;
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+    context->comm_th_core   = -1;
+    context->comm_th_binding_mask = hwloc_bitmap_alloc(); 
+    context->core_free_mask = hwloc_bitmap_alloc();
+    hwloc_bitmap_set_range(context->core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
+#endif 
 
 #ifdef HAVE_PAPI
     num_events = 0;
@@ -242,77 +258,27 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
 #if defined(HAVE_GETOPT_LONG)
             int option_index = 0;
             
-            ret = getopt_long (argc, argv, "p:b:",
+            ret = getopt_long (argc, argv, "p:b:c:",
                                long_options, &option_index);
 #else
-            ret = getopt (argc, argv, "p:b:");
+            ret = getopt (argc, argv, "p:b:c:");
 #endif  /* defined(HAVE_GETOPT_LONG) */
             if( -1 == ret ) break;  /* we're done */
-            
+
             switch(ret) {
-            case 'b':
-                {
-                    char* option = strdup(optarg);
-                    char* position;
-                    if( NULL != (position = strchr(option, ':')) ) {
-                        /* range expression such as [start]:[end]:[step] */
-                        int start = 0, end, step = 1;
-                        if( position != option ) {  /* we have a starting position */
-                            start = strtol(option, NULL, 10);
-                        }
-                        end = start + nb_cores;  /* automatically compute the end */
-                        position++;  /* skip the : */
-                        if( '\0' != position[0] ) {
-                            if( ':' != position[0] ) {
-                                end = strtol(position, &position, 10);
-                                position = strchr(position, ':');  /* find the step */
-                            }
-                            if( NULL != position ) position++;  /* skip the : directly into the step */
-                            if( (NULL != position) && ('\0' != position[0]) ) {
-                                step = strtol(position, NULL, 10);
-                            }
-                        }
-                        DEBUG(( "core range [%d:%d:%d]\n", start, end, step));
-                        {
-                            int where = start, skip = 1;
-                            for( i = 0; i < nb_cores; i++ ) {
-                                startup[i].bindto = where;
-                                where += step;
-                                if( where >= end ) {
-                                    where = start + skip;
-                                    skip++;
-                                    if( (skip > step) && (i < (nb_cores - 1))) {
-                                        printf( "No more available cores to bind to. The remaining %d threads are not bound\n", nb_cores - i );
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        i = 0;
-                        /* array of cores c1,c2,... */
-                        position = option;
-                        while( NULL != position ) {
-                            /* We have more information than the number of cores. Ignore it! */
-                            if( i == nb_cores ) break;
-                            startup[i].bindto = strtol(position, &position, 10);
-                            i++;
-                            if( (',' != position[0]) || ('\0' == position[0]) ) {
-                                break;
-                            }
-                            position++;
-                        }
-                        if( i < nb_cores ) {
-                            printf( "Based on the information provided to --bind some threads are not binded\n" );
-                        }
-                    }
-                    free(option);
-                }
-                break;
-            }
+	    case 'h': dague_usage(); break;
+	    case 'c': dague_parse_comm_binding_parameter(optarg, context); break;
+	    case 'b': dague_parse_binding_parameter(optarg, context, startup); break;
+	    }
         } while(1);
     }
-
+    
+#if defined HAVE_HWLOC && defined(HAVE_HWLOC_BITMAP)
+    /* update the core_free_mask according to the thread binding defined */ 
+    for(i = 0; i < nb_cores; i++)
+	hwloc_bitmap_clr(context->core_free_mask, startup[i].bindto);     
+#endif  	
+    
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_cores );
 #ifdef DAGUE_PROF_TRACE
@@ -348,7 +314,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     }
 
     if( nb_cores > 1 ) {
-        pthread_attr_t thread_attr;
+    	pthread_attr_t thread_attr;
 
         pthread_attr_init(&thread_attr);
         pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
@@ -376,22 +342,22 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     /* Release the temporary array used for starting up the threads */
     free(startup);
 
-    /* Wait until threads are bound before introducing progress threads */
+    /* Introduce communication thread */
     context->nb_nodes = dague_remote_dep_init(context);
     
 #ifdef HAVE_PAPI
     if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
-        printf("PAPI library initialization error! \n");
+        WARNING(("PAPI library initialization error! \n"));
     else {
         if (PAPI_create_eventset(&eventSet) != PAPI_OK)
-            printf("PAPI unable to create event set! \n");
+            WARNING(("PAPI unable to create event set! \n"));
         else {
             for( i = 0; i < num_events; ++i ) {
                 int event;
                 PAPI_event_name_to_code(event_names[i], &event);
 
                 if (PAPI_add_event(eventSet, event) != PAPI_OK) 
-                    printf("PAPI unable to add event: %s \n", event_names[i]);
+                    WARNING(("PAPI unable to add event: %s \n", event_names[i]));
             }
         }
     }
@@ -447,7 +413,11 @@ int dague_fini( dague_context_t** pcontext )
         free(context->pthreads);
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+    /* Release thread binding masks */
+    hwloc_bitmap_free(context->comm_th_binding_mask);
+    hwloc_bitmap_free(context->core_free_mask);
+
     dague_hwloc_fini();
 #endif  /* defined(HWLOC) */
 
@@ -595,13 +565,13 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     const dague_function_t* function = exec_context->function;
     dague_dependency_t *deps;
     dague_dependency_t dep_new_value, dep_cur_value;
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE2)
     char tmp[128];
 #endif
 
     (void)eu_context;
 
-    DEBUG(("Activate dependencies for %s priority %d\n",
+    DEBUG2(("Activate dependencies for %s priority %d\n",
            dague_service_to_string(exec_context, tmp, 128), exec_context->priority));
     deps = find_deps(dague_object, exec_context);
     
@@ -619,9 +589,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 
 #if defined(DAGUE_DEBUG)
     if( dep_cur_value > function->dependencies_goal ) {
-        DEBUG(("function %s as reached a dependency count of %d, higher than the goal dependencies count of %d\n",
+        ERROR(("function %s as reached a dependency count of %d, higher than the goal dependencies count of %d\n",
                dague_service_to_string(exec_context, tmp, 128), dep_cur_value, function->dependencies_goal));
-        assert(dep_cur_value <= function->dependencies_goal);
     }
 #endif /* DAGUE_DEBUG */
 
@@ -632,7 +601,8 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #   if defined(DAGUE_DEBUG)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         char tmp2[128];
-        DEBUG(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
+	char tmp[128];
+        ERROR(("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
                dest_flow->flow_index, dague_service_to_string(origin, tmp, 128), origin_flow->name,
                *deps,
                dague_service_to_string(exec_context, tmp2, 128),  dest_flow->name ));
@@ -646,9 +616,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
         dep_new_value |= dague_check_IN_dependencies( dague_object, exec_context );
-#   ifdef DAGUE_DEBUG
+#   ifdef DAGUE_DEBUG_VERBOSE3
         if( dep_new_value != 0 ) {
-            DEBUG(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
+            DEBUG3(("Activate IN dependencies with mask 0x%x\n", dep_new_value));
         }
 #   endif /* DAGUE_DEBUG */
     }
@@ -664,16 +634,16 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
         {
             int success;
+	    char tmp[128];
             dague_dependency_t tmp_mask;
             tmp_mask = *deps;
             success = dague_atomic_cas( deps,
                                         tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
             if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
                 char tmp2[128];
-                fprintf(stderr, "I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
+                ERROR(("I'm not very happy (success %d tmp_mask %4x)!!! Task %s scheduled twice (second time by %s)!!!\n",
                         success, tmp_mask, dague_service_to_string(exec_context, tmp, 128),
-                        dague_service_to_string(origin, tmp2, 128));
-                assert(0);
+                        dague_service_to_string(origin, tmp2, 128)));
             }
         }
 #endif  /* defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK) */
@@ -683,22 +653,28 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
          * argument.
          */
         {
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE1)
             char tmp2[128];
 #endif
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
-            mpool = new_context->mempool_owner;  /* this should not be copied over from the old execution context */
-            memcpy( new_context, exec_context, sizeof(dague_minimal_execution_context_t) );
+            /* this should not be copied over from the old execution context */
+            mpool = new_context->mempool_owner;
+            /* we copy everything but the dague_list_item_t at the beginning, to
+             * avoid copying uninitialized stuff from the stack
+             */
+            memcpy( ((char*)new_context) + sizeof(dague_list_item_t), 
+                    ((char*)exec_context) + sizeof(dague_list_item_t), 
+                    sizeof(dague_minimal_execution_context_t) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
             DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
 
-            DEBUG(("%s becomes schedulable from %s with mask 0x%04x on thread %d\n", 
+            DEBUG(("%s becomes ready from %s on thread %d, with mask 0x%04x and priority %d\n", 
                    dague_service_to_string(exec_context, tmp, 128),
                    dague_service_to_string(origin, tmp2, 128),
-                   *deps,
-                   eu_context->eu_id));
+                   eu_context->eu_id,
+                   *deps, exec_context->priority));
 
 #if defined(DAGUE_SCHED_CACHE_AWARE)
             new_context->data[0].gc_data = NULL;
@@ -723,12 +699,12 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         dague_prof_grapher_dep(origin, exec_context, 0, origin_flow, dest_flow);
 
 #if defined(DAGUE_SCHED_DEPS_MASK)
-        DEBUG(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
+        DEBUG2(("  => Service %s not yet ready (required mask 0x%02x actual 0x%02x: real 0x%02x)\n",
                dague_service_to_string( exec_context, tmp, 128 ), (int)function->dependencies_goal,
                (int)(dep_cur_value & DAGUE_DEPENDENCIES_BITMASK),
                (int)(dep_cur_value)));
 #else
-        DEBUG(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
+        DEBUG2(("  => Service %s not yet ready (requires %d dependencies, %d done)\n",
                dague_service_to_string( exec_context, tmp, 128 ), 
                (int)function->dependencies_goal, dep_cur_value));
 #endif
@@ -746,17 +722,16 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
                                              int out_index, int outdep_index, 
                                              int src_rank, int dst_rank,
                                              dague_arena_t* arena,
+                                             int nbelt,
                                              void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
     const dague_flow_t* target = oldcontext->function->out[out_index];
 
     if( !(arg->action_mask & (1 << out_index)) ) {
-#if defined(DAGUE_DEBUG)
         char tmp[128];
-        DEBUG(("On task %s out_index %d not on the action_mask %x\n",
+        WARNING(("On task %s out_index %d not on the action_mask %x\n",
                dague_service_to_string(oldcontext, tmp, 128), out_index, arg->action_mask));
-#endif
         return DAGUE_ITERATE_CONTINUE;
     }
 
@@ -774,6 +749,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             }
             arg->deps->output[out_index].data = data; /* if still NULL allocate it */
             arg->deps->output[out_index].type = arena;
+            arg->deps->output[out_index].nbelt = nbelt;
             if(newcontext->priority > arg->deps->max_priority) arg->deps->max_priority = newcontext->priority;
         }
         if( arg->action_mask & DAGUE_ACTION_SEND_INIT_REMOTE_DEPS ) {
@@ -785,6 +761,7 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
             arg->remote_deps->root = src_rank;
             if( !(arg->remote_deps->output[out_index].rank_bits[_array_pos] & _array_mask) ) {
                 arg->remote_deps->output[out_index].type = arena;
+                arg->remote_deps->output[out_index].nbelt = nbelt;
                 arg->remote_deps->output[out_index].data = oldcontext->data[target->flow_index].data;
                 arg->remote_deps->output[out_index].rank_bits[_array_pos] |= _array_mask;
                 arg->remote_deps->output[out_index].count++;
@@ -796,13 +773,16 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 #else
     (void)src_rank;
     (void)arena;
+    (void)nbelt;
 #endif
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->master_context->my_rank == dst_rank) ) {
-        arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
-        arg->output_usage++;
-        AREF( arg->output_entry->data[out_index] );
+        if( (NULL != arg->output_entry) && (NULL != oldcontext->data[target->flow_index].data) ) {
+            arg->output_entry->data[out_index] = oldcontext->data[target->flow_index].data;
+            arg->output_usage++;
+            AREF( arg->output_entry->data[out_index] );
+        }
         arg->nb_released += dague_release_local_OUT_dependencies(oldcontext->dague_object,
                                                                  eu, oldcontext,
                                                                  oldcontext->function->out[out_index],
@@ -851,8 +831,6 @@ int dague_set_complete_callback( dague_object_t* dague_object,
     }
     return -1;
 }
-    dague_completion_cb_t      complete_cb;
-    void*                      complete_cb_data;
 
 /**
  *
@@ -869,30 +847,41 @@ int dague_get_complete_callback( const dague_object_t* dague_object,
 }
 
 /* TODO: Change this code to something better */
+static volatile uint32_t object_array_lock = 0;
 static dague_object_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
 
 static void dague_object_empty_repository(void)
 {
+    dague_atomic_lock( &object_array_lock );
     free(object_array);
     object_array = NULL;
     object_array_size = 1;
     object_array_pos = 0;
+    dague_atomic_unlock( &object_array_pos );
 }
 
 /**< Retrieve the local object attached to a unique object id */
 dague_object_t* dague_object_lookup( uint32_t object_id )
 {
+    dague_object_t *r;
+    dague_atomic_lock( &object_array_lock );
     if( object_id > object_array_pos ) {
-        return NULL;
+        r = NULL;
+    } else {
+        r = object_array[object_id];
     }
-    return object_array[object_id];
+    dague_atomic_unlock( &object_array_lock );
+    return r;
 }
 
 /**< Register the object with the engine. Create the unique identifier for the object */
 int dague_object_register( dague_object_t* object )
 {
-    uint32_t index = ++object_array_pos;
+    uint32_t index;
+
+    dague_atomic_lock( &object_array_lock );
+    index = (uint32_t)++object_array_pos;
 
     if( index >= object_array_size ) {
         object_array_size *= 2;
@@ -900,6 +889,235 @@ int dague_object_register( dague_object_t* object )
     }
     object_array[index] = object;
     object->object_id = index;
+    dague_atomic_unlock( &object_array_lock );
+
     return (int)index;
 }
 
+/**< Print DAGuE usage message */
+void dague_usage(void)
+{
+    STATUS(("\n"
+	    "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
+            " --dague_bind        : define a set of core for the thread binding\n"
+	    "                       accepted values:\n"
+	    "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
+	    "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
+	    "                        - a binding range expression: [+][start]:[end]:[step] \n"
+	    "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
+        "                             to end (default physical core number) by step (default 1)\n"
+	    "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
+        "                             while extra threads remain unbound)\n"
+	    "                       if starts with \"+\", the communication thread will be executed on the core subset\n"
+	    " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+	    "                       (default: a NUIOA-aware core subset)\n"
+	    "\n"
+         /* " --dague_verbose     : extra verbose output\n" */
+         /* " --dague_papi        : enable PAPI\n" */
+	    " --dague_help         : this message\n"
+	    "\n"
+	));
+}
+
+
+/* Parse --dague_bind */
+int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
+				  __dague_temporary_thread_initialization_t* startup)
+{
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+    char* option = optarg;
+    char* position;
+    int i;
+    int nb_real_cores=dague_hwloc_nb_real_cores();
+
+    if( (option[0]=='+') && (context->comm_th_core == -1)) {
+        /* the communication thread has to be included 
+           if no more specific binding is defined */
+        context->comm_th_core=-2;
+        option++;  /* skip the + */
+    }
+
+    if (NULL != (position = strchr(option, 'x'))) {
+        /* Hexadecimal mask */
+        /* convert mask into hwloc bitmap, used if needed for the communication thread binding */
+        position++;
+        unsigned long mask = strtoul(position, NULL, 16);
+        if( context->comm_th_binding_mask==NULL)
+            context->comm_th_binding_mask=hwloc_bitmap_alloc();
+        hwloc_bitmap_from_ulong(context->comm_th_binding_mask, mask);
+	
+        /* compute the bitmap indexes to define the binding. */
+        int prev=-1;
+        for( i = 0; i < context->nb_cores; i++ ) {
+            prev=hwloc_bitmap_next(context->comm_th_binding_mask, prev);
+            if(prev==-1){
+                /* reached the last index, start again */
+                prev=hwloc_bitmap_next(context->comm_th_binding_mask, prev);
+            }
+            startup[i].bindto=prev;
+        }
+
+        char *str2 = NULL;
+        hwloc_bitmap_asprintf(&str2, context->comm_th_binding_mask);
+        DEBUG3(("binding defined by the mask %s\n", str2));
+        free(str2);
+
+#if defined(DAGUE_DEBUG_VERBOSE3)
+        char *str = NULL;
+        hwloc_bitmap_asprintf(&str, context->comm_th_binding_mask);
+        DEBUG3(( "binding defined by the mask %s\n", str));
+        free(str);
+#endif
+    } else if( NULL != (position = strchr(option, ':'))) {
+        /* Range expression such as [start]:[end]:[step]*/
+        int arg;
+        int start = 0, step = 1;
+        int end=nb_real_cores-1;
+        if( position != option ) {  /* we have a starting position */
+            arg = strtol(option, NULL, 10);
+            if( (arg < nb_real_cores) && (arg > -1) )
+                start = strtol(option, NULL, 10);
+            else
+                WARNING(("binding start core not valid (restored to default value)"));
+        }
+        position++;  /* skip the : */
+        if( '\0' != position[0] ) {
+            if( ':' != position[0] ) {
+                arg = strtol(position, &position, 10);
+                if( (arg < nb_real_cores) && (arg > -1) )
+                    end = arg;
+                else
+                    WARNING(("binding end core not valid (restored to default value)\n"));
+            }
+            position = strchr(position, ':');  /* find the step */
+        }
+        if( NULL != position )
+            position++;  /* skip the : directly into the step */
+        if( (NULL != position) && ('\0' != position[0]) ) {
+            arg = strtol(position, NULL, 10);
+            if( (arg < nb_real_cores) && (arg > -1) )
+                step = arg;
+            else
+                WARNING(("binding step not valid (restored to default value)\n"));
+        }
+
+        DEBUG(( "binding defined by core range [%d:%d:%d]\n", start, end, step));
+        {
+            int where = start, skip = 1;
+            for( i = 0; i < context->nb_cores; i++ ) {
+                startup[i].bindto = where;
+                where += step;
+                if( where > end ) {
+                    where = start + skip;
+                    skip++;
+                    if((skip > step) && (i < (context->nb_cores - 1))) {
+                        STATUS(("No more available cores to bind to. The remaining %d threads are not bound\n", context->nb_cores -1-i));
+                        int j;
+                        for( j = i+1; j < context->nb_cores; j++ )
+                            startup[j].bindto = -1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* communication thread binding is legal on cores from start to end */
+        for(i=start; i <= end; i++)
+            hwloc_bitmap_set(context->comm_th_binding_mask, i);
+    } else {
+        /* List of cores */
+        int core_tab[MAX_CORE_LIST];
+        memset(core_tab, -1, MAX_CORE_LIST*sizeof(int));
+        int cmp=0;
+        int arg, next_arg;
+
+        if( NULL == option ) {
+            /* default binding,
+               no restrinction for the communication thread binding */
+            hwloc_bitmap_fill(context->comm_th_binding_mask);
+        } else {
+            while( option != NULL && option[0] != '\0') {
+                /* first core of the remaining list */
+                arg = strtol(option, &option, 10);
+                if( (arg < nb_real_cores) && (arg > -1) ) {
+                    core_tab[cmp]=arg;
+                    hwloc_bitmap_set(context->comm_th_binding_mask, arg);
+                    cmp++;
+                }
+                if( NULL != (position = strpbrk(option, ",-"))) {
+                    if (position[0] == '-') {
+                        /* core range */
+                        position++;
+                        next_arg = strtol(position, &position, 10);
+                        for(i=arg+1; i<=next_arg; i++)
+                            if( (i < nb_real_cores) && (i > -1) ) {
+                                core_tab[cmp]=i;
+                                hwloc_bitmap_set(context->comm_th_binding_mask, i);
+                                cmp++;
+                            }
+                        option++; /* skip the - and folowing number  */
+                        option++;
+                    }
+                }
+                if( '\0' == option[0])
+                    option=NULL;
+                else
+                    /*skip the comma */
+                    option++;
+            }
+        }
+        if (core_tab[0]== -1)
+            WARNING(("bindind arguments are not valid (restored to default value)\n"));
+        else { /* we have a legal list to defined the binding  */
+            cmp=0;
+            for(i=0; i<context->nb_cores; i++) {
+                startup[i].bindto=core_tab[cmp];
+                cmp++;
+                if(core_tab[cmp] == -1)
+                    cmp=0;
+            }
+        }
+
+#if defined(DAGUE_DEBUG_VERBOSE)
+        char tmp[MAX_CORE_LIST];
+        char* str = tmp;
+        size_t offset;
+        for(i=0; i<MAX_CORE_LIST; i++){
+            if(core_tab[i]==-1)
+                break;
+            offset = sprintf(str, "%i ", core_tab[i]);
+            str += offset;
+        }
+        DEBUG(( "binding defined by the parsed list: %s \n", tmp));
+#endif
+    }
+
+    return 0;
+#else
+    (void)optarg; (void)context; (void)startup;
+    WARNING(("the binding defined by --dague_bind has been ignored (requires a build with HWLOC with bitmap support).\n"));
+    return -1;
+#endif
+}
+
+static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context)
+{
+#if defined(HAVE_HWLOC)
+    char* option = optarg;
+    if (option[0]!='\0'){
+        int core=atoi(optarg);
+        if( (core > 0) && (core < dague_hwloc_nb_real_cores()) )
+            context->comm_th_core=core;
+        else
+            WARNING(("the binding defined by --dague_bind_comm has been ignored (illegal core number)\n"));
+    } else {
+        /* TODO:: Add binding NUIOA aware by default */
+        DEBUG3(( "default binding for the communication thread\n"));
+    }
+    return 0;
+#else
+    (void)optarg; (void)context;
+    WARNING(("the binding defined by --dague_bind has been ignored (requires a build with HWLOC).\n"));
+    return -1;
+#endif
+}

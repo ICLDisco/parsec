@@ -22,7 +22,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-
 static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, Dague_Complex64_t *M )
 {
     int tempmm = ( m == descA.mt-1 ) ? descA.m - m*descA.mb : descA.mb;
@@ -32,20 +31,24 @@ static void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, Dague_
     int ii, jj;
     
     fflush(stdout);
-    //    fprintf(stdout, "--------- Tile (%d, %d) --------------\n", m, n);
     for(ii=0; ii<tempmm; ii++) {
+        if ( ii == 0 )
+            fprintf(stdout, "(%2d, %2d) :", m, n);
+        else
+            fprintf(stdout, "          "); 
         for(jj=0; jj<tempnn; jj++) {
 #if defined(PRECISION_z) || defined(PRECISION_c)
             fprintf(stdout, " (%e, %e)", 
                     creal( M[jj*ldam + ii] ),
                     cimag( M[jj*ldam + ii] ));
 #else
-            fprintf(stdout, " (%d, %d, %d, %d) = %e\n", m, n, ii, jj, M[jj*ldam + ii]);
+            fprintf(stdout, " %e", M[jj*ldam + ii]);
 #endif
         }
         fprintf(stdout, "\n"); 
     }
     fflush(stdout);
+    usleep(1000);
 }
 
 %}

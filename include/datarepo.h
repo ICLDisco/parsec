@@ -20,13 +20,6 @@ typedef struct data_repo       data_repo_t;
 #include "execution_unit.h"
 #include "arena.h"
 
-#if 0
-#define DAGUE_DEBUG_HEAVY
-#define DEBUG_HEAVY(p) DEBUG( p )
-#else
-#define DEBUG_HEAVY(p) 
-#endif
-
 #define MAX_DATAREPO_HASH 4096
 
 /**
@@ -169,7 +162,7 @@ static inline data_repo_entry_t *data_repo_lookup_entry_and_create(dague_executi
     return n;
 }
 
-#if defined(DAGUE_DEBUG_HEAVY)
+#if defined(DAGUE_DEBUG_VERBOSE3)
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, long int key, const char *tablename, const char *file, int line)
 #else
@@ -191,15 +184,15 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
             break;
         }
 
-#ifdef DAGUE_DEBUG_HEAVY
+#ifdef DAGUE_DEBUG_VERBOSE3
     if( NULL == e ) {
-        DEBUG_HEAVY(("entry %ld of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
+        DEBUG3(("entry %ld of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
     }
 #endif
     assert( NULL != e );
 
     if( (e->usagelmt == r) && (0 == e->retained) ) {
-        DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+        DEBUG3(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
                      e, e->key, tablename, r, r, file, line));
         if( NULL != p ) {
             p->data_repo_next_entry = e->data_repo_next_entry;
@@ -212,13 +205,13 @@ static inline void __data_repo_entry_used_once(dague_execution_unit_t *eu, data_
         dague_thread_mempool_free(eu->datarepo_mempools[repo->nbdata], e );
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
-        DEBUG_HEAVY(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
+        DEBUG3(("entry %p/%ld of hash table %s has %u/%u usage count and %s retained: not freeing it, even if it's used at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
         dague_atomic_unlock(&repo->heads[h].lock);
     }
 }
 
-#if defined(DAGUE_DEBUG_HEAVY)
+#if defined(DAGUE_DEBUG_VERBOSE3)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long int key, uint32_t usagelmt, const char *tablename, const char *file, int line)
 #else
@@ -248,7 +241,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
     assert( NULL != e );
 
     if( (e->usagelmt == e->usagecnt) && (0 == e->retained) ) {
-        DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
+        DEBUG3(("entry %p/%ld of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, file, line));
         if( NULL != p ) {
             p->data_repo_next_entry = e->data_repo_next_entry;
@@ -260,7 +253,7 @@ static inline void __data_repo_entry_addto_usage_limit(data_repo_t *repo, long i
         free(e);
         DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
-        DEBUG_HEAVY(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
+        DEBUG3(("entry %p/%ld of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
         dague_atomic_unlock(&repo->heads[h].lock);
     }

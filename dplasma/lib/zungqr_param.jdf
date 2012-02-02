@@ -45,13 +45,13 @@ param_d[type = "int" hidden=on default="pivfct->domino"]
 
 zttmqr(k, m, n)
   /* Execution space */
-  k = 0..minMN-1
-  m = k+1..descQ.mt-1
-  n = 0..descQ.nt-1
-  p     = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
-  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
+  k     = 0..minMN-1
+  m     = k+1..descQ.mt-1
+  n     = 0..descQ.nt-1
+  p     = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k);     %}
+  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m);  %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m);  %}
+  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m);  %}
   type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
   type1 = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
   ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
@@ -59,13 +59,6 @@ zttmqr(k, m, n)
   im1   = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
   
   : Q(m, n)
-  /* Execution space */
-
-  /* A == Q(minMN-1-k,     n        ) */
-  /* B == Q(descQ.mt-1-m, n        ) */
-  /* C == A(descQ.mt-1-m, minMN-1-k) */
-  /* D == T(descQ.mt-1-m, minMN-1-k) */
-  /* G == Q(minMN-1-k,     n1       ) */
 
   RW   A1 <- (   nextp != descQ.mt ) ? A1 zttmqr( k, nextp, n)
           <- ( ( nextp == descQ.mt ) & ( p == k ) ) ? A  zttmqr_in_A1(p, n)
@@ -83,10 +76,6 @@ zttmqr(k, m, n)
   READ  V <- V zttmqr_in_V(k, m) 
   READ  T <- T zttmqr_in_T(k, m) [type = LITTLE_T]
 
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
 BODY
 
    printlog("thread %d CORE_zttmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
@@ -108,7 +97,6 @@ BODY
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 23 "zungqr.cpp"
          if ( type == 0 ) {
              CORE_ztsmqr(
                  PlasmaLeft, PlasmaNoTrans, 
@@ -202,11 +190,6 @@ zunmqr(k, i, n)
           -> ( 0 == k ) ? Q(m, n)
           -> ( k >  0 ) ? A2 zttmqr(k-1, m, n) 
 
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
-
 BODY
  
      printlog("thread %d CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, tempkm, tempnn, tempkmin, ib, \n"
@@ -224,7 +207,6 @@ BODY
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 28 "zungqr.cpp"
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
                      tempkm, tempnn, tempkmin, ib, 
                      A /* A(k, k) */, ldak, 

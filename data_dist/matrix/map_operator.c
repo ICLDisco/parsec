@@ -5,9 +5,12 @@
  */
 
 #include "dague.h"
+#include "debug.h"
+#include "remote_dep.h"
 #include "matrix.h"
 #include "dague_prof_grapher.h"
 #include <scheduling.h>
+#include <datarepo.h>
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};
@@ -138,7 +141,7 @@ static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .dague = &dague_map_operator,
     .flow = &flow_of_map_operator,
-    .datatype_index = 0,
+    .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_in
     }
@@ -159,7 +162,7 @@ static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .dague = &dague_map_operator,
     .flow = &flow_of_map_operator,
-    .datatype_index = 0,
+    .datatype = { .index = 0, .index_fct = NULL, .nb_elt = 1, .nb_elt_fct = NULL },
     .call_params = {
         &expr_of_p1_for_flow_of_map_operator_dep_out
     }
@@ -181,6 +184,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
                  int flow_index, int outdep_index,
                  int rank_src, int rank_dst,
                  dague_arena_t* arena,
+                 int nbelt,
                  void *flow)
 {
     dague_execution_context_t** pready_list = (dague_execution_context_t**)flow;
@@ -191,7 +195,7 @@ add_task_to_list(struct dague_execution_unit *eu_context,
     new_context->mempool_owner = mpool;
 
     dague_list_add_single_elem_by_priority( pready_list, new_context );
-    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst;
+    (void)arena; (void)oldcontext; (void)flow_index; (void)outdep_index; (void)rank_src; (void)rank_dst; (void)nbelt;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -225,7 +229,7 @@ static void iterate_successors(dague_execution_unit_t *eu,
             nc.data[1].data = this_task->data[1].data;
             ontask(eu, &nc, this_task, 0, 0,
                    __dague_object->super.src->super.myrank,
-                   __dague_object->super.src->super.myrank, NULL, ontask_arg);
+                   __dague_object->super.src->super.myrank, NULL, -1, ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */
@@ -366,7 +370,8 @@ static void dague_map_operator_startup_fn(dague_context_t *context,
             fake_context.locals[1].value = n;
             add_task_to_list(eu, &fake_context, NULL, 0, 0,
                              __dague_object->super.src->super.myrank,
-                             __dague_object->super.src->super.myrank, NULL, (void*)&ready_list);
+                             __dague_object->super.src->super.myrank, NULL, -1,
+                             (void*)&ready_list);
             __dague_schedule( eu, ready_list );
             count++;
             if( count == context->nb_cores ) goto done;

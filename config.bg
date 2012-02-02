@@ -1,0 +1,92 @@
+#!/bin/sh
+
+cat << _EOF
+#
+# Preparing the compilation of the native tools.
+#
+_EOF
+
+LOCATION=`dirname $0`
+USER_OPTIONS="$* "
+SAVE_LDFLAGS=$LDFLAGS
+
+#
+# This file is for a cross-compilation. DAGuE will be compiled
+# on the head node, using the BG/P toolchain. All dependencies
+# (including PLASMA) have to be compiled for the expected target
+# architecture.
+#
+# Based on the CMake documentation the first step is to convince
+# cmake to use the following file:
+# BlueGeneP-static-XL-C.cmake
+# BlueGeneP-static-XL-CXX.cmake
+# BlueGeneP-static-XL-Fortran.cmake
+#
+# This can be done by setting 
+# - CMAKE_SYSTEM_NAME to BlueGeneP-static
+#
+
+# First make the native build, so we can use the tools
+mkdir -p native
+cd native
+rm -rf CMakeCache.txt CMakeFiles
+
+## Defaults for local native compilation
+CC=${CC:="xlc_r"}
+CXX=${CXX:="xlc++_r"}
+FC=${FC:="xlf_r"}
+LDFLAGS="${LDFLAGS} -lnuma"
+export CC CXX FC LDFLAGS
+ 
+MPI="-DDAGUE_DIST_WITH_MPI=OFF"
+CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
+HWLOC="-DHWLOC_DIR=/home/bosilca/opt/"
+OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_DAGUE=ON -DBUILD_DPLASMA=OFF"
+
+cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
+#
+# Now let's compile the tools
+#
+make
+
+cd ..
+
+#
+# Now let's move on with the second step, cross-compile for
+# the BlueGeneP
+#
+rm -rf CMakeCache.txt CMakeFiles
+
+cat << _EOF
+#
+# Preparing the cross-compile of the BlueGeneP part
+#
+_EOF
+
+#
+# Generate the cross-compiling file
+#
+cat << _EOF > Toolchain-ppc-BlueGeneP.cmake
+# this one is important
+SET(CMAKE_SYSTEM_NAME BlueGeneP-static)
+SET(CMAKE_SYSTEM_PROCESSOR ppc32)
+_EOF
+
+## Defaults for BG/P cross-compilation
+CC=mpixlc_r
+CXX=mpixlcxx_r
+FC=mpixlf77_r
+#CFLAGS="-I/bgsys/drivers/ppcfloor/arch/include"
+LDFLAGS="${SAVE_LDFLAGS} -L/opt/ibmcmp/xlf/bg/11.1/bglib/ -qsmp=omp"
+
+MPI="-DDAGUE_DIST_WITH_MPI=ON"
+PLASMA="-DPLASMA_DIR=/home/bosilca/opt/bluegene/"
+HWLOC="-DHWLOC_DIR=/home/bosilca/opt/bluegene"
+CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
+OPTS="-DBUILD_64bits=OFF -DBUILD_TOOLS=OFF"
+
+# Done with variable allocation, do the thing with Cmake
+export CC CXX FC CFLAGS
+
+cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneP.cmake -DIMPORT_EXECUTABLES=native/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
+

@@ -31,6 +31,7 @@ void cpp_comment();
 "/*"			{ comment(); }
 "//"			{ cpp_comment(); }
 
+"DAGUE_INVARIANT"	{ count(); return(DIR_DAGUE_INVARIANT); }
 "DAGUE_DATA_COLOCATED"	{ count(); return(DIR_DAGUE_DATA_COLOCATED); }
 "DAGUE_TASK_START"	{ count(); return(DIR_DAGUE_TASK_START); }
 "pragma"		{ count(); return(PRAGMA); }

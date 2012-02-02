@@ -10,14 +10,14 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution( dague_context_t *dague, tiled_matrix_desc_t *ddescA, 
+static int check_solution( dague_context_t *dague, tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB, tiled_matrix_desc_t *ddescX );
 
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    
+
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 40, 200, 200);
@@ -32,17 +32,17 @@ int main(int argc, char ** argv)
     PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M,(DagDouble_t)N))
     /* initializing matrix structure */
     int info = 0;
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, M, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                    nodes, cores, rank, MB, NB, M, N, 0, 0,
                                     LDA, N, SMB, SNB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1, 
-        two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, 
-                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1,
+        two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, matrix_Tile,
+                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
                                     MT*IB, N, SMB, SNB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1, 
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, 
-                                    nodes, cores, rank, MB, 1, M, NT, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
+        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
+                                    nodes, cores, rank, MB, 1, M, NT, 0, 0,
                                     M, NT, SMB, SNB, P))
 
 #if defined(DAGUE_PROF_TRACE)
@@ -68,7 +68,7 @@ int main(int argc, char ** argv)
 
         /* dplasma_zgetrf_Destruct( DAGUE_zgetrf ); */
     }
-    else 
+    else
     {
         if ( iparam[IPARAM_NNODES] > 1 ) {
             fprintf(stderr, "Checking doesn't work in distributed\n");
@@ -77,21 +77,21 @@ int main(int argc, char ** argv)
 
         int info_solution;
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
-            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
+            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, SMB, SNB, P));
-       
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1, 
-            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescX, 1,
+            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
-        
+
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA0, 3872);
 
         /*********************************************************************
@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
-        
+
         /* matrix generation */
         printf("Generate matrices ... ");
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -109,17 +109,17 @@ int main(int argc, char ** argv)
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
-        
+
         /* Compute */
         printf("Compute ... ... ");
-        info = dplasma_zgesv(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL, 
+        info = dplasma_zgesv(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                              (tiled_matrix_desc_t *)&ddescIPIV, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
         printf("Info = %d\n", info);
-        
+
         /* Check the solution */
         info_solution = check_solution( dague, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
-        
+
         if ( rank == 0 ) {
             if (info_solution == 0) {
                 printf(" ----- TESTING ZGESV ....... PASSED !\n");
@@ -136,7 +136,7 @@ int main(int argc, char ** argv)
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
-        
+
         /* matrix generation */
         printf("Generate matrices ... ");
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -145,21 +145,21 @@ int main(int argc, char ** argv)
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
-        
+
         /* Compute */
         printf("Compute ... ... ");
-        info = dplasma_zgetrf(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL, 
+        info = dplasma_zgetrf(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                               (tiled_matrix_desc_t *)&ddescIPIV );
         if ( info == 0 ) {
-            dplasma_zgetrs(dague, PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL, 
+            dplasma_zgetrs(dague, PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                            (tiled_matrix_desc_t *)&ddescIPIV, (tiled_matrix_desc_t *)&ddescX );
         }
         printf("Done\n");
         printf("Info = %d\n", info);
-        
+
         /* Check the solution */
         info_solution = check_solution( dague, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
-        
+
         if ( rank == 0 ) {
             if (info_solution == 0) {
                 printf(" ----- TESTING ZGETRF + ZGETRS ....... PASSED !\n");
@@ -169,14 +169,14 @@ int main(int argc, char ** argv)
             }
             printf("***************************************************\n");
         }
-        
+
         /*********************************************************************
          *               Third Check
          */
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
-        
+
         /* matrix generation */
         printf("Generate matrices ... ");
         dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -185,23 +185,23 @@ int main(int argc, char ** argv)
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
-        
+
         /* Compute */
         printf("Compute ... ... ");
-        info = dplasma_zgetrf(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL, 
+        info = dplasma_zgetrf(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                               (tiled_matrix_desc_t *)&ddescIPIV );
         if ( info == 0 ) {
-            dplasma_ztrsmpl(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL, 
+            dplasma_ztrsmpl(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                             (tiled_matrix_desc_t *)&ddescIPIV, (tiled_matrix_desc_t *)&ddescX);
-            dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, 
+            dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0,
                           (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescX);
         }
         printf("Done\n");
         printf("Info = %d\n", info);
-        
+
         /* Check the solution */
         info_solution = check_solution( dague, (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX);
-        
+
         if ( rank == 0 ) {
             if (info_solution == 0) {
                 printf(" ----- TESTING ZGETRF + ZTRSMPL + ZTRSM ....... PASSED !\n");
@@ -262,7 +262,7 @@ static int check_solution( dague_context_t *dague,
     Rnorm = LAPACKE_zlange_work( LAPACK_COL_MAJOR, 'i', N, NRHS, W, N, work );
 
     if (getenv("DPLASMA_TESTING_VERBOSE"))
-        printf( "||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n", 
+        printf( "||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
                 Anorm, Xnorm, Bnorm, Rnorm );
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;

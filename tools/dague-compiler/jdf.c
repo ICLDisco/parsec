@@ -40,6 +40,7 @@ void jdf_prepare_parsing(void)
     current_jdf.epilogue  = NULL;
     current_jdf.globals   = NULL;
     current_jdf.functions = NULL;
+    current_jdf.global_properties = NULL;
     current_lineno = 1;
 }
 
@@ -537,26 +538,27 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
 
 static int jdf_sanity_check_control(void)
 {
-    int rc = 0;
     jdf_function_entry_t *func;
     jdf_dataflow_t *flow;
     jdf_dep_t *dep;
-    int i, j;
+    int rc = 0, i, j;
 
+    /* For all the functions */
     for(func = current_jdf.functions; func != NULL; func = func->next) {
         i = 1;
+        /* For each flow of data */
         for(flow = func->dataflow; flow != NULL; flow = flow->next, i++) {
-            if( JDF_VAR_TYPE_CTL == flow->access_type ) {
-                j = 1;
-                for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
-                    if( (dep->guard->calltrue->var == NULL) ||
-                        ((dep->guard->guard_type == JDF_GUARD_TERNARY) && 
-                         (dep->guard->callfalse->var == NULL)) ) {
-                        rc++;
-                        jdf_fatal(flow->lineno, 
-                                  "In function %s:%d the control of dependency %s(#%d) of flow %s(#%d) cannot refer to data\n",
-                                  func->fname, flow->lineno, dep->datatype_name, j, flow->varname, i );
-                    }
+            if( JDF_VAR_TYPE_CTL != flow->access_type ) continue;
+            j = 1;
+            /* For each CONTROL dependency */
+            for( dep = flow->deps; dep != NULL; dep = dep->next, j++ ) {
+                if( (dep->guard->calltrue->var == NULL) ||
+                    ((dep->guard->guard_type == JDF_GUARD_TERNARY) && 
+                     (dep->guard->callfalse->var == NULL)) ) {
+                    rc++;
+                    jdf_fatal(flow->lineno, 
+                              "In function %s:%d the control of dependency #%d of flow %s(#%d) cannot refer to data\n",
+                              func->fname, flow->lineno, j, flow->varname, i );
                 }
             }
         }

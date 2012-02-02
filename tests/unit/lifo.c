@@ -1,3 +1,5 @@
+#include "dague_config.h"
+#undef NDEBUG
 #include <pthread.h>
 #include <stdarg.h>
 #include <signal.h>
@@ -5,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "lifo.h"
 #include "os-spec-timing.h"
@@ -22,8 +25,8 @@ static void fatal(const char *format, ...)
     raise(SIGABRT);
 }
 
-static dague_atomic_lifo_t lifo1;
-static dague_atomic_lifo_t lifo2;
+static dague_lifo_t lifo1;
+static dague_lifo_t lifo2;
 
 typedef struct {
     dague_list_item_t list;
@@ -39,12 +42,11 @@ static elt_t *create_elem(int base)
     unsigned int j;
 
     r = rand() % 1024;
-    DAGUE_LIFO_ELT_ALLOC( elt, r * sizeof(unsigned int) + sizeof(elt_t) );
+    DAGUE_LIFO_ITEM_ALLOC( elt, r * sizeof(unsigned int) + sizeof(elt_t) );
     elt->base = base;
     elt->nbelt = r;
     for(j = 0; j < r; j++)
         elt->elts[j] = elt->base + j;
-    DAGUE_LIST_ITEM_SINGLETON( (dague_list_item_t *)elt );
     
     return elt;
 }
@@ -57,8 +59,8 @@ static void check_elt(elt_t *elt)
             fatal(" ! Error: element number %u of elt with base %u is corrupt\n", j, elt->base);
 }
 
-static void check_translate_outoforder(dague_atomic_lifo_t *l1,
-                                    dague_atomic_lifo_t *l2,
+static void check_translate_outoforder(dague_lifo_t *l1,
+                                    dague_lifo_t *l2,
                                     const char *lifo1name,
                                     const char *lifo2name)
 {
@@ -75,12 +77,11 @@ static void check_translate_outoforder(dague_atomic_lifo_t *l1,
         memset(seen, 0, NBELT);
 
     for(e = 0; e < NBELT; e++) {
-        elt = (elt_t *)dague_atomic_lifo_pop( l1 );
+        elt = (elt_t *)dague_lifo_pop( l1 );
         if( NULL == elt ) 
             fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, lifo1name, NBELT);
-        DAGUE_LIST_ITEM_SINGLETON( elt );
         check_elt( elt );
-        dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
+        dague_lifo_push( l2, (dague_list_item_t *)elt );
         if( elt->base >= NBELT )
             fatal(" ! Error: base of the element %u of %s is outside boundaries\n", e, lifo1name);
         if( seen[elt->base] == 1 ) 
@@ -88,13 +89,13 @@ static void check_translate_outoforder(dague_atomic_lifo_t *l1,
         seen[elt->base] = 1;
     }
     /* No need to check that seen[e] == 1 for all e: this is captured by if (NULL == elt) */
-    if( (elt = (elt_t*)dague_atomic_lifo_pop( l1 )) != NULL ) 
+    if( (elt = (elt_t*)dague_lifo_pop( l1 )) != NULL ) 
         fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n", 
               elt->base, lifo1name);
 }
 
-static void check_translate_inorder(dague_atomic_lifo_t *l1,
-                                    dague_atomic_lifo_t *l2,
+static void check_translate_inorder(dague_lifo_t *l1,
+                                    dague_lifo_t *l2,
                                     const char *lifo1name,
                                     const char *lifo2name)
 {
@@ -103,35 +104,32 @@ static void check_translate_inorder(dague_atomic_lifo_t *l1,
     printf(" - pop them from %s, check they are ok, and push them back in %s\n",
            lifo1name, lifo2name);
 
-    elt = (elt_t *)dague_atomic_lifo_pop( l1 );
+    elt = (elt_t *)dague_lifo_pop( l1 );
     if( NULL == elt ) 
         fatal(" ! Error: expecting a full list in %s, got an empty one...\n", lifo1name);
-    DAGUE_LIST_ITEM_SINGLETON( elt );
     if( elt->base == 0 ) {
         check_elt( elt );
-        dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
+        dague_lifo_push( l2, (dague_list_item_t *)elt );
         for(e = 1; e < NBELT; e++) {
-            elt = (elt_t *)dague_atomic_lifo_pop( l1 );
+            elt = (elt_t *)dague_lifo_pop( l1 );
             if( NULL == elt ) 
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, lifo1name);
-            DAGUE_LIST_ITEM_SINGLETON( elt );
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
+            dague_lifo_push( l2, (dague_list_item_t *)elt );
         }
     } else if( elt->base == NBELT-1 ) {
         check_elt( elt );
-        dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
+        dague_lifo_push( l2, (dague_list_item_t *)elt );
         for(e = NBELT-2; ; e--) {
-            elt = (elt_t *)dague_atomic_lifo_pop( l1 );
+            elt = (elt_t *)dague_lifo_pop( l1 );
             if( NULL == elt ) 
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, lifo1name);
-            DAGUE_LIST_ITEM_SINGLETON( elt );
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            dague_atomic_lifo_push( l2, (dague_list_item_t *)elt );
+            dague_lifo_push( l2, (dague_list_item_t *)elt );
             if( 0 == e )
                 break;
         }
@@ -165,17 +163,15 @@ static void *translate_elements_random(void *params)
     start = take_time();
     while( i < heavy_synchro ) {
         if( rand() % 2 == 0 ) {
-            e = dague_atomic_lifo_pop( &lifo1 );
+            e = dague_lifo_pop( &lifo1 );
             if(NULL != e) {
-                DAGUE_LIST_ITEM_SINGLETON( e );
-                dague_atomic_lifo_push(&lifo2, e);
+                dague_lifo_push(&lifo2, e);
                 i++;
             }
         } else {
-            e = dague_atomic_lifo_pop( &lifo2 );
+            e = dague_lifo_pop( &lifo2 );
             if(NULL != e) {
-                DAGUE_LIST_ITEM_SINGLETON( e );
-                dague_atomic_lifo_push(&lifo1, e);
+                dague_lifo_push(&lifo1, e);
                 i++;
             }
         }
@@ -246,15 +242,15 @@ int main(int argc, char *argv[])
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
-    dague_atomic_lifo_construct( &lifo1 );
-    dague_atomic_lifo_construct( &lifo2 );
+    dague_lifo_construct( &lifo1 );
+    dague_lifo_construct( &lifo2 );
 
     printf("Sequential test.\n");
 
     printf(" - create %u random elements and push them in lifo1\n", NBELT);
     for(e = 0; e < NBELT; e++) {
         elt = create_elem(e);
-        dague_atomic_lifo_push( &lifo1, (dague_list_item_t *)elt );
+        dague_lifo_push( &lifo1, (dague_list_item_t *)elt );
     }
 
     check_translate_inorder(&lifo1, &lifo2, "lifo1", "lifo2");
@@ -287,8 +283,8 @@ int main(int argc, char *argv[])
         sum_time += times[e];
     }
     printf("== Time to move %u times per thread for %ld threads from l1 to l2 or l2 to l1 randomly:\n"
-           "== MIN %lu %s\n"
-           "== MAX %lu %s\n"
+           "== MIN %"PRIu64" %s\n"
+           "== MAX %"PRIu64" %s\n"
            "== AVG %g %s\n",
            NBTIMES, nbthreads,
            min_time, TIMER_UNIT,
@@ -298,29 +294,28 @@ int main(int argc, char *argv[])
     printf(" - move all elements to lifo1\n");
     p = NULL;
     ch = 0;
-    while( !dague_atomic_lifo_is_empty( &lifo2 ) ) {
-        elt = (elt_t*)dague_atomic_lifo_pop( &lifo2 );
+    while( !dague_lifo_is_empty( &lifo2 ) ) {
+        elt = (elt_t*)dague_lifo_pop( &lifo2 );
         if( elt == NULL ) 
             fatal(" ! Error: list lifo2 is supposed to be non empty, but it is!\n");
-        DAGUE_LIST_ITEM_SINGLETON( elt );
         if( elt == p ) 
             fatal(" ! I keep poping the same element in the list at element %u... It is now officially a frying pan\n",
                   ch);
         ch++;
         p = elt;
-        dague_atomic_lifo_push( &lifo1, (dague_list_item_t*)elt );
+        dague_lifo_push( &lifo1, (dague_list_item_t*)elt );
     }
     
     check_translate_outoforder(&lifo1, &lifo2, "lifo1", "lifo2");
     
     printf(" - pop all elements from lifo1, and free them\n");
-    while( !dague_atomic_lifo_is_empty( &lifo1 ) ) {
-        elt = (elt_t*)dague_atomic_lifo_pop( &lifo1 );
+    while( !dague_lifo_is_empty( &lifo1 ) ) {
+        elt = (elt_t*)dague_lifo_pop( &lifo1 );
         free(elt);
     }
     printf(" - pop all elements from lifo2, and free them\n");
-    while( !dague_atomic_lifo_is_empty( &lifo2 ) ) {
-        elt = (elt_t*)dague_atomic_lifo_pop( &lifo2 );
+    while( !dague_lifo_is_empty( &lifo2 ) ) {
+        elt = (elt_t*)dague_lifo_pop( &lifo2 );
         free(elt);
     }
 

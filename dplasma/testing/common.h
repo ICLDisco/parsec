@@ -61,6 +61,7 @@ enum iparam_t {
   IPARAM_QR_HLVL_SZE,  /* Size of the high level tree           (specific to xgeqrf_param) */
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
+  IPARAM_BUT_LEVEL,    /* Butterfly level */
   IPARAM_DOT,          /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };
@@ -96,9 +97,10 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int loud  = iparam[IPARAM_VERBOSE];\
   int scheduler = iparam[IPARAM_SCHEDULER];\
   int nb_local_tasks = 0;                                               \
+  int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;(void)nb_local_tasks;
+  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;

@@ -10,18 +10,22 @@
 #include "remote_dep.h"
 #include "dague.h"
 #include "stats.h"
+#include "datarepo.h"
+#include "execution_unit.h"
 
 #include <signal.h>
+#if defined(HAVE_STRING_H)
 #include <string.h>
+#endif /* defined(HAVE_STRING_H) */
 #include <sched.h>
 #include <sys/types.h>
+#if defined(HAVE_ERRNO_H)
 #include <errno.h>
-
-#ifdef  HAVE_SCHED_SETAFFINITY
+#endif  /* defined(HAVE_ERRNO_H) */
+#if defined(HAVE_SCHED_SETAFFINITY)
 #include <linux/unistd.h>
-#endif  /* HAVE_SCHED_SETAFFINITY */
-
-#if defined(DAGUE_PROF_TRACE) && 0
+#endif  /* defined(HAVE_SCHED_SETAFFINITY) */
+#if defined(DAGUE_PROF_TRACE)
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  dague_profiling_trace((EU_PROFILE), (KEY), (ID))
 #else
 #define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
@@ -47,9 +51,7 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
     {
         const struct dague_flow* flow;
         int set_parameters, i;
-        char tmp[128];
 
-        DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
         for( i = set_parameters = 0; NULL != (flow = exec_context->function->in[i]); i++ ) {
             if( (NULL != exec_context->data[flow->flow_index].data_repo) &&
                 (ACCESS_NONE != flow->access_type)) {
@@ -60,12 +62,16 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
         assert( set_parameters <= 1 );
     }
 # endif
+#ifdef DAGUE_DEBUG_VERBOSE1
+    char tmp[128];
+    DEBUG(( "thread %d Execute %s\n", eu_context->eu_id, dague_service_to_string(exec_context, tmp, 128)));
+#endif
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
 
     if( NULL != function->hook ) {
         rc = function->hook( eu_context, exec_context );
     }
-    return rc; 
+    return rc;
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -124,19 +130,17 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data ) {
-                        DEBUG(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
+                        ERROR(( "Task %s has flow %d data_repo != NULL but a data == NULL (%s:%d)\n",
                                 dague_service_to_string(context, tmp, 128), flow->flow_index, __FILE__, __LINE__));
-                        assert( NULL == context->data[flow->flow_index].data );
                     }
                 }
             }
             if( set_parameters > 1 ) {
-                DEBUG(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
+                ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_service_to_string(context, tmp, 128), __FILE__, __LINE__));
-                assert( set_parameters > 1 );
             }
-            DEBUG(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
-            context = (dague_execution_context_t*)context->list_item.list_next;
+            DEBUG2(( "thread %d Schedules %s\n", eu_context->eu_id, dague_service_to_string(context, tmp, 128)));
+            context = DAGUE_LIST_ITEM_NEXT(context);
         } while ( context != new_context );
     }
 # endif
@@ -255,7 +259,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
         }
-        
+
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
         exec_context = scheduler.select_task(eu_context);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
@@ -284,7 +288,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             misses_in_a_row++;
         }
     }
-    
+
     /* We're all done ? */
     dague_barrier_wait( &(master_context->barrier) );
 
@@ -309,12 +313,12 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
  finalize_progress:
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
-    printf("#Scheduling: th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
+    STATUS(("#Scheduling: th <%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
            eu_context->eu_id, nbiterations, (long long unsigned int)found_local,
            (long long unsigned int)found_remote,
            (long long unsigned int)found_victim,
            (long long unsigned int)miss_local,
-           (long long unsigned int)miss_victim );
+           (long long unsigned int)miss_victim ));
 
     if( eu_context->eu_id == 0 ) {
         char  priority_trace_fname[64];
@@ -323,7 +327,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         priority_trace = fopen(priority_trace_fname, "w");
         if( NULL != priority_trace ) {
             uint32_t my_idx;
-            fprintf(priority_trace, 
+            fprintf(priority_trace,
                     "#Step\tPriority\tThread\n"
                     "#Tasks are ordered in execution order\n");
             for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
@@ -342,7 +346,7 @@ int dague_enqueue( dague_context_t* context, dague_object_t* object)
     dague_execution_context_t *startup_list = NULL;
 
     if( NULL == scheduler.schedule_task ) {
-        fprintf(stderr, "DAGuE: error -- You cannot enqueue a task without selecting a scheduler first.\n");
+        WARNING(("You cannot enqueue a task without selecting a scheduler first.\n"));
         return -1;
     }
 
@@ -382,7 +386,7 @@ int dague_wait( dague_context_t* context )
 {
     int ret;
     (void)dague_remote_dep_on(context);
-    
+
     ret = (int)(long)__dague_progress( context->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
@@ -394,10 +398,11 @@ int dague_progress(dague_context_t* context)
 {
     int ret;
     (void)dague_remote_dep_on(context);
-    
+
     ret = (int)(long)__dague_progress( context->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);
     return ret;
 }
+

@@ -11,8 +11,8 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int check_solution( dague_context_t *dague, int loud,
-                           tiled_matrix_desc_t *ddescA, 
-                           tiled_matrix_desc_t *ddescB, 
+                           tiled_matrix_desc_t *ddescA,
+                           tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 
 int main(int argc, char ** argv)
@@ -21,7 +21,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int ret = 0;
-    
+
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 40, 200, 200);
@@ -41,46 +41,46 @@ int main(int argc, char ** argv)
     }
 
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, M, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, M, N, 0, 0,
                                LDA, N, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1, 
-        two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, 
-                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1,
+        two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1, 
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, 
-                               nodes, cores, rank, MB, 1, M, NT, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
+        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
+                               nodes, cores, rank, MB, 1, M, NT, 0, 0,
                                M, NT, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check, 
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, SMB, SNB, P));
-       
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescX, check, 
-        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
-        
+
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 7657);
     if ( check ) {
         dplasma_zlacpy( dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescA, 
+                        (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescB, 
+                        (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX );
     }
     if(loud > 2) printf("Done\n");
@@ -103,16 +103,16 @@ int main(int argc, char ** argv)
     }
     else if ( check ) {
 
-        dplasma_zgetrs(dague, PlasmaNoTrans, 
-                       (tiled_matrix_desc_t *)&ddescA, 
-                       (tiled_matrix_desc_t *)&ddescL, 
-                       (tiled_matrix_desc_t *)&ddescIPIV, 
+        dplasma_zgetrs(dague, PlasmaNoTrans,
+                       (tiled_matrix_desc_t *)&ddescA,
+                       (tiled_matrix_desc_t *)&ddescL,
+                       (tiled_matrix_desc_t *)&ddescIPIV,
                        (tiled_matrix_desc_t *)&ddescX );
 
         /* Check the solution */
-        ret |= check_solution( dague, (rank == 0) ? loud : 0, 
-                               (tiled_matrix_desc_t *)&ddescA0, 
-                               (tiled_matrix_desc_t *)&ddescB, 
+        ret |= check_solution( dague, (rank == 0) ? loud : 0,
+                               (tiled_matrix_desc_t *)&ddescA0,
+                               (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
     }
 
@@ -140,8 +140,8 @@ int main(int argc, char ** argv)
 
 
 static int check_solution( dague_context_t *dague, int loud,
-                           tiled_matrix_desc_t *ddescA, 
-                           tiled_matrix_desc_t *ddescB, 
+                           tiled_matrix_desc_t *ddescA,
+                           tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX )
 {
     int info_solution;
@@ -162,12 +162,12 @@ static int check_solution( dague_context_t *dague, int loud,
     Rnorm = dplasma_zlange(dague, PlasmaMaxNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
-    
+
     if ( loud > 2 ) {
         printf("============\n");
         printf("Checking the Residual of the solution \n");
         if ( loud > 3 )
-            printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n", 
+            printf( "-- ||A||_oo = %e, ||X||_oo = %e, ||B||_oo= %e, ||A X - B||_oo = %e\n",
                     Anorm, Xnorm, Bnorm, Rnorm );
 
         printf("-- ||Ax-B||_oo/((||A||_oo||x||_oo+||B||_oo).N.eps) = %e \n", result);
