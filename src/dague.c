@@ -77,7 +77,7 @@ static void dague_statistics(char* str)
     struct rusage current;
 
     getrusage(RUSAGE_SELF, &current);
-    if ( !_dague_rusage_first_call ) {
+    if( !_dague_rusage_first_call ) {
         double usr, sys;
 
         usr = ((current.ru_utime.tv_sec - _dague_rusage.ru_utime.tv_sec) +
@@ -349,14 +349,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
         WARNING(("PAPI library initialization error! \n"));
     else {
-        if (PAPI_create_eventset(&eventSet) != PAPI_OK)
+        if( PAPI_create_eventset(&eventSet) != PAPI_OK )
             WARNING(("PAPI unable to create event set! \n"));
         else {
             for( i = 0; i < num_events; ++i ) {
                 int event;
                 PAPI_event_name_to_code(event_names[i], &event);
 
-                if (PAPI_add_event(eventSet, event) != PAPI_OK)
+                if( PAPI_add_event(eventSet, event) != PAPI_OK )
                     WARNING(("PAPI unable to add event: %s \n", event_names[i]));
             }
         }
@@ -425,7 +425,7 @@ int dague_fini( dague_context_t** pcontext )
     {
         char filename[64];
         char prefix[32];
-# if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
         int rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -937,7 +937,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         option++;  /* skip the + */
     }
 
-    if (NULL != (position = strchr(option, 'x'))) {
+    if( NULL != (position = strchr(option, 'x')) ) {
         /* Hexadecimal mask */
         /* convert mask into hwloc bitmap, used if needed for the communication thread binding */
         position++;
@@ -1045,7 +1045,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     cmp++;
                 }
                 if( NULL != (position = strpbrk(option, ",-"))) {
-                    if (position[0] == '-') {
+                    if( position[0] == '-' ) {
                         /* core range */
                         position++;
                         next_arg = strtol(position, &position, 10);
@@ -1066,7 +1066,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     option++;
             }
         }
-        if (core_tab[0]== -1)
+        if( core_tab[0]== -1 )
             WARNING(("bindind arguments are not valid (restored to default value)\n"));
         else { /* we have a legal list to defined the binding  */
             cmp=0;
@@ -1104,7 +1104,7 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
 {
 #if defined(HAVE_HWLOC)
     char* option = optarg;
-    if (option[0]!='\0'){
+    if( option[0]!='\0' ) {
         int core=atoi(optarg);
         if( (core > 0) && (core < dague_hwloc_nb_real_cores()) )
             context->comm_th_core=core;
