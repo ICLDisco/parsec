@@ -144,7 +144,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
-    DEBUG2(("Bind thread %i on core %i\n", startup->th_id, startup->bindto));
+    DEBUG2(("bind thread %i on core %i\n", startup->th_id, startup->bindto));
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -273,11 +273,20 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
         } while(1);
     }
 
-#if defined HAVE_HWLOC && defined(HAVE_HWLOC_BITMAP)
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* update the core_free_mask according to the thread binding defined */
     for(i = 0; i < nb_cores; i++)
 	hwloc_bitmap_clr(context->core_free_mask, startup[i].bindto);
-#endif
+
+#if defined(DAGUE_DEBUG_VERBOSE3)
+    {
+        char *str = NULL;
+        hwloc_bitmap_asprintf(&str, context->core_free_mask);
+        DEBUG3(( "binding core free mask is %s\n", str));
+        free(str);
+    }
+#endif /* DAGUE_DEBUG_VERBOSE3 */
+#endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
     /* Initialize the barriers */
     dague_barrier_init( &(context->barrier), NULL, nb_cores );
@@ -655,6 +664,7 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
         {
 #if defined(DAGUE_DEBUG_VERBOSE1)
             char tmp2[128];
+            char tmp[128];
 #endif
             dague_execution_context_t* new_context;
             dague_thread_mempool_t *mpool;
@@ -942,7 +952,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         /* convert mask into hwloc bitmap, used if needed for the communication thread binding */
         position++;
         unsigned long mask = strtoul(position, NULL, 16);
-        if( context->comm_th_binding_mask==NULL)
+        if( context->comm_th_binding_mask==NULL )
             context->comm_th_binding_mask=hwloc_bitmap_alloc();
         hwloc_bitmap_from_ulong(context->comm_th_binding_mask, mask);
 
@@ -957,18 +967,16 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             startup[i].bindto=prev;
         }
 
-        char *str2 = NULL;
-        hwloc_bitmap_asprintf(&str2, context->comm_th_binding_mask);
-        DEBUG3(("binding defined by the mask %s\n", str2));
-        free(str2);
-
 #if defined(DAGUE_DEBUG_VERBOSE3)
-        char *str = NULL;
-        hwloc_bitmap_asprintf(&str, context->comm_th_binding_mask);
-        DEBUG3(( "binding defined by the mask %s\n", str));
-        free(str);
-#endif
-    } else if( NULL != (position = strchr(option, ':'))) {
+        {
+            char *str = NULL;
+            hwloc_bitmap_asprintf(&str, context->comm_th_binding_mask);
+            DEBUG3(( "binding defined by the mask %s\n", str));
+            free(str);
+        }
+#endif /* DAGUE_DEBUG_VERBOSE3 */
+    }
+    else if( NULL != (position = strchr(option, ':'))) {
         /* Range expression such as [start]:[end]:[step]*/
         int arg;
         int start = 0, step = 1;
@@ -1001,7 +1009,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                 WARNING(("binding step not valid (restored to default value)\n"));
         }
 
-        DEBUG(( "binding defined by core range [%d:%d:%d]\n", start, end, step));
+        DEBUG3(("binding defined by core range [%d:%d:%d]\n", start, end, step));
         {
             int where = start, skip = 1;
             for( i = 0; i < context->nb_cores; i++ ) {
@@ -1077,27 +1085,31 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     cmp=0;
             }
         }
-
-#if defined(DAGUE_DEBUG_VERBOSE)
-        char tmp[MAX_CORE_LIST];
-        char* str = tmp;
-        size_t offset;
-        for(i=0; i<MAX_CORE_LIST; i++){
-            if(core_tab[i]==-1)
-                break;
-            offset = sprintf(str, "%i ", core_tab[i]);
-            str += offset;
+#if defined(DAGUE_DEBUG_VERBOSE3)
+        {
+            char tmp[MAX_CORE_LIST];
+            char* str = tmp;
+            size_t offset;
+            for(i=0; i<MAX_CORE_LIST; i++) {
+                if(core_tab[i]==-1)
+                    break;
+                offset = sprintf(str, "%i ", core_tab[i]);
+                str += offset;
+            }
+            DEBUG3(("binding defined by the parsed list: %s \n", tmp));
         }
-        DEBUG(( "binding defined by the parsed list: %s \n", tmp));
-#endif
-    }
+#endif /* DAGUE_DEBUG_VERBOSE3 */
 
+    }
     return 0;
+
 #else
-    (void)optarg; (void)context; (void)startup;
+    (void)optarg;
+    (void)context;
+    (void)startup;
     WARNING(("the binding defined by --dague_bind has been ignored (requires a build with HWLOC with bitmap support).\n"));
     return -1;
-#endif
+#endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }
 
 static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context)
@@ -1112,12 +1124,12 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
             WARNING(("the binding defined by --dague_bind_comm has been ignored (illegal core number)\n"));
     } else {
         /* TODO:: Add binding NUIOA aware by default */
-        DEBUG3(( "default binding for the communication thread\n"));
+        DEBUG3(("default binding for the communication thread\n"));
     }
     return 0;
 #else
     (void)optarg; (void)context;
     WARNING(("the binding defined by --dague_bind has been ignored (requires a build with HWLOC).\n"));
     return -1;
-#endif
+#endif  /* HAVE_HWLOC */
 }
