@@ -68,6 +68,7 @@ typedef enum dep_cmd_action_t
 /*    DEP_PROGRESS,
     DEP_PUT_DATA,
     DEP_GET_DATA,*/
+    DEP_NEW_OBJECT,
     DEP_CTL,
     DEP_MEMCPY,
 } dep_cmd_action_t;
@@ -84,6 +85,9 @@ typedef union dep_cmd_t
     struct {
         int enable;        
     } ctl;
+    struct {
+        dague_object_t* obj;
+    } new_object;
     struct {
         dague_object_t*             dague_object;
         dague_arena_chunk_t*        source;
@@ -112,12 +116,13 @@ typedef struct dague_dep_wire_get_fifo_elem_t {
 #define rdep_prio (offsetof(dague_remote_deps_t, max_priority))
 
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
-static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i);
-static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, int k, MPI_Status* status);
-static void remote_dep_mpi_put_eager(dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* msg, int rank);
+static void remote_dep_mpi_put_start( dague_execution_unit_t* eu_context, dague_dep_wire_get_fifo_elem_t* item, int i );
+static void remote_dep_mpi_put_end( dague_execution_unit_t* eu_context, int i, int k, MPI_Status* status );
+static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* msg, int rank );
 static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, int i, MPI_Status* status );
-static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
-static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k);
+static void remote_dep_mpi_get_start( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i );
+static void remote_dep_mpi_get_end( dague_execution_unit_t* eu_context, dague_remote_deps_t* deps, int i, int k );
+static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context, dague_object_t* obj );
 
 #ifdef DAGUE_DEBUG_VERBOSE1
 static char* remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin, char* str, size_t len)
@@ -448,13 +453,16 @@ static int remote_dep_dequeue_nothread_progress(dague_execution_unit_t* eu_conte
     }
 handle_now:
     switch(item->action) {
-    case DEP_ACTIVATE:
-        remote_dep_nothread_send(eu_context, item->cmd.activate.rank, item->cmd.activate.deps);
-        break;
     case DEP_CTL:
         ret = item->cmd.ctl.enable;
         free(item);
         return ret;  /* FINI or OFF */
+    case DEP_NEW_OBJECT:
+        remote_dep_mpi_new_object(eu_context, item->cmd.new_object.obj);
+        break;
+    case DEP_ACTIVATE:
+        remote_dep_nothread_send(eu_context, item->cmd.activate.rank, item->cmd.activate.deps);
+        break;
     case DEP_MEMCPY:
         remote_dep_nothread_memcpy(item->cmd.memcpy.destination, 
                                    item->cmd.memcpy.source,
@@ -644,8 +652,8 @@ static int remote_dep_mpi_init(dague_context_t* context)
     int i, mpi_tag_ub_exists, *ub;
 
     dague_list_construct(&dep_activates_fifo);
-    dague_list_construct(&dep_put_fifo);
     dague_list_construct(&dep_activates_noobj_fifo);
+    dague_list_construct(&dep_put_fifo);
 
     MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     /*
@@ -712,8 +720,8 @@ static int remote_dep_mpi_fini(dague_context_t* context)
     free( dep_pending_put_array );
     free( dep_pending_recv_array );
     dague_list_destruct(&dep_activates_fifo);
-    dague_list_destruct(&dep_put_fifo);
     dague_list_destruct(&dep_activates_noobj_fifo);
+    dague_list_destruct(&dep_put_fifo);
     MPI_Comm_free(&dep_comm);
     (void)context;
     return 0;
