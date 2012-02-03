@@ -884,7 +884,7 @@ static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote
         item = dague_ulist_fifo_pop(&dague_put_fifo);
     } while( (dague_list_item_t*)eager == item );
     if( NULL != item ) /* return the item to the list */
-        dague_ulist_push_front(&dague_put_fifo, item); 
+        dague_ulist_push_front(&dague_put_fifo, item);
 }
 
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status )
@@ -971,6 +971,7 @@ static void remote_dep_mpi_put_start(dague_execution_unit_t* eu_context, dague_d
 static void remote_dep_mpi_put_end(dague_execution_unit_t* eu_context, int i, int k, MPI_Status* status)
 {
     dague_dep_wire_get_fifo_elem_t* item = dep_pending_put_array[i];
+    assert(NULL != item);
     remote_dep_wire_get_t* task = &(item->task);
     dague_remote_deps_t* deps = (dague_remote_deps_t*)(uintptr_t)task->deps;
 
@@ -1040,9 +1041,15 @@ static void remote_dep_mpi_save_activation( dague_execution_unit_t* eu_context, 
             DEBUG2(("MPI:\tFROM\t%d\tGet EAGER\t% -8s\ti=%d,k=%d\twith datakey %lx at %p\t(tag=%d)\n",
                    saved_deps->from, remote_dep_cmd_to_string(&saved_deps->msg, tmp, 128), i, k, deps->msg.deps, ADATA(saved_deps->output[k].data), tag+k));
 #ifndef DAGUE_PROF_DRY_DEP
-            MPI_Recv(ADATA(saved_deps->output[k].data), saved_deps->output[k].nbelt, 
+            MPI_Request req; int flag = 0;
+            MPI_Irecv(ADATA(saved_deps->output[k].data), saved_deps->output[k].nbelt, 
                      saved_deps->output[k].type->opaque_dtt, saved_deps->from, 
-                     tag+k, dep_comm, MPI_STATUS_IGNORE);
+                     tag+k, dep_comm, &req);
+            do {
+                MPI_Test(&req, &flag, MPI_STATUS_IGNORE);
+                if(flag) break;
+                remote_dep_mpi_progress(eu_context);
+            } while(!flag);
 #endif
             saved_deps->msg.deps |= 1<<k;
             continue;

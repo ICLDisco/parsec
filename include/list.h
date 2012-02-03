@@ -78,7 +78,7 @@ dague_list_nolock_add_after( dague_list_t* list,
 #define dague_ulist_add_after(list, pos, new) dague_list_nolock_add_after(list, pos, new)
 /** remove a specific @item from the @list (not thread safe)
  *    @item must be in the @list
- *    @return successor of @item in @list */
+ *    @return predecessor of @item in @list */
 static inline dague_list_item_t*
 dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item);
@@ -386,16 +386,17 @@ static inline dague_list_item_t*
 dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
+    assert( &list->ghost_element != item );
 #if defined(DAGUE_DEBUG)
     assert(item->belong_to == list);
 #else
     (void)list;
 #endif
-    dague_list_item_t* next = (dague_list_item_t*)item->list_next;
+    dague_list_item_t* prev = (dague_list_item_t*)item->list_prev;
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
     DAGUE_ITEM_DETACH(item);
-    return next;
+    return prev;
 }
 
 #if 0
