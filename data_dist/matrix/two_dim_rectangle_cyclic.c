@@ -216,8 +216,11 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage,
                             mb, nb, lm, ln, i, j, m, n);
 
-    assert((nodes % P) == 0);
+    if(nodes < P)
+        ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
     Q = nodes / P;
+    if(nodes != P*Q)
+        WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);
 
     /* Compute the number of rows of super-tile */
