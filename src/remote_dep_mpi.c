@@ -1039,8 +1039,8 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
     char tmp[128];
 #endif
     int tag = (int)deps->msg.tag;
-    remote_dep_datakey_t datakey = (remote_dep_datakey_t)deps->msg.deps;
-    deps->msg.deps = deps;
+    remote_dep_datakey_t datakey = deps->msg.deps;
+    deps->msg.deps = (remote_dep_datakey_t)deps;
     remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(&deps->msg);
     deps->msg.deps = 0; /* now, it contains the mask of deps presatisfied */
     
