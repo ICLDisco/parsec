@@ -508,8 +508,6 @@ static int remote_dep_nothread_send( dague_execution_unit_t* eu_context,
     remote_dep_wire_activate_t msg = deps->msg;
 
     msg.deps = (uintptr_t)deps;
-    if( RDEP_MSG_EAGER(&deps->msg) )
-        RDEP_MSG_EAGER_SET(&msg);
     for( k = 0; output_count; k++ ) {
         output_count -= deps->output[k].count;
         if(deps->output[k].rank_bits[rank_bank] & rank_mask) {
@@ -596,7 +594,6 @@ static void remote_dep_mpi_profiling_init(void)
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
     
     MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
-    MPIsnd_eager = dague_profiling_thread_init( 2*1024*1024, "MPI send()");
     for(i = 0; i < DEP_NB_CONCURENT; i++) {
         MPIsnd_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI isend(req=%d)", i);
         MPIrcv_prof[i] = dague_profiling_thread_init( 2*1024*1024, "MPI irecv(req=%d)", i);
@@ -641,6 +638,7 @@ static dague_remote_deps_t* dep_activate_buff[DEP_NB_CONCURENT];
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
 static remote_dep_wire_get_t dep_get_buff[DEP_NB_CONCURENT];
+static size_t dep_mpi_eager_limit;
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
  * rdv protocol. Make sure we can carry pointers correctly.
@@ -717,7 +715,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
     
     dep_pending_recv_array = (dague_remote_deps_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_remote_deps_t*));
     dep_pending_put_array = (dague_dep_wire_get_fifo_elem_t**)calloc(DEP_NB_CONCURENT, sizeof(dague_dep_wire_get_fifo_elem_t*));
-
+    dep_mpi_eager_limit = RDEP_MSG_EAGER_LIMIT;
     remote_dep_mpi_profiling_init();
     return 0;
 }
@@ -776,8 +774,6 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
 #if !defined(DAGUE_PROF_TRACE)
     (void)eu_context;
 #endif
-    int eager = RDEP_MSG_EAGER(msg);
-
     msg->tag = next_tag(MAX_PARAM_COUNT); /* todo: waste less tags to diminish collision probability */
     DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\ti=na\twith datakey %lx\tmask %lx\t(tag=%d)\n", rank, remote_dep_cmd_to_string(msg, tmp, 128), msg->deps, msg->which, msg->tag));
     
@@ -795,7 +791,6 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
     }
 #endif
     
-    RDEP_MSG_EAGER_CLR(msg);
     /* Do not wait for completion of CTL */
     for(int k=0; msg->which>>k; k++) {
         if(0 == (msg->which & (1<<k))) continue;
@@ -811,11 +806,7 @@ static int remote_dep_mpi_send_dep(dague_execution_unit_t* eu_context, int rank,
         remote_dep_complete_one_and_cleanup(deps);
     }
     
-    /* Proceed with Eager mode now */
-    if(eager)
-    {
-        remote_dep_mpi_put_eager(eu_context, msg, rank); 
-    }
+    remote_dep_mpi_put_eager(eu_context, msg, rank); 
     
     return 1;
 }
@@ -878,35 +869,59 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
     return ret;
 }
 
-static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* msg, int rank )
+static remote_dep_datakey_t remote_dep_mpi_eager_which(remote_dep_wire_activate_t* msg)
 {
-    dague_dep_wire_get_fifo_elem_t* eager;
+#ifdef DAGUE_DEBUG_VERBOSE3
+        char tmp[128];
+#endif
     dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
-    
-    eager = (dague_dep_wire_get_fifo_elem_t*)malloc(sizeof(dague_dep_wire_get_fifo_elem_t));
-    DAGUE_LIST_ITEM_CONSTRUCT(eager);
-    eager->priority = deps->max_priority;
-    eager->peer = rank;
-    eager->task.deps = msg->deps;
-    eager->task.which = msg->which;
-    eager->task.tag = msg->tag;
-    /* Check if we can process the eager now */
-    for(int i = 0; i < DEP_NB_CONCURENT; i++ ) {
-        if( NULL == dep_pending_put_array[i] ) {
-            remote_dep_mpi_put_start(eu_context, eager, i);
-            return;
+    remote_dep_datakey_t eager_which = 0;
+    for(int k = 0; msg->which>>k; k++) {
+        assert(k < MAX_PARAM_COUNT);
+        if( !((1<<k) & msg->which) ) continue;
+        if( NULL == deps->output[k].type ) continue;
+        size_t extent = deps->output[k].type->elem_size * deps->output[k].nbelt;
+        if( extent < dep_mpi_eager_limit+1 )
+        {
+            eager_which |= 1<<k;
+            DEBUG3(("MPI:\t%s\tEager\tk=%d\tsize=%d <= %d\n", remote_dep_cmd_to_string(&deps->msg, tmp, 128), k, extent, dep_mpi_eager_limit));
         }
     }
-    /* we can't process it now, push this eager first in queue, and
-     * progress rdv to make room */
-    dague_list_item_t* item = (dague_list_item_t*)eager;
-    do { 
-        dague_ulist_push_front(&dep_put_fifo, item);
-        remote_dep_mpi_progress(eu_context);
-        item = dague_ulist_fifo_pop(&dep_put_fifo);
-    } while( (dague_list_item_t*)eager == item );
-    if( NULL != item ) /* return the item to the list */
-        dague_ulist_push_front(&dep_put_fifo, item);
+    return eager_which;
+}
+
+static void remote_dep_mpi_put_eager( dague_execution_unit_t* eu_context, remote_dep_wire_activate_t* msg, int rank )
+{
+    remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(msg);
+    if( eager_which ) {
+        dague_remote_deps_t* deps = (dague_remote_deps_t*)msg->deps;
+        dague_dep_wire_get_fifo_elem_t* eager;
+        eager = (dague_dep_wire_get_fifo_elem_t*)malloc(sizeof(dague_dep_wire_get_fifo_elem_t));
+        DAGUE_LIST_ITEM_CONSTRUCT(eager);
+        eager->priority = deps->max_priority;
+        eager->peer = rank;
+        eager->task.deps = msg->deps;
+        eager->task.which = eager_which;
+        eager->task.tag = msg->tag;
+        /* Check if we can process the eager now */
+        for(int i = 0; i < DEP_NB_CONCURENT; i++ ) {
+            if( NULL == dep_pending_put_array[i] ) {
+                remote_dep_mpi_put_start(eu_context, eager, i);
+                return;
+            }
+        }
+        /* we can't process it now, push this eager first in queue, and
+         * progress rdv to make room */
+        dague_list_item_t* item = (dague_list_item_t*)eager;
+        do { 
+            dague_ulist_push_front(&dep_put_fifo, item);
+            remote_dep_mpi_progress(eu_context);
+            item = dague_ulist_fifo_pop(&dep_put_fifo);
+        } while( (dague_list_item_t*)eager == item );
+        if( NULL != item ) { /* return the item to the list */
+            dague_ulist_push_front(&dep_put_fifo, item);
+        }
+    }
 }
 
 static void remote_dep_mpi_save_put( dague_execution_unit_t* eu_context, int i, MPI_Status* status )
@@ -1023,6 +1038,7 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
 #ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[128];
 #endif
+    remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(&deps->msg);
     remote_dep_datakey_t datakey = deps->msg.deps;
     int tag = (int)deps->msg.tag;
     deps->msg.deps = 0; /* contains the mask of deps presatisfied */
@@ -1037,7 +1053,7 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
             continue;
         }
         /* Check if we have eager deps to satisfy quickly */
-        if(RDEP_MSG_EAGER(&deps->msg))
+        if( eager_which & (1<<k) )
         {
             assert(NULL == deps->output[k].data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data) {
@@ -1109,7 +1125,6 @@ static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, in
     dague_remote_deps_t* saved_deps = remote_deps_allocation(&dague_remote_dep_context.freelist);
     /* Copy the required fields */
     saved_deps->msg = deps->msg;
-    RDEP_MSG_EAGER_CLR(&saved_deps->msg);
     saved_deps->from = status->MPI_SOURCE;
     /* Retrieve the data arenas and update the msg.which to reflect all the data
      * we should be receiving from the father. If some of the dependencies have
