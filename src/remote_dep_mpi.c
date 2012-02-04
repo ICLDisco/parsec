@@ -181,6 +181,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);
 
     dague_dequeue_construct(&dep_cmd_queue);
+    dague_list_construct(&dep_cmd_fifo);
 
     /* Build the condition used to drive the MPI thread */
     pthread_mutex_init( &mpi_thread_mutex, NULL );
@@ -240,6 +241,9 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         pthread_join(dep_thread_id, (void**) &ret);
         assert(ret == context);
     }
+
+    dague_dequeue_destruct(&dep_cmd_queue);
+    dague_list_destruct(&dep_cmd_fifo);
 
     return 0;
 }
@@ -1094,7 +1098,7 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
 
 static void remote_dep_mpi_save_activate( dague_execution_unit_t* eu_context, int i, MPI_Status* status )
 {
-#ifdef DAGUE_DEBUG_VERBOSE
+#ifdef DAGUE_DEBUG_VERBOSE1
     char tmp[128];
 #endif
     dague_remote_deps_t* deps = dep_activate_buff[i];
