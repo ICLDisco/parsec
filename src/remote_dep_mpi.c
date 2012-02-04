@@ -305,9 +305,9 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     pthread_exit((void*)context);
 }
 
-#if defined(DAGUE_REMOTE_DEP_USE_THREADS)
 static int remote_dep_dequeue_new_object(dague_object_t* obj)
 {
+    if(!mpi_initialized) return 0;
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_NEW_OBJECT;
@@ -316,7 +316,6 @@ static int remote_dep_dequeue_new_object(dague_object_t* obj)
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*)item);
     return 1;
 }
-#endif
 
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 {
