@@ -878,7 +878,7 @@ static remote_dep_datakey_t remote_dep_mpi_eager_which(remote_dep_wire_activate_
     remote_dep_datakey_t eager_which = 0;
     for(int k = 0; msg->which>>k; k++) {
         assert(k < MAX_PARAM_COUNT);
-        if( !((1<<k) & msg->which) ) continue;
+        if( !(msg->which & (1<<k)) ) continue;
         if( NULL == deps->output[k].type ) continue;
         size_t extent = deps->output[k].type->elem_size * deps->output[k].nbelt;
         if( extent < dep_mpi_eager_limit+1 )
@@ -1038,10 +1038,11 @@ static void remote_dep_mpi_recv_activate( dague_execution_unit_t* eu_context, da
 #ifdef DAGUE_DEBUG_VERBOSE2
     char tmp[128];
 #endif
-    remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(&deps->msg);
-    remote_dep_datakey_t datakey = deps->msg.deps;
     int tag = (int)deps->msg.tag;
-    deps->msg.deps = 0; /* contains the mask of deps presatisfied */
+    remote_dep_datakey_t datakey = deps->msg.deps;
+    deps->msg.deps = deps;
+    remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(&deps->msg);
+    deps->msg.deps = 0; /* now, it contains the mask of deps presatisfied */
     
     for(int k = 0; deps->msg.which>>k; k++) {
         if(!(deps->msg.which & (1<<k))) continue;
