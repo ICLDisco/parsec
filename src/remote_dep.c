@@ -199,6 +199,10 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
+int dague_remote_dep_new_object(dague_object_t* obj) {
+    return remote_dep_new_object(obj);
+}
+
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               const dague_execution_context_t* exec_context,
                               dague_remote_deps_t* remote_deps,

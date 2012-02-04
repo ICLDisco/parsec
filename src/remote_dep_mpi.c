@@ -30,6 +30,7 @@ static int remote_dep_nothread_memcpy(void *dst, void *src, const dague_remote_d
 static int remote_dep_bind_thread(dague_context_t* context);
 
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps);
+static int remote_dep_dequeue_new_object(dague_object_t* obj);
 #ifdef DAGUE_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(dague_context_t* context);
 static int remote_dep_dequeue_fini(dague_context_t* context);
@@ -40,6 +41,7 @@ static int remote_dep_dequeue_off(dague_context_t* context);
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
+#   define remote_dep_new_object(obj) remote_dep_dequeue_new_object(obj)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) ((void)ctx,0) 
 
@@ -50,6 +52,7 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context);
 #   define remote_dep_fini(ctx) remote_dep_dequeue_nothread_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_mpi_on(ctx)
 #   define remote_dep_off(ctx)  0
+#   define remote_dep_new_object(obj) remote_dep_dequeue_new_object(obj)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx) remote_dep_dequeue_nothread_progress(ctx)
 #endif 
@@ -302,16 +305,28 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     pthread_exit((void*)context);
 }
 
+#if defined(DAGUE_REMOTE_DEP_USE_THREADS)
+static int remote_dep_dequeue_new_object(dague_object_t* obj)
+{
+    dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
+    DAGUE_LIST_ITEM_CONSTRUCT(item);
+    item->action = DEP_NEW_OBJECT;
+    item->priority = 0;
+    item->cmd.new_object.obj = obj;
+    dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*)item);
+    return 1;
+}
+#endif
 
 static int remote_dep_dequeue_send(int rank, dague_remote_deps_t* deps)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_ACTIVATE;
+    item->priority = deps->max_priority;
     item->cmd.activate.rank = rank;
     item->cmd.activate.deps = deps;
-    item->priority = deps->max_priority;
-    dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
+    dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*)item);
     return 1;
 }
 
@@ -322,9 +337,10 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
                              dague_remote_dep_datatype_t datatype,
                              int nbelt)
 {
-    dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
+    dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     DAGUE_LIST_ITEM_CONSTRUCT(item);
     item->action = DEP_MEMCPY;
+    item->priority = 0;
     item->cmd.memcpy.dague_object = dague_object;
     item->cmd.memcpy.source       = src;
     item->cmd.memcpy.destination  = dst;
@@ -332,7 +348,6 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
     item->cmd.memcpy.nbelt        = nbelt;
     AREF(src);
     remote_dep_inc_flying_messages(dague_object, eu_context->master_context);
-    item->priority = 0;
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }
 

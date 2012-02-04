@@ -890,7 +890,7 @@ int dague_object_register( dague_object_t* object )
     object_array[index] = object;
     object->object_id = index;
     dague_atomic_unlock( &object_array_lock );
-
+    dague_remote_dep_new_object( object );
     return (int)index;
 }
 
