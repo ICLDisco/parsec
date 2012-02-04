@@ -48,9 +48,9 @@ zherk(n,k)
   READ  A <- A zherk_in_A0(n,k)
 
   RW    B <- (0==k) ? C(n,n)
-          <- (k>=1) ? B zherk(n, k-1) 
+          <- (k>=1) ? B zherk(n, k-1)
           -> (descA.nt==(k+1)) ? C(n,n)
-          -> (descA.nt>=(k+2)) ? B zherk(n, k+1) 
+          -> (descA.nt>=(k+2)) ? B zherk(n, k+1)
 
   /*
   Anti-dependencies:
@@ -62,15 +62,15 @@ BODY
   int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
   int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
   int ldan = BLKLDD( descA, n );
-  double dbeta = ((k)==(0)) ? (beta) : (1.000000);
+  double dbeta = (k == 0 ) ? beta : (double)1.;
   int ldcn = BLKLDD( descC, n );
 
   DRYRUN(
 
-    CORE_zherk(uplo, trans, tempnn, 
-	tempkn, alpha, A /* A(n,k) */, 
-	ldan, dbeta, B /* C(n,n) */, 
-	ldcn );  );
+    CORE_zherk(uplo, trans, tempnn,
+        tempkn, alpha, A /* A(n,k) */,
+        ldan, dbeta, B /* C(n,n) */,
+        ldcn );  );
 
   printlog("thread %d CORE_zherk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
@@ -112,9 +112,9 @@ zgemm(n,m,k1)
   READ  D <- D zgemm_in_A1(n,m,k1)
 
   RW    E <- (0==k1) ? C(m,n)
-          <- (k1>=1) ? E zgemm(n, m, k1-1) 
+          <- (k1>=1) ? E zgemm(n, m, k1-1)
           -> (descA.nt==(1+k1)) ? C(m,n)
-          -> (descA.nt>=(k1+2)) ? E zgemm(n, m, k1+1) 
+          -> (descA.nt>=(k1+2)) ? E zgemm(n, m, k1+1)
 
   /*
   Anti-dependencies:
@@ -134,11 +134,11 @@ BODY
 
   DRYRUN(
 
-    CORE_zgemm(trans, PlasmaConjTrans, tempmm, 
-	tempnn, tempkn, zalpha, 
-	C /* A(m,k1) */, ldam, D /* A(n,k1) */, 
-	ldan, zbeta, E /* C(m,n) */, 
-	ldcm );  );
+    CORE_zgemm(trans, PlasmaConjTrans, tempmm,
+        tempnn, tempkn, zalpha,
+        C /* A(m,k1) */, ldam, D /* A(n,k1) */,
+        ldan, zbeta, E /* C(m,n) */,
+        ldcm );  );
 
   printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaConjTrans, tempmm, tempnn, tempkn, zalpha, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldan, zbeta, C(%d,%d)[%p], ldcm)\n",
