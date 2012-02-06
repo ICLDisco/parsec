@@ -24,6 +24,7 @@ dague_object_t*
 dplasma_zhebut_New( tiled_matrix_desc_t *A, int it, int jt, int nt, int *info)
 {
     dague_object_t *dague_zhebut = NULL;
+    (void)info;
     if( nt%2 ){
         dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
         return NULL;
@@ -58,6 +59,7 @@ dague_object_t*
 dplasma_zgebut_New( tiled_matrix_desc_t *A, int it, int jt, int nt, int *info)
 {
     dague_object_t *dague_zgebut = NULL;
+    (void)info;
     if( nt%2 ){
         dplasma_error("dplasma_zgebut_New", "illegal number of tiles in matrix");
         return NULL;

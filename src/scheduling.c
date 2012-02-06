@@ -73,7 +73,7 @@ static inline int __dague_execute( dague_execution_unit_t* eu_context,
     if( NULL != function->hook ) {
         rc = function->hook( eu_context, exec_context );
     }
-    return rc; 
+    return rc;
 }
 
 static inline int all_tasks_done(dague_context_t* context)
@@ -263,7 +263,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
             TAKE_TIME( eu_context->eu_profile, schedule_sleep_end, nbiterations);
         }
-        
+
         TAKE_TIME( eu_context->eu_profile, schedule_poll_begin, nbiterations);
         exec_context = scheduler.select_task(eu_context);
         TAKE_TIME( eu_context->eu_profile, schedule_poll_end, nbiterations);
@@ -293,7 +293,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             misses_in_a_row++;
         }
     }
-    
+
     /* We're all done ? */
     dague_barrier_wait( &(dague_context->barrier) );
 

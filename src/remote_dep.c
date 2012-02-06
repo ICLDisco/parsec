@@ -96,9 +96,6 @@ static void remote_dep_complete_one_and_cleanup(dague_remote_deps_t* deps) {
 #else
 #define RDEP_MSG_EAGER_LIMIT    (((size_t)DAGUE_DIST_EAGER_LIMIT)*1024)
 #endif
-#define RDEP_MSG_EAGER_SET(msg) ((msg)->which |= (((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
-#define RDEP_MSG_EAGER_CLR(msg) ((msg)->which &= ~(((remote_dep_datakey_t)1)<<(8*sizeof(remote_dep_datakey_t)-1)))
-#define RDEP_MSG_EAGER(msg)     ((int)((msg)->which>>(8*sizeof(remote_dep_datakey_t)-1)))
 
 #ifdef HAVE_MPI
 #include "remote_dep_mpi.c" 
@@ -199,6 +196,10 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
+int dague_remote_dep_new_object(dague_object_t* obj) {
+    return remote_dep_new_object(obj);
+}
+
 int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               const dague_execution_context_t* exec_context,
                               dague_remote_deps_t* remote_deps,
@@ -265,19 +266,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                         
                         if(ACCESS_NONE != exec_context->function->out[i]->access_type)
                         {
-                            size_t rs = remote_deps->output[i].type->elem_size * remote_deps->output[i].nbelt;
                             AREF(remote_deps->output[i].data);
-            
-                            if( RDEP_MSG_EAGER_LIMIT > 0 && rs < RDEP_MSG_EAGER_LIMIT) {
-                                RDEP_MSG_EAGER_SET(&remote_deps->msg);
-                            } else {
-                                RDEP_MSG_EAGER_CLR(&remote_deps->msg);
-                            }
-                            DEBUG3((" RDEP\t%s\toutput=%d, type size=%d, nbelt = %d, eager=%lx\n",
-                                   dague_service_to_string(exec_context, tmp, 128), i,
-                                   (NULL == remote_deps->output[i].type ? 0 : remote_deps->output[i].type->elem_size), 
-                                   remote_deps->output[i].type,
-                                   RDEP_MSG_EAGER(&remote_deps->msg)));
                         }
                         if(remote_dep_is_forwarded(eu_context, remote_deps, rank))
                         {

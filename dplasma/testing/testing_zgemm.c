@@ -11,7 +11,7 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
-                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
+                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB,
                           Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal);
 
 int main(int argc, char ** argv)
@@ -41,21 +41,21 @@ int main(int argc, char ** argv)
     LDB = max(LDB, max(K, N));
     LDC = max(LDC, M);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1, 
-        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, 
-                               nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
+        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDC, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     /* initializing matrix structure */
-    if(!check) 
+    if(!check)
     {
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDA, LDA, 0, 0,
                                    M, K, SMB, SNB, P));
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDB, LDB, 0, 0,
                                    K, N, SMB, SNB, P));
 
         /* matrix generation */
@@ -66,9 +66,9 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm, 
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
                                            (tA, tB, alpha,
-                                            (tiled_matrix_desc_t *)&ddescA, 
+                                            (tiled_matrix_desc_t *)&ddescA,
                                             (tiled_matrix_desc_t *)&ddescB,
                                             beta,
                                             (tiled_matrix_desc_t *)&ddescC));
@@ -87,11 +87,11 @@ int main(int argc, char ** argv)
         info_solution = 1;
     } else {
         int Am, An, Bm, Bn;
-        PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check, 
-            two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, 
-                                   nodes, cores, rank, MB, NB, LDC, N, 0, 0, 
+        PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
+            two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, cores, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
-                
+
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescC2, 2873);
 
 /* Iterate on the transpose forms. TODO: LDB is set incorrecly for T and H */
@@ -112,13 +112,13 @@ int main(int argc, char ** argv)
                 } else {
                     Bm = N; Bn = K;
                 }
-                PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                           nodes, cores, rank, MB, NB, LDA, LDA, 0, 0, 
+                PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                           nodes, cores, rank, MB, NB, LDA, LDA, 0, 0,
                                            Am, An, SMB, SNB, P));
-                PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1, 
-                    two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, 
-                                           nodes, cores, rank, MB, NB, LDB, LDB, 0, 0, 
+                PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
+                    two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                                           nodes, cores, rank, MB, NB, LDB, LDB, 0, 0,
                                            Bm, Bn, SMB, SNB, P));
 
                 dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA,  3872);
@@ -129,7 +129,7 @@ int main(int argc, char ** argv)
                     printf(" ----- TESTING ZGEMM (%s, %s) -------- \n",
                            transstr[tA], transstr[tB]);
                 }
-                
+
                 /* matrix generation */
                 if(loud) printf("Generate matrices ... ");
                 dplasma_zlacpy( dague, PlasmaUpperLower,
@@ -140,15 +140,15 @@ int main(int argc, char ** argv)
                 if(loud) printf("Compute ... ... ");
                 dplasma_zgemm(dague, trans[tA], trans[tB],
                               (Dague_Complex64_t)alpha,
-                              (tiled_matrix_desc_t *)&ddescA, 
-                              (tiled_matrix_desc_t *)&ddescB, 
-                              (Dague_Complex64_t)beta, 
+                              (tiled_matrix_desc_t *)&ddescA,
+                              (tiled_matrix_desc_t *)&ddescB,
+                              (Dague_Complex64_t)beta,
                               (tiled_matrix_desc_t *)&ddescC);
                 if(loud) printf("Done\n");
-                
+
                 /* Check the solution */
-                info_solution = check_solution( trans[tA], trans[tB], 
-                                                alpha, &ddescA,  &ddescB, 
+                info_solution = check_solution( trans[tA], trans[tB],
+                                                alpha, &ddescA,  &ddescB,
                                                 beta,  &ddescC2, &ddescC);
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
@@ -190,7 +190,7 @@ int main(int argc, char ** argv)
  *  Check the accuracy of the solution
  */
 static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
-                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB, 
+                          Dague_Complex64_t alpha, two_dim_block_cyclic_t *ddescA, two_dim_block_cyclic_t *ddescB,
                           Dague_Complex64_t beta, two_dim_block_cyclic_t *ddescC, two_dim_block_cyclic_t *ddescCfinal )
 {
     int info_solution;
@@ -250,7 +250,7 @@ static int check_solution(PLASMA_enum transA, PLASMA_enum transB,
     if (getenv("DPLASMA_TESTING_VERBOSE"))
         printf("Rnorm %e, Anorm %e, Bnorm %e, Cinit %e, Cdplasmanorm %e, Clapacknorm %e\n",
                Rnorm, Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm);
-    
+
     result = Rnorm / ((Anorm + Bnorm + Cinitnorm) * max(M,N) * eps);
     if (  isinf(Clapacknorm) || isinf(Cdplasmanorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
         info_solution = 1;

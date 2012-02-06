@@ -5,8 +5,8 @@
  */
 
 
-#ifndef _MATRIX_H_ 
-#define _MATRIX_H_ 
+#ifndef _MATRIX_H_
+#define _MATRIX_H_
 
 #include <stdarg.h>
 #include <assert.h>
@@ -29,7 +29,7 @@ enum matrix_storage {
     matrix_Tile          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
 };
 
-static inline int dague_datadist_getsizeoftype(enum matrix_type type) 
+static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 {
     switch( type ) {
     case matrix_Byte          : return sizeof(char);
@@ -64,8 +64,8 @@ typedef struct tiled_matrix_desc_t {
     int nb_local_tiles; /**< number of tile handled locally */
 } tiled_matrix_desc_t;
 
-void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage, 
-                             int mb, int nb, int lm, int ln, int i,  int j, int m,  int n );
+void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
+                             int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
 int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
 

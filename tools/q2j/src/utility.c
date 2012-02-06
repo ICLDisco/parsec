@@ -379,6 +379,12 @@ static char *quark_call_to_task_name( char *call_name ){
 static void quark_record_uses_defs_and_pools(node_t *node){
     static int symbolic_name_count = 0;
     int i;
+    static int pool_initialized = 0;
+
+    if ( !pool_initialized ) {
+        dague_list_construct(&_dague_pool_list);
+        pool_initialized++;
+    }
 
     if( FCALL == node->type ){
         int kid_count;
@@ -1825,9 +1831,6 @@ static char *size_to_pool_name(char *size_str){
     static int pool_count = 0;
     char *pool_name = NULL;
 
-    if( !pool_count )
-        dague_list_construct(&_dague_pool_list);
-
     /* See if a pool of this size exists already, and if so return it. */
     DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
     {
@@ -1855,7 +1858,7 @@ static char *size_to_pool_name(char *size_str){
 char *create_pool_declarations(){
     char *result = NULL;
 
-    DAGUE_LIST_ITERATOR(&_dague_pool_list, list_item,
+    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
     {
         var_def_item_t *true_item = (var_def_item_t *)list_item;
        
