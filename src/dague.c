@@ -940,6 +940,44 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     int i;
     int nb_real_cores=dague_hwloc_nb_real_cores();
 
+    if( NULL != (position = strstr(option, "file:")) ) {
+        /* File */
+        /* read from file the binding parameter set for the local MPI rank and parse it. */
+
+        char *filename=position+5;
+        FILE *f;
+        char *line = NULL;
+        size_t line_len = 0;
+
+        f = fopen(filename, "r");
+        if( NULL == f ) {
+            WARNING(("invalid binding file %s.\n", filename));
+            return -1;
+        }
+
+        int rank, line_num=0;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        while (getline(&line, &line_len, f) != -1) {
+            if(line_num==rank){
+                DEBUG2(("MPI_process %i uses the binding parameters: %s", rank, line));
+                break;
+            }
+            line_num++;
+        }
+        fclose(f);
+        if( line ){
+            if( line_num==rank )
+            dague_parse_binding_parameter(line, context, startup);
+            else
+                DEBUG2(("MPI_process %i uses the default thread binding\n", rank));
+            free(line);
+        }
+        else
+            WARNING(("MPI_process %i: default thread binding"));
+        return -1;
+    }
+
+
     if( (option[0]=='+') && (context->comm_th_core == -1)) {
         /* the communication thread has to be included
            if no more specific binding is defined */
