@@ -13,7 +13,7 @@ dague_scheduler_t sched_absolute_priorities;
 #define DAGUE_SCHEDULER_GD  1
 #define DAGUE_SCHEDULER_LHQ 2
 #define DAGUE_SCHEDULER_AP  3
-#define DAGUE_SCHEDULER_TQ  4
+#define DAGUE_SCHEDULER_LTQ  4
 #define NB_DAGUE_SCHEDULERS 5
 
 dague_scheduler_t *dague_schedulers_array[NB_DAGUE_SCHEDULERS];

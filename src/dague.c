@@ -662,7 +662,6 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 		if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {
 
 #endif /* defined(DAGUE_SCHED_DEPS_MASK) */
-			// PETER this is probably a cause of the compilation issue. 
 			dague_prof_grapher_dep(origin, exec_context, 1, origin_flow, dest_flow);
 
 #if defined(DAGUE_DEBUG) && defined(DAGUE_SCHED_DEPS_MASK)
@@ -718,6 +717,9 @@ int dague_release_local_OUT_dependencies( dague_object_t *dague_object,
 				 */
 				new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
 				new_context->data[(int)dest_flow->flow_index].data      = origin->data[(int)origin_flow->flow_index].data;
+				// PETER how did I decide to statically be sure that i'm adding to the proper tree?
+				if (new_context->mempool_owner == NULL)
+					fprintf(stderr, "***** mempool_owner == 0!\n");
 				dague_list_add_single_elem_by_priority( pready_list, new_context ); // PETER especially here
 			}
 
@@ -756,14 +758,21 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 {
 	dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
 	const dague_flow_t* target = oldcontext->function->out[out_index];
+	
+	if (arg->ready_list == NULL)
+		fprintf(stderr, "release_dep_fct: ready list size 0!\n");
 
-	DEBUG(("release_dep_fct out_index %d outdep_index %d src_rank %d dst_rank %d\n",
-			 out_index, outdep_index, src_rank, dst_rank));
+	fprintf(stderr, 
+			  "release_dep_fct: eu %d new %d old %d out_index %d outdep_index %d src_rank %d dst_rank %d arena %d param %d nb_released %d\n",
+			  eu, newcontext, oldcontext, out_index, outdep_index, src_rank, 
+			  dst_rank, arena, param, arg->nb_released);
+
+
 	if( !(arg->action_mask & (1 << out_index)) ) {
 #if defined(DAGUE_DEBUG)
 		char tmp[128];
-		DEBUG(("On task %s out_index %d not on the action_mask %x\n",
-				 dague_service_to_string(oldcontext, tmp, 128), out_index, arg->action_mask));
+		fprintf(stderr, "On task %s out_index %d %d %d || %d not on the action_mask %x\n",
+				 dague_service_to_string(oldcontext, tmp, 128), out_index, outdep_index, src_rank, dst_rank, arg->action_mask);
 #endif
 		return DAGUE_ITERATE_CONTINUE;
 	}
