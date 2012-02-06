@@ -908,25 +908,28 @@ int dague_object_register( dague_object_t* object )
 void dague_usage(void)
 {
     STATUS(("\n"
-	    "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
             " --dague_bind        : define a set of core for the thread binding\n"
-	    "                       accepted values:\n"
-	    "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
-	    "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
-	    "                        - a binding range expression: [+][start]:[end]:[step] \n"
-	    "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
-        "                             to end (default physical core number) by step (default 1)\n"
-	    "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
-        "                             while extra threads remain unbound)\n"
-	    "                       if starts with \"+\", the communication thread will be executed on the core subset\n"
-	    " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
-	    "                       (default: a NUIOA-aware core subset)\n"
-	    "\n"
-         /* " --dague_verbose     : extra verbose output\n" */
-         /* " --dague_papi        : enable PAPI\n" */
-	    " --dague_help         : this message\n"
-	    "\n"
-	));
+            "                       accepted values:\n"
+            "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
+            "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
+            "                        - a binding range expression: [+][start]:[end]:[step] \n"
+            "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
+            "                             to end (default physical core number) by step (default 1)\n"
+            "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
+            "                             while extra threads remain unbound)\n"
+            "                       if starts with \"+\", the communication thread will be executed on the core subset\n\n"
+            "    This option can also be used with a file (--dague_bind=file:filename) containing the mapping description for\n"
+            "    each thread (as a core list, a hexadecimal mask or a binding range expression).\n"
+            "    It can be used when multiple MPI processes per node are used\n\n"
+            " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+            "                       (default: a NUIOA-aware core subset)\n"
+            "\n"
+            /* " --dague_verbose     : extra verbose output\n" */
+            /* " --dague_papi        : enable PAPI\n" */
+            " --dague_help         : this message\n"
+            "\n"
+            ));
 }
 
 
