@@ -958,6 +958,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             return -1;
         }
 
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
         int rank, line_num=0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         while (getline(&line, &line_len, f) != -1) {
@@ -967,18 +968,28 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             }
             line_num++;
         }
-        fclose(f);
         if( line ){
             if( line_num==rank )
-            dague_parse_binding_parameter(line, context, startup);
+                dague_parse_binding_parameter(line, context, startup);
             else
                 DEBUG2(("MPI_process %i uses the default thread binding\n", rank));
             free(line);
         }
+#else
+        if( getline(&line, &line_len, f) != -1 ) {
+            DEBUG2(("Binding parameters: %s", line));
+        }
+        if( line ){
+            dague_parse_binding_parameter(line, context, startup);
+            free(line);
+        }
+#endif /* DISTRIBUTED && HAVE_MPI */
         else
-            WARNING(("MPI_process %i: default thread binding"));
+            WARNING(("default thread binding"));
+        fclose(f);
         return -1;
     }
+
 
 
     if( (option[0]=='+') && (context->comm_th_core == -1)) {
