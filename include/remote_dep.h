@@ -156,6 +156,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
 # define dague_remote_dep_off(ctx)  (0)
 # define dague_remote_dep_progress(ctx) (0)
 # define dague_remote_dep_activate(ctx, o, r, c) (-1)
+# define dague_remote_dep_new_object(obj) (0)
 #endif /* DISTRIBUTED */
 
 #endif /* __USE_REMOTE_DEP_H__ */
