@@ -4,8 +4,9 @@ import os
 import shutil
 import glob
 import subprocess
+import traceback
 
-defaultExecutable = 'dague-trunk/tools/profiling/profile2dat'
+defaultExecutable = os.path.dirname(sys.argv[0]) + '/../profile2dat'
 
 # note to self - this should eventually take two streams instead of two filenames
 def profile2dat(profileFile, outputFile, executable = defaultExecutable, unlinkAfterProcessing = False):
@@ -26,6 +27,7 @@ def profiles2dat(directory, outputDirectory = None, executable = defaultExecutab
         outputDirectory = directory
     globThing = directory + '/' + '*.profile'
     profiles = glob.glob(globThing)
+
     for profile in profiles:
         profile2dat(profile, outputDirectory + '/' + 
                     os.path.basename(profile).rstrip('.profile')  + '.dat', 
@@ -47,5 +49,12 @@ if __name__ == '__main__':
             arg4.startswith('rm') or
             arg4.startswith('t')):
             unlink = True
-    profiles2dat(sys.argv[1], outputDir, executable, unlink)
+    try:
+        profiles2dat(sys.argv[1], outputDir, executable, unlink)
+    except:
+        cla, exc, trbk = sys.exc_info()
+        print (exc)
+        traceback.print_tb(trbk)
+        if not os.path.exists("/usr/bin/php"):
+            print ("A PHP interpreter may not be available on this system.");
         
