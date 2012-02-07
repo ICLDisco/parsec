@@ -74,13 +74,26 @@ static inline dague_list_item_t* dague_dequeue_pop_front( dague_dequeue_t* deque
     }
 
     item = (dague_list_item_t*)dequeue->ghost_element.list_next;
+	 if (item->list_next == item && item != dequeue) {
+		 printf("this item (%x) in %x isn't actually being removed!!!!!!!\n", item, dequeue);
+//		 item->list_next = &(dequeue->ghost_element);
+	 }
+	 if (item->list_prev == item && item != dequeue) {
+		 printf("we have a similar problem with the prev for %x in %x!!!!!!\n", item, dequeue);
+//		 item->list_prev = &(dequeue->ghost_element);
+	 }
+	 if (item == NULL)
+		 printf("item is NULL?\n");
     dequeue->ghost_element.list_next = item->list_next;
     item->list_next->list_prev = &(dequeue->ghost_element);
-    
+
     dague_atomic_unlock(&(dequeue->atomic_lock));
 
-    if( &(dequeue->ghost_element) == item )
-        return NULL;
+    if( &(dequeue->ghost_element) == item ) {
+		 printf("returning NULL\n");
+		 return NULL;
+	 }
+	 printf("dequeue returning item %x\n", item);
     return item;
 }
 

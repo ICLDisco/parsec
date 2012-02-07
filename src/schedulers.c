@@ -164,8 +164,8 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 			if (heap->top != NULL && heap != new_heap) {
 				// put (old) heap back in
 				new_heap->list_item.list_next = heap;
-				new_heap->list_item.list_prev = new_heap;
-				heap->list_item.list_next = heap;
+				new_heap->list_item.list_prev = heap;
+				heap->list_item.list_next = new_heap;
 				heap->list_item.list_prev = new_heap;
 			}
 			else {
@@ -178,7 +178,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 			heap_destroy(new_heap);
 		return exec_context;
 	}
-	else
+	else if (heap != NULL)
 		heap_destroy(heap);
 
 	// PETER and here - if we steal, we need to steal a whole group!
@@ -220,7 +220,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 				heap_destroy(new_heap);
 			return exec_context;
 		}
-		else
+		else if (heap != NULL)
 			heap_destroy(heap);
 	}
 	
@@ -235,8 +235,8 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 			if (heap != new_heap && heap->top != NULL) {
 				// put 'old' heap in local queue as well
 				new_heap->list_item.list_next = heap;
-				new_heap->list_item.list_prev = new_heap;
-				heap->list_item.list_next = heap;
+				new_heap->list_item.list_prev = heap;
+				heap->list_item.list_next = new_heap;
 				heap->list_item.list_prev = new_heap;
 			}
 			else {
@@ -248,9 +248,13 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 		else
 			heap_destroy(new_heap);
 	}
-	else
+	else {
+		if (heap != NULL) {
+			printf("and this was probably your problem...%x\n", heap);
+			heap_destroy(heap);
+		}
 		exec_context = NULL;
-	
+	}
 	return exec_context;
 }
 
@@ -268,20 +272,18 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 	char * flowname = temp->flowname;
 	while (1) {
 		heap_insert(heap, temp);
-		printf("inserted context 0x%x with function %x and flowname %s\n", temp, temp->function, temp->flowname);
-		if (temp->list_item.list_next == temp || temp->list_item.list_next == new_context)
+		if (temp->list_item.list_next == temp || temp->list_item.list_next == new_context || temp->list_item.list_next == NULL)
 			break;
 		temp = temp->list_item.list_next;
 		// separate startup tasks
 		if (temp->flowname == NULL || flowname == NULL || strncmp(temp->flowname, flowname, 10) != 0) {
 			// make new heap
-			printf("NEW FLOW!!! %s\n", temp->flowname);
 			flowname = temp->flowname;
 			dague_heap_t * new_heap = heap_create(0);
-			heap->list_item.list_prev = heap;
-			heap->list_item.list_next = new_heap;
+			heap->list_item.list_next->list_prev = new_heap;
 			new_heap->list_item.list_prev = heap;
-			new_heap->list_item.list_next = new_heap;
+			new_heap->list_item.list_next = heap->list_item.list_next;
+			heap->list_item.list_next = new_heap;
 			heap = new_heap;
 		}
 	}

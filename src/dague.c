@@ -759,15 +759,6 @@ dague_ontask_iterate_t dague_release_dep_fct(dague_execution_unit_t *eu,
 	dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
 	const dague_flow_t* target = oldcontext->function->out[out_index];
 	
-	if (arg->ready_list == NULL)
-		fprintf(stderr, "release_dep_fct: ready list size 0!\n");
-
-	fprintf(stderr, 
-			  "release_dep_fct: eu %d new %d old %d out_index %d outdep_index %d src_rank %d dst_rank %d arena %d param %d nb_released %d\n",
-			  eu, newcontext, oldcontext, out_index, outdep_index, src_rank, 
-			  dst_rank, arena, param, arg->nb_released);
-
-
 	if( !(arg->action_mask & (1 << out_index)) ) {
 #if defined(DAGUE_DEBUG)
 		char tmp[128];

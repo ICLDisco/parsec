@@ -26,15 +26,21 @@ typedef struct dague_heap {
 	dague_execution_context_t * to_use;
 } dague_heap_t;
 
-dague_heap_t* heap_destroy(dague_heap_t* heap);
+void heap_destroy(dague_heap_t* heap);
 dague_heap_t* heap_create(int id);
 dague_heap_t* heap_insert(dague_heap_t * heap, dague_execution_context_t * elem);
 dague_heap_t* heap_split_and_steal(dague_heap_t * heap);
-static heap_node_t* emptyHeap(heap_node_t* node);
+static void emptyHeap(heap_node_t* node);
 
 void heap_destroy(dague_heap_t* heap) {
 	if (heap != NULL) {
-		emptyHeap(heap->top);
+		if (heap->top != NULL) {
+			emptyHeap(heap->top);
+			free(heap->top);
+		}
+		if (heap->to_use != NULL) {
+			printf("oh, that's not a good thing at all.... to_use of %x isn't NULL!\n", heap);
+		}
 		free(heap);
 		heap = NULL;
 	}
@@ -47,6 +53,8 @@ static void emptyHeap(heap_node_t* node) {
 		node->leaf[H_RIGHT] = NULL;
 		emptyHeap(node->leaf[H_LEFT]);
 		node->leaf[H_LEFT] = NULL;
+		if (node->elem != NULL)
+			printf("ERROR: element of heap node is NOT NULL during heap destruction!\n");
 		free(node);
 	}
 }
@@ -132,10 +140,13 @@ dague_heap_t* heap_split_and_steal(dague_heap_t * heap) {
 	// if tree has left child but not right child, put left child in new tree
 	//    
 	if (heap == NULL || heap->top == NULL) {
+		if (heap != NULL)
+			printf("this heap (%x) should have been deleted...\n", heap);
 		return NULL; // this heap should be deleted
 	}
 	if (heap->top->leaf[H_LEFT] == NULL) {
 		heap->to_use = heap->top->elem;
+		heap->top->elem = NULL;
 		free(heap->top);
 		heap->top = NULL;
 		heap->size = 0;
@@ -146,6 +157,7 @@ dague_heap_t* heap_split_and_steal(dague_heap_t * heap) {
 		if (heap->top->leaf[H_RIGHT] == NULL) {
 			heap_node_t* temp = heap->top->leaf[H_LEFT];
 			heap->to_use = heap->top->elem;
+			heap->top->elem = NULL;
 			free(heap->top);
 			heap->top = temp;
 			heap->size--;
@@ -157,6 +169,7 @@ dague_heap_t* heap_split_and_steal(dague_heap_t * heap) {
 			heap_node_t* temp = heap->top->leaf[H_RIGHT];
 			new_heap->top = heap->top->leaf[H_LEFT];
 			new_heap->to_use = heap->top->elem;
+			heap->top->elem = NULL;
 			free(heap->top);
 			heap->top = temp;
 
