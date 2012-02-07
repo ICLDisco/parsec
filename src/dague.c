@@ -908,25 +908,28 @@ int dague_object_register( dague_object_t* object )
 void dague_usage(void)
 {
     STATUS(("\n"
-	    "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
+            "A DAGuE argument sequence prefixed by \"--\" can end the command line\n"
             " --dague_bind        : define a set of core for the thread binding\n"
-	    "                       accepted values:\n"
-	    "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
-	    "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
-	    "                        - a binding range expression: [+][start]:[end]:[step] \n"
-	    "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
-        "                             to end (default physical core number) by step (default 1)\n"
-	    "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
-        "                             while extra threads remain unbound)\n"
-	    "                       if starts with \"+\", the communication thread will be executed on the core subset\n"
-	    " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
-	    "                       (default: a NUIOA-aware core subset)\n"
-	    "\n"
-         /* " --dague_verbose     : extra verbose output\n" */
-         /* " --dague_papi        : enable PAPI\n" */
-	    " --dague_help         : this message\n"
-	    "\n"
-	));
+            "                       accepted values:\n"
+            "                        - a core list          (exp: --dague_bind=[+]1,3,5-6)\n"
+            "                        - a hexadecimal mask   (exp: --dague_bind=[+]0xff012)\n"
+            "                        - a binding range expression: [+][start]:[end]:[step] \n"
+            "                          -> define a round-robin one thread per core distribution from start (default 0)\n"
+            "                             to end (default physical core number) by step (default 1)\n"
+            "                             (exp: --dague_bind=[+]1:7:2  bind the 6 first threads on the cores 1 3 5 2 4 6\n"
+            "                             while extra threads remain unbound)\n"
+            "                       if starts with \"+\", the communication thread will be executed on the core subset\n\n"
+            "    This option can also be used with a file (--dague_bind=file:filename) containing the mapping description for\n"
+            "    each process (as a core list, a hexadecimal mask or a binding range expression).\n"
+            "    It might be useful when multiple MPI processes per node are involved and then need distinct thread bindings.\n\n"
+            " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
+            "                       (default: a NUIOA-aware core subset)\n"
+            "\n"
+            /* " --dague_verbose     : extra verbose output\n" */
+            /* " --dague_papi        : enable PAPI\n" */
+            " --dague_help         : this message\n"
+            "\n"
+            ));
 }
 
 
@@ -939,6 +942,55 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     char* position;
     int i;
     int nb_real_cores=dague_hwloc_nb_real_cores();
+
+    if( NULL != (position = strstr(option, "file:")) ) {
+        /* File */
+        /* read from file the binding parameter set for the local MPI rank and parse it. */
+
+        char *filename=position+5;
+        FILE *f;
+        char *line = NULL;
+        size_t line_len = 0;
+
+        f = fopen(filename, "r");
+        if( NULL == f ) {
+            WARNING(("invalid binding file %s.\n", filename));
+            return -1;
+        }
+
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+        int rank, line_num=0;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        while (getline(&line, &line_len, f) != -1) {
+            if(line_num==rank){
+                DEBUG2(("MPI_process %i uses the binding parameters: %s", rank, line));
+                break;
+            }
+            line_num++;
+        }
+        if( line ){
+            if( line_num==rank )
+                dague_parse_binding_parameter(line, context, startup);
+            else
+                DEBUG2(("MPI_process %i uses the default thread binding\n", rank));
+            free(line);
+        }
+#else
+        if( getline(&line, &line_len, f) != -1 ) {
+            DEBUG2(("Binding parameters: %s", line));
+        }
+        if( line ){
+            dague_parse_binding_parameter(line, context, startup);
+            free(line);
+        }
+#endif /* DISTRIBUTED && HAVE_MPI */
+        else
+            WARNING(("default thread binding"));
+        fclose(f);
+        return -1;
+    }
+
+
 
     if( (option[0]=='+') && (context->comm_th_core == -1)) {
         /* the communication thread has to be included
