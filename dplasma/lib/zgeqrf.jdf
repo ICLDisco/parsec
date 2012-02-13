@@ -18,7 +18,6 @@ extern "C" %{
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
-
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
@@ -35,8 +34,8 @@ A      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *" aligned=A]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descT.nb))"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descT.nb))"]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*descT.nb)"]
+p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
 
 
 zgeqrt_typechange(k)
