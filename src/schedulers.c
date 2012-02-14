@@ -143,7 +143,6 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 	dague_heap_t *new_heap = NULL;
 	dague_execution_context_t * exec_context = NULL;
 	int i;
-//	printf("enter CHOOSE JOB TREE QUEUES\n");
 	/* instead, i need to iterate manually over the buffer
 		and choose a tree that has the highest value
 		then take that task from that tree.
@@ -174,12 +173,16 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 			}
 			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, new_heap);
 		}
-		else
+		else {
 			heap_destroy(new_heap);
+			heap = NULL;
+		}
 		return exec_context;
 	}
-	else if (heap != NULL)
+	else if (heap != NULL) {
 		heap_destroy(heap);
+		heap = NULL;
+	}
 
 	// PETER and here - if we steal, we need to steal a whole group!
 	// this could get a little tricky, because we'd basically need to reschedule the
@@ -216,12 +219,16 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 				}
 				dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, new_heap);
 			}
-			else
+			else {
 				heap_destroy(new_heap);
+				heap = NULL;
+			}
 			return exec_context;
 		}
-		else if (heap != NULL)
+		else if (heap != NULL) {
 			heap_destroy(heap);
+			heap = NULL;
+		}
 	}
 	
 	// OKAY, this is a BIG question
@@ -293,7 +300,6 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 	// and not raw dague_execution_contexts
     dague_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)first_h );
 #if defined(DAGUE_PROF_TRACE)
-	 printf("queue add begin\n");
 	 // PETER this is where we're ADDING things to the queue! (not removing them!!!)
 	 // somehow we need to do something differently here so that we keep different groups separate
 	 TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0);

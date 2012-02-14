@@ -13,10 +13,11 @@ def profile2dat(profileFile, outputFile, executable = defaultExecutable, unlinkA
     proc = subprocess.Popen([executable, profileFile],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (stdout, stderr) = proc.communicate()
+    print('done processing ' + profileFile)
     output = open(outputFile, 'w')
     output.write(stdout)
     output.close()
-    print('done processing ' + profileFile)
+    print('processed profile written to ' + outputFile)
     if unlinkAfterProcessing:
         os.unlink(profileFile)
         print('unlinked ' + profileFile)
@@ -29,8 +30,10 @@ def profiles2dat(directory, outputDirectory = None, executable = defaultExecutab
     profiles = glob.glob(globThing)
 
     for profile in profiles:
+        basename = os.path.basename(profile)
+        basename = basename[:basename.rfind('.profile')]
         profile2dat(profile, outputDirectory + '/' + 
-                    os.path.basename(profile).rstrip('.profile')  + '.dat', 
+                    basename + '.dat', 
                     executable, unlink)
 
 if __name__ == '__main__':

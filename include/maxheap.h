@@ -61,7 +61,7 @@ static void emptyHeap(heap_node_t* node) {
 
 dague_heap_t* heap_create(int id) {
 	dague_heap_t* heap = calloc(sizeof(dague_heap_t), 1); // makes sure everything is zeroed
-	heap->id = id;
+	heap->id = 0x88;
 	heap->list_item.list_next = heap;
 	heap->list_item.list_prev = heap;
 	return heap;

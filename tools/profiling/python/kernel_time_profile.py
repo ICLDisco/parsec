@@ -51,8 +51,8 @@ if __name__ == '__main__':
    IBdivs = [1]
    numTrials = 10
    names = [ 'dpotrf']
-   testingDir = 'profiling/dplasma/testing/'
-   scheduler = 'GD'
+   testingDir = 'dplasma/testing/'
+   scheduler = 'LTQ'
 
    pattern = re.compile("### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops$")
 
@@ -70,8 +70,8 @@ if __name__ == '__main__':
                     if not os.path.isdir(outputDir):
                         os.mkdir(outputDir)
                     for trialNum in range(0, numTrials):
-                        print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; trial #%d" %
-                              (name, matrixSize, matrixSize, numCores, NB, IB, trialNum))
+                        print("%s for %dx%d matrix on %d cores, NB = %d, IB = %d; sched = %s trial #%d" %
+                              (name, matrixSize, matrixSize, numCores, NB, IB, set.sched, trialNum))
                         cmd, args = set.genCmd()
                         proc = subprocess.Popen([testingDir + cmd] + args,
                                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                             else:
                                 print("results not properly parsed: %s" % stdout)
                             # move profiling file to unique name
-                            move(testingDir + 'testing_' + set.name + '.0.profile',
+                            move(testingDir + 'testing_' + set.name + '.profile',
                                  outputDir + set.name + '.' + str(set.matrixSize) + '.' +
                                  str(trialNum) + '.profile')
                     totalGflops = 0.0
