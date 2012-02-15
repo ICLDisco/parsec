@@ -9,62 +9,38 @@
 #include "lifo.h"
 #include <stdlib.h>
 
-#define H_LEFT 0
-#define H_RIGHT 1
-
-typedef struct heap_node_t {
-	struct heap_node_t* leaf[2];
-	dague_execution_context_t* elem;
-} heap_node_t;
-
 // main struct holding size info and ID
 typedef struct dague_heap {
 	dague_list_item_t list_item; // to be compatible with the lists
 	int size; // used only during building
-	int id;   // used only during building
-	heap_node_t * top;
-	dague_execution_context_t * to_use;
+	unsigned int priority;
+	dague_execution_context_t * top;
 } dague_heap_t;
 
-void heap_destroy(dague_heap_t* heap);
-dague_heap_t* heap_create(int id);
-dague_heap_t* heap_insert(dague_heap_t * heap, dague_execution_context_t * elem);
-dague_heap_t* heap_split_and_steal(dague_heap_t * heap);
-static void emptyHeap(heap_node_t* node);
+dague_heap_t* heap_create();
+void heap_destroy(dague_heap_t ** heap);
+void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem);
+dague_execution_context_t* heap_split_and_steal(dague_heap_t ** heap_ptr, dague_heap_t ** new_heap_ptr);
 
-void heap_destroy(dague_heap_t* heap) {
-	if (heap != NULL) {
-		if (heap->top != NULL) {
-			emptyHeap(heap->top);
-			free(heap->top);
-		}
-		if (heap->to_use != NULL) {
-			printf("oh, that's not a good thing at all.... to_use of %x isn't NULL!\n", heap);
-		}
-		free(heap);
-		heap = NULL;
-	}
-}
-
-// private version
-static void emptyHeap(heap_node_t* node) {
-	if (node != NULL) {
-		emptyHeap(node->leaf[H_RIGHT]);
-		node->leaf[H_RIGHT] = NULL;
-		emptyHeap(node->leaf[H_LEFT]);
-		node->leaf[H_LEFT] = NULL;
-		if (node->elem != NULL)
-			printf("ERROR: element of heap node is NOT NULL during heap destruction!\n");
-		free(node);
-	}
-}
-
-dague_heap_t* heap_create(int id) {
-	dague_heap_t* heap = calloc(sizeof(dague_heap_t), 1); // makes sure everything is zeroed
-	heap->id = 0x88;
+/*
+  allocates an empty heap as a correctly doubly-linked singleton list
+  with the lowest possible priority
+ */
+dague_heap_t* heap_create() {
+	dague_heap_t* heap = calloc(sizeof(dague_heap_t), 1); // makes sure everything is zeroed, including priority
+	// correctly establish singleton doubly-linked list
 	heap->list_item.list_next = heap;
 	heap->list_item.list_prev = heap;
 	return heap;
+}
+
+/* 
+	following the example of free(), this should not be called more than once for the same heap
+ */
+void heap_destroy(dague_heap_t ** heap) {
+	assert((*heap)->top == NULL);
+	free(*heap);
+	(*heap) = NULL;
 }
 
 // not remotely thread-safe
@@ -73,19 +49,17 @@ dague_heap_t* heap_create(int id) {
  * and the tree is manually balanced.
  * Overall build is O(n lg n)
  */
-dague_heap_t * heap_insert(dague_heap_t * heap, dague_execution_context_t * elem) {
-	heap_node_t * node = malloc(sizeof(heap_node_t));
-	node->leaf[H_LEFT] = NULL;
-	node->leaf[H_RIGHT] = NULL;
-	node->elem = elem;
-	// now find the place to put it
+void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem) {
+	assert(heap != NULL);
+	assert(elem != NULL);
 	heap->size++;
-	if (heap == NULL)
-		printf("heap is NULL!\n");
-	else if (heap->size == 1) 
-		heap->top = node;
+	elem->list_item.list_next = NULL;
+	elem->list_item.list_prev = NULL;
+
+	if (heap->size == 1) 
+		heap->top = elem;
 	else {
-		heap_node_t * parent = heap->top;
+		dague_execution_context_t * parent = heap->top;
 		unsigned int bitmask = 1;
 		int size = heap->size;
 		// prime the bitmask
@@ -97,85 +71,130 @@ dague_heap_t * heap_insert(dague_heap_t * heap, dague_execution_context_t * elem
 		}
 		parents_size = level_counter;
 
-		heap_node_t ** parents = calloc(sizeof(heap_node_t *), level_counter);
+		dague_execution_context_t ** parents = calloc(sizeof(dague_execution_context_t *), level_counter);
 		// now the bitmask is two places farther than we want it, so back down
 		bitmask = bitmask >> 2;
 		
-		parents[--level_counter] = heap->top;;
+		parents[--level_counter] = heap->top;
 		// now move through tree
 		while (bitmask > 1) {
-			parent = parent->leaf[(bitmask & size) ? H_RIGHT : H_LEFT];
+			parent = (bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev;
 			parents[--level_counter] = parent; // save parent
 			bitmask = bitmask >> 1;
 		}
-		parent->leaf[bitmask & size] = node;
+		if (bitmask & size)
+			parent->list_item.list_next = elem;
+		else
+			parent->list_item.list_prev = elem;
+
 		// now bubble up to preserve max heap org.
-		if (parents[level_counter]->elem  == NULL)
-			printf("elem is NULL!\n");
 		while (level_counter < parents_size && 
 				 parents[level_counter] != NULL && 
-				 node->elem->priority > parents[level_counter]->elem->priority) {
-			// make swap
-			dague_execution_context_t * temp = node->elem;
-			node->elem = parents[level_counter]->elem;
-			parents[level_counter]->elem = temp;
+				 elem->priority > parents[level_counter]->priority) {
+			parent = parents[level_counter];
+			/* first, fix our grandparent, if necessary */
+			if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
+				dague_execution_context_t * grandparent = parents[level_counter + 1];
+				// i.e. our parent has a parent
+				if (grandparent->list_item.list_prev /* left */ == parent)
+					grandparent->list_item.list_prev = elem;
+				else /* our grandparent's right child is our parent*/
+					grandparent->list_item.list_next = elem;
+			}
+			/* completely unnecessary, but I'm curious */
+			if (level_counter + 1 < parents_size && parents[level_counter + 1] == NULL)
+				printf("we definitely have an extra parents slot.\n");
+
+			/* next, fix our parent */
+			dague_execution_context_t * parent_left  = parent->list_item.list_prev;
+			dague_execution_context_t * parent_right = parent->list_item.list_next;
+			parent->list_item.list_prev = elem->list_item.list_prev;
+			parent->list_item.list_next = elem->list_item.list_next;
+
+			/* lastly, fix ourselves */
+			if (parent_left == elem) {
+				/* we're our parent's left child */
+				elem->list_item.list_prev = parent;
+				elem->list_item.list_next = parent_right;
+			}
+			else {
+				/* we're out parent's right child */
+				elem->list_item.list_prev = parent_left;
+				elem->list_item.list_next = parent;
+			}
+
 			level_counter++;
 		}
 	}
 
-	return heap;
+	// set priority to top priority
+	heap->priority = heap->top->priority;
 }
 
 // not remotely thread-safe
-// but tolerant of NULLs
 /*
  * split-and-steal (remove) is O(1), although the preceding
  * list search is probably O(n), technically, since eventually we
  * end up with a list of n/2 trees with single nodes
+ *
+ * This function expects one valid heap (heap that has at least one element) 
+ * and another pointer to a NULL heap pointer.
+ * If you pass a NULL heap, the function will simply return NULL.
+ * This function WILL destroy your heap if it empties it.
+ * It will also MODIFY your stack appropriately. If both of your heap pointers
+ * are NULL after it returns, there was only one element in the heap you passed.
+ * If only the new_heap pointer is NULL, then you still have one (and ONLY ONE)
+ * valid heap. 
+ * If your valid heap had at least 3 nodes, then the heap will actually be split, 
+ * a new heap pointer created and put on your stack.
+ * No matter what happens, an execution_context is returned unless the heap was NULL.
  */
-dague_heap_t* heap_split_and_steal(dague_heap_t * heap) {
+dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague_heap_t ** new_heap_ptr) {
 	// if tree is empty, return NULL
 	// if tree has only one node (top), return new heap with single node
 	//    moved into to_use slot
 	// if tree has left child but not right child, put left child in new tree
-	//    
-	if (heap == NULL || heap->top == NULL) {
-		if (heap != NULL)
-			printf("this heap (%x) should have been deleted...\n", heap);
-		return NULL; // this heap should be deleted
-	}
-	if (heap->top->leaf[H_LEFT] == NULL) {
-		heap->to_use = heap->top->elem;
-		heap->top->elem = NULL;
-		free(heap->top);
-		heap->top = NULL;
-		heap->size = 0;
 
-		return heap;
-	}
-	else {
-		if (heap->top->leaf[H_RIGHT] == NULL) {
-			heap_node_t* temp = heap->top->leaf[H_LEFT];
-			heap->to_use = heap->top->elem;
-			heap->top->elem = NULL;
-			free(heap->top);
-			heap->top = temp;
-			heap->size--;
+	dague_heap_t * heap = *heap_ptr; // shortcut to doing a bunch of (*heap_ptr)s
+	dague_execution_context_t * to_use = NULL;
+	(*new_heap_ptr) = NULL; // this should already be NULL, but if it's not, we'll fix that.
 
-			return heap;
+	if (heap != NULL) {
+		assert(heap->top != NULL); // this heap should have been destroyed
+		to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
+		if (heap->top->list_item.list_prev == NULL) {
+			/* no left child, so 'top' is the only node */
+			heap->top = NULL; 
+			heap_destroy(heap_ptr);
+			assert(*heap_ptr == NULL);
 		}
-		else { // heap has at least 3 nodes
-			dague_heap_t* new_heap = heap_create(0); // ID is unimportant
-			heap_node_t* temp = heap->top->leaf[H_RIGHT];
-			new_heap->top = heap->top->leaf[H_LEFT];
-			new_heap->to_use = heap->top->elem;
-			heap->top->elem = NULL;
-			free(heap->top);
-			heap->top = temp;
+		else { /* does have left child */
+			if (heap->top->list_item.list_next /* right */ == NULL) {
+				/* but doesn't have right child, so still not splitting */
+				heap->top = heap->top->list_item.list_prev; // left
+				/* set up doubly-linked singleton list in here, as DEFAULT scenario */
+				heap->list_item.list_prev = *heap_ptr;
+				heap->list_item.list_next = *heap_ptr;
+			}
+			else { // heap has at least 3 nodes, so we should be actually splitting
+				(*new_heap_ptr) = heap_create(); 
+				dague_execution_context_t* temp =  // right
+				(*new_heap_ptr)->top = heap->top->list_item.list_prev; // left
+				(*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
+				heap->top = heap->top->list_item.list_next;
+				heap->priority = heap->top->priority;
 
-			return new_heap;
+				/* set up doubly-linked two-element list in here, as DEFAULT scenario */
+				heap->list_item.list_prev = (*new_heap_ptr);
+				heap->list_item.list_next = (*new_heap_ptr);
+				(*new_heap_ptr)->list_item.list_prev = heap;
+				(*new_heap_ptr)->list_item.list_next = heap;
+			}
 		}
+		to_use->list_item.list_next = to_use; // safety's 
+		to_use->list_item.list_prev = to_use; // sake
 	}
+	return to_use;
 }
 
 #endif

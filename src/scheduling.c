@@ -269,8 +269,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
 
         if( exec_context != NULL ) {
 			  // DEBUG PETER
-			  if (NULL == exec_context->function)
-				  printf("major problem - exec_context.function is NULL.\n");
+			  assert(NULL != exec_context->function);
 			  misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)

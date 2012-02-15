@@ -72,10 +72,9 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
     int i = 0, nbelt = 0;
 
     while( NULL != elt ) {
-
-        /* Assume that we're going to push elt.
-         * Remove the first element from the list, keeping the rest of the list in next
-         */
+		 /* Assume that we're going to push elt.
+		  * Remove the first element from the list, keeping the rest of the list in next
+		  */
         next = (dague_list_item_t *)elt->list_next;
         if(next == elt) {
             next = NULL;
@@ -149,7 +148,7 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
         best_rank = 0;
 
         for(idx = 0; idx < b->size; idx++) {
-            if( NULL == (candidate = (dague_list_item_t *)b->items[idx]) )
+			  if( NULL == (candidate = (dague_list_item_t *)b->items[idx]) ) 
                 continue;
 
             rank = rank_function(candidate, rank_function_param);
@@ -158,7 +157,7 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
                 best_elt  = candidate;
                 best_idx  = idx;
 
-                if( DAGUE_RANKING_FUNCTION_BEST == rank )
+                if( DAGUE_RANKING_FUNCTION_BEST == rank ) 
                     break;
             }
         }

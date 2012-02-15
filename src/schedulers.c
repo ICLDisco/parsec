@@ -53,7 +53,7 @@ static unsigned int ranking_function_heap_bypriority(dague_list_item_t *elt, voi
 {
     dague_heap_t *heap = (dague_heap_t*)elt;
     (void)_;
-    return (~(unsigned int)0) - heap->top->elem->priority;
+    return (~(unsigned int)0) - heap->priority;
 }
 
 // TREE
@@ -140,10 +140,12 @@ static int init_tree_queues(  dague_context_t *master )
 static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_t *eu_context )
 {
 	dague_heap_t* heap = NULL;
-	dague_heap_t *new_heap = NULL;
+	dague_heap_t* new_heap = NULL;
 	dague_execution_context_t * exec_context = NULL;
 	int i;
-	/* instead, i need to iterate manually over the buffer
+	/* 
+		possible future improvement over using existing pop_best function:
+		instead, i need to iterate manually over the buffer
 		and choose a tree that has the highest value
 		then take that task from that tree.
 		i may be able to alternate between splitting the tree
@@ -155,113 +157,46 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 		LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
 		ranking_function_heap_bypriority,
 		NULL);
-	new_heap = heap_split_and_steal(heap);
-	if( NULL != new_heap ) {
-		exec_context = new_heap->to_use;
-		new_heap->to_use = NULL;
-		if (new_heap->top != NULL) {
-			if (heap->top != NULL && heap != new_heap) {
-				// put (old) heap back in
-				new_heap->list_item.list_next = heap;
-				new_heap->list_item.list_prev = heap;
-				heap->list_item.list_next = new_heap;
-				heap->list_item.list_prev = new_heap;
-			}
-			else {
-				new_heap->list_item.list_next = new_heap;
-				new_heap->list_item.list_prev = new_heap;
-			}
-			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, new_heap);
-		}
-		else {
-			heap_destroy(new_heap);
-			heap = NULL;
-		}
+	exec_context = heap_split_and_steal(&heap, &new_heap);
+	if( NULL != heap ) 
+		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, heap);
+	if (exec_context != NULL) 
 		return exec_context;
-	}
-	else if (heap != NULL) {
-		heap_destroy(heap);
-		heap = NULL;
-	}
-
-	// PETER and here - if we steal, we need to steal a whole group!
-	// this could get a little tricky, because we'd basically need to reschedule the
-	// entire group by popping it, then doing a schedule()-type call with
-	// all the tasks we aren't going to immediately consume
 	
-	//how to deal with leaving empty groups?
-	// can we still safely pick the buffer item with the highest priority?
-	// and then when it's been picked, we do the tree split, take the to_use item,
-	// and push the new tree into the buffer. and i guess check the old tree to see if
-	// it's empty? or something like that. if it is we pop it.
-	// every time we do a pop/steal, expect an exec_context in to_use
-
 	// if we failed to find one in our queue
 	for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
 		heap = (dague_heap_t*)dague_hbbuffer_pop_best(
 			LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
 			ranking_function_heap_bypriority,
 			NULL);
-		new_heap = heap_split_and_steal(heap);
-		if( NULL != new_heap ) {
-			exec_context = new_heap->to_use;
-			new_heap->to_use = NULL;
-			if (new_heap->top != NULL) {
-				if (heap->top != NULL && heap != new_heap) {
-					heap->list_item.list_next = heap;
-					heap->list_item.list_prev = heap;
-					// put (old) heap back in neighboring queue
-					dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], heap);
-				}
-				else {
-					new_heap->list_item.list_next = new_heap;
-					new_heap->list_item.list_prev = new_heap;
-				}
-				dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, new_heap);
-			}
-			else {
-				heap_destroy(new_heap);
-				heap = NULL;
-			}
-			return exec_context;
-		}
-		else if (heap != NULL) {
-			heap_destroy(heap);
-			heap = NULL;
-		}
-	}
-	
-	// OKAY, this is a BIG question
-	heap = (dague_heap_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
-	new_heap = heap_split_and_steal(heap);
-	if (new_heap != NULL) {
-		exec_context = new_heap->to_use;
-		new_heap->to_use = NULL;
-		if (new_heap->top != NULL) {
-			// put new_heap in local queue
-			if (heap != new_heap && heap->top != NULL) {
-				// put 'old' heap in local queue as well
-				new_heap->list_item.list_next = heap;
-				new_heap->list_item.list_prev = heap;
-				heap->list_item.list_next = new_heap;
-				heap->list_item.list_prev = new_heap;
-			}
-			else {
+		exec_context = heap_split_and_steal(&heap, &new_heap);
+		if( NULL != heap ) {
+			if (NULL != new_heap) {
+				/* turn two-element doubly-linked list 
+					(the default side effect of heap_split_and_steal)
+					into two singleton doubly-linked lists
+				*/
+				heap->list_item.list_next = heap;
+				heap->list_item.list_prev = heap;
 				new_heap->list_item.list_next = new_heap;
 				new_heap->list_item.list_prev = new_heap;
+
+				// put new heap back in neighboring queue
+				dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], new_heap);
 			}
-			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, new_heap);
+			// put old heap in our queue -- it's a singleton either way by this point
+			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, heap);
 		}
-		else
-			heap_destroy(new_heap);
+		if (exec_context != NULL)
+			return exec_context;
 	}
-	else {
-		if (heap != NULL) {
-			printf("and this was probably your problem...%x\n", heap);
-			heap_destroy(heap);
-		}
-		exec_context = NULL;
-	}
+	
+	// if nothing yet, then go to system queue
+	heap = (dague_heap_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+	exec_context = heap_split_and_steal(&heap, &new_heap);
+	if (heap != NULL) 
+		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, heap);
+
 	return exec_context;
 }
 
@@ -273,19 +208,22 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 static int schedule_tree_queues( dague_execution_unit_t* eu_context,
                                   dague_execution_context_t* new_context )
 {
-	dague_execution_context_t * temp = new_context;
+	dague_execution_context_t * cur = new_context;
+	dague_execution_context_t * next;
 	dague_heap_t* heap = heap_create(0);
 	dague_heap_t* first_h = heap;
-	char * flowname = temp->flowname;
+	char * flowname = cur->flowname;
 	while (1) {
-		heap_insert(heap, temp);
-		if (temp->list_item.list_next == temp || temp->list_item.list_next == new_context || temp->list_item.list_next == NULL)
+		next = cur->list_item.list_next;
+		heap_insert(heap, cur);
+		assert(next != NULL);
+		if (next == cur /* looped */ || next == new_context /* looped */)
 			break;
-		temp = temp->list_item.list_next;
+		cur = next;
 		// separate startup tasks
-		if (temp->flowname == NULL || flowname == NULL || strncmp(temp->flowname, flowname, 10) != 0) {
+		if (cur->flowname == NULL || flowname == NULL || strncmp(cur->flowname, flowname, 10) != 0) {
 			// make new heap
-			flowname = temp->flowname;
+			flowname = cur->flowname;
 			dague_heap_t * new_heap = heap_create(0);
 			heap->list_item.list_next->list_prev = new_heap;
 			new_heap->list_item.list_prev = heap;
@@ -294,7 +232,6 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 			heap = new_heap;
 		}
 	}
-
 	// i think this is where i should be actually creating
 	// the heaps. set size to zero, perhaps, to verify that these are heaps
 	// and not raw dague_execution_contexts
