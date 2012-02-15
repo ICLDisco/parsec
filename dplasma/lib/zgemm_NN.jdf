@@ -20,7 +20,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-
 %}
 
 /*
