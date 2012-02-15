@@ -11,19 +11,19 @@
 #include "dplasma.h"
 
 int
-dplasma_zgetrs(dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L,
-               tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B)
+dplasma_zgetrs_incpiv(dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L,
+                      tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B)
 {
     /* Check input arguments */
     if (trans != PlasmaNoTrans) {
         dplasma_error("dplasma_zgetrs", "only PlasmaNoTrans supported");
         return -1;
     }
-    
+
 #ifdef DAGUE_COMPOSITION
     dague_object_t *dague_ztrsmpl = NULL;
     dague_object_t *dague_ztrsm   = NULL;
-    
+
     dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
     dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 

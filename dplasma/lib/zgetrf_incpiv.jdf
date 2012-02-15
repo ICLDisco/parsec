@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -73,7 +73,7 @@ zgetrf(k)
   /* Locality */
   :A(k, k)
 
-  RW    A <- ( 0 == k ) ? A(k,k) : K zssssm(k-1, k, k) 
+  RW    A <- ( 0 == k ) ? A(k,k) : K zssssm(k-1, k, k)
           -> (descA.mt>=(k+2)) ? F ztstrf(k, k+1)                 [type = UPPER_TILE]
           -> (descA.mt==(k+1)) ? A(k,k)
           -> A zgetrf_out(k)
@@ -92,13 +92,13 @@ BODY
          int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
          int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
 
-         /* Set local IPIV to 0 before generation 
-          * Better here than a global initialization for locality 
+         /* Set local IPIV to 0 before generation
+          * Better here than a global initialization for locality
           * and it's also done in parallel */
          memset(B, 0, min(tempkn, tempkm) * sizeof(int) );
 
-         CORE_zgetrf(tempkm, tempkn, ib, 
-                     A /* A(k,k)    */, ldak, 
+         CORE_zgetrf(tempkm, tempkn, ib,
+                     A /* A(k,k)    */, ldak,
                      B /* IPIV(k,k) */, &iinfo );
 
          if ( (iinfo != 0) && (k == descA.mt-1) ) {
@@ -135,9 +135,9 @@ zgessm(k,n)
 
   READ  C <- B zgetrf(k)                                            [type = PIVOT]
   READ  D <- A zgetrf_out(k)                                        [type = LOWER_TILE]
-  RW    E <- (0==k) ? A(k,n) : K zssssm(k-1, k, n)          
+  RW    E <- (0==k) ? A(k,n) : K zssssm(k-1, k, n)
           -> (descA.mt==(k+1)) ? A(k, n)
-          -> (descA.mt>=(k+2)) ? J zssssm(k, k+1, n) 
+          -> (descA.mt>=(k+2)) ? J zssssm(k, k+1, n)
 
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
@@ -149,9 +149,9 @@ BODY
          int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
          int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
-         CORE_zgessm(tempkm, tempnn, tempkm, ib, 
-                     C /* IPIV(k,k) */, 
-                     D /* A(k,k) */, ldak, 
+         CORE_zgessm(tempkm, tempnn, tempkm, ib,
+                     C /* IPIV(k,k) */,
+                     D /* A(k,k) */, ldak,
                      E /* A(k,n) */, ldak );
          );
    printlog("thread %d   CORE_zgessm(%d, %d)\n"
@@ -174,7 +174,7 @@ k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
 BODY
         /* Nothing */
-        printlog("thread %d ztstrf_out( %d )\n", 
+        printlog("thread %d ztstrf_out( %d )\n",
                  context->eu_id, k);
 END
 
@@ -198,9 +198,9 @@ ztstrf(k,m)
 
   RW    F <- ((k+1)==m) ? A zgetrf(m-1) : F ztstrf(k, m-1)           [type = UPPER_TILE]
           -> (descA.mt==(m+1)) ? A ztstrf_out(k) : F ztstrf(k, m+1)  [type = UPPER_TILE]
-  RW    G <- (0==k) ? A(m,k) :  K zssssm(k-1, m, k) 
-          -> (descA.nt>=(k+2)) ? M zssssm(k, m, (k+1)..(descA.nt-1)) 
-          -> A(m,k)                                          
+  RW    G <- (0==k) ? A(m,k) :  K zssssm(k-1, m, k)
+          -> (descA.nt>=(k+2)) ? M zssssm(k, m, (k+1)..(descA.nt-1))
+          -> A(m,k)
   RW    H <- L(m,k)                                                    [type = SMALL_L]
           -> L(m,k)                                                    [type = SMALL_L]
           -> (descA.nt>=(k+2)) ? L zssssm(k, m, (k+1)..(descA.nt-1))   [type = SMALL_L]
@@ -223,11 +223,11 @@ BODY
          PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
 
          memset(IP, 0, min(tempkn, tempmm) * sizeof(int) );
-         CORE_ztstrf(tempmm, tempkn, ib, descL.nb, 
-                     F  /* A(k,k) */, ldak, 
-                     G  /* A(m,k) */, ldam, 
-                     H  /* L(m,k) */, descL.mb, 
-                     IP /* IPIV(m,k) */, 
+         CORE_ztstrf(tempmm, tempkn, ib, descL.nb,
+                     F  /* A(k,k) */, ldak,
+                     G  /* A(m,k) */, ldam,
+                     H  /* L(m,k) */, descL.mb,
+                     IP /* IPIV(m,k) */,
                      work, descL.nb, &iinfo );
          dague_private_memory_push(work_pool, work);
 
@@ -259,7 +259,7 @@ n1 = k+1..descA.nt-1
 
 BODY
         /* Nothing */
-        printlog("thread %d zssssm_out( %d, %d )\n", 
+        printlog("thread %d zssssm_out( %d, %d )\n",
                  context->eu_id, k, n1);
 END
 
@@ -305,11 +305,11 @@ BODY
   int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
   DRYRUN(
-         CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
-                     J /* A(k,n1) */, ldak, 
-                     K /* A(m,n1) */, ldam, 
-                     L /* L(m,k) */,  descL.mb, 
-                     M /* A(m,k) */,  ldam, 
+         CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib,
+                     J /* A(k,n1) */, ldak,
+                     K /* A(m,n1) */, ldam,
+                     L /* L(m,k) */,  descL.mb,
+                     M /* A(m,k) */,  ldam,
                      N /* IPIV(m,k) */ );
          );
   printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
