@@ -52,6 +52,7 @@ if __name__ == '__main__':
    numTrials = 10
    names = [ 'dpotrf']
    testingDir = 'dplasma/testing/'
+   outputBaseDir = '/mnt/scratch/pgaultne/' # = testingDir
    scheduler = 'LTQ'
 
    pattern = re.compile("### TIMED\s(\d+\.\d+)\s+s.+?NB=\s+(\d+).+?(\d+\.\d+)\s+gflops$")
@@ -66,7 +67,7 @@ if __name__ == '__main__':
                 for IBdiv in IBdivs:
                     IB = NB / IBdiv
                     set = TrialSet(name, matrixSize, numCores, NB, IB, scheduler)
-                    outputDir = testingDir + os.sep + str(matrixSize) + os.sep
+                    outputDir = outputBaseDir + str(matrixSize) + os.sep
                     if not os.path.isdir(outputDir):
                         os.mkdir(outputDir)
                     for trialNum in range(0, numTrials):

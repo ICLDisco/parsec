@@ -12,7 +12,7 @@
 // main struct holding size info and ID
 typedef struct dague_heap {
 	dague_list_item_t list_item; // to be compatible with the lists
-	int size; // used only during building
+	unsigned int size; // used only during building
 	unsigned int priority;
 	dague_execution_context_t * top;
 } dague_heap_t;
@@ -29,8 +29,8 @@ dague_execution_context_t* heap_split_and_steal(dague_heap_t ** heap_ptr, dague_
 dague_heap_t* heap_create() {
 	dague_heap_t* heap = calloc(sizeof(dague_heap_t), 1); // makes sure everything is zeroed, including priority
 	// correctly establish singleton doubly-linked list
-	heap->list_item.list_next = heap;
-	heap->list_item.list_prev = heap;
+	heap->list_item.list_next = (dague_list_item_t*)heap;
+	heap->list_item.list_prev = (dague_list_item_t*)heap;
 	return heap;
 }
 
@@ -61,7 +61,7 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem) {
 	else {
 		dague_execution_context_t * parent = heap->top;
 		unsigned int bitmask = 1;
-		int size = heap->size;
+		unsigned int size = heap->size;
 		// prime the bitmask
 		int level_counter = 0;
 		int parents_size = 0;
@@ -78,14 +78,14 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem) {
 		parents[--level_counter] = heap->top;
 		// now move through tree
 		while (bitmask > 1) {
-			parent = (bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev;
+			parent = (dague_execution_context_t*)((bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev);
 			parents[--level_counter] = parent; // save parent
 			bitmask = bitmask >> 1;
 		}
 		if (bitmask & size)
-			parent->list_item.list_next = elem;
+			parent->list_item.list_next = (dague_list_item_t*)elem;
 		else
-			parent->list_item.list_prev = elem;
+			parent->list_item.list_prev = (dague_list_item_t*)elem;
 
 		// now bubble up to preserve max heap org.
 		while (level_counter < parents_size && 
@@ -96,31 +96,31 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem) {
 			if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
 				dague_execution_context_t * grandparent = parents[level_counter + 1];
 				// i.e. our parent has a parent
-				if (grandparent->list_item.list_prev /* left */ == parent)
-					grandparent->list_item.list_prev = elem;
+				if (grandparent->list_item.list_prev /* left */ == (dague_list_item_t*)parent)
+					grandparent->list_item.list_prev = (dague_list_item_t*)elem;
 				else /* our grandparent's right child is our parent*/
-					grandparent->list_item.list_next = elem;
+					grandparent->list_item.list_next = (dague_list_item_t*)elem;
 			}
 			/* completely unnecessary, but I'm curious */
 			if (level_counter + 1 < parents_size && parents[level_counter + 1] == NULL)
 				printf("we definitely have an extra parents slot.\n");
 
 			/* next, fix our parent */
-			dague_execution_context_t * parent_left  = parent->list_item.list_prev;
-			dague_execution_context_t * parent_right = parent->list_item.list_next;
+			dague_list_item_t * parent_left  = (dague_list_item_t*)parent->list_item.list_prev;
+			dague_list_item_t * parent_right = (dague_list_item_t*)parent->list_item.list_next;
 			parent->list_item.list_prev = elem->list_item.list_prev;
 			parent->list_item.list_next = elem->list_item.list_next;
 
 			/* lastly, fix ourselves */
-			if (parent_left == elem) {
+			if (parent_left == (dague_list_item_t*)elem) {
 				/* we're our parent's left child */
-				elem->list_item.list_prev = parent;
-				elem->list_item.list_next = parent_right;
+				elem->list_item.list_prev = (dague_list_item_t*)parent;
+				elem->list_item.list_next = (dague_list_item_t*)parent_right;
 			}
 			else {
 				/* we're out parent's right child */
-				elem->list_item.list_prev = parent_left;
-				elem->list_item.list_next = parent;
+				elem->list_item.list_prev = (dague_list_item_t*)parent_left;
+				elem->list_item.list_next = (dague_list_item_t*)parent;
 			}
 
 			level_counter++;
@@ -171,28 +171,27 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
 		else { /* does have left child */
 			if (heap->top->list_item.list_next /* right */ == NULL) {
 				/* but doesn't have right child, so still not splitting */
-				heap->top = heap->top->list_item.list_prev; // left
+				heap->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
 				/* set up doubly-linked singleton list in here, as DEFAULT scenario */
-				heap->list_item.list_prev = *heap_ptr;
-				heap->list_item.list_next = *heap_ptr;
+				heap->list_item.list_prev = (dague_list_item_t*)*heap_ptr;
+				heap->list_item.list_next = (dague_list_item_t*)*heap_ptr;
 			}
 			else { // heap has at least 3 nodes, so we should be actually splitting
 				(*new_heap_ptr) = heap_create(); 
-				dague_execution_context_t* temp =  // right
-				(*new_heap_ptr)->top = heap->top->list_item.list_prev; // left
+				(*new_heap_ptr)->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
 				(*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
-				heap->top = heap->top->list_item.list_next;
+				heap->top = (dague_execution_context_t*)heap->top->list_item.list_next;
 				heap->priority = heap->top->priority;
 
 				/* set up doubly-linked two-element list in here, as DEFAULT scenario */
-				heap->list_item.list_prev = (*new_heap_ptr);
-				heap->list_item.list_next = (*new_heap_ptr);
-				(*new_heap_ptr)->list_item.list_prev = heap;
-				(*new_heap_ptr)->list_item.list_next = heap;
+				heap->list_item.list_prev = (dague_list_item_t*)(*new_heap_ptr);
+				heap->list_item.list_next = (dague_list_item_t*)(*new_heap_ptr);
+				(*new_heap_ptr)->list_item.list_prev = (dague_list_item_t*)heap;
+				(*new_heap_ptr)->list_item.list_next = (dague_list_item_t*)heap;
 			}
 		}
-		to_use->list_item.list_next = to_use; // safety's 
-		to_use->list_item.list_prev = to_use; // sake
+		to_use->list_item.list_next = (dague_list_item_t*)to_use; // safety's 
+		to_use->list_item.list_prev = (dague_list_item_t*)to_use; // sake
 	}
 	return to_use;
 }

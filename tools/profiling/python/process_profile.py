@@ -82,7 +82,7 @@ if __name__ == '__main__':
         stdoutOrig = sys.stdout
         for profile in profiles:
             print profile
-            sys.stdout = open(os.path.basename(profile + '.data'), 'w')
+            sys.stdout = open(sys.argv[1] + '/' + os.path.basename(profile + '.data'), 'w')
             # get file from cmd line args
             linestring = open(profile, 'r').read()
             # read file into string

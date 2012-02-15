@@ -159,7 +159,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 		NULL);
 	exec_context = heap_split_and_steal(&heap, &new_heap);
 	if( NULL != heap ) 
-		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, heap);
+		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 	if (exec_context != NULL) 
 		return exec_context;
 	
@@ -176,16 +176,16 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 					(the default side effect of heap_split_and_steal)
 					into two singleton doubly-linked lists
 				*/
-				heap->list_item.list_next = heap;
-				heap->list_item.list_prev = heap;
-				new_heap->list_item.list_next = new_heap;
-				new_heap->list_item.list_prev = new_heap;
+				heap->list_item.list_next = (dague_list_item_t*)heap;
+				heap->list_item.list_prev = (dague_list_item_t*)heap;
+				new_heap->list_item.list_next = (dague_list_item_t*)new_heap;
+				new_heap->list_item.list_prev = (dague_list_item_t*)new_heap;
 
 				// put new heap back in neighboring queue
-				dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], new_heap);
+				dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], (dague_list_item_t*)new_heap);
 			}
 			// put old heap in our queue -- it's a singleton either way by this point
-			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, heap);
+			dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 		}
 		if (exec_context != NULL)
 			return exec_context;
@@ -195,7 +195,7 @@ static dague_execution_context_t * choose_job_tree_queues( dague_execution_unit_
 	heap = (dague_heap_t *)dague_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
 	exec_context = heap_split_and_steal(&heap, &new_heap);
 	if (heap != NULL) 
-		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, heap);
+		dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 
 	return exec_context;
 }
@@ -210,11 +210,11 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 {
 	dague_execution_context_t * cur = new_context;
 	dague_execution_context_t * next;
-	dague_heap_t* heap = heap_create(0);
+	dague_heap_t* heap = heap_create();
 	dague_heap_t* first_h = heap;
 	char * flowname = cur->flowname;
 	while (1) {
-		next = cur->list_item.list_next;
+		next = (dague_execution_context_t*)cur->list_item.list_next;
 		heap_insert(heap, cur);
 		assert(next != NULL);
 		if (next == cur /* looped */ || next == new_context /* looped */)
@@ -223,12 +223,12 @@ static int schedule_tree_queues( dague_execution_unit_t* eu_context,
 		// separate startup tasks
 		if (cur->flowname == NULL || flowname == NULL || strncmp(cur->flowname, flowname, 10) != 0) {
 			// make new heap
+			dague_heap_t * new_heap = heap_create();
 			flowname = cur->flowname;
-			dague_heap_t * new_heap = heap_create(0);
-			heap->list_item.list_next->list_prev = new_heap;
-			new_heap->list_item.list_prev = heap;
-			new_heap->list_item.list_next = heap->list_item.list_next;
-			heap->list_item.list_next = new_heap;
+			heap->list_item.list_next->list_prev = (dague_list_item_t*)new_heap;
+			new_heap->list_item.list_prev = (dague_list_item_t*)heap;
+			new_heap->list_item.list_next = (dague_list_item_t*)heap->list_item.list_next;
+			heap->list_item.list_next = (dague_list_item_t*)new_heap;
 			heap = new_heap;
 		}
 	}

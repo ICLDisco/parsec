@@ -39,6 +39,8 @@ def profiles2dat(directory, outputDirectory = None, executable = defaultExecutab
 if __name__ == '__main__':
     outputDir = sys.argv[1]
     executable = defaultExecutable
+    if not os.path.exists(executable):
+        print('executable ' + executable + ' doesn\'t exist.')
     unlink = True
     if len(sys.argv) > 2:
         outputDir = sys.argv[2]
