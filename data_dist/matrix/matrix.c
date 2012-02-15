@@ -48,6 +48,16 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->lm = lm;
     tdesc->ln = ln;
 
+    /* Large matrix derived parameters */
+    /* tdesc->lm1 = (lm/mb); */
+    /* tdesc->ln1 = (ln/nb); */
+    tdesc->lmt = (lm%mb==0) ? (lm/mb) : (lm/mb+1);
+    tdesc->lnt = (ln%nb==0) ? (ln/nb) : (ln/nb+1);
+
+    /* Update lm and ln to include the padding */
+    tdesc->lm = tdesc->lmt * tdesc->mb;
+    tdesc->ln = tdesc->lnt * tdesc->nb;
+
     /* WARNING: This has to be removed when padding will be removed */
 #if defined(HAVE_MPI)
     if ( storage == matrix_Lapack ) {
@@ -61,12 +71,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
         }
     }
 #endif
-
-    /* Large matrix derived parameters */
-    /* tdesc->lm1 = (lm/mb); */
-    /* tdesc->ln1 = (ln/nb); */
-    tdesc->lmt = (lm%mb==0) ? (lm/mb) : (lm/mb+1);
-    tdesc->lnt = (ln%nb==0) ? (ln/nb) : (ln/nb+1);
 
     /* Submatrix parameters */
     tdesc->i = i;
