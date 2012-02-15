@@ -5,27 +5,47 @@
  */
 
 
-#ifndef _MATRIX_H_ 
-#define _MATRIX_H_ 
+#ifndef _MATRIX_H_
+#define _MATRIX_H_
 
 #include <stdarg.h>
 #include "dague_config.h"
 #include "precision.h"
 #include "data_distribution.h"
 
-// TODO: This type is weird/broken, it needs to be fixed at some point (was not conceived originally to compare 2 matrices...)
 enum matrix_type {
-    matrix_Byte          = sizeof(char),              /**< unsigned char */
-    matrix_Integer       = sizeof(int),               /**< signed int */
-    matrix_RealFloat     = sizeof(float),             /**< float */
-    matrix_RealDouble    = sizeof(double),            /**< double */
-    matrix_ComplexFloat  = sizeof(Dague_Complex32_t), /**< complex float */
-    matrix_ComplexDouble = sizeof(Dague_Complex64_t)  /**< complex double */
+    matrix_Byte          = 0, /**< unsigned char  */
+    matrix_Integer       = 1, /**< signed int     */
+    matrix_RealFloat     = 2, /**< float          */
+    matrix_RealDouble    = 3, /**< double         */
+    matrix_ComplexFloat  = 4, /**< complex float  */
+    matrix_ComplexDouble = 5  /**< complex double */
 };
+
+enum matrix_storage {
+    matrix_Lapack        = 0, /**< LAPACK Layout or Column Major  */
+    matrix_Tile          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
+};
+
+static inline int dague_datadist_getsizeoftype(enum matrix_type type)
+{
+    switch( type ) {
+    case matrix_Byte          : return sizeof(char);
+    case matrix_Integer       : return sizeof(int);
+    case matrix_RealFloat     : return sizeof(float);
+    case matrix_RealDouble    : return sizeof(double);
+    case matrix_ComplexFloat  : return sizeof(Dague_Complex32_t);
+    case matrix_ComplexDouble : return sizeof(Dague_Complex64_t);
+    default:
+        return -1;
+    }
+}
 
 typedef struct tiled_matrix_desc_t {
     dague_ddesc_t super;
-    enum matrix_type mtype;      /**< precision of the matrix */
+    enum matrix_type    mtype;      /**< precision of the matrix */
+    enum matrix_storage storage;    /**< storage of the matrix   */
+    int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
     int nb;             /**< number of columns in a tile */
     int bsiz;           /**< size in elements including padding of a tile - derived parameter */
@@ -42,56 +62,10 @@ typedef struct tiled_matrix_desc_t {
     int nb_local_tiles; /**< number of tile handled locally */
 } tiled_matrix_desc_t;
 
-/**
- * Generate the tile (row, col) int the buffer position.
- */
-
-void create_tile_zero(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-
-void matrix_ctile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-void matrix_ctile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-
-
-
-void matrix_dtile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-void matrix_dtile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-
-void matrix_stile(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-void matrix_stile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,  int row, int col, unsigned long long int seed);
-
-/**
- * Generate the full distributed matrix using all nodes/cores available.
- * The generated matrix is symetric positive and diagonal dominant.
- */
-void generate_tiled_random_sym_pos_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed);
-/**
- * Generate the full distributed matrix using all nodes/cores available.
- * The generated matrix if symetric.
- */
-void generate_tiled_random_sym_mat( tiled_matrix_desc_t * Mdesc, unsigned long long int seed );
-/**
- * Generate the full distributed matrix using all nodes/cores available.
- */
-void generate_tiled_random_mat(tiled_matrix_desc_t * Mdesc, unsigned long long int seed);
-
-/**
- * Generate the full distributed matrix using all nodes/cores available. Zeroing the matrix.
- */
-void generate_tiled_zero_mat(tiled_matrix_desc_t * Mdesc);
-
-
-/**
- * Set diagonal value of a double matrix to val.
- */
-void pddiagset(tiled_matrix_desc_t * Mdesc, double val);
-
-
-
-int data_write(tiled_matrix_desc_t * Ddesc, char * filename);
-
-int data_read(tiled_matrix_desc_t * Ddesc, char * filename);
+void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
+                             int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
+int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
+int  tiled_matrix_data_read( tiled_matrix_desc_t *tdesc, char *filename);
 
 #ifdef HAVE_MPI
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b);
@@ -113,19 +87,28 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        dague_operator_t op,
                        void* op_data);
+
 extern void
 dague_map_operator_Destruct( struct dague_object_t* o );
+
 extern struct dague_object_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
+
 extern void dague_reduce_col_Destruct( struct dague_object_t *o );
+
 extern struct dague_object_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t operator,
                       void* op_data );
 extern void dague_reduce_row_Destruct( struct dague_object_t *o );
+
+/*
+ * Macro to get the block leading dimension
+ */
+#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).lm )
 
 #endif /* _MATRIX_H_  */

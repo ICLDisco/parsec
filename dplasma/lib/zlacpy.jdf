@@ -1,19 +1,24 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> c d s
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <lapacke.h>
 #include <plasma.h>
 #include <core_blas.h>
 
-#define PRECISION_z
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
@@ -32,7 +37,7 @@ plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
 
-lacpy_l_in_Amn(m, n)
+lacpy_l_in_Amn(m, n)  [profile = off]
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
     
@@ -79,7 +84,7 @@ BODY
 END
 
 
-lacpy_u_in_Amn(m, n)
+lacpy_u_in_Amn(m, n)  [profile = off]
 m = 0   .. descA.mt-1
 n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
     
@@ -125,7 +130,7 @@ BODY
                  m, n, ldam, m, n, ldbm);
 END
 
-lacpy_diag_in_Akk(k)
+lacpy_diag_in_Akk(k)  [profile = off]
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
     
   : A(k, k)

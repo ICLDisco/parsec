@@ -1,60 +1,49 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
-  
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
-#include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
 %}
 
 /** Globals */
-A
-L         [aligned = A]
-IPIV      [aligned = A]
-B
+descA     [type = "tiled_matrix_desc_t"]
+A         [type = "dague_ddesc_t *"]
+descL     [type = "tiled_matrix_desc_t"]
+L         [type = "dague_ddesc_t *" aligned=A]
+IPIV      [type = "dague_ddesc_t *" aligned=A]
+descB     [type = "tiled_matrix_desc_t"]
+B         [type = "dague_ddesc_t *"]
+ib        [type = int]
 
-/* 
- * Parameters
- */
-ib   [type = int]
-
-Am   [type = int]
-An   [type = int]
-Amb  [type = int]
-Anb  [type = int]
-Amt  [type = int]
-Ant  [type = int]
-
-Lmb  [type = int]
-Lnb  [type = int]
-
-Bm   [type = int]
-Bn   [type = int]
-Bmb  [type = int]
-Bnb  [type = int]
-Bmt  [type = int]
-Bnt  [type = int]
-     
 /**************************************************
  *                      ZGESSM                    *
  **************************************************/
 zgessm_inAIPIV(k)  [profile = off]
-k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
+k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 
 :A(k, k)
 
-READ A <- A(k, k)
-       -> B zgessm(k, 0..Bnt-1) 
+READ A    <- A(k, k)
+          -> B zgessm(k, 0..descB.nt-1) 
      IPIV <- IPIV(k, k)                               [type = PIVOT]
-       -> A zgessm(k, 0..Bnt-1)                       [type = PIVOT]
+          -> A zgessm(k, 0..descB.nt-1)                  [type = PIVOT]
      
 BODY
         /* Nothing */
@@ -64,8 +53,8 @@ END
 
 zgessm(k,n)
   /* Execution space */
-  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
-  n = 0..Bnt-1
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  n = 0..descB.nt-1
 
   /* A == IPIV(k,k) */
   /* B == A(k,k) */
@@ -76,29 +65,25 @@ zgessm(k,n)
 :B(k, n)
 
   READ  A <- IPIV zgessm_inAIPIV(k)                     [type = PIVOT]
-  READ  B <- A zgessm_inAIPIV(k)
+  READ  B <- A    zgessm_inAIPIV(k)
   RW    C <- (k == 0) ? B(k,n) : E zssssm(k-1, k, n) 
-          -> (Amt>=(k+2)) ? D zssssm(k, k+1, n) 
-          -> (Amt==(k+1)) ? B(k,n)
-
-  /*
-
-  */
+          -> (descA.mt>=(k+2)) ? D zssssm(k, k+1, n) 
+          -> (descA.mt==(k+1)) ? B(k,n)
 
 BODY
 
-   int tempkm   = ( k == (Amt-1) ) ? Am - k * Amb : Amb;
-   int tempnn   = ( n == (Bnt-1) ) ? Bn - n * Bnb : Bnb;
+   int tempkm   = ( k == (descA.mt-1) ) ? descA.m - k * descA.mb : descA.mb;
+   int tempnn   = ( n == (descB.nt-1) ) ? descB.n - n * descB.nb : descB.nb;
    int tempkmin;
 
-   if ( Amt < Ant ) {
-     tempkmin = (k == Amt-1) ? Am - k * Amb : Amb;
+   if ( descA.mt < descA.nt ) {
+     tempkmin = (k == descA.mt-1) ? descA.m - k * descA.mb : descA.mb;
    } else {
-     tempkmin = (k == Ant-1) ? An - k * Amb : Amb;
+     tempkmin = (k == descA.nt-1) ? descA.n - k * descA.mb : descA.mb;
    }
    DRYRUN(
-          int ldak     = Amb; /*((k+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
-          int ldbk     = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
+          int ldak = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+          int ldbk = descB.mb; /*((k+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
 
 	   CORE_zgessm(tempkm, tempnn, tempkmin, ib, 
                        A /* IPIV(k,k) */, 
@@ -115,17 +100,17 @@ END
  *                      ZSSSSM                    *
  **************************************************/
 zssssm_inALIPIV(k, m)  [profile = off]
-k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
-m = k+1..Amt-1
+k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+m = k+1..descA.mt-1
 
 :A(m, k)
 
-READ A <- A(m, k)
-       -> G zssssm(k, m, 0..Bnt-1) 
-     L <- L(m, k)                            [type = SMALL_L]
-       -> F zssssm(k, m, 0..Bnt-1)           [type = SMALL_L]
+READ A    <- A(m, k)
+          -> G zssssm(k, m, 0..descB.nt-1) 
+     L    <- L(m, k)                         [type = SMALL_L]
+          -> F zssssm(k, m, 0..descB.nt-1)   [type = SMALL_L]
      IPIV <- IPIV(m, k)                      [type = PIVOT]
-          -> H zssssm(k, m, 0..Bnt-1)        [type = PIVOT]  
+          -> H zssssm(k, m, 0..descB.nt-1)   [type = PIVOT]  
 
 BODY
         /* Nothing */
@@ -134,12 +119,12 @@ BODY
 END
 
 zssssm_outB(k, n1)  [profile = off]
-k = 0..( (Amt <= Ant) ? Amt-2 : Ant-1 )
-n1 = 0..Bnt-1
+k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
+n1 = 0..descB.nt-1
 
 :B(k, n1)
 
-     READ B <- D zssssm(k, Amt-1, n1)
+     READ B <- D zssssm(k, descA.mt-1, n1)
             -> B(k, n1)
 BODY
         /* Nothing */
@@ -149,9 +134,9 @@ END
 
 zssssm(k,m,n1)
   /* Execution space */
-  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
-  m = k+1..Amt-1
-  n1 = 0..Bnt-1
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  m = k+1..descA.mt-1
+  n1 = 0..descB.nt-1
 
   /* C == B(k,n) */
   /* D == B(k,n1) */
@@ -163,12 +148,12 @@ zssssm(k,m,n1)
 :B(m, n1)
 
   RW    D <- ( m == (1+k) ) ? C zgessm(m-1, n1) : D zssssm(k, m-1, n1)
-          -> (Amt==(m+1)) ? B zssssm_outB(k, n1)
-          -> (Amt>=(m+2)) ? D zssssm(k, m+1, n1) 
+          -> (descA.mt==(m+1)) ? B zssssm_outB(k, n1)
+          -> (descA.mt>=(m+2)) ? D zssssm(k, m+1, n1) 
   RW    E <- (0==k) ? B(m,n1) : E zssssm(k-1, m, n1) 
-          -> (m>=(k+2)) & (Ant>=(k+2)) ? E zssssm(k+1, m, n1) 
-          -> (Ant==(k+1)) ? B(m,n1)
-          -> ((1+k)==m) & (Ant>=(2+k)) ? C zgessm(m, n1) 
+          -> (m>=(k+2)) & (descA.nt>=(k+2)) ? E zssssm(k+1, m, n1) 
+          -> (descA.nt==(k+1)) ? B(m,n1)
+          -> ((1+k)==m) & (descA.nt>=(2+k)) ? C zgessm(m, n1) 
   READ  F <- L zssssm_inALIPIV(k, m)         [type = SMALL_L]
   READ  G <- A zssssm_inALIPIV(k, m)         
   READ  H <- IPIV zssssm_inALIPIV(k, m)      [type = PIVOT]
@@ -179,23 +164,23 @@ zssssm(k,m,n1)
 
 BODY
 
-  int tempmm = ((m) ==(Amt-1)) ? (Am -( m*Amb)) : (Amb);
-  int tempnn = ((n1)==(Bnt-1)) ? (Bn -(n1*Bnb)) : (Bnb);
-  int tempkn = ((k) ==(Ant-1)) ? (An -( k*Anb)) : (Anb);
-  int ldbk   = Bmb; /*((k+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
-  int ldbm   = Bmb; /*((m+(Bi/Bmb))<Blm1) ? (Bmb) : (Blm%Bmb);*/
-  int ldam   = Amb; /*((m+(Ai/Amb))<Alm1) ? (Amb) : (Alm%Amb);*/
+  int tempmm = ((m) ==(descA.mt-1)) ? (descA.m -( m*descA.mb)) : (descA.mb);
+  int tempnn = ((n1)==(descB.nt-1)) ? (descB.n -(n1*descB.nb)) : (descB.nb);
+  int tempkn = ((k) ==(descA.nt-1)) ? (descA.n -( k*descA.nb)) : (descA.nb);
+  int ldbk   = descB.mb; /*((k+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
+  int ldbm   = descB.mb; /*((m+(Bi/descB.mb))<Blm1) ? (descB.mb) : (Blm%descB.mb);*/
+  int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
 
   DRYRUN(
-         CORE_zssssm(Anb, tempnn, tempmm, 
+         CORE_zssssm(descA.nb, tempnn, tempmm, 
                      tempnn, tempkn, ib, 
                      D /* B(k,n1) */, ldbk, 
                      E /* B(m,n1) */, ldbm, 
-                     F /* L(m,k) */,  Lmb, 
+                     F /* L(m,k) */,  descL.mb, 
                      G /* A(m,k) */,  ldam, 
                      H /* IPIV(m,k) */ );
          );
   printlog("thread %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, B(%d,%d)[%p], %d, B(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
-           context->eu_id, Anb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, ldbk, m, n1, E, ldbm, m, k, F, Lmb, m, k, G, ldam, m, k, H);
+           context->eu_id, descA.nb, tempnn, tempmm, tempnn, tempkn, ib, k, m, n1, k, n1, D, ldbk, m, n1, E, ldbm, m, k, F, descL.mb, m, k, G, ldam, m, k, H);
 
 END

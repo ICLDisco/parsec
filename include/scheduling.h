@@ -75,8 +75,13 @@ int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
 int dague_progress(dague_context_t* context);
 void* __dague_progress(dague_execution_unit_t* eu_context);
-
-void dague_register_nb_tasks(dague_context_t* context, int32_t n);
+/**
+ * Mark a task belonging to dague_object as complete, and update the
+ * corresponding statuses. If it was the last task in the dague_object,
+ * trigger the completion callback and then update the main context.
+ * Otherwise, just update the dague_object.
+ */
+int __dague_complete_task(dague_object_t *dague_object, dague_context_t* context);
 
 /**
  * Signal the termination of the execution context to all dependencies of 

@@ -7,8 +7,15 @@
  *
  */
 #include "dague_config.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma_zcores.h"
 
+#if defined(HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
+#if defined(HAVE_STDARG_H)
+#include <stdarg.h>
+#endif  /* defined(HAVE_STDARG_H) */
 #include <stdio.h>
 #ifdef HAVE_LIMITS_H
 #include <limits.h>

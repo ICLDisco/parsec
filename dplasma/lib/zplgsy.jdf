@@ -1,18 +1,23 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> c d s
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
-#define PRECISION_z
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
@@ -30,7 +35,7 @@ A      [type = "dague_ddesc_t *"]
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
-PLGSY_L(m, n)
+PLGSY_L(m, n)  [profile = off]
 
 // Execution space
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
@@ -56,12 +61,12 @@ BODY
 
         printlog("thread %d plgsy_l( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 context->eu_id, m, n, creal(bump), tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
-PLGSY_U(m, n)
+PLGSY_U(m, n)  [profile = off]
 
 // Execution space
 m = 0   .. descA.mt-1
@@ -87,12 +92,12 @@ BODY
 
         printlog("thread %d plgsy_u( %d, %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, m, n, bump, tempmm, tempnn, 
+                 context->eu_id, m, n, creal(bump), tempmm, tempnn, 
                  m, n, ldam,
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
-PLGSY_DIAG(k)
+PLGSY_DIAG(k)  [profile = off]
 
 // Execution space
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
@@ -117,7 +122,7 @@ BODY
 
         printlog("thread %d plgsy_diag( %d )\n"
                  "    ( %f, %d, %d, A(%d,%d), %d, %d, %d, %d, %llu)\n",
-                 context->eu_id, k, bump, tempkm, tempkn, 
+                 context->eu_id, k, creal(bump), tempkm, tempkn, 
                  k, k, ldak,
                  descA.m, k*descA.mb, k*descA.nb, seed);
 END

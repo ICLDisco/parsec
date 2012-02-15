@@ -60,6 +60,8 @@ enum iparam_t {
   IPARAM_QR_TS_SZE,    /* Size of TS domain                     (specific to xgeqrf_param) */
   IPARAM_QR_HLVL_SZE,  /* Size of the high level tree           (specific to xgeqrf_param) */
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
+  IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
+  IPARAM_BUT_LEVEL,    /* Butterfly level */
   IPARAM_DOT,          /* Do we require to output the DOT file? */
   IPARAM_SIZEOF
 };
@@ -94,16 +96,18 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int check = iparam[IPARAM_CHECK];\
   int loud  = iparam[IPARAM_VERBOSE];\
   int scheduler = iparam[IPARAM_SCHEDULER];\
+  int nb_local_tasks = 0;                                               \
+  int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
   (void)rank;(void)nodes;(void)cores;(void)gpus;(void)prio;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
   (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;
+  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
 #define PASTE_CODE_FLOPS( FORMULA, PARAMS ) \
   double gflops, flops = FORMULA PARAMS;
   
-#if defined(PRECISIONS_z) || defined(PRECISIONS_c)
+#if defined(PRECISION_z) || defined(PRECISION_c)
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
   double gflops, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
 #else 
@@ -150,27 +154,28 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         TYPE##_init INIT_PARAMS;                                        \
         DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
                                         (size_t)DDESC.super.bsiz *      \
-                                        (size_t)DDESC.super.mtype);     \
+                                        (size_t)dague_datadist_getsizeoftype(DDESC.super.mtype)); \
         dague_ddesc_set_key((dague_ddesc_t*)&DDESC, #DDESC);            \
     }
 
-#define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS) \
-  SYNC_TIME_START(); \
-  dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS; \
-  dague_enqueue(DAGUE, DAGUE_##KERNEL); \
-  if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %u local tasks enqueued\n", DAGUE->taskstodo));
+#define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS)                \
+    SYNC_TIME_START();                                                  \
+    dague_object_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
+    dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
+    nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
+    if(loud) SYNC_TIME_PRINT(rank, ( #KERNEL " DAG creation: %d local tasks enqueued\n", nb_local_tasks));
 
 
-#define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL) \
-  SYNC_TIME_START(); \
-  TIME_START(); \
-  dague_progress(DAGUE); \
-  if(loud) TIME_PRINT(rank, (#KERNEL " computed %u tasks,\trate %f task/s\n", \
-              DAGUE_##KERNEL->nb_local_tasks, \
-              DAGUE_##KERNEL->nb_local_tasks/time_elapsed)); \
-  SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \
-                   gflops = (flops/1e9)/(sync_time_elapsed))); \
-  (void)gflops;
+#define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
+    SYNC_TIME_START();                                                  \
+    TIME_START();                                                       \
+    dague_progress(DAGUE);                                              \
+    if(loud) TIME_PRINT(rank, (#KERNEL " computed %d tasks,\trate %f task/s\n", \
+                               nb_local_tasks,                          \
+                               nb_local_tasks/time_elapsed));           \
+    SYNC_TIME_PRINT(rank, (#KERNEL " computation N= %d NB= %d : %f gflops\n", N, NB, \
+                           gflops = (flops/1e9)/(sync_time_elapsed)));  \
+    (void)gflops;
 
 
 #endif /* _TESTSCOMMON_H */

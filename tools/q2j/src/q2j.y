@@ -21,6 +21,7 @@
 extern int yyget_lineno();
 void yyerror(const char *s);
 extern int yylex (void);
+extern int _q2j_add_phony_tasks;
 
 type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
@@ -157,6 +158,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> TYPEDEF
 %type <string> PRAGMA
 %type <string> DIR_DAGUE_DATA_COLOCATED
+%type <string> DIR_DAGUE_INVARIANT
 %type <string> DIR_DAGUE_TASK_START
 %type <string> TYPE_NAME
 %type <string> UNION
@@ -198,7 +200,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %token XOR_ASSIGN OR_ASSIGN TYPE_NAME
 
 %token TYPEDEF PRAGMA EXTERN STATIC AUTO REGISTER
-%token DIR_DAGUE_DATA_COLOCATED DIR_DAGUE_TASK_START
+%token DIR_DAGUE_DATA_COLOCATED DIR_DAGUE_INVARIANT DIR_DAGUE_TASK_START
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
 %token INT8 INT16 INT32 INT64 UINT8 UINT16 UINT32 UINT64 INTPTR UINTPTR INTMAX UINTMAX
 %token PLASMA_COMPLEX32_T PLASMA_COMPLEX64_T PLASMA_ENUM PLASMA_REQUEST PLASMA_DESC PLASMA_SEQUENCE
@@ -742,6 +744,10 @@ pragma_parameters
 pragma_specifier
 	: PRAGMA IDENTIFIER pragma_parameters
 	  {
+	  }
+	| PRAGMA DIR_DAGUE_INVARIANT expression
+	  {
+	      store_global_invariant(node_to_ptr($3));
 	  }
 	| PRAGMA DIR_DAGUE_DATA_COLOCATED pragma_parameters
 	  {
@@ -1307,7 +1313,8 @@ external_declaration
           {
               rename_induction_variables(&($1));
               convert_OUTPUT_to_INOUT(&($1));
-              add_entry_and_exit_task_loops(&($1));
+              if( _q2j_add_phony_tasks )
+                  add_entry_and_exit_task_loops(&($1));
               //printf("%s\n",tree_to_str(&($1)));
               analyze_deps(&($1));
           }

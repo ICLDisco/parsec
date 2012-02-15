@@ -9,10 +9,6 @@
 #include <stdlib.h>
 
 #include "dague_config.h"
-
-typedef struct dague_arena_t dague_arena_t;
-typedef struct dague_arena_chunk_t dague_arena_chunk_t;
-
 #include "dague.h"
 #if defined(HAVE_STDDEF_H)
 #include <stddef.h>
@@ -31,25 +27,29 @@ typedef struct dague_arena_chunk_t dague_arena_chunk_t;
 
 struct dague_arena_t
 {
-    dague_atomic_lifo_t lifo;
+    dague_lifo_t lifo;
     size_t alignment;                        /* alignment to be respected, elem_size should be >> alignment, prefix size is the minimum alignment */
     size_t elem_size;                        /* size of one element (unpacked in memory, aka extent) */
     dague_remote_dep_datatype_t opaque_dtt;  /* the appropriate type for the network engine to send an element */
     volatile int32_t used;                   /* elements currently out of the arena */
     int32_t max_used;                        /* maximum size of the arena in elements */
     volatile int32_t released;               /* elements currently not used but allocated */
-    int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo */
-    /* some host hardware requires special allocation functions (Cuda, pinning,
-     * Open CL, ...). Defaults are to use C malloc/free */
+    int32_t max_released;                    /* when more that max elements are released, they are really freed instead of joining the lifo
+                                              * some host hardware requires special allocation functions (Cuda, pinning,
+                                              * Open CL, ...). Defaults are to use C malloc/free */
     dague_allocate_data_t data_malloc;
     dague_free_data_t data_free;
 };
 
+/* The fields are ordered so that important list_item_t fields are not 
+ * damaged when using them as arena chunks */
 struct dague_arena_chunk_t {
-    volatile uint32_t refcount;
-    uint32_t cache_friendly_emptyness;
     dague_arena_t* origin;
+    uint64_t keeper_of_the_seven_keys;
     void* data;
+    volatile uint32_t refcount;
+    size_t count;
+    int32_t cache_friendly_emptyness;
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
@@ -80,7 +80,7 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              int32_t max_released); 
 void dague_arena_destruct(dague_arena_t* arena);
 
-dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena);
+dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count);
 void dague_arena_release(dague_arena_chunk_t* ptr);
 
 static inline uint32_t dague_arena_ref(dague_arena_chunk_t* ptr)

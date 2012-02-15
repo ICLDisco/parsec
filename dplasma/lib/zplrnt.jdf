@@ -1,18 +1,23 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
-#define PRECISION_z
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
@@ -25,7 +30,7 @@ seed   [type = "unsigned long long int" ]
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
 
-PLRNT(m, n)
+PLRNT(m, n)  [profile = off]
 
 // Execution space
 m = 0 .. descA.mt-1

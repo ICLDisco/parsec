@@ -1,18 +1,24 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define PRECISION_z
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
@@ -276,7 +282,7 @@ BODY
     if( dague_using_gpu() == 1 ) {
         int rc;
 
-        if( 0 == (rc = gpu_sgemm( context, exec_context, uplo )) )
+        if( 0 == (rc = gpu_sgemm( context, this_task, uplo )) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */

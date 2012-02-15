@@ -1,23 +1,28 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include "dague.h"
 #include <math.h>
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma_qr_pivgen.h"
 
-#define PRECISION_z
-#define BLKLDD(_desc, _k) (_desc).mb
 
 %}
 
@@ -39,27 +44,20 @@ param_d[type = "int" hidden=on default="pivfct->domino"]
 
 zttmqr(k, m, n)
   /* Execution space */
-  k = 0..minMN-1
-  m = k+1..descQ.mt-1
-  n = 0..descQ.nt-1
-  p     = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
-  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
-  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k,   m ); %}
-  type1 = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k+1, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   p ); %}
-  im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   m ); %}
-  im1   = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k+1, m ); %}
+  k     = 0..minMN-1
+  m     = k+1..descQ.mt-1
+  n     = 0..descQ.nt-1
+  p     = inline_c %{ return dplasma_qr_currpiv(pivfct, m, k);     %}
+  nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m);  %}
+  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m);  %}
+  prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m);  %}
+  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
+  type1 = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
+  im    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   m ); %}
+  im1   = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
   
   : Q(m, n)
-  /* Execution space */
-
-  /* A == Q(minMN-1-k,     n        ) */
-  /* B == Q(descQ.mt-1-m, n        ) */
-  /* C == A(descQ.mt-1-m, minMN-1-k) */
-  /* D == T(descQ.mt-1-m, minMN-1-k) */
-  /* G == Q(minMN-1-k,     n1       ) */
 
   RW   A1 <- (   nextp != descQ.mt ) ? A1 zttmqr( k, nextp, n)
           <- ( ( nextp == descQ.mt ) & ( p == k ) ) ? A  zttmqr_in_A1(p, n)
@@ -77,10 +75,6 @@ zttmqr(k, m, n)
   READ  V <- V zttmqr_in_V(k, m) 
   READ  T <- T zttmqr_in_T(k, m) [type = LITTLE_T]
 
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
 BODY
 
    printlog("thread %d CORE_zttmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, \n"
@@ -102,7 +96,6 @@ BODY
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 23 "zungqr.cpp"
          if ( type == 0 ) {
              CORE_ztsmqr(
                  PlasmaLeft, PlasmaNoTrans, 
@@ -180,9 +173,9 @@ END
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..minMN-1
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descQ.mt ) - 1; %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
   n = 0..descQ.nt-1
-  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
   nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descQ.mt); %}
 
   : Q(m, n)
@@ -195,11 +188,6 @@ zunmqr(k, i, n)
           <- ( (k < descQ.mt-1) & (nextm == descQ.mt) ) ? A2 zttmqr(k, m,     n)
           -> ( 0 == k ) ? Q(m, n)
           -> ( k >  0 ) ? A2 zttmqr(k-1, m, n) 
-
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
 
 BODY
  
@@ -218,7 +206,6 @@ BODY
          
          void *p_elem_A = dague_private_memory_pop( p_work );
          
-#line 28 "zungqr.cpp"
          CORE_zunmqr(PlasmaLeft, PlasmaNoTrans, 
                      tempkm, tempnn, tempkmin, ib, 
                      A /* A(k, k) */, ldak, 
@@ -235,8 +222,8 @@ END
  */
 zunmqr_in_A(k, i)
   k = 0..minMN-1
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descQ.mt ) - 1; %}
-  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
   
   : A( m, k )
 
@@ -252,8 +239,8 @@ END
  */
 zunmqr_in_T(k, i)
   k = 0..minMN-1
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descQ.mt ) - 1; %}
-  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descQ.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
   
   : T1( m, k )
 

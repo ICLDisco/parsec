@@ -15,12 +15,10 @@
 #include "profiling.h"
 #include "data_distribution.h"
 #include "debug.h"
-
-#include "atomic.h"
-#define min(a, b) ((a)<(b)?(a):(b))
-
 #include "os-spec-timing.h"
-#include "dequeue.h"
+#include "fifo.h"
+
+#define min(a, b) ((a)<(b)?(a):(b))
 
 #define DAGUE_PROFILING_EVENT_HAS_INFO     0x0001
 
@@ -81,7 +79,7 @@ static unsigned int dague_prof_keys_count, dague_prof_keys_number;
 static dague_profiling_key_t* dague_prof_keys;
 
 /* Process-global profiling list */
-static dague_dequeue_t threads;
+static dague_list_t threads;
 static char *hr_id = NULL;
 static dague_profiling_info_t *dague_profiling_infos = NULL;
 
@@ -141,7 +139,7 @@ int dague_profiling_init( const char *format, ... )
     vasprintf(&hr_id, format, ap);
     va_end(ap);
 
-    dague_dequeue_construct( &threads );
+    dague_list_construct( &threads );
 
     dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
     dague_prof_keys_count = 0;
@@ -174,8 +172,8 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     res->events_top = res->events + length;
     res->nb_events = 0;
 
-    dplamsa_dequeue_item_construct( (dague_list_item_t*)res );
-    dague_dequeue_push_back( &threads, (dague_list_item_t*)res );
+    DAGUE_LIST_ITEM_CONSTRUCT( res );
+    dague_list_fifo_push( &threads, (dague_list_item_t*)res );
 
     return res;
 }
@@ -184,15 +182,12 @@ int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
     
-    while( !dague_dequeue_is_empty( &threads ) ) {
-        t = (dague_thread_profiling_t*)dague_dequeue_pop_front( &threads );
-        if( NULL == t ) 
-            continue;
+    while( t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads) ) {
         free(t->hr_id);
         free(t);
     }
-
     free(hr_id);
+    dague_list_destruct(&threads);
 
     dague_profiling_dictionary_flush();
     free(dague_prof_keys);
@@ -204,17 +199,12 @@ int dague_profiling_fini( void )
 int dague_profiling_reset( void )
 {
     dague_thread_profiling_t *t;
-    dague_list_item_t *it;
     
-    dague_atomic_lock( &threads.atomic_lock );
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    DAGUE_LIST_ITERATOR(&threads, it, {
         t = (dague_thread_profiling_t*)it;
         t->last_event = t->next_event;
         t->next_event = t->events;
-    }
-    dague_atomic_unlock( &threads.atomic_lock );
+    });
 
     return 0;
 }
@@ -281,8 +271,8 @@ int dague_profiling_trace( dague_thread_profiling_t* context, int key, unsigned 
     this_event_length = EVENT_LENGTH( key, (NULL != info) );
     if( (context->next_event + this_event_length) > context->events_top ) {
         if( context->next_event <= context->events_top ) {
-            fprintf(stderr, "Profiling warning: profiling for ID %s will be truncated after %lu events\n",
-                    context->hr_id, (unsigned long)context->nb_events);
+            WARNING(("Profiling: trace for ID %s will be truncated after %lu events\n",
+                    context->hr_id, (unsigned long)context->nb_events));
             context->next_event = context->events_top + 1;
         }
         return -1;
@@ -322,12 +312,11 @@ static dague_profiling_output_t *find_matching_event_in_profile(const dague_thre
     return NULL;
 }
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE1)
 static void dump_whole_trace(void)
 {
     const dague_profiling_output_t *event;
     const dague_thread_profiling_t *profile;
-    dague_list_item_t *it;
     dague_time_t zero = ZERO_TIME;
     int i;
 
@@ -339,15 +328,13 @@ static void dump_whole_trace(void)
                START_KEY(i), END_KEY(i), dague_prof_keys[i].name, dague_prof_keys[i].attributes, dague_prof_keys[i].info_length ));
     }
 
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    DAGUE_ULIST_ITERATOR(&threads, it, {
         profile = (dague_thread_profiling_t*)it;
         FORALL_EVENTS( event, profile->events, profile ) {
             DEBUG(("TRACE %d/%lu on %p (timestamp %llu)\n", event->event.key, event->event.id, profile,
                    diff_time(zero, event->event.timestamp)));
         }
-    }
+    });
 }
 #endif
 
@@ -361,7 +348,6 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
     char *infostr = malloc(4);
     int infostrsize = 4, infostrresize;
     int event_not_found;
-    dague_list_item_t *it;
     dague_thread_profiling_t *op;
     const dague_profiling_output_t *start_event, *end_event;
 
@@ -379,10 +365,7 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                 /* It has an id, let's look somewhere in another profile, maybe it's end has been
                  * logged by another thread
                  */
-                for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-                     it != &threads.ghost_element; 
-                     it = (dague_list_item_t*)it->list_next ) {
-
+                DAGUE_ULIST_ITERATOR(&threads, it, {
                     op = (dague_thread_profiling_t*)it;   
                     if( op == profile )
                         continue;
@@ -391,23 +374,23 @@ static int dague_profiling_dump_one_xml( const dague_thread_profiling_t *profile
                         event_not_found = 0;
                         break;
                     }
-                }
+                });
 
                 /* Couldn't find the end, or no id. Bad. */
                 if( event_not_found ) {
 
-#if defined(DAGUE_DEBUG)
+#if defined(DAGUE_DEBUG_VERBOSE1)
                     dump_whole_trace();
 #endif
 
                     if( !displayed_error_message ) {
                         if( profile->next_event >= profile->events_top ) {
-                            fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n"
+                            WARNING(("Profiling: end event of key %u (%s) id %lu was not found for ID %s\n"
                                     "\t-- some histories are truncated\n",
-                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
+                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
                         } else {
-                            fprintf(stderr, "Profiling error: end event of key %u (%s) id %lu was not found for ID %s\n",
-                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id);
+                            WARNING(("Profiling: end event of key %u (%s) id %lu was not found for ID %s\n",
+                                    END_KEY(pos), dague_prof_keys[pos].name, start_event->event.id, profile->hr_id));
                         }
                         displayed_error_message = 1;
                     }
@@ -475,7 +458,6 @@ int dague_profiling_dump_xml( const char* filename )
     unsigned int i;
     int foundone;
     dague_time_t relative = ZERO_TIME, latest = ZERO_TIME;
-    dague_list_item_t *it;
     dague_thread_profiling_t* profile;
     FILE* tracefile;
     dague_profiling_info_t *info;
@@ -510,10 +492,7 @@ int dague_profiling_dump_xml( const char* filename )
 
     foundone = 0;
    
-    dague_atomic_lock( &threads.atomic_lock );
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    DAGUE_LIST_ITERATOR(&threads, it, {
         profile = (dague_thread_profiling_t*)it;
 
         if( profile->last_event == NULL ) {
@@ -532,15 +511,12 @@ int dague_profiling_dump_xml( const char* filename )
                 latest = ((dague_profiling_output_t*)(profile->last_event))->event.timestamp;
             }
         }
-
-    }
+    });
 
     fprintf(tracefile, " <PROFILES TOTAL_DURATION=\"%"PRIu64"\" TIME_UNIT=\""TIMER_UNIT"\">\n",
             diff_time(relative, latest));
 
-    for( it = (dague_list_item_t*)threads.ghost_element.list_next; 
-         it != &threads.ghost_element; 
-         it = (dague_list_item_t*)it->list_next ) {
+    DAGUE_LIST_ITERATOR(&threads, it, {
         profile = (dague_thread_profiling_t*)it;
 
         fprintf(tracefile, 
@@ -549,8 +525,7 @@ int dague_profiling_dump_xml( const char* filename )
         dague_profiling_dump_one_xml(profile, tracefile, relative);
         fprintf(tracefile, 
                 "   </THREAD>\n");
-    }
-    dague_atomic_unlock( &threads.atomic_lock );
+    });
 
     fprintf(tracefile, 
             " </PROFILES>\n"

@@ -1,21 +1,25 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
-
-#define PRECISION_z
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #if defined(HAVE_CUDA) && defined(PRECISION_s)
 #include "gpu_data.h"
@@ -30,8 +34,8 @@ A      [type = "dague_ddesc_t *"]
 descT  [type = "tiled_matrix_desc_t"]
 T      [type = "dague_ddesc_t *" aligned=A]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descT.nb))"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descT.nb))"]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*descT.nb)"]
+p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
 
 
 zgeqrt_typechange(k)
@@ -113,7 +117,7 @@ zunmqr(k,n)
 
   READ  C <- A zgeqrt_typechange(k)                              [type = LOWER_TILE]
   READ  D <- B zgeqrt(k)                                         [type = LITTLE_T]
-  RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k-1+1, n) 
+  RW    E <- (0==k) ? A(k, n) : K ztsmqr(k-1, k, n) 
           -> (descA.mt==(k+1)) ? A(k, n)
           -> (descA.mt>=(k+2)) ? J ztsmqr(k, k+1, n) 
 
@@ -270,7 +274,7 @@ BODY
     if( dague_using_gpu() > 0 ) {
         int rc;
 
-        if( 0 == (rc = gpu_stsmqr( context, exec_context )) )
+        if( 0 == (rc = gpu_stsmqr( context, this_task)) )
             goto FIN;
         if( -1 == rc ) {
             /* We're done, but the task has been already destroyed */

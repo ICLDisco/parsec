@@ -12,9 +12,11 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
+#include "list.h"
+#include "fifo.h"
 
 int gpu_sgemm( dague_execution_unit_t* eu_context,
-               dague_execution_context_t* exec_context,
+               dague_execution_context_t* this_task,
                int uplo );
 
 /****************************************************

@@ -1,147 +1,163 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
-  
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
+
+
+static Dague_Complex64_t zone = 1.;
 
 %}
 
-/* Globals
- * GRIDrows, GRIDcols, NB, SIZE
+side [type = "PLASMA_enum"]
+uplo [type = "PLASMA_enum"]
+trans [type = "PLASMA_enum"]
+diag [type = "PLASMA_enum"]
+alpha [type = "Dague_Complex64_t"]
+descA [type = "tiled_matrix_desc_t"]
+A [type = "dague_ddesc_t *"]
+descB [type = "tiled_matrix_desc_t"]
+B [type = "dague_ddesc_t *"]
+
+
+ztrsm(k,n)
+  /* Execution space */
+  k = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
+
+  : B((descB.mt-1)-k,n)
+
+  /* A == A((descB.mt-1)-k,(descB.mt-1)-k) */
+  /* B == B((descB.mt-1)-k,n) */
+  /* D == B((descB.mt-1)-k,n1) */
+  /* E == B((descB.mt-1)-m,n1) */
+
+  READ  A <- A ztrsm_in_A0(k,n)
+
+  RW    B <- (0==k) ? B((descB.mt-1)-k,n)
+          <- (k>=1) ? E zgemm(k-1, k, n) 
+          -> B((descB.mt-1)-k,n)
+          -> (descB.mt>=(2+k)) ? D zgemm(k, (k+1)..(descB.mt-1), n) 
+
+  /*
+  The following is a superset of the necessary anti-dependencies:
+  ANTI edge from ztrsm:B((descB.mt-1)-k,n) to ztrsm:B((descB.mt-1)-k,n) {[k,n] -> [k,n] : 0 <= k < descB.mt && 0 <= n < descB.nt}
+
+  */
+
+BODY
+
+  int tempkm = ((k)==(0)) ? (descB.m-((descB.mt-1)*descB.mb)) : descB.mb;
+  int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
+  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (zone);
+  int lda = BLKLDD( descA, (descB.mt-1)-k );
+  int ldb = BLKLDD( descB, (descB.mt-1)-k );
+
+  CORE_ztrsm(side, uplo, trans, 
+	diag, tempkm, tempnn, 
+	lalpha, A /* A((descB.mt-1)-k,(descB.mt-1)-k) */, lda, 
+	B /* B((descB.mt-1)-k,n) */, ldb );
+  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+           "\t(side, uplo, trans, diag, tempkm, tempnn, lalpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
+  context->eu_id, k, n, (descB.mt-1)-k, (descB.mt-1)-k, A, (descB.mt-1)-k, n, B);
+
+END
+
+/*
+ * Pseudo-task
  */
-side [type = int]
-uplo [type = int]
-trans[type = int]
-diag [type = int]
+ztrsm_in_A0(k,n)
+  k = 0..(descB.mt-1)
+  n = 0..(descB.nt-1)
 
-alpha[type = Dague_Complex64_t]
+  : A((descB.mt-1)-k,(descB.mt-1)-k)
 
-Am   [type = int]
-An   [type = int]
-Amb  [type = int]
-Anb  [type = int]
-Amt  [type = int]
-Ant  [type = int]
-
-Bm   [type = int]
-Bn   [type = int]
-Bmb  [type = int]
-Bnb  [type = int]
-Bmt  [type = int]
-Bnt  [type = int]
-     
-/**************************************************
- *                      TRSM                      *
- **************************************************/
-TRSM_IN(k)  [profile = off]
-k = 0..Bmt-1
-
-:A(k, k)
-
-READ A <- A(k, k)
-       -> A TRSM(k, 0..Bnt-1)
-
+  RW A <- A((descB.mt-1)-k,(descB.mt-1)-k)
+       -> A ztrsm(k,n)
 BODY
- /* Nothing */
+/* nothing */
 END
 
-TRSM(k, n)
 
-// Execution space
-k = 0..Bmt-1
-n = 0..Bnt-1
 
-// Parallel partitioning
-: B(k,n)
+zgemm(k,m,n1)
+  /* Execution space */
+  k = 0..(descB.mt-2)
+  m = (k+1)..(descB.mt-1)
+  n1 = 0..(descB.nt-1)
 
-// Parameters
-READ  A <- A TRSM_IN(k)
-RW    B <- (k == Bmt-1) ? B(k, n) : C GEMM(k+1, k, n)
-        -> (k > 0) ? B GEMM(k, 0..k-1, n)
-        -> B(k, n)
+  : B((descB.mt-1)-m,n1)
 
-BODY
-      Dague_Complex64_t lalpha = k == Bmt-1 ? alpha : (Dague_Complex64_t)1.0;
-      int tempkm = k == Bmt-1 ? Bm - k * Bmb : Bmb;
-      int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
-      DRYRUN(
-	   CORE_ztrsm(
-			side, uplo, trans, diag,
-			tempkm, tempnn,
-			lalpha, A /*A(k, k)*/, Amb,
-                                B /*B(k, n)*/, Bmb)
-	   );
+  /* B == B((descB.mt-1)-k,n) */
+  /* C == A((descB.mt-1)-m,(descB.mt-1)-k) */
+  /* D == B((descB.mt-1)-k,n1) */
+  /* E == B((descB.mt-1)-m,n1) */
 
-      printlog( "thread %d CORE_ztrsm( %d, %d)\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d)\n",
-                context->eu_id, k, n,
-                plasma_const( side ),  plasma_const( uplo ), 
-                plasma_const( trans ), plasma_const( diag ),
-                tempkm, tempnn,
-                lalpha, k, k, A /*A(k, k)*/, Amb,
-                        k, n, B /*B(k, n)*/, Bmb);
-END
+  READ  C <- C zgemm_in_A0(k,m,n1)
 
-/**************************************************
- *                      GEMM                      *
- **************************************************/
-GEMM_IN(k, m)  [profile = off]
-k = 1..Bmt-1
-m = 0..k-1
+  READ  D <- B ztrsm(k, n1) 
+  RW    E <- (k>=1) ? E zgemm(k-1, m, n1) 
+          <- (0==k) ? B((descB.mt-1)-m,n1)
+          -> ((1+k)==m) ? B ztrsm(m, n1) 
+          -> (m>=(k+2)) ? E zgemm(k+1, m, n1) 
 
-: A(m, k)
+  /*
+  The following is a superset of the necessary anti-dependencies:
+  ANTI edge from zgemm:B((descB.mt-1)-m,n1) to ztrsm:B((descB.mt-1)-k,n) {[k,m,n1] -> [m,n1] : 0 <= k < m < descB.mt && 0 <= n1 < descB.nt}
+  ANTI edge from zgemm:B((descB.mt-1)-m,n1) to zgemm:B((descB.mt-1)-m,n1) {[k,m,n1] -> [k,m,n1] : 0 <= k < m < descB.mt && 0 <= n1 < descB.nt} union
+ {[k,m,n1] -> [k',m,n1] : 0 <= k < k' < m < descB.mt && 0 <= n1 < descB.nt}
 
-READ A <- A(m, k)
-       -> A GEMM(k, m, 0..Bnt-1)
+  */
 
 BODY
- /* Nothing */
+
+  int tempnn = ((n1)==(descB.nt-1)) ? (descB.n-(n1*descB.nb)) : descB.nb;
+  int tempkm = ((k)==(0)) ? (descB.m-((descB.mt-1)*descB.mb)) : descB.mb;
+  Dague_Complex64_t mzone = (Dague_Complex64_t)-1.000000;
+  int ldb = BLKLDD( descB, (descB.mt-1)-k );
+  Dague_Complex64_t lalpha = ((k)==(0)) ? (alpha) : (zone);
+
+  CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, descB.mb, 
+	tempnn, tempkm, mzone, 
+	C /* A((descB.mt-1)-m,(descB.mt-1)-k) */, descA.mb, D /* B((descB.mt-1)-k,n1) */, 
+	ldb, lalpha, E /* B((descB.mt-1)-m,n1) */, 
+	descB.mb );
+  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+           "\t(PlasmaNoTrans, PlasmaNoTrans, descB.mb, tempnn, tempkm, mzone, A(%d,%d)[%p], descA.mb, B(%d,%d)[%p], ldb, lalpha, B(%d,%d)[%p], descB.mb)\n",
+  context->eu_id, k, m, n1, (descB.mt-1)-m, (descB.mt-1)-k, C, (descB.mt-1)-k, n1, D, (descB.mt-1)-m, n1, E);
+
 END
 
-// Name
-GEMM(k, m, n)
+/*
+ * Pseudo-task
+ */
+zgemm_in_A0(k,m,n1)
+  k = 0..(descB.mt-2)
+  m = (k+1)..(descB.mt-1)
+  n1 = 0..(descB.nt-1)
 
-// Execution space
-k = 1..Bmt-1
-m = 0..k-1
-n = 0..Bnt-1
+  : A((descB.mt-1)-m,(descB.mt-1)-k)
 
-// Parallel partitioning
-: B(m, n)
-
-// Parameters
-READ  A <- A GEMM_IN(k, m)  /* It's A(m,k) but we need to swap parameter for the parser */
-READ  B <- B TRSM(k, n)
-RW    C <- (k == Bmt-1) ? B(m, n)      : C GEMM(k+1, m, n)
-        -> (k-1 == m)   ? B TRSM(m, n) : C GEMM(k-1, m, n)
-
+  RW C <- A((descB.mt-1)-m,(descB.mt-1)-k)
+       -> C zgemm(k,m,n1)
 BODY
-      Dague_Complex64_t lalpha = k == Bmt-1 ? alpha : (Dague_Complex64_t)1.0;    
-      int tempkm = k == Bmt-1 ? Bm - k * Bmb : Bmb;
-      int tempnn = n == Bnt-1 ? Bn - n * Bnb : Bnb;
-      DRYRUN(
-	   CORE_zgemm(
-			trans, PlasmaNoTrans,
-			Bmb, tempnn, tempkm,
-			(Dague_Complex64_t)-1.0, A /* A(m, k)*/ , Amb,
-			                         B /* B(k, n)*/ , Bmb,
-			lalpha,                  C /* B(m, n)*/ , Bmb)
-	   );
-
-      printlog("thread %d CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->eu_id,  k, m, n,
-               plasma_const( trans ), plasma_const( PlasmaNoTrans ), 
-               Bmb, tempnn, tempkm,
-	       (Dague_Complex64_t)-1.0, k, m, A, Amb,
-                                        k, n, B, Bmb,
-	       lalpha,                  m, n, C, Bmb);
-
+/* nothing */
 END
+

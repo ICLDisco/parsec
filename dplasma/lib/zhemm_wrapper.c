@@ -13,22 +13,79 @@
 
 #include "zhemm.h"
 
+/***************************************************************************//**
+ *
+ * @ingroup dplasma_Complex64_t
+ *
+ *  dplasma_zhemm_New - Generates dague object to compute the following operation
+ *
+ *     \f[ C = \alpha \times A \times B + \beta \times C \f]
+ *
+ *  or
+ *
+ *     \f[ C = \alpha \times B \times A + \beta \times C \f]
+ *
+ *  where alpha and beta are scalars, A is an hermitian matrix and  B and
+ *  C are m by n matrices.
+ *
+ *******************************************************************************
+ *
+ * @param[in] side
+ *          Specifies whether the hermitian matrix A appears on the
+ *          left or right in the operation as follows:
+ *          = PlasmaLeft:      \f[ C = \alpha \times A \times B + \beta \times C \f]
+ *          = PlasmaRight:     \f[ C = \alpha \times B \times A + \beta \times C \f]
+ *
+ * @param[in] uplo
+ *          Specifies whether the upper or lower triangular part of
+ *          the hermitian matrix A is to be referenced as follows:
+ *          = PlasmaLower:     Only the lower triangular part of the
+ *                             hermitian matrix A is to be referenced.
+ *          = PlasmaUpper:     Only the upper triangular part of the
+ *                             hermitian matrix A is to be referenced.
+ *
+ * @param[in] alpha
+ *          Specifies the scalar alpha.
+ *
+ * @param[in] A
+ *          Descriptor of the triangular matrix A.  A is a ka-by-ka
+ *          matrix, where ka is C->M when side = PlasmaLeft, and is
+ *          C->N otherwise. Only the uplo triangular part is
+ *          referenced.
+ *
+ * @param[in] B
+ *          Descriptor of the M-by-N matrix B
+ *
+ * @param[in] beta
+ *          Specifies the scalar beta.
+ *
+ * @param[in,out] C
+ *          Descriptor of the M-by-N matrix C which is overwritten by
+ *          the result of the operation.
+ *
+ *******************************************************************************
+ *
+ * @return the dague object describing the operation.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zhemm
+ * @sa dplasma_zhemm_Destruct
+ * @sa dplasma_chemm
+ * @sa dplasma_dhemm
+ * @sa dplasma_shemm
+ *
+ ******************************************************************************/
 dague_object_t*
-dplasma_zhemm_New( const PLASMA_enum side, const PLASMA_enum uplo,
-                   const Dague_Complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   const double beta,  tiled_matrix_desc_t* C)
+dplasma_zhemm_New( const PLASMA_enum side, 
+                   const PLASMA_enum uplo,
+                   const Dague_Complex64_t alpha, 
+                   const tiled_matrix_desc_t* A, 
+                   const tiled_matrix_desc_t* B,
+                   const double beta, 
+                   tiled_matrix_desc_t* C)
 {
     dague_zhemm_object_t* object;
-
-    /* Check input arguments */
-    if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        dplasma_error("PLASMA_zhemm", "illegal value of side");
-        return NULL /*-1*/;
-    }
-    if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
-        dplasma_error("PLASMA_zhemm", "illegal value of uplo");
-        return NULL /*-2*/;
-    }
 
     object = dague_zhemm_new(side, uplo, alpha, beta, 
                              *A, (dague_ddesc_t*)A, 
@@ -43,6 +100,27 @@ dplasma_zhemm_New( const PLASMA_enum side, const PLASMA_enum uplo,
     return (dague_object_t*)object;
 }
 
+/***************************************************************************//**
+ *
+ * @ingroup dplasma_Complex64_t
+ *
+ *  dplasma_zhemm_Destruct - Clean the data structures associated to a
+ *  zhemm dague object.
+ *
+ *******************************************************************************
+ *
+ * @param[in] o
+ *          Object to destroy.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zhemm_New
+ * @sa dplasma_zhemm
+ * @sa dplasma_chemm_Destruct
+ * @sa dplasma_dhemm_Destruct
+ * @sa dplasma_shemm_Destruct
+ *
+ ******************************************************************************/
 void
 dplasma_zhemm_Destruct( dague_object_t *o )
 {
@@ -51,12 +129,53 @@ dplasma_zhemm_Destruct( dague_object_t *o )
     dague_zhemm_destroy(zhemm_object);
 }
 
-void
-dplasma_zhemm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum uplo,
-               const Dague_Complex64_t alpha, const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *B,
-               const double beta,  tiled_matrix_desc_t *C)
+/***************************************************************************//**
+ *
+ * @ingroup dplasma_Complex64_t
+ *
+ *  dplasma_zhemm - Synchronous version of dplasma_zhemm_New
+ *
+ *******************************************************************************
+ *
+ * @param[in] dague
+ *          Dague context to which submit the DAG object.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval 0 if success
+ *          \retval < 0 if one of the parameter had an illegal value.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zhemm_Destruct
+ * @sa dplasma_zhemm_New
+ * @sa dplasma_chemm
+ * @sa dplasma_dhemm
+ * @sa dplasma_shemm
+ *
+ ******************************************************************************/
+int
+dplasma_zhemm( dague_context_t *dague, 
+               const PLASMA_enum side, 
+               const PLASMA_enum uplo,
+               const Dague_Complex64_t alpha, 
+               const tiled_matrix_desc_t *A, 
+               const tiled_matrix_desc_t *B,
+               const double beta, 
+               tiled_matrix_desc_t *C)
 {
     dague_object_t *dague_zhemm = NULL;
+
+    /* Check input arguments */
+    if ((side != PlasmaLeft) && (side != PlasmaRight)) {
+        dplasma_error("PLASMA_zhemm", "illegal value of side");
+        return -1;
+    }
+    if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
+        dplasma_error("PLASMA_zhemm", "illegal value of uplo");
+        return -2;
+    }
 
     dague_zhemm = dplasma_zhemm_New(side, uplo, 
                                     alpha, A, B,
@@ -68,4 +187,5 @@ dplasma_zhemm( dague_context_t *dague, const PLASMA_enum side, const PLASMA_enum
         dplasma_progress(dague);
         dplasma_zhemm_Destruct( dague_zhemm );
     }
+    return 0;
 }

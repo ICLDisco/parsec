@@ -1,18 +1,23 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> c
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
-#define PRECISION_z
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
 
@@ -30,7 +35,7 @@ A      [type = "dague_ddesc_t *"]
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
-PLGHE_L(m, n)
+PLGHE_L(m, n)  [profile = off]
 
 // Execution space
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
@@ -61,7 +66,7 @@ BODY
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
-PLGHE_U(m, n)
+PLGHE_U(m, n)  [profile = off]
 
 // Execution space
 m = 0   .. descA.mt-1
@@ -92,7 +97,7 @@ BODY
                  descA.m, m*descA.mb, n*descA.nb, seed);
 END
 
-PLGHE_DIAG(k)
+PLGHE_DIAG(k)  [profile = off]
 
 // Execution space
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )

@@ -1,16 +1,25 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmajdf.h"
+
 %}
 
 /*
@@ -22,41 +31,25 @@ transB [type = int]
 alpha  [type = Dague_Complex64_t]
 beta   [type = Dague_Complex64_t]
 
-Am   [type = int]
-An   [type = int]
-Amb  [type = int]
-Anb  [type = int]
-Amt  [type = int]
-Ant  [type = int]
+descA [type = "tiled_matrix_desc_t"]
+A     [type = "dague_ddesc_t *"]
+descB [type = "tiled_matrix_desc_t"]
+B     [type = "dague_ddesc_t *"]
+descC [type = "tiled_matrix_desc_t"]
+C     [type = "dague_ddesc_t *"]
 
-Bm   [type = int]
-Bn   [type = int]
-Bmb  [type = int]
-Bnb  [type = int]
-Bmt  [type = int]
-Bnt  [type = int]
-
-Cm   [type = int]
-Cn   [type = int]
-Cmb  [type = int]
-Cnb  [type = int]
-Cmt  [type = int]
-Cnt  [type = int]
-
-/* A(M, K) * B(K, N) = C(M, N) */
 /**************************************************
  *                       READ_A                   *
  **************************************************/
 READ_A(m, k)  [profile = off]
 
-m = 0 .. Amt-1
-k = 0 .. Ant-1
+m = 0 .. descA.mt-1
+k = 0 .. descA.nt-1
 
 : A(m, k)
 
-A  <- A(m, k)
-   -> A GEMM(m, 0, k)
-
+A <- A(m, k)
+  -> A GEMM(m, 0, k)
 BODY
     printlog("rank %u <- A(%d,%d)\n", __dague_object->super.A->myrank, m, k);
 END
@@ -66,8 +59,8 @@ END
  **************************************************/
 READ_B(k, n)  [profile = off]
 
-k = 0 .. Bmt-1
-n = 0 .. Bnt-1
+k = 0 .. descB.mt-1
+n = 0 .. descB.nt-1
 
 : B(k, n)
 
@@ -83,43 +76,46 @@ END
 GEMM(m, n, k)
 
 // Execution space
-m = 0 .. Cmt-1
-n = 0 .. Cnt-1
-k = 0 .. Ant-1
+m = 0 .. descC.mt-1
+n = 0 .. descC.nt-1
+k = 0 .. descA.nt-1
 
 // Parallel partitioning
 : C(m, n)
 
 // Parameters
-
-READ A <- (n == 0)       ? A READ_A(m, k) : A GEMM( m, (n+Cnt-1) % Cnt, k )
-       -> (n <= (Cnt-2)) ? A GEMM( m, (n+1) % Cnt, k )
-READ B <- (m == 0)       ? B READ_B(k, n) : B GEMM( (m+Cmt-1) % Cmt, n, k )
-       -> (m <= (Cmt-2)) ? B GEMM( (m+1) % Cmt, n, k )
-RW   C <- (k == 0)       ? C(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (Ant-1)) ? C(m, n) : C GEMM( m, n, k+1 )
+READ A <- (n == 0)            ? A READ_A(m, k) : A GEMM( m, (n+descC.nt-1) % descC.nt, k )
+       -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
+READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
+       -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
+RW   C <- (k == 0)            ? C(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (descA.nt-1)) ? C(m, n) : C GEMM( m, n, k+1 )
 BODY
         Dague_Complex64_t lbeta = (k == 0) ? beta : (Dague_Complex64_t)1.0;
-        int tempmm = m == Cmt-1 ? Cm - m * Cmb : Cmb;
-        int tempnn = n == Cnt-1 ? Cn - n * Cnb : Cnb;
-        int tempkk = k == Ant-1 ? An - k * Anb : Anb;
+        int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
+        int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
+        int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
+        int ldam = BLKLDD(descA, m);
+        int ldbk = BLKLDD(descB, k);
+        int ldcm = BLKLDD(descC, m);
+
         DRYRUN(
             CORE_zgemm(
                 transA, transB,
                 tempmm, tempnn, tempkk,
-                alpha, A /*A(k, m)*/, Amb,
-                       B /*B(n, k)*/, Bmb,
-                lbeta, C /*C(m, n)*/, Cmb);
+                alpha, A /*A(m, k)*/, ldam,
+                       B /*B(k, n)*/, ldbk,
+                lbeta, C /*C(m, n)*/, ldcm);
             );
 
         printlog("thread %d gemm( %d, %d, %d )\n"
                  "    ( %s, %s, %d, %d, %d, %f, A(%d,%d), %d, B(%d,%d), %d, %f, C(%d,%d), %d)\n",
                  context->eu_id, m, n, k,
-                 plasma_const( transA ), plasma_const( transB ), 
+                 plasma_const( transA ), plasma_const( transB ),
                  tempmm, tempnn, tempkk,
-                 alpha, k, m, Amb,
-                        n, k, Bmb,
-                 lbeta, m, n, Cmb );
+                 creal(alpha), m, k, ldam,
+                               k, n, ldbk,
+                 creal(lbeta), m, n, ldcm );
 END
 
 extern "C" %{

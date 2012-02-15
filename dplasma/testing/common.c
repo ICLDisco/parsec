@@ -95,18 +95,21 @@ void print_usage(void)
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
             " -d --domino       : Enable/Disable the domino between upper and lower trees. (specific to xgeqrf_param) (default: 1)\n"
+            " -r --tsrr         : Enable/Disable the round-robin on TS domain. (specific to xgeqrf_param) (default: 1)\n"
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
+	    " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
            );
+    dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:k::N:M:K:A:B:C:i:t:T:s:S:xv::hd:r:y:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -148,11 +151,17 @@ static struct option long_options[] =
     {"S",           required_argument,  0, 'S'},
     {"check",       no_argument,        0, 'x'},
     {"x",           no_argument,        0, 'x'},
+
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
+    {"d",           required_argument,  0, 'd'},
     {"domino",      required_argument,  0, 'd'},
+    {"r",           required_argument,  0, 'r'},
+    {"tsrr",        required_argument,  0, 'r'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
+    {"butlvl",      required_argument,  0, 'y'},
+    {"y",           required_argument,  0, 'y'},
 
     {"dot",         required_argument,  0, '.'},
 
@@ -229,9 +238,12 @@ static void parse_arguments(int argc, char** argv, int* iparam)
             case 's': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'S': iparam[IPARAM_SMB] = atoi(optarg); break;
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break; 
+
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
             case 'd': iparam[IPARAM_QR_DOMINO] = atoi(optarg) ? 1 : 0; break;
+	    case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
+            case 'r': iparam[IPARAM_QR_TSRR] = atoi(optarg) ? 1 : 0; break;
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
 
@@ -372,6 +384,7 @@ static void iparam_default(int* iparam)
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
     iparam[IPARAM_QR_DOMINO] = 1;
+    iparam[IPARAM_QR_TSRR] = 1;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)
@@ -421,7 +434,8 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     argvzero = argv[0];
 #endif
 #ifdef HAVE_MPI
-    MPI_Init(&argc, &argv);
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]); 
 #else
@@ -431,6 +445,11 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     parse_arguments(argc, argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
+
+#ifdef HAVE_MPI
+    if((verbose > 2) && (provided != MPI_THREAD_SERIALIZED))
+        fprintf(stderr, "!!! DAGuE formally needs MPI_THREAD_SERIALIZED, but your MPI does not provide it. This is -usually- fine nonetheless\n");
+#endif 
     
     TIME_START();
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES], &argc, &argv);

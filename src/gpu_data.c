@@ -16,6 +16,7 @@ static int using_gpu = 0;
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <errno.h>
 #include "lifo.h"
 
 static CUcontext dague_allocate_on_gpu_context;
@@ -31,20 +32,14 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
         status = cuCtxPushCurrent( dague_allocate_on_gpu_context );
         DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuCtxPushCurrent ", status,
                                 { 
-                                    fprintf(stderr, 
-                                            "Unable to allocate GPU-compatible data as requested.\n");
-                                    assert(0);
-                                    exit(2);
+                                    ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
                                 } );
 
         status = cuMemHostAlloc( (void**)&mat, matrix_size, CU_MEMHOSTALLOC_PORTABLE);
         if( CUDA_SUCCESS != status ) {
             DAGUE_CUDA_CHECK_ERROR( "(dague_allocate_matrix) cuMemHostAlloc failed ", status,
                                     { 
-                                        fprintf(stderr, 
-                                                "Unable to allocate GPU-compatible data as requested.\n");
-                                        assert(0);
-                                        exit(2);
+                                        ERROR(("Unable to allocate GPU-compatible data as requested.\n"));
                                     } );
         }
         status = cuCtxPopCurrent(NULL);
@@ -55,8 +50,7 @@ static void* dague_allocate_data_gpu(size_t matrix_size)
     }
 
     if( NULL == mat ) {
-        printf("memory allocation of %lu\n", (unsigned long) matrix_size);
-        perror("matrix allocation failed");
+        WARNING(("memory allocation of %lu failed (%s)\n", (unsigned long) matrix_size, strerror(errno)));
         return NULL;
     }
     return mat;
@@ -171,27 +165,27 @@ int dague_gpu_init(int* puse_gpu, int dague_show_detailed_capabilities)
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {ndevices = 0; return -1;} );
 
-        printf("Device %d (capability %d.%d): %s\n", i, major, minor, szName );
         if( dague_show_detailed_capabilities ) {
-            printf("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock );
-            printf("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
-                   devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] );
-            printf("\tmaxGridSize        : [%d %d %d]\n", devProps.maxGridSize[0],
-                   devProps.maxGridSize[1], devProps.maxGridSize[2] );
-            printf("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock );
-            printf("\tconstantMemory     : %d\n", devProps.totalConstantMemory );
-            printf("\tSIMDWidth          : %d\n", devProps.SIMDWidth );
-            printf("\tmemPitch           : %d\n", devProps.memPitch );
-            printf("\tregsPerBlock       : %d\n", devProps.regsPerBlock );
-            printf("\tclockRate          : %d\n", devProps.clockRate );
-            printf("\tconcurrency        : %s\n", (concurrency == 1 ? "yes" : "no") );
+            STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
+            STATUS(("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock ));
+            STATUS(("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
+                   devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] ));
+            STATUS(("\tmaxGridSize        : [%d %d %d]\n", devProps.maxGridSize[0],
+                   devProps.maxGridSize[1], devProps.maxGridSize[2] ));
+            STATUS(("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock ));
+            STATUS(("\tconstantMemory     : %d\n", devProps.totalConstantMemory ));
+            STATUS(("\tSIMDWidth          : %d\n", devProps.SIMDWidth ));
+            STATUS(("\tmemPitch           : %d\n", devProps.memPitch ));
+            STATUS(("\tregsPerBlock       : %d\n", devProps.regsPerBlock ));
+            STATUS(("\tclockRate          : %d\n", devProps.clockRate ));
+            STATUS(("\tconcurrency        : %s\n", (concurrency == 1 ? "yes" : "no") ));
         }
         status = cuDeviceTotalMem( &total_mem, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceTotalMem ", status, {ndevices = 0; return -1;} );
 
         gpu_device = (gpu_device_t*)calloc(1, sizeof(gpu_device_t));
         gpu_devices[i] = gpu_device;
-        dague_dequeue_construct(&gpu_device->pending);
+        dague_list_construct(&gpu_device->pending);
         gpu_device->major = major;
         gpu_device->minor = minor;
         

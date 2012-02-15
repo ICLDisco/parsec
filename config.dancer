@@ -1,62 +1,85 @@
-#!/bin/sh
+#!/bin/bash
 rm -rf CMakeCache.txt CMakeFiles
 
-LOCATION=`dirname $0`
-HWLOC="/opt/hwloc"
-CUDA="/opt/cuda"
+USER_OPTIONS="$* "
 
-if [ "x$USER" = "xbosilca" ]; then
-  HWLOC="/home/bosilca/opt/"
-  PLASMADIR="/home/bosilca/opt/plasma/intel/"
-  CC=icc
-  FC=ifort
-elif [ "x$USER" = "xherault" ]; then
-  HWLOC="/opt/hwloc"
-  PLASMADIR="/home/bosilca/opt/plasma/intel/"
-  CUDA="/opt/cuda"
-  MPI="-DMPI_COMPILER=/usr/bin/mpicc"
-  DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
-elif [ "x$USER" = "xmfaverge" ]; then
-  HWLOC="/opt/hwloc"
-  PLASMADIR="/home/mfaverge/opt/plasma-intel/"
-  #CUDA="/opt/cuda"
-  MPI="-DMPI_COMPILER=/usr/bin/mpicc -DDAGUE_GPU_WITH_CUDA=OFF"
-  DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
-elif [ "x$USER" = "xYOURSELF" ]; then
-  HWLOC=SOMEWHERE
-  PLASMADIR=SOMEWHERE
-  CUDA=SOMEWHERE
-  DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=SOMEWHERE"
+## Defaults for Dancer machine (Linux cluster)
+CC=${CC:="icc"}
+CXX=${CXX:="icpc"}
+FC=${FC:="ifort"}
+MPI_DIR=${MPI_DIR:="/opt/ompi"}
+HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}  
+CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
+OMEGA_DIR=${OMEGA_DIR:="/opt/Omega/"}
+if [ "x${CC}" = "xgcc" ]; then
+    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
 else
-  PLASMADIR="/opt/plasma"
-  # for dplasma rev < #2640
-  #PLASMADIR="/opt/plasma/"
-  #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
-  #DAGUE_Q2J="-DDAGUE_Q2J=ON -DDAGUE_OMEGA_DIR=/home/adanalis/pub/Omega/"
+    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 fi
 
-PLASMA="-DPLASMA_DIR=${PLASMADIR}"
+
+if [ "x$USER" = "xbosilca" ]; then
+  HWLOC_DIR="/home/bosilca/opt/"
+  MPI_DIR="/home/bosilca/opt/mpi"
+elif [ "x$USER" = "xherault" ]; then
+  #MPI="-DMPI_COMPILER=/usr/bin/mpicc"
+  USER_OPTIONS+="-DDAGUE_Q2J=ON"
+
+elif [ "x${USER}" = "xmfaverge" ]; then
+  if [ "x${CC}" = "xgcc" ]; then
+      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
+  else
+      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
+  fi
+  #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
+  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
+  USER_OPTIONS+=" -DDAGUE_Q2J=ON"
+  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
+
+elif [ "x$USER" = "xYOURSELF" ]; then
+  PLASMA_DIR="SOMEWHERE"
+  USER_OPTIONS+="-DDAGUE_OPTION=ON"
+
+fi
+
+
+#####
+## Cmake does not have a clean interface for FindXXX modules, everyone has a different flavor. Reconciliation.
+
+if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
+  MPI="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc -DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpic++ -DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90"
+# Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
+fi
+
+if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -eq 0 ]; then
+    echo "With HWLOC"
+  HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
+fi
+
+if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
+  export CUDA_BIN_PATH=${CUDA_DIR}
+fi
+
+if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
+  Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
+fi
+
+if [ "${PLASMA_DIR}" ]; then
+  PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 # If your system do not provide pkg-config or you don't have
 # a recent version of PLASMA (2.1.0 at least), then instead
 # of using only -DPLASMA_DIR=... you should use
-# -DPLASMA_LDFLAGS="-L${PLASMADIR} -L/opt/mkl/lib/em64t" and
+# -DPLASMA_LDFLAGS="-L${PLASMA_DIR} -L/opt/mkl/lib/em64t" and
 # -DPLASMA_LIBRARIES="-lplasma -lcoreblas -lquark -llapacke -lmkl_gf_lp64 -lmkl_sequential -lmkl_core  -lpthread -lm"
 
-#PLASMA="-DPLASMA_DIR=${PLASMADIR} \
-#        -DPLASMA_LDFLAGS=\\\"-L${PLASMADIR}/lib -L/opt/mkl/lib/em64t\\\" \
+#PLASMA="-DPLASMA_DIR=${PLASMA_DIR} \
+#        -DPLASMA_LDFLAGS=\\\"-L${PLASMA_DIR}/lib -L/opt/mkl/lib/em64t\\\" \
 #        -DPLASMA_LIBRARIES=\\\"-lplasma -lcoreblas -lquark -llapacke -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lm\\\""
-
-if [ "x$1" = "xgcc" ]; then
-  # to compile with gcc and plasma-2.1
-  echo cmake -G "Unix Makefiles" ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
-  cmake -G "Unix Makefiles" ${PLASMA} -DCUDA_DIR=/opt/cuda -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
-else
-  # Compile with icc, ifort, plasma 2.2
-  /opt/intel/Compiler/11.1/072/bin/iccvars.sh intel64
-  /opt/intel/Compiler/11.1/072/bin/ifortvars.sh intel64
-  export CC=icc
-  export CXX=icpc
-  export FC=ifort
-  echo cmake -G "Unix Makefiles" ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
-  cmake -G "Unix Makefiles" ${MPI} ${PLASMA} -DCUDA_DIR=${CUDA} -DHWLOC_DIR=${HWLOC} ${DAGUE_Q2J} ${LOCATION}
 fi
+
+# Done with variable allocation, do the thing with Cmake
+LOCATION=`dirname $0`
+export CC CXX FC
+
+echo cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" ${MPI} ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}

@@ -1,23 +1,28 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include "dague.h"
 #include <math.h>
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma_qr_pivgen.h"
   
-#define PRECISION_z
-#define BLKLDD(_desc, _k) (_desc).mb
 #define MYMIN(a, b) ((a)<(b)?(a):(b))
 #define MYMAX(a, b) ((a)>(b)?(a):(b))
 
@@ -65,8 +70,8 @@ param_d[type = int default="pivfct->domino" hidden=on]
 zgeqrt_typechange(k, i)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descA.mt ) - 1; %}
-  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
     
   : A(m, k)
 
@@ -82,8 +87,8 @@ END
 zgeqrt(k, i)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descA.mt ) - 1; %}
-  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
   nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descA.mt); %}
 
   SIMCOST 4
@@ -128,7 +133,7 @@ BODY
 
 #if defined(DAGUE_SIM)
   if ( descA.mt-1 == k )
-    ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(exec_context->sim_exec_date);
+    ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
   printlog("thread %d CORE_zgeqrt(%d, %d)\n"
            "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -140,9 +145,9 @@ END
 zunmqr(k, i, n)
   /* Execution space */
   k = 0..( ( descA.mt < descA.nt ) ? descA.mt-1 : descA.nt-1)
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( param_a, param_p, param_d, k, descA.mt ) - 1; %}
+  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
-  m = inline_c %{ return dplasma_qr_getm( param_a, param_p, param_d, k, i); %}
+  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
   nextm = inline_c %{ return dplasma_qr_nextpiv( pivfct, m, k, descA.mt); %}
 
   SIMCOST 6
@@ -210,9 +215,9 @@ zttqrt(k, m)
   nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
   prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
-  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k, p ); %}
-  im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k, m ); %}
+  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k, p ); %}
+  im    = inline_c %{ return dplasma_qr_geti(    pivfct, k, m ); %}
 
   SIMCOST inline_c %{ return type == 0 ? 6 : 2; %}
 
@@ -268,9 +273,9 @@ BODY
          );
 
 #if defined(DAGUE_SIM)
-  ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(exec_context->sim_exec_date);
+  ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
   if ( ( ( nextp == descA.mt ) & (p == k) ) )
-    ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(exec_context->sim_exec_date);
+    ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
   printlog("thread %d CORE_zttqrt(%d, %d)\n"
            "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -301,11 +306,11 @@ zttmqr(k, m, n)
   nextp = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
   prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, p, k, m); %}
   prevm = inline_c %{ return dplasma_qr_prevpiv(pivfct, m, k, m); %}
-  type  = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k,   m ); %}
-  type1 = inline_c %{ return dplasma_qr_gettype( param_a, param_p, param_d, k+1, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   p ); %}
-  im    = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k,   m ); %}
-  im1   = inline_c %{ return dplasma_qr_geti(    param_a, param_p, param_d, k+1, m ); %}
+  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
+  type1 = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
+  ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
+  im    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   m ); %}
+  im1   = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
 
   SIMCOST inline_c %{ return type == 0 ? 12 : 6; %}
 

@@ -1,10 +1,22 @@
 extern "C" %{
-
+/*
+ *  Copyright (c) 2010      
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
 #include <plasma.h>
+#include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
 %}
@@ -14,14 +26,16 @@ extern "C" %{
  */
 uplo     [type = PLASMA_enum]
 descA    [type = "tiled_matrix_desc_t"]
+A        [type = "dague_ddesc_t*"]
 descB    [type = "tiled_matrix_desc_t"]
+B        [type = "dague_ddesc_t*"]
 operator [type = "dague_operator_t" ]
 op_args  [type = "void *" ]
 
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
-map_l_in_Amn(m, n)
+map_l_in_Amn(m, n)   [profile = off]
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
     
@@ -33,7 +47,7 @@ BODY
 /* nothing */
 END
 
-MAP_L(m, n)
+MAP_L(m, n)  [profile = off]
 // Execution space
 m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
 n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
@@ -56,7 +70,7 @@ BODY
            context->eu_id, m, n );
 END
 
-map_u_in_Amn(m, n)
+map_u_in_Amn(m, n)  [profile = off]
 m = 0   .. descA.mt-1
 n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
     
@@ -68,7 +82,7 @@ BODY
 /* nothing */
 END
 
-MAP_U(m, n)
+MAP_U(m, n)  [profile = off]
 
 // Execution space
 m = 0   .. descA.mt-1
@@ -93,7 +107,7 @@ BODY
 
 END
 
-map_diag_in_Akk(k)
+map_diag_in_Akk(k)  [profile = off]
      k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
     
   : A(k, k)
@@ -104,7 +118,7 @@ BODY
 /* nothing */
 END
 
-MAP_DIAG(k)
+MAP_DIAG(k)  [profile = off]
 
 // Execution space
 k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )

@@ -273,6 +273,15 @@ jdf:            jdf function
                         inline_c_functions = NULL;
                     }
                 }
+        | jdf properties
+                {
+                    jdf_def_list_t *p;
+                    if( NULL != $2 ) {
+                        for(p = $2; p->next != NULL; p = p->next) /*nothing*/ ;
+                        p->next = current_jdf.global_properties;
+                        current_jdf.global_properties = $2;
+                    }
+                }
         |
                 {
                     jdf_expr_t *el;
@@ -459,40 +468,76 @@ dependency:   ARROW guarded_call properties
               {
                   struct jdf_name_list *g, *e, *prec;
                   jdf_dep_t *d = new(jdf_dep_t);
-                  jdf_expr_t* expr;
+                  jdf_expr_t *expr_simple, *expr_complex;
                   jdf_def_list_t* property;
 
                   d->type = $1;
                   d->guard = $2;
-                  if( NULL == $3 ) {
-                      $3 = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );
-                  }
-                  $2->properties = $3;
 
-                  expr = jdf_find_property( $3, "type", &property );
-                  assert( NULL != expr );
-                  if( (JDF_VAR != expr->op) && (JDF_STRING != expr->op) ) {
-                      printf("Warning: Incorrect value for the \"type\" property defined at line %d\n", property->lineno );
-                  } else {
-                      for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
-                          if( 0 == strcmp(expr->jdf_var, g->name) ) {
-                              break;
+                  expr_simple = jdf_find_property( $3, "type", &property );
+                  expr_complex = jdf_find_property( $3, "arena_index", &property );
+
+                  /* If neither is defined, we define the old simple DEFAULT arena */
+                  property = NULL;
+                  if( NULL == expr_simple && NULL == expr_complex ) {
+                      property = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );
+                      expr_simple = jdf_find_property( property, "type", &property );
+                  }
+                  if( NULL == property )
+                      property = $3;
+                  else
+                      property->next = $3;
+                  $2->properties = property;
+
+                  if( NULL != expr_simple ) {
+                      if( NULL != expr_complex ) {
+                          jdf_fatal(current_lineno, "Dependency defined with both properties type and arena_index\n");
+                          YYERROR;
+                      }
+                      /* Simple old type */
+                      if( JDF_STRING == expr_simple->op ||
+                          JDF_VAR == expr_simple->op ) {
+                          /* Old way: [type = SOMETHING] -> define the DAGUE_ARENA_SOMETHING arena index */
+                          d->datatype.simple = 1;
+                          for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+                              if( 0 == strcmp(expr_simple->jdf_var, g->name) ) {
+                                  break;
+                              }
+                              prec = g;
                           }
-                          prec = g;
-                      }
-                  }
-                  if( NULL == g ) {
-                      e = new(struct jdf_name_list);
-                      e->name = strdup(expr->jdf_var);
-                      e->next = NULL;
-                      if( NULL != prec ) {
-                          prec->next = e;
+                          if( NULL == g ) {
+                              e = new(struct jdf_name_list);
+                              e->name = strdup(expr_simple->jdf_var);
+                              e->next = NULL;
+                              if( NULL != prec ) {
+                                  prec->next = e;
+                              } else {
+                                  current_jdf.datatypes = e;
+                              }
+                          }
+                          d->datatype.u.simple_name = strdup(expr_simple->jdf_var);
                       } else {
-                          current_jdf.datatypes = e;
+                          /* Let's allow [type = inline_c %{ ... %}], even if it should really be [arena_index = inline_c %{ ... %} ] */
+                          expr_complex = expr_simple;
+                          expr_simple = NULL;
                       }
                   }
-                  d->datatype_name = strdup(expr->jdf_var);
+                  if( NULL != expr_complex ) {
+                      assert(NULL == expr_simple);
+                      d->datatype.simple = 0;
+                      d->datatype.u.complex_expr = expr_complex;
+                  }
+
+                  expr_simple = jdf_find_property( d->guard->properties, "nb_elt", &property );
+                  if( NULL == expr_simple ) {
+                      d->datatype.nb_elt = new(jdf_expr_t);
+                      d->datatype.nb_elt->op = JDF_CST;
+                      d->datatype.nb_elt->jdf_cst = 1;
+                  } else {
+                      d->datatype.nb_elt = expr_simple;
+                  }
                   d->lineno = current_lineno;
+
                   $$ = d;
               }
        ;

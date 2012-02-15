@@ -17,6 +17,38 @@ enable_testing()
 # ccmake tunable parameters
 #####
 
+## Selectively compile only parts of the framework
+option(BUILD_TOOLS
+       "Build the helper tools such as the pre-compilers, profiling manipulation and so on" ON)
+mark_as_advanced(BUILD_TOOLS)
+option(BUILD_DAGUE
+       "Compile the DAGuE framework" ON)
+mark_as_advanced(BUILD_DAGUE)
+if( BUILD_DAGUE )
+  if( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
+    message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
+  endif( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
+endif( BUILD_DAGUE )
+option(BUILD_DPLASMA
+       "Compile the DPLASMA layer" ON)
+mark_as_advanced(BUILD_DPLASMA)
+if( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE framework")
+endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+
+### Misc options
+option(BUILD_SHARED_LIBS
+  "Build shared libraries" OFF)
+option(BUILD_64bits
+  "Build 64 bits mode" ON)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+### Dague PP options
+set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
+mark_as_advanced(DAGUEPP_CFLAGS)
+
 ## Multicore scheduler parameters
 mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
@@ -57,23 +89,26 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-mark_as_advanced(DAGUE_DEBUG_LIFO_USES_LOCKS)
 option(DAGUE_DEBUG
-  "Enable the internal debugging verbose output of the DAGUE library" OFF)
-option(DAGUE_DEBUG_LIFO_USES_LOCKS
-  "Use a spinlock-based implementation of LIFOs (instead of an atomic operations-based LIFO implementation)" OFF)
+    "Enable extra paranoid checks" OFF)
+set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
+    "Controls the amount of verbose debug output spit on stderr (0,1,2,3)")
 option(DAGUE_DEBUG_HISTORY
   "Keep a sumarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
-option(DAGUE_DEBUG_BUILD_UNIT_TESTS
-  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
-option(DAGUE_DEBUG_QR_PIVGEN
-  "Enable the QR pivgen testings" OFF)
+option(DAGUE_DEBUG_BUILD_UNIT_TESTS
+  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
+mark_as_advanced(DAGUE_DEBUG_LIFO_USE_ATOMICS)
+option(DAGUE_DEBUG_LIFO_USE_ATOMICS
+  "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)" ON)
 
 ### Simulating Options
 option(DAGUE_SIM
   "Enable the computation of the critical path, through simulation" OFF)
+if( DAGUE_SIM AND DAGUE_DIST_WITH_MPI )
+  message(FATAL_ERROR "DAGUE_SIM cannot be enabled with DAGUE_DIST_WITH_MPI, please select only one")
+endif()
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
@@ -107,22 +142,6 @@ if(DAGUE_Q2J)
   endif(DAGUE_OMEGA_DIR)
 endif(DAGUE_Q2J)
 
-### Misc options
-option(BUILD_SHARED_LIBS
-  "Build shared libraries" OFF)
-option(BUILD_64bits
-  "Build 64 bits mode" ON)
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
-
-### Dague PP options
-set(DAGUEPP_CFLAGS "" CACHE STRING "Additional daguepp precompiling flags" )
-mark_as_advanced(DAGUEPP_CFLAGS)
-
-
-
-
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
@@ -131,14 +150,15 @@ include (CheckFunctionExists)
 include (CheckSymbolExists)
 include (CheckIncludeFiles)
 
-
 #
 # check the capabilities of the system we are building for 
 #
 
-# Check for compiler tools 
-find_package(BISON)
-find_package(FLEX)
+IF( BUILD_TOOLS )
+  # Check for compiler tools 
+  find_package(BISON)
+  find_package(FLEX)
+ENDIF( BUILD_TOOLS )
 
 # Fortran tricks
 STRING(REGEX MATCH ".*ifort$" _match_ifort ${CMAKE_Fortran_COMPILER})
@@ -153,6 +173,29 @@ IF (_match_ftn)
     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
 ENDIF (_match_ftn)
 
+STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
+IF (_match_xlc)
+     MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
+ENDIF (_match_xlc)
+STRING(REGEX MATCH ".*xlc_r$" _match_xlc ${CMAKE_C_COMPILER})
+IF (_match_xlc AND BUILD_64bits)
+     MESSAGE(STATUS "Add -q64 to the C compiler/linker.")
+     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -q64")
+ENDIF (_match_xlc AND BUILD_64bits)
+
+STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
+IF (_match_xlf)
+     MESSAGE(ERROR "Please use the thread-safe version of the xlf compiler (xlf_r)")
+ENDIF (_match_xlf)
+STRING(REGEX MATCH ".*xlf_r$" _match_xlf ${CMAKE_Fortran_COMPILER})
+IF (_match_xlf)
+  SET(arch_flags "-q32")
+  IF(BUILD_64bits)
+     SET(arch_flags "-q64")
+  ENDIF(BUILD_64bits)
+  MESSAGE(STATUS "Add ${arch_flags} and -nofor_main to the Fortran linker.")
+  SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${arch_flags} -nofor_main")
+ENDIF (_match_xlf)
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
@@ -191,9 +234,17 @@ ENDIF (_mach_ppc)
 #
 set(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 if (BUILD_64bits)
-  set( ARCH_BUILD "-m64" )
+  if( _match_xlc)
+    set( ARCH_BUILD "-q64" )
+  else (_match_xlc)
+    set( ARCH_BUILD "-m64" )
+  endif(_match_xlc)
 else (BUILD_64bits)
-  set( ARCH_BUILD "-m32" )
+  if( _match_xlc)
+    set( ARCH_BUILD "-q32" )
+  else (_match_xlc)
+    set( ARCH_BUILD "-m32" )
+  endif(_match_xlc)
 endif (BUILD_64bits)
 
 set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${ARCH_BUILD}")
@@ -211,10 +262,17 @@ unset( SAVE_CMAKE_REQUIRED_FLAGS )
 #
 # Check compiler flags and capabilities
 #
-CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
-IF( HAVE_STD_C99 )
-  SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-ENDIF( HAVE_STD_C99 )
+IF( NOT _match_xlc )
+  CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
+  IF( HAVE_STD_C99 )
+    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
+  ENDIF( HAVE_STD_C99 )
+ELSE( NOT _match_xlc )
+  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" HAVE_STD_C99)
+  IF( HAVE_STD_C99 )
+    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qlanglvl=extc99" )
+  ENDIF( HAVE_STD_C99 )
+ENDIF( NOT _match_xlc )
 
 # Set warnings for debug builds 
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
@@ -236,7 +294,12 @@ IF( HAVE_WD )
     # 1572: cuda compares floats with 0.0f. 
     SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
 ENDIF( HAVE_WD )
-SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
+CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
+IF( HAVE_G3 )
+    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 ${C_WFLAGS}" )
+ELSE()
+    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 ${C_WFLAGS}" )
+ENDIF( HAVE_G3)
 SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
 
 # threads and atomics
@@ -273,10 +336,30 @@ endif( HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
 check_include_files(stdarg.h HAVE_STDARG_H)
-check_function_exists(va_copy HAVE_VA_COPY)
-if (NOT HAVE_VA_COPY)
-  check_function_exists(__va_copy HAVE_UNDERSCORE_VA_COPY)
-endif (NOT HAVE_VA_COPY)
+# va_copy is special as it is not required to be a function.
+if (HAVE_STDARG_H)
+  check_c_source_compiles("
+      #include <stdarg.h>
+      int main(void) {
+          va_list a, b;
+          va_copy(a, b);
+          return 0;
+      }"
+      HAVE_VA_COPY
+      )
+ 
+  if (NOT HAVE_VA_COPY)
+    check_c_source_compiles("
+        #include <stdarg.h>
+        int main(void) {
+            va_list a, b;
+            __va_copy(a, b);
+            return 0;
+        }"
+        HAVE_UNDERSCORE_VA_COPY
+        )
+  endif (NOT HAVE_VA_COPY)
+endif (HAVE_STDARG_H)
 check_function_exists(asprintf HAVE_ASPRINTF)
 check_function_exists(vasprintf HAVE_VASPRINTF)
 check_include_files(getopt.h HAVE_GETOPT_H)
@@ -291,72 +374,74 @@ check_include_files(string.h HAVE_STRING_H)
 #
 # Find optional packages
 #
-find_package(HWLOC QUIET)
-set(HAVE_HWLOC ${HWLOC_FOUND})
-if( HWLOC_FOUND )
-  list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
-  list(APPEND EXTRA_LIBS ${HWLOC_LIB})
-  include_directories( ${HWLOC_INCLUDE_DIR} )
-else( HWLOC_FOUND )
-  if( DAGUE_SCHED_CACHE_AWARE OR DAGUE_SCHED_HIERARCHICAL_QUEUES)
-    message( WARNING "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES require the HWLOC package, but it has not been found. Revert to flat queues." )
-    set(DAGUE_SCHED_CACHE_AWARE 0)
-    set(DAGUE_SCHED_HIERARCHICAL_QUEUES 0)
-  endif()
-endif (HWLOC_FOUND)
+IF( BUILD_DAGUE )
+  find_package(HWLOC QUIET)
+  set(HAVE_HWLOC ${HWLOC_FOUND})
+  if( HWLOC_FOUND )
+    list(APPEND EXTRA_SOURCES src/dague_hwloc.c)
+    list(APPEND EXTRA_LIBS ${HWLOC_LIB})
+    include_directories( ${HWLOC_INCLUDE_DIR} )
+  else( HWLOC_FOUND )
+    if( DAGUE_SCHED_CACHE_AWARE OR DAGUE_SCHED_HIERARCHICAL_QUEUES)
+      message( WARNING "DAGUE_SCHED_CACHE_AWARE and DAGUE_SCHED_HIERARCHICAL_QUEUES require the HWLOC package, but it has not been found. Revert to flat queues." )
+      set(DAGUE_SCHED_CACHE_AWARE 0)
+      set(DAGUE_SCHED_HIERARCHICAL_QUEUES 0)
+    endif()
+  endif (HWLOC_FOUND)
 
-if (DAGUE_DIST_WITH_MPI)
-  find_package(MPI REQUIRED)
+  if (DAGUE_DIST_WITH_MPI)
+    find_package(MPI REQUIRED)
+    if (MPI_FOUND)
+      set(HAVE_MPI 1)
+      include_directories( ${MPI_INCLUDE_PATH} )
+    else (MPI_FOUND)
+      set(HAVE_MPI 0)
+      message(WARNING "MPI support is required in order to build the distributed version of DAGuE."
+        "Unfortunately, MPI does not seem to be properly installed on this system, at least"
+        "not on the default path.")
+    endif (MPI_FOUND)
+  endif (DAGUE_DIST_WITH_MPI)
+  #
+  # Check to see if support for MPI 2.0 is available
+  #
   if (MPI_FOUND)
-    set(HAVE_MPI 1)
-    include_directories( ${MPI_INCLUDE_PATH} )
-  else (MPI_FOUND)
-    set(HAVE_MPI 0)
-    message(WARNING "MPI support is required in order to build the distributed version of DAGuE."
-      "Unfortunately, MPI does not seem to be properly installed on this system, at least"
-      "not on the default path.")
+    set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
+    set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
+    set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
+    set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
+    check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
+    set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
+    set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
   endif (MPI_FOUND)
-endif (DAGUE_DIST_WITH_MPI)
-#
-# Check to see if support for MPI 2.0 is available
-#
-if (MPI_FOUND)
-  set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
-  set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
-  set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
-  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
-  check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
-  set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
-  set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
-endif (MPI_FOUND)
 
-if( DAGUE_GPU_WITH_CUDA )
-  find_package(CUDA)
-  if (CUDA_FOUND)
-    if(CUDA_VERSION VERSION_LESS "3.0")
+  if( DAGUE_GPU_WITH_CUDA )
+    find_package(CUDA)
+    if (CUDA_FOUND)
+      if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
-    endif(CUDA_VERSION VERSION_LESS "3.0")
-    set(CUDA_BUILD_EMULATION OFF)
-    include_directories(${CUDA_INCLUDE_DIRS})
-    list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
-    list(APPEND EXTRA_SOURCES src/gpu_data.c)
-    set(HAVE_CUDA 1)
-  else (CUDA_FOUND)
-    set(HAVE_CUDA 0)
-  endif (CUDA_FOUND)
-endif( DAGUE_GPU_WITH_CUDA )
+      endif(CUDA_VERSION VERSION_LESS "3.0")
+      set(CUDA_BUILD_EMULATION OFF)
+      include_directories(${CUDA_INCLUDE_DIRS})
+      list(APPEND EXTRA_LIBS ${EXTRA_LIBS} ${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} )
+      list(APPEND EXTRA_SOURCES src/gpu_data.c)
+      set(HAVE_CUDA 1)
+    else (CUDA_FOUND)
+      set(HAVE_CUDA 0)
+    endif (CUDA_FOUND)
+  endif( DAGUE_GPU_WITH_CUDA )
 
-if (DAGUE_PROF_PAPI)
-  find_package(PAPI REQUIRED)
-  if (PAPI_FOUND)
-    list(APPEND EXTRA_SOURCES src/papime.c)
-    list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
-    include_directories( ${PAPI_INCLUDE_DIR} )
-    set(HAVE_PAPI 1)
-  else (PAPI_FOUND)
-    set(HAVE_PAPI 0)
-  endif (PAPI_FOUND)
-endif (DAGUE_PROF_PAPI)
+  if (DAGUE_PROF_PAPI)
+    find_package(PAPI REQUIRED)
+    if (PAPI_FOUND)
+      list(APPEND EXTRA_SOURCES src/papime.c)
+      list(APPEND EXTRA_LIBS ${PAPI_LIBRARY})
+      include_directories( ${PAPI_INCLUDE_DIR} )
+      set(HAVE_PAPI 1)
+    else (PAPI_FOUND)
+      set(HAVE_PAPI 0)
+    endif (PAPI_FOUND)
+  endif (DAGUE_PROF_PAPI)
+ENDIF( BUILD_DAGUE )
 
 if( DAGUE_PROF_TRACE )
   list(APPEND EXTRA_SOURCES src/profiling.c)
@@ -381,23 +466,32 @@ if(NOT DAGUE_COMPILE_INPLACE)
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
-#include_directories("${PROJECT_INCLUDE_DIR}/Buf2Cache")
 add_definitions(-DHAVE_CONFIG_H)
 
 #
+# First go for the tools.
+#
+set(daguepp_EXE "NOT-DEFINED")
+add_subdirectory(tools)
+IF(CMAKE_CROSSCOMPILING)
+  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
+  MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
+  INCLUDE(${IMPORT_EXECUTABLES})
+  SET(daguepp_EXE native-daguepp)
+ELSE(CMAKE_CROSSCOMPILING)
+  SET(daguepp_EXE daguepp)
+ENDIF(CMAKE_CROSSCOMPILING)
+#
 #  Settings for targets
 # 
-
 set(SRCS 
-  src/dague.c 
-  src/arena.c
+  src/barrier.c 
+  src/stats.c 
   src/scheduling.c
   src/schedulers.c 
-  src/stats.c 
+  src/dague.c 
+  src/arena.c
   src/remote_dep.c 
-  src/barrier.c 
-  Buf2Cache/buf2cache.c
-  src/freelist.c 
   src/debug.c 
   src/bindthread.c 
   src/mempool.c 
@@ -407,27 +501,31 @@ set(SRCS
 #
 # Setup targets
 #
-
-if (MPI_FOUND)
-  add_library(dague-mpi STATIC ${SRCS})
-  set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-  target_link_libraries(dague-mpi ${EXTRA_LIBS})
-  install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
-else (MPI_FOUND)
-  add_library(dague STATIC ${SRCS})
-  set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-  target_link_libraries(dague ${EXTRA_LIBS})
-  install(TARGETS dague ARCHIVE DESTINATION lib)
-endif (MPI_FOUND)
+if( BUILD_DAGUE )
+  if (MPI_FOUND)
+    add_library(dague-mpi STATIC ${SRCS})
+    set_target_properties(dague-mpi PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+    target_link_libraries(dague-mpi ${EXTRA_LIBS})
+    install(TARGETS dague-mpi ARCHIVE DESTINATION lib)
+  else (MPI_FOUND)
+    add_library(dague STATIC ${SRCS})
+    set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+    target_link_libraries(dague ${EXTRA_LIBS})
+    install(TARGETS dague ARCHIVE DESTINATION lib)
+  endif (MPI_FOUND)
+  add_subdirectory(data_dist)
+ENDIF( BUILD_DAGUE )
 
 #
 # Now continue with compiling the tests.
 #
 
-add_subdirectory(tools)
-add_subdirectory(dplasma)
-add_subdirectory(data_dist)
-add_subdirectory(tests)
+IF( BUILD_DPLASMA )
+  add_subdirectory(dplasma)
+ENDIF ( BUILD_DPLASMA )
+IF( BUILD_TESTING AND BUILD_DAGUE )
+  add_subdirectory(tests)
+ENDIF( BUILD_TESTING AND BUILD_DAGUE )
 
 # Configuration header
 configure_file (
@@ -443,10 +541,12 @@ install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc" DESTINATION include)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR "TBZ2")
 set (CPACK_RESOURCE_FILE_LICENSE  
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
 
 

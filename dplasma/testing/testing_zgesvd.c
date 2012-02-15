@@ -206,41 +206,41 @@ int main(int argc, char ** argv)
     //PASTE_CODE_FLOPS_COUNT(FADDS_ZHERBT, FMULS_ZHERBT, ((DagDouble_t)N))
 
     PLASMA_Init(1);
-      
+
     LDA = max(M, LDA);
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                    nodes, cores, rank, MB, NB, LDA, N, 0, 0,
                                     M, N, MB, NB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
-        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
-                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
+        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+                                    nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
                                     MT*IB, N, MB, NB, P))
-    PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1, 
-        two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble,
-        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
+        two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
+        nodes, cores, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
         MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
-    PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble, 
-         ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
-         ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j, 
+    PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble,
+         ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz,
+         ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j,
          ddescA.super.m, ddescA.super.n);
-    PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble, 
-         ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
-         ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
+    PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble,
+         ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz,
+         ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j,
          ddescT.super.m, ddescT.super.n);
 
-    generate_tiled_random_mat((tiled_matrix_desc_t *) &ddescA, 100);
+    dplasma_zplrnt(dague, (tiled_matrix_desc_t *)&ddescA, 3129);
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgerbb, 
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgerbb,
          (IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
     PASTE_CODE_PROGRESS_KERNEL(dague, zgerbb);
 
     SYNC_TIME_START();
-    dague_diag_band_to_rect_object_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((two_dim_block_cyclic_t*)&ddescA, &ddescBAND, 
+    dague_diag_band_to_rect_object_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
             MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
-    dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]; 
+    dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
         MB*NB*sizeof(Dague_Complex64_t),
         DAGUE_ARENA_ALIGNMENT_SSE,
@@ -253,7 +253,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_PROGRESS_KERNEL(dague, zgbrdb)
 
 
-    if(!check) 
+    if(!check)
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
@@ -262,7 +262,7 @@ int main(int argc, char ** argv)
         if(loud > 2) printf("Done\n");
 
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf, 
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,
                                   ((tiled_matrix_desc_t*)&ddescA,
                                    (tiled_matrix_desc_t*)&ddescT))
 

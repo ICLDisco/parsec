@@ -1,52 +1,67 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
 %}
 
-uplo [type = "PLASMA_enum"]
-A [type = "PLASMA_desc"]
-T [type = "PLASMA_desc"]
-sequence [type = "PLASMA_sequence"]
-request [type = "PLASMA_request"]
+uplo   [type = "PLASMA_enum"]
+ib     [type = "int"]
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
+descT  [type = "tiled_matrix_desc_t"]
+T      [type = "dague_ddesc_t *" aligned=A]
 
+pool_3 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*4 *descT.nb)"]
+pool_2 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*2 *descT.nb)"]
+pool_1 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*ib)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb)"]
 
 zgelqt(k)
   /* Execution space */
-  k = 0..(A.nt)-1-1
+  k = 0..(descA.nt)-1-1
 
   : A(k,k+1)
 
-  /* A == data_A(k,k+1) */
-  /* B == data_T(k,k+1) */
-  /* C == data_A(k,k+1) */
-  /* D == data_T(k,k+1) */
-  /* F == data_A(k,k+1) */
-  /* G == data_T(k,k+1) */
-  /* J == data_A(k,k+1) */
-  /* M == data_A(k+1,i) */
-  /* V == data_A(k+1,n1) */
+  /* A == A(k,k+1) */
+  /* B == T(k,k+1) */
+  /* C == A(k,k+1) */
+  /* D == T(k,k+1) */
+  /* F == A(k,k+1) */
+  /* G == T(k,k+1) */
+  /* J == A(k,k+1) */
+  /* M == A(k+1,i) */
+  /* V == A(k+1,n1) */
 
-  RW    A <- (A.nt>=(k+3)) & (k>=1) ? M ztsmlq_hetra1(k+1-2, A.nt-1, k+1) 
-          <- (0==k) ? data_A(k,k+1)
-          <- ((2+k)==A.nt) & (k>=1) ? V ztsmlq_corner(A.nt-1-2, k+1) 
-          -> C zherfb(k) 
-          -> (A.nt>=(3+k)) ? J ztslqt(k, k+2) 
-          -> (A.nt==(2+k)) ? data_A(k,k+1)
-          -> (A.nt>=(k+3)) ? F zunmlq(k, (k+2)..(A.nt-1)) 
-  RW    B <- data_T(k,k+1)
-          -> D zherfb(k) 
-          -> data_T(k,k+1)
-          -> (A.nt>=(k+3)) ? G zunmlq(k, (k+2)..(A.nt-1)) 
+  RW    A <- (descA.nt>=(k+3)) & (k>=1) ? M ztsmlq_hetra1(k+1-2, descA.nt-1, k+1)
+          <- (0==k) ? A(k,k+1)
+          <- ((2+k)==descA.nt) & (k>=1) ? V ztsmlq_corner(descA.nt-1-2, k+1)
+          -> C zherfb(k)
+          -> (descA.nt>=(3+k)) ? J ztslqt(k, k+2)
+          -> (descA.nt==(2+k)) ? A(k,k+1)
+          -> (descA.nt>=(k+3)) ? F zunmlq(k, (k+2)..(descA.nt-1))
+  RW    B <- T(k,k+1)
+          -> D zherfb(k)
+          -> T(k,k+1)
+          -> (descA.nt>=(k+3)) ? G zunmlq(k, (k+2)..(descA.nt-1))
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -55,21 +70,21 @@ zgelqt(k)
 
 BODY
 
-  int tempkn = ((k+1)==((A.nt)-1)) ? ((A.n)-((k+1)*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
+  int tempkn = ((k+1)==((descA.nt)-1)) ? ((descA.n)-((k+1)*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k );
 
-  void *pool_A = dague_private_memory_pop( pool_0 );
-  void *pool_B = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = dague_private_memory_pop( pool_0 );
+  void *p_elem_B = dague_private_memory_pop( pool_1 );
 
 #line 67 "pzherbt-U.c"
-  CORE_zgelqt(A.nb, tempkn, ib, 
-	A /* data_A(k,k+1) */, A.nb, B /* data_T(k,k+1) */, 
-	T.mb, pool_A, pool_B );
+  CORE_zgelqt(descA.nb, tempkn, ib,
+        A /* A(k,k+1) */, ldak, B /* T(k,k+1) */,
+        descT.mb, p_elem_A, p_elem_B );
 
-  dague_private_memory_push( pool_A, pool_0 );
-  dague_private_memory_push( pool_B, pool_1 );
+  dague_private_memory_push( pool_0, p_elem_A );
+  dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_zgelqt(%d)\n\t(A.nb, tempkn, ib, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
+  printlog("thread %d CORE_zgelqt(%d)\n\t(descA.nb, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
   context->eu_id, k, k, k+1, A, k, k+1, B);
 
 END
@@ -77,24 +92,24 @@ END
 
 zherfb(k)
   /* Execution space */
-  k = 0..(A.nt)-1-1
+  k = 0..(descA.nt)-1-1
 
   : A(k+1,k+1)
 
-  /* A == data_A(k,k+1) */
-  /* B == data_T(k,k+1) */
-  /* C == data_A(k,k+1) */
-  /* D == data_T(k,k+1) */
-  /* E == data_A(k+1,k+1) */
-  /* U == data_A(k+1,k+1) */
-  /* W == data_A(n1,n1) */
+  /* A == A(k,k+1) */
+  /* B == T(k,k+1) */
+  /* C == A(k,k+1) */
+  /* D == T(k,k+1) */
+  /* E == A(k+1,k+1) */
+  /* U == A(k+1,k+1) */
+  /* W == A(n1,n1) */
 
-  READ  C <- A zgelqt(k) 
-  READ  D <- B zgelqt(k) 
-  RW    E <- (k>=1) ? W ztsmlq_corner(k+1-2, k+1) 
-          <- (0==k) ? data_A(k+1,k+1)
-          -> (A.nt==(k+2)) ? data_A(k+1,k+1)
-          -> (A.nt>=(3+k)) ? U ztsmlq_cormer(k, k+2) 
+  READ  C <- A zgelqt(k)
+  READ  D <- B zgelqt(k)
+  RW    E <- (k>=1) ? W ztsmlq_corner(k+1-2, k+1)
+          <- (0==k) ? A(k+1,k+1)
+          -> (descA.nt==(k+2)) ? A(k+1,k+1)
+          -> (descA.nt>=(3+k)) ? U ztsmlq_cormer(k, k+2)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -103,22 +118,21 @@ zherfb(k)
 
 BODY
 
-  int tempkn = ((k+1)==((A.nt)-1)) ? ((A.n)-((k+1)*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
-  int ldak = BLKLDD( A, k+1 );
+  int tempkn = ((k+1)==((descA.nt)-1)) ? ((descA.n)-((k+1)*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k+1 );
 
-  void *pool_A = dague_private_memory_pop( pool_2 );
+  void *p_elem_A = dague_private_memory_pop( pool_2 );
 
 #line 81 "pzherbt-U.c"
-  CORE_zherfb(PlasmaUpper, tempkn, tempkn, 
-	ib, T.nb, C /* data_A(k,k+1) */, 
-	A.nb, D /* data_T(k,k+1) */, T.mb, 
-	E /* data_A(k+1,k+1) */, ldak, pool_A, 
-	T.nb );
+  CORE_zherfb(PlasmaUpper, tempkn, tempkn,
+        ib, descT.nb, C /* A(k,k+1) */,
+        descA.nb, D /* T(k,k+1) */, descT.mb,
+        E /* A(k+1,k+1) */, ldak, p_elem_A,
+        descT.nb );
 
-  dague_private_memory_push( pool_A, pool_2 );
+  dague_private_memory_push( pool_2, p_elem_A );
 
-  printlog("thread %d CORE_zherfb(%d)\n\t(PlasmaUpper, tempkn, tempkn, ib, T.nb, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
+  printlog("thread %d CORE_zherfb(%d)\n\t(PlasmaUpper, tempkn, tempkn, ib, descT.nb, A(%d,%d)[%p], descA.nb, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
   context->eu_id, k, k, k+1, C, k, k+1, D, k+1, k+1, E);
 
 END
@@ -126,26 +140,26 @@ END
 
 zunmlq(k,n)
   /* Execution space */
-  k = 0..(A.nt)-1-1
-  n = k+2..A.nt-1
+  k = 0..(descA.nt)-1-1
+  n = k+2..descA.nt-1
 
   : A(k+1,n)
 
-  /* A == data_A(k,k+1) */
-  /* B == data_T(k,k+1) */
-  /* F == data_A(k,k+1) */
-  /* G == data_T(k,k+1) */
-  /* H == data_A(k+1,n) */
-  /* N == data_A(i,n1) */
-  /* Q == data_A(k+1,j) */
-  /* V == data_A(k+1,n1) */
+  /* A == A(k,k+1) */
+  /* B == T(k,k+1) */
+  /* F == A(k,k+1) */
+  /* G == T(k,k+1) */
+  /* H == A(k+1,n) */
+  /* N == A(i,n1) */
+  /* Q == A(k+1,j) */
+  /* V == A(k+1,n1) */
 
-  READ  F <- A zgelqt(k) 
-  READ  G <- B zgelqt(k) 
-  RW    H <- (0==k) ? data_A(k+1,n)
-          <- (k>=1) ? N ztsmlq_hetra1(k+1-2, n, k+1) 
-          -> ((2+k)==n) ? V ztsmlq_corner(n-2, n) 
-          -> (n>=(3+k)) ? Q ztsmlq(k, k+2, n) 
+  READ  F <- A zgelqt(k)
+  READ  G <- B zgelqt(k)
+  RW    H <- (0==k) ? A(k+1,n)
+          <- (k>=1) ? N ztsmlq_hetra1(k+1-2, n, k+1)
+          -> ((2+k)==n) ? V ztsmlq_corner(n-2, n)
+          -> (n>=(3+k)) ? Q ztsmlq(k, k+2, n)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -154,23 +168,22 @@ zunmlq(k,n)
 
 BODY
 
-  int tempnn = ((n)==((A.nt)-1)) ? ((A.n)-(n*(A.nb))) : (A.nb);
-  int tempkn = ((k+1)==((A.nt)-1)) ? ((A.n)-((k+1)*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
-  int ldak = BLKLDD( A, k+1 );
+  int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+  int tempkn = ((k+1)==((descA.nt)-1)) ? ((descA.n)-((k+1)*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k+1 );
 
-  void *pool_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 101 "pzherbt-U.c"
-  CORE_zunmlq(PlasmaLeft, PlasmaNoTrans, A.nb, 
-	tempnn, tempkn, ib, 
-	F /* data_A(k,k+1) */, A.nb, G /* data_T(k,k+1) */, 
-	T.mb, H /* data_A(k+1,n) */, ldak, 
-	pool_A, T.nb );
+  CORE_zunmlq(PlasmaLeft, PlasmaNoTrans, descA.nb,
+        tempnn, tempkn, ib,
+        F /* A(k,k+1) */, descA.nb, G /* T(k,k+1) */,
+        descT.mb, H /* A(k+1,n) */, ldak,
+        p_elem_A, descT.nb );
 
-  dague_private_memory_push( pool_A, pool_1 );
+  dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_zunmlq(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, A.nb, tempnn, tempkn, ib, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, A(%d,%d)[%p], ldak, pool_A, T.nb)\n",
+  printlog("thread %d CORE_zunmlq(%d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, descA.nb, tempnn, tempkn, ib, A(%d,%d)[%p], descA.nb, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, pool_A, descT.nb)\n",
   context->eu_id, k, n, k, k+1, F, k, k+1, G, k+1, n, H);
 
 END
@@ -178,40 +191,40 @@ END
 
 ztslqt(k,n1)
   /* Execution space */
-  k = 0..(A.nt)-1-1
-  n1 = k+2..A.nt-1
+  k = 0..(descA.nt)-1-1
+  n1 = k+2..descA.nt-1
 
   : A(k,k+1)
 
-  /* A == data_A(k,k+1) */
-  /* J == data_A(k,k+1) */
-  /* K == data_A(k,n1) */
-  /* L == data_T(k,n1) */
-  /* M == data_A(k+1,i) */
-  /* O == data_A(k,n1) */
-  /* P == data_T(k,n1) */
-  /* S == data_A(k,n1) */
-  /* T == data_T(k,n1) */
-  /* V == data_A(k+1,n1) */
-  /* X == data_A(k,n1) */
-  /* Y == data_T(k,n1) */
+  /* A == A(k,k+1) */
+  /* J == A(k,k+1) */
+  /* K == A(k,n1) */
+  /* L == T(k,n1) */
+  /* M == A(k+1,i) */
+  /* O == A(k,n1) */
+  /* P == T(k,n1) */
+  /* S == A(k,n1) */
+  /* T == T(k,n1) */
+  /* V == A(k+1,n1) */
+  /* X == A(k,n1) */
+  /* Y == T(k,n1) */
 
-  RW    J <- (n1>=(k+3)) ? J ztslqt(k, n1-1) 
-          <- ((2+k)==n1) ? A zgelqt(k) 
-          -> (A.nt>=(n1+2)) ? J ztslqt(k, n1+1) 
-          -> (A.nt==(n1+1)) ? data_A(k,k+1)
-  RW    K <- ((n1+1)==A.nt) & (k>=1) ? V ztsmlq_corner(k-1, A.nt-1) 
-          <- (A.nt>=(n1+2)) & (k>=1) ? M ztsmlq_hetra1(k-1, A.nt-1, n1) 
-          <- (0==k) ? data_A(k,n1)
-          -> (n1>=(k+3)) ? O ztsmlq_hetra1(k, n1, (k+2)..(n1-1)) 
-          -> (A.nt>=(n1+2)) ? S ztsmlq(k, n1, (n1+1)..(A.nt-1)) 
-          -> data_A(k,n1)
-          -> X ztsmlq_corner(k, n1) 
-  RW    L <- data_T(k,n1)
-          -> data_T(k,n1)
-          -> (n1>=(k+3)) ? P ztsmlq_hetra1(k, n1, (k+2)..(n1-1)) 
-          -> (A.nt>=(n1+2)) ? T ztsmlq(k, n1, (n1+1)..(A.nt-1)) 
-          -> Y ztsmlq_corner(k, n1) 
+  RW    J <- (n1>=(k+3)) ? J ztslqt(k, n1-1)
+          <- ((2+k)==n1) ? A zgelqt(k)
+          -> (descA.nt>=(n1+2)) ? J ztslqt(k, n1+1)
+          -> (descA.nt==(n1+1)) ? A(k,k+1)
+  RW    K <- ((n1+1)==descA.nt) & (k>=1) ? V ztsmlq_corner(k-1, descA.nt-1)
+          <- (descA.nt>=(n1+2)) & (k>=1) ? M ztsmlq_hetra1(k-1, descA.nt-1, n1)
+          <- (0==k) ? A(k,n1)
+          -> (n1>=(k+3)) ? O ztsmlq_hetra1(k, n1, (k+2)..(n1-1))
+          -> (descA.nt>=(n1+2)) ? S ztsmlq(k, n1, (n1+1)..(descA.nt-1))
+          -> A(k,n1)
+          -> X ztsmlq_corner(k, n1)
+  RW    L <- T(k,n1)
+          -> T(k,n1)
+          -> (n1>=(k+3)) ? P ztsmlq_hetra1(k, n1, (k+2)..(n1-1))
+          -> (descA.nt>=(n1+2)) ? T ztsmlq(k, n1, (n1+1)..(descA.nt-1))
+          -> Y ztsmlq_corner(k, n1)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -220,22 +233,22 @@ ztslqt(k,n1)
 
 BODY
 
-  int tempnn = ((n1)==((A.nt)-1)) ? ((A.n)-(n1*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
+  int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k );
 
-  void *pool_A = dague_private_memory_pop( pool_0 );
-  void *pool_B = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = dague_private_memory_pop( pool_0 );
+  void *p_elem_B = dague_private_memory_pop( pool_1 );
 
 #line 123 "pzherbt-U.c"
-  CORE_ztslqt(A.nb, tempnn, ib, 
-	J /* data_A(k,k+1) */, A.nb, K /* data_A(k,n1) */, 
-	A.nb, L /* data_T(k,n1) */, T.mb, 
-	pool_A, pool_B );
+  CORE_ztslqt(descA.nb, tempnn, ib,
+        J /* A(k,k+1) */, ldak, K /* A(k,n1) */,
+        ldak, L /* T(k,n1) */, descT.mb,
+        p_elem_A, p_elem_B );
 
-  dague_private_memory_push( pool_A, pool_0 );
-  dague_private_memory_push( pool_B, pool_1 );
+  dague_private_memory_push( pool_0, p_elem_A );
+  dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d CORE_ztslqt(%d, %d)\n\t(A.nb, tempnn, ib, A(%d,%d)[%p], A.nb, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, pool_B)\n",
+  printlog("thread %d CORE_ztslqt(%d, %d)\n\t(descA.nb, tempnn, ib, A(%d,%d)[%p], descA.nb, A(%d,%d)[%p], descA.nb, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
   context->eu_id, k, n1, k, k+1, J, k, n1, K, k, n1, L);
 
 END
@@ -243,34 +256,34 @@ END
 
 ztsmlq_hetra1(k,n1,i)
   /* Execution space */
-  k = 0..(A.nt)-1-1
-  n1 = k+2..A.nt-1
+  k = 0..(descA.nt)-1-1
+  n1 = k+2..descA.nt-1
   i = k+2..n1-1
 
   : A(k+1,i)
 
-  /* A == data_A(k,k+1) */
-  /* H == data_A(k+1,n) */
-  /* K == data_A(k,n1) */
-  /* L == data_T(k,n1) */
-  /* M == data_A(k+1,i) */
-  /* N == data_A(i,n1) */
-  /* O == data_A(k,n1) */
-  /* P == data_T(k,n1) */
-  /* R == data_A(n1,j) */
-  /* V == data_A(k+1,n1) */
+  /* A == A(k,k+1) */
+  /* H == A(k+1,n) */
+  /* K == A(k,n1) */
+  /* L == T(k,n1) */
+  /* M == A(k+1,i) */
+  /* N == A(i,n1) */
+  /* O == A(k,n1) */
+  /* P == T(k,n1) */
+  /* R == A(n1,j) */
+  /* V == A(k+1,n1) */
 
-  RW    M <- (n1>=(i+2)) ? M ztsmlq_hetra1(k, n1-1, i) 
-          <- ((i+1)==n1) ? V ztsmlq_corner(k, n1-1) 
-          -> (A.nt>=(n1+2)) ? M ztsmlq_hetra1(k, n1+1, i) 
-          -> ((1+n1)==A.nt) & ((k+2)==i) ? A zgelqt(i-1) 
-          -> (A.nt==(n1+1)) & (i>=(k+3)) ? K ztslqt(k+1, i) 
-  RW    N <- (k>=1) ? N ztsmlq_hetra1(k-1, n1, i) 
-          <- R ztsmlq(k, i, n1) 
-          -> ((k+2)==i) ? H zunmlq(i-1, n1) 
-          -> (i>=(3+k)) ? N ztsmlq_hetra1(k+1, n1, i) 
-  READ  O <- K ztslqt(k, n1) 
-  READ  P <- L ztslqt(k, n1) 
+  RW    M <- (n1>=(i+2)) ? M ztsmlq_hetra1(k, n1-1, i)
+          <- ((i+1)==n1) ? V ztsmlq_corner(k, n1-1)
+          -> (descA.nt>=(n1+2)) ? M ztsmlq_hetra1(k, n1+1, i)
+          -> ((1+n1)==descA.nt) & ((k+2)==i) ? A zgelqt(i-1)
+          -> (descA.nt==(n1+1)) & (i>=(k+3)) ? K ztslqt(k+1, i)
+  RW    N <- (k>=1) ? N ztsmlq_hetra1(k-1, n1, i)
+          <- R ztsmlq(k, i, n1)
+          -> ((k+2)==i) ? H zunmlq(i-1, n1)
+          -> (i>=(3+k)) ? N ztsmlq_hetra1(k+1, n1, i)
+  READ  O <- K ztslqt(k, n1)
+  READ  P <- L ztslqt(k, n1)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -279,25 +292,24 @@ ztsmlq_hetra1(k,n1,i)
 
 BODY
 
-  int tempnn = ((n1)==((A.nt)-1)) ? ((A.n)-(n1*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
+  int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
   int ldak = BLKLDD( A, k+1 );
   int ldai = BLKLDD( A, i );
-  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (T.nb);
+  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (descT.nb);
 
-  void *pool_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 142 "pzherbt-U.c"
-  CORE_ztsmlq_hetra1(PlasmaRight, PlasmaConjTrans, A.mb, 
-	A.nb, A.nb, tempnn, 
-	A.nb, ib, M /* data_A(k+1,i) */, 
-	ldak, N /* data_A(i,n1) */, ldai, 
-	O /* data_A(k,n1) */, A.nb, P /* data_T(k,n1) */, 
-	T.mb, pool_A, ldwork );
+  CORE_ztsmlq_hetra1(PlasmaRight, PlasmaConjTrans, descA.mb,
+        descA.nb, descA.nb, tempnn,
+        descA.nb, ib, M /* A(k+1,i) */,
+        ldak, N /* A(i,n1) */, ldai,
+        O /* A(k,n1) */, descA.nb, P /* T(k,n1) */,
+        descT.mb, p_elem_A, ldwork );
 
-  dague_private_memory_push( pool_A, pool_1 );
+  dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmlq_hetra1(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, A.mb, A.nb, A.nb, tempnn, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldai, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  printlog("thread %d CORE_ztsmlq_hetra1(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, descA.mb, descA.nb, descA.nb, tempnn, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldai, A(%d,%d)[%p], descA.nb, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->eu_id, k, n1, i, k+1, i, M, i, n1, N, k, n1, O, k, n1, P);
 
 END
@@ -305,32 +317,32 @@ END
 
 ztsmlq(k,n1,j)
   /* Execution space */
-  k = 0..(A.nt)-1-1
-  n1 = k+2..A.nt-1
-  j = n1+1..A.nt-1
+  k = 0..(descA.nt)-1-1
+  n1 = k+2..descA.nt-1
+  j = n1+1..descA.nt-1
 
   : A(k+1,j)
 
-  /* H == data_A(k+1,n) */
-  /* K == data_A(k,n1) */
-  /* L == data_T(k,n1) */
-  /* N == data_A(i,n1) */
-  /* Q == data_A(k+1,j) */
-  /* R == data_A(n1,j) */
-  /* S == data_A(k,n1) */
-  /* T == data_T(k,n1) */
-  /* V == data_A(k+1,n1) */
+  /* H == A(k+1,n) */
+  /* K == A(k,n1) */
+  /* L == T(k,n1) */
+  /* N == A(i,n1) */
+  /* Q == A(k+1,j) */
+  /* R == A(n1,j) */
+  /* S == A(k,n1) */
+  /* T == T(k,n1) */
+  /* V == A(k+1,n1) */
 
-  RW    Q <- (n1>=(3+k)) ? Q ztsmlq(k, n1-1, j) 
-          <- ((k+2)==n1) ? H zunmlq(k, j) 
-          -> ((1+n1)==j) ? V ztsmlq_corner(k, j) 
-          -> (j>=(2+n1)) ? Q ztsmlq(k, n1+1, j) 
-  RW    R <- (0==k) ? data_A(n1,j)
-          <- (k>=1) ? R ztsmlq(k-1, n1, j) 
-          -> N ztsmlq_hetra1(k, j, n1) 
-          -> (n1>=(3+k)) ? R ztsmlq(k+1, n1, j) 
-  READ  S <- K ztslqt(k, n1) 
-  READ  T <- L ztslqt(k, n1) 
+  RW    Q <- (n1>=(3+k)) ? Q ztsmlq(k, n1-1, j)
+          <- ((k+2)==n1) ? H zunmlq(k, j)
+          -> ((1+n1)==j) ? V ztsmlq_corner(k, j)
+          -> (j>=(2+n1)) ? Q ztsmlq(k, n1+1, j)
+  RW    R <- (0==k) ? A(n1,j)
+          <- (k>=1) ? R ztsmlq(k-1, n1, j)
+          -> N ztsmlq_hetra1(k, j, n1)
+          -> (n1>=(3+k)) ? R ztsmlq(k+1, n1, j)
+  READ  S <- K ztslqt(k, n1)
+  READ  T <- L ztslqt(k, n1)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -339,26 +351,25 @@ ztsmlq(k,n1,j)
 
 BODY
 
-  int tempjj = ((j)==((A.nt)-1)) ? ((A.n)-(j*(A.nb))) : (A.nb);
-  int tempnn = ((n1)==((A.nt)-1)) ? ((A.n)-(n1*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
+  int tempjj = ((j)==((descA.nt)-1)) ? ((descA.n)-(j*(descA.nb))) : (descA.nb);
+  int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
   int ldak = BLKLDD( A, k+1 );
   int ldan = BLKLDD( A, n1 );
-  int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (T.nb);
+  int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (descT.nb);
 
-  void *pool_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 170 "pzherbt-U.c"
-  CORE_ztsmlq(PlasmaLeft, PlasmaNoTrans, A.nb, 
-	tempjj, tempnn, tempjj, 
-	A.nb, ib, Q /* data_A(k+1,j) */, 
-	ldak, R /* data_A(n1,j) */, ldan, 
-	S /* data_A(k,n1) */, A.nb, T /* data_T(k,n1) */, 
-	T.mb, pool_A, ldwork );
+  CORE_ztsmlq(PlasmaLeft, PlasmaNoTrans, descA.nb,
+        tempjj, tempnn, tempjj,
+        descA.nb, ib, Q /* A(k+1,j) */,
+        ldak, R /* A(n1,j) */, ldan,
+        S /* A(k,n1) */, descA.nb, T /* T(k,n1) */,
+        descT.mb, p_elem_A, ldwork );
 
-  dague_private_memory_push( pool_A, pool_1 );
+  dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, A.nb, tempjj, tempnn, tempjj, A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  printlog("thread %d CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaLeft, PlasmaNoTrans, descA.nb, tempjj, tempnn, tempjj, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], descA.nb, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->eu_id, k, n1, j, k+1, j, Q, n1, j, R, k, n1, S, k, n1, T);
 
 END
@@ -366,39 +377,39 @@ END
 
 ztsmlq_corner(k,n1)
   /* Execution space */
-  k = 0..(A.nt)-1-1
-  n1 = k+2..A.nt-1
+  k = 0..(descA.nt)-1-1
+  n1 = k+2..descA.nt-1
 
   : A(k+1,k+1)
 
-  /* A == data_A(k,k+1) */
-  /* E == data_A(k+1,k+1) */
-  /* H == data_A(k+1,n) */
-  /* K == data_A(k,n1) */
-  /* L == data_T(k,n1) */
-  /* M == data_A(k+1,i) */
-  /* Q == data_A(k+1,j) */
-  /* U == data_A(k+1,k+1) */
-  /* V == data_A(k+1,n1) */
-  /* W == data_A(n1,n1) */
-  /* X == data_A(k,n1) */
-  /* Y == data_T(k,n1) */
+  /* A == A(k,k+1) */
+  /* E == A(k+1,k+1) */
+  /* H == A(k+1,n) */
+  /* K == A(k,n1) */
+  /* L == T(k,n1) */
+  /* M == A(k+1,i) */
+  /* Q == A(k+1,j) */
+  /* U == A(k+1,k+1) */
+  /* V == A(k+1,n1) */
+  /* W == A(n1,n1) */
+  /* X == A(k,n1) */
+  /* Y == T(k,n1) */
 
-  RW    U <- (n1>=(3+k)) ? U ztsmlq_corner(k, n1-1) 
-          <- ((2+k)==n1) ? E zherfb(k) 
-          -> (A.nt>=(n1+2)) ? U ztsmlq_corner(k, n1+1) 
-          -> (A.nt==(n1+1)) ? data_A(k+1,k+1)
-  RW    V <- (n1==(k+2)) ? H zunmlq(k+2-2, k+2) 
-          <- (n1>=(k+3)) ? Q ztsmlq(k, n1-1, n1) 
-          -> (A.nt>=(2+n1)) ? M ztsmlq_hetra1(k, n1+1, n1) 
-          -> (A.nt==(n1+1)) & (A.nt==(3+k)) ? A zgelqt(n1-1) 
-          -> (A.nt==(n1+1)) & (A.nt>=(4+k)) ? K ztslqt(k+1, n1) 
-  RW    W <- (0==k) ? data_A(n1,n1)
-          <- (k>=1) ? W ztsmlq_corner(k-1, n1) 
-          -> ((k+2)==n1) ? E zherfb(n1-1) 
-          -> (n1>=(k+3)) ? W ztsmlq_corner(k+1, n1) 
-  READ  X <- K ztslqt(k, n1) 
-  READ  Y <- L ztslqt(k, n1) 
+  RW    U <- (n1>=(3+k)) ? U ztsmlq_corner(k, n1-1)
+          <- ((2+k)==n1) ? E zherfb(k)
+          -> (descA.nt>=(n1+2)) ? U ztsmlq_corner(k, n1+1)
+          -> (descA.nt==(n1+1)) ? A(k+1,k+1)
+  RW    V <- (n1==(k+2)) ? H zunmlq(k+2-2, k+2)
+          <- (n1>=(k+3)) ? Q ztsmlq(k, n1-1, n1)
+          -> (descA.nt>=(2+n1)) ? M ztsmlq_hetra1(k, n1+1, n1)
+          -> (descA.nt==(n1+1)) & (descA.nt==(3+k)) ? A zgelqt(n1-1)
+          -> (descA.nt==(n1+1)) & (descA.nt>=(4+k)) ? K ztslqt(k+1, n1)
+  RW    W <- (0==k) ? A(n1,n1)
+          <- (k>=1) ? W ztsmlq_corner(k-1, n1)
+          -> ((k+2)==n1) ? E zherfb(n1-1)
+          -> (n1>=(k+3)) ? W ztsmlq_corner(k+1, n1)
+  READ  X <- K ztslqt(k, n1)
+  READ  Y <- L ztslqt(k, n1)
 
   /*
   The following is a superset of the necessary anti-dependencies:
@@ -407,26 +418,25 @@ ztsmlq_corner(k,n1)
 
 BODY
 
-  int tempnn = ((n1)==((A.nt)-1)) ? ((A.n)-(n1*(A.nb))) : (A.nb);
-  int ib = PLASMA_IB;
+  int tempnn = ((n1)==((descA.nt)-1)) ? ((descA.n)-(n1*(descA.nb))) : (descA.nb);
   int ldak = BLKLDD( A, k+1 );
   int ldan = BLKLDD( A, n1 );
-  int ldwork = T.nb;
+  int ldwork = descT.nb;
 
-  void *pool_A = dague_private_memory_pop( pool_3 );
+  void *p_elem_A = dague_private_memory_pop( pool_3 );
 
 #line 195 "pzherbt-U.c"
-  CORE_ztsmlq_corner(A.nb, A.nb, A.nb, 
-	tempnn, tempnn, tempnn, 
-	A.nb, ib, T.nb, 
-	U /* data_A(k+1,k+1) */, ldak, V /* data_A(k+1,n1) */, 
-	ldak, W /* data_A(n1,n1) */, ldan, 
-	X /* data_A(k,n1) */, A.nb, Y /* data_T(k,n1) */, 
-	T.mb, pool_A, ldwork );
+  CORE_ztsmlq_corner(descA.nb, descA.nb, descA.nb,
+        tempnn, tempnn, tempnn,
+        descA.nb, ib, descT.nb,
+        U /* A(k+1,k+1) */, ldak, V /* A(k+1,n1) */,
+        ldak, W /* A(n1,n1) */, ldan,
+        X /* A(k,n1) */, descA.nb, Y /* T(k,n1) */,
+        descT.mb, p_elem_A, ldwork );
 
-  dague_private_memory_push( pool_A, pool_3 );
+  dague_private_memory_push( pool_3, p_elem_A );
 
-  printlog("thread %d CORE_ztsmlq_corner(%d, %d)\n\t(A.nb, A.nb, A.nb, tempnn, tempnn, tempnn, A.nb, ib, T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], A.nb, T(%d,%d)[%p], T.mb, pool_A, ldwork)\n",
+  printlog("thread %d CORE_ztsmlq_corner(%d, %d)\n\t(descA.nb, descA.nb, descA.nb, tempnn, tempnn, tempnn, descA.nb, ib, descT.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldan, A(%d,%d)[%p], descA.nb, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->eu_id, k, n1, k+1, k+1, U, k+1, n1, V, n1, n1, W, k, n1, X, k, n1, Y);
 
 END

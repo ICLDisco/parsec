@@ -1,26 +1,32 @@
 extern "C" %{
-  /**
-   * PLASMA include for defined and constants.
-   *
-   * @precisions normal z -> s d c
-   *
-   */
-  
+/*
+ *  Copyright (c) 2010 - 2011
+ * 
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
 #include <plasma.h>
 #include <core_blas.h>
 
 #include "dague.h"
 #include "data_distribution.h"
+#include "data_dist/matrix/precision.h"
 #include "dplasma/lib/dplasmajdf.h"
 %}
 
 /* Globals
  * GRIDrows, GRIDcols, NB, SIZE
  */
-side [type = int]
-uplo [type = int]
-trans[type = int]
-diag [type = int]
+side  [type = "PLASMA_enum"]
+uplo  [type = "PLASMA_enum"]
+trans [type = "PLASMA_enum"]
+diag  [type = "PLASMA_enum"]
 
 alpha[type = Dague_Complex64_t]
 
@@ -85,7 +91,7 @@ BODY
               context->eu_id, m, n, 
               plasma_const(side), plasma_const(uplo), plasma_const(trans), plasma_const(diag), 
               tempmm, tempnn,
-              alpha, m, m, A, Amb,
+              creal(alpha), m, m, A, Amb,
                      m, n, B, Bmb);
 END
 
@@ -125,7 +131,7 @@ END
 GEMM(m, n, k)
 
 // Execution space
-m = 0..Bmt-1
+m = 0..Bmt-2
 n = 0..Bnt-1
 k = (m+1)..Bmt-1
 
@@ -156,7 +162,7 @@ BODY
 	       context->eu_id, m, n, k, 
                plasma_const(trans), plasma_const( PlasmaNoTrans ), 
                tempmm, tempnn, tempkn,
-	       alpha, m, k, A, Bmb, k, n, B, Bmb,
+	       creal(alpha), m, k, A, Bmb, k, n, B, Bmb,
 	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
 END
 
@@ -167,7 +173,7 @@ END
 GOK(m, n, k)  [profile = off]
 
 // Execution space
-m = 0..Bmt-1
+m = 0..Bmt-2
 n = 0..Bnt-1
 k = (m+1)..Bmt-1
 

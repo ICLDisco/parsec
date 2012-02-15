@@ -15,8 +15,6 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "map2.h"
 
-#define BLKLDD(_desc, _k) (_desc)->mb
-
 #ifndef max
 #define max(a, b) ((a)>(b)?(a):(b))
 #endif
@@ -50,16 +48,15 @@ dague_operator_zlanhe_max( struct dague_execution_unit *eu,
     descA = args->desc;
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( descA, m );
+    ldam = BLKLDD( (*descA), m );
 
-    
     if ( uplo == PlasmaUpperLower ) {
       CORE_zlange( args->ntype, tempmm, tempnn,
-		   (PLASMA_Complex64_t*)src, ldam, NULL, (double*)dest );
+                   (PLASMA_Complex64_t*)src, ldam, NULL, (double*)dest );
     } else {
-      CORE_zlanhe( args->ntype, uplo, tempmm, 
-		   (PLASMA_Complex64_t*)src, ldam, NULL, (double*)dest );
-    }    
+      CORE_zlanhe( args->ntype, uplo, tempmm,
+                   (PLASMA_Complex64_t*)src, ldam, NULL, (double*)dest );
+    }
     return 0;
 }
 
@@ -95,12 +92,14 @@ dague_object_t* dplasma_zlanhe_New( PLASMA_enum ntype,
 }
 #endif
 
-double dplasma_zlanhe( dague_context_t *dague, 
-		       PLASMA_enum ntype,
-		       PLASMA_enum uplo,
-		       tiled_matrix_desc_t *A) 
+double dplasma_zlanhe( dague_context_t *dague,
+                       PLASMA_enum ntype,
+                       PLASMA_enum uplo,
+                       tiled_matrix_desc_t *A)
 {
-    dague_map2_object_t *dague_zlanhe = NULL;
+#if defined(DAGUE_DRY_RUN) || defined(DAGUE_PROF_DRY_BODY) || defined(DAGUE_PROF_DRY_DEP)
+    return -1.0;
+#else
     dague_operator_t op;
     double *work = NULL;
     two_dim_block_cyclic_t workD, workS;
@@ -113,16 +112,18 @@ double dplasma_zlanhe( dague_context_t *dague,
       fprintf(stderr, "zlanhe: Only PlasmaMaxNorm is supported\n");
 
     case PlasmaMaxNorm:
-        two_dim_block_cyclic_init(&workD, matrix_RealDouble, A->super.nodes, A->super.cores, A->super.myrank,
-                                  1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 
-                                  ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols, 
-                                  ((two_dim_block_cyclic_t*)A)->grid.rows);
+        PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
+            workD, two_dim_block_cyclic,
+            (&workD, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank,
+             1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt,
+             ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,
+             ((two_dim_block_cyclic_t*)A)->grid.rows));
 
         op = dague_operator_zlanhe_max;
         break;
 
     /* case PlasmaOneNorm: */
-    /*     two_dim_block_cyclic_init(&workD, matrix_RealDouble, A->super.nodes, A->super.cores, A->super.myrank, */
+    /*     two_dim_block_cyclic_init(&workD, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank, */
     /*                               1, A->nb, A->mt, A->n, 0, 0, A->mt, A->n, */
     /*                               ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,  */
     /*                               ((two_dim_block_cyclic_t*)A)->grid.rows); */
@@ -132,7 +133,7 @@ double dplasma_zlanhe( dague_context_t *dague,
     /*     break; */
 
     /* case PlasmaInfNorm: */
-    /*     two_dim_block_cyclic_init(&workD, matrix_RealDouble, A->super.nodes, A->super.cores, A->super.myrank, */
+    /*     two_dim_block_cyclic_init(&workD, matrix_RealDouble, matrix_Tile, A->super.nodes, A->super.cores, A->super.myrank, */
     /*                               A->mb, 1, A->m,  A->nt, 0, 0, A->m,  A->nt,  */
     /*                               ((two_dim_block_cyclic_t*)A)->grid.strows, ((two_dim_block_cyclic_t*)A)->grid.stcols,  */
     /*                               ((two_dim_block_cyclic_t*)A)->grid.rows); */
@@ -144,36 +145,25 @@ double dplasma_zlanhe( dague_context_t *dague,
         return -1;
     }
 
-    workD.mat = dague_data_allocate((size_t)workD.super.nb_local_tiles * 
-                                    (size_t)workD.super.bsiz * 
-                                    (size_t)workD.super.mtype);
-
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&workD);
 
     args.ntype = ntype;
     args.desc = A;
-    
+
     /* First reduction by tile */
-    dague_zlanhe = dague_map2_new((dague_ddesc_t*)&workD, (dague_ddesc_t*)A, 
-				  uplo, *A, workD.super, 
-				  op, (void *)&args);
-    dague_enqueue( dague, (dague_object_t*)dague_zlanhe);
-    dplasma_progress(dague);
-    dague_map2_destroy( dague_zlanhe );
+    dplasma_map2( dague, uplo, A, (tiled_matrix_desc_t*)&workD, op, (void *)&args );
 
     /* Second one with on element (one double or one vector )  per tile */
-    two_dim_block_cyclic_init(&workS, matrix_RealDouble, workD.super.super.nodes, workD.super.super.cores, workD.super.super.myrank,
-                              1, 1, workD.super.mt, workD.super.nt, 0, 0, workD.super.mt, workD.super.nt, workD.super.mt, workD.super.nt, 1);
-    workS.mat = dague_data_allocate((size_t)workS.super.nb_local_tiles * 
-                                    (size_t)workS.super.bsiz * 
-                                    (size_t)workS.super.mtype);
+    PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(
+        workS, two_dim_block_cyclic,
+        (&workS, matrix_RealDouble, matrix_Tile, 1, workD.super.super.cores, workD.super.super.myrank,
+         1, 1, A->mt, A->nt, 0, 0, A->mt, A->nt, 1, 1, 1));
 
-    
     dplasma_zlacpy(dague, PlasmaUpperLower, (tiled_matrix_desc_t*)&workD, (tiled_matrix_desc_t*)&workS);
 
     if ( workS.super.super.myrank == 0 ) {
-        CORE_dlanhe(
-            ntype, workS.super.m, workS.super.n, 
+        CORE_dlansy(
+            ntype, uplo, workS.super.m,
             (double*)workS.mat, workS.super.lm, work, &result);
     }
 
@@ -184,12 +174,13 @@ double dplasma_zlanhe( dague_context_t *dague,
 
     if ( work != NULL )
         free(work);
-    
+
 #if defined(HAVE_MPI)
     MPI_Bcast(&result, 1, MPI_DOUBLE, 0, dplasma_comm);
 #endif
 
     return result;
+#endif
 }
 
 #if 0

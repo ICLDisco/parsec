@@ -12,13 +12,15 @@
 extern int yyparse (void);
 char *q2j_input_file_name=NULL;
 int _q2j_produce_shmem_jdf = 0;
-int _q2j_verbose_warnings = 0;
+int _q2j_verbose_warnings  = 0;
+int _q2j_add_phony_tasks   = 0;
+int _q2j_generate_line_numbers = 0;
 extern FILE *yyin;
 
 void usage(char *pname);
 
 void usage(char *pname){
-    fprintf(stderr,"Usage: %s [-shmem] [-v] file_name.c\n",pname);
+    fprintf(stderr,"Usage: %s [-shmem] [-phony_tasks] [-line_numbers] [-v] file_name.c\n",pname);
     exit(1);
 }
 
@@ -28,6 +30,10 @@ int main(int argc, char **argv){
         if( argv[argc][0] == '-' ){
             if( !strcmp(argv[argc],"-shmem") ){
                 _q2j_produce_shmem_jdf = 1;
+            }else if( !strcmp(argv[argc],"-phony_tasks") ){
+                _q2j_add_phony_tasks = 1;
+            }else if( !strcmp(argv[argc],"-line_numbers") ){
+                _q2j_generate_line_numbers = 1;
             }else if( !strcmp(argv[argc],"-v") ){
                 _q2j_verbose_warnings = 1;
             }else{

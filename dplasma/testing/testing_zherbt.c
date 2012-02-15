@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
     dague_context_t *dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_desc *plasmaDescA;
-    PLASMA_desc *plasmaDescT;
 
      /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -40,39 +39,33 @@ int main(int argc, char *argv[])
     PLASMA_Init(1);
 
     /*
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+         sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
          N, N, P, MatrixLower))
     */
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1, 
-         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, 
-         nodes, cores, rank, MB, NB, LDA, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
+         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+         nodes, cores, rank, MB, NB, LDA, N, 0, 0,
          N, N, 1, 1, P))
 
-    PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble, 
-         ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz, 
-         ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j, 
+    PLASMA_Desc_Create(&plasmaDescA, ddescA.mat, PlasmaComplexDouble,
+         ddescA.super.mb, ddescA.super.nb, ddescA.super.bsiz,
+         ddescA.super.lm, ddescA.super.ln, ddescA.super.i, ddescA.super.j,
          ddescA.super.m, ddescA.super.n);
 
     /*
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
-         sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
-         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
+         sym_two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble,
+         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
          MT*IB, N, P, MatrixLower))
     */
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1, 
-         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, 
-         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0, 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
+         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+         nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
          MT*IB, N, 1, 1, P))
-
-    PLASMA_Desc_Create(&plasmaDescT, ddescT.mat, PlasmaComplexDouble, 
-         ddescT.super.mb, ddescT.super.nb, ddescT.super.bsiz, 
-         ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j, 
-         ddescT.super.m, ddescT.super.n);
-
 
     PLASMA_enum uplo = PlasmaLower;
 
@@ -88,10 +81,10 @@ int main(int argc, char *argv[])
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
 
         LAPACKE_zheev( LAPACK_COL_MAJOR,
-               lapack_const(PlasmaNoVec), lapack_const(uplo), 
+               lapack_const(PlasmaNoVec), lapack_const(uplo),
                N, A2, LDA, W1);
     }
-    
+
     /*
     printf("A2 avant\n");
     for (i = 0; i < N; i++){
@@ -110,11 +103,11 @@ int main(int argc, char *argv[])
     printf("\n");
     */
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt, 
-         (uplo, IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
+         (uplo, IB, (tiled_matrix_desc_t*)&ddescA, (tiled_matrix_desc_t*)&ddescT));
 
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
-    
+
     if( check ) {
         int i, j;
         PLASMA_Tile_to_Lapack(plasmaDescA, (void*)A2, N);
@@ -123,10 +116,10 @@ int main(int argc, char *argv[])
                 A2[LDA*j+i]=0.0;
 
         LAPACKE_zheev( LAPACK_COL_MAJOR,
-               lapack_const(PlasmaNoVec), lapack_const(uplo), 
+               lapack_const(PlasmaNoVec), lapack_const(uplo),
                N, A2, LDA, W2);
 
-	/*
+        /*
         printf("A2 apres\n");
         for (i = 0; i < N; i++){
             for (j = 0; j < N; j++) {
@@ -135,13 +128,13 @@ int main(int argc, char *argv[])
             }
             printf("\n");
         }
-	
+
         printf("Eigenvalues computed\n");
         for (i = 0; i < N; i++){
             printf("%f \n", W2[i]);
         }
         printf("\n");
-	*/
+        */
 
         double eps = LAPACKE_dlamch_work('e');
         printf("\n");
@@ -152,10 +145,10 @@ int main(int argc, char *argv[])
         printf("============\n");
         printf(" The relative machine precision (eps) is to be %e \n",eps);
         printf(" Computational tests pass if scaled residuals are less than 60.\n");
-    
+
         /* Check the eigen solutions */
         int info_solution = check_solution(N, W1, W2, eps);
-    
+
         if (info_solution == 0) {
             printf("***************************************************\n");
             printf(" ---- TESTING ZHERBT ..................... PASSED !\n");
@@ -177,9 +170,9 @@ int main(int argc, char *argv[])
     dague_ddesc_destroy((dague_ddesc_t*)&ddescT);
 
     cleanup_dague(dague, iparam);
-   
+
     PLASMA_Finalize();
-        
+
     return EXIT_SUCCESS;
 }
 

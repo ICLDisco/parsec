@@ -24,7 +24,7 @@ int dague_arena_construct(dague_arena_t* arena,
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
         return -1;
 
-    dague_atomic_lifo_construct(&arena->lifo);
+    dague_lifo_construct(&arena->lifo);
     arena->alignment = alignment;
     arena->elem_size = elem_size;
     arena->opaque_dtt = opaque_dtt;
@@ -60,53 +60,67 @@ void dague_arena_destruct(dague_arena_t* arena)
     
     assert(0 == arena->used);
     
-    while(NULL != (item = dague_atomic_lifo_pop(&arena->lifo))) {
+    while(NULL != (item = dague_lifo_pop(&arena->lifo))) {
         arena->data_free(item);
     }
-    dague_atomic_lifo_destruct(&arena->lifo);
+    dague_lifo_destruct(&arena->lifo);
 }
 
-dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena)
+dague_arena_chunk_t* dague_arena_get(dague_arena_t* arena, size_t count)
 {
     dague_list_item_t* item;
     dague_arena_chunk_t* chunk;
-    size_t size = DAGUE_ALIGN(arena->elem_size + arena->alignment + sizeof(union _internal_chunk_prefix_t),
-                              arena->alignment, size_t);
+    size_t size;
 
-    if(arena->max_used != INT32_MAX) {
-        dague_atomic_inc_32b((uint32_t*)&arena->used);
-        if(arena->used > arena->max_used) {
-            dague_atomic_dec_32b((uint32_t*)&arena->used);
-            return NULL;
-        }
-    }
+    if( count == 1 ) {
+        size = DAGUE_ALIGN(arena->elem_size + arena->alignment + sizeof(union _internal_chunk_prefix_t),
+                           arena->alignment, size_t);
 
-    item = dague_atomic_lifo_pop(&arena->lifo);
-    if(NULL != item) {
-        if(INT32_MAX != arena->max_released) {
-            dague_atomic_dec_32b((uint32_t*)&arena->released);
-            assert(arena->released >= 0);
+        if(arena->max_used != INT32_MAX) {
+            dague_atomic_inc_32b((uint32_t*)&arena->used);
+            if(arena->used > arena->max_used) {
+                dague_atomic_dec_32b((uint32_t*)&arena->used);
+                return NULL;
+            }
         }
-        DEBUG(("Arena retrieve a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
-               arena->elem_size, arena, arena->alignment, item,
-               DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
-                                   arena->alignment, void* ),
-               sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+        
+        item = dague_lifo_pop(&arena->lifo);
+        if(NULL != item) {
+            if(INT32_MAX != arena->max_released) {
+                dague_atomic_dec_32b((uint32_t*)&arena->released);
+                assert(arena->released >= 0);
+            }
+            DEBUG3(("Arena:\tretrieve a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+                    arena->elem_size, arena, arena->alignment, item,
+                    DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
+                                     arena->alignment, void* ),
+                    sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+        } else {
+            item = arena->data_malloc(size);
+            assert(NULL != item);
+            DEBUG3(("Arena:\tallocate a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+                    arena->elem_size, arena, arena->alignment, item,
+                    DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
+                                     arena->alignment, void* ),
+                    sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+        }
+        chunk = (dague_arena_chunk_t*) item;
     } else {
-        item = arena->data_malloc(size);
-        assert(NULL != item);
-        DEBUG(("Arena allocate a new tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
-               arena->elem_size, arena, arena->alignment, item,
-               DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
-                                   arena->alignment, void* ),
-               sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+        assert(count > 1);
+        size = DAGUE_ALIGN(arena->elem_size * count + arena->alignment + sizeof(union _internal_chunk_prefix_t),
+                           arena->alignment, size_t);
+        chunk = (dague_arena_chunk_t*)arena->data_malloc( size );
+        item = (dague_list_item_t*)chunk; /* for the assert */
     }
-    chunk = (dague_arena_chunk_t*) item;
+
     chunk->origin = arena;
-    chunk->refcount = 0;
-    chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)item + sizeof(union _internal_chunk_prefix_t)),
+    chunk->refcount = 1;
+    chunk->count = count;
+    chunk->data = DAGUE_ALIGN_PTR( ((ptrdiff_t)chunk + sizeof(union _internal_chunk_prefix_t)),
                                    arena->alignment, void* );
-    assert(((unsigned char*)chunk->data + arena->elem_size) <= ((unsigned char*)item + size));
+    assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
+    assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)item));
+
     return (dague_arena_chunk_t*) (((ptrdiff_t) chunk) | 1);
 }
 
@@ -115,21 +129,22 @@ void dague_arena_release(dague_arena_chunk_t* ptr)
     dague_arena_chunk_t* chunk = DAGUE_ARENA_PREFIX(ptr);
     assert(DAGUE_ARENA_IS_PTR(ptr));
     dague_arena_t* arena = chunk->origin;
-    assert(NULL != chunk->origin);
-    assert(1 >= chunk->refcount);
+    assert(NULL != arena);
+    assert(0 == (((uintptr_t)arena)%sizeof(uintptr_t))); /* is it aligned */
+    assert(0 == chunk->refcount);
 
-    if(arena->released >= arena->max_released) {
-        DEBUG(("Arena deallocate a tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
-               arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+    if(chunk->count > 1 || arena->released >= arena->max_released) {
+        DEBUG3(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+                arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t), 
+                DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
         arena->data_free(chunk);
     } else {
-        DEBUG(("Arena push a tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+        DEBUG3(("Arena:\tpush a tile of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
                arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(union _internal_chunk_prefix_t), DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
         if(INT32_MAX != arena->max_released) {
             dague_atomic_inc_32b((uint32_t*)&arena->released);
         }
-        DAGUE_LIST_ITEM_SINGLETON(chunk);
-        dague_atomic_lifo_push(&arena->lifo, (dague_list_item_t*) chunk);
+        dague_lifo_push(&arena->lifo, (dague_list_item_t*) chunk);
     }
     if(INT32_MAX != arena->max_used) {
         dague_atomic_dec_32b((uint32_t*)&arena->used);
