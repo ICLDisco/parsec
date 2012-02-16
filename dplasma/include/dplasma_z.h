@@ -35,6 +35,7 @@ int  dplasma_zsymm( dague_context_t *dague, const PLASMA_enum side, const PLASMA
 int dplasma_zpotrf( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A);
 int dplasma_zpotrs( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
 int dplasma_zposv ( dague_context_t *dague, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* B);
+int dplasma_zgetrf( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *IPIV );
 int dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV );
 int dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int dplasma_zgesv_incpiv ( dague_context_t *dague, tiled_matrix_desc_t* A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
@@ -85,6 +86,7 @@ dague_object_t* dplasma_zsymm_New( const PLASMA_enum side, const PLASMA_enum upl
                                    const double beta,  tiled_matrix_desc_t* C);
 
 /* Lapack */
+dague_object_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int* INFO);
 dague_object_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, int* INFO);
 dague_object_t* dplasma_zgeqrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 dague_object_t* dplasma_zgeqrf_param_New(qr_piv_t *qrpiv, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
@@ -129,6 +131,7 @@ void dplasma_zsymm_Destruct( dague_object_t *o );
 void dplasma_zgelqf_Destruct( dague_object_t *o );
 void dplasma_zgeqrf_Destruct( dague_object_t *o );
 void dplasma_zgeqrf_param_Destruct( dague_object_t *o );
+void dplasma_zgetrf_Destruct( dague_object_t *o );
 void dplasma_zgetrf_incpiv_Destruct( dague_object_t *o );
 void dplasma_zgetrf_incpiv_sd_Destruct( dague_object_t *o );
 void dplasma_zherbt_Destruct( dague_object_t *o );
