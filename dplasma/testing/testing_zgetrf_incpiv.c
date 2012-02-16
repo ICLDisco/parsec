@@ -32,8 +32,8 @@ int main(int argc, char ** argv)
 #endif
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam);
-    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N));
+    PASTE_CODE_IPARAM_LOCALS(iparam)
+    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N))
 
     if ( M != N && check ) {
         fprintf(stderr, "Check cannot be perfomed with M != N\n");
@@ -41,7 +41,6 @@ int main(int argc, char ** argv)
     }
 
     /* initializing matrix structure */
-    IB += 1; /* Add one line per L to store IPIV */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, M, N, 0, 0,
@@ -52,10 +51,15 @@ int main(int argc, char ** argv)
                                nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
 
+    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
+        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
+                               nodes, cores, rank, MB, 1, M, NT, 0, 0,
+                               M, NT, SMB, SNB, P));
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
         two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                               N, N, SMB, SNB, P));
+                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                                   N, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
         two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
@@ -82,14 +86,15 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
     /* Create DAGuE */
-    if(loud > 2) printf("+++ Computing getrf_sd ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_sd,
+    if(loud > 2) printf("+++ Computing getrf_incpiv ... ");
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_incpiv,
                               ((tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescL,
+                               (tiled_matrix_desc_t*)&ddescIPIV,
                                &info));
     /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_sd);
-    dplasma_zgetrf_sd_Destruct( DAGUE_zgetrf_sd );
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_incpiv);
+    dplasma_zgetrf_incpiv_Destruct( DAGUE_zgetrf_incpiv );
     if(loud > 2) printf("Done.\n");
 
     if ( check && info != 0 ) {
@@ -98,15 +103,12 @@ int main(int argc, char ** argv)
     }
     else if ( check ) {
 
-        dplasma_ztrsmpl_sd(dague,
-                           (tiled_matrix_desc_t *)&ddescA,
-                           (tiled_matrix_desc_t *)&ddescL,
-                           (tiled_matrix_desc_t *)&ddescX );
-        dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper,
-                      PlasmaNoTrans, PlasmaNonUnit, 1.,
-                      (tiled_matrix_desc_t *)&ddescA,
-                      (tiled_matrix_desc_t *)&ddescX );
-
+        dplasma_zgetrs_incpiv(dague, PlasmaNoTrans,
+                              (tiled_matrix_desc_t *)&ddescA,
+                              (tiled_matrix_desc_t *)&ddescL,
+                              (tiled_matrix_desc_t *)&ddescIPIV,
+                              (tiled_matrix_desc_t *)&ddescX );
+        
         /* Check the solution */
         ret |= check_solution( dague, (rank == 0) ? loud : 0,
                                (tiled_matrix_desc_t *)&ddescA0,
@@ -127,6 +129,8 @@ int main(int argc, char ** argv)
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
     dague_data_free(ddescL.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescL);
+    dague_data_free(ddescIPIV.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
 
     cleanup_dague(dague, iparam);
 
