@@ -53,6 +53,8 @@ int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
+int queue_add_begin, queue_add_end;
+int queue_remove_begin, queue_remove_end;
 #endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_PAPI
