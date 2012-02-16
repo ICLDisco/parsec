@@ -137,7 +137,9 @@ dplasma/lib/[sdcz]potrf_ll\.[ch]
 dplasma/lib/[sdcz]potrf_Url\.[ch]
 dplasma/lib/[sdcz]potrf_Lrl\.[ch]
 dplasma/lib/[sdcz]print\.[ch]
-dplasma/lib/[sdcz]getrf.*\.[ch]
+dplasma/lib/[sdcz]getrf\.[ch]
+dplasma/lib/[sdcz]getrf_incpiv\.[ch]
+dplasma/lib/[sdcz]getrf_incpiv_sd\.[ch]
 dplasma/lib/[sdcz]trsmpl\.[ch]
 dplasma/lib/[sdcz]trsmpl_sd\.[ch]
 dplasma/lib/[sdcz]geqrf\.[ch]
@@ -202,9 +204,12 @@ dplasma/testing/testing_[zcds]geqrf
 dplasma/testing/testing_[zcds]trmm
 dplasma/testing/testing_[zcds]trsm
 dplasma/testing/testing_[zcds]getrf
+dplasma/testing/testing_[cds]getrf\.c
 dplasma/testing/testing_[zcds]gesv
 dplasma/testing/testing_[zcds]getrf_incpiv
+dplasma/testing/testing_[cds]getrf_incpiv\.c
 dplasma/testing/testing_[zcds]getrf_incpiv_sd
+dplasma/testing/testing_[cds]getrf_incpiv_sd\.c
 dplasma/testing/testing_[zcds]gesv_incpiv
 dplasma/testing/testing_[zcds]potrf
 dplasma/testing/testing_[zcds]potrf_ll
