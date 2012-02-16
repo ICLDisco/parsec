@@ -107,7 +107,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
         pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
 
-        pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
+        pos *= (size_t)Ddesc->super.bsiz;
 
     }
     /* Lapack Storage */
@@ -133,6 +133,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
         pos = ( local_n * Ddesc->super.nb ) * Ddesc->super.lm + local_m * Ddesc->super.mb;
     }
 
+    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
     return &(((char *) Ddesc->mat)[pos]);
 }
 
