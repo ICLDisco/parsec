@@ -162,7 +162,7 @@ BODY
                plasma_const( PlasmaNoTrans ), plasma_const( trans ), 
                tempmm, tempnn, Bmb,
 	       creal(alpha), m, k, B, Bmb, k, n, A, Amb,
-	       (Dague_Complex64_t)1.0, m, n, C, Bmb);
+	       1.0, m, n, C, Bmb);
 END
 
 /**************************************************
