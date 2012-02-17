@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -18,42 +18,29 @@ extern "C" %{
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
-
-
-#include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
 
-/* For now dplasma doesn't store matrices as PLASMA => no need for lm1 and BLKLDD */
-/* #define BLKLDD(k) ( ( (k) + Ai/Amb) < Alm1 ? Amb : Alm%Amb )*/
-#define BLKLDD(k) Amb
 %}
 
-A    [type = "dague_ddesc_t *"]
-T    [type = "dague_ddesc_t *" aligned=A]
-Amt  [type = "int"]
-Ant  [type = "int"]
-Amb  [type = "int"]
-Anb  [type = "int"]
-Am   [type = "int"]
-An   [type = "int"]
-/*Alm1 [type = "int"]*/
-/*Alm  [type = "int"]*/
-/*Ai   [type = "int"]*/
-Tmb  [type = "int"]
-Tnb  [type = "int"]
-ib   [type = "int"]
-pool_Tau    [type = "dague_memory_pool_t*"]
-pool_work   [type = "dague_memory_pool_t*"]
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
+descT  [type = "tiled_matrix_desc_t"]
+T      [type = "dague_ddesc_t *" aligned=A]
+ib     [type = "int"]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*ib*descT.nb)"]
+p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)   *descT.nb)"]
+
 
 zgelqt_typechange(k)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..( (descA.mt-1 < descA.nt-1)? descA.mt-1 : descA.nt-1 )
 
   : A(k,k)
 
 RW A <- A zgelqt(k)
-     -> (Amt>=(2+k)) ? C zunmlq(k, (k+1)..(Amt-1))     [type = UPPER_TILE]
-     -> A(k, k)                                        [type = UPPER_TILE]
+     -> (descA.mt>=(2+k)) ? C zunmlq(k, (k+1)..(descA.mt-1)) [type = UPPER_TILE]
+     -> A(k, k)                                              [type = UPPER_TILE]
 
 BODY
  /* Nothing */
@@ -61,7 +48,7 @@ END
 
 zgelqt(k)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
+  k = 0..inline_c %{ return dague_imin((descA.nt-1),(descA.mt-1)); %}
 
   : A(k,k)
 
@@ -72,45 +59,43 @@ zgelqt(k)
   /* F == A(k,k) */
   /* K == A(m1,n) */
 
-  RW    A <- (0==k) ? A(k,k)                              
-          <- (k>=1) ? K ztsmlq(k-1, k, k) 
-          -> (Ant==(k+1)) ? A(k,k)                        [type = LOWER_TILE]
-          -> (Ant>=(2+k)) ? F ztslqt(k, k+1)              [type = LOWER_TILE]
+  RW    A <- (0==k) ? A(k,k) : K ztsmlq(k-1, k, k)
+          -> (descA.nt==(k+1)) ? A(k,k)            [type = LOWER_TILE]
+          -> (descA.nt>=(2+k)) ? F ztslqt(k, k+1)  [type = LOWER_TILE]
           -> A zgelqt_typechange(k)
-  RW    B <- T(k,k)                                       [type = LITTLE_T]
-          -> (Amt>=(k+2)) ? D zunmlq(k, (k+1)..(Amt-1))   [type = LITTLE_T]
-          -> T(k,k)                                       [type = LITTLE_T]
+  RW    B <- T(k, k)                                              [type = LITTLE_T]
+          -> T(k, k)                                              [type = LITTLE_T]
+          -> (descA.mt>=(k+2)) ? D zunmlq(k, (k+1)..(descA.mt-1)) [type = LITTLE_T]
 
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
 
 BODY
 
-  int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
-  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ldak = BLKLDD( k );
+  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+  int ldak = BLKLDD( descA, k );
 
-  void *pool1 = dague_private_memory_pop( pool_Tau );
-  void *pool2 = dague_private_memory_pop( pool_work );
+  DRYRUN(
+         void *p_elem_A = dague_private_memory_pop( p_tau );
+         void *p_elem_B = dague_private_memory_pop( p_work );
 
-  CORE_zgelqt(tempkm, tempkn, ib, 
-	A /* A(k,k) */, ldak, B /* T(k,k) */, 
-	Tmb, pool1, pool2 );
-  printlog("thread %d VP %d   CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
+         CORE_zgelqt(tempkm, tempkn, ib,
+                     A /* A(k,k) */, ldak,
+                     B /* T(k,k) */, descT.mb,
+                     p_elem_A, p_elem_B );
+
+         dague_private_memory_push( p_tau, p_elem_A );
+         dague_private_memory_push( p_work, p_elem_B );
+         );
+
+  printlog("thread %d VP %d CORE_zgelqt(%d)\n"
+           "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
   context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B);
-
-  dague_private_memory_push( pool_Tau, pool1 );
-  dague_private_memory_push( pool_work, pool2 );
-
 END
-
 
 zunmlq(k,m)
   /* Execution space */
-  k = 0..( (Amt-1 < Ant-1)? Amt-1 : Ant-1 )
-  m = k+1..Amt-1
+  k = 0..inline_c %{ return dague_imin((descA.nt-1),(descA.mt-2)); %}
+  m = (k+1)..(descA.mt-1)
 
   : A(m,k)
 
@@ -122,55 +107,44 @@ zunmlq(k,m)
   /* J == A(m1,k) */
   /* K == A(m1,n) */
 
-  READ  C <- A zgelqt_typechange(k)                   [type = UPPER_TILE] 
-  READ  D <- B zgelqt(k)                              [type = LITTLE_T]
-  RW    E <- (0==k) ? A(m,k)
-          <- (k>=1) ? K ztsmlq(k-1, k-1+1, m) 
-          -> (Ant>=(2+k)) ? J ztsmlq(k, k+1, m) 
-          -> (Ant==(k+1)) ? A(m,k)
-
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
+  READ  C <- A zgelqt_typechange(k) [type = UPPER_TILE]
+  READ  D <- B zgelqt(k)            [type = LITTLE_T]
+  RW    E <- (0==k) ? A(m,k) : K ztsmlq(k-1, k-1+1, m)
+          -> (descA.nt==(1+k)) ? A(m,k)
+          -> (descA.nt>=(k+2)) ? J ztsmlq(k, k+1, m)
 
 BODY
 
-  int tempmm = ((m)==(Amt-1)) ? (Am-(m*Amb)) : (Amb);
-  int tempkn = ((k)==(Ant-1)) ? (An-(k*Anb)) : (Anb);
-  int ldak = BLKLDD( k );
-  int ldam = BLKLDD( m );
+  int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+  int ldak = BLKLDD( descA, k );
+  int ldam = BLKLDD( descA, m );
 
-  void *pool1 = dague_private_memory_pop( pool_work );
+  DRYRUN(
+         void *p_elem_A = dague_private_memory_pop( p_work );
 
-  CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
-	tempkn, tempkn, ib, 
-	C /* A(k,k) */, ldak, D /* T(k,k) */, 
-	Tmb, E /* A(m,k) */, ldam, 
-	pool1, Tnb );
-  printlog("thread %d VP %d   CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, A(%d,%d)[%p], ldam, pool1, Tnb)\n",
+         CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm,
+                     tempkn, tempkn, ib,
+                     C /* A(k,k) */, ldak,
+                     D /* T(k,k) */, descT.mb,
+                     E /* A(m,k) */, ldam,
+                     p_elem_A, descT.nb );
+
+         dague_private_memory_push( p_work, p_elem_A );
+         );
+
+
+  printlog("thread %d  VP %d CORE_zunmlq(%d, %d)\n"
+           "\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
   context->th_id, context->virtual_process->vp_id, k, m, k, k, C, k, k, D, m, k, E);
 
-  dague_private_memory_push( pool_work, pool1 );
-
 END
 
-ztsqlt_out_A(k)
-  k = 0..( (Ant <= Amt )? Ant-2 : Amt-1 )
-
-  : A(k, k)
-
-RW A  <- F ztslqt(k, Ant-1) [type = LOWER_TILE] /* solved n to Ant-1 because Ant==(n+1) in the outgoing edge of the source task */
-      -> A(k,k)             [type = LOWER_TILE]
-
-BODY
- /* Nothing */
-END
 
 ztslqt(k,n)
   /* Execution space */
-  k = 0..( (Amt < Ant) ? Amt-1 : Ant-1 )
-  n = k+1..Ant-1
+  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-1)); %}
+  n = (k+1)..(descA.nt-1)
 
   : A(k,n)
 
@@ -182,63 +156,62 @@ ztslqt(k,n)
   /* L == A(k,n) */
   /* M == T(k,n) */
 
-  RW    F <- (n>=(k+2)) ? F ztslqt(k, n-1)                  [type = LOWER_TILE]
-          <- ((k+1)==n) & (Amt>=(k+1)) ? A zgelqt(n-1)      [type = LOWER_TILE]
-          -> (Ant>=(n+2)) ? F ztslqt(k, n+1)                [type = LOWER_TILE]
-          -> (Ant==(n+1)) ? A ztsqlt_out_A(k) /* A(k, k) */  [type = LOWER_TILE]
-  RW    G <- (k>=1) ? K ztsmlq(k-1, n, k) 
-          <- (0==k) ? A(k,n)
-          -> (Amt>=(k+2)) ? L ztsmlq(k, n, (k+1)..(Amt-1)) 
+  RW    F <- ( (k+1) == n ) ? A zgelqt(n-1) : F ztslqt(k, n-1)         [type = LOWER_TILE]
+          -> (descA.nt==(1+n)) ? F ztslqt_out_A0(k) : F ztslqt(k, n+1) [type = LOWER_TILE]
+  RW    G <- (0==k) ? A(k,n) : K ztsmlq(k-1, n, k)
+          -> (descA.mt>=(2+k)) ? L ztsmlq(k, n, (k+1)..(descA.mt-1))
           -> A(k,n)
-  RW    H <- T(k,n)                                         [type = LITTLE_T]
-          -> (Amt>=(k+2)) ? M ztsmlq(k, n, (k+1)..(Amt-1))  [type = LITTLE_T]
-          -> T(k,n)                                         [type = LITTLE_T]
-
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
+  RW    H <- T(k, n)                                                 [type = LITTLE_T]
+          -> T(k, n)                                                 [type = LITTLE_T]
+          -> (descA.mt>=(2+k)) ? M ztsmlq(k, n, (k+1)..(descA.mt-1)) [type = LITTLE_T]
 
 BODY
 
-  int tempkm = ((k)==(Amt-1)) ? (Am-(k*Amb)) : (Amb);
-  int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
-  int ldak = BLKLDD( k );
+  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
+  int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+  int ldak = BLKLDD( descA, k );
 
-  void *pool1 = dague_private_memory_pop( pool_Tau );
-  void *pool2 = dague_private_memory_pop( pool_work );
+  DRYRUN(
+         void *p_elem_A = dague_private_memory_pop( p_tau );
+         void *p_elem_B = dague_private_memory_pop( p_work );
 
-  CORE_ztslqt(tempkm, tempnn, ib, 
-	F /* A(k,k) */, ldak, G /* A(k,n) */, 
-	ldak, H /* T(k,n) */, Tmb, 
-	pool1, pool2 );
-  printlog("thread %d VP %d   CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, pool2)\n",
+         CORE_ztslqt(tempkm, tempnn, ib,
+                     F /* A(k,k) */, ldak,
+                     G /* A(k,n) */, ldak,
+                     H /* T(k,n) */, descT.mb,
+                     p_elem_A, p_elem_B );
+         dague_private_memory_push( p_tau, p_elem_A );
+         dague_private_memory_push( p_work, p_elem_B );
+         );
+
+  printlog("thread %d VP %d CORE_ztslqt(%d, %d)\n"
+           "\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
   context->th_id, context->virtual_process->vp_id, k, n, k, k, F, k, n, G, k, n, H);
-
-  dague_private_memory_push( pool_Tau, pool1 );
-  dague_private_memory_push( pool_work, pool2 );
 
 END
 
-ztsmlq_out_data_A1(k, m1)
-  k = 0..( (Ant < Amt) ? Ant-2 : Amt-2 )
-  m1 = k+1..Amt-1
+/*
+ * Pseudo-task
+ */
+ztslqt_out_A0(k)
+  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-1)); %}
 
-  : A(m1, k)
+  : A(k,k)
 
-  RW J <- J ztsmlq(k, Ant-1, m1)
-       -> A(m1, k)
+  RW F <- F ztslqt(k,descA.nt-1) [type = LOWER_TILE]
+        -> A(k,k)                [type = LOWER_TILE]
 BODY
 /* nothing */
 END
 
+
 ztsmlq(k,n,m1)
   /* Execution space */
-  k = 0..( (Amt < Ant)? Amt-1 : Ant-1 )
-  n = k+1..Ant-1
-  m1 = k+1..Amt-1
+  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
+  n = (k+1)..(descA.nt-1)
+  m1 = (k+1)..(descA.mt-1)
 
-  : A(m1, n)
+  : A(m1,n)
 
   /* A == A(k,k) */
   /* E == A(m,k) */
@@ -249,40 +222,60 @@ ztsmlq(k,n,m1)
   /* L == A(k,n) */
   /* M == T(k,n) */
 
-  RW    J <- ( (k+1) == n ) ? E zunmlq(n-1, m1) : J ztsmlq(k, n-1, m1) 
-          -> ( Ant == (n+1) ) ? J ztsmlq_out_data_A1(k, m1) : J ztsmlq(k, n+1, m1)
-  RW    K <- (0==k) ? A(m1, n) : K ztsmlq(k-1, n, m1) 
-          -> ((k+1)==m1) & ((k+1)==n) ? A zgelqt(m1)                    /* Diagonal */
-          -> ( n==(1+k)) & (m1 > n) ? E zunmlq(k+1, m1)                 /* Next Column */ 
-          -> ((k+1)==m1) & (n > m1) ? G ztslqt(m1, n)                   /* Next row */
-          -> (m1>(k+1)) & (n>(k+1)) ? K ztsmlq(k+1, n, m1)              /* trailing submatrix */
-  READ  L <- G ztslqt(k, n) 
-  READ  M <- H ztslqt(k, n)                                                  [type = LITTLE_T]
+  RW    J <- (n>=(k+2)) ? J ztsmlq(k, n-1, m1)
+          <- ((1+k)==n) & (m1>=(k+1)) & (descA.mt>=(1+k)) ? E zunmlq(n-1, m1)
+          -> (descA.nt==(1+n)) ? J ztsmlq_out_A0(k,m1)
 
-  /*
-  The following is a superset of the necessary anti-dependencies:
-
-  */
+          -> (descA.nt>=(n+2)) ? J ztsmlq(k, n+1, m1)
+  RW    K <- (k>=1) ? K ztsmlq(k-1, n, m1)
+          <- (0==k) ? A(m1,n)
+          -> (m1>=(k+2)) & (n>=(2+k)) ? K ztsmlq(k+1, n, m1)
+          -> (n==(k+1)) & (m1>=(n+1)) ? E zunmlq(k+1, m1)
+          -> ((k+1)==m1) & ((k+1)==n) & (descA.nt>=(k+2)) ? A zgelqt(m1)
+          -> ((k+1)==m1) & (descA.nt>=(k+2)) & (n>=(k+2)) ? G ztslqt(m1, n)
+  READ  L <- G ztslqt(k, n)
+  READ  M <- H ztslqt(k, n) [type = LITTLE_T]
 
 BODY
 
-  int tempmm = ((m1)==(Amt-1)) ? (Am-(m1*Amb)) : (Amb);
-  int tempnn = ((n)==(Ant-1)) ? (An-(n*Anb)) : (Anb);
-  int ldam = BLKLDD( m1 );
-  int ldak = BLKLDD( k );
-  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (Tnb);
+  int tempmm = ((m1)==(descA.mt-1)) ? (descA.m-(m1*descA.mb)) : descA.mb;
+  int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+  int ldam = BLKLDD( descA, m1 );
+  int ldak = BLKLDD( descA, k );
+  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : descT.nb;
 
-  void *pool1 = dague_private_memory_pop( pool_work );
+  DRYRUN(
+         void *p_elem_A = dague_private_memory_pop( p_work );
 
-  CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
-	Anb, tempmm, tempnn, 
-	Amb, ib, J /* A(m1,k) */, 
-	ldam, K /* A(m1,n) */, ldam, 
-	L /* A(k,n) */, ldak, M /* T(k,n) */, 
-	Tmb, pool1, ldwork );
-  printlog("thread %d VP %d   CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, Anb, tempmm, tempnn, Amb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], Tmb, pool1, ldwork)\n",
+         CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm,
+                     descA.nb, tempmm, tempnn, descA.mb, ib,
+                     J /* A(m1,k) */, ldam,
+                     K /* A(m1,n) */, ldam,
+                     L /* A(k, n) */, ldak,
+                     M /* T(k, n) */, descT.mb,
+                     p_elem_A, ldwork );
+
+         dague_private_memory_push( p_work, p_elem_A );
+         );
+
+  printlog("thread  %d VP %d  CORE_ztsmlq(%d, %d, %d)\n"
+           "\t(PlasmaRight, PlasmaConjTrans, tempmm, descA.nb, tempmm, tempnn, descA.mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->th_id, context->virtual_process->vp_id, k, n, m1, m1, k, J, m1, n, K, k, n, L, k, n, M);
 
-  dague_private_memory_push( pool_work, pool1 );
-
 END
+
+/*
+ * Pseudo-task
+ */
+ztsmlq_out_A0(k,m1)
+  k = 0..inline_c %{ return dague_imin((descA.nt-2),(descA.mt-2)); %}
+  m1 = (k+1)..(descA.mt-1)
+
+  : A(m1,k)
+
+  RW J <- J ztsmlq(k,descA.nt-1,m1)
+        -> A(m1,k)
+BODY
+/* nothing */
+END
+

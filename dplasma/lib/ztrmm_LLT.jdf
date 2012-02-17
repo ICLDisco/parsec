@@ -1,7 +1,7 @@
 extern "C" %{
 /*
  *  Copyright (c) 2010 - 2011
- * 
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -43,7 +43,7 @@ Bmb  [type = int]
 Bnb  [type = int]
 Bmt  [type = int]
 Bnt  [type = int]
-     
+
 /**************************************************
  *                      TRMM                      *
  **************************************************/
@@ -159,8 +159,8 @@ BODY
 
       printlog("thread %d VP %d gemm( %d, %d, %d )\n"
 	       "    ( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, %f, B(%d,%d)[%p], %d)\n",
-	       context->th_id, context->virtual_process->vp_id, m, n, k, 
-               plasma_const(trans), plasma_const( PlasmaNoTrans ), 
+	       context->th_id, context->virtual_process->vp_id, m, n, k,
+               plasma_const(trans), plasma_const( PlasmaNoTrans ),
                tempmm, tempnn, tempkm,
 	       creal(alpha), k, m, A, Bmb, k, n, B, Bmb,
 	       (float)1.0, m, n, C, Bmb);

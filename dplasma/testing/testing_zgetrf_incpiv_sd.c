@@ -32,8 +32,8 @@ int main(int argc, char ** argv)
 #endif
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
-    PASTE_CODE_IPARAM_LOCALS(iparam)
-    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N))
+    PASTE_CODE_IPARAM_LOCALS(iparam);
+    PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M, (DagDouble_t)N));
 
     if ( M != N && check ) {
         fprintf(stderr, "Check cannot be perfomed with M != N\n");
@@ -41,28 +41,29 @@ int main(int argc, char ** argv)
     }
 
     /* initializing matrix structure */
+    IB += 1; /* Add one line per L to store IPIV */
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, M, N, 0, 0,
                                LDA, N, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
-        two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Lapack,
-                               nodes, cores, rank, MB, 1, M, 1, 0, 0,
-                               M, 1, SMB, SNB, P));
+    PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1,
+        two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               MT*IB, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
-                                   nodes, cores, rank, MB, NB, LDA, N, 0, 0,
-                                   N, N, SMB, SNB, P));
+        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               N, N, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Lapack,
+        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
                                nodes, cores, rank, MB, NB, LDB, NRHS, 0, 0,
                                N, NRHS, SMB, SNB, P));
 
@@ -81,33 +82,37 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
     /* Create DAGuE */
-    if(loud > 2) printf("+++ Computing getrf ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf,
+    if(loud > 2) printf("+++ Computing getrf_incpiv_sd ... ");
+    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_incpiv_sd,
                               ((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescIPIV,
+                               (tiled_matrix_desc_t*)&ddescL,
                                &info));
     /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf);
-    dplasma_zgetrf_Destruct( DAGUE_zgetrf );
+    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_incpiv_sd);
+    dplasma_zgetrf_incpiv_sd_Destruct( DAGUE_zgetrf_incpiv_sd );
     if(loud > 2) printf("Done.\n");
 
     if ( check && info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
     }
-    /* else if ( check ) { */
+    else if ( check ) {
 
-    /*     dplasma_zgetrs(dague, PlasmaNoTrans, */
-    /*                           (tiled_matrix_desc_t *)&ddescA, */
-    /*                           (tiled_matrix_desc_t *)&ddescIPIV, */
-    /*                           (tiled_matrix_desc_t *)&ddescX ); */
+        dplasma_ztrsmpl_sd(dague,
+                           (tiled_matrix_desc_t *)&ddescA,
+                           (tiled_matrix_desc_t *)&ddescL,
+                           (tiled_matrix_desc_t *)&ddescX );
+        dplasma_ztrsm(dague, PlasmaLeft, PlasmaUpper,
+                      PlasmaNoTrans, PlasmaNonUnit, 1.,
+                      (tiled_matrix_desc_t *)&ddescA,
+                      (tiled_matrix_desc_t *)&ddescX );
 
-    /*     /\* Check the solution *\/ */
-    /*     ret |= check_solution( dague, (rank == 0) ? loud : 0, */
-    /*                            (tiled_matrix_desc_t *)&ddescA0, */
-    /*                            (tiled_matrix_desc_t *)&ddescB, */
-    /*                            (tiled_matrix_desc_t *)&ddescX); */
-    /* } */
+        /* Check the solution */
+        ret |= check_solution( dague, (rank == 0) ? loud : 0,
+                               (tiled_matrix_desc_t *)&ddescA0,
+                               (tiled_matrix_desc_t *)&ddescB,
+                               (tiled_matrix_desc_t *)&ddescX);
+    }
 
     if ( check ) {
         dague_data_free(ddescA0.mat);
@@ -120,8 +125,8 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
-    dague_data_free(ddescIPIV.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
+    dague_data_free(ddescL.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&ddescL);
 
     cleanup_dague(dague, iparam);
 

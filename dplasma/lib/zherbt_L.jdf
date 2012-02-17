@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -21,77 +21,73 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-/* For now dplasma doesn't store matrices as PLASMA => no need for lm1 and BLKLDD */
-/* #define BLKLDD(k) ( ( (k) + desc_A.i/desc_A.mb) < desc_A.lm1 ? desc_A.mb : desc_A.lm%desc_A.mb )*/
-#define BLKLDD(DESC,k) desc_A.mb
 %}
 
-uplo [type = "PLASMA_enum"]
-desc_A [type = "PLASMA_desc"]
-data_A [type = "dague_ddesc_t *"]
-desc_T [type = "PLASMA_desc"]
-data_T [type = "dague_ddesc_t *" aligned=data_A]
-IB [type = "int"]
-pool_3 [type = "dague_memory_pool_t *" size = "(((sizeof(PLASMA_Complex64_t))*4)*(desc_T.nb))*(desc_T.nb)"]
-pool_2 [type = "dague_memory_pool_t *" size = "(((sizeof(PLASMA_Complex64_t))*2)*(desc_T.nb))*(desc_T.nb)"]
-pool_1 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*IB)*(desc_T.nb)"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*(desc_T.nb)"]
+uplo   [type = "PLASMA_enum"]
+ib     [type = "int"]
+descA  [type = "tiled_matrix_desc_t"]
+A      [type = "dague_ddesc_t *"]
+descT  [type = "tiled_matrix_desc_t"]
+T      [type = "dague_ddesc_t *" aligned=A]
 
+pool_3 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*4 *descT.nb)"]
+pool_2 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*2 *descT.nb)"]
+pool_1 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb*ib)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(Dague_Complex64_t)*descT.nb)"]
 
 zgeqrt(k)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
+  k = 0..(descA.nt)-1-1
 
-  : data_A(k+1,k)
+  : A(k+1,k)
 
-  /* A == data_A(k+1,k) */
-  /* B == data_T(k+1,k) */
-  /* C == data_A(k+1,k) */
-  /* D == data_T(k+1,k) */
-  /* F == data_A(k+1,k) */
-  /* G == data_T(k+1,k) */
-  /* J == data_A(k+1,k) */
-  /* M == data_A(i,k+1) */
-  /* V == data_A(m1,k+1) */
+  /* A == A(k+1,k) */
+  /* B == T(k+1,k) */
+  /* C == A(k+1,k) */
+  /* D == T(k+1,k) */
+  /* F == A(k+1,k) */
+  /* G == T(k+1,k) */
+  /* J == A(k+1,k) */
+  /* M == A(i,k+1) */
+  /* V == A(m1,k+1) */
 
-  RW    A <- ((2+k)==desc_A.mt) & (k>=1) ? V ztsmqr_corner(k+1-2, k+1) 
-          <- (0==k) ? data_A(k+1,k)
-          <- (k>=1) & ((1+k)>=desc_A.mt) ? data_A(k+1,k)
-          <- (k>=1) & (desc_A.mt>=(k+3)) ? M ztsmqr_hetra1(k+1-2, desc_A.mt-1, k+1) 
-          -> C zherfb(k) 
-          -> ((k+2)>=desc_A.mt) ? data_A(k+1,k)
-          -> (desc_A.mt>=(k+3)) ? F zunmqr(k, (k+2)..(desc_A.mt-1)) 
-          -> (desc_A.mt>=(k+3)) ? J ztsqrt(k, k+2) 
-  RW    B <- data_T(k+1,k)  [type = LITTLE_T]
-          -> data_T(k+1,k)  [type = LITTLE_T]
+  RW    A <- ((2+k)==descA.mt) & (k>=1) ? V ztsmqr_corner(k+1-2, k+1)
+          <- (0==k) ? A(k+1,k)
+          <- (k>=1) & ((1+k)>=descA.mt) ? A(k+1,k)
+          <- (k>=1) & (descA.mt>=(k+3)) ? M ztsmqr_hetra1(k+1-2, descA.mt-1, k+1)
+          -> C zherfb(k)
+          -> ((k+2)>=descA.mt) ? A(k+1,k)
+          -> (descA.mt>=(k+3)) ? F zunmqr(k, (k+2)..(descA.mt-1))
+          -> (descA.mt>=(k+3)) ? J ztsqrt(k, k+2)
+  RW    B <- T(k+1,k)  [type = LITTLE_T]
+          -> T(k+1,k)  [type = LITTLE_T]
           -> D zherfb(k)   [type = LITTLE_T]
-          -> (desc_A.mt>=(k+3)) ? G zunmqr(k, (k+2)..(desc_A.mt-1))   [type = LITTLE_T]
+          -> (descA.mt>=(k+3)) ? G zunmqr(k, (k+2)..(descA.mt-1))   [type = LITTLE_T]
 
   /*
   The following is a superset of the necessary anti-dependencies:
 
   */
 
-; (desc_A.nt-k)*(desc_A.nt-k)*(desc_A.nt-k)
+; (descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 
 BODY
 
-  int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
-  int ib = IB;
-  int ldak = BLKLDD( desc_A, k+1 );
+  int tempkn = ((k+1)==((descA.nt)-1)) ? ((descA.n)-((k+1)*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k+1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
 #line 72 "pzherbt-L.c"
-  CORE_zgeqrt(tempkn, desc_A.nb, ib, 
-	A /* data_A(k+1,k) */, ldak, B /* data_T(k+1,k) */, 
-	desc_T.mb, p_elem_A, p_elem_B );
+  CORE_zgeqrt(tempkn, descA.nb, ib,
+        A /* A(k+1,k) */, ldak, B /* T(k+1,k) */,
+        descT.mb, p_elem_A, p_elem_B );
 
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkn, desc_A.nb, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, p_elem_A, p_elem_B)\n",
+  printlog("thread %d VP %d CORE_zgeqrt(%d)\n\t(tempkn, descA.nb, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
   context->th_id, context->virtual_process->vp_id, k, k+1, k, A, k+1, k, B);
 
 END
@@ -99,50 +95,49 @@ END
 
 zherfb(k)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
+  k = 0..(descA.nt)-1-1
 
-  : data_A(k+1,k+1)
+  : A(k+1,k+1)
 
-  /* A == data_A(k+1,k) */
-  /* B == data_T(k+1,k) */
-  /* C == data_A(k+1,k) */
-  /* D == data_T(k+1,k) */
-  /* E == data_A(k+1,k+1) */
-  /* U == data_A(k+1,k+1) */
-  /* W == data_A(m1,m1) */
+  /* A == A(k+1,k) */
+  /* B == T(k+1,k) */
+  /* C == A(k+1,k) */
+  /* D == T(k+1,k) */
+  /* E == A(k+1,k+1) */
+  /* U == A(k+1,k+1) */
+  /* W == A(m1,m1) */
 
-  READ  C <- A zgeqrt(k) 
+  READ  C <- A zgeqrt(k)
   READ  D <- B zgeqrt(k)   [type = LITTLE_T]
-  RW    E <- (0==k) ? data_A(k+1,k+1)
-          <- (k>=1) & ((k+1)>=desc_A.mt) ? data_A(k+1,k+1)
-          <- (k>=1) & (desc_A.mt>=(k+2)) ? W ztsmqr_corner(k+1-2, k+1)
-          -> ((2+k)>=desc_A.mt) ? data_A(k+1,k+1)
-          -> (desc_A.mt>=(k+3)) ? U ztsmqr_corner(k, k+2)
+  RW    E <- (0==k) ? A(k+1,k+1)
+          <- (k>=1) & ((k+1)>=descA.mt) ? A(k+1,k+1)
+          <- (k>=1) & (descA.mt>=(k+2)) ? W ztsmqr_corner(k+1-2, k+1)
+          -> ((2+k)>=descA.mt) ? A(k+1,k+1)
+          -> (descA.mt>=(k+3)) ? U ztsmqr_corner(k, k+2)
 
   /*
   The following is a superset of the necessary anti-dependencies:
 
   */
-; (desc_A.nt-k)*(desc_A.nt-k)*(desc_A.nt-k)
+; (descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 
 BODY
 
-  int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
-  int ib = IB;
-  int ldak = BLKLDD( desc_A, k+1 );
+  int tempkn = ((k+1)==((descA.nt)-1)) ? ((descA.n)-((k+1)*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k+1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_2 );
 
 #line 85 "pzherbt-L.c"
-  CORE_zherfb(PlasmaLower, tempkn, tempkn, 
-	ib, desc_T.nb, C /* data_A(k+1,k) */, 
-	ldak, D /* data_T(k+1,k) */, desc_T.mb, 
-	E /* data_A(k+1,k+1) */, ldak, p_elem_A, 
-	desc_T.nb );
+  CORE_zherfb(PlasmaLower, tempkn, tempkn,
+        ib, descT.nb, C /* A(k+1,k) */,
+        ldak, D /* T(k+1,k) */, descT.mb,
+        E /* A(k+1,k+1) */, ldak, p_elem_A,
+        descT.nb );
 
   dague_private_memory_push( pool_2, p_elem_A );
 
-  printlog("thread %d VP %d CORE_zherfb(%d)\n\t(PlasmaLower, tempkn, tempkn, ib, desc_T.nb, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T.nb)\n",
+  printlog("thread %d VP %d CORE_zherfb(%d)\n\t(PlasmaLower, tempkn, tempkn, ib, descT.nb, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
   context->th_id, context->virtual_process->vp_id, k, k+1, k, C, k+1, k, D, k+1, k+1, E);
 
 END
@@ -150,108 +145,107 @@ END
 
 zunmqr(k,m)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
-  m = k+2..desc_A.mt-1
+  k = 0..(descA.nt)-1-1
+  m = k+2..descA.mt-1
 
-  : data_A(m,k+1)
+  : A(m,k+1)
 
-  /* A == data_A(k+1,k) */
-  /* B == data_T(k+1,k) */
-  /* F == data_A(k+1,k) */
-  /* G == data_T(k+1,k) */
-  /* H == data_A(m,k+1) */
-  /* N == data_A(m1,i) */
-  /* Q == data_A(j,k+1) */
-  /* V == data_A(m1,k+1) */
+  /* A == A(k+1,k) */
+  /* B == T(k+1,k) */
+  /* F == A(k+1,k) */
+  /* G == T(k+1,k) */
+  /* H == A(m,k+1) */
+  /* N == A(m1,i) */
+  /* Q == A(j,k+1) */
+  /* V == A(m1,k+1) */
 
-  READ  F <- A zgeqrt(k) 
+  READ  F <- A zgeqrt(k)
   READ  G <- B zgeqrt(k)   [type = LITTLE_T]
-  RW    H <- (0==k) ? data_A(m,k+1)
-          <- (k>=1) ? N ztsmqr_hetra1(k+1-2, m, k+1) 
-          -> (m>=(k+3)) ? Q ztsmqr(k, k+2, m) 
-          -> ((k+2)==m) & (desc_A.nt>=(k+2)) ? V ztsmqr_corner(m-2, m) 
+  RW    H <- (0==k) ? A(m,k+1)
+          <- (k>=1) ? N ztsmqr_hetra1(k+1-2, m, k+1)
+          -> (m>=(k+3)) ? Q ztsmqr(k, k+2, m)
+          -> ((k+2)==m) & (descA.nt>=(k+2)) ? V ztsmqr_corner(m-2, m)
 
   /*
   The following is a superset of the necessary anti-dependencies:
 
   */
 
-; (desc_A.nt - k)*(desc_A.mt - m)*(desc_A.mt - m)
+; (descA.nt - k)*(descA.mt - m)*(descA.mt - m)
 
 BODY
 
-  int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
-  int tempkn = ((k+1)==((desc_A.nt)-1)) ? ((desc_A.n)-((k+1)*(desc_A.nb))) : (desc_A.nb);
-  int ib = IB;
-  int ldak = BLKLDD( desc_A, k+1 );
-  int ldam = BLKLDD( desc_A, m );
+  int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+  int tempkn = ((k+1)==((descA.nt)-1)) ? ((descA.n)-((k+1)*(descA.nb))) : (descA.nb);
+  int ldak = BLKLDD( descA, k+1 );
+  int ldam = BLKLDD( descA, m );
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 105 "pzherbt-L.c"
-  CORE_zunmqr(PlasmaRight, PlasmaNoTrans, tempmm, 
-	desc_A.nb, tempkn, ib, 
-	F /* data_A(k+1,k) */, ldak, G /* data_T(k+1,k) */, 
-	desc_T.mb, H /* data_A(m,k+1) */, ldam, 
-	p_elem_A, desc_T.nb );
+  CORE_zunmqr(PlasmaRight, PlasmaNoTrans, tempmm,
+        descA.nb, tempkn, ib,
+        F /* A(k+1,k) */, ldak, G /* T(k+1,k) */,
+        descT.mb, H /* A(m,k+1) */, ldam,
+        p_elem_A, descT.nb );
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempmm, desc_A.nb, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T.mb, A(%d,%d)[%p], ldam, p_elem_A, desc_T.nb)\n",
+  printlog("thread %d VP %d CORE_zunmqr(%d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempmm, descA.nb, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldam, p_elem_A, descT.nb)\n",
   context->th_id, context->virtual_process->vp_id, k, m, k+1, k, F, k+1, k, G, m, k+1, H);
 
 END
 
-ztsqrt_out_data_A0(k,m1) [profile = off]
-  k = 0..(desc_A.nt)-3
-  m1 = desc_A.mt-1
+ztsqrt_out_A0(k,m1) [profile = off]
+  k = 0..(descA.nt)-3
+  m1 = descA.mt-1
 
-:data_A(k+1,k)
+:A(k+1,k)
 
 RW J <- J ztsqrt(k,m1)
-     -> data_A(k+1,k)
+     -> A(k+1,k)
 
 BODY
  /* Nothing */
- printlog("thread %d VP %d ztsqrt_out_data_A0(%d, %d) A(%d, %d)[%p]\n",
+ printlog("thread %d VP %d ztsqrt_out_A0(%d, %d) A(%d, %d)[%p]\n",
           context->th_id, context->virtual_process->vp_id, k, m1, k+1, k, J);
 END
 
 ztsqrt(k,m1)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
-  m1 = k+2..desc_A.mt-1
+  k = 0..(descA.nt)-1-1
+  m1 = k+2..descA.mt-1
 
-  : data_A(m1,k)
+  : A(m1,k)
 
-  /* A == data_A(k+1,k) */
-  /* J == data_A(k+1,k) */
-  /* K == data_A(m1,k) */
-  /* L == data_T(m1,k) */
-  /* M == data_A(i,k+1) */
-  /* O == data_A(m1,k) */
-  /* P == data_T(m1,k) */
-  /* S == data_A(m1,k) */
-  /* T == data_T(m1,k) */
-  /* V == data_A(m1,k+1) */
-  /* X == data_A(m1,k) */
-  /* Y == data_T(m1,k) */
+  /* A == A(k+1,k) */
+  /* J == A(k+1,k) */
+  /* K == A(m1,k) */
+  /* L == T(m1,k) */
+  /* M == A(i,k+1) */
+  /* O == A(m1,k) */
+  /* P == T(m1,k) */
+  /* S == A(m1,k) */
+  /* T == T(m1,k) */
+  /* V == A(m1,k+1) */
+  /* X == A(m1,k) */
+  /* Y == T(m1,k) */
 
-  RW    J <- (m1==(2+k)) ? A zgeqrt(m1-2) 
-          <- (m1>=(3+k)) ? J ztsqrt(k, m1-1) 
-          -> (desc_A.mt==(m1+1)) ? J ztsqrt_out_data_A0(k,m1)
-          -> (desc_A.mt>=(m1+2)) ? J ztsqrt(k, m1+1) 
-  RW    K <- ((m1+1)==desc_A.mt) & (k>=1) ? V ztsmqr_corner(k-1, desc_A.mt-1) 
-          <- (0==k) ? data_A(m1,k)
-          <- (desc_A.mt>=(m1+2)) & (k>=1) ? M ztsmqr_hetra1(k-1, desc_A.mt-1, m1) 
-          -> (m1>=(3+k)) ? O ztsmqr_hetra1(k, m1, (k+2)..(m1-1)) 
-          -> (desc_A.mt>=(2+m1)) ? S ztsmqr(k, m1, (m1+1)..(desc_A.mt-1)) 
-          -> X ztsmqr_corner(k, m1) 
-          -> data_A(m1,k)
-  RW    L <- data_T(m1,k)   [type = LITTLE_T]
+  RW    J <- (m1==(2+k)) ? A zgeqrt(m1-2)
+          <- (m1>=(3+k)) ? J ztsqrt(k, m1-1)
+          -> (descA.mt==(m1+1)) ? J ztsqrt_out_A0(k,m1)
+          -> (descA.mt>=(m1+2)) ? J ztsqrt(k, m1+1)
+  RW    K <- ((m1+1)==descA.mt) & (k>=1) ? V ztsmqr_corner(k-1, descA.mt-1)
+          <- (0==k) ? A(m1,k)
+          <- (descA.mt>=(m1+2)) & (k>=1) ? M ztsmqr_hetra1(k-1, descA.mt-1, m1)
+          -> (m1>=(3+k)) ? O ztsmqr_hetra1(k, m1, (k+2)..(m1-1))
+          -> (descA.mt>=(2+m1)) ? S ztsmqr(k, m1, (m1+1)..(descA.mt-1))
+          -> X ztsmqr_corner(k, m1)
+          -> A(m1,k)
+  RW    L <- T(m1,k)   [type = LITTLE_T]
           -> Y ztsmqr_corner(k, m1)    [type = LITTLE_T]
-          -> (desc_A.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(desc_A.mt-1))   [type = LITTLE_T] 
-          -> data_T(m1,k)   [type = LITTLE_T]
+          -> (descA.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(descA.mt-1))   [type = LITTLE_T]
+          -> T(m1,k)   [type = LITTLE_T]
           -> (m1>=(k+3)) ? P ztsmqr_hetra1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
 
   /*
@@ -259,78 +253,77 @@ ztsqrt(k,m1)
 
   */
 
-; (desc_A.nt - k)*(desc_A.mt - m1)*(desc_A.mt - m1)
+; (descA.nt - k)*(descA.mt - m1)*(descA.mt - m1)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int ib = IB;
-  int ldak = BLKLDD( desc_A, k+1 );
-  int ldam = BLKLDD( desc_A, m1 );
+  int tempmm = ((m1)==((descA.mt)-1)) ? ((descA.m)-(m1*(descA.mb))) : (descA.mb);
+  int ldak = BLKLDD( descA, k+1 );
+  int ldam = BLKLDD( descA, m1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
 
 #line 126 "pzherbt-L.c"
-  CORE_ztsqrt(tempmm, desc_A.nb, ib, 
-	J /* data_A(k+1,k) */, ldak, K /* data_A(m1,k) */, 
-	ldam, L /* data_T(m1,k) */, desc_T.mb, 
-	p_elem_A, p_elem_B );
+  CORE_ztsqrt(tempmm, descA.nb, ib,
+        J /* A(k+1,k) */, ldak, K /* A(m1,k) */,
+        ldam, L /* T(m1,k) */, descT.mb,
+        p_elem_A, p_elem_B );
 
   dague_private_memory_push( pool_0, p_elem_A );
   dague_private_memory_push( pool_1, p_elem_B );
 
-  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, desc_A.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, p_elem_B)\n",
+  printlog("thread %d VP %d CORE_ztsqrt(%d, %d)\n\t(tempmm, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
   context->th_id, context->virtual_process->vp_id, k, m1, k+1, k, J, m1, k, K, m1, k, L);
 
 END
 
-ztsmqr_hetra1_out_data_A0(k,m1,i) [profile = off]
-  k = ((desc_A.nt>=2) ? (desc_A.nt-2) : (desc_A.nt-1))..desc_A.nt-2
-  m1 = (k+2)..(desc_A.mt-1)
+ztsmqr_hetra1_out_A0(k,m1,i) [profile = off]
+  k = ((descA.nt>=2) ? (descA.nt-2) : (descA.nt-1))..descA.nt-2
+  m1 = (k+2)..(descA.mt-1)
   i = (k+2)..(m1-1)
 
-  : data_A(m1,i)
+  : A(m1,i)
 
   RW N <- N ztsmqr_hetra1(k,m1,i)
-        -> data_A(m1,i)
+        -> A(m1,i)
 BODY
 /* nothing */
- printlog("thread %d VP %d ztsmqr_hetra1_out_data_A0(%d, %d, %d) A(%d, %d)[%p]\n",
+ printlog("thread %d VP %d ztsmqr_hetra1_out_A0(%d, %d, %d) A(%d, %d)[%p]\n",
           context->th_id, context->virtual_process->vp_id, k, m1, i, m1, i, N);
 END
 
 ztsmqr_hetra1(k,m1,i)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
-  m1 = k+2..desc_A.mt-1
+  k = 0..(descA.nt)-1-1
+  m1 = k+2..descA.mt-1
   i = k+2..m1-1
 
-  : data_A(i,k+1)
+  : A(i,k+1)
 
-  /* A == data_A(k+1,k) */
-  /* H == data_A(m,k+1) */
-  /* K == data_A(m1,k) */
-  /* L == data_T(m1,k) */
-  /* M == data_A(i,k+1) */
-  /* N == data_A(m1,i) */
-  /* O == data_A(m1,k) */
-  /* P == data_T(m1,k) */
-  /* R == data_A(j,m1) */
-  /* V == data_A(m1,k+1) */
+  /* A == A(k+1,k) */
+  /* H == A(m,k+1) */
+  /* K == A(m1,k) */
+  /* L == T(m1,k) */
+  /* M == A(i,k+1) */
+  /* N == A(m1,i) */
+  /* O == A(m1,k) */
+  /* P == T(m1,k) */
+  /* R == A(j,m1) */
+  /* V == A(m1,k+1) */
 
-  RW    M <- (m1>=(2+i)) ? M ztsmqr_hetra1(k, m1-1, i) 
-          <- ((1+i)==m1) ? V ztsmqr_corner(k, m1-1) 
-          -> (desc_A.mt==(m1+1)) & ((k+2)==i) & (desc_A.nt>=(k+3)) ? A zgeqrt(i-1) 
-          -> (desc_A.mt==(m1+1)) & (i>=(k+3)) & (desc_A.nt>=(k+3)) ? K ztsqrt(k+1, i) 
-          -> (desc_A.mt>=(2+m1)) ? M ztsmqr_hetra1(k, m1+1, i) 
-          -> (desc_A.nt==i) ? data_A(i,k+1)
-          -> (desc_A.nt==(k+2)) & (i>=(desc_A.nt+1)) ? data_A(i,k+1)
-  RW    N <- R ztsmqr(k, i, m1) 
-          -> (i>=(k+3)) & (desc_A.nt>=(3+k)) ? R ztsmqr(k+1, i, m1) 
-          -> (desc_A.nt==(k+2)) ? N ztsmqr_hetra1_out_data_A0(k,m1,i)
-          -> (i==(k+2)) & (desc_A.nt>=(i+1)) ? H zunmqr(i-1, m1) 
-  READ  O <- K ztsqrt(k, m1) 
+  RW    M <- (m1>=(2+i)) ? M ztsmqr_hetra1(k, m1-1, i)
+          <- ((1+i)==m1) ? V ztsmqr_corner(k, m1-1)
+          -> (descA.mt==(m1+1)) & ((k+2)==i) & (descA.nt>=(k+3)) ? A zgeqrt(i-1)
+          -> (descA.mt==(m1+1)) & (i>=(k+3)) & (descA.nt>=(k+3)) ? K ztsqrt(k+1, i)
+          -> (descA.mt>=(2+m1)) ? M ztsmqr_hetra1(k, m1+1, i)
+          -> (descA.nt==i) ? A(i,k+1)
+          -> (descA.nt==(k+2)) & (i>=(descA.nt+1)) ? A(i,k+1)
+  RW    N <- R ztsmqr(k, i, m1)
+          -> (i>=(k+3)) & (descA.nt>=(3+k)) ? R ztsmqr(k+1, i, m1)
+          -> (descA.nt==(k+2)) ? N ztsmqr_hetra1_out_A0(k,m1,i)
+          -> (i==(k+2)) & (descA.nt>=(i+1)) ? H zunmqr(i-1, m1)
+  READ  O <- K ztsqrt(k, m1)
   READ  P <- L ztsqrt(k, m1)    [type = LITTLE_T]
 
   /*
@@ -340,69 +333,69 @@ ztsmqr_hetra1(k,m1,i)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int ib = IB;
-  int ldai = BLKLDD( desc_A, i );
-  int ldam = BLKLDD( desc_A, m1 );
-  int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (desc_T.nb);
+  int tempmm = ((m1)==((descA.mt)-1)) ? ((descA.m)-(m1*(descA.mb))) : (descA.mb);
+  int ldai = BLKLDD( descA, i );
+  int ldam = BLKLDD( descA, m1 );
+  int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (descT.nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 143 "pzherbt-L.c"
-  CORE_ztsmqr_hetra1(PlasmaLeft, PlasmaConjTrans, desc_A.mb, 
-	desc_A.nb, tempmm, desc_A.nb, 
-	desc_A.nb, ib, M /* data_A(i,k+1) */, 
-	ldai, N /* data_A(m1,i) */, ldam, 
-	O /* data_A(m1,k) */, ldam, P /* data_T(m1,k) */, 
-	desc_T.mb, p_elem_A, ldwork );
+  CORE_ztsmqr_hetra1(PlasmaLeft, PlasmaConjTrans, descA.mb,
+        descA.nb, tempmm, descA.nb,
+        descA.nb, ib, M /* A(i,k+1) */,
+        ldai, N /* A(m1,i) */, ldam,
+        O /* A(m1,k) */, ldam, P /* T(m1,k) */,
+        descT.mb, p_elem_A, ldwork );
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d VP %d CORE_ztsmqr_hetra1(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A.mb, desc_A.nb, tempmm, desc_A.nb, desc_A.nb, ib, A(%d,%d)[%p], ldai, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
+  printlog("thread %d VP %d CORE_ztsmqr_hetra1(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, descA.mb, descA.nb, tempmm, descA.nb, descA.nb, ib, A(%d,%d)[%p], ldai, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->th_id, context->virtual_process->vp_id, k, m1, i, i, k+1, M, m1, i, N, m1, k, O, m1, k, P);
 
 END
 
-ztsmqr_in_data_A0(k,m1,j)  [profile = off]
+ztsmqr_in_A0(k,m1,j)  [profile = off]
   k = 0
-  m1 = ((desc_A.nt>=2) ? 2 : (desc_A.mt))..(desc_A.mt-1)
-  j = (m1+1)..(desc_A.mt-1)
+  m1 = ((descA.nt>=2) ? 2 : (descA.mt))..(descA.mt-1)
+  j = (m1+1)..(descA.mt-1)
 
-  : data_A(j,m1)
-  RW R <- data_A(j,m1)
+  : A(j,m1)
+  RW R <- A(j,m1)
        -> R ztsmqr(k,m1,j)
 BODY
 /* nothing */
- printlog("thread %d VP %d ztsmqr_in_data_A0(%d, %d, %d) A(%d, %d)[%p]\n",
+
+ printlog("thread %d VP %d ztsmqr_in_A0(%d, %d, %d) A(%d, %d)[%p]\n",
           context->th_id, context->virtual_process->vp_id, k, m1, j, j, m1, R);
 END
 
 ztsmqr(k,m1,j)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
-  m1 = k+2..desc_A.mt-1
-  j = m1+1..desc_A.mt-1
+  k = 0..(descA.nt)-1-1
+  m1 = k+2..descA.mt-1
+  j = m1+1..descA.mt-1
 
-  : data_A(j,k+1)
+  : A(j,k+1)
 
-  /* H == data_A(m,k+1) */
-  /* K == data_A(m1,k) */
-  /* L == data_T(m1,k) */
-  /* N == data_A(m1,i) */
-  /* Q == data_A(j,k+1) */
-  /* R == data_A(j,m1) */
-  /* S == data_A(m1,k) */
-  /* T == data_T(m1,k) */
-  /* V == data_A(m1,k+1) */
+  /* H == A(m,k+1) */
+  /* K == A(m1,k) */
+  /* L == T(m1,k) */
+  /* N == A(m1,i) */
+  /* Q == A(j,k+1) */
+  /* R == A(j,m1) */
+  /* S == A(m1,k) */
+  /* T == T(m1,k) */
+  /* V == A(m1,k+1) */
 
-  RW    Q <- (m1>=(3+k)) ? Q ztsmqr(k, m1-1, j) 
-          <- ((2+k)==m1) ? H zunmqr(m1-2, j) 
-          -> (j>=(2+m1)) ? Q ztsmqr(k, m1+1, j) 
-          -> ((1+m1)==j) ? V ztsmqr_corner(k, j) 
-  RW    R <- (k>=1) ? N ztsmqr_hetra1(k-1, j, m1) 
-          <- (0==k) ? R ztsmqr_in_data_A0(k,m1,j)
-          -> N ztsmqr_hetra1(k, j, m1) 
-  READ  S <- K ztsqrt(k, m1) 
+  RW    Q <- (m1>=(3+k)) ? Q ztsmqr(k, m1-1, j)
+          <- ((2+k)==m1) ? H zunmqr(m1-2, j)
+          -> (j>=(2+m1)) ? Q ztsmqr(k, m1+1, j)
+          -> ((1+m1)==j) ? V ztsmqr_corner(k, j)
+  RW    R <- (k>=1) ? N ztsmqr_hetra1(k-1, j, m1)
+          <- (0==k) ? R ztsmqr_in_A0(k,m1,j)
+          -> N ztsmqr_hetra1(k, j, m1)
+  READ  S <- K ztsqrt(k, m1)
   READ  T <- L ztsqrt(k, m1)    [type = LITTLE_T]
 
   /*
@@ -410,104 +403,103 @@ ztsmqr(k,m1,j)
 
   */
 
-; (desc_A.nt - k)*(desc_A.mt - j)*(desc_A.mt - m1)
+; (descA.nt - k)*(descA.mt - j)*(descA.mt - m1)
 
 BODY
 
-  int tempjj = ((j)==((desc_A.mt)-1)) ? ((desc_A.m)-(j*(desc_A.mb))) : (desc_A.mb);
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int ib = IB;
-  int ldaj = BLKLDD( desc_A, j );
-  int ldam = BLKLDD( desc_A, m1 );
-  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (desc_T.nb);
+  int tempjj = ((j)==((descA.mt)-1)) ? ((descA.m)-(j*(descA.mb))) : (descA.mb);
+  int tempmm = ((m1)==((descA.mt)-1)) ? ((descA.m)-(m1*(descA.mb))) : (descA.mb);
+  int ldaj = BLKLDD( descA, j );
+  int ldam = BLKLDD( descA, m1 );
+  int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (descT.nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
 #line 169 "pzherbt-L.c"
-  CORE_ztsmqr(PlasmaRight, PlasmaNoTrans, tempjj, 
-	desc_A.nb, tempjj, tempmm, 
-	desc_A.nb, ib, Q /* data_A(j,k+1) */, 
-	ldaj, R /* data_A(j,m1) */, ldaj, 
-	S /* data_A(m1,k) */, ldam, T /* data_T(m1,k) */, 
-	desc_T.mb, p_elem_A, ldwork );
+  CORE_ztsmqr(PlasmaRight, PlasmaNoTrans, tempjj,
+        descA.nb, tempjj, tempmm,
+        descA.nb, ib, Q /* A(j,k+1) */,
+        ldaj, R /* A(j,m1) */, ldaj,
+        S /* A(m1,k) */, ldam, T /* T(m1,k) */,
+        descT.mb, p_elem_A, ldwork );
 
   dague_private_memory_push( pool_1, p_elem_A );
 
-  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempjj, desc_A.nb, tempjj, tempmm, desc_A.nb, ib, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
+  printlog("thread %d VP %d CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaRight, PlasmaNoTrans, tempjj, descA.nb, tempjj, tempmm, descA.nb, ib, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldaj, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->th_id, context->virtual_process->vp_id, k, m1, j, j, k+1, Q, j, m1, R, m1, k, S, m1, k, T);
 
 END
 
-ztsmqr_corner_out_data_A0(k,m1) [profile = off]
-  k = ((desc_A.nt>=2) ? 0 : (desc_A.mt-2))..(desc_A.mt-3)
-  m1 = (desc_A.mt-1)
+ztsmqr_corner_out_A0(k,m1) [profile = off]
+  k = ((descA.nt>=2) ? 0 : (descA.mt-2))..(descA.mt-3)
+  m1 = (descA.mt-1)
 
-  : data_A(k+1,k+1)
+  : A(k+1,k+1)
   RW U <- U ztsmqr_corner(k,m1)
-       -> data_A(k+1,k+1)
+       -> A(k+1,k+1)
 BODY
 /* nothing */
- printlog("thread %d VP %d ztsmqr_corner_out_data_A0(%d, %d) A(%d, %d)[%p]\n",
+ printlog("thread  %d VP %d ztsmqr_corner_out_A0(%d, %d) A(%d, %d)[%p]\n",
           context->th_id, context->virtual_process->vp_id, k, m1, k+1, k+1, U);
 END
 
 ztsmqr_corner(k,m1)
   /* Execution space */
-  k = 0..(desc_A.nt)-1-1
-  m1 = k+2..desc_A.mt-1
+  k = 0..(descA.nt)-1-1
+  m1 = k+2..descA.mt-1
 
  /*
   * Hand Tunning: decision of the data affinity,
   * and simplification of phony tasks is based on the
   * following observation:
-  * 
-  * Because MT == desc_A->nt, cases where m1==desc_A->nt & 1+m1==MT are never true
+  *
+  * Because MT == descA->nt, cases where m1==descA->nt & 1+m1==MT are never true
   * Based on that, we compute how many times each of the possible phony
   * tasks will be used for A and for T, depending on the access:
   *              A                     T
-  * (k+1,k+1)    desc_A->nt-2                  0
+  * (k+1,k+1)    descA->nt-2                  0
   * (m1,k+1)     0(2)                  0
-  * (m1,m1)      2*(MT-3)+ 0(desc_A->nt..MT-1) 0
+  * (m1,m1)      2*(MT-3)+ 0(descA->nt..MT-1) 0
   * So, it's better to have a locality with (m1,m1), as soon as MT > 4
   *
   */
 
-  : data_A(m1,m1)
+  : A(m1,m1)
 
-  /* A == data_A(k+1,k) */
-  /* E == data_A(k+1,k+1) */
-  /* H == data_A(m,k+1) */
-  /* K == data_A(m1,k) */
-  /* L == data_T(m1,k) */
-  /* M == data_A(i,k+1) */
-  /* Q == data_A(j,k+1) */
-  /* U == data_A(k+1,k+1) */
-  /* V == data_A(m1,k+1) */
-  /* W == data_A(m1,m1) */
-  /* X == data_A(m1,k) */
-  /* Y == data_T(m1,k) */
+  /* A == A(k+1,k) */
+  /* E == A(k+1,k+1) */
+  /* H == A(m,k+1) */
+  /* K == A(m1,k) */
+  /* L == T(m1,k) */
+  /* M == A(i,k+1) */
+  /* Q == A(j,k+1) */
+  /* U == A(k+1,k+1) */
+  /* V == A(m1,k+1) */
+  /* W == A(m1,m1) */
+  /* X == A(m1,k) */
+  /* Y == T(m1,k) */
 
-  RW    U <- ((k+2)==m1) ? E zherfb(m1-2) 
-          <- (m1>=(3+k)) ? U ztsmqr_corner(k, m1-1) 
-          -> (desc_A.mt==(m1+1)) ? U ztsmqr_corner_out_data_A0(k,m1)
-          -> (desc_A.mt>=(m1+2)) ? U ztsmqr_corner(k, m1+1) 
-  RW    V <- ((k+2)==m1) ? H zunmqr(m1-2, m1) 
-          <- (m1>=(k+3)) ? Q ztsmqr(k, m1-1, m1) 
+  RW    U <- ((k+2)==m1) ? E zherfb(m1-2)
+          <- (m1>=(3+k)) ? U ztsmqr_corner(k, m1-1)
+          -> (descA.mt==(m1+1)) ? U ztsmqr_corner_out_A0(k,m1)
+          -> (descA.mt>=(m1+2)) ? U ztsmqr_corner(k, m1+1)
+  RW    V <- ((k+2)==m1) ? H zunmqr(m1-2, m1)
+          <- (m1>=(k+3)) ? Q ztsmqr(k, m1-1, m1)
 /*
- *            Not possible: because MT == desc_A->nt && desc_A->nt+1 == MT
- *        -> (desc_A.nt==m1) & (desc_A.nt==(k+2)) & ((desc_A.nt+1)==desc_A.mt) ? data_A(m1,k+1)
- *            NOy possible: because MT >= desc_A->nt + 2 && MT == desc_A->nt
- *        -> (desc_A.nt==(2+k)) & (desc_A.mt==(m1+1)) & (desc_A.mt>=(desc_A.nt+2)) ? data_A(m1,k+1)
+ *            Not possible: because MT == descA->nt && descA->nt+1 == MT
+ *        -> (descA.nt==m1) & (descA.nt==(k+2)) & ((descA.nt+1)==descA.mt) ? A(m1,k+1)
+ *            NOy possible: because MT >= descA->nt + 2 && MT == descA->nt
+ *        -> (descA.nt==(2+k)) & (descA.mt==(m1+1)) & (descA.mt>=(descA.nt+2)) ? A(m1,k+1)
  */
-          -> (desc_A.mt==(1+m1)) & (desc_A.mt==(k+3)) & (desc_A.nt>=desc_A.mt) ? A zgeqrt(m1-1) 
-          -> ((m1+1)==desc_A.mt) & (m1>=(3+k)) & (desc_A.nt>=(k+3)) ? K ztsqrt(k+1, m1) 
-          -> (desc_A.mt>=(m1+2)) ? M ztsmqr_hetra1(k, m1+1, m1) 
-  RW    W <- (0==k) ? data_A(m1,m1)
-          <- (k>=1) ? W ztsmqr_corner(k-1, m1) 
-          -> (m1>=(k+3)) & (desc_A.nt>=(k+3)) ? W ztsmqr_corner(k+1, m1) 
-          -> (desc_A.nt==(k+2)) ? data_A(m1,m1)
-          -> ((k+2)==m1) & (desc_A.nt>=(k+3)) ? E zherfb(m1-1) 
-  READ  X <- K ztsqrt(k, m1) 
+          -> (descA.mt==(1+m1)) & (descA.mt==(k+3)) & (descA.nt>=descA.mt) ? A zgeqrt(m1-1)
+          -> ((m1+1)==descA.mt) & (m1>=(3+k)) & (descA.nt>=(k+3)) ? K ztsqrt(k+1, m1)
+          -> (descA.mt>=(m1+2)) ? M ztsmqr_hetra1(k, m1+1, m1)
+  RW    W <- (0==k) ? A(m1,m1)
+          <- (k>=1) ? W ztsmqr_corner(k-1, m1)
+          -> (m1>=(k+3)) & (descA.nt>=(k+3)) ? W ztsmqr_corner(k+1, m1)
+          -> (descA.nt==(k+2)) ? A(m1,m1)
+          -> ((k+2)==m1) & (descA.nt>=(k+3)) ? E zherfb(m1-1)
+  READ  X <- K ztsqrt(k, m1)
   READ  Y <- L ztsqrt(k, m1) [type = LITTLE_T]
 
   /*
@@ -517,26 +509,25 @@ ztsmqr_corner(k,m1)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int ib = IB;
-  int ldak = BLKLDD( desc_A, k+1 );
-  int ldam = BLKLDD( desc_A, m1 );
-  int ldwork = desc_T.nb;
+  int tempmm = ((m1)==((descA.mt)-1)) ? ((descA.m)-(m1*(descA.mb))) : (descA.mb);
+  int ldak = BLKLDD( descA, k+1 );
+  int ldam = BLKLDD( descA, m1 );
+  int ldwork = descT.nb;
 
   void *p_elem_A = dague_private_memory_pop( pool_3 );
 
 #line 191 "pzherbt-L.c"
-  CORE_ztsmqr_corner(desc_A.nb, desc_A.nb, tempmm, 
-	desc_A.nb, tempmm, tempmm, 
-	desc_A.nb, ib, desc_T.nb, 
-	U /* data_A(k+1,k+1) */, ldak, V /* data_A(m1,k+1) */, 
-	ldam, W /* data_A(m1,m1) */, ldam, 
-	X /* data_A(m1,k) */, ldam, Y /* data_T(m1,k) */, 
-	desc_T.mb, p_elem_A, ldwork );
+  CORE_ztsmqr_corner(descA.nb, descA.nb, tempmm,
+        descA.nb, tempmm, tempmm,
+        descA.nb, ib, descT.nb,
+        U /* A(k+1,k+1) */, ldak, V /* A(m1,k+1) */,
+        ldam, W /* A(m1,m1) */, ldam,
+        X /* A(m1,k) */, ldam, Y /* T(m1,k) */,
+        descT.mb, p_elem_A, ldwork );
 
   dague_private_memory_push( pool_3, p_elem_A );
 
-  printlog("thread %d VP %d CORE_ztsmqr_corner(%d, %d)\n\t(desc_A.nb, desc_A.nb, tempmm, desc_A.nb, tempmm, tempmm, desc_A.nb, ib, desc_T.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T.mb, p_elem_A, ldwork)\n",
+  printlog("thread %d VP %d CORE_ztsmqr_corner(%d, %d)\n\t(descA.nb, descA.nb, tempmm, descA.nb, tempmm, tempmm, descA.nb, ib, descT.nb, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
   context->th_id, context->virtual_process->vp_id, k, m1, k+1, k+1, U, m1, k+1, V, m1, m1, W, m1, k, X, m1, k, Y);
 
 END

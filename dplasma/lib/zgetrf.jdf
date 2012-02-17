@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010      
- * 
+ *  Copyright (c) 2010
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -20,86 +20,131 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#if (PLASMA_VERSION_MAJOR <= 2) && (PLASMA_VERSION_MINOR <= 2)
-#define CORE_zssssm(M1, N1, M2, N2, K, IB, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV) \
-        CORE_zssssm(M1,     M2, N2, IB, K, A1, LDA1, A2, LDA2, L1, LDL1, L2, LDL2, IPIV)
-#endif
-
-#if (PLASMA_VERSION_MAJOR >= 2) && (PLASMA_VERSION_MINOR >= 4)
-#define CORE_zgetrf CORE_zgetrf_incpiv
-#endif
-
 #define min( __a, __b ) ( (__a) < (__b) ? (__a) : (__b) )
+
+static Dague_Complex64_t mzone = (Dague_Complex64_t)-1.;
+static Dague_Complex64_t zone  = (Dague_Complex64_t)1.;
 
 %}
 
 /** Globals */
 descA     [type = "tiled_matrix_desc_t"]
 A         [type = "dague_ddesc_t *"]
-descL     [type = "tiled_matrix_desc_t"]
-L         [type = "dague_ddesc_t *" aligned=A]
-IPIV      [type = "dague_ddesc_t *" aligned=A]
-work_pool [type = "dague_memory_pool_t*"]
+IPIV      [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
-ib        [type = int]
+
+/************************************************************************************
+ *                      Tiles 2 panel (Reduction version)
+ *
+ *  All Gemm from step k-1 on panel n have to be finished before
+ *  to apply getrf or swptrsm on panel n
+ ************************************************************************************/
+/* tile2panel(k, n) [profile = off] */
+/* k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 ) */
+/* n = k..descA.nt-1 */
+
+/* :A(k, n) */
+
+/* CTL  ctl <- ctlf gemm(k-1, k..descA.mt-1, n) */
+/*          -> (n == k ) ? ctl getrf(k) : ctl swptrsm(k, n) */
+
+/************************************************************************************
+ *                      Tiles 2 panel (Forward)                                     *
+ ************************************************************************************/
+tile2panel(k, m, n) [profile = off]
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  m = k+1..descA.mt-1
+  n = k+1..descA.nt-1
+
+  :A(k, n)
+
+  CTL  ctl1 <- ctl gemm(k, m, n)
+  CTL  ctl2 <- (m > k+1        ) ? ctl2 tile2panel(k, m-1, n)
+            -> (m < descA.mt-1 )  ? ctl2 tile2panel(k, m+1, n)
+            -> ((m == descA.mt-1 ) && (n == k+1)) ? ctl  getrf(k+1)
+            -> ((m == descA.mt-1 ) && (n >  k+1)) ? ctl  swptrsm(k+1, n)
+            -> (( m == descA.mt-1) && (k > 0 )) ? ctl1 subm2panel(k, n)
+
+BODY
+    printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, k, m, n);
+END
+
+/************************************************************************************
+ *                    Submatrix 2 panel (backward)
+ *
+ * All the GEMM applied to the submatrix at step k-1 have to performed
+ * before to do backward substitution from step k on previous panel
+ *
+ ************************************************************************************/
+/* subm2panel(k, n) [profile = off] */
+/* k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 ) */
+
+/* :A(k, k-1) */
+
+/* CTL  ctl1 <- ctlb gemm(k-1, k..descA.mt-1, k+1..descA.nt-1) */
+/*           -> ctl swpback(k, k-1) */
+/* BODY */
+/*      printlog("thread %d VP %d tile2panel( %d, %d, %d )\n",  context->th_id, context->virtual_process->vp_id, m, n, k); */
+/* END */
+
+/************************************************************************************
+ *                    Submatrix 2 panel (backward)                                  *
+ ************************************************************************************/
+subm2panel(k, n) [profile = off]
+  k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
+  n = k+1..descA.nt-1
+
+  :A(k, n)
+
+  CTL  ctl1 <- ctl2 tile2panel(k, descA.mt-1, n)
+  CTL  ctl2 <- (n > k+1) ? ctl2 subm2panel(k, n-1)
+            -> (n < descA.nt-1) ? ctl2 subm2panel(k, n+1) : ctl swpback(k, k-1)
+
+BODY
+    printlog("thread %d VP %d subm2panel( %d, %d )\n", context->th_id, context->virtual_process->vp_id, k, n);
+END
 
 /************************************************************************************
  *                                    GETRF                                         *
  ************************************************************************************/
-zgetrf_out(k)  [profile = off]
-k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
 
-  :A(k, k)
-
-  READ A <- A zgetrf(k)
-         -> (descA.nt>=(k+2)) ? D zgessm(k, (k+1)..(descA.nt-1))   [type = LOWER_TILE]
-BODY
-        /* Nothing */
-        printlog("thread %d VP %d zgetrf_out( %d )\n",
-                 context->th_id, context->virtual_process->vp_id, k);
-END
-
-zgetrf(k)
+getrf(k)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-
-  /* A == A(k,k) */
-  /* B == IPIV(k,k) */
-  /* C == IPIV(k,k) */
-  /* D == A(k,k) */
-  /* F == A(k,k) */
-  /* K == A(m,n1) */
 
   /* Locality */
   :A(k, k)
 
-  RW    A <- ( 0 == k ) ? A(k,k) : K zssssm(k-1, k, k) 
-          -> (descA.mt>=(k+2)) ? F ztstrf(k, k+1)                 [type = UPPER_TILE]
-          -> (descA.mt==(k+1)) ? A(k,k)
-          -> A zgetrf_out(k)
-  RW    B <- IPIV(k,k)                                            [type = PIVOT]
-          -> IPIV(k,k)                                            [type = PIVOT]
-          -> (descA.nt>=(k+2)) ? C zgessm(k, (k+1)..(descA.nt-1)) [type = PIVOT]
+  RW    A    <- ( 0 == k ) ? A(k,k) : C gemm(k-1, k, k)
+          /* <- A(k..descA.mt-1, k) : C gemm(k-1, k..descA.mt-1, k) */
+             -> (k < descA.nt-1) ? A swptrsm(k, k+1..descA.nt-1)
+             -> A(k, k)
+  RW    IPIV <- IPIV(k,0)                                            [type = PIVOT]
+             -> IPIV(k,0)                                            [type = PIVOT]
+             -> (k < descA.nt-1) ? IPIV swptrsm(k, k+1..descA.nt-1)  [type = PIVOT]
+             -> (k > 0)          ? IPIV swpback(k, 0..k-1)           [type = PIVOT]
+  CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, descA.mt-1, k)
 
-  /* Priority */
-  ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
+/* Priority */
+;k
 
 BODY
 
   int iinfo = 0;
   DRYRUN(
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%Bmb);*/
+         int tempm  = descA.m - k * descA.mb;
+         int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
+         int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+         int ldak = BLKLDD(descA, k);
 
-         /* Set local IPIV to 0 before generation 
-          * Better here than a global initialization for locality 
+         /* Set local IPIV to 0 before generation
+          * Better here than a global initialization for locality
           * and it's also done in parallel */
-         memset(B, 0, min(tempkn, tempkm) * sizeof(int) );
+         memset(IPIV, 0, dague_imin(tempkn, tempkm) * sizeof(int) );
 
-         CORE_zgetrf(tempkm, tempkn, ib, 
-                     A /* A(k,k)    */, ldak, 
-                     B /* IPIV(k,k) */, &iinfo );
+         CORE_zgetrf(
+                tempm, tempkn,
+                A/*(k, k)*/, ldak, IPIV, &iinfo );
 
          if ( (iinfo != 0) && (k == descA.mt-1) ) {
              *INFO = k * descA.mb + iinfo; /* Should return if enter here */
@@ -107,37 +152,78 @@ BODY
          }
          );
 
-   printlog("thread %d VP %d   CORE_zgetrf(%d)\n"
-            "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, IPIV(%d,%d)[%p]) => info = %d\n",
-            context->th_id, context->virtual_process->vp_id, k, k, k, A, k, k, B, k * descA.mb + iinfo);
+   printlog("thread %d VP %d  CORE_zgetrf_rec(%d)\n"
+            "\t(%d, %d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
+             context->th_id, context->virtual_process->vp_id, k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
 END
 
 
 /************************************************************************************
- *                                    GESSM                                         *
+ *                              SWAP + TRSM                                         *
  ************************************************************************************/
-zgessm(k,n)
+
+swptrsm(k, n)
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-2 )
   n = k+1..descA.nt-1
 
-  /* A == A(k,k) */
-  /* B == IPIV(k,k) */
-  /* C == IPIV(k,k) */
-  /* D == A(k,k) */
-  /* E == A(k,n) */
-  /* J == A(k,n1) */
-  /* K == A(m,n1) */
+  /* Locality */
+  :A(k, n)
+
+  READ  A    <- A    getrf(k)
+  READ  IPIV <- IPIV getrf(k)                                [type = PIVOT]
+  RW    B    <- ( 0 == k ) ? A(k,n) : C gemm(k-1, k, n)
+          /* <- A(k..descA.mt-1, n) : C gemm(k-1, k..descA.mt-1, n) */
+             -> (k < descA.mt-1) ? B gemm(k, k+1..descA.mt-1, n)
+             -> A(k, n)
+  CTL   ctl  <- ( k > 0 ) ? ctl2 tile2panel(k-1, descA.mt-1, n)
+
+/* Priority */
+;n
+
+BODY
+
+  DRYRUN(
+         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+         int ldak = BLKLDD(descA, k);
+
+         CORE_zlaswp( tempnn, B, descA.lm, 1, tempkm, IPIV, 1);
+
+         CORE_ztrsm(
+             PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+             tempkm, tempnn,
+             zone, A /*(k, k)*/, ldak,
+                   B /*(k, n)*/, ldak);
+         );
+
+   printlog("thread %d VP %d CORE_zswptrsm(%d, %d)\n"
+            "\t(%d, %d, A(%d,%d)[%p], B(%d,%d)[%p])\n",
+            context->th_id, context->virtual_process->vp_id, k, n, tempkm, tempnn, k, k, A, k, n, B);
+
+END
+
+/************************************************************************************
+ *                                    GEMM                                         *
+ ************************************************************************************/
+gemm(k,m,n)
+  /* Execution space */
+  k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
+  m = k+1..descA.mt-1
+  n = k+1..descA.nt-1
 
   /* Locality */
-:A(k, n)
+:A(m, n)
 
-  READ  C <- B zgetrf(k)                                            [type = PIVOT]
-  READ  D <- A zgetrf_out(k)                                        [type = LOWER_TILE]
-  RW    E <- (0==k) ? A(k,n) : K zssssm(k-1, k, n)          
-          -> (descA.mt==(k+1)) ? A(k, n)
-          -> (descA.mt>=(k+2)) ? J zssssm(k, k+1, n) 
+  READ  A  <- A(m, k)
+  READ  B  <- B swptrsm(k, n)
+  RW    C  <- ( k   == 0 ) ? A(m, n) : C gemm(k-1, m, n)
+           -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1)
+         /*-> ( k+1 == n ) && ( k+1 != m ) ? A getrf(k+1)*/
+           -> ( k+1 <  n ) && ( k+1 == m ) ? B swptrsm(k+1, n)
+           -> ( k+1 <  n ) && ( k+1 <  m ) ? C gemm(k+1, m, n)
+  CTL  ctl -> ctl1 tile2panel(k, m, n)
 
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
@@ -145,174 +231,58 @@ zgessm(k,n)
 BODY
 
   DRYRUN(
-         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+      int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
+      int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+      int ldak = BLKLDD(descA, k);
+      int ldam = BLKLDD(descA, m);
 
-         CORE_zgessm(tempkm, tempnn, tempkm, ib, 
-                     C /* IPIV(k,k) */, 
-                     D /* A(k,k) */, ldak, 
-                     E /* A(k,n) */, ldak );
+      CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+                 tempmm, tempnn, descA.mb,
+                 mzone, A /*(m, k)*/, ldam,
+                        B /*(k, n)*/, ldak,
+                 zone,  C /*(m, n)*/, ldam );
          );
-   printlog("thread %d VP %d   CORE_zgessm(%d, %d)\n"
-            "\t(tempkm, tempnn, tempkm, ib, IPIV(%d,%d)[%p], \n"
-            "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-            context->th_id, context->virtual_process->vp_id, k, n, k, k, C, k, k, D, k, n, E);
+   printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
+            "\t(%d, %d, %d, A(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)\n",
+            context->th_id, context->virtual_process->vp_id, k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
+
 
 END
 
 /************************************************************************************
- *                                    TSTRF                                         *
+ *                              SWAP Backward                                       *
  ************************************************************************************/
-ztstrf_out(k)  [profile = off]
-k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
 
-:A(k, k)
-
-  READ A <- F ztstrf(k, descA.mt-1)       [type = UPPER_TILE]
-         -> A(k, k)                       [type = UPPER_TILE]
-
-BODY
-        /* Nothing */
-        printlog("thread %d VP %d ztstrf_out( %d )\n", 
-                 context->th_id, context->virtual_process->vp_id, k);
-END
-
-ztstrf(k,m)
+swpback(k, n)
   /* Execution space */
-  k = 0..( (descA.mt < descA.nt)? descA.mt-1 : descA.nt-1 )
-  m = k+1..descA.mt-1
-
-  /* A == A(k,k) */
-  /* F == A(k,k) */
-  /* G == A(m,k) */
-  /* H == L(m,k) */
-  /* I == IPIV(m,k) */
-  /* K == A(m,n1) */
-  /* L == L(m,k) */
-  /* M == A(m,k) */
-  /* N == IPIV(m,k) */
+  k = 1..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
+  n = 0..k-1
 
   /* Locality */
-:A(m, k)
+  :A(k, n)
 
-  RW    F <- ((k+1)==m) ? A zgetrf(m-1) : F ztstrf(k, m-1)           [type = UPPER_TILE]
-          -> (descA.mt==(m+1)) ? A ztstrf_out(k) : F ztstrf(k, m+1)  [type = UPPER_TILE]
-  RW    G <- (0==k) ? A(m,k) :  K zssssm(k-1, m, k) 
-          -> (descA.nt>=(k+2)) ? M zssssm(k, m, (k+1)..(descA.nt-1)) 
-          -> A(m,k)                                          
-  RW    H <- L(m,k)                                                    [type = SMALL_L]
-          -> L(m,k)                                                    [type = SMALL_L]
-          -> (descA.nt>=(k+2)) ? L zssssm(k, m, (k+1)..(descA.nt-1))   [type = SMALL_L]
-  RW    IP<- IPIV(m,k)                                                 [type = PIVOT]
-          -> IPIV(m,k)                                                 [type = PIVOT]
-          -> (descA.nt>=(k+2)) ? N zssssm(k, m, (k+1)..(descA.nt-1))   [type = PIVOT]
+  READ  IPIV <- IPIV getrf(k)                                [type = PIVOT]
+  RW    A    <- A(k, n)
+             -> A(k, n)
+  CTL   ctl  <- ((k < descA.nt-1) && (n == k-1)) ? ctl2 subm2panel(k, descA.nt-1)
+             <- (n <  k-1) ? ctl swpback(k-1, n)
+             -> (( k < descA.nt-1 ) && (k < descA.mt-1 )) ? ctl swpback(k+1, n)
 
-    /* Priority */
-; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
-
+/* Priority */
+;n
 BODY
 
   DRYRUN(
-         int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-         int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : (descA.nb);
-         int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-         int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
+      int tempkm = k == descA.mt-1 ? descA.m-k*descA.mb : descA.mb;
+      int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
+      int tempk  = dague_imin(tempkn, tempkm);
+      int ldak = BLKLDD(descA, k);
 
-         int iinfo;
-         PLASMA_Complex64_t *work = dague_private_memory_pop(work_pool);
-
-         memset(IP, 0, min(tempkn, tempmm) * sizeof(int) );
-         CORE_ztstrf(tempmm, tempkn, ib, descL.nb, 
-                     F  /* A(k,k) */, ldak, 
-                     G  /* A(m,k) */, ldam, 
-                     H  /* L(m,k) */, descL.mb, 
-                     IP /* IPIV(m,k) */, 
-                     work, descL.nb, &iinfo );
-         dague_private_memory_push(work_pool, work);
-
-         if ( (iinfo != 0) && (m == descA.mt-1) ) {
-             *INFO = k * descA.mb + iinfo; /* Should return if enter here */
-             fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
-         }
+      CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempk, IPIV, 1 );
          );
 
-  printlog("thread %d VP %d   CORE_ztstrf(%d, %d)\n"
-           "\t(tempmm, tempkn, ib, descL.nb, \n"
-           "\tA(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, \n"
-           "\tL(%d,%d)[%p], descL.mb, IPIV(%d,%d)[%p], descL.nb)\n",
-           context->th_id, context->virtual_process->vp_id, k, m, k, k, F, m, k, G, m, k, H, m, k, IP);
 
-END
-
-/************************************************************************************
- *                                    SSSSM                                         *
- ************************************************************************************/
-zssssm_out(k, n1)  [profile = off]
-k = 0..( (descA.mt < descA.nt)? descA.mt-2 : descA.nt-2 )
-n1 = k+1..descA.nt-1
-
-:A(k, n1)
-
-  READ A <- J zssssm(k, descA.mt-1, n1)
-         -> A(k, n1)
-
-BODY
-        /* Nothing */
-        printlog("thread %d VP %d zssssm_out( %d, %d )\n", 
-                 context->th_id, context->virtual_process->vp_id, k, n1);
-END
-
-zssssm(k,m,n1)
-  /* Execution space */
-  k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  m = k+1..descA.mt-1
-  n1 = k+1..descA.nt-1
-
-  /* A == A(k,k) */
-  /* E == A(k,n) */
-  /* G == A(m,k) */
-  /* H == L(m,k) */
-  /* I == IPIV(m,k) */
-  /* J == A(k,n1) */
-  /* K == A(m,n1) */
-  /* L == L(m,k) */
-  /* M == A(m,k) */
-  /* N == IPIV(m,k) */
-
-  /* Locality */
-:A(m, n1)
-
-  RW    J <- ((k+1)==m) ? E zgessm(m-1, n1) : J zssssm(k, m-1, n1)
-          -> (descA.mt==(m+1)) ? A zssssm_out(k,n1) : J zssssm(k, m+1, n1)
-  RW    K <- (0==k) ? A(m,n1) : K zssssm(k-1, m, n1)
-          -> (((k+1)==n1) & ((k+1)== m)) ? A zgetrf(n1)       /* Diagonal */
-          -> (((k+1)==m ) & ( n1 > m  )) ? E zgessm(k+1, n1)  /* Next Row */
-          -> (((k+1)==n1) & ( m  > n1 )) ? G ztstrf(n1, m)    /* Next Column */
-          -> (((k+1)< n1) & ((k+1) < m)) ? K zssssm(k+1, m, n1) /* Trailing submatrix */
-  READ  L <- H ztstrf(k, m)                                               [type = SMALL_L]
-  READ  M <- G ztstrf(k, m)
-  READ  N <- IP ztstrf(k, m)                                              [type = PIVOT]
-
-    /* Priority */
-; (descA.mt-k)*(descA.mt-n1)*(descA.mt-n1)
-
-BODY
-
-  int tempmm = ((m) ==(descA.mt-1)) ? (descA.m -( m*descA.mb)) : (descA.mb);
-  int tempnn = ((n1)==(descA.nt-1)) ? (descA.n -(n1*descA.nb)) : (descA.nb);
-  int ldak   = descA.mb; /*((k+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-  int ldam   = descA.mb; /*((m+(Ai/descA.mb))<Alm1) ? (descA.mb) : (Alm%descA.mb);*/
-
-  DRYRUN(
-         CORE_zssssm(descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, 
-                     J /* A(k,n1) */, ldak, 
-                     K /* A(m,n1) */, ldam, 
-                     L /* L(m,k) */,  descL.mb, 
-                     M /* A(m,k) */,  ldam, 
-                     N /* IPIV(m,k) */ );
-         );
-  printlog("thread %d VP %d   CORE_zssssm(%d, %d, %d)\n\t(%d, %d, %d, %d, %d, %d, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, L(%d,%d)[%p], %d, A(%d,%d)[%p], %d, IPIV(%d,%d)[%p])\n",
-           context->th_id, context->virtual_process->vp_id, k, m, n1, descA.nb, tempnn, tempmm, tempnn, descA.nb, ib, k, n1, J, ldak, m, n1, K, ldam, m, k, L, descL.mb, m, k, M, ldam, m, k, N);
-
+  printlog("thread %d VP %d CORE_zswpback(%d, %d)\n"
+           "\t(%d, A(%d,%d)[%p], %d, IPIV(%d)[%p])\n",
+           context->th_id, context->virtual_process->vp_id, k, n, descA.nb, k, n, A, ldak, k, IPIV);
 END

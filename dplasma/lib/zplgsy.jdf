@@ -14,7 +14,6 @@ extern "C" %{
 #include <plasma.h>
 #include <core_blas.h>
 
-#define BLKLDD(_desc, _k) (_desc).mb
 
 #include "dague.h"
 #include "data_distribution.h"

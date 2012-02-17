@@ -933,8 +933,8 @@ void dague_usage(void)
             "                             while extra threads remain unbound)\n"
             "                       if starts with \"+\", the communication thread will be executed on the core subset\n\n"
             "    This option can also be used with a file (--dague_bind=file:filename) containing the mapping description for\n"
-            "    each thread (as a core list, a hexadecimal mask or a binding range expression).\n"
-            "    It can be used when multiple MPI processes per node are used\n\n"
+            "    each process (as a core list, a hexadecimal mask or a binding range expression).\n"
+            "    It might be useful when multiple MPI processes per node are involved and then need distinct thread bindings.\n\n"
             " --dague_bind_comm   : define the core the communication thread will be bound on (prevail over --dague_bind)\n"
             "                       (default: a NUIOA-aware core subset)\n"
             "\n"
@@ -974,6 +974,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             return -1;
         }
 
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
         int rank, line_num=0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         while (getline(&line, &line_len, f) != -1) {
@@ -983,18 +984,28 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             }
             line_num++;
         }
-        fclose(f);
         if( line ){
             if( line_num==rank )
-            dague_parse_binding_parameter(line, context, startup);
+                dague_parse_binding_parameter(line, context, startup);
             else
                 DEBUG2(("MPI_process %i uses the default thread binding\n", rank));
             free(line);
         }
+#else
+        if( getline(&line, &line_len, f) != -1 ) {
+            DEBUG2(("Binding parameters: %s", line));
+        }
+        if( line ){
+            dague_parse_binding_parameter(line, context, startup);
+            free(line);
+        }
+#endif /* DISTRIBUTED && HAVE_MPI */
         else
-            WARNING(("MPI_process %i: default thread binding"));
+            WARNING(("default thread binding"));
+        fclose(f);
         return -1;
     }
+
 
 
     if( (option[0]=='+') && (context->comm_th_core == -1)) {

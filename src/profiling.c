@@ -84,17 +84,6 @@ static char *hr_id = NULL;
 static dague_profiling_info_t *dague_profiling_infos = NULL;
 
 static char *dague_profiling_last_error = NULL;
-static void ERROR(const char *format, ...)
-{
-    va_list ap;
-
-    if( dague_profiling_last_error != NULL ) {
-        free(dague_profiling_last_error);
-    }
-    va_start(ap, format);
-    vasprintf(&dague_profiling_last_error, format, ap);
-    va_end(ap);
-}
 
 char *dague_profiling_strerror(void)
 {
@@ -131,7 +120,7 @@ int dague_profiling_init( const char *format, ... )
     va_list ap;
 
     if( hr_id != NULL ) {
-        ERROR("dague_profiling_init: profiling already initialized");
+        ERROR(("dague_profiling_init: profiling already initialized"));
         return -1;
     }
 
@@ -159,7 +148,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
      */
     res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) + length );
     if( NULL == res ) {
-        ERROR("dague_profiling_thread_init: unable to allocate %u bytes", length);
+        ERROR(("dague_profiling_thread_init: unable to allocate %u bytes", length));
         return NULL;
     }
 
@@ -182,7 +171,7 @@ int dague_profiling_fini( void )
 {
     dague_thread_profiling_t *t;
     
-    while( t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads) ) {
+    while( (t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads)) ) {
         free(t->hr_id);
         free(t);
     }
@@ -231,7 +220,7 @@ int dague_profiling_add_dictionary_keyword( const char* key_name, const char* at
     }
     if( -1 == pos ) {
         if( dague_prof_keys_count == dague_prof_keys_number ) {
-            ERROR("dague_profiling_add_dictionary_keyword: Number of keyword limits reached");
+            ERROR(("dague_profiling_add_dictionary_keyword: Number of keyword limits reached"));
             return -1;
         }
         pos = dague_prof_keys_count;

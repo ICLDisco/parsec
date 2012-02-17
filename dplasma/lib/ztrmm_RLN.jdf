@@ -1,7 +1,7 @@
 extern "C" %{
 /*
  *  Copyright (c) 2010 - 2011
- * 
+ *
  *  The University of Tennessee and The University
  *  of Tennessee Research Foundation.  All rights
  *  reserved.
@@ -43,7 +43,7 @@ Bmb  [type = int]
 Bnb  [type = int]
 Bmt  [type = int]
 Bnt  [type = int]
-     
+
 /**************************************************
  *                      TRMM                      *
  **************************************************/

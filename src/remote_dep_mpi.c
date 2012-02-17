@@ -884,7 +884,7 @@ static remote_dep_datakey_t remote_dep_mpi_eager_which(remote_dep_wire_activate_
         if( extent < dep_mpi_eager_limit+1 )
         {
             eager_which |= 1<<k;
-            DEBUG3(("MPI:\t%s\tEager\tk=%d\tsize=%d <= %d\n", remote_dep_cmd_to_string(&deps->msg, tmp, 128), k, extent, dep_mpi_eager_limit));
+            DEBUG3(("MPI:\tPEER\tNA\tEager MODE  \t% -8s\tk=%d\tsize=%d <= %d\t(tag=%d)\n", remote_dep_cmd_to_string(&deps->msg, tmp, 128), k, extent, dep_mpi_eager_limit, msg->tag+k));
         }
     }
     return eager_which;

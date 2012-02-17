@@ -89,7 +89,7 @@ static size_t twoDBC_compute_mempos_from_global_coordinates(two_dim_block_cyclic
         pos += ((n % Ddesc->grid.stcols) * last_c_size); /* pos is at (B, n)*/
         pos += (m % Ddesc->grid.strows); /* pos is at (m,n)*/
 
-        pos *= (size_t)Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype);
+        pos *= (size_t)Ddesc->super.bsiz;
 
     }
     /* Lapack Storage */
@@ -115,6 +115,7 @@ static size_t twoDBC_compute_mempos_from_global_coordinates(two_dim_block_cyclic
         pos = ( local_n * Ddesc->super.nb ) * Ddesc->super.lm + local_m * Ddesc->super.mb;
     }
 
+    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
     return pos;
 }
 
@@ -125,7 +126,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (two_dim_block_cyclic_t *)desc;
-    
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);
@@ -141,7 +142,6 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 #endif
 
     pos = twoDBC_compute_mempos_from_global_coordinates(Ddesc, m, n);
-
     return &(((char *) Ddesc->mat)[pos]);
 }
 
@@ -152,7 +152,7 @@ static int32_t twoDBC_get_vpid(dague_ddesc_t *desc, ...)
     two_dim_block_cyclic_t * Ddesc;
     va_list ap;
     Ddesc = (two_dim_block_cyclic_t *)desc;
-    
+
     /* Get coordinates */
     va_start(ap, desc);
     m = (int)va_arg(ap, unsigned int);

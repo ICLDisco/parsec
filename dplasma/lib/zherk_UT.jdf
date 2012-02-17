@@ -21,7 +21,6 @@ extern "C" %{
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
-#define BLKLDD(_desc, _k) ( (_desc).storage == matrix_Tile ? (_desc).mb : (_desc).lm )
 
 %}
 
@@ -72,9 +71,9 @@ BODY
         ldak, dbeta, B /* C(n,n) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zherk(%d, %d)\n"
+  printlog("thread %d VP %d CORE_zherk(%d, %d)\n"
            "\t(uplo, trans, tempnn, tempkm, alpha, A(%d,%d)[%p], ldak, dbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, k, k, n, A, n, n, B);
+  context->th_id, context->virtual_process->vp_id, n, k, k, n, A, n, n, B);
 
 END
 
@@ -139,9 +138,9 @@ BODY
         ldak, zbeta, E /* C(n,m) */,
         ldcn );  );
 
-  printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
+  printlog("thread %d VP %d CORE_zgemm(%d, %d, %d)\n"
            "\t(trans, PlasmaNoTrans, tempnn, tempmm, tempkm, zalpha, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, zbeta, C(%d,%d)[%p], ldcn)\n",
-  context->eu_id, n, m, k1, k1, n, C, k1, m, D, n, m, E);
+  context->th_id, context->virtual_process->vp_id, n, m, k1, k1, n, C, k1, m, D, n, m, E);
 
 END
 

@@ -58,15 +58,15 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, (tiled_matrix_desc_t *)&ddescA, 3872);
         if(loud > 2) printf("Done\n");
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf,
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_incpiv,
                                             ((tiled_matrix_desc_t*)&ddescA,
                                              (tiled_matrix_desc_t*)&ddescL,
                                              (tiled_matrix_desc_t*)&ddescIPIV,
                                              &info));
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf);
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_incpiv);
 
-        /* dplasma_zgetrf_Destruct( DAGUE_zgetrf ); */
+        /* dplasma_zgetrf_incpiv_Destruct( DAGUE_zgetrf_incpiv ); */
     }
     else
     {
@@ -112,7 +112,7 @@ int main(int argc, char ** argv)
 
         /* Compute */
         printf("Compute ... ... ");
-        info = dplasma_zgesv(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
+        info = dplasma_zgesv_incpiv(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                              (tiled_matrix_desc_t *)&ddescIPIV, (tiled_matrix_desc_t *)&ddescX );
         printf("Done\n");
         printf("Info = %d\n", info);
@@ -148,10 +148,10 @@ int main(int argc, char ** argv)
 
         /* Compute */
         printf("Compute ... ... ");
-        info = dplasma_zgetrf(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
+        info = dplasma_zgetrf_incpiv(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                               (tiled_matrix_desc_t *)&ddescIPIV );
         if ( info == 0 ) {
-            dplasma_zgetrs(dague, PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
+            dplasma_zgetrs_incpiv(dague, PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                            (tiled_matrix_desc_t *)&ddescIPIV, (tiled_matrix_desc_t *)&ddescX );
         }
         printf("Done\n");
@@ -188,7 +188,7 @@ int main(int argc, char ** argv)
 
         /* Compute */
         printf("Compute ... ... ");
-        info = dplasma_zgetrf(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
+        info = dplasma_zgetrf_incpiv(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
                               (tiled_matrix_desc_t *)&ddescIPIV );
         if ( info == 0 ) {
             dplasma_ztrsmpl(dague, (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescL,
