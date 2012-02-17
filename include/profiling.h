@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -169,7 +169,6 @@ int dague_profiling_dump_xml( const char* filename );
  */
 char *dague_profiling_strerror(void);
 
-
 /** 
  * Here are some helper functions, to be used 
  *  (appropriately) in dague_profiling_add_dictionary_keyword
@@ -181,7 +180,7 @@ char *dague_profiling_strerror(void);
  * Use the dague_profile_ddesc_info_t datatype to store the elements.
  */
 typedef struct {
-    dague_ddesc_t *desc;
+    struct dague_ddesc *desc;
     uint32_t       id;
 } dague_profile_ddesc_info_t;
 int dague_profile_ddesc_key_to_string(void *info, char *text, size_t size);

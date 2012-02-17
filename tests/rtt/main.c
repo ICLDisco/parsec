@@ -7,6 +7,9 @@
 #include "dague.h"
 #include "rtt_wrapper.h"
 #include "rtt_data.h"
+#if defined(HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(HAVE_STRING_H) */
 
 int main(int argc, char *argv[])
 {
