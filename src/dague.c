@@ -209,7 +209,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     char** argv = NULL;
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
-    
+
 #if defined(HAVE_GETOPT_LONG)
     struct option long_options[] =
         {
@@ -265,7 +265,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     hwloc_bitmap_set_range(context->core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
 #endif /* HAVE_HWLOC_BITMAP */
 #endif /* HAVE_HWLOC */
-    
+
     {
         int index = 0;
         /* Check for the upper level arguments */
@@ -432,7 +432,7 @@ int dague_fini( dague_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
-#if defined(HAVE_HWLOC) 
+#if defined(HAVE_HWLOC)
 #if defined(HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_binding_mask);
@@ -954,7 +954,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     char* position;
     int p, t, nb_total_comp_threads;
     int nb_real_cores=dague_hwloc_nb_real_cores();
-    
+
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++)
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
@@ -1094,7 +1094,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         memset(core_tab, -1, MAX_CORE_LIST*sizeof(int));
         int cmp=0;
         int arg, next_arg;
-        
+
         if( NULL == option ) {
             /* default binding,
                no restrinction for the communication thread binding */
