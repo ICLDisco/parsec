@@ -134,7 +134,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto);
-    DEBUG2(("bind thread %i on core %i\n", startup->th_id, startup->bindto));
+    DEBUG2(("Bind thread %i on core %i\n", startup->th_id, startup->bindto));
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -180,13 +180,13 @@ static void dague_vp_init( dague_vp_t *vp,
 #if defined(DAGUE_SIM)
     vp->largest_simulation_date = 0;
 #endif /* DAGUE_SIM */
-    
+
     dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
-                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context), 
+                             ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
                              vp->nb_cores );
 
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
-        dague_mempool_construct( &vp->datarepo_mempools[pi], 
+        dague_mempool_construct( &vp->datarepo_mempools[pi],
                                  sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
                                  ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
                                  vp->nb_cores);

@@ -40,13 +40,13 @@ vpmap_get_nb_threads_in_vp_t vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_i
 vpmap_get_nb_cores_affinity_t vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
 vpmap_get_core_affinity_t vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
 
-int vpmap_get_nb_vp(void) 
+int vpmap_get_nb_vp(void)
 {
-    return nbvp; 
+    return nbvp;
 }
 
-static int vpmap_get_nb_threads_in_vp_parameters(int vp) 
-{ 
+static int vpmap_get_nb_threads_in_vp_parameters(int vp)
+{
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (nbcores == -1) )
@@ -54,8 +54,8 @@ static int vpmap_get_nb_threads_in_vp_parameters(int vp)
     return nbthreadspervp;
 }
 
-static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread) 
-{ 
+static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
+{
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (thread < 0) ||
@@ -65,8 +65,8 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
     return 1;
 }
 
-static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores) 
-{ 
+static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores)
+{
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (thread < 0) ||
@@ -94,7 +94,7 @@ void vpmap_fini(void)
     nbcores = -1;
 }
 
-static int vpmap_get_nb_threads_in_vp_datamap(int vp) 
+static int vpmap_get_nb_threads_in_vp_datamap(int vp)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -103,7 +103,7 @@ static int vpmap_get_nb_threads_in_vp_datamap(int vp)
     return map[vp].nbthreads;
 }
 
-static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread) 
+static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -114,7 +114,7 @@ static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
     return map[vp].threads[thread]->nbcores;
 }
 
-static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores) 
+static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
@@ -154,7 +154,7 @@ int vpmap_init_from_hardware_affinity(void)
         mperc[m]++;
     }
 
-    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));    
+    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
 
     v = 0;
     for(p = 0; p < nbcores; p++) {
@@ -173,7 +173,7 @@ int vpmap_init_from_hardware_affinity(void)
             v++;
         }
     }
-    
+
     free(mperc);
 
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
@@ -207,7 +207,7 @@ int vpmap_init_from_file(const char *filename)
         }
     }
 
-    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));    
+    map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
 
     rewind(f);
     nbth = 0;
@@ -249,7 +249,7 @@ int vpmap_init_from_file(const char *filename)
                 }
             }
             nbth++;
-        }        
+        }
     }
 
     fclose(f);
@@ -312,8 +312,8 @@ void vpmap_display_map(FILE *out)
     }
 
     fprintf(out, "# [%d]  Map with %d Virtual Processes\n", rank, nbvp);
-    for(v = 0; v < nbvp; v++) { 
-        fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n", 
+    for(v = 0; v < nbvp; v++) {
+        fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n",
                 rank, v, vpmap_get_nb_threads_in_vp(v) );
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
