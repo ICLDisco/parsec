@@ -60,10 +60,11 @@ tile2panel(k, m, n) [profile = off]
 
   CTL  ctl1 <- ctl gemm(k, m, n)
   CTL  ctl2 <- (m > k+1        ) ? ctl2 tile2panel(k, m-1, n)
-            -> (m < descA.mt-1 )  ? ctl2 tile2panel(k, m+1, n)
+            -> (m < descA.mt-1 ) ? ctl2 tile2panel(k, m+1, n)
+    /* Unlock computations */
             -> ((m == descA.mt-1 ) && (n == k+1)) ? ctl  getrf(k+1)
             -> ((m == descA.mt-1 ) && (n >  k+1)) ? ctl  swptrsm(k+1, n)
-            -> (( m == descA.mt-1) && (k > 0 )) ? ctl1 subm2panel(k, n)
+            -> (( m == descA.mt-1) && (k > 0 ))   ? ctl1 subm2panel(k, n)
 
 BODY
     printlog("thread %d tile2panel( %d, %d, %d )\n", context->eu_id, k, m, n);
