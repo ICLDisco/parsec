@@ -23,15 +23,15 @@ extern "C" %{
 
 %}
 
-side [type = "PLASMA_enum"]
-uplo [type = "PLASMA_enum"]
+side  [type = "PLASMA_enum"]
+uplo  [type = "PLASMA_enum"]
 trans [type = "PLASMA_enum"]
-diag [type = "PLASMA_enum"]
+diag  [type = "PLASMA_enum"]
 alpha [type = "Dague_Complex64_t"]
 descA [type = "tiled_matrix_desc_t"]
-A [type = "dague_ddesc_t *"]
+A     [type = "dague_ddesc_t *"]
 descB [type = "tiled_matrix_desc_t"]
-B [type = "dague_ddesc_t *"]
+B     [type = "dague_ddesc_t *"]
 
 
 ztrsm(k,m)
@@ -41,22 +41,12 @@ ztrsm(k,m)
 
   : B(m,k)
 
-  /* A == A(k,k) */
-  /* B == B(m,k) */
-  /* C == B(m,k) */
-  /* E == B(m,n) */
-
   READ  A <- A ztrsm_in_A0(k,m)
 
   RW    B <- (0==k) ? B(m,k)
-          <- (k>=1) ? E zgemm(k-1, m, k) 
-          -> (descB.nt>=(k+2)) ? C zgemm(k, m, (k+1)..(descB.nt-1)) 
+          <- (k>=1) ? E zgemm(k-1, m, k)
+          -> (descB.nt>=(k+2)) ? C zgemm(k, m, (k+1)..(descB.nt-1))
           -> B(m,k)
-
-  /*
-  Anti-dependencies:
-
-  */
 
 BODY
 
@@ -66,15 +56,15 @@ BODY
   int ldb = BLKLDD( descB, m );
 
   DRYRUN(
-
-    CORE_ztrsm(side, uplo, trans, 
-	diag, tempmm, tempkn, 
-	alpha, A /* A(k,k) */, lda, 
-	B /* B(m,k) */, ldb );  );
+    CORE_ztrsm(side, uplo, trans, diag,
+               tempmm, tempkn, alpha,
+               A /* A(k,k) */, lda,
+               B /* B(m,k) */, ldb );
+         );
 
   printlog("thread %d CORE_ztrsm(%d, %d)\n"
            "\t(side, uplo, trans, diag, tempmm, tempkn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, m, k, k, A, m, k, B);
+           context->eu_id, k, m, k, k, A, m, k, B);
 
 END
 
@@ -103,11 +93,6 @@ zgemm(k,m,n)
 
   : B(m,n)
 
-  /* B == B(m,k) */
-  /* C == B(m,k) */
-  /* D == A(n,k) */
-  /* E == B(m,n) */
-
   READ  C <- B ztrsm(k, m) 
   READ  D <- D zgemm_in_A0(k,m,n)
 
@@ -116,11 +101,6 @@ zgemm(k,m,n)
           -> ((1+k)==n) ? B ztrsm(n, m) 
           -> (n>=(2+k)) ? E zgemm(k+1, m, n) 
 
-  /*
-  Anti-dependencies:
-
-  */
-
 BODY
 
   int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
@@ -128,19 +108,18 @@ BODY
   Dague_Complex64_t minvalpha = ((Dague_Complex64_t)-1.000000)/alpha;
   int ldb = BLKLDD( descB, m );
   int ldan = BLKLDD( descA, n );
-  Dague_Complex64_t zone = (Dague_Complex64_t)1.000000;
 
   DRYRUN(
-
-    CORE_zgemm(PlasmaNoTrans, trans, tempmm, 
-	tempnn, descB.mb, minvalpha, 
-	C /* B(m,k) */, ldb, D /* A(n,k) */, 
-	ldan, zone, E /* B(m,n) */, 
-	ldb );  );
+      CORE_zgemm(PlasmaNoTrans, trans,
+                 tempmm, tempnn, descB.mb,
+                 minvalpha, C /* B(m,k) */, ldb,
+                            D /* A(n,k) */, ldan,
+                 1.0,       E /* B(m,n) */, ldb );
+         );
 
   printlog("thread %d CORE_zgemm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, trans, tempmm, tempnn, descB.mb, minvalpha, B(%d,%d)[%p], ldb, A(%d,%d)[%p], ldan, zone, B(%d,%d)[%p], ldb)\n",
-  context->eu_id, k, m, n, m, k, C, n, k, D, m, n, E);
+           context->eu_id, k, m, n, m, k, C, n, k, D, m, n, E);
 
 END
 
