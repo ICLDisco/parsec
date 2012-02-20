@@ -15,10 +15,6 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "map2.h"
 
-#ifndef max
-#define max(a, b) ((a)>(b)?(a):(b))
-#endif
-
 struct lange_args_s {
   PLASMA_enum ntype;
   tiled_matrix_desc_t *desc;
