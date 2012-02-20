@@ -1,0 +1,66 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#define PRECISION_z
+
+#include <plasma.h>
+#include <core_blas.h>
+
+#include "dague.h"
+#include "data_dist/matrix/precision.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/lib/memory_pool.h"
+#include "dplasma/lib/dplasmajdf.h"
+
+%}
+
+/** Globals */
+descA     [type = "tiled_matrix_desc_t"]
+A         [type = "dague_ddesc_t *"]
+descIP    [type = "tiled_matrix_desc_t"]
+IPIV      [type = "dague_ddesc_t *"]
+inc       [type = "int"]
+
+/************************************************************************************
+ *                              SWAP                                                *
+ ************************************************************************************/
+
+laswp(k, n)
+  /* Execution space */
+  k = 0..descIP.mt-1
+  n = 0..descA.nt-1
+
+  /* Locality */
+  :A(k, n)
+
+  READ  A    <- A(k, n)
+  READ  IPIV <- IPIV(k, 0)                               [type = PIVOT]
+  CTL   ctl  <- ( (inc > 0) && (k > 0 )          ) ? ctl laswp(k-1, n)
+             <- ( (inc < 0) && (k < descIP.mt-1 )) ? ctl laswp(k+1, n)
+             -> ( (inc > 0) && (k < descIP.mt-1 )) ? ctl laswp(k+1, n)
+             -> ( (inc < 0) && (k > 0 )          ) ? ctl laswp(k-1, n)
+
+BODY
+
+  DRYRUN(
+         int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
+         int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+         int ldak = BLKLDD(descA, k);
+
+         CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc);
+
+         );
+
+   printlog("thread %d   CORE_zlaswp(%d, %d)\n"
+            "\t(%d, A(%d,%d)[%p], %d, %d, IPIV(%d)[%p], %d)\n",
+            context->eu_id, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
+
+END
