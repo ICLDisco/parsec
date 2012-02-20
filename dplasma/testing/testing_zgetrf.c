@@ -91,23 +91,26 @@ int main(int argc, char ** argv)
     dplasma_zgetrf_Destruct( DAGUE_zgetrf );
     if(loud > 2) printf("Done.\n");
 
+    dplasma_zprint(dague, PlasmaUpperLower,
+                        (tiled_matrix_desc_t *)&ddescX);
+
     if ( check && info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
     }
-    /* else if ( check ) { */
+    else if ( check ) {
 
-    /*     dplasma_zgetrs(dague, PlasmaNoTrans, */
-    /*                           (tiled_matrix_desc_t *)&ddescA, */
-    /*                           (tiled_matrix_desc_t *)&ddescIPIV, */
-    /*                           (tiled_matrix_desc_t *)&ddescX ); */
+        dplasma_zgetrs(dague, PlasmaNoTrans,
+                       (tiled_matrix_desc_t *)&ddescA,
+                       (tiled_matrix_desc_t *)&ddescIPIV,
+                       (tiled_matrix_desc_t *)&ddescX );
 
-    /*     /\* Check the solution *\/ */
-    /*     ret |= check_solution( dague, (rank == 0) ? loud : 0, */
-    /*                            (tiled_matrix_desc_t *)&ddescA0, */
-    /*                            (tiled_matrix_desc_t *)&ddescB, */
-    /*                            (tiled_matrix_desc_t *)&ddescX); */
-    /* } */
+        /* Check the solution */
+        ret |= check_solution( dague, (rank == 0) ? loud : 0,
+                               (tiled_matrix_desc_t *)&ddescA0,
+                               (tiled_matrix_desc_t *)&ddescB,
+                               (tiled_matrix_desc_t *)&ddescX);
+    }
 
     if ( check ) {
         dague_data_free(ddescA0.mat);
