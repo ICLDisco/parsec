@@ -91,9 +91,6 @@ int main(int argc, char ** argv)
     dplasma_zgetrf_Destruct( DAGUE_zgetrf );
     if(loud > 2) printf("Done.\n");
 
-    dplasma_zprint(dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescX);
-
     if ( check && info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
         ret |= 1;
