@@ -20,7 +20,7 @@
 #include "dague.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
+static uint32_t twoDBC_get_rank_for_tile_st(dague_ddesc_t * desc, ...)
 {
     unsigned int stc, cr, m, n;
     unsigned int str, rr;
@@ -52,10 +52,37 @@ static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
 
     /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
     /*            m, n, res, rr, cr, Ddesc->grid.rows, Ddesc->grid.cols); */
+    return res;   
+}
+
+static uint32_t twoDBC_get_rank_for_tile(dague_ddesc_t * desc, ...)
+{
+    unsigned int cr, m, n;
+    unsigned int rr;
+    unsigned int res;
+    va_list ap;
+    two_dim_block_cyclic_t * Ddesc;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = va_arg(ap, unsigned int);
+    n = va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+    /* P(rr, cr) has the tile, compute the mpi rank*/
+    rr = m % Ddesc->grid.rows;
+    cr = n % Ddesc->grid.cols;
+    res = rr * Ddesc->grid.cols + cr;
+
     return res;
 }
 
-static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
+static void * twoDBC_get_local_tile_st(dague_ddesc_t * desc, ...)
 {
     size_t pos;
     int m, n;
@@ -75,7 +102,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     n += Ddesc->super.j / Ddesc->super.nb;
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
+    assert(desc->myrank == twoDBC_get_rank_for_tile_st(desc, m, n));
 #endif
 
     if ( Ddesc->super.storage == matrix_Tile ) {
@@ -137,6 +164,68 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
     return &(((char *) Ddesc->mat)[pos]);
 }
 
+static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
+{
+    size_t pos;
+    int m, n;
+    int nb_elem_r, last_c_size;
+    two_dim_block_cyclic_t * Ddesc;
+    va_list ap;
+    Ddesc = (two_dim_block_cyclic_t *)desc;
+
+    /* Get coordinates */
+    va_start(ap, desc);
+    m = (int)va_arg(ap, unsigned int);
+    n = (int)va_arg(ap, unsigned int);
+    va_end(ap);
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
+
+#if defined(DISTRIBUTED)
+    assert(desc->myrank == twoDBC_get_rank_for_tile(desc, m, n));
+#endif
+
+    if ( Ddesc->super.storage == matrix_Tile ) {
+        /* number of tiles per column of super-tile */
+        nb_elem_r = Ddesc->nb_elem_r;
+
+        /* pos is currently at head of supertile (0xA) */
+        pos = nb_elem_r * (n / Ddesc->grid.cols);
+
+        /* tile is in the last column of super-tile */
+        if( n >= Ddesc->super.lnt ) {
+            /* number of tile per super tile in last column */
+            last_c_size = 0;
+        }
+        else {
+            last_c_size = 1;
+        }
+        /* pos is at head of supertile (BxA) containing (m,n)  */
+        pos += last_c_size * (m / Ddesc->grid.rows);
+
+        pos *= (size_t)Ddesc->super.bsiz;
+
+    }
+    /* Lapack Storage */
+    else {
+        int local_m, local_n;
+        /* Compute the local tile row */
+        local_m = m / Ddesc->grid.rows;
+        m = m % Ddesc->grid.rows;
+        assert( m  == Ddesc->grid.rrank );
+        /* Compute the local column */
+        local_n = n / Ddesc->grid.cols;
+        n = n % Ddesc->grid.cols;
+        assert( n == Ddesc->grid.crank );
+        pos = (local_n * Ddesc->super.nb) * Ddesc->super.lm + 
+              local_m * Ddesc->super.mb;
+    }
+
+    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
+    return &(((char *) Ddesc->mat)[pos]);
+}
 
 #ifdef DAGUE_PROF_TRACE
 /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
@@ -202,9 +291,13 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->nodes  = nodes;
         o->cores  = cores;
         o->myrank = myrank;
-
-        o->rank_of       = twoDBC_get_rank_for_tile;
-        o->data_of       = twoDBC_get_local_tile;
+        if( (nrst == 1) && (ncst == 1) ) {
+            o->rank_of      = twoDBC_get_rank_for_tile;
+            o->data_of      = twoDBC_get_local_tile;
+        } else {
+            o->rank_of      = twoDBC_get_rank_for_tile_st;
+            o->data_of      = twoDBC_get_local_tile_st;
+        }
 #if defined(DAGUE_PROF_TRACE)
         o->data_key      = twoDBC_data_key;
         o->key_to_string = twoDBC_key_to_string;
@@ -325,6 +418,7 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
                                            two_dim_block_cyclic_t* origin,
                                            int rst, int cst )
 {
+    assert( (origin->grid.strows == 1) && (origin->grid.stcols == 1) );
     target = origin;
     target->grid.strows = rst;
     target->grid.stcols = cst;
