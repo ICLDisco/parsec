@@ -307,6 +307,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[])
     dague_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                             0, NULL,
                                             &schedule_sleep_begin, &schedule_sleep_end);
+    dague_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
+                                            0, NULL,
+                                            &queue_add_begin, &queue_add_end);
+    dague_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
+                                            0, NULL,
+                                            &queue_remove_begin, &queue_remove_end);
 #endif  /* DAGUE_PROF_TRACE */
 
     {
