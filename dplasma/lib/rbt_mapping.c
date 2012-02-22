@@ -7,7 +7,6 @@
 
 
 seg_info_t calculate_constants(input_t args){
-    //int spy, spx, mpy, mpx, epy, epx;
     int ay, ax, by, bx, cy, cx, dy, dx, ey, ex, fy, fx;
     int nb,mb,N,l,ib,jb;
     int xy, width, height, w;
@@ -46,13 +45,12 @@ seg_info_t calculate_constants(input_t args){
 
     ax = seg.spx%nb;
     bx = mb-ax;
-    /* FIXME: If we only have two original tiles in a butterfly quarter, it can be cx := ex */
     cx = seg.mpx%nb;
     dx = mb-cx;
     ex = (dx>bx) ? dx-bx : mb + (dx-bx);
     fx = mb-ex;
 
-    /* top center edge types */
+    /* top edge types */
     if( by < fy+ey ) {
         if( fy < by ) {
             height = by-fy;
@@ -67,7 +65,7 @@ seg_info_t calculate_constants(input_t args){
         }
     }
 
-    /* left center edge types */
+    /* left edge types */
     if( bx < fx+ex ) {
         if( fx < bx ) {
             width = bx-fx;
@@ -226,6 +224,7 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     if( bottom ){
         abs_i += seg.mpy-seg.spy;
     }
+
     printf("(%d,%d), off: %d, HxW: %dx%d\n",abs_i/mb, abs_j/nb, (abs_i%mb)*nb+(abs_j%nb), height,width);
 
     return;
