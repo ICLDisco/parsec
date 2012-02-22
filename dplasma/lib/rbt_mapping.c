@@ -304,7 +304,7 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     if( bottom ){
         abs_i += seg.mpy-seg.spy;
     }
-    printf("(%d,%d), off: %d, WxH: %dx%d\n",abs_i/mb, abs_j/nb, (abs_i%mb)*nb+(abs_j%nb), width,height);
+    printf("(%d,%d), off: %d, HxW: %dx%d\n",abs_i/mb, abs_j/nb, (abs_i%mb)*nb+(abs_j%nb), height,width);
 
     return;
 }
