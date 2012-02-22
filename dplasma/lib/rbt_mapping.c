@@ -1,94 +1,17 @@
-#include <stdio.h>}
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-
-static int sf=12; /* scale factor */
-int spx, mpx;
-
-void usage(char *name){
-    fprintf(stderr,"Usage: %s  -N matrix-size  -nb tile-size  -L level -ib bt_vert_cnt -jb bt_horz_cnt\n", name);
-    exit(-1);
-}
-
-typedef struct{
-    int N;
-    int nb;
-    int L;
-    int ib;
-    int jb;
-} input_t;
+#include "rbt_mapping.h"
 
 
-typedef struct{
-  int x;
-  int y;
-} seg_count_t;
-
-typedef struct{
-  int x1;
-  int x2;
-  int y1;
-  int y2;
-} seg_size_t;
-
-typedef struct{
-  seg_count_t t_cnt;
-  seg_count_t b_cnt;
-  seg_count_t l_cnt;
-  seg_count_t r_cnt;
-  seg_count_t c_cnt;
-  seg_size_t t_sz;
-  seg_size_t b_sz;
-  seg_size_t l_sz;
-  seg_size_t r_sz;
-  seg_size_t c_sz;
-  int seg_cnt;
-  int spx, mpx, epx;
-  int spy, mpy, epy;
-} seg_info_t;
-
-//void find_tile(rbt_info_t info, int mb, int nb, int i, int j);
-void find_tile(seg_info_t seg, int mb, int nb, int i, int j);
-
-void parse_args(input_t *args, char **argv, int argc){
-
-    if( argc < 5 ){
-        usage(argv[0]);
-    }
-    while(argc>1){
-        if(       !strcmp(argv[argc-2], "-N") ){
-            args->N = atoi(argv[argc-1]);
-        }else if( !strcmp(argv[argc-2], "-nb") ){
-            args->nb = atoi(argv[argc-1]);
-        }else if( !strcmp(argv[argc-2], "-L") ){
-            args->L = atoi(argv[argc-1]);
-        }else if( !strcmp(argv[argc-2], "-ib") ){
-            args->ib = atoi(argv[argc-1]);
-        }else if( !strcmp(argv[argc-2], "-jb") ){
-            args->jb = atoi(argv[argc-1]);
-        }else{
-            usage(argv[0]);
-        }
-        argc -= 2;
-    }
-
-    return;
-}
-
-
-int main(int argc, char **argv){
-    int spy, spx, mpy, mpx, epy, epx, ay, ax, by, bx, cy, cx, dy, dx, ey, ex, fy, fx;
-    int nb,mb,N,l,ib,jb,i,j;
-    int xy, width, height;
-    int w;
-    input_t args;
+seg_info_t calculate_constants(input_t args){
+    //int spy, spx, mpy, mpx, epy, epx;
+    int ay, ax, by, bx, cy, cx, dy, dx, ey, ex, fy, fx;
+    int nb,mb,N,l,ib,jb;
+    int xy, width, height, w;
     seg_info_t seg;
-
-    memset(&seg, 0, sizeof(seg_info_t));
-
-    parse_args(&args, argv, argc);
 
     N  = args.N;
     nb = args.nb;
@@ -212,18 +135,15 @@ int main(int argc, char **argv){
             endx -= cx;
         }
 
-        seg.seg_cnt = seg.c_cnt.x*(endx-startx)/nb;
+        seg.c_seg_cnt = seg.c_cnt.x*(endx-startx)/nb;
     }while(0); // just to give me a scope without looking ugly.
 
-    while(1){
-        printf("Enter i j: ");
-        scanf("%d %d",&i,&j);
-        find_tile(seg, mb, nb, i,j);
-    }
+    seg.tot_seg_cnt_x = seg.l_cnt.x + seg.c_seg_cnt + seg.r_cnt.x;
+    seg.tot_seg_cnt_y = seg.t_cnt.y + seg.c_seg_cnt + seg.b_cnt.y;
 
-    return 0;
-
+    return seg;
 }
+
 
 void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     int width, height;
@@ -231,8 +151,8 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     int right=0, bottom=0;
     int quart_seg_x, quart_seg_y;
 
-    quart_seg_x = (seg.l_cnt.x+seg.seg_cnt+seg.r_cnt.x);
-    quart_seg_y = (seg.t_cnt.y+seg.seg_cnt+seg.b_cnt.y);
+    quart_seg_x = (seg.l_cnt.x+seg.c_seg_cnt+seg.r_cnt.x);
+    quart_seg_y = (seg.t_cnt.y+seg.c_seg_cnt+seg.b_cnt.y);
 
     if( j >= 2*quart_seg_x || i >= 2*quart_seg_y ){
         fprintf(stderr,"invalid segment coordinates\n");
@@ -256,7 +176,7 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
             abs_j += seg.l_sz.x1;
             width = seg.l_sz.x2;
         }
-    }else if( j < (seg.l_cnt.x+seg.seg_cnt) ){ /* center */
+    }else if( j < (seg.l_cnt.x+seg.c_seg_cnt) ){ /* center */
         abs_j = seg.spx + seg.l_sz.x1 + seg.l_sz.x2;
         abs_j += ((j-seg.l_cnt.x)/seg.c_cnt.x)*nb;
         width = seg.c_sz.x1;
@@ -267,7 +187,7 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     }else{ /* right edge */
         abs_j = seg.mpx - (seg.r_sz.x1 + seg.r_sz.x2);
         width = seg.r_sz.x1;
-        if( j - (seg.l_cnt.x+seg.seg_cnt) ){
+        if( j - (seg.l_cnt.x+seg.c_seg_cnt) ){
             abs_j += seg.r_sz.x1;
             width = seg.r_sz.x2;
         }
@@ -281,7 +201,7 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
             abs_i += seg.t_sz.y1;
             height = seg.t_sz.y2;
         }
-    }else if( i < (seg.t_cnt.y+seg.seg_cnt) ){ /* center */
+    }else if( i < (seg.t_cnt.y+seg.c_seg_cnt) ){ /* center */
         abs_i = seg.spy + seg.t_sz.y1 + seg.t_sz.y2;
         abs_i += ((i-seg.t_cnt.y)/seg.c_cnt.y)*nb;
         height = seg.c_sz.y1;
@@ -292,7 +212,7 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     }else{ /* bottom edge */
         abs_i = seg.mpy - (seg.b_sz.y1 + seg.b_sz.y2);
         height = seg.b_sz.y1;
-        if( i - (seg.t_cnt.y+seg.seg_cnt) ){
+        if( i - (seg.t_cnt.y+seg.c_seg_cnt) ){
             abs_i += seg.b_sz.y1;
             height = seg.b_sz.y2;
         }
