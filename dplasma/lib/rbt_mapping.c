@@ -147,7 +147,7 @@ seg_info_t calculate_constants(input_t args){
 
 void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
     int width, height;
-    int abs_i, abs_j;
+    int abs_m, abs_n;
     int right=0, bottom=0;
     int quart_seg_x, quart_seg_y;
 
@@ -170,62 +170,219 @@ void find_tile(seg_info_t seg, int mb, int nb, int i, int j){
 
     /* Horizontal */
     if( j < seg.l_cnt.x ){ /* left edge */
-        abs_j = seg.spx;
+        abs_n = seg.spx;
         width = seg.l_sz.x1;
         if( 1 == j ){
-            abs_j += seg.l_sz.x1;
+            abs_n += seg.l_sz.x1;
             width = seg.l_sz.x2;
         }
     }else if( j < (seg.l_cnt.x+seg.c_seg_cnt) ){ /* center */
-        abs_j = seg.spx + seg.l_sz.x1 + seg.l_sz.x2;
-        abs_j += ((j-seg.l_cnt.x)/seg.c_cnt.x)*nb;
+        abs_n = seg.spx + seg.l_sz.x1 + seg.l_sz.x2;
+        abs_n += ((j-seg.l_cnt.x)/seg.c_cnt.x)*nb;
         width = seg.c_sz.x1;
         if( (j-seg.l_cnt.x) % seg.c_cnt.x ){
-            abs_j += seg.c_sz.x1;
+            abs_n += seg.c_sz.x1;
             width = seg.c_sz.x2;
         }
     }else{ /* right edge */
-        abs_j = seg.mpx - (seg.r_sz.x1 + seg.r_sz.x2);
+        abs_n = seg.mpx - (seg.r_sz.x1 + seg.r_sz.x2);
         width = seg.r_sz.x1;
         if( j - (seg.l_cnt.x+seg.c_seg_cnt) ){
-            abs_j += seg.r_sz.x1;
+            abs_n += seg.r_sz.x1;
             width = seg.r_sz.x2;
         }
     }
 
     /* Vertical */
     if( i < seg.t_cnt.y ){ /* top edge */
-        abs_i = seg.spy;
+        abs_m = seg.spy;
         height = seg.t_sz.y1;
         if( 1 == i ){
-            abs_i += seg.t_sz.y1;
+            abs_m += seg.t_sz.y1;
             height = seg.t_sz.y2;
         }
     }else if( i < (seg.t_cnt.y+seg.c_seg_cnt) ){ /* center */
-        abs_i = seg.spy + seg.t_sz.y1 + seg.t_sz.y2;
-        abs_i += ((i-seg.t_cnt.y)/seg.c_cnt.y)*nb;
+        abs_m = seg.spy + seg.t_sz.y1 + seg.t_sz.y2;
+        abs_m += ((i-seg.t_cnt.y)/seg.c_cnt.y)*nb;
         height = seg.c_sz.y1;
         if( (i-seg.t_cnt.y) % seg.c_cnt.y ){
-            abs_i += seg.c_sz.y1;
+            abs_m += seg.c_sz.y1;
             height = seg.c_sz.y2;
         }
     }else{ /* bottom edge */
-        abs_i = seg.mpy - (seg.b_sz.y1 + seg.b_sz.y2);
+        abs_m = seg.mpy - (seg.b_sz.y1 + seg.b_sz.y2);
         height = seg.b_sz.y1;
         if( i - (seg.t_cnt.y+seg.c_seg_cnt) ){
-            abs_i += seg.b_sz.y1;
+            abs_m += seg.b_sz.y1;
             height = seg.b_sz.y2;
         }
     }
 
     if( right ){
-        abs_j += seg.mpx-seg.spx;
+        abs_n += seg.mpx-seg.spx;
     }
     if( bottom ){
-        abs_i += seg.mpy-seg.spy;
+        abs_m += seg.mpy-seg.spy;
     }
 
-    printf("(%d,%d), off: %d, HxW: %dx%d\n",abs_i/mb, abs_j/nb, (abs_i%mb)*nb+(abs_j%nb), height,width);
+    printf("(%d,%d), off: %d, HxW: %dx%d\n",abs_m/mb, abs_n/nb, (abs_m%mb)*nb+(abs_n%nb), height,width);
 
     return;
+}
+
+/* A() */
+int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_off, int *n_off, int *m_sz, int *n_sz){
+    int width, height;
+    int abs_m, abs_n;
+    int right=0, bottom=0;
+    int type_index_n, type_index_m;
+    int success = 1;
+
+    type_index_n = type_index%6;
+    type_index_m = type_index/6;
+
+    switch(type_index_n){
+        /**** left edge ****/
+        case 0:
+            abs_n = seg.spx;
+            width = seg.l_sz.x1;
+            break;
+        case 1:
+            abs_n = seg.spx;
+            width = seg.l_sz.x1;
+            abs_n += seg.l_sz.x1;
+            width = seg.l_sz.x2;
+            break;
+        /**** center ****/
+        case 2:
+            abs_n = seg.spx + seg.l_sz.x1 + seg.l_sz.x2;
+            width = seg.c_sz.x1;
+            break;
+        case 3:
+            abs_n = seg.spx + seg.l_sz.x1 + seg.l_sz.x2;
+            abs_n += seg.c_sz.x1;
+            width = seg.c_sz.x2;
+            break;
+        /**** right edge ****/
+        case 4:
+            abs_n = seg.mpx - (seg.r_sz.x1 + seg.r_sz.x2);
+            width = seg.r_sz.x1;
+            break;
+        case 5:
+            abs_n = seg.mpx - (seg.r_sz.x1 + seg.r_sz.x2);
+            abs_n += seg.r_sz.x1;
+            width = seg.r_sz.x2;
+            break;
+        default: assert(0);
+    }
+
+    switch(type_index_m){
+        /**** top edge ****/
+        case 0:
+            abs_m = seg.spy;
+            height = seg.t_sz.y1;
+            break;
+        case 1:
+            abs_m = seg.spy;
+            abs_m += seg.t_sz.y1;
+            height = seg.t_sz.y2;
+            break;
+        /**** center ****/
+        case 2:
+            abs_m = seg.spy + seg.t_sz.y1 + seg.t_sz.y2;
+            height = seg.c_sz.y1;
+            break;
+        case 3:
+            abs_m = seg.spy + seg.t_sz.y1 + seg.t_sz.y2;
+            abs_m += seg.c_sz.y1;
+            height = seg.c_sz.y2;
+            break;
+        /**** bottom edge ****/
+        case 4:
+            abs_m = seg.mpy - (seg.b_sz.y1 + seg.b_sz.y2);
+            height = seg.b_sz.y1;
+            break;
+        case 5:
+            abs_m = seg.mpy - (seg.b_sz.y1 + seg.b_sz.y2);
+            abs_m += seg.b_sz.y1;
+            height = seg.b_sz.y2;
+            break;
+    }
+
+    if( !height || !width ){
+        success = 0;
+    }
+
+    *m_off = abs_m%mb;
+    *n_off = abs_n%nb;
+    *m_sz = height;
+    *n_sz = width;
+
+    return success;
+}
+
+/* B() */
+int segment_to_type_index(seg_info_t seg, int mb, int nb, int i, int j){
+    int width, height;
+    int abs_m, abs_n;
+    int right=0, bottom=0;
+    int quart_seg_x, quart_seg_y;
+    int type_index_n, type_index_m, type_index;
+
+    quart_seg_x = (seg.l_cnt.x+seg.c_seg_cnt+seg.r_cnt.x);
+    quart_seg_y = (seg.t_cnt.y+seg.c_seg_cnt+seg.b_cnt.y);
+
+    if( j >= 2*quart_seg_x || i >= 2*quart_seg_y ){
+        fprintf(stderr,"invalid segment coordinates\n");
+        return;
+    }
+
+    if( j >= quart_seg_x ){
+        j -= quart_seg_x;
+    }
+    if( i >= quart_seg_y ){
+        i -= quart_seg_y;
+    }
+
+    /* Horizontal */
+    if( j < seg.l_cnt.x ){ /* left edge */
+        type_index_n = 0;
+        if( 1 == j ){
+            type_index_n = 1;
+        }
+    }else if( j < (seg.l_cnt.x+seg.c_seg_cnt) ){ /* center */
+        type_index_n = 2;
+        if( (j-seg.l_cnt.x) % seg.c_cnt.x ){
+            type_index_n = 3;
+        }
+    }else{ /* right edge */
+        type_index_n = 4;
+        if( j - (seg.l_cnt.x+seg.c_seg_cnt) ){
+            type_index_n = 5;
+        }
+    }
+
+    /* Vertical */
+    if( i < seg.t_cnt.y ){ /* top edge */
+        type_index_m = 0;
+        if( 1 == i ){
+            type_index_m = 1;
+        }
+    }else if( i < (seg.t_cnt.y+seg.c_seg_cnt) ){ /* center */
+        type_index_m = 2;
+        if( (i-seg.t_cnt.y) % seg.c_cnt.y ){
+            type_index_m = 3;
+        }
+    }else{ /* bottom edge */
+        type_index_m = 4;
+        if( i - (seg.t_cnt.y+seg.c_seg_cnt) ){
+            type_index_m = 5;
+        }
+    }
+
+    type_index = type_index_m*6+type_index_n;
+
+    printf("type_index: %d\n",type_index);
+
+    return type_index;
 }
