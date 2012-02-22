@@ -13,6 +13,8 @@ seg_info_t calculate_constants(input_t args){
     int xy, width, height, w;
     seg_info_t seg;
 
+    memset(&seg, 0, sizeof(seg_info_t));
+
     N  = args.N;
     nb = args.nb;
     l  = args.L;
@@ -138,8 +140,8 @@ seg_info_t calculate_constants(input_t args){
         seg.c_seg_cnt = seg.c_cnt.x*(endx-startx)/nb;
     }while(0); // just to give me a scope without looking ugly.
 
-    seg.tot_seg_cnt_x = seg.l_cnt.x + seg.c_seg_cnt + seg.r_cnt.x;
-    seg.tot_seg_cnt_y = seg.t_cnt.y + seg.c_seg_cnt + seg.b_cnt.y;
+    seg.tot_seg_cnt_x = 2*(seg.l_cnt.x + seg.c_seg_cnt + seg.r_cnt.x);
+    seg.tot_seg_cnt_y = 2*(seg.t_cnt.y + seg.c_seg_cnt + seg.b_cnt.y);
 
     return seg;
 }
