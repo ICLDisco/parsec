@@ -1,6 +1,7 @@
 #ifndef _RBT_MAPPING_H_
 #define _RBT_MAPPING_H_
 
+/*
 typedef struct{
     int N;
     int nb;
@@ -8,7 +9,7 @@ typedef struct{
     int ib;
     int jb;
 } input_t;
-
+*/
 
 typedef struct{
   int x;
@@ -34,7 +35,7 @@ typedef struct{
 
 /* forward declarations */
 void find_tile(seg_info_t seg, int mb, int nb, int i, int j);
-seg_info_t calculate_constants(input_t args);
-
+//seg_info_t calculate_constants(input_t args);
+seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
 
 #endif

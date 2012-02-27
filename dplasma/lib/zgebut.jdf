@@ -25,8 +25,6 @@ extern "C" %{
 
 descA  [type = "tiled_matrix_desc_t"]
 A      [type = "dague_ddesc_t *"]
-it     [type = "int"]
-jt     [type = "int"]
 nt     [type = "int"]
 mt     [type = "int"]
 
@@ -39,7 +37,7 @@ GEBRT(i,j)
   i = 0 .. nt/2-1
   j = 0 .. nt/2-1
 
-  : A(it+i,jt+j)
+  : A(i,j)
 
   /* Atl: A from Top Left */
   RW  Atl <- A GEBRT_Reader(i,j)
@@ -70,9 +68,9 @@ GEBRT_Reader(i,j)
   i = 0 .. nt-1
   j = 0 .. nt-1
 
-  : A(i+it,j+jt)
+  : A(i,j)
 
-READ A <- A(i+it, j+jt)
+READ A <- A(i, j)
        -> ( (i<nt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j)
        -> ( (i<nt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2)
        -> ( (i>=nt/2) && (j<nt/2)  ) ? Abl GEBRT(i-nt/2,j)
@@ -91,13 +89,13 @@ GEBRT_Writer(i,j)
   i = 0 .. nt-1
   j = 0 .. nt-1
 
-  : A(i+it,j+jt)
+  : A(i,j)
 
 READ A <- ( (i<nt/2)  && (j<nt/2)  ) ? Atl GEBRT(i,j)
        <- ( (i<nt/2)  && (j>=nt/2) ) ? Atr GEBRT(i,j-nt/2)
        <- ( (i>=nt/2) && (j<nt/2)  ) ? Abl GEBRT(i-nt/2,j)
        <- ( (i>=nt/2) && (j>=nt/2) ) ? Abr GEBRT(i-nt/2,j-nt/2)
-       -> A(i+it, j+jt)
+       -> A(i, j)
 
 BODY
 /* nothing */
