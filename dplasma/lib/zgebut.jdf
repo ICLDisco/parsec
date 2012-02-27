@@ -20,10 +20,11 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/butterfly_map.h"
 
 %}
 
-descA  [type = "tiled_matrix_desc_t"]
+descA  [type = "dague_seg_ddesc_t"]
 A      [type = "dague_ddesc_t *"]
 nt     [type = "int"]
 mt     [type = "int"]

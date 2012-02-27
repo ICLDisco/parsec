@@ -3,11 +3,14 @@
 #include <string.h>
 #include <assert.h>
 
-#include "butterfly_map.h"
+#include "dplasma/lib/butterfly_map.h"
+#include "dplasma/lib/zhebut.h"
+
+static int segment_to_type_index(seg_info_t seg, int m, int n);
 
 seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;
-    int width, height, block_count;
+    int mb, width, height, block_count;
     seg_info_t seg;
 
     memset(&seg, 0, sizeof(seg_info_t));
@@ -140,7 +143,6 @@ seg_info_t dague_rbt_calculate_constants(int N, int nb, int L, int ib, int jb){
 void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, int *offset){
     seg_info_t seg;
     int mb, nb;
-    int width, height;
     int abs_m, abs_n;
     int right=0, bottom=0;
 
@@ -165,50 +167,38 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
     /* Horizontal */
     if( n < seg.l_cnt.n ){ /* left edge */
         abs_n = seg.spn;
-        width = seg.l_sz.n1;
         if( 1 == n ){
             abs_n += seg.l_sz.n1;
-            width = seg.l_sz.n2;
         }
     }else if( n < (seg.l_cnt.n+seg.c_seg_cnt) ){ /* center */
         abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2;
         abs_n += ((n-seg.l_cnt.n)/seg.c_cnt.n)*nb;
-        width = seg.c_sz.n1;
         if( (n-seg.l_cnt.n) % seg.c_cnt.n ){
             abs_n += seg.c_sz.n1;
-            width = seg.c_sz.n2;
         }
     }else{ /* right edge */
         abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2);
-        width = seg.r_sz.n1;
         if( n - (seg.l_cnt.n+seg.c_seg_cnt) ){
             abs_n += seg.r_sz.n1;
-            width = seg.r_sz.n2;
         }
     }
 
     /* Vertical */
     if( m < seg.t_cnt.m ){ /* top edge */
         abs_m = seg.spm;
-        height = seg.t_sz.m1;
         if( 1 == m ){
             abs_m += seg.t_sz.m1;
-            height = seg.t_sz.m2;
         }
     }else if( m < (seg.t_cnt.m+seg.c_seg_cnt) ){ /* center */
         abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
         abs_m += ((m-seg.t_cnt.m)/seg.c_cnt.m)*nb;
-        height = seg.c_sz.m1;
         if( (m-seg.t_cnt.m) % seg.c_cnt.m ){
             abs_m += seg.c_sz.m1;
-            height = seg.c_sz.m2;
         }
     }else{ /* bottom edge */
         abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2);
-        height = seg.b_sz.m1;
         if( m - (seg.t_cnt.m+seg.c_seg_cnt) ){
             abs_m += seg.b_sz.m1;
-            height = seg.b_sz.m2;
         }
     }
 
@@ -229,7 +219,6 @@ void segment_to_tile(dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, in
 int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_off, int *n_off, int *m_sz, int *n_sz){
     int width, height;
     int abs_m, abs_n;
-    int right=0, bottom=0;
     int type_index_n, type_index_m;
     int success = 1;
 
@@ -316,14 +305,11 @@ int type_index_to_sizes(seg_info_t seg, int mb, int nb, int type_index, int *m_o
     return success;
 }
 
-int segment_to_arena_index(seg_info_t seg, int mb, int nb, int m, int n){
-    return DAGUE_zgebut_MIN_ARENA_INDEX + segment_to_type_index(seg, mb, nb, m, n);
+int segment_to_arena_index(dague_seg_ddesc_t but_ddesc, int m, int n){
+    return DAGUE_zhebut_ARENA_INDEX_MIN + segment_to_type_index(but_ddesc.seg_info, m, n);
 }
 
-int segment_to_type_index(seg_info_t seg, int mb, int nb, int m, int n){
-    int width, height;
-    int abs_m, abs_n;
-    int right=0, bottom=0;
+static int segment_to_type_index(seg_info_t seg, int m, int n){
     int type_index_n, type_index_m, type_index;
 
     if( n >= seg.tot_seg_cnt_n || m >= seg.tot_seg_cnt_m ){

@@ -11,6 +11,7 @@ set(EXTRA_SOURCES
   pivgen.c
   pivgen_dbg.c
   map2_wrapper.c
+  butterfly_map.c
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

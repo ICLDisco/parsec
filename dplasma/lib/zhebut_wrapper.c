@@ -12,29 +12,29 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
   
-#include "zgebut.h"
-#include "zhebut.h"
-#include "rbt_mapping.h"
+#include "dplasma/lib/butterfly_map.h"
+#include "dplasma/lib/zgebut.h"
+#include "dplasma/lib/zhebut.h"
 
-typedef struct seg_dague_ddesc{
- dague_ddesc_t super; /* include/data_distribution.h */
- tiled_matrix_desc_t *A_org; /* data_dist/matrix/matrix.h */
- seg_info_t seg_info;
-}dague_seg_ddesc_t;
-
-static void *dague_rbt_rank_of(dague_ddesc_t *desc, ...){
+static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile, offset;
     va_list ap;
+    dague_seg_ddesc_t *segA;
+    dague_ddesc_t *A;
+
     va_start(ap, desc);
     m_seg = va_arg(ap, int);
     n_seg = va_arg(ap, int);
     va_end(ap);
 
-    segment_to_tile(seg_dague_ddsec_t *seg_ddesc, m_seg, n_seg, &m_tile, &n_tile, &offset);
+    segA = (dague_seg_ddesc_t *)desc;
+    A = (dague_ddesc_t *)(segA->A_org);
+
+    segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
     /* TODO: if not distributed, return 0 */
 
-    return desc->A_org->rank_of(desc->A_org, m_tile, n_tile);
+    return A->rank_of(A, m_tile, n_tile);
 }
 
 
@@ -54,16 +54,22 @@ static void *dague_rbt_rank_of(dague_ddesc_t *desc, ...){
  * these two functions must always correspond.
  */
 static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
-    int m_seg, n_seg, m_tile, n_tile;
+    int m_seg, n_seg, m_tile, n_tile, offset;
     va_list ap;
+    dague_seg_ddesc_t *segA;
+    dague_ddesc_t *A;
+
     va_start(ap, desc);
     m_seg = va_arg(ap, int);
     n_seg = va_arg(ap, int);
     va_end(ap);
 
-    segment_to_tile(seg_dague_ddsec_t *seg_ddesc, m_seg, n_seg, &m_tile, &n_tile, &offset);
+    segA = (dague_seg_ddesc_t *)desc;
+    A = (dague_ddesc_t *)(segA->A_org);
 
-    return desc->A_org->data_of(desc->A_org, m_tile, n_tile);
+    segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
+
+    return A->data_of(A, m_tile, n_tile);
 }
 
 
@@ -72,14 +78,14 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
  * Don't change this function without updating dague_rbt_data_of().
  * Look at the comments at dague_rbt_data_of() for details.
  */
-int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype,
-                                      unsigned int tile_mb,
-                                      unsigned int tile_nb,
-                                      unsigned int seg_mb,
-                                      unsigned int seg_nb,
-                                      unsigned int m_off,
-                                      unsigned int n_off,
-                                      dague_remote_dep_datatype_t* newtype )
+static int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype,
+                                             unsigned int tile_mb,
+                                             unsigned int tile_nb,
+                                             unsigned int seg_mb,
+                                             unsigned int seg_nb,
+                                             unsigned int m_off,
+                                             unsigned int n_off,
+                                             dague_remote_dep_datatype_t* newtype )
 {
     int sizes[2], subsizes[2], starts[2]; 
  
@@ -98,7 +104,7 @@ int dplasma_datatype_define_subarray( dague_remote_dep_datatype_t oldtype,
         int len;
 
         MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "SEG %s %4u*%4u+%4u [%4ux%4u]", oldtype_name, seg_mb, seg_nb, seg_off, tile_mb, tile_nb);
+        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "SEG %s %4u*%4u+(%4u,%4u) [%4ux%4u]", oldtype_name, seg_mb, seg_nb, m_off, n_off, tile_mb, tile_nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }while(0); /* just for the scope */
 #endif  /* defined(HAVE_MPI_20) */
@@ -120,15 +126,11 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 {
     dague_object_t *dague_zhebut = NULL;
     dague_seg_ddesc_t *seg_descA;
+    int i, nt;
 
     (void)info;
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
-
-    if( nt%2 ){
-        dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
-        return NULL;
-    }
 
     /* copy the ddesc part of A into seg_descA */
     memcpy(seg_descA, A, sizeof(dague_ddesc_t));
@@ -139,6 +141,12 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     seg_descA->A_org = A;
     /* store the segment info */
     seg_descA->seg_info = dague_rbt_calculate_constants(A->lm, A->nb, level, i_block, j_block);
+
+    nt = A->lm/A->nb;
+    if( nt%2 ){
+        dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
+        return NULL;
+    }
 
     dague_zhebut = (dague_object_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, nt);
     
@@ -155,12 +163,12 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         int type_exists;
         int m_off, n_off, m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_indo, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
 
         if( type_exists ){
-            arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_MIN_ARENA_INDEX + i];
+            arena = ((dague_zhebut_object_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              seg_mb, seg_nb, m_off, n_off,
+                                              m_sz, n_sz, m_off, n_off,
                                               &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
@@ -191,15 +199,11 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
 {
     dague_object_t *dague_zgebut = NULL;
     dague_seg_ddesc_t *seg_descA;
+    int i,nt;
 
     (void)info;
 
     seg_descA = (dague_seg_ddesc_t *)calloc(1, sizeof(dague_seg_ddesc_t));
-
-    if( nt%2 ){
-        dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
-        return NULL;
-    }
 
     /* copy the ddesc part of A into seg_descA */
     memcpy(seg_descA, A, sizeof(dague_ddesc_t));
@@ -210,6 +214,13 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
     seg_descA->A_org = A;
     /* store the segment info */
     seg_descA->seg_info = dague_rbt_calculate_constants(A->lm, A->nb, level, i_block, j_block);
+
+    nt = A->lm/A->nb;
+
+    if( nt%2 ){
+        dplasma_error("dplasma_zhebut_New", "illegal number of tiles in matrix");
+        return NULL;
+    }
 
     dague_zgebut = (dague_object_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, nt, nt);
     
@@ -226,12 +237,12 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, int i_block, int j_block, int level,
         int type_exists;
         int m_off, n_off, m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_indo, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(seg_descA->seg_info, A->mb, A->nb, i, &m_off, &n_off, &m_sz, &n_sz);
 
         if( type_exists ){
-            arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_MIN_ARENA_INDEX + i];
+            arena = ((dague_zgebut_object_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i];
             dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              seg_mb, seg_nb, m_off, n_off,
+                                              m_sz, n_sz, m_off, n_off,
                                               &newtype );
             dplasma_get_extent(newtype, &extent);
             dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
