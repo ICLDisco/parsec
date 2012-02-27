@@ -174,7 +174,7 @@ static void * twoDBC_get_local_tile(dague_ddesc_t * desc, ...)
 #endif
 
     if( Ddesc->super.storage == matrix_Tile ) {
-        pos = Ddesc->super.lmt * (n / Ddesc->grid.cols);
+        pos = Ddesc->nb_elem_r * (n / Ddesc->grid.cols);
         pos += m / Ddesc->grid.rows;
         pos *= (size_t)Ddesc->super.bsiz;
     }
